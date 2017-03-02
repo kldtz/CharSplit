@@ -103,7 +103,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
             word_label_count_map[word][label_val] += 1
 
     # print("word_docids_map[Change] = {}".format(word_docids_map['Change']))
-    logging.info("igain.vocab size = {}".format(len(vocabs)))
+    logging.debug("igain.vocab size = {}".format(len(vocabs)))
                 
     # vocab, cond_dist, word_label_count_map
 
@@ -126,7 +126,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
             now_time = time.time()
             partial_diff = now_time - start_time
             total_diff = now_time - orig_start_time
-            logging.info("i = {}, took {:.4f} seconds, total = {:.4f} seconds".format(i,
+            logging.debug("i = {}, took {:.4f} seconds, total = {:.4f} seconds".format(i,
                                                                                       partial_diff,
                                                                                       total_diff,
                                                                                       file=sys.stderr))

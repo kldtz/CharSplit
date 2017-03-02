@@ -1,20 +1,14 @@
-import argparse
-from collections import defaultdict
 import concurrent.futures
 import logging
-import json
-import os.path
+
 
 from sklearn.externals import joblib
 
 from eblearn import ebtext2antdoc
-from utils import strutils, osutils
-from eblearn import ebpostproc, ebannotator, ebtrainer
-from eblearn import provclassifier, scutclassifier
+from eblearn import ebannotator, ebtrainer
+from eblearn import scutclassifier
+from utils import osutils
 
-
-# command line:
-# run_parallel_prov.py --doc sample_data2/19400.txt
 
 def annotate_provision(eb_annotator, eb_antdoc):
     return eb_annotator.annotate_antdoc(eb_antdoc)
@@ -145,7 +139,8 @@ class EbRunner:
                                                       self.work_dir,
                                                       custom_model_dir,
                                                       model_file_name,
-                                                      eb_classifier)
+                                                      eb_classifier,
+                                                      custom_training_mode=True)
 
         # update the hashmap of classifier
         old_provision_annotator = self.provision_annotator_map.get(provision)

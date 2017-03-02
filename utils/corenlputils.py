@@ -1,8 +1,7 @@
 import re
-import sys
 
 from utils.corenlpsent import EbSentence, eb_tokens_to_st
-from utils import strutils
+
 
 def is_sent_starts_with_lower(ebsent_list, sent_idx):
     num_sent = len(ebsent_list)

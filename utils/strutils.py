@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-import sys
-import logging
 import json
+import logging
 import os
 import re
+import sys
+
 
 def remove_nltab(st):
     # return re.sub(r'[\s\t\r\n]+', ' ', st)

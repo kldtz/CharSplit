@@ -1,17 +1,16 @@
-import os
 import json
-from pathlib import Path
 import logging
+import os
+from pathlib import Path
+import time
+
 from sklearn.externals import joblib
 
 from annotator.corenlp_sent_annotator import CoreNlpSentenceAnnotator
 from eblearn import sent2ebattrvec
-
 from utils import strutils, corenlputils, osutils, ebantdoc, mathutils
-
 from utils.ebantdoc import EbEntityType
 
-import time
 
 DEFAULT_IS_CACHE_ENABLED = True
 
@@ -177,7 +176,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
             eb_antdoc_fn = work_dir + "/" + txt_basename.replace('.txt', '.ebantdoc.pkl')
             if os.path.exists(eb_antdoc_fn):
                 eb_antdoc = joblib.load(eb_antdoc_fn)
-                logging.info("loading cached version: {}".format(eb_antdoc_fn))
+                logging.debug("loading cached version: {}".format(eb_antdoc_fn))
                 return eb_antdoc
 
             json_fn = work_dir + "/" + txt_basename.replace('.txt', '.corenlp.json')
@@ -245,26 +244,26 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
         # if cache version exists, load that and return
         eb_antdoc_fn = work_dir + "/" + txt_basename.replace('.txt', '.ebantdoc.pkl')
         joblib.dump(eb_antdoc, eb_antdoc_fn)
-        logging.info("save in cached: {}".format(eb_antdoc_fn))            
+        logging.debug("save in cached: {}".format(eb_antdoc_fn))            
     return eb_antdoc
 
 def doc_to_ebantdoc(txt_file_name, work_dir):
     if work_dir is not None and not os.path.isdir(work_dir):
-        logging.info("mkdir '{}'".format(work_dir))
+        logging.debug("mkdir '{}'".format(work_dir))
         osutils.mkpath(work_dir)
 
     start_time = time.time()
     doc_text = strutils.loads(txt_file_name)
     eb_antdoc = parse_to_eb_antdoc(doc_text, txt_file_name, work_dir=work_dir)
     now_time = time.time()
-    logging.info('feature extraction: "{}, took {:.2f} seconds"'.format(txt_file_name, now_time - start_time))
+    logging.debug('feature extraction: "{}, took {:.2f} seconds"'.format(txt_file_name, now_time - start_time))
 
     return eb_antdoc
 
 def doclist_to_ebantdoc_list(doclist_file, work_dir):
-    logging.info('doclist_to_ebantdoc_list({}, {})'.format(doclist_file, work_dir))
+    logging.debug('doclist_to_ebantdoc_list({}, {})'.format(doclist_file, work_dir))
     if work_dir is not None and not os.path.isdir(work_dir):
-        logging.info("mkdir '{}'".format(work_dir))
+        logging.debug("mkdir '{}'".format(work_dir))
         osutils.mkpath(work_dir)
     eb_antdoc_list = []
     with open(doclist_file, 'rt') as fin:
@@ -272,7 +271,7 @@ def doclist_to_ebantdoc_list(doclist_file, work_dir):
             txt_file_name = txt_file_name.strip()
             eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir)
             eb_antdoc_list.append(eb_antdoc)
-    logging.info('Finished run_feature_extraction()')
+    logging.debug('Finished run_feature_extraction()')
 
     return eb_antdoc_list
 

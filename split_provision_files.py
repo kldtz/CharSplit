@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-
 import argparse
+import logging
+
 from utils import splittrte, osutils
 
-import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 

@@ -1,19 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
-import json
 import logging
 import argparse
-import os.path
 
-from sklearn.externals import joblib
+from eblearn import ebtrainer, provclassifier, scutclassifier
 
-from utils import strutils, corenlputils, csrutils, osutils
-
-from collections import defaultdict
-
-from eblearn import provclassifier, scutclassifier
-from eblearn import ebannotator, ebtext2antdoc, ebtrainer
-from pprint import pprint
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 

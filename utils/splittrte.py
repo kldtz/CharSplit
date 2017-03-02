@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-from utils import osutils
-
 from collections import defaultdict
+import logging
 
 from eblearn import ebtext2antdoc
+
 
 # Currently, we don't have the information on whether we annotated a document
 # for a particular provision or not.  Will modify this code if the situation
@@ -12,8 +12,7 @@ from eblearn import ebtext2antdoc
 def provisions_split(provision_list, txt_fn_list, work_dir=None ):
 
     ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
-
-    print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
+    # print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     provision_posneg_doc_list_map = defaultdict(lambda: defaultdict(list))
     for ebantdoc in ebantdoc_list:
@@ -38,7 +37,7 @@ def provisions_split(provision_list, txt_fn_list, work_dir=None ):
 
 
 def save_antdoc_fn_list(eb_antdoc_list, doclist_file_name):
-    print("save_antdoc_fn_list({})".format(doclist_file_name))
+    logging.debug("save_antdoc_fn_list({})".format(doclist_file_name))
 
     with open(doclist_file_name, 'wt') as fout:
         for eb_antdoc in eb_antdoc_list:

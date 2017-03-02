@@ -1,15 +1,15 @@
-from sklearn import preprocessing
-from sklearn.feature_extraction.text import CountVectorizer
-from scipy import sparse
+import logging
 
-from utils import strutils, stopwordutils
-import numpy as np
 from nltk import FreqDist
 
-from eblearn import igain
+import numpy as np
+from scipy import sparse
+from sklearn import preprocessing
+from sklearn.feature_extraction.text import CountVectorizer
 
+from eblearn import igain
 from eblearn import ebattr
-import logging
+from utils import strutils, stopwordutils
 
 # Because each classifier might have different columns being zero, there is a need to keep track of
 # which column is removed and pass that information out.

@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
-import sys
-import logging
-import os
-import sklearn
 from utils import strutils
 
 def get_sklearn_stopwords():

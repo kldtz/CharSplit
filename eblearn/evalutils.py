@@ -1,7 +1,6 @@
-
-from utils import ebantdoc, mathutils
-
 from collections import defaultdict
+
+from utils import mathutils
 
 # label_start_end_list is of type prov_annotation_list
 def find_annotation_overlap(start, end, label_start_end_list):
@@ -12,7 +11,7 @@ def find_annotation_overlap(start, end, label_start_end_list):
     return result_list
 
 def calc_precision_recall_f1(tn, fp, fn, tp, title):
-    print("\n{}".format(title))
+    print("\n" + title)
     actual_true = fn + tp
     actual_false = tn + fp
     pred_true = tp + fp
@@ -21,6 +20,7 @@ def calc_precision_recall_f1(tn, fp, fn, tp, title):
     print("actual_true= {}, actual_false= {}".format(actual_true, actual_false))
     print("  pred_true= {},   pred_false= {}".format(pred_true, pred_false))        
     print("[[tn={}, fp={}], [fn={}, tp={}]]".format(tn, fp, fn, tp))
+    
     if tp + fp == 0:
         prec = 0
     else:
@@ -34,7 +34,6 @@ def calc_precision_recall_f1(tn, fp, fn, tp, title):
     else:
         f1 = 2 * prec * recall / (prec + recall)
     print("prec= {}, recall= {}, f1= {}".format(prec, recall, f1))
-    print()
 
     return prec, recall, f1
 
@@ -121,6 +120,8 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
 #
 
 def print_with_threshold(probs, Y_te, overrides):
+    pass
+    """
     # compute thresholded recall/precision
     THRESHOLD = .06
     rec_den = 0
@@ -170,6 +171,7 @@ def print_with_threshold(probs, Y_te, overrides):
     print("adjusted prec: ", adj_prec)
     print("overridden recall: ", o_rec)
     print("overridden prec: ", o_prec)
+    """
 
 
 def calc_pred_status(preds, Y_te):

@@ -1,11 +1,10 @@
-# Python 3.4+
 from abc import ABC, abstractmethod
 
 import re
 
-
-from utils import corenlpsent, ebantdoc, strutils
+from utils import corenlpsent, strutils
 from utils.ebantdoc import EbEntityType
+
 
 def merge_ebsent_probs_with_entities(prob_ebsent_list):
     # don't bother with len 1
@@ -84,7 +83,7 @@ def gen_provision_overrides(provision, sent_st_list):
 
 
 
-class EbPostPredictProcessing:
+class EbPostPredictProcessing(ABC):
 
     @abstractmethod
     def post_process(self, prob_ebsent_list, threshold, provision=None):

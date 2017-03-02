@@ -1,6 +1,6 @@
 
 import copy
-from utils.ebantdoc import EbEntity
+
 
 class EbToken:
     _slots__ = ['start', 'end', 'word', 'lemma', 'pos', 'index', 'ner']

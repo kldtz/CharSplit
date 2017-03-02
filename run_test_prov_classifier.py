@@ -1,14 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
-import logging
 import argparse
+import logging
+from pprint import pprint
 
 from sklearn.externals import joblib
 
-from utils import osutils
+from eblearn import ebtext2antdoc, ebannotator
 
-from eblearn import ebrunner, ebtext2antdoc, ebannotator
-from pprint import pprint
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 

@@ -1,7 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 from pycorenlp import StanfordCoreNLP
+
 from annotator.annotation import SentenceAnnotation
+
 
 class CoreNlpSentenceAnnotator(object):
 

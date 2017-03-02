@@ -1,20 +1,18 @@
 #!/usr/bin/env python
 
-from sklearn.base import BaseEstimator, TransformerMixin
+import logging
 
-# based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
-
-from sklearn import preprocessing
-from scipy import sparse
-
-from utils import strutils, stopwordutils
 import numpy as np
 from nltk import FreqDist
+from scipy import sparse
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn import preprocessing
 
 from eblearn import igain
-
 from eblearn import ebattr
-import logging
+from utils import strutils, stopwordutils
+
+# based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
 # this is a class specific transformer because of information gain and
 # class-specific cols_to_keep array.
@@ -42,7 +40,7 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
     def fit(self, attrvec_ebsent_list, label_list=None):
         EbTransformer.fit_count += 1
-        print("fitting #{} called, len(attrvec_ebsent_list) = {}, len(label_list) = {}".format(EbTransformer.fit_count,
+        logging.info("fitting #{} called, len(attrvec_ebsent_list) = {}, len(label_list) = {}".format(EbTransformer.fit_count,
                                                                                                len(attrvec_ebsent_list),
                                                                                                len(label_list)))
         attrvec_list = []
@@ -60,7 +58,7 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, attrvec_ebsent_list):
         EbTransformer.transform_count += 1
-        print("transform called #{}, len(attrvec_ebsent_list) = {}".format(EbTransformer.transform_count,
+        logging.debug("transform called #{}, len(attrvec_ebsent_list) = {}".format(EbTransformer.transform_count,
                                                                            len(attrvec_ebsent_list)))
 
         attrvec_list = []

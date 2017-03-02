@@ -1,8 +1,9 @@
 
-from utils import unicodeutils, mathutils
-from eblearn import ebattr
-
 import re
+
+from eblearn import ebattr
+from utils import unicodeutils
+
 
 hr_pat = re.compile(r'(\*\*\*+)|(\.\.\.\.+)|(\-\-\-+)')
 

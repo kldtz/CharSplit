@@ -1,33 +1,20 @@
 #!/usr/bin/env python
 
-import json
+import logging
 from pprint import pprint
 from time import time
 
+import numpy as np
 from sklearn.linear_model import SGDClassifier
-from sklearn.externals import joblib
 from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GridSearchCV
 
 from eblearn import ebpostproc, evalutils
 from eblearn.ebtransformer import EbTransformer
-
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import GridSearchCV
+from eblearn.ebclassifier import EbClassifier
 
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
-from sklearn import preprocessing
-from scipy import sparse
-
-from utils import strutils, stopwordutils
-import numpy as np
-from nltk import FreqDist
-
-
-from eblearn import ebattr, ebtext2antdoc, igain
-import logging
-
-from eblearn.ebclassifier import EbClassifier
 
 global_threshold = 0.12
 
@@ -53,26 +40,9 @@ class ShortcutClassifier(EbClassifier):
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = provision_threshold_map.get(provision, global_threshold)        
 
-        # self.pred_status is declared in EbClassifier
-        # self.pred_status = {}               # classifier's raw score
-        # self.pos_threshold_status = {} # adjusted to increase recall slightly
-        # self.threshold_status = {}     # ebrevia's default score
-        # self.override_status = {}      # ebrevia's final score
-
-    """
-    def set_threshold(self, val):
-        self.threshold = val
-
-    def save(self, model_file_name):
-        logging.info("saving model file: {}".format(model_file_name))
-        joblib.dump(self, model_file_name)
-
-    def train(self, txt_fn_list, work_dir, model_file_name):
-        ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
-        return self.train_antdoc_list(ebantdoc_list, work_dir, model_file_name)
-    """
-            
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):
+        logging.info('train_antdoc_list()...')
+        
         attrvec_list = []
         ebsent_list = []
         group_id_list = []
@@ -119,28 +89,27 @@ class ShortcutClassifier(EbClassifier):
         t0 = time()
         grid_search.fit(X_tr, y_tr)
         print("done in %0.3fs" % (time() - t0))
-        print()
 
         print("Best score: %0.3f" % grid_search.best_score_)
         print("Best parameters set:")
         best_parameters = grid_search.best_estimator_.get_params()
         for param_name in sorted(parameters.keys()):
             print("\t%s: %r" % (param_name, best_parameters[param_name]))
+        print()
 
         self.eb_grid_search = grid_search
-
         self.save(model_file_name)
 
         return grid_search
 
 
     def predict_antdoc(self, eb_antdoc, work_dir):
-        logging.info('predict()...')
+        # logging.info('predict_antdoc()...')
 
         attrvec_list = eb_antdoc.get_attrvec_list()
         ebsent_list = eb_antdoc.get_ebsent_list()
-        print("attrvec_list.size = ", len(attrvec_list))
-        print("ebsent_list.size = ", len(ebsent_list))        
+        # print("attrvec_list.size = ", len(attrvec_list))
+        # print("ebsent_list.size = ", len(ebsent_list))        
         
         sent_st_list = [ebsent.get_tokens_text() for ebsent in ebsent_list]        
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
@@ -163,7 +132,7 @@ class ShortcutClassifier(EbClassifier):
 
     # this is mainly used for the outer testing (real hold out)
     def predict_and_evaluate(self, ebantdoc_list, work_dir, diagnose_mode=False):
-        logging.info('predict_and_eval...')
+        logging.info('predict_and_evaluate()...')
 
         attrvec_list = []
         ebsent_list = []
@@ -180,15 +149,15 @@ class ShortcutClassifier(EbClassifier):
         label_list = [self.provision in ebsent.labels for ebsent in ebsent_list]
         attrvec_ebsent_list = list(zip(attrvec_list, ebsent_list))
             
-        print("attrvec_list.size = ", len(attrvec_list))
-        print("ebsent_list.size = ", len(ebsent_list))        
-        print("label_list.size = ", len(label_list))
-        print("full_txt_fn_list.size = ", len(full_txt_fn_list))
+        # print("attrvec_list.size = ", len(attrvec_list))
+        # print("ebsent_list.size = ", len(ebsent_list))        
+        # print("label_list.size = ", len(label_list))
+        # print("full_txt_fn_list.size = ", len(full_txt_fn_list))
 
         X_te = self.transformer.transform(attrvec_ebsent_list)        
         y_te = label_list
         num_positive = np.count_nonzero(y_te)
-        logging.info('num true positives in testing = {}'.format(num_positive))
+        # logging.debug('num true positives in testing = {}'.format(num_positive))
         sent_st_list = [ebsent.get_tokens_text() for ebsent in ebsent_list]        
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
 

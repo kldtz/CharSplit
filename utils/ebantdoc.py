@@ -1,8 +1,7 @@
 from collections import namedtuple
-import json
-import logging
-import sys
 from enum import Enum
+import json
+
 
 class EbEntityType(Enum):
     PERSON = 1
@@ -128,25 +127,6 @@ def load_provision_annotations(filename, provision_name=None):
     return result
 
 
-# using corenlpsent EbSentence
-"""
-EbSentenceTuple = namedtuple('EbSentenceTuple', ['file_id', 'start', 'end', 'labels', 'entities', 'text'])
-
-class EbSentence:
-
-    def __init__(self, file_id, start, end, tokens, text, tokens_text, entities, labels):
-        self.file_id = file_id
-        self.start = start
-        self.end = end
-        self.tokens = tokens
-        self.text = text
-        self.tokens_text = tokens_text
-
-    def to_tuple(self):
-        return EbSentenceTuple(self.file_id, self.start, self.end, self.labels, self.entities, self.text)
-"""
-
-        
 class EbAnnotatedDoc:
 
     def __init__(self, file_name, eb_sents, prov_ant_list, attrvec_list, text):

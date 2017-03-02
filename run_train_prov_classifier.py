@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import argparse
-import json
 import logging
-import os.path
 
 from eblearn import ebtrainer, provclassifier, scutclassifier 
 

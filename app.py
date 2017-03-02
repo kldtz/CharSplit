@@ -2,7 +2,6 @@
 
 # TODO should we be able to train individual provisions separately
 
-from flask import Flask, request, jsonify
 import glob
 import json
 import logging
@@ -11,6 +10,8 @@ import os.path
 from pprint import pprint
 import sys
 import tempfile
+
+from flask import Flask, request, jsonify
 
 from sklearn.externals import joblib
 
@@ -88,9 +89,9 @@ def annotate_uploaded_document():
 
     request.files['file'].save(file_name)
     provisions_st = request.form.get('types')
-    provision_list = provisions_st.split(',') if provisions_st else []
+    provision_set = set(provisions_st.split(',') if provisions_st else [])
 
-    prov_labels_map = eb_runner.annotate_document(file_name, provision_list=provision_list)
+    prov_labels_map = eb_runner.annotate_document(file_name, provision_set=provision_set)
     ebannotations = {'ebannotations': prov_labels_map}
     # pprint(prov_labels_map)
     pprint(ebannotations)
