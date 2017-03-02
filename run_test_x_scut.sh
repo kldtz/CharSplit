@@ -1,0 +1,3 @@
+#!/bin/bash
+
+run_test_provisions.py --provisions $1 --docs "sample_data2.scut.model/$1_test_doclist.txt" --work_dir "sample_data2.feat" --model_dir "sample_data2.scut.model"

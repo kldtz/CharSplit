@@ -1,0 +1,24 @@
+#!/bin/bash
+
+run_train_x_scut.sh amending_agreement
+run_train_x_scut.sh arbitration
+run_train_x_scut.sh assign
+run_train_x_scut.sh change_control
+run_train_x_scut.sh choiceoflaw
+run_train_x_scut.sh confidentiality
+run_train_x_scut.sh date
+run_train_x_scut.sh equitable_relief
+run_train_x_scut.sh events_default
+run_train_x_scut.sh exclusivity
+run_train_x_scut.sh indemnify
+run_train_x_scut.sh insurance
+run_train_x_scut.sh jurisdiction
+run_train_x_scut.sh limliability
+run_train_x_scut.sh nonsolicit
+run_train_x_scut.sh party
+run_train_x_scut.sh preamble
+run_train_x_scut.sh renewal
+run_train_x_scut.sh sublicense
+run_train_x_scut.sh survival
+run_train_x_scut.sh term
+run_train_x_scut.sh termination
