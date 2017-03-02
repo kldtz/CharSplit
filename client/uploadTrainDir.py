@@ -9,7 +9,7 @@ import os
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-def upload_train_dir(url, upload_dir, provision):
+def upload_train_dir(url, upload_dir):
     txt_fnames = []
     ant_fnames = []    
     for file in os.listdir(upload_dir):
@@ -41,8 +41,8 @@ def upload_train_dir(url, upload_dir, provision):
             
     print("Number of file uploaded: {}".format(len(file_tuple_list)))
     # print("file_tuple_list = {}".format(file_tuple_list))
-    payload = {'custom_id': 'custom_id2', 'provision': provision}
-    r = requests.post(url, files=file_tuple_list, data=payload, timeout=600)
+    # payload = {'custom_id': 'custom_id2'}
+    r = requests.post(url, files=file_tuple_list, timeout=600)
     print(r.text)
 
 
@@ -50,7 +50,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='identify the language')
     parser.add_argument('-v','--verbosity', help='increase output verbosity')
     parser.add_argument('-u','--url', help='url to post the files')
-    parser.add_argument('-p','--provision', default='party', help='provision')
     parser.add_argument('-c','--custid', default='12345', help='custom-id')        
     parser.add_argument('upload_dir', help='directory to upload')
 
@@ -62,4 +61,5 @@ if __name__ == '__main__':
     if args.url:
         url = args.url
 
-    upload_train_dir(url, args.upload_dir, args.provision)
+    # provision = 'cust_{}'.format(args.custid)
+    upload_train_dir(url, args.upload_dir)

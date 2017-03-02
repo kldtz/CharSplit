@@ -1,5 +1,6 @@
 from collections import namedtuple
 import json
+import logging
 import sys
 from enum import Enum
 
@@ -41,7 +42,7 @@ eb_provision_st_set = set(eb_provision_st_list)
 EbEntityTuple = namedtuple('EbEntityTuple', ['start', 'end', 'ner', 'text'])
 
 class EbEntity:
-
+    __slots__ = ['start', 'end', 'ner', 'text']
     def __init__(self, start, end, ner, text):
         self.start = start
         self.end = end
@@ -68,20 +69,22 @@ def entities_to_dict_list(entities):
     
 # ProvisionAnnotationTuple = namedtuple('ProvisionAnnotation', ['label', 'start', 'end'])
 class ProvisionAnnotation:
-
+    __slots__ = ['label', 'start', 'end']
+    
     def __init__(self, label, start, end):
         self.label = label
         self.start = start
         self.end = end
 
     def __repr__(self):
-        return "('{}', {}, {})".format(self.label, self.start, self.end)    
+        return "ProvisionAnnotation('{}', {}, {})".format(self.label, self.start, self.end)    
 #    def to_tuple(self):
 #        return (self.lable, self.start, self.end)
 
     
 class EbProvisionAnnotation:
-
+    __slots__ = ['confidence', 'correctness', 'start', 'end',
+                 'type', 'text', 'id', 'custom_text']
     def __init__(self, ajson):
         self.confidence = ajson['confidence']
         self.correctness = ajson.get('correctness')
@@ -109,24 +112,19 @@ class EbProvisionAnnotation:
         return ProvisionAnnotation(self.type, self.start, self.end)
 
 
-def load_provision_annotations(filename, provision_name):
-    provision_se_list = load_provision_annotations(filename)
-    return [provision_se for provision_se in provision_se_list if provision_se.label == provision_name]
-
-
-def load_provision_annotations(filename):
+def load_provision_annotations(filename, provision_name=None):
     result = []
     with open(filename, "rt") as handle:
         parsed = json.load(handle)
-
         for ajson in parsed:
             eb_ant = EbProvisionAnnotation(ajson)
-            if eb_ant.type in eb_provision_st_set:
-                result.append(eb_ant.to_tuple())
-            else:
-                # print("unknown provision '{}' in {}".format(eb_ant.type, filename), file=sys.stderr)
-                # too many unknowns, such as 'lic_ownership'
-                pass
+
+            result.append(eb_ant.to_tuple())
+
+    # if provision_name is specified, only return that specific provision            
+    if provision_name:  
+        return [provision_se for provision_se in result if provision_se.label == provision_name]
+        
     return result
 
 

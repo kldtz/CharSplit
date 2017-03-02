@@ -5,6 +5,7 @@
 from flask import Flask, request, jsonify
 import glob
 import json
+import logging
 import os
 import os.path
 from pprint import pprint
@@ -16,6 +17,10 @@ from sklearn.externals import joblib
 import ebrevia.learn.learner as learner
 from eblearn import ebrunner
 from utils import strutils, osutils
+
+# TODO: jshaw
+# remove the following line to get rid of all logging messages
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 app = Flask(__name__)
@@ -65,10 +70,10 @@ def classifyArff():
 
 
 # classifiers
-FEATURE_DIR = 'data_from_web'
+WORK_DIR = 'data_from_web'
 MODEL_DIR = 'sample_data2.model'
 CUSTOM_MODEL_DIR = 'sample_data2.custmodel'
-eb_runner = ebrunner.EbRunner(MODEL_DIR, FEATURE_DIR, CUSTOM_MODEL_DIR)
+eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 
 @app.route('/annotate-doc', methods=['POST'])
 def annotate_uploaded_document():
@@ -77,9 +82,9 @@ def annotate_uploaded_document():
         if not request_file_name.endswith('.txt'):
             request_file_name += '.txt'
         txt_basename = os.path.basename(request_file_name)
-        file_name = os.path.normpath(os.path.join(FEATURE_DIR, txt_basename))
+        file_name = os.path.normpath(os.path.join(WORK_DIR, txt_basename))
     else:
-        file_name = tempfile.NamedTemporaryFile(dir=FEATURE_DIR).name + '.txt'
+        file_name = tempfile.NamedTemporaryFile(dir=WORK_DIR).name + '.txt'
 
     request.files['file'].save(file_name)
     provisions_st = request.form.get('types')
@@ -128,7 +133,8 @@ def cust_train(cust_id):
 def custom_train(cust_id):
     # to ensure that no accidental file name overlap
     print("cust_id = {}".format(cust_id))
-    tmp_dir = '{}/cust_{}'.format(FEATURE_DIR, cust_id)
+    provision = 'cust_{}'.format(cust_id)
+    tmp_dir = '{}/{}'.format(WORK_DIR, provision)
     osutils.mkpath(tmp_dir)
     fn_list = request.files.getlist('file')
     ant_fnames = []
@@ -160,11 +166,9 @@ def custom_train(cust_id):
     # sample size 0 because no document has such provision.
     # provision = 'change_control'
     # Following the logic in the original code.
-    provision = 'cust_' + cust_id
     eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                                 provision,
-                                                                CUSTOM_MODEL_DIR,
-                                                                cust_id)
+                                                                CUSTOM_MODEL_DIR)
     # return some json accuracy info
     return jsonify(eval_status)
 

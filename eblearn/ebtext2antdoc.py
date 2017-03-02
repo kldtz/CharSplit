@@ -167,6 +167,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
     is_cache_enabled = DEFAULT_IS_CACHE_ENABLED
     if work_dir is None:
         is_cache_enabled = False
+
     #else:  # if work_dir is not None:
     #    # print("txt_file_name= [{}]".format(txt_file_name))
     if txt_file_name:
@@ -227,7 +228,6 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
             next_ebsent = ebsent_list[sent_idx + 1]
         else:
             next_ebsent = None
-
         fv = sent2ebattrvec.sent2ebattrvec(txt_file_name, ebsent, sent_idx + 1,
                                            prev_ebsent, next_ebsent, atext)
 

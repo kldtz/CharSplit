@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
 from collections import defaultdict
+import logging
 import math
 import sys
 import time
-import logging
+
 from utils import stopwordutils, strutils
 
-# we tried 10%, but this seems to be safer
-# to avoid explosion in vocab size
+# we tried 10%, but this seems to be safer to avoid
+# sudden increase in vocab size when corpus size
+# increases drastically
 DEFAULT_INFOGAIN_VOCAB_SIZE = 100000
 
 def entropy_by_freq_list(freq_list):

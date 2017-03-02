@@ -3,6 +3,7 @@ import copy
 from utils.ebantdoc import EbEntity
 
 class EbToken:
+    _slots__ = ['start', 'end', 'word', 'lemma', 'pos', 'index', 'ner']
 
     def __init__(self, start, end, word, lemma, pos, ner, index):
         self.start = start
@@ -85,6 +86,8 @@ def merge_ebsents(ebsent_list):
 
 
 class EbSentence:
+    _slots__ = ['file_id', 'tokens', 'start', 'end', 'text', 'tokens',
+                'entities', 'labels']
 
     def __init__(self, file_id, json_sent, atext, num_prefix_space):
         tokens = json_sent['tokens']

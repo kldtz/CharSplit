@@ -56,3 +56,9 @@ run_test_provisions.sh
 # annotate_file.py calls eb_runner.annotate_document()
 run_annotate_doc.sh
 
+# NOTE:
+When the app server says:
+```raise ValueError('unable to infer matrix dimensions')```
+The likely reason is that the size of the matrix is 0, which is caused by not finding any positive examples in the data.  This is likely caused by mismatch in "provision" name.  Watch out for caching issue, which might use the old file, which caused the mismatch.
+
+

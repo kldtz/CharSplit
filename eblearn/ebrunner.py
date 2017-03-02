@@ -4,8 +4,6 @@ import concurrent.futures
 import logging
 import json
 import os.path
-from pprint import pprint
-
 
 from sklearn.externals import joblib
 
@@ -76,14 +74,14 @@ class EbRunner:
         logging.info('EbRunner is initiated.')
 
 
-    def run_annotators_in_parallel(self, eb_antdoc, provision_list=None):
-        if not provision_list:
-            provision_list = self.provisions
+    def run_annotators_in_parallel(self, eb_antdoc, provision_set=None):
+        if not provision_set:
+            provision_set = self.provisions
 
         # TODO, jshaw
         # hacking for now
-        print("input provision list: {}, resetted.".format(provision_list))
-        provision_list = ['party', 'change_control', 'date']
+        logging.info("reset provision list: {}".format(provision_set))
+        provision_set = set(['party', 'change_control', 'date'])
         # end hacking
 
         annotations = {}
@@ -91,27 +89,27 @@ class EbRunner:
             future_to_provision = {executor.submit(annotate_provision,
                                                    self.provision_annotator_map[provision],
                                                    eb_antdoc): 
-                                   provision for provision in provision_list}
+                                   provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
                 data = future.result()
                 annotations[provision] = data
         return annotations
 
-    def annotate_document(self, file_name, provision_list=None):
-        if not provision_list:
-            provision_list = self.provisions
+    def annotate_document(self, file_name, provision_set=None):
+        if not provision_set:
+            provision_set = self.provisions
             
         eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, self.work_dir)
 
         # this execute the annotators in parallel
-        ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_list)
+        ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_set)
         return ant_result_dict
 
-    def test_annotators(self, txt_fns_file_name, provision_list):
-        if not provision_list:
-            provision_list = self.provisions
-            print("input provision list: {}, resetted.".format(provision_list))
+    def test_annotators(self, txt_fns_file_name, provision_set):
+        if not provision_set:
+            provision_set = self.provisions
+            logging.info('reset provision list: {}'.format(provision_set))
 
         ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                self.work_dir)
@@ -121,7 +119,7 @@ class EbRunner:
             future_to_provision = {executor.submit(test_provision,
                                                    self.provision_annotator_map[provision],
                                                    ebantdoc_list): 
-                                   provision for provision in provision_list}
+                                   provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
                 data = future.result()
@@ -133,18 +131,14 @@ class EbRunner:
     # custom_train_provision_and_evaluate
     #
     def custom_train_provision_and_evaluate(self, txt_fn_list, provision,
-                                            custom_model_dir, cust_id):
+                                            custom_model_dir):
 
-        model_file_name = custom_model_dir + '/cust_' + cust_id + '_scutclassifier.pkl'
+        logging.info("txt_fn_list: '{}'".format(txt_fn_list))
 
-        print("txt_fn_list: '{}'".format(txt_fn_list))
-
-        # TODO, jshaw
-        # hacked, must remove this when putting into production
-        # currently, if use "cust_xxx", then there is no provision match and
-        # this will fail
-        provision = "party"
-
+        model_file_name = '{}/{}_scutclassifier.pkl'.format(custom_model_dir,
+                                                            provision)
+        logging.info("custom_mode_file: '{}'".format(model_file_name))
+        
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
         eb_annotator = ebtrainer.train_eval_annotator(provision,
                                                       txt_fn_list,
@@ -159,7 +153,7 @@ class EbRunner:
             logging.info("Updating annotator, '{}', {}.".format(provision, model_file_name))
         else:
             logging.info("Adding annotator, '{}', {}.".format(provision, model_file_name))
-            self.provisions.append(provision)
+            self.provisions.add(provision)
         self.provision_annotator_map[provision] = eb_annotator
 
         return eb_annotator.get_eval_status()
