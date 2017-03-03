@@ -34,24 +34,17 @@ def train_eval_annotator(provision, txt_fn_list, work_dir, model_dir, model_file
     ebsent_list = []
     for eb_antdoc in ebantdoc_list:
         ebsent_list.extend(eb_antdoc.get_ebsent_list())
-    # label_list = [provision in ebsent.labels for ebsent in ebsent_list]        
-    # print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
-    doc_labellist_list = []
-    num_pos_label = 0
-    num_neg_label = 0
-    for eb_antdoc in ebantdoc_list:
-        ebsent_list = eb_antdoc.get_ebsent_list()
-        labellist_list = [provision in ebsent.labels for ebsent in ebsent_list]
-        for label in labellist_list:
-            if label:
-                num_pos_label += 1
-            else:
-                num_neg_label += 1
-        doc_labellist_list.append(labellist_list)
+    num_pos_label, num_neg_label = 0, 0
+    for ebsent in ebsent_list:
+        if provision in ebsent.labels:
+            num_pos_label += 1
+        else:
+            num_neg_label += 1
 
     X = ebantdoc_list
-    y = doc_labellist_list
+    y = [provision in ebantdoc.get_provision_set()
+         for ebantdoc in ebantdoc_list]
 
     # only in custom training mode and the positive training instances are too few
     # only train, no testing
@@ -71,7 +64,7 @@ def train_eval_annotator(provision, txt_fn_list, work_dir, model_dir, model_file
                                                                                num_pos_label,
                                                                                num_neg_label))
     # we have enough positive training instances, so we do testing
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
     splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)

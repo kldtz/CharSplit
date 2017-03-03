@@ -5,10 +5,11 @@ import logging
 
 from sklearn.model_selection import train_test_split
 
+from eblearn import ebtext2antdoc
 from utils import splittrte, osutils
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 if __name__ == '__main__':
@@ -16,10 +17,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training models.')
     parser.add_argument("-v","--verbosity", help="increase output verbosity")
     parser.add_argument("-d","--debug", action="store_true", help="print debug information")
-    parser.add_argument('--docs', help='a file containing list of .txt files')
-    parser.add_argument('--provisions', help='a comma separate list of provisions')
-    parser.add_argument('--work_dir', help='output directory for cached documents')
-    parser.add_argument('--model_dirs', help='output directory for trained models')
+    parser.add_argument('--docs', required=True, help='a file containing list of .txt files')
+    parser.add_argument('--provisions', required=True, help='a comma separate list of provisions')
+    parser.add_argument('--work_dir', required=True, help='output directory for cached documents')
+    parser.add_argument('--model_dirs', required=True, help='output directory for trained models')
 
     args = parser.parse_args()
     print("args.provisions = [{}]".format(args.provisions))
@@ -37,14 +38,16 @@ if __name__ == '__main__':
         osutils.mkpath(moddir)
 
     provision_list = args.provisions.split(',')
+    txt_fn_list = args.docs
+    
+    eb_antdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
 
-    provision_filelist_map = splittrte.provisions_split(provision_list, args.docs, work_dir=work_dir)
     for provision in provision_list:
-        eb_antdoc_list = provision_filelist_map[provision]
         X = eb_antdoc_list
-        y = [True for _ in range(len(eb_antdoc_list))]
+        y = [provision in ebantdoc.get_provision_set()
+             for ebantdoc in eb_antdoc_list]
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
         for moddir in model_dir_list:
             antdoc_fn_list = "{}/{}.doclist.txt".format(moddir, provision)
