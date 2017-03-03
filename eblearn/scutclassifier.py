@@ -6,12 +6,13 @@ from time import time
 
 import numpy as np
 from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GroupKFold
 
-from eblearn import ebpostproc, evalutils
-from eblearn.ebtransformer import EbTransformer
+from eblearn import ebpostproc
 from eblearn.ebclassifier import EbClassifier
+from eblearn.ebtransformer import EbTransformer
+from utils import evalutils
 
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
@@ -73,7 +74,7 @@ class ShortcutClassifier(EbClassifier):
         # TODO, jshaw, uncomment in real code
         # parameters = {'clf__alpha': 10.0 ** -np.arange(1, 5)}
         # parameters = {'clf__alpha': 10.0 ** -np.arange(3, 4)}
-        parameters = {'alpha': 10.0 ** -np.arange(1, 7)}
+        parameters = {'alpha': 10.0 ** -np.arange(-2, 7)}
 
         #    parameters = {'C': [.01,.1,1,10,100]}
         #    sgd_clf = LogisticRegression()
@@ -111,7 +112,7 @@ class ShortcutClassifier(EbClassifier):
         # print("attrvec_list.size = ", len(attrvec_list))
         # print("ebsent_list.size = ", len(ebsent_list))        
         
-        sent_st_list = [ebsent.get_tokens_text() for ebsent in ebsent_list]        
+        sent_st_list = [ebsent.get_tokens_text() for ebsent in ebsent_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
         attrvec_ebsent_list = list(zip(attrvec_list, ebsent_list))
 
@@ -213,7 +214,7 @@ class ShortcutClassifier(EbClassifier):
         evalutils.print_with_threshold(probs, y_te, overrides)
 
         self.pred_status['classifer_type'] = 'scutclassifier'
-        self.pred_status['pred_status'] =  evalutils.calc_pred_status(probs, y_te)
+        self.pred_status['pred_status'] =  evalutils.calc_pred_status_with_prob(probs, y_te)
         self.pred_status['pos_threshold_status'] =  evalutils.calc_pos_threshold_prob_status(probs, y_te,
                                                                                              self.pos_threshold)
         self.pred_status['threshold_status'] = evalutils.calc_threshold_prob_status(probs, y_te, self.threshold)

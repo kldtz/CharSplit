@@ -8,13 +8,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 - redo train_test_split, now assume all 300 docs are annotated for all provisions
+- produce f1 and other status when custom training for small data size
 
 ### Changed
+- training for small data set is based on gridsearchcv
 
 ### Yet to do
-- return status in the old way when doing training.  Follow old code.
 - attrvec_ebsent_list is removed.  The processing of attrvec is in transformer
-- redo training for small data set.  Used searchCV
+
 
 ## [0.1.0] - 2017-03-02
 ### Added

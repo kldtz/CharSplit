@@ -1,6 +1,8 @@
 import logging
 
-from eblearn import provclassifier, ebpostproc, evalutils
+from eblearn import ebpostproc
+from utils import evalutils
+
 
 class ProvisionAnnotator:
 

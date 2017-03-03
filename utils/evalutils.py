@@ -119,7 +119,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
 # utilities
 #
 
-def print_with_threshold(probs, Y_te, overrides):
+def print_with_threshold(probs, y_te, overrides):
     pass
     """
     # compute thresholded recall/precision
@@ -131,15 +131,15 @@ def print_with_threshold(probs, Y_te, overrides):
     o_tp = 0
 
     for i, pred in enumerate(list(probs)):
-        if Y_te[i] == 1:
+        if y_te[i] == 1:
             rec_den += 1    # actual_true
         if pred >= THRESHOLD:
             prec_den += 1   # predict true
-            if Y_te[i] == 1:
+            if y_te[i] == 1:
                 tp += 1
         if (pred >= THRESHOLD and not overrides[i]) or overrides[i]:
             o_prec_den += 1  # override true 
-            if Y_te[i] == 1:
+            if y_te[i] == 1:
                 o_tp += 1    # override true positive
 
     print("THRESHOLD= {}".format(THRESHOLD))                    
@@ -174,17 +174,39 @@ def print_with_threshold(probs, Y_te, overrides):
     """
 
 
-def calc_pred_status(preds, Y_te):
+def calc_pred_status_with_prob(probs, y_te):
     tn, fp, fn, tp = 0, 0, 0, 0
 
-    for i, pred in enumerate(list(preds)):
-        if Y_te[i] == 1:
-            if pred == 1:
+    for i, prob in enumerate(list(probs)):
+        pred = prob >= 0.5
+        if y_te[i] == 1:
+            if pred:
                 tp += 1
             else:
                 fn += 1
         else:
-            if pred == 1:
+            if pred:
+                fp += 1
+            else:
+                tn += 1
+    title = 'pred status'                    
+    prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title) 
+    status = {'confusion_matrix': {'tn': tn, 'fp': fp, 'fn': fn, 'tp': tp},
+              'pred_threshold': 0.5,
+              'prec': prec, 'recall': recall, 'f1': f1}
+    return status
+
+def calc_pred_status(preds, y_te):
+    tn, fp, fn, tp = 0, 0, 0, 0
+
+    for i, pred in enumerate(list(preds)):
+        if y_te[i] == 1:
+            if pred:
+                tp += 1
+            else:
+                fn += 1
+        else:
+            if pred:
                 fp += 1
             else:
                 tn += 1
@@ -196,13 +218,13 @@ def calc_pred_status(preds, Y_te):
     return status
 
 
-def calc_pos_threshold_prob_status(probs, Y_te, pos_threshold):
+def calc_pos_threshold_prob_status(probs, y_te, pos_threshold):
     tn, fp, fn, tp = 0, 0, 0, 0                
 
     for i, prob in enumerate(list(probs)):
         # this is strictly greater, not >=
         pred = prob > pos_threshold
-        if Y_te[i] == 1:
+        if y_te[i] == 1:
             if pred:
                 tp += 1
             else:
@@ -221,12 +243,12 @@ def calc_pos_threshold_prob_status(probs, Y_te, pos_threshold):
     return status
 
 
-def calc_threshold_prob_status(probs, Y_te, threshold):
+def calc_threshold_prob_status(probs, y_te, threshold):
     tn, fp, fn, tp = 0, 0, 0, 0                
 
     for i, prob in enumerate(list(probs)):
         pred = prob >= threshold
-        if Y_te[i] == 1:
+        if y_te[i] == 1:
             if pred:
                 tp += 1
             else:
@@ -245,13 +267,13 @@ def calc_threshold_prob_status(probs, Y_te, threshold):
     return status
 
 
-def calc_prob_override_status(probs, Y_te, threshold, overrides):
+def calc_prob_override_status(probs, y_te, threshold, overrides):
     tn, fp, fn, tp = 0, 0, 0, 0                
 
     for i, prob in enumerate(list(probs)):
         override = overrides[i]
         pred = prob >= threshold or override
-        if Y_te[i] == 1:
+        if y_te[i] == 1:
             if pred:
                 tp += 1
             else:
@@ -266,6 +288,31 @@ def calc_prob_override_status(probs, Y_te, threshold, overrides):
     prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title)
     status = {'confusion_matrix': {'tn': tn, 'fp': fp, 'fn': fn, 'tp': tp},
               'threshold': threshold,
+              'prec': prec, 'recall': recall, 'f1': f1}
+    return status
+
+
+def calc_pred_override_status(preds, y_te, overrides):
+    tn, fp, fn, tp = 0, 0, 0, 0                
+
+    for i, our_pred in enumerate(list(preds)):
+        override = overrides[i]
+        pred = our_pred or override        
+        if y_te[i] == 1:    
+            if pred:
+                tp += 1
+            else:
+                fn += 1
+        else:
+            if pred:
+                fp += 1
+            else:
+                tn += 1            
+
+    title = "pred + override"
+    prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title)
+    status = {'confusion_matrix': {'tn': tn, 'fp': fp, 'fn': fn, 'tp': tp},
+              'pred_threshold': 0.5,
               'prec': prec, 'recall': recall, 'f1': f1}
     return status
 
