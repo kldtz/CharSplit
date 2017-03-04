@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-from abc import ABC, abstractmethod
 import logging
+from abc import ABC, abstractmethod
 
 from sklearn.externals import joblib
 
-from eblearn import ebtext2antdoc
+from kirke.eblearn import ebtext2antdoc
 
 global_threshold = 0.12
 

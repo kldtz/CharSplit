@@ -12,12 +12,12 @@ import sys
 import tempfile
 
 from flask import Flask, request, jsonify
-
 from sklearn.externals import joblib
 
+from kirke.eblearn import ebrunner
+from kirke.utils import osutils, strutils
+
 import ebrevia.learn.learner as learner
-from eblearn import ebrunner
-from utils import strutils, osutils
 
 # TODO: jshaw
 # remove the following line to get rid of all logging messages

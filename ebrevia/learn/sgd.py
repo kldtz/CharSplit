@@ -1,16 +1,13 @@
-from scipy import sparse
 import numpy
 import sklearn
-from sklearn.cross_validation import train_test_split
-from sklearn.linear_model import SGDClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.grid_search import GridSearchCV
-from sklearn.metrics import recall_score
+from scipy import sparse
 from sklearn.cross_validation import cross_val_predict
-from fractions import Fraction
+from sklearn.cross_validation import train_test_split
+from sklearn.grid_search import GridSearchCV
+from sklearn.linear_model import SGDClassifier
 
-import ebrevia.learn.util as util
 import ebrevia.learn.readarff as readarff
+import ebrevia.learn.util as util
 
 SMALL_N = 30
 

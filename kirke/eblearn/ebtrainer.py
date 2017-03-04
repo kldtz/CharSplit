@@ -7,8 +7,8 @@ from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 
-from eblearn import ebtext2antdoc, ebannotator, ebpostproc
-from utils import strutils, splittrte, evalutils
+from kirke.eblearn import ebannotator, ebpostproc, ebtext2antdoc
+from kirke.utils import evalutils, splittrte, strutils
 
 DEFAULT_CV = 3
 

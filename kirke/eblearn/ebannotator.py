@@ -1,7 +1,7 @@
 import logging
 
-from eblearn import ebpostproc
-from utils import evalutils
+from kirke.eblearn import ebpostproc
+from kirke.utils import evalutils
 
 
 class ProvisionAnnotator:

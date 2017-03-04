@@ -1,6 +1,7 @@
 from collections import defaultdict
 
-from utils import mathutils
+from kirke.utils import mathutils
+
 
 # label_start_end_list is of type prov_annotation_list
 def find_annotation_overlap(start, end, label_start_end_list):

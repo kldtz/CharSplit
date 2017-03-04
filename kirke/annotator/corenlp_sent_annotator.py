@@ -2,7 +2,7 @@
 
 from pycorenlp import StanfordCoreNLP
 
-from annotator.annotation import SentenceAnnotation
+from kirke.annotator.annotation import SentenceAnnotation
 
 
 class CoreNlpSentenceAnnotator(object):

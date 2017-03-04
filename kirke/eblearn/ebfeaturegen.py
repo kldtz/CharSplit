@@ -1,15 +1,16 @@
 import logging
 
-from nltk import FreqDist
-
 import numpy as np
+from eblearn import ebattr
+from nltk import FreqDist
 from scipy import sparse
 from sklearn import preprocessing
 from sklearn.feature_extraction.text import CountVectorizer
+from utils import stopwordutils
 
-from eblearn import igain
-from eblearn import ebattr
-from utils import strutils, stopwordutils
+from kirke.eblearn import igain
+from kirke.utils import strutils
+
 
 # Because each classifier might have different columns being zero, there is a need to keep track of
 # which column is removed and pass that information out.

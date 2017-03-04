@@ -2,16 +2,16 @@
 
 # TODO should we be able to train individual provisions separately
 
+import concurrent.futures
 import os
 import os.path
-import sys
 import tempfile
-import concurrent.futures
+
+from sklearn.externals import joblib
+
 import ebrevia.learn.bag_transform as bag_transform
 import ebrevia.learn.bigram_transform as bigram_transform
 import ebrevia.learn.sgd as sgd
-from sklearn.externals import joblib
-from flask import Flask,request,redirect,url_for,jsonify
 
 # Whether to store the intermediate feature matrices in files.
 # This can speed up experimentation if trying different classification algorithms,

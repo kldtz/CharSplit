@@ -1,12 +1,12 @@
-from nltk.corpus import stopwords
-from nltk import word_tokenize
-from nltk import FreqDist
-import numpy
-from scipy import sparse
 import re
 
-import ebrevia.learn.util as util
+from nltk import FreqDist
+from nltk import word_tokenize
+from nltk.corpus import stopwords
+from scipy import sparse
+
 import ebrevia.learn.readarff as readarff
+
 
 # This is a customized version of "bigrams" that Luigi came up with.
 # Normal bigrams just find 2-word sequences within a document.  This

@@ -1,16 +1,15 @@
 import json
 import logging
 import os
-from pathlib import Path
 import time
+from pathlib import Path
 
 from sklearn.externals import joblib
 
-from annotator.corenlp_sent_annotator import CoreNlpSentenceAnnotator
-from eblearn import sent2ebattrvec
-from utils import strutils, corenlputils, osutils, ebantdoc, mathutils
-from utils.ebantdoc import EbEntityType
-
+from kirke.annotator.corenlp_sent_annotator import CoreNlpSentenceAnnotator
+from kirke.eblearn import sent2ebattrvec
+from kirke.utils import corenlputils, ebantdoc, mathutils, strutils, osutils 
+from kirke.utils.ebantdoc import EbEntityType
 
 DEFAULT_IS_CACHE_ENABLED = True
 

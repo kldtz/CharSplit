@@ -1,9 +1,8 @@
+import re
 from abc import ABC, abstractmethod
 
-import re
-
-from utils import corenlpsent, strutils
-from utils.ebantdoc import EbEntityType
+from kirke.utils import corenlpsent, strutils
+from kirke.utils.ebantdoc import EbEntityType
 
 
 def merge_ebsent_probs_with_entities(prob_ebsent_list):

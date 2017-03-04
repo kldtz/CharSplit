@@ -10,10 +10,10 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import GroupKFold
 from sklearn.pipeline import Pipeline
 
-from eblearn import ebpostproc
-from eblearn.ebclassifier import EbClassifier
-from eblearn.ebtransformer import EbTransformer
-from utils import evalutils
+from kirke.eblearn import ebpostproc
+from kirke.eblearn.ebclassifier import EbClassifier
+from kirke.eblearn.ebtransformer import EbTransformer
+from kirke.utils import evalutils
 
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 

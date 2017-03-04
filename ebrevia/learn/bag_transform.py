@@ -1,10 +1,10 @@
+import numpy
 from scipy import sparse
 from sklearn import preprocessing
-from sklearn.feature_extraction.text import CountVectorizer,HashingVectorizer
-import numpy 
+from sklearn.feature_extraction.text import CountVectorizer
 
-import ebrevia.learn.util as util
 import ebrevia.learn.readarff as readarff
+
 
 class BagTransform:
 

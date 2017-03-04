@@ -1,13 +1,11 @@
+
 import concurrent.futures
 import logging
 
-
 from sklearn.externals import joblib
 
-from eblearn import ebtext2antdoc
-from eblearn import ebannotator, ebtrainer
-from eblearn import scutclassifier
-from utils import osutils
+from kirke.eblearn import ebannotator, ebtext2antdoc, ebtrainer, scutclassifier
+from kirke.utils import osutils
 
 
 def annotate_provision(eb_annotator, eb_antdoc):

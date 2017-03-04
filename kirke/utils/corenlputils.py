@@ -1,6 +1,6 @@
 import re
 
-from utils.corenlpsent import EbSentence, eb_tokens_to_st
+from kirke.utils.corenlpsent import EbSentence, eb_tokens_to_st
 
 
 def is_sent_starts_with_lower(ebsent_list, sent_idx):

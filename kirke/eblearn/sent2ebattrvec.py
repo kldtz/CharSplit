@@ -1,9 +1,7 @@
-
 import re
 
-from eblearn import ebattr
-from utils import unicodeutils
-
+from kirke.eblearn import ebattr
+from kirke.utils import unicodeutils
 
 hr_pat = re.compile(r'(\*\*\*+)|(\.\.\.\.+)|(\-\-\-+)')
 
@@ -37,7 +35,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
 
     if ebsent.get_start() > 0:
         fv.set_val('prevChar', ord(atext[ebsent.get_start()-1]))
-        fv.set_val('prevCharClass', unicodeutils.unicode_char_to_category_id(atext[ebsent.get_start()-1]))            
+        fv.set_val('prevCharClass', unicodeutils.unicode_char_to_category_id(atext[ebsent.get_start() - 1]))
     else:
         fv.set_val('prevChar', 0)       # cannot set to -1 because OneHotEncode don't like negative numbers
         fv.set_val('prevCharClass', 0)  # Cn: Other, not assigned

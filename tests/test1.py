@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import unittest
-from utils.sentutils import is_page_number_st
+
+from kirke.utils.corenlputils import is_page_number_st
+
 
 class TestStrUtils(unittest.TestCase):
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-from utils import strutils
+from kirke.utils import strutils
+
 
 def get_sklearn_stopwords():
     file_name = 'dict/sklearn_stopwords.txt'

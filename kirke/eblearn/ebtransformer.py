@@ -2,15 +2,15 @@
 
 import logging
 
-import numpy as np
 from nltk import FreqDist
+import numpy as np
 from scipy import sparse
-from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn import preprocessing
+from sklearn.base import BaseEstimator, TransformerMixin
 
-from eblearn import igain
-from eblearn import ebattr
-from utils import strutils, stopwordutils
+from kirke.eblearn import ebattr, igain
+from kirke.utils import stopwordutils, strutils
+
 
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 

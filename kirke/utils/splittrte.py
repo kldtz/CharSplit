@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 
-from collections import defaultdict
 import logging
+from collections import defaultdict
+import warnings
 
-from eblearn import ebtext2antdoc
+from kirke.eblearn import ebtext2antdoc
 
 
 # Currently, we don't have the information on whether we annotated a document
 # for a particular provision or not.  Will modify this code if the situation
-# changes.  
-def provisions_split(provision_list, txt_fn_list, work_dir=None ):
+# changes.
+# @deprecated
+def provisions_split(provision_list, txt_fn_list, work_dir=None):
+    warnings.warn("Shouldn't split based on positive labeled docs only.", DeprecationWarning)
 
     ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
     # print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))

@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-from collections import defaultdict
 import logging
 import math
 import sys
 import time
+from collections import defaultdict
 
-from utils import stopwordutils, strutils
+from kirke.utils import stopwordutils, strutils
 
 # we tried 10%, but this seems to be safer to avoid
 # sudden increase in vocab size when corpus size
