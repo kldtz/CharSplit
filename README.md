@@ -30,7 +30,7 @@ Simple question, but it takes a while to get to that point.  We need to first tr
 
 2. Get hold of the files for building each provision.  In this repo, these files can be generated from running the following command on ```sample_data2.txt.files```:
 
-```run_split_provision_trte.sh"
+```run_split_provision_trte.sh```
 
 3. We want to first train 3 provision annotators, "party", "date", and "change_control".
 
