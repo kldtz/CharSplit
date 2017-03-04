@@ -2,10 +2,9 @@ import json
 import logging
 from pprint import pprint
 
-from sklearn.cross_validation import cross_val_predict
 from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_predict, train_test_split
 
 from kirke.eblearn import ebannotator, ebpostproc, ebtext2antdoc
 from kirke.utils import evalutils, splittrte, strutils

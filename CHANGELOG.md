@@ -13,9 +13,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - training for small data set is based on gridsearchcv
 
-### Yet to do
-- attrvec_ebsent_list is removed.  The processing of attrvec is in transformer
-
 
 ## [0.1.0] - 2017-03-02
 ### Added

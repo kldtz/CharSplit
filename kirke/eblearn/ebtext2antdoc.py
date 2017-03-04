@@ -219,7 +219,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
     # we need prev and next sentences because such information are used in the
     # feature extraction
     prev_ebsent = None
-    next_ebsent = None    
+    next_ebsent = None
     for sent_idx, ebsent in enumerate(ebsent_list):
         sent_st = ebsent.get_text()
         if sent_idx != num_sent-1:

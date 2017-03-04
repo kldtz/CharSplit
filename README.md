@@ -3,61 +3,111 @@ eBrevia Document Annotator
 
 ![kirke image](http://repo.ebrevia.com/repository/kirke.jpg)
 
-# What is this?
+Kirke is a document annotator that annotates documents based on previous annotated examples.
 
-XXX is a document annotation system that annotate documents based on previous annotated examples.
+## Setting up the development environment
 
-## How to Building Classifier Models
+1. Check out the code from github.com
 
-Here are the steps to build classifier models:
+```
+git clone git@github.com:eBrevia/kirke.git Kirke
+cd Kirke
+```
 
-1. Collect an annotated corpus and list the files into a file.  Let's call it '*change_control_file_list.txt*'.  The annotations related to these files are expect to end in '_.ant_' and should be in the same directory as those '*.txt' files.
+2. Setup the virtual environment
 
-2. Train the model.
+```
+virtualenv -p python3 env
+source env/bin/activate
+pip install -r requirements
+```
 
-```bash
+## How to annotate a document using Kirke?
+
+Simple question, but it takes a while to get to that point.  We need to first train a few models first before we can annotate a document.  We have to first run a few commands in a terminal.
+
+1. Download or copy the training corpus.  In my system, I copied them to ```sample_data2``` directory.
+
+2. Get hold of the files for building each provision.  In this repo, these files can be generated from running the following command on ```sample_data2.txt.files```:
+
+```run_split_provision_trte.sh"
+
+3. We want to first train 3 provision annotators, "party", "date", and "change_control".
+
+```
+run_train_x.sh party
+run_train_x.sh date
 run_train_x.sh change_control
 ```
 
-## Top Level Commands
-
-# Create the file lists that contain specific provisions
-# We want to train a provision only on files annotated for that provision.
-run_split_provision_files.sh
-
-# now we have provision file lists, such as
-sample_data2.model/party.doclist.txt
-sample_data2.model/term.doclist.txt
+Each of the above commands can 5 to 15 minutes, depending on the parameters we passed to GridSearchCV.  The model files are create in ```sample_data2.model```
 
 
-# build the classifier, which will evaluate based on annotations, not just classifiers
-run_train_x.sh party
+4. Now we can finally annotate a document.
+
+```run_annoate_doc.sh```
+
+Note: We also have a faster training mode, which I called _shortcut_ models.  Many of the above scripts have corresponding files with "._scut" version, which take only up to 3 minutes to train each provision.  The created model files are stored in ```sample_data2.scut.model```
+
+## How to run Kieke in server mode?
+
+After you have setup Kieke using command line mode, now we are ready to run Kirke in server mode.
+
+1. Make sure you have a corenlp web server running.  In my system, I put the web server in ~/tools/corenlp-server directory.  Please note that you should first read the Confluence page on this topic on how to set this up. 
+
+```
+cd ~/tools/corenlp-server
+startup.sh
+```
+
+1. Start the Kirke server.
+
+```
+cd Kirke
+startup.sh
+```
+
+The server is runnig.
+
+2. Annoate a document.  Go to a new terminal window, do
+
+```
+run_upload_annotate_doc.sh
+```
 
 
-# to simply test the annotators without training
+## How to do custom training?
+
+1. Obtain the data needed for training.  On my machine, there are in Kirke/custom_train.  The file list is in custom_train.txt.files.  These files will uploaded to server for training later.
+
+2. The command line version is
+
+```run_train_cust_12345.sh```
+
+3. Please make sure ```startup.sh``` is still running.  The server-client version is
+
+```run_upload_train.sh```
 
 
+## How to test built models?
 
-# calls run_train_eval_provision.py, which calls ebtrainer.train_eval_annotator()
-# 
-run_train_x.sh party
+1. We can test the annotators using the following scripts:
+
+``run_test_x.sh```
+
+or 
+
+```run_test_x_scut.sh``` for shortcut models.
+
+## Can I build models with ALL the data and not do testing?
+
+1. Yes, you can.
+
+```run_train_x_classifier.sh [party|date|change_control]```
+
+Normal training using ```run_train_x.sh [party|date|change_control]``` takes 1/5 of the data for testing.
 
 
-# calls run_train_prov_classifier.py, which calls ebtrainer._train_classifier()
-# this only trains the classifier on ALL data
-run_train_x_classifier.sh party
-
-
-# calls run_test_provision.py, which calls ebrunner.test_annotators()
-# which loads all dev models
-run_test_x.sh party
-# this runs on all provision.
-run_test_provisions.sh
-
-
-# annotate one particular document using ebrunner
-# annotate_file.py calls eb_runner.annotate_document()
-run_annotate_doc.sh
 
 ## NOTE:
 When the app server says:
