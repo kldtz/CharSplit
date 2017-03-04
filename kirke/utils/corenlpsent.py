@@ -30,7 +30,7 @@ def eb_tokens_to_st(eb_token_list):
             if replace_word:
                 st_list.append(replace_word)
         else:
-            st_list.append(word)                
+            st_list.append(word)
     return ' '.join(st_list)
 
 
@@ -49,9 +49,10 @@ def to_eb_tokens(token_list, num_prefix_space):
         result.append(eb_token)
     return result
 
+
 def merge_ebsents(ebsent_list):
     ebsent0 = ebsent_list[0]
-    
+
     token_list = []
     text_list = []
     tokens_text_list = []
@@ -148,4 +149,3 @@ class EbSentence:
 
     def set_labels(self, labels):
         self.labels = set(labels)
-    

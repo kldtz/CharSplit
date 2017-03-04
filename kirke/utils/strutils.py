@@ -10,7 +10,8 @@ import sys
 def remove_nltab(st):
     # return re.sub(r'[\s\t\r\n]+', ' ', st)
     return re.sub(r'[\s\t\r\n]', ' ', st)
-    
+
+
 def loads(file_name):
     st = ''
     try:
@@ -39,12 +40,7 @@ def save_str_list(str_list, file_name):
         for st in str_list:
             fout.write(st)
             fout.write(os.linesep)
-            
-    # with open("sents.pos.out.{}".format(time.strftime("%Y-%m-%d-%H-%M")), 'wt') as posout:
-    #            for sent_words_st in positive_sent_words_st_list:
-    #                posout.write(sent_words_st)
-    #                posout.write(os.linesep)
-        
+
 
 def load_json_list(file_name):
     atext = loads(file_name)
@@ -97,6 +93,7 @@ def is_all_digit_dot(st):
             return False
     return True
 
+
 def is_all_dash_underline(st):
     if not st:
         return False
@@ -105,18 +102,21 @@ def is_all_dash_underline(st):
             return False
     return True
 
+
 def bool_to_int(bx):
     if bx:
         return 1
     else:
         return 0
-    
+
+
 def yesno_to_int(st):
     if st == 'yes':
         return 1
     elif st == 'no':
         return 0
     raise ValueError("Error in yesno_to_int({})".format(st))
+
 
 """
 def str_to_boolint_not_used(st):
@@ -153,7 +153,7 @@ def tokens_to_all_ngrams(word_list, n=1):
 
 
 if __name__ == '__main__':
-    print(str(_get_num_prefix_space("   abc")))  # 3
-    print(str(_get_num_prefix_space("abc")))     # 0
-    print(str(_get_num_prefix_space(" abc")))    # 1
-    print(str(_get_num_prefix_space("\n\nabc"))) # 2
+    print(str(_get_num_prefix_space("   abc")))   # 3
+    print(str(_get_num_prefix_space("abc")))      # 0
+    print(str(_get_num_prefix_space(" abc")))     # 1
+    print(str(_get_num_prefix_space("\n\nabc")))  # 2
