@@ -126,12 +126,12 @@ When the app server says:
 ```
 raise ValueError('unable to infer matrix dimensions')
 ```
-The likely reason is that the size of the matrix is 0, which is caused by not finding any positive examples in the data.  This is likely caused by mismatch in "provision" name.  Watch out for caching issue, which might use the old file, which caused the mismatch.
+The likely reason is that the size of the matrix is 0, which is caused by not finding any positive examples in the data.  This is likely caused by mismatch in "provision" name.  Watch out for caching issue, which might use the old file, which can cause the mismatch.
 
 
 ## Tests
 
-Because of outdated "ebrevia/learn" code, we can only do
+Because of outdated "ebrevia/learn" code, we can only do specific test, not the global one yet.  Use
 
 ```
 nosetests tests/test1.py
