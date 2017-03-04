@@ -45,8 +45,10 @@ Each of the above commands can 5 to 15 minutes, depending on the parameters we p
 
 4. Now we can finally annotate a document.
 
-```run_annoate_doc.sh```
-a
+```
+run_annoate_doc.sh
+```
+
 Note: We also have a faster training mode, which I called _shortcut_ models.  Many of the above scripts have corresponding files with "._scut" version, which take only up to 3 minutes to train each provision.  The created model files are stored in "sample_data2.scut.model"
 
 ## How to run Kieke in server mode?
@@ -82,7 +84,9 @@ run_upload_annotate_doc.sh
 
 2. The command line version is
 
-```run_train_cust_12345.sh```
+```
+run_train_cust_12345.sh
+```
 
 3. Please make sure ```startup.sh``` is still running.  The server-client version is
 
@@ -119,9 +123,11 @@ The likely reason is that the size of the matrix is 0, which is caused by not fi
 
 ## Tests
 
-Because of outdated ```ebrevia/learn``` code, we can only do
+Because of outdated "ebrevia/learn" code, we can only do
 
-```nosetests tests/test1.py```
+```
+nosetests tests/test1.py
+```
 
 for now.
 
