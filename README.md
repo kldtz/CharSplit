@@ -26,12 +26,12 @@ pip install -r requirements
 
 Simple question, but it takes a while to get to that point.  We need to first train a few models first before we can annotate a document.  We have to first run a few commands in a terminal.
 
-1. Download or copy the training corpus.  In my system, I copied them to ```sample_data2``` directory.
+1. Download or copy the training corpus.  In my system, I copied them to "sample_data2" directory.
 
-2. Get hold of the files for building each provision.  In this repo, these files can be generated from running the following command on ```sample_data2.txt.files```:
-
-```run_split_provision_trte.sh```
-
+2. Get hold of the files for building each provision.  In this repo, these files can be generated from running the following command on "sample_data2.txt.files":
+```
+run_split_provision_trte.sh
+```
 3. We want to first train 3 provision annotators, "party", "date", and "change_control".
 
 ```
@@ -40,14 +40,14 @@ run_train_x.sh date
 run_train_x.sh change_control
 ```
 
-Each of the above commands can 5 to 15 minutes, depending on the parameters we passed to GridSearchCV.  The model files are create in ```sample_data2.model```
+Each of the above commands can 5 to 15 minutes, depending on the parameters we passed to GridSearchCV.  The model files are create in "sample_data2.model"
 
 
 4. Now we can finally annotate a document.
 
 ```run_annoate_doc.sh```
-
-Note: We also have a faster training mode, which I called _shortcut_ models.  Many of the above scripts have corresponding files with "._scut" version, which take only up to 3 minutes to train each provision.  The created model files are stored in ```sample_data2.scut.model```
+a
+Note: We also have a faster training mode, which I called _shortcut_ models.  Many of the above scripts have corresponding files with "._scut" version, which take only up to 3 minutes to train each provision.  The created model files are stored in "sample_data2.scut.model"
 
 ## How to run Kieke in server mode?
 
@@ -93,11 +93,13 @@ run_upload_annotate_doc.sh
 
 1. We can test the annotators using the following scripts:
 
-``run_test_x.sh```
+```
+run_test_x.sh change_control
+```
 
 or 
 
-```run_test_x_scut.sh``` for shortcut models.
+```run_test_x_scut.sh change_control``` for shortcut models.
 
 ## Can I build models with ALL the data and not do testing?
 
