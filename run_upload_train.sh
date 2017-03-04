@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python client/uploaddir.py custom_train 
+python kirke/client/uploaddir.py custom_train 
