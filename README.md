@@ -88,10 +88,11 @@ run_upload_annotate_doc.sh
 run_train_cust_12345.sh
 ```
 
-3. Please make sure ```startup.sh``` is still running.  The server-client version is
+3. Please make sure Kirke server, "startup.sh", is still running.  The server-client version is
 
-```run_upload_train.sh```
-
+```
+run_upload_train.sh
+```
 
 ## How to test built models?
 
@@ -103,21 +104,28 @@ run_test_x.sh change_control
 
 or 
 
-```run_test_x_scut.sh change_control``` for shortcut models.
+```
+run_test_x_scut.sh change_control
+```
+for shortcut models.
 
 ## Can I build models with ALL the data and not do testing?
 
 1. Yes, you can.
 
-```run_train_x_classifier.sh [party|date|change_control]```
+```
+run_train_x_classifier.sh [party|date|change_control]
+```
 
-Normal training using ```run_train_x.sh [party|date|change_control]``` takes 1/5 of the data for testing.
+Normal training using "run_train_x.sh [party|date|change_control]" takes 1/5 of the data for testing.
 
 
 
 ## NOTE:
 When the app server says:
-```raise ValueError('unable to infer matrix dimensions')```
+```
+raise ValueError('unable to infer matrix dimensions')
+```
 The likely reason is that the size of the matrix is 0, which is caused by not finding any positive examples in the data.  This is likely caused by mismatch in "provision" name.  Watch out for caching issue, which might use the old file, which caused the mismatch.
 
 
