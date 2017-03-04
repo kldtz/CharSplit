@@ -4,14 +4,14 @@ from abc import ABC, abstractmethod
 from kirke.utils import corenlpsent, strutils
 from kirke.utils.ebantdoc import EbEntityType
 
-
+# pylint: disable=C0103
 def merge_ebsent_probs_with_entities(prob_ebsent_list):
     # don't bother with len 1
     if len(prob_ebsent_list) == 1:
         return prob_ebsent_list[0]
 
-    max_prob, ebsent = prob_ebsent_list[0]
-    for prob, ebsent in prob_ebsent_list[1:]:
+    max_prob, _ = prob_ebsent_list[0]
+    for prob, _ in prob_ebsent_list[1:]:
         if prob > max_prob:
             max_prob = prob
 
@@ -22,7 +22,7 @@ def merge_ebsent_probs_with_entities(prob_ebsent_list):
     ebsent_list = [ebsent for prob, ebsent in prob_ebsent_list]
     return (max_prob, corenlpsent.merge_ebsents(ebsent_list))
 
-    
+
 def merge_prob_ebsents(prob_ebsent_list, threshold):
     result = []
     prev_list = []
@@ -35,28 +35,22 @@ def merge_prob_ebsents(prob_ebsent_list, threshold):
                 prev_list = []
             result.append((prob, ebsent))
     if prev_list:
-        result.append(merge_ebsent_probs_with_entities(prev_list))        
+        result.append(merge_ebsent_probs_with_entities(prev_list))
     return result
 
 
-PROVISION_PAT_MAP = {'change_control': re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL),
-                     'confidentiality': re.compile(r'(information.*confidential|confidential.*information)',
-                                                   re.IGNORECASE | re.DOTALL),
-                     'limliability': re.compile(r'((is|are)\s+not\s+(liable|responsible)|'
-                                                r'will\s+not\s+be\s+(held\s+)?(liable|responsible)|'
-                                                r'no\s+(\S+\s+){1,5}(is|will\s+be)\s+responsible\s+for|'
-                                                r'not\s+(be\s+)?required\s+to\s+make\s+(\S+\s+){1,3}payment|'
-                                                r'need\s+not\s+make\s(\S+\s+){1,3}payment)',
-                                                re.IGNORECASE | re.DOTALL),
-                     'term': re.compile(r'[“"]Termination\s+Date[”"]', re.IGNORECASE | re.DOTALL)}
+PROVISION_PAT_MAP = {
+    'change_control': re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL),
+    'confidentiality': re.compile(r'(information.*confidential|confidential.*information)',
+                                  re.IGNORECASE | re.DOTALL),
+    'limliability': re.compile(r'((is|are)\s+not\s+(liable|responsible)|'
+                               r'will\s+not\s+be\s+(held\s+)?(liable|responsible)|'
+                               r'no\s+(\S+\s+){1,5}(is|will\s+be)\s+responsible\s+for|'
+                               r'not\s+(be\s+)?required\s+to\s+make\s+(\S+\s+){1,3}payment|'
+                               r'need\s+not\s+make\s(\S+\s+){1,3}payment)',
+                               re.IGNORECASE | re.DOTALL),
+    'term': re.compile(r'[“"]Termination\s+Date[”"]', re.IGNORECASE | re.DOTALL)}
 
-
-# TODO, jshaw, remove
-# nobody is calling this?
-def apply_overrides(self, probs, overrides):
-    for i, override in enumerate(overrides):
-        if override != None:
-            probs[i] = override
 
 # override some provisions during testing
 def gen_provision_overrides(provision, sent_st_list):
@@ -73,31 +67,31 @@ def gen_provision_overrides(provision, sent_st_list):
         num_words = len(toks)
         num_numeric = sum(1 for tok in toks if strutils.is_number(tok))
         is_toc = num_words > 60 and num_numeric / num_words > .2
-        if provision_pattern and provision_pattern.search(sent_st) and num_words > min_pattern_override_length and not is_toc:
+        if (provision_pattern and provision_pattern.search(sent_st) and
+                num_words > min_pattern_override_length and not is_toc):
             overrides[sent_idx] = 1
         if num_words < global_min_length:
             overrides[sent_idx] = 0
     return overrides
 
 
-
-
+# pylint: disable=R0903
 class EbPostPredictProcessing(ABC):
 
     @abstractmethod
     def post_process(self, prob_ebsent_list, threshold, provision=None):
         pass
 
-
+# pylint: disable=R0903
 class DefaultPostPredictProcessing(EbPostPredictProcessing):
 
     def __init__(self):
         self.provision = 'default'
-        
+
     def post_process(self, prob_ebsent_list, threshold, provision=None):
         merged_prob_ebsent_list = merge_prob_ebsents(prob_ebsent_list, threshold)
 
-        ant_result = [] 
+        ant_result = []
         for prob, ebsent in merged_prob_ebsent_list:
             if prob >= threshold:
                 ant_result.append({'label': provision if provision else self.provision,
@@ -107,15 +101,17 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                    'text': strutils.remove_nltab(ebsent.text[:50]) + '...'})
         return ant_result
 
+
+# pylint: disable=R0903
 class PostPredPartyProc(EbPostPredictProcessing):
 
     def __init__(self):
         self.provision = 'party'
-        
+
     def post_process(self, prob_ebsent_list, threshold, provision=None):
         merged_prob_ebsent_list = merge_prob_ebsents(prob_ebsent_list, threshold)
 
-        ant_result = [] 
+        ant_result = []
         for prob, ebsent in merged_prob_ebsent_list:
             if prob >= threshold:
                 for entity in ebsent.entities:
@@ -127,15 +123,16 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                            'text': strutils.remove_nltab(entity.text)})
         return ant_result
 
+# pylint: disable=R0903
 class PostPredDateProc(EbPostPredictProcessing):
 
     def __init__(self):
         self.provision = 'date'
-        
+
     def post_process(self, prob_ebsent_list, threshold, provision=None):
         merged_prob_ebsent_list = merge_prob_ebsents(prob_ebsent_list, threshold)
 
-        ant_result = [] 
+        ant_result = []
         for prob, ebsent in merged_prob_ebsent_list:
             if prob >= threshold:
                 for entity in ebsent.entities:
@@ -146,16 +143,16 @@ class PostPredDateProc(EbPostPredictProcessing):
                                            'end': entity.end,
                                            'text': strutils.remove_nltab(entity.text)})
         return ant_result
-    
-    
-provision_postproc_map = {}
-provision_postproc_map['default'] = DefaultPostPredictProcessing()
-provision_postproc_map['party'] = PostPredPartyProc()
-provision_postproc_map['date'] = PostPredDateProc()
+
+
+PROVISION_POSTPROC_MAP = {
+    'default': DefaultPostPredictProcessing(),
+    'party': PostPredPartyProc(),
+    'date': PostPredDateProc()
+}
 
 def obtain_postproc(provision):
-    postproc = provision_postproc_map.get(provision)
+    postproc = PROVISION_POSTPROC_MAP.get(provision)
     if not postproc:
-        postproc = provision_postproc_map['default']
-
+        postproc = PROVISION_POSTPROC_MAP['default']
     return postproc

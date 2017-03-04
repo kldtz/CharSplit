@@ -11,7 +11,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from kirke.eblearn import igain, ebattrvec
 from kirke.utils import stopwordutils, strutils
 
-
+# pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
 # this is a class specific transformer because of information gain and
@@ -40,9 +40,8 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
     def fit(self, attrvec_ebsent_list, label_list=None):
         EbTransformer.fit_count += 1
-        logging.info("fitting #{} called, len(attrvec_ebsent_list) = {}, len(label_list) = {}".format(EbTransformer.fit_count,
-                                                                                               len(attrvec_ebsent_list),
-                                                                                               len(label_list)))
+        logging.info("fitting #%s called, len(attrvec_ebsent_list) = %d, len(label_list) = %d",
+                     EbTransformer.fit_count, len(attrvec_ebsent_list), len(label_list))
         attrvec_list = []
         ebsent_list = []
         for attrvec, ebsent in attrvec_ebsent_list:
@@ -66,7 +65,8 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         for attrvec, ebsent in attrvec_ebsent_list:
             attrvec_list.append(attrvec)
             ebsent_list.append(ebsent)
-        
+
+        # pylint: disable=C0103
         X = self.ebantdoc_list_to_csr_matrix(attrvec_list,
                                              ebsent_list,
                                              [],
@@ -74,6 +74,7 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         return X
 
     # label_list is a list of booleans
+    # pylint: disable=R0912, R0914
     def ebantdoc_list_to_csr_matrix(self,
                                     attrvec_list,
                                     ebsent_list,
@@ -118,7 +119,7 @@ class EbTransformer(BaseEstimator, TransformerMixin):
             for ebsent in ebsent_list:
                 sent_st = ebsent.get_tokens_text()
                 sent_st_list.append(sent_st)
-        
+
         nostop_sent_st_list = stopwordutils.remove_stopwords(sent_st_list, mode=2)
 
         if fit_mode:
@@ -128,22 +129,22 @@ class EbTransformer(BaseEstimator, TransformerMixin):
             for vid, vocab in enumerate(vocabs):
                 vocab_id_map[vocab] = vid
             self.vocab_id_map = vocab_id_map
-            
+
             # handling bi-topgram
             # only lower case, mode=0, label_list must not be empty
             nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
             filtered_list = []
             for nostop_positive_sent in nostop_positive_sent_st_list:
-                for w in nostop_positive_sent.split():
-                    if len(w) > 3:
-                        filtered_list.append(w)
+                for tmp_w in nostop_positive_sent.split():
+                    if len(tmp_w) > 3:
+                        filtered_list.append(tmp_w)
             fdistribution = FreqDist(filtered_list)
             self.n_top_positive_words = [item[0] for item in
                                          fdistribution.most_common(EbTransformer.MAX_NUM_BI_TOPGRAM_WORDS)]
 
         # still need to go through rest of fit_mode because of more vars are setup
 
-        bow_matrix = self.gen_top_ig_ngram_matrix(sent_st_list, self.vocab_id_map, tokenize=igain.eb_doc_to_all_ngrams)
+        bow_matrix = self.gen_top_ig_ngram_matrix(sent_st_list, tokenize=igain.eb_doc_to_all_ngrams)
 
         # print("n_top_positive_words = {}".format(self.n_top_positive_words))
         bi_topgram_matrix = self.gen_bi_topgram_matrix(nostop_sent_st_list, fit_mode=fit_mode)
@@ -151,13 +152,14 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         comb_matrix = sparse.hstack((numeric_matrix, categorical_matrix, bow_matrix))
         sparse_comb_matrix = sparse.csr_matrix(comb_matrix)
 
-        nozero_column_train_csr_matrix_part1 = self.remove_zero_column(sparse_comb_matrix, fit_mode=fit_mode)
+        nozero_sparse_comb_matrix = self.remove_zero_column(sparse_comb_matrix, fit_mode=fit_mode)
 
         # print("shape of bi_topgram: ", bi_topgram_matrix.shape)
-        X = sparse.hstack((nozero_column_train_csr_matrix_part1, bi_topgram_matrix), format='csr')
+        # pylint: disable=C0103
+        X = sparse.hstack((nozero_sparse_comb_matrix, bi_topgram_matrix), format='csr')
         # print("combined shape of X = {}".format(X.shape))
         # print("shape of X: {}", X)
-        
+
         # return sparse_comb_matrix, bi_topgram_matrix, sent_st_list
         return X
 
@@ -172,17 +174,17 @@ class EbTransformer(BaseEstimator, TransformerMixin):
             sent_words = set(sent_st.split())   # TODO, a little repetitive, split again
             found_words = [common_word for common_word in self.n_top_positive_words if common_word in sent_words]
 
-            for iw1, w1 in enumerate(found_words):
-                for iw2 in range(iw1 + 1, len(found_words)):
-                    w2 = found_words[iw2]
-                    col_name = ",".join((w1, w2))
+            for index_w1, tmp_w1 in enumerate(found_words):
+                for index_w2 in range(index_w1 + 1, len(found_words)):
+                    tmp_w2 = found_words[index_w2]
+                    col_name = ",".join((tmp_w1, tmp_w2))
                     if fit_mode:
                         # print("col_name= {}".format(col_name))
                         index = self.vocabulary.setdefault(col_name, len(self.vocabulary))
                         indices.append(index)
                         data.append(1)
                     else:
-                        if col_name in self.vocabulary: 
+                        if col_name in self.vocabulary:
                             index = self.vocabulary[col_name]
                             indices.append(index)
                             data.append(1)
@@ -193,11 +195,11 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         else:
             bi_topgram_matrix = sparse.csr_matrix((data, indices, indptr),
                                                   shape=(len(sent_st_list), len(self.vocabulary)),
-                                                  dtype=int)            
+                                                  dtype=int)
         return bi_topgram_matrix
-    
 
-    def gen_top_ig_ngram_matrix(self, sent_st_list, vocab_id_map, tokenize):
+
+    def gen_top_ig_ngram_matrix(self, sent_st_list, tokenize):
         # for each sentence, find which top words it contains.  Then generate all pairs of these,
         # and generate the sparse matrix row entries for the rows it contains.
         indptr = [0]
@@ -215,22 +217,23 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
         top_ig_ngram_matrix = sparse.csr_matrix((data, indices, indptr),
                                                 shape=(len(sent_st_list), len(self.vocab_id_map)),
-                                                dtype=int)            
+                                                dtype=int)
         return top_ig_ngram_matrix
 
+    # pylint: disable=C0103
     def remove_zero_column(self, X, fit_mode=False):
         # print("remove_zero_column(), shape of matrix X = ", X.shape)
 
         if fit_mode:
             col_sum = X.sum(axis=0)
             col_sum = np.squeeze(np.asarray(col_sum))
-            zerofind = list(np.where(col_sum==0))
+            zerofind = list(np.where(col_sum == 0))
             all_cols = np.arange(X.shape[1])
             # print("zerofind= ", zerofind)
 
+            # pylint: disable=E1101
             self.cols_to_keep = np.where(np.logical_not(np.in1d(all_cols, zerofind)))[0]
 
         X = X[:, self.cols_to_keep] #  remove cols where sum is zero
         # print("after remove_zero_column(), shape of matrix X = ", X.shape)
         return X
-    

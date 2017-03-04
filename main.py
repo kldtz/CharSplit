@@ -25,8 +25,7 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
         eb_classifier = provclassifier.ProvisionClassifier(provision)
         model_file_name = model_dir + '/' + provision + "_provclassifier.pkl"
 
-    ebtrainer._train_classifier(provision,
-                                txt_fn_list_fn,
+    ebtrainer._train_classifier(txt_fn_list_fn,
                                 work_dir,
                                 model_file_name,
                                 eb_classifier)

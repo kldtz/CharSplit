@@ -22,27 +22,28 @@ def get_corenlp_puncts():
     return frozenset(punct_words)
 
 
-stopwords = get_sklearn_stopwords()
-punctwords = get_corenlp_puncts()
-punct_stopwords = stopwords.union(punctwords)
+STOPWORDS = get_sklearn_stopwords()
+PUNCTWORDS = get_corenlp_puncts()
+PUNCT_STOPWORDS = STOPWORDS.union(PUNCTWORDS)
 
 
 def is_stopword(word):
-    return word in stopwords
+    return word in STOPWORDS
 
 
 def is_punctword(word):
-    return word in punctwords
+    return word in PUNCTWORDS
 
 
 def is_punct_or_stopword(word):
-    return word in punct_stopwords
+    return word in PUNCT_STOPWORDS
 
 
+# pylint: disable=R0911
 def is_eb_stopword(word):
     if not word:  # empty
         return True
-    if word in punct_stopwords:
+    if word in PUNCT_STOPWORDS:
         return True
     if len(word) < 2:  # one char words are ambiguous
         return True
@@ -107,6 +108,7 @@ def remove_stopwords(sent_list, mode=0):
     return [str_remove_stopwords(sent, mode=mode).strip() for sent in sent_list]
 
 
+# pylint: disable=W0105
 """
 # mode = {lower, keep, keep_both}, 0, 1, 2
 def not_used_remove_stopwords_and_count(sent_list, mode=0):

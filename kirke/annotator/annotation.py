@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 
-class AnnotationType(object):
+# pylint: disable=R0903
+class AnnotationType:
     def __init__(self, name):
         self.name = name
 
     def __repr__(self):
-        return '{}'.format(self.name)
-        
+        return "AnnotationType('{}')".format(self.name)
+
 # Based on UIMA's approach, with 'start' and 'end',
 # but without the efficiency.
-class Annotation(object):
+class Annotation:
 
     def __init__(self, atype, start, end):
         self.atype = atype  # AnnotationType
@@ -33,7 +34,7 @@ class Annotation(object):
 class SentenceAnnotation(Annotation):
 
     sent_type = AnnotationType('sentence')
-    
+
     def __init__(self, start, end, sf):
         super(self.__class__, self).__init__(SentenceAnnotation.sent_type, start, end)
         self.surface_form = sf
@@ -44,4 +45,3 @@ class SentenceAnnotation(Annotation):
 
     def to_tuple(self):
         return (self.start, self.end, self.surface_form)
-    

@@ -9,7 +9,7 @@ class EbEntityType(Enum):
     LOCATION = 3
     DATE = 4
 
-eb_provision_st_list = ['party', 'date', 'title', 'change_control', 'assign',
+EB_PROVISION_ST_LIST = ['party', 'date', 'title', 'change_control', 'assign',
                         'indemnify', 'sublicense', 'securities_transfer',
                         'assign_lender', 'assign_landlord_owner',
                         'agent_trustee_assign', 'loan_prepay',
@@ -35,14 +35,13 @@ eb_provision_st_list = ['party', 'date', 'title', 'change_control', 'assign',
                         'l_condemnation_term', 'l_damage_term',
                         'l_landlord_repair', 'l_tenant_repair',
                         'l_lessee_eod', 'l_lessor_eod']
-eb_provision_st_set = set(eb_provision_st_list)
+EB_PROVISION_ST_SET = set(EB_PROVISION_ST_LIST)
 
 
 EbEntityTuple = namedtuple('EbEntityTuple', ['start', 'end', 'ner', 'text'])
 
 
 class EbEntity:
-
     __slots__ = ['start', 'end', 'ner', 'text']
 
     def __init__(self, start, end, ner, text):
@@ -71,6 +70,7 @@ def entities_to_dict_list(entities):
 
 
 # ProvisionAnnotationTuple = namedtuple('ProvisionAnnotation', ['label', 'start', 'end'])
+# pylint: disable=R0903
 class ProvisionAnnotation:
     __slots__ = ['label', 'start', 'end']
 
@@ -84,20 +84,19 @@ class ProvisionAnnotation:
 #    def to_tuple(self):
 #        return (self.lable, self.start, self.end)
 
-
+# pylint: disable=R0902
 class EbProvisionAnnotation:
-
     __slots__ = ['confidence', 'correctness', 'start', 'end',
-                 'type', 'text', 'id', 'custom_text']
+                 'ptype', 'text', 'pid', 'custom_text']
 
     def __init__(self, ajson):
         self.confidence = ajson['confidence']
         self.correctness = ajson.get('correctness')
         self.start = ajson.get('start')
         self.end = ajson.get('end')
-        self.type = ajson.get('type')
+        self.ptype = ajson.get('type')  # not 'type' but 'ptype'
         self.text = ajson.get('text')
-        self.id = ajson.get('id')    # string
+        self.pid = ajson.get('id')    # string, not 'id' but 'pid'
         self.custom_text = ajson.get('customText')  # boolean
 
     def to_dict(self):
@@ -106,15 +105,15 @@ class EbProvisionAnnotation:
                 'customText': self.custom_text,
                 'start': self.start,
                 'end': self.end,
-                'id': self.id,
+                'id': self.pid,
                 'text': self.text,
-                'type': self.type}
+                'type': self.ptype}
 
     def __str__(self):
         return str(self.to_dict())
 
     def to_tuple(self):
-        return ProvisionAnnotation(self.type, self.start, self.end)
+        return ProvisionAnnotation(self.ptype, self.start, self.end)
 
 
 def load_provision_annotations(filename, provision_name=None):
@@ -135,6 +134,7 @@ def load_provision_annotations(filename, provision_name=None):
 
 class EbAnnotatedDoc:
 
+    # pylint: disable=R0913
     def __init__(self, file_name, eb_sents, prov_ant_list, attrvec_list, text):
         self.file_id = file_name
         self.ebsents = eb_sents
@@ -150,10 +150,10 @@ class EbAnnotatedDoc:
         return self.ebsents
 
     def set_provision_annotations(self, ant_list):
-        self.provision_annnotation_list = ant_list
+        self.prov_annotation_list = ant_list
 
     def get_provision_annotations(self):
-        return self.provision_annotation_list
+        return self.prov_annotation_list
 
     def get_provision_set(self):
         return self.provision_set

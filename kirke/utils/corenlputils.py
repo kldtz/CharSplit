@@ -14,11 +14,11 @@ def is_sent_starts_with_lower(ebsent_list, sent_idx):
     return False
 
 
-page_number_pat = re.compile(r'^(\d+|(page\s+)?\-?\s*\d+\s*\-?)$', re.IGNORECASE)
+PAGE_NUMBER_PAT = re.compile(r'^(\d+|(page\s+)?\-?\s*\d+\s*\-?)$', re.IGNORECASE)
 
 
-def is_page_number_st(st):
-    return page_number_pat.match(st)
+def is_page_number_st(xst):
+    return PAGE_NUMBER_PAT.match(xst)
 
 
 def is_sent_page_number(ebsent_list, sent_idx):

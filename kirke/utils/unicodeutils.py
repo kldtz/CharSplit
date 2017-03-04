@@ -4,7 +4,7 @@ import unicodedata
 # Java has Character.getType(), Python has a different mechanism for similar information.
 # They don't exactly match, but took the most frequent mapping as the correct mapping.
 # Both are 30 and unique.  # id missing 17, but has 30.
-unicode_catid_map = {'Cc': 15,
+UNICODE_CATID_MAP = {'Cc': 15,
                      'Cf': 16,
                      'Cn': 0,    # Other, unknown
                      'Co': 18,
@@ -36,12 +36,12 @@ unicode_catid_map = {'Cc': 15,
                      'Zs': 12}
 
 # not used
-unicode_cat_list = ['Cc', 'Cf', 'Cn', 'Co', 'Cs', 'Ll', 'Lm', 'Lo', 'Lt', 'Lu',
+UNICODE_CAT_LIST = ['Cc', 'Cf', 'Cn', 'Co', 'Cs', 'Ll', 'Lm', 'Lo', 'Lt', 'Lu',
                     'Mc', 'Me', 'Mn', 'Nd', 'Nl', 'No', 'Pc', 'Pd', 'Pe', 'Pf',
                     'Pi', 'Po', 'Ps', 'Sc', 'Sk', 'Sm', 'So', 'Zl', 'Zp', 'Zs']
 
 def unicode_char_to_category_id(int_ch):
-    return unicode_catid_map.get(unicodedata.category(int_ch))
+    return UNICODE_CATID_MAP.get(unicodedata.category(int_ch))
 
 def unicode_char_to_category(int_ch):
     return unicodedata.category(int_ch)

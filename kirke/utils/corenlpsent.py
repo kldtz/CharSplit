@@ -1,10 +1,11 @@
-
 import copy
 
 
+# pylint: disable=R0903
 class EbToken:
     _slots__ = ['start', 'end', 'word', 'lemma', 'pos', 'index', 'ner']
 
+    # pylint: disable=R0913
     def __init__(self, start, end, word, lemma, pos, ner, index):
         self.start = start
         self.end = end
@@ -86,6 +87,7 @@ def merge_ebsents(ebsent_list):
     return merged_ebsent
 
 
+# pylint: disable=R0902
 class EbSentence:
     _slots__ = ['file_id', 'tokens', 'start', 'end', 'text', 'tokens',
                 'entities', 'labels']
@@ -98,7 +100,8 @@ class EbSentence:
         self.end = self.tokens[-1].end
         self.text = atext[self.start:self.end]  # migh have page number
         self.tokens_text = eb_tokens_to_st(self.tokens)          # no page number
-        # entities are EbEntity's, not set until populate_ebsent_entities(ebsent), after fix_ner_tags()
+        # entities are EbEntity's, not set until populate_ebsent_entities(ebsent),
+        # after fix_ner_tags()
         self.entities = []
         # set of strings
         self.labels = set([])

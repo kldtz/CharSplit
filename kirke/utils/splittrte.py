@@ -40,7 +40,7 @@ def provisions_split(provision_list, txt_fn_list, work_dir=None):
 
 
 def save_antdoc_fn_list(eb_antdoc_list, doclist_file_name):
-    logging.debug("save_antdoc_fn_list({})".format(doclist_file_name))
+    logging.debug("save_antdoc_fn_list(%s)", doclist_file_name)
 
     with open(doclist_file_name, 'wt') as fout:
         for eb_antdoc in eb_antdoc_list:

@@ -4,41 +4,46 @@ import json
 import logging
 import os
 import re
-import sys
 
+# pylint: disable=W0703, E1101
 
-def remove_nltab(st):
-    # return re.sub(r'[\s\t\r\n]+', ' ', st)
-    return re.sub(r'[\s\t\r\n]', ' ', st)
+def remove_nltab(xst):
+    # return re.sub(r'[\s\t\r\n]+', ' ', xst)
+    return re.sub(r'[\s\t\r\n]', ' ', xst)
 
 
 def loads(file_name):
-    st = ''
+    xst = ''
     try:
         with open(file_name, 'rt') as myfile:
-            st = myfile.read()
-    except IOError as e:
-        logging.error("I/O error({}) in strutils.loads({}): {}".format(file_name, e.errno, e.strerror))
-    except:   # handle other exceptions such as attribute errors
-        logging.error("Unexpected error in strutils.loads({}): {}".format(file_name, sys.exc_info()[0]))
-    return st
+            xst = myfile.read()
+    except IOError as exc:
+        logging.error("I/O error(%s) in strutils.loads(%s): %s",
+                      file_name, str(exc.errno), str(exc.strerror))
+    except Exception as exc:  # handle other exceptions such as attribute errors
+        # handle any other exception
+        logging.error("Error '%s' occured. Arguments %s.", exc.message, str(exc.args))
+    return xst
 
 
-def dumps(st, file_name):
+def dumps(xst, file_name):
     try:
         with open(file_name, 'wt') as myfile:
-            myfile.write(st)
+            myfile.write(xst)
             myfile.write(os.linesep)
-    except IOError as e:
-        logging.error("I/O error({}) in strutils.dumps({}): {}".format(file_name, e.errno, e.strerror))
-    except:   # handle other exceptions such as attribute errors
-        logging.error("Unexpected error in strutils.dumps({}): {}".format(file_name, sys.exc_info()[0]))
+    except IOError as exc:
+        logging.error("I/O error(%s) in strutils.loads(%s): %s",
+                      file_name, str(exc.errno), str(exc.strerror))
+    # pylint: disable=W0703
+    except Exception as exc:  # handle other exceptions such as attribute errors
+        # handle any other exception
+        logging.error("Error '%s' occured. Arguments %s.", exc.message, str(exc.args))
 
 
 def save_str_list(str_list, file_name):
     with open(file_name, 'wt') as fout:
-        for st in str_list:
-            fout.write(st)
+        for xst in str_list:
+            fout.write(xst)
             fout.write(os.linesep)
 
 
@@ -51,73 +56,73 @@ def load_json_list(file_name):
 # (https://en.wikipedia.org/wiki/Non-breaking_space) as space.
 # Going to match first word instead to align CoreNLP output.
 # st[i] == u'\u00a0' (non-breaking space)
-def _get_num_prefix_space(st):
+def _get_num_prefix_space(xst):
     i = 0
-    st_size = len(st)
+    st_size = len(xst)
     while i < st_size:
-        if st[i].isspace():
+        if xst[i].isspace():
             i += 1
         else:
             break
     return i
 
 # http://stackoverflow.com/questions/354038/how-do-i-check-if-a-string-is-a-number-float-in-python
-def is_number(s):
+def is_number(xst):
     try:
-        float(s)
+        float(xst)
         return True
     except ValueError:
         return False
 
 
-def is_int(s):
+def is_int(xst):
     try:
-        int(s)
+        int(xst)
         return True
     except ValueError:
         return False
 
 
-def to_int(s):
+def to_int(xst):
     try:
-        result = int(s)
+        result = int(xst)
         return result
     except ValueError:
-        raise ValueError("Error in to_int({})".format(s))
+        raise ValueError("Error in to_int({})".format(xst))
 
-def is_all_digit_dot(st):
-    if not st:
+def is_all_digit_dot(xst):
+    if not xst:
         return False
-    for ch in st:
-        if not ((ch == '.') or (ch == '-') or ch.isdigit()):
+    for xch in xst:
+        if not ((xch == '.') or (xch == '-') or xch.isdigit()):
             return False
     return True
 
 
-def is_all_dash_underline(st):
-    if not st:
+def is_all_dash_underline(xst):
+    if not xst:
         return False
-    for ch in st:
-        if not ((ch == '-') or (ch == '_')):
+    for xch in xst:
+        if not ((xch == '-') or (xch == '_')):
             return False
     return True
 
 
-def bool_to_int(bx):
-    if bx:
+def bool_to_int(bxx):
+    if bxx:
         return 1
     else:
         return 0
 
 
-def yesno_to_int(st):
-    if st == 'yes':
+def yesno_to_int(xst):
+    if xst == 'yes':
         return 1
-    elif st == 'no':
+    elif xst == 'no':
         return 0
-    raise ValueError("Error in yesno_to_int({})".format(st))
+    raise ValueError("Error in yesno_to_int({})".format(xst))
 
-
+# pylint: disable=W0105
 """
 def str_to_boolint_not_used(st):
     if isinstance(st, str):
@@ -133,20 +138,20 @@ def str_to_boolint_not_used(st):
 """
 
 
-def gen_ngram(word_list, n=2):
+def gen_ngram(word_list, max_n=2):
     result = []
-    for i in range(len(word_list)-n+1):
-        ngram_words = [word_list[i+j] for j in range(n)]
+    for i in range(len(word_list) - max_n + 1):
+        ngram_words = [word_list[i + j] for j in range(max_n)]
         result.append(' '.join(ngram_words))
     return result
 
 
-def tokens_to_all_ngrams(word_list, n=1):
+def tokens_to_all_ngrams(word_list, max_n=1):
     # unigram
     sent_wordset = set(word_list)
     # bigram and up
-    for ngram_size in range(2, n+1):
-        ngram_list = gen_ngram(word_list, n=ngram_size)
+    for ngram_size in range(2, max_n+1):
+        ngram_list = gen_ngram(word_list, max_n=ngram_size)
         sent_wordset |= set(ngram_list)
 
     return sent_wordset

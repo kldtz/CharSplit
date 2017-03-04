@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from kirke.utils import mathutils
 
+# pylint: disable=C0103
 
 # label_start_end_list is of type prov_annotation_list
 def find_annotation_overlap(start, end, label_start_end_list):
@@ -40,7 +41,9 @@ def calc_precision_recall_f1(tn, fp, fn, tp, title):
     return prec, recall, f1
 
 
+# pylint: disable=R0903
 class AnnotationWithProb:
+    __slots__ = ['label', 'start', 'end', 'prob']
 
     def __init__(self, label, start, end, prob):
         self.label = label
@@ -49,16 +52,19 @@ class AnnotationWithProb:
         self.prob = prob
 
     def __repr__(self):
-        return "('{}', {}, {}, {})".format(self.label, self.start, self.end, self.prob)
+        return "AnnotationWithProb('{}', {}, {}, {})".format(self.label, self.start,
+                                                             self.end, self.prob)
 
 
+# pylint: disable=R0914
 def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
     tp, fp, tn, fn = 0, 0, 0, 0
     # print("calc_doc_ant_confusion_matrix:")
 
     pred_ant_list = []
     for adict in ant_list:
-        pred_ant_list.append(AnnotationWithProb(adict['label'], adict['start'], adict['end'], adict['prob']))
+        pred_ant_list.append(AnnotationWithProb(adict['label'], adict['start'],
+                                                adict['end'], adict['prob']))
     # print("prov_human_ant_list: {}".format(prov_human_ant_list))
     # print("pred_ant_list: {}".format(pred_ant_list))
 
@@ -94,25 +100,27 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
     if diagnose_mode:
         print("tp = {}".format(tp))
         for i, hant in enumerate(sorted(tp_inst_map.keys())):
-            hstart, hend, hlabel = hant
+            hstart, hend, _ = hant
             print("\ntp #{}, start= {}, end= {}".format(i+1, hstart, hend))
             print(txt[hstart:hend])
             tp_inst_list = tp_inst_map[hant]
             for j, pred_ant in enumerate(tp_inst_list):
-                print("     inst #{}, start2= {}, end2= {}, prob= {}".format(j+1, pred_ant.start,
-                                                                             pred_ant.end, pred_ant.prob))
+                print("     inst #%d, start2= %d, end2= %d, prob= %.6f",
+                      j+1, pred_ant.start, pred_ant.end, pred_ant.prob)
                 print("     ", end='')
                 print(txt[pred_ant.start:pred_ant.end])
 
         print("\n\nfn = {}".format(fn))
         for i, hant in enumerate(fn_inst_list):
-            print("\nfn #{}, start= {}, end= {}, label = {}".format(i+1, hant.start, hant.end, hant.label))
+            print("\nfn #%d, start= %d, end= %d, label = %s",
+                  i+1, hant.start, hant.end, hant.label)
             print("     ", end='')
             print(txt[hant.start:hant.end])
 
         print("\n\nfp = {}".format(fp))
         for i, pred_ant in enumerate(fp_inst_list):
-            print("fp #{}, start= {}, end= {}, prob= {}".format(i, pred_ant.start, pred_ant.end, pred_ant.prob))
+            print("fp #%d, start= %d, end= %d, prob= %.6f",
+                  i, pred_ant.start, pred_ant.end, pred_ant.prob)
             print(txt[pred_ant.start:pred_ant.end])
 
     return tp, fn, fp, tn
@@ -121,10 +129,12 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
 #
 # utilities
 #
-
+# pylint: disable=W0613
 def print_with_threshold(probs, y_te, overrides):
     pass
-    """
+
+# pylint: disable=W0105
+"""
     # compute thresholded recall/precision
     THRESHOLD = .06
     rec_den = 0
