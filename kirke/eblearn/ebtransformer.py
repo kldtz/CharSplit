@@ -8,7 +8,7 @@ from scipy import sparse
 from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from kirke.eblearn import ebattr, igain
+from kirke.eblearn import igain
 from kirke.utils import stopwordutils, strutils
 
 

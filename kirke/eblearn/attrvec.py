@@ -97,31 +97,3 @@ class EbAttrVec:
                 pass
             else:
                 raise ValueError('failed in validate_type(), unknown type: {}'.format(atype))
-                
-    
-
-# replace arffutils    
-class EbAttrVecList:
-
-    def __init__(self, attrvecs_id):
-        self.id = attrvecs_id
-        self.data = []
-
-    def add_attrvec(self, attrvec):
-        self.data.append(attrvec)
-
-    def add_entities(self, entities):
-        self.entities = entities
-
-    def add_labels(self, labels):
-        self.labels = labels        
-
-    def to_csv(self, csv_file_name):
-        with open(csv_file_name, 'wt') as csvfile:
-            wr = csv.writer(csvfile, dialect='excel-tab')
-            wr.writerow(eb_attr_list)
-            for row in self.data:
-                wr.writerow(row)
-
-    
-        
