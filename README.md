@@ -1,4 +1,7 @@
-# Kirke: eBrevia Document Annotation System
+# Kirke
+eBrevia Document Annotator
+
+![kirke image](http://repo.ebrevia.com/repository/kirke.jpg)
 
 # What is this?
 
