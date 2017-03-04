@@ -8,7 +8,7 @@ from scipy import sparse
 from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from kirke.eblearn import igain
+from kirke.eblearn import igain, ebattrvec
 from kirke.utils import stopwordutils, strutils
 
 
@@ -58,8 +58,8 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, attrvec_ebsent_list):
         EbTransformer.transform_count += 1
-        logging.debug("transform called #{}, len(attrvec_ebsent_list) = {}".format(EbTransformer.transform_count,
-                                                                           len(attrvec_ebsent_list)))
+        logging.debug("transform called #%d, len(attrvec_ebsent_list) = %d",
+                      EbTransformer.transform_count, len(attrvec_ebsent_list))
 
         attrvec_list = []
         ebsent_list = []
@@ -86,9 +86,9 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         num_rows = len(attrvec_list)
 
         # handle numeric_matrix and categorical_matrix
-        binary_indices = ebattr.binary_indices
-        numeric_indices = ebattr.numeric_indices
-        categorical_indices = ebattr.categorical_indices
+        binary_indices = ebattrvec.BINARY_INDICES
+        numeric_indices = ebattrvec.NUMERIC_INDICES
+        categorical_indices = ebattrvec.CATEGORICAL_INDICES
         numeric_matrix = np.zeros(shape=(num_rows, len(binary_indices) + len(numeric_indices)))
         categorical_matrix = np.zeros(shape=(num_rows, len(categorical_indices)))
         for instance_i, attrvec in enumerate(attrvec_list):

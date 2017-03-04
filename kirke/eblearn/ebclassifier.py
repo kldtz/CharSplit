@@ -7,14 +7,14 @@ from sklearn.externals import joblib
 
 from kirke.eblearn import ebtext2antdoc
 
-global_threshold = 0.12
+GLOBAL_THRESHOLD = 0.12
 
 
 class EbClassifier(ABC):
 
     def __init__(self, provision):
         self.provision = provision
-        self.threshold = global_threshold
+        self.threshold = GLOBAL_THRESHOLD
         self.pred_status = {}
         super(EbClassifier, self).__init__()
 
@@ -25,7 +25,7 @@ class EbClassifier(ABC):
         return self.pred_status
 
     def save(self, model_file_name):
-        logging.info("saving model file: {}".format(model_file_name))
+        logging.info("saving model file: %s", model_file_name)
         joblib.dump(self, model_file_name)
 
     def train(self, txt_fn_list, work_dir, model_file_name):
@@ -43,4 +43,3 @@ class EbClassifier(ABC):
     @abstractmethod
     def predict_and_evaluate(self, ebantdoc_list, work_dir, diagnose_mode=False):
         pass
-
