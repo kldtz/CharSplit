@@ -36,6 +36,10 @@ learner_fns = [
     eb_models + 'learner_lease.pkl',
     eb_models + 'learner_oldlease.pkl',
     eb_models + 'learner_datePartyTitle.pkl']
+## TODO, jshaw
+## The code in extractor/dev branch has extra models, synchronize this
+## manually
+## eb_models + 'learner_affiliates.pkl']
 
 # autoload all custom field classifiers
 learner_fns = learner_fns + glob.glob(prefix + 'learner_cust_*.pkl')
@@ -62,7 +66,7 @@ def classifyArff():
         arff = tmp.name
         request.files['arff'].save(arff)
         types = json.loads(request.form['types'])
-        print("types are ", types)
+        print("types are ", types)x
         pred = {}
         for l in ls:
             learner_types = set(types).intersection(l.clfs.keys())

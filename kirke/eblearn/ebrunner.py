@@ -68,13 +68,8 @@ class EbRunner:
 
     def run_annotators_in_parallel(self, eb_antdoc, provision_set=None):
         if not provision_set:
+            logging.info("reset provision list: {}".format(provision_set))
             provision_set = self.provisions
-
-        # TODO, jshaw
-        # hacking for now
-        logging.info("reset provision list: {}".format(provision_set))
-        provision_set = set(['party', 'change_control', 'date'])
-        # end hacking
 
         annotations = {}
         with concurrent.futures.ThreadPoolExecutor(8) as executor:
@@ -100,8 +95,8 @@ class EbRunner:
 
     def test_annotators(self, txt_fns_file_name, provision_set):
         if not provision_set:
-            provision_set = self.provisions
             logging.info('reset provision list: {}'.format(provision_set))
+            provision_set = self.provisions
 
         ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                self.work_dir)
