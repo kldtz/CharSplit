@@ -75,7 +75,6 @@ class EbRunner:
     def run_annotators_in_parallel(self, eb_antdoc, provision_set=None):
         if not provision_set:
             provision_set = self.provisions
-            logging.info("reset provision list: {}".format(provision_set))
         else:
             logging.info("user specified provision list: %s", provision_set)
 
@@ -94,7 +93,8 @@ class EbRunner:
     def annotate_document(self, file_name, provision_set=None):
         if not provision_set:
             provision_set = self.provisions
-            logging.info('reset provision list: %s', provision_set)            
+        else:
+            logging.info('user specified provision list: %s', provision_set)            
 
         eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, self.work_dir)
 
@@ -105,7 +105,8 @@ class EbRunner:
     def test_annotators(self, txt_fns_file_name, provision_set):
         if not provision_set:
             provision_set = self.provisions
-            logging.info('reset provision list: %s', provision_set)
+        else:
+            logging.info('user specified provision list: %s', provision_set)
 
         ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                self.work_dir)
