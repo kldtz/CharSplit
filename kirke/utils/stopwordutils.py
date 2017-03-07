@@ -11,6 +11,7 @@ def get_sklearn_stopwords():
             stop_words.append(word.strip())
     return frozenset(stop_words)
 
+
 def get_corenlp_puncts():
     # punctuation after corenlp's tokenization
     file_name = 'dict/eb_corenlp_punct.txt'
@@ -19,26 +20,30 @@ def get_corenlp_puncts():
         for word in fin:
             punct_words.append(word.strip())
     return frozenset(punct_words)
-    
-stopwords = get_sklearn_stopwords()
-punctwords = get_corenlp_puncts()
-punct_stopwords = stopwords.union(punctwords)
 
-# print("punct_stowords: {}".format(punct_stopwords))
+
+STOPWORDS = get_sklearn_stopwords()
+PUNCTWORDS = get_corenlp_puncts()
+PUNCT_STOPWORDS = STOPWORDS.union(PUNCTWORDS)
+
 
 def is_stopword(word):
-    return word in stopwords
+    return word in STOPWORDS
+
 
 def is_punctword(word):
-    return word in punctwords
+    return word in PUNCTWORDS
+
 
 def is_punct_or_stopword(word):
-    return word in punct_stopwords
+    return word in PUNCT_STOPWORDS
 
+
+# pylint: disable=R0911
 def is_eb_stopword(word):
     if not word:  # empty
         return True
-    if word in punct_stopwords:
+    if word in PUNCT_STOPWORDS:
         return True
     if len(word) < 2:  # one char words are ambiguous
         return True
@@ -49,7 +54,7 @@ def is_eb_stopword(word):
     if strutils.is_all_dash_underline(word):
         return True
     return False
-    
+
 
 # mode = {lower, keep, keep_both}, 0, 1, 2
 def str_to_tokens(sent, mode=0, is_remove_punct=False):
@@ -80,6 +85,7 @@ def get_sent_tokens_list(sent_list, mode=0):
 def tokens_remove_stopwords(token_list):
     return [token for token in token_list if not is_eb_stopword(token)]
 
+
 def tokens_remove_punct(token_list):
     return [token for token in token_list if not is_punctword(token)]
 
@@ -91,6 +97,7 @@ def str_remove_stopwords(sent, mode=0):
     nostop_token_list = tokens_remove_stopwords(token_list)
     return ' '.join(nostop_token_list)
 
+
 def str_lc_and_keep_case(sent):
     # mode = {lower, keep, keep_both}, 0, 1, 2
     return ' '.join(str_to_tokens(sent, mode=2))
@@ -101,6 +108,7 @@ def remove_stopwords(sent_list, mode=0):
     return [str_remove_stopwords(sent, mode=mode).strip() for sent in sent_list]
 
 
+# pylint: disable=W0105
 """
 # mode = {lower, keep, keep_both}, 0, 1, 2
 def not_used_remove_stopwords_and_count(sent_list, mode=0):

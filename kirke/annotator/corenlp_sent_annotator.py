@@ -40,6 +40,3 @@ class CoreNlpSentenceAnnotator(object):
         })
 
         return output
-    
-
-    

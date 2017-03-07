@@ -20,23 +20,25 @@ class ProvisionAnnotator:
     # Training is available only for classifiers
     # def train(self):
     #    pass
-
-    def test_antdoc_list(self, ebantdoc_list, diagnose_mode=False):
+    # pylint: disable=R0914
+    def test_antdoc_list(self, ebantdoc_list):
         logging.info('test_document_list')
 
+        # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
-        
+
         for ebantdoc in ebantdoc_list:
             ant_list = self.annotate_antdoc(ebantdoc)
             # print("ant_list: {}".format(ant_list))
-            prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list if hant.label == self.provision]
+            prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
+                                   if hant.label == self.provision]
 
             # print("\nfn: {}".format(ebantdoc.file_id))
-            # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list, pred_prob_start_end_list, txt)
+            # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
+            # pred_prob_start_end_list, txt)
             xtp, xfn, xfp, xtn = evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                          ant_list,
                                                                          ebantdoc.get_text())
-
             tp += xtp
             fn += xfn
             fp += xfp
@@ -45,21 +47,25 @@ class ProvisionAnnotator:
         title = "annotate_status, threshold = {}".format(self.threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
 
-        tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp, 'fn': fn, 'tp': tp},
+        tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp,
+                                                               'fn': fn, 'tp': tp},
                                           'threshold': self.threshold,
                                           'prec': prec, 'recall': recall, 'f1': f1}}
 
         return tmp_eval_status
 
-    def test_antdoc(self, ebantdoc, diagnose_mode=False):
+    def test_antdoc(self, ebantdoc):
         logging.info('test_document')
 
         ant_list = self.annotate_antdoc(ebantdoc)
         # print("ant_list: {}".format(ant_list))
-        prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list if hant.label == self.provision]
+        prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
+                               if hant.label == self.provision]
         # print("human_list: {}".format(prov_human_ant_list))
 
-        # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list, pred_prob_start_end_list, txt)
+        # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
+        # pred_prob_start_end_list, txt)
+        # pylint: disable=C0103
         tp, fn, fp, tn = evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                  ant_list,
                                                                  ebantdoc.get_text())
@@ -67,19 +73,21 @@ class ProvisionAnnotator:
         title = "annotate_status, threshold = {}".format(self.threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
 
-        tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp, 'fn': fn, 'tp': tp},
-                                      'threshold': self.threshold,
-                                      'prec': prec, 'recall': recall, 'f1': f1}}
+        tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp,
+                                                               'fn': fn, 'tp': tp},
+                                          'threshold': self.threshold,
+                                          'prec': prec, 'recall': recall, 'f1': f1}}
 
         return tmp_eval_status
-    
+
 
     def annotate_antdoc(self, eb_antdoc):
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
-        # print("txt_fn = '{}', vec_size= {}, ant_list = {}".format(txt_fn, len(instance_list), ant_list))
+        # print("txt_fn = '{}', vec_size= {}, ant_list = {}".format(txt_fn,
+        # len(instance_list), ant_list))
         ebsent_list = eb_antdoc.get_ebsent_list()
-        
+
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
 
 
@@ -90,4 +98,3 @@ class ProvisionAnnotator:
                                                                          provision=prov)
 
         return prov_annotations
-

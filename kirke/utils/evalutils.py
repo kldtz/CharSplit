@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from kirke.utils import mathutils
 
+# pylint: disable=C0103
 
 # label_start_end_list is of type prov_annotation_list
 def find_annotation_overlap(start, end, label_start_end_list):
@@ -11,17 +12,18 @@ def find_annotation_overlap(start, end, label_start_end_list):
             result_list.append(ant)
     return result_list
 
+
 def calc_precision_recall_f1(tn, fp, fn, tp, title):
     print("\n" + title)
     actual_true = fn + tp
     actual_false = tn + fp
     pred_true = tp + fp
-    pred_false = tn + fn        
+    pred_false = tn + fn
 
     print("actual_true= {}, actual_false= {}".format(actual_true, actual_false))
-    print("  pred_true= {},   pred_false= {}".format(pred_true, pred_false))        
+    print("  pred_true= {},   pred_false= {}".format(pred_true, pred_false))
     print("[[tn={}, fp={}], [fn={}, tp={}]]".format(tn, fp, fn, tp))
-    
+
     if tp + fp == 0:
         prec = 0
     else:
@@ -39,7 +41,9 @@ def calc_precision_recall_f1(tn, fp, fn, tp, title):
     return prec, recall, f1
 
 
+# pylint: disable=R0903
 class AnnotationWithProb:
+    __slots__ = ['label', 'start', 'end', 'prob']
 
     def __init__(self, label, start, end, prob):
         self.label = label
@@ -48,25 +52,28 @@ class AnnotationWithProb:
         self.prob = prob
 
     def __repr__(self):
-        return "('{}', {}, {}, {})".format(self.label, self.start, self.end, self.prob)
-    
+        return "AnnotationWithProb('{}', {}, {}, {})".format(self.label, self.start,
+                                                             self.end, self.prob)
 
+
+# pylint: disable=R0914
 def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
     tp, fp, tn, fn = 0, 0, 0, 0
     # print("calc_doc_ant_confusion_matrix:")
 
     pred_ant_list = []
     for adict in ant_list:
-        pred_ant_list.append(AnnotationWithProb(adict['label'], adict['start'], adict['end'], adict['prob']))
+        pred_ant_list.append(AnnotationWithProb(adict['label'], adict['start'],
+                                                adict['end'], adict['prob']))
     # print("prov_human_ant_list: {}".format(prov_human_ant_list))
-    # print("pred_ant_list: {}".format(pred_ant_list))    
+    # print("pred_ant_list: {}".format(pred_ant_list))
 
     tp_inst_map = defaultdict(list)
     fp_inst_list = []
     fn_inst_list = []
     tp_fn_set = set([])
     for hant in prov_human_ant_list:
-        
+
         pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
         if pred_overlap_list:
             # This handles the case there a predicted annotation overlap with one
@@ -87,31 +94,34 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
         fp_inst_list.append(pant)
         fp += 1
 
-    # print("tp= {}, fn= {}, fp = {}, tn = {}".format(tp, fn, fp, tn)) 
-        
+    # print("tp= {}, fn= {}, fp = {}, tn = {}".format(tp, fn, fp, tn))
+
     # there is no tn, because we deal with only annotations
     if diagnose_mode:
         print("tp = {}".format(tp))
         for i, hant in enumerate(sorted(tp_inst_map.keys())):
-            hstart, hend, hlabel = hant
+            hstart, hend, _ = hant
             print("\ntp #{}, start= {}, end= {}".format(i+1, hstart, hend))
             print(txt[hstart:hend])
             tp_inst_list = tp_inst_map[hant]
             for j, pred_ant in enumerate(tp_inst_list):
-                print("     inst #{}, start2= {}, end2= {}, prob= {}".format(j+1, pred_ant.start, pred_ant.end, pred_ant.prob))
+                print("     inst #%d, start2= %d, end2= %d, prob= %.6f",
+                      j+1, pred_ant.start, pred_ant.end, pred_ant.prob)
                 print("     ", end='')
                 print(txt[pred_ant.start:pred_ant.end])
 
         print("\n\nfn = {}".format(fn))
         for i, hant in enumerate(fn_inst_list):
-            print("\nfn #{}, start= {}, end= {}, label = {}".format(i+1, hant.start, hant.end, hant.label))
+            print("\nfn #%d, start= %d, end= %d, label = %s",
+                  i+1, hant.start, hant.end, hant.label)
             print("     ", end='')
             print(txt[hant.start:hant.end])
 
         print("\n\nfp = {}".format(fp))
         for i, pred_ant in enumerate(fp_inst_list):
-            print("fp #{}, start= {}, end= {}, prob= {}".format(i, pred_ant.start, pred_ant.end, pred_ant.prob))
-            print(txt[pred_ant.start:pred_ant.end])                        
+            print("fp #%d, start= %d, end= %d, prob= %.6f",
+                  i, pred_ant.start, pred_ant.end, pred_ant.prob)
+            print(txt[pred_ant.start:pred_ant.end])
 
     return tp, fn, fp, tn
 
@@ -119,10 +129,12 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
 #
 # utilities
 #
-
+# pylint: disable=W0613
 def print_with_threshold(probs, y_te, overrides):
     pass
-    """
+
+# pylint: disable=W0105
+"""
     # compute thresholded recall/precision
     THRESHOLD = .06
     rec_den = 0
@@ -139,11 +151,11 @@ def print_with_threshold(probs, y_te, overrides):
             if y_te[i] == 1:
                 tp += 1
         if (pred >= THRESHOLD and not overrides[i]) or overrides[i]:
-            o_prec_den += 1  # override true 
+            o_prec_den += 1  # override true
             if y_te[i] == 1:
                 o_tp += 1    # override true positive
 
-    print("THRESHOLD= {}".format(THRESHOLD))                    
+    print("THRESHOLD= {}".format(THRESHOLD))
     print("rec_den: ", rec_den)
     print("pred_den: ", prec_den)
     print("tp: ", tp)
@@ -190,12 +202,13 @@ def calc_pred_status_with_prob(probs, y_te):
                 fp += 1
             else:
                 tn += 1
-    title = 'pred status'                    
-    prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title) 
+    title = 'pred status'
+    prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title)
     status = {'confusion_matrix': {'tn': tn, 'fp': fp, 'fn': fn, 'tp': tp},
               'pred_threshold': 0.5,
               'prec': prec, 'recall': recall, 'f1': f1}
     return status
+
 
 def calc_pred_status(preds, y_te):
     tn, fp, fn, tp = 0, 0, 0, 0
@@ -211,8 +224,8 @@ def calc_pred_status(preds, y_te):
                 fp += 1
             else:
                 tn += 1
-    title = 'pred status'                    
-    prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title) 
+    title = 'pred status'
+    prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title)
     status = {'confusion_matrix': {'tn': tn, 'fp': fp, 'fn': fn, 'tp': tp},
               'pred_threshold': 0.5,
               'prec': prec, 'recall': recall, 'f1': f1}
@@ -220,7 +233,7 @@ def calc_pred_status(preds, y_te):
 
 
 def calc_pos_threshold_prob_status(probs, y_te, pos_threshold):
-    tn, fp, fn, tp = 0, 0, 0, 0                
+    tn, fp, fn, tp = 0, 0, 0, 0
 
     for i, prob in enumerate(list(probs)):
         # this is strictly greater, not >=
@@ -234,7 +247,7 @@ def calc_pos_threshold_prob_status(probs, y_te, pos_threshold):
             if pred:
                 fp += 1
             else:
-                tn += 1            
+                tn += 1
 
     title = "pos threshold status, pos threshold = {}".format(pos_threshold)
     prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title)
@@ -245,7 +258,7 @@ def calc_pos_threshold_prob_status(probs, y_te, pos_threshold):
 
 
 def calc_threshold_prob_status(probs, y_te, threshold):
-    tn, fp, fn, tp = 0, 0, 0, 0                
+    tn, fp, fn, tp = 0, 0, 0, 0
 
     for i, prob in enumerate(list(probs)):
         pred = prob >= threshold
@@ -258,7 +271,7 @@ def calc_threshold_prob_status(probs, y_te, threshold):
             if pred:
                 fp += 1
             else:
-                tn += 1            
+                tn += 1
 
     title = "threshold status, threshold = {}".format(threshold)
     prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title)
@@ -269,7 +282,7 @@ def calc_threshold_prob_status(probs, y_te, threshold):
 
 
 def calc_prob_override_status(probs, y_te, threshold, overrides):
-    tn, fp, fn, tp = 0, 0, 0, 0                
+    tn, fp, fn, tp = 0, 0, 0, 0
 
     for i, prob in enumerate(list(probs)):
         override = overrides[i]
@@ -283,7 +296,7 @@ def calc_prob_override_status(probs, y_te, threshold, overrides):
             if pred:
                 fp += 1
             else:
-                tn += 1            
+                tn += 1
 
     title = "threshold + override, threshold = {}".format(threshold)
     prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title)
@@ -294,12 +307,12 @@ def calc_prob_override_status(probs, y_te, threshold, overrides):
 
 
 def calc_pred_override_status(preds, y_te, overrides):
-    tn, fp, fn, tp = 0, 0, 0, 0                
+    tn, fp, fn, tp = 0, 0, 0, 0
 
     for i, our_pred in enumerate(list(preds)):
         override = overrides[i]
-        pred = our_pred or override        
-        if y_te[i] == 1:    
+        pred = our_pred or override
+        if y_te[i] == 1:
             if pred:
                 tp += 1
             else:
@@ -308,7 +321,7 @@ def calc_pred_override_status(preds, y_te, overrides):
             if pred:
                 fp += 1
             else:
-                tn += 1            
+                tn += 1
 
     title = "pred + override"
     prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title)
@@ -316,4 +329,3 @@ def calc_pred_override_status(preds, y_te, overrides):
               'pred_threshold': 0.5,
               'prec': prec, 'recall': recall, 'f1': f1}
     return status
-

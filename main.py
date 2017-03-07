@@ -25,8 +25,7 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
         eb_classifier = provclassifier.ProvisionClassifier(provision)
         model_file_name = model_dir + '/' + provision + "_provclassifier.pkl"
 
-    ebtrainer._train_classifier(provision,
-                                txt_fn_list_fn,
+    ebtrainer._train_classifier(txt_fn_list_fn,
                                 work_dir,
                                 model_file_name,
                                 eb_classifier)
@@ -88,7 +87,7 @@ def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
     
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(ebantdoc_list, work_dir)
+    ant_status = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status

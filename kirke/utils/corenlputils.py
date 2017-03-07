@@ -14,10 +14,11 @@ def is_sent_starts_with_lower(ebsent_list, sent_idx):
     return False
 
 
-page_number_pat = re.compile(r'^(\d+|(page\s+)?\-?\s*\d+\s*\-?)$', re.IGNORECASE)
+PAGE_NUMBER_PAT = re.compile(r'^(\d+|(page\s+)?\-?\s*\d+\s*\-?)$', re.IGNORECASE)
 
-def is_page_number_st(st):
-    return page_number_pat.match(st)
+
+def is_page_number_st(xst):
+    return PAGE_NUMBER_PAT.match(xst)
 
 
 def is_sent_page_number(ebsent_list, sent_idx):
@@ -34,8 +35,8 @@ def is_sent_page_number(ebsent_list, sent_idx):
             if is_page_number_st(page_num_st):
                 return True
     return False
-    
-    
+
+
 def _pre_merge_broken_ebsents(ebsent_list, atext):
     result = []
 
@@ -52,7 +53,7 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
                 # add all the tokens
                 ebsent.extend_tokens(ebsent_list[sent_idx+1].get_tokens(),
                                      atext)
-                sent_idx += 1                              
+                sent_idx += 1
             elif (is_sent_page_number(ebsent_list, sent_idx+1) and
                   is_sent_starts_with_lower(ebsent_list, sent_idx+1)):
                 # throw away the page number tokens
@@ -62,6 +63,7 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
         result.append(ebsent)
         sent_idx += 1
     return result
+
 
 # CoreNLP treats non-breaking space as a character, so things are kind of messed up with offsets.
 # We align the first word instead.
@@ -73,8 +75,8 @@ def align_first_word_offset(json_sent_list, atext):
     first_word = first_word_json['word']
     first_word_start = first_word_json['characterOffsetBegin']
     return atext.find(first_word) - first_word_start
-    
-    
+
+
 # ajson is result from corenlp
 # returns a list of EbSentence
 def corenlp_json_to_ebsent_list(file_id, ajson, atext):
@@ -85,8 +87,7 @@ def corenlp_json_to_ebsent_list(file_id, ajson, atext):
 
     for json_sent in ajson['sentences']:
         ebsent = EbSentence(file_id, json_sent, atext, num_prefix_space)
-        result.append(ebsent)       
+        result.append(ebsent)
 
     result = _pre_merge_broken_ebsents(result, atext)
     return result
-

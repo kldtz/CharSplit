@@ -19,24 +19,25 @@ MIN_FULL_TRAINING_SIZE = 50
 # Take all the data for training.
 # Unless you know what you are doing, don't use this function, use
 # train_eval_annotator() instead.
-def _train_classifier(provision, txt_fn_list, work_dir, model_file_name, eb_classifier):
+def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
     eb_classifier.train(txt_fn_list, work_dir, model_file_name)
     return eb_classifier
 
 
 # Take 1/5 of the data out for testing
 # Train on 4/5 of the data
-def train_eval_annotator(provision, txt_fn_list, work_dir, model_dir, model_file_name, eb_classifier,
+# pylint: disable=R0915, R0913, R0914
+def train_eval_annotator(provision, txt_fn_list,
+                         work_dir, model_dir, model_file_name, eb_classifier,
                          custom_training_mode=False):
-    logging.info("training_eval_annotator({}) called".format(provision))
-    logging.info("    txt_fn_list = {}".format(txt_fn_list))
-    logging.info("    work_dir = {}".format(work_dir))
-    logging.info("    model_dir = {}".format(model_dir))
-    logging.info("    model_file_name = {}".format(model_file_name))
-    
+    logging.info("training_eval_annotator(%s) called", provision)
+    logging.info("    txt_fn_list = %s", txt_fn_list)
+    logging.info("    work_dir = %s", work_dir)
+    logging.info("    model_dir = %s", model_dir)
+    logging.info("    model_file_name = %s", model_file_name)
+
     ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir)
-    attrvec_list = []
-    ebsent_list = []
+    attrvec_list, ebsent_list = [], []
     for eb_antdoc in ebantdoc_list:
         attrvec_list.extend(eb_antdoc.get_attrvec_list())
         ebsent_list.extend(eb_antdoc.get_ebsent_list())
@@ -49,6 +50,7 @@ def train_eval_annotator(provision, txt_fn_list, work_dir, model_dir, model_file
         else:
             num_neg_label += 1
 
+    # pylint: disable=C0103
     X = ebantdoc_list
     y = [provision in ebantdoc.get_provision_set()
          for ebantdoc in ebantdoc_list]
@@ -56,12 +58,10 @@ def train_eval_annotator(provision, txt_fn_list, work_dir, model_dir, model_file
     # only in custom training mode and the positive training instances are too few
     # only train, no testing
     if custom_training_mode and num_pos_label < MIN_FULL_TRAINING_SIZE:
-        logging.info("training with {} instances, no test (<{}) .  num_pos= {}, num_neg= {}".format(len(ebsent_list),
-                                                                                                    MIN_FULL_TRAINING_SIZE,
-                                                                                                    num_pos_label,
-                                                                                                    num_neg_label))
+        logging.info("training with %d instances, no test (<%d) .  num_pos= %d, num_neg= %d",
+                     len(ebsent_list), MIN_FULL_TRAINING_SIZE, num_pos_label, num_neg_label)
         X_train = X
-        y_train = y
+        # y_train = y
         train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
         splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
         eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
@@ -83,10 +83,12 @@ def train_eval_annotator(provision, txt_fn_list, work_dir, model_dir, model_file
         # the goal here is to provide some status information
         # no guarantee that it is consistent with eb_classifier status yet
         tmp_sgd_clf = SGDClassifier(loss='log', penalty='l2', alpha=alpha, n_iter=iterations,
-                                    shuffle=True, random_state=42, class_weight={True: 10, False: 1})
+                                    shuffle=True, random_state=42,
+                                    class_weight={True: 10, False: 1})
         tmp_preds = cross_val_predict(tmp_sgd_clf, X_sent, y_label_list, cv=DEFAULT_CV)
         # this setup eb_classifier.status
-        pred_status = calc_scut_predict_evaluate(eb_classifier, ebsent_list, tmp_preds, y_label_list)
+        pred_status = calc_scut_predict_evaluate(eb_classifier,
+                                                 ebsent_list, tmp_preds, y_label_list)
 
         # make the classifier into an annotator
         prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
@@ -100,11 +102,12 @@ def train_eval_annotator(provision, txt_fn_list, work_dir, model_dir, model_file
         strutils.dumps(json.dumps(ant_status), model_status_fn)
         return prov_annotator
 
-    logging.info("training with {} instances, num_pos= {}, num_neg= {}".format(len(ebsent_list),
-                                                                               num_pos_label,
-                                                                               num_neg_label))
+    logging.info("training with %d instances, num_pos= %d, num_neg= %d",
+                 len(ebsent_list), num_pos_label, num_neg_label)
+
     # we have enough positive training instances, so we do testing
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+    X_train, X_test, _, _ = train_test_split(X, y, test_size=0.2,
+                                             random_state=42, stratify=y)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
     splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
@@ -115,7 +118,7 @@ def train_eval_annotator(provision, txt_fn_list, work_dir, model_dir, model_file
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(X_test, work_dir)
+    ant_status = prov_annotator.test_antdoc_list(X_test)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
@@ -140,14 +143,14 @@ def eval_annotator(txt_fn_list, work_dir, model_file_name):
 
     provision_status_map = {'provision': provision,
                             'pred_status': pred_status}
-    
+
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list, work_dir)
-    
+    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
+
     pprint(provision_status_map)
 
-    
+
 def eval_classifier(txt_fn_list, work_dir, model_file_name):
     eb_classifier = joblib.load(model_file_name)
     provision = eb_classifier.provision
@@ -166,16 +169,16 @@ def eval_classifier(txt_fn_list, work_dir, model_file_name):
 
 # utility function
 # this is mainly used for the outer testing (real hold out)
-def calc_scut_predict_evaluate(scut_classifier, ebsent_list, y_pred, y_te, diagnose_mode=False):
+def calc_scut_predict_evaluate(scut_classifier, ebsent_list, y_pred, y_te):
     logging.info('calc_scut_predict_evaluate()...')
 
-    sent_st_list = [ebsent.get_tokens_text() for ebsent in ebsent_list]        
+    sent_st_list = [ebsent.get_tokens_text() for ebsent in ebsent_list]
     overrides = ebpostproc.gen_provision_overrides(scut_classifier.provision, sent_st_list)
-    
+
     scut_classifier.pred_status['classifer_type'] = 'scutclassifier'
-    scut_classifier.pred_status['pred_status'] =  evalutils.calc_pred_status_with_prob(y_pred, y_te)
-    scut_classifier.pred_status['override_status'] = evalutils.calc_pred_override_status(y_pred, y_te, overrides)
-                                                                              
+    scut_classifier.pred_status['pred_status'] = evalutils.calc_pred_status_with_prob(y_pred, y_te)
+    scut_classifier.pred_status['override_status'] = (
+        evalutils.calc_pred_override_status(y_pred, y_te, overrides))
     scut_classifier.pred_status['best_params_'] = scut_classifier.eb_grid_search.best_params_
 
     return scut_classifier.pred_status
