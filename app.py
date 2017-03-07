@@ -66,7 +66,7 @@ def classifyArff():
         arff = tmp.name
         request.files['arff'].save(arff)
         types = json.loads(request.form['types'])
-        print("types are ", types)x
+        print("types are ", types)
         pred = {}
         for l in ls:
             learner_types = set(types).intersection(l.clfs.keys())
@@ -94,6 +94,20 @@ def annotate_uploaded_document():
     request.files['file'].save(file_name)
     provisions_st = request.form.get('types')
     provision_set = set(provisions_st.split(',') if provisions_st else [])
+
+    # TODO, jshaw
+    # need to retrain all the models, now we only have
+    # 10 models
+    print("got provision_set: {}".format(provision_set))
+    provision_set = set(['amending_agreement', 'arbitration', 'assign',
+                         'change_control', 'choiceoflaw', 'confidentiality',
+                         'date', 'equitable_relief', 'events_default', 'exclusivity',
+                         'indemnify', 'insurance', 'jurisdiction',
+                         'limliability', 'nonsolicit', 'party',
+                         'preamble', 'renewal', 'sublicense', 'survival',
+                         'termination', 'term'])
+                         
+    print("reset provision_set: {}".format(provision_set))
 
     prov_labels_map = eb_runner.annotate_document(file_name, provision_set=provision_set)
     ebannotations = {'ebannotations': prov_labels_map}
@@ -174,8 +188,19 @@ def custom_train(cust_id):
     eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                                 provision,
                                                                 CUSTOM_MODEL_DIR)
+    # copy the result into the expected format for client
+    pred_status = eval_status['pred_status']['pred_status']
+    cf = pred_status['confusion_matrix']
+    status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
+              'fscore': pred_status['f1'],
+              'precision': pred_status['prec'],
+              'recall': pred_status['recall']}
+
+    print("status:")
+    pprint(status)
+              
     # return some json accuracy info
-    return jsonify(eval_status)
+    return jsonify(status)
 
 
 if __name__ == '__main__':
