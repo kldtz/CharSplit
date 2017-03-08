@@ -10,12 +10,18 @@ class CoreNlpSentenceAnnotator(object):
     def __init__(self):
         self.nlp = StanfordCoreNLP('http://localhost:9500')
 
+    # http://stanfordnlp.github.io/CoreNLP/ner.html#sutime        
+    # Using default NER models, 
+    # By default, the models used will be the 3class, 7class,
+    # and MISCclass models, in that order.
+    # We should use 3class first because of the reason stated in
+    # http://stackoverflow.com/questions/33905412/why-does-stanford-corenlp-ner-annotator-load-3-models-by-default
     def span_tokenize(self, text_as_string):
         # "ssplit.isOneSentence": "true"
         output = self.nlp.annotate(text_as_string, properties={
             'annotators': 'tokenize,ssplit,pos,lemma,ner',
             'outputFormat': 'json',
-            'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
+            # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
             'ssplit.newlineIsSentenceBreak': 'two'
         })
         result = []
@@ -35,7 +41,7 @@ class CoreNlpSentenceAnnotator(object):
         output = self.nlp.annotate(text_as_string, properties={
             'annotators': 'tokenize,ssplit,pos,lemma,ner',
             'outputFormat': 'json',
-            'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
+            # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
             'ssplit.newlineIsSentenceBreak': 'two'
         })
 
