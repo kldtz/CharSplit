@@ -55,6 +55,18 @@ def train_eval_annotator(provision, txt_fn_list,
     y = [provision in ebantdoc.get_provision_set()
          for ebantdoc in ebantdoc_list]
 
+    num_doc_pos, num_doc_neg = 0, 0
+    for yval in y:
+        if yval:
+            num_doc_pos += 1
+        else:
+            num_doc_neg += 1
+    print("provision: {}, pos= {}, neg= {}".format(provision, num_doc_pos, num_doc_neg))
+    # TODO, jshaw, hack, such as for sechead
+    if num_doc_neg < 2:
+        y[0] = 0
+        y[1] = 0
+
     # only in custom training mode and the positive training instances are too few
     # only train, no testing
     if custom_training_mode and num_pos_label < MIN_FULL_TRAINING_SIZE:

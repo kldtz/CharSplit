@@ -6,7 +6,6 @@ from pathlib import Path
 
 from sklearn.externals import joblib
 
-from kirke.annotator.corenlp_sent_annotator import CoreNlpSentenceAnnotator
 from kirke.eblearn import sent2ebattrvec
 from kirke.utils import corenlputils, ebantdoc, mathutils, strutils, osutils
 
@@ -162,8 +161,6 @@ def get_labels_if_start_end_overlap(sent_start, sent_end, ant_start_end_list):
     return result_label_list
 
 
-SENT_ANNOTATOR = CoreNlpSentenceAnnotator()
-
 # output_json is not None for debugging purpose
 # pylint: disable=R0914
 def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
@@ -186,12 +183,12 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
             if os.path.exists(json_fn):
                 corenlp_json = json.loads(strutils.loads(json_fn))
             else:
-                corenlp_json = SENT_ANNOTATOR.annotate(atext)
+                corenlp_json = corenlputils.annotate(atext)
                 strutils.dumps(json.dumps(corenlp_json), json_fn)
         else:
-            corenlp_json = SENT_ANNOTATOR.annotate(atext)
+            corenlp_json = corenlputils.annotate(atext)
     else:
-        corenlp_json = SENT_ANNOTATOR.annotate(atext)
+        corenlp_json = corenlputils.annotate(atext)
 
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)

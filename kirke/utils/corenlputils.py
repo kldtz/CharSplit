@@ -1,6 +1,32 @@
 import re
 
+from pycorenlp import StanfordCoreNLP
+
 from kirke.utils.corenlpsent import EbSentence, eb_tokens_to_st
+
+NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
+
+
+# http://stanfordnlp.github.io/CoreNLP/ner.html#sutime        
+# Using default NER models, 
+# By default, the models used will be the 3class, 7class,
+# and MISCclass models, in that order.
+# We should use 3class first because of the reason stated in
+# http://stackoverflow.com/questions/33905412/why-does-stanford-corenlp-ner-annotator-load-3-models-by-default
+
+
+# WARNING: all the spaces before the first non-space character will be removed in the output.
+# In other words, the offsets will be incorrect if there are prefix spaces in the text.
+# We will fix those issues in the later modules, not here.
+def annotate(text_as_string):
+    # "ssplit.isOneSentence": "true"
+    # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
+    output = NLP_SERVER.annotate(text_as_string, properties={
+        'annotators': 'tokenize,ssplit,pos,lemma,ner',
+        'outputFormat': 'json',
+        'ssplit.newlineIsSentenceBreak': 'two'
+    })
+    return output
 
 
 def is_sent_starts_with_lower(ebsent_list, sent_idx):

@@ -126,6 +126,18 @@ def split_provision_trte(provisions, txt_fn_list_fn, work_dir, model_dir_list):
         y = [provision in ebantdoc.get_provision_set()
              for ebantdoc in eb_antdoc_list]
 
+        num_pos, num_neg = 0, 0
+        for yval in y:
+            if yval:
+                num_pos += 1
+            else:
+                num_neg += 1
+        print("provision: {}, pos= {}, neg= {}".format(provision, num_pos, num_neg))
+        # jshaw, hack, such as for sechead
+        if num_neg < 2:
+            y[0] = 0
+            y[1] = 0
+
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
         for moddir in model_dir_list:
