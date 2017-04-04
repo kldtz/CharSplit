@@ -183,12 +183,12 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
             if os.path.exists(json_fn):
                 corenlp_json = json.loads(strutils.loads(json_fn))
             else:
-                corenlp_json = corenlputils.annotate(atext)
+                corenlp_json = corenlputils.annotate_for_enhanced_ner(atext)
                 strutils.dumps(json.dumps(corenlp_json), json_fn)
         else:
-            corenlp_json = corenlputils.annotate(atext)
+            corenlp_json = corenlputils.annotate_for_enhanced_ner(atext)
     else:
-        corenlp_json = corenlputils.annotate(atext)
+        corenlp_json = corenlputils.annotate_for_enhanced_ner(atext)
 
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
