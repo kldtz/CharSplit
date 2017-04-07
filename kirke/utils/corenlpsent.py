@@ -1,6 +1,7 @@
 import copy
+from collections import namedtuple
 
-
+"""
 # pylint: disable=R0903
 class EbToken:
     _slots__ = ['start', 'end', 'word', 'lemma', 'pos', 'index', 'ner']
@@ -14,6 +15,15 @@ class EbToken:
         self.pos = pos
         self.index = index
         self.ner = ner
+# 13,772 bytes avg per ebsent
+# 1.8 Mb in an ebantdoc
+"""
+
+EbToken = namedtuple('EbToken', ['start', 'end', 'word',
+                                 'lemma', 'pos', 'index', 'ner'])
+# 9,927 bytes avg per ebsent
+# 1.3 Mb in an ebantdoc
+
 
 
 # TODO, In future, without arff, probably don't need this

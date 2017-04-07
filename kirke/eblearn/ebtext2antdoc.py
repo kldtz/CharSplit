@@ -167,8 +167,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
     # load/save the corenlp file if output_dir is specified
     is_cache_enabled = False if work_dir is None else DEFAULT_IS_CACHE_ENABLED
 
-    #else:  # if work_dir is not None:
-    #    # print("txt_file_name= [{}]".format(txt_file_name))
+    # print("txt_file_name= [{}]".format(txt_file_name))
     if txt_file_name:
         txt_basename = os.path.basename(txt_file_name)
         # if cache version exists, load that and return
@@ -270,7 +269,7 @@ def doclist_to_ebantdoc_list(doclist_file, work_dir):
         for i, txt_file_name in enumerate(fin, 1):
             txt_file_name = txt_file_name.strip()
             eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir)
-            print("get_size(eb_antdoc) = {} bytes".format(osutils.get_size(eb_antdoc)))
+            # print("get_size(eb_antdoc) = {} bytes".format(osutils.get_size(eb_antdoc)))
             eb_antdoc_list.append(eb_antdoc)
             if i % 10 == 0:
                 print("doclist_to_ebantdoc_list #{}".format(i))
