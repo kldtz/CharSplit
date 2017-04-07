@@ -192,9 +192,14 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
 
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
-
-    prov_annotation_list = (ebantdoc.load_provision_annotations(prov_ant_fn)
-                            if prov_ant_file.is_file() else [])
+    if os.path.exists(prov_ant_fn):
+        prov_annotation_list = (ebantdoc.load_provision_annotations(prov_ant_fn)
+                                if prov_ant_file.is_file() else [])
+    else:
+        prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
+        prov_ebdata_file = Path(prov_ebdata_fn)
+        prov_annotation_list = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
+                                if prov_ebdata_file.is_file() else [])
 
     ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, atext)
     # print('number of sentences: {}'.format(len(ebsent_list)))
@@ -262,10 +267,81 @@ def doclist_to_ebantdoc_list(doclist_file, work_dir):
         osutils.mkpath(work_dir)
     eb_antdoc_list = []
     with open(doclist_file, 'rt') as fin:
-        for txt_file_name in fin:
+        for i, txt_file_name in enumerate(fin, 1):
             txt_file_name = txt_file_name.strip()
             eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir)
+            print("get_size(eb_antdoc) = {} bytes".format(osutils.get_size(eb_antdoc)))
             eb_antdoc_list.append(eb_antdoc)
+            if i % 10 == 0:
+                print("doclist_to_ebantdoc_list #{}".format(i))
     logging.debug('Finished run_feature_extraction()')
 
     return eb_antdoc_list
+
+
+#    fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_map(list(txt_file_set), work_dir=work_dir)
+def fnlist_to_fn_ebantdoc_map(fn_list, work_dir):
+    logging.debug('fnlist_to_fn_ebantdoc_map(len(list)=%d, work_dir=%s)', len(fn_list), work_dir)
+    if work_dir is not None and not os.path.isdir(work_dir):
+        logging.debug("mkdir %s", work_dir)
+        osutils.mkpath(work_dir)
+
+    fn_ebantdoc_map = {}
+    """
+    fn_list_extra = ['36074.clean.txt',
+                     '60558.clean.txt',
+                     '37351.clean.txt',
+                     '40792.clean.txt',
+                     '44168.clean.txt',
+                     '37404.clean.txt',
+                     '37005.clean.txt',
+                     '38894.clean.txt',
+                     '37851.clean.txt',
+                     '55899.clean.txt',
+                     '41200.clean.txt']
+    fn_list_extra2 = [ "dir-data/{}".format(fn) for fn in fn_list_extra]
+
+    print("fn_list[0] = [{}]".format(fn_list[0]))
+    print("fn_list_extra2[0] = [{}]".format(fn_list_extra2[0]))    
+"""
+    
+    for i, txt_file_name in enumerate(fn_list, 1):
+        eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir)
+        fn_ebantdoc_map[txt_file_name] = eb_antdoc
+        if i % 10 == 0:
+            print("loaded #{} ebantdoc".format(i))
+    logging.debug('Finished run_feature_extraction()')
+
+    return fn_ebantdoc_map
+
+
+class EbAntdocProvSet:
+
+    def __init__(self, ebantdoc):
+        self.file_id = ebantdoc.get_file_id()
+        self.provset = ebantdoc.get_provision_set()
+
+    def get_file_id(self):
+        return self.file_id
+    
+    def get_provision_set(self):
+        return self.provset
+    
+
+#    fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_map(list(txt_file_set), work_dir=work_dir)
+def fnlist_to_fn_ebantdoc_provset_map(fn_list, work_dir):
+    logging.debug('fnlist_to_fn_ebantdoc_map(len(list)=%d, work_dir=%s)', len(fn_list), work_dir)
+    if work_dir is not None and not os.path.isdir(work_dir):
+        logging.debug("mkdir %s", work_dir)
+        osutils.mkpath(work_dir)
+
+    fn_ebantdoc_map = {}
+    for i, txt_file_name in enumerate(fn_list, 1):
+        eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir)
+        
+        fn_ebantdoc_map[txt_file_name] = EbAntdocProvSet(eb_antdoc)
+        if i % 10 == 0:
+            print("loaded #{} ebantdoc".format(i))
+    logging.debug('Finished run_feature_extraction()')
+
+    return fn_ebantdoc_map

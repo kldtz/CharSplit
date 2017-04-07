@@ -132,6 +132,24 @@ def load_provision_annotations(filename, provision_name=None):
     return result
 
 
+def load_prov_ebdata(filename, provision_name=None):
+    result = []
+    with open(filename, 'rt') as handle:
+        parsed = json.load(handle)
+        for prov, ajson_list in parsed['ants'].items():
+            # print("ajson_map: {}".format(ajson_map))
+            for ajson in ajson_list:
+                eb_ant = EbProvisionAnnotation(ajson)
+                # print("eb_ant= {}".format(eb_ant))
+                result.append(eb_ant.to_tuple())
+
+    # if provision_name is specified, only return that specific provision
+    if provision_name:
+        return [provision_se for provision_se in result if provision_se.label == provision_name]
+
+    return result
+
+
 class EbAnnotatedDoc:
 
     # pylint: disable=R0913

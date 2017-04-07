@@ -72,21 +72,23 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
         ebsent = ebsent_list[sent_idx]
         # print("ebsent #{}: {}".format(sent_idx, ebsent))
         sent_st = ebsent.get_text()
-        last_char = sent_st[-1]
-        if last_char not in ['.', '!', '?']:
-            # if next sent starts with a lowercase letter
-            if is_sent_starts_with_lower(ebsent_list, sent_idx+1):
-                # add all the tokens
-                ebsent.extend_tokens(ebsent_list[sent_idx+1].get_tokens(),
-                                     atext)
-                sent_idx += 1
-            elif (is_sent_page_number(ebsent_list, sent_idx+1) and
-                  is_sent_starts_with_lower(ebsent_list, sent_idx+1)):
-                # throw away the page number tokens
-                ebsent.extend_tokens(ebsent_list[sent_idx+2].get_tokens(),
-                                     atext)
-                sent_idx += 2
-        result.append(ebsent)
+        if sent_st:  # TODO: jshaw, a bug, not sure how this is possible
+                     # 36973.clean.txt
+            last_char = sent_st[-1]
+            if last_char not in ['.', '!', '?']:
+                # if next sent starts with a lowercase letter
+                if is_sent_starts_with_lower(ebsent_list, sent_idx+1):
+                    # add all the tokens
+                    ebsent.extend_tokens(ebsent_list[sent_idx+1].get_tokens(),
+                                         atext)
+                    sent_idx += 1
+                elif (is_sent_page_number(ebsent_list, sent_idx+1) and
+                      is_sent_starts_with_lower(ebsent_list, sent_idx+1)):
+                    # throw away the page number tokens
+                    ebsent.extend_tokens(ebsent_list[sent_idx+2].get_tokens(),
+                                         atext)
+                    sent_idx += 2
+            result.append(ebsent)
         sent_idx += 1
     return result
 

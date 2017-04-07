@@ -30,7 +30,8 @@ PROVISION_THRESHOLD_MAP = {'change_control': 0.24,
                            'events_default': 0.18,
                            'sublicense': 0.24,
                            'survival': 0.24,
-                           'termination': 0.36}
+                           'termination': 0.36,
+                           'l_alterations': 0.3}
 
 
 class ProvisionClassifier(EbClassifier):
