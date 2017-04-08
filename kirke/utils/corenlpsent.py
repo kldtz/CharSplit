@@ -1,3 +1,4 @@
+import sys
 import copy
 from collections import namedtuple
 
@@ -52,10 +53,10 @@ def to_eb_tokens(token_list, num_prefix_space):
     for token in token_list:
         eb_token = EbToken(token['characterOffsetBegin'] + num_prefix_space,
                            token['characterOffsetEnd'] + num_prefix_space,
-                           token['word'],
-                           token['lemma'],
-                           token['pos'],
-                           token['ner'],
+                           sys.intern(token['word']),
+                           sys.intern(token['lemma']),
+                           sys.intern(token['pos']),
+                           sys.intern(token['ner']),
                            token['index'])
         result.append(eb_token)
     return result
@@ -89,8 +90,8 @@ def merge_ebsents(ebsent_list):
     merged_ebsent.tokens = token_list
     merged_ebsent.start = min_start
     merged_ebsent.end = max_end
-    merged_ebsent.text = '  '.join(text_list)
-    merged_ebsent.tokens_text = '  '.join(tokens_text_list)
+    # merged_ebsent.text = '  '.join(text_list)
+    # merged_ebsent.tokens_text = '  '.join(tokens_text_list)
     merged_ebsent.entities = entity_list
     merged_ebsent.labels = labels
 
@@ -99,7 +100,7 @@ def merge_ebsents(ebsent_list):
 
 # pylint: disable=R0902
 class EbSentence:
-    _slots__ = ['file_id', 'tokens', 'start', 'end', 'text', 'tokens',
+    _slots__ = ['file_id', 'tokens', 'start', 'end',
                 'entities', 'labels']
 
     def __init__(self, file_id, json_sent, atext, num_prefix_space):
@@ -108,8 +109,8 @@ class EbSentence:
         self.tokens = to_eb_tokens(tokens, num_prefix_space)
         self.start = self.tokens[0].start
         self.end = self.tokens[-1].end
-        self.text = atext[self.start:self.end]  # migh have page number
-        self.tokens_text = eb_tokens_to_st(self.tokens)          # no page number
+        # self.text = atext[self.start:self.end]  # migh have page number
+        # self.tokens_text = eb_tokens_to_st(self.tokens)          # no page number
         # entities are EbEntity's, not set until populate_ebsent_entities(ebsent),
         # after fix_ner_tags()
         self.entities = []
@@ -119,11 +120,11 @@ class EbSentence:
     def extend_tokens(self, tokens, atext):
         self.tokens.extend(tokens)
         self.end = self.tokens[-1].end
-        self.text = atext[self.start:self.end]  # migh have page number
-        self.tokens_text = eb_tokens_to_st(self.tokens)          # no page number
+        # self.text = atext[self.start:self.end]  # migh have page number
+        # self.tokens_text = eb_tokens_to_st(self.tokens)          # no page number
 
     def __str__(self):
-        return '{}\t{}\t[{}]'.format(self.start, self.end, self.text)
+        return 'EbSentence({}, {})'.format(self.start, self.end)
 
     def get_tokens(self):
         return self.tokens
@@ -136,8 +137,9 @@ class EbSentence:
         return len(self.tokens)
 
     # this will translate all () -> -lrb- -rrb-, ' -> `` or \'\'
+    # no page number
     def get_tokens_text(self):
-        return self.tokens_text
+        return eb_tokens_to_st(self.tokens)          
 
     def get_start(self):
         return self.start
@@ -145,11 +147,12 @@ class EbSentence:
     def get_end(self):
         return self.end
 
-    def get_text(self):
-        return self.text
+#    def get_text(self):
+#        return self.text
 
     def get_number_chars(self):
-        return len(self.text)
+        # return len(self.text)
+        return self.end - self.start
 
     def set_entities(self, entity_list):
         self.entities = entity_list

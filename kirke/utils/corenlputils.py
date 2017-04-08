@@ -71,7 +71,8 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
     while sent_idx < num_sent:
         ebsent = ebsent_list[sent_idx]
         # print("ebsent #{}: {}".format(sent_idx, ebsent))
-        sent_st = ebsent.get_text()
+        # sent_st = ebsent.get_text()
+        sent_st = atext[ebsent.get_start():ebsent.get_end()]
         if sent_st:  # TODO: jshaw, a bug, not sure how this is possible
                      # 36973.clean.txt
             last_char = sent_st[-1]

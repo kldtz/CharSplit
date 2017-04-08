@@ -69,7 +69,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
                        num_sent_tokens >= 30 and num_sent_tokens < 40)
     fvec.set_val_yesno('ge-40-word', num_sent_tokens >= 40)
 
-    sent_text = ebsent.get_text()
+    sent_text = atext[ebsent.get_start():ebsent.get_end()]
     fvec.set_val('startCharClass',
                  unicodeutils.unicode_char_to_category_id(sent_text[0]))
     fvec.set_val('endCharClass', unicodeutils.unicode_char_to_category_id(sent_text[-1]))
