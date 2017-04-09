@@ -153,9 +153,8 @@ def load_prov_ebdata(filename, provision_name=None):
 class EbAnnotatedDoc:
 
     # pylint: disable=R0913
-    def __init__(self, file_name, eb_sents, prov_ant_list, attrvec_list, text):
+    def __init__(self, file_name, prov_ant_list, attrvec_list, text):
         self.file_id = file_name
-        self.ebsents = eb_sents
         self.prov_annotation_list = prov_ant_list
         self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
         self.attrvec_list = attrvec_list
@@ -164,8 +163,8 @@ class EbAnnotatedDoc:
     def get_file_id(self):
         return self.file_id
 
-    def get_ebsent_list(self):
-        return self.ebsents
+    #def get_ebsent_list(self):
+    #    return self.ebsents
 
     def set_provision_annotations(self, ant_list):
         self.prov_annotation_list = ant_list

@@ -13,7 +13,9 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
 
     # TODO, pass in the token list, with lemma
     # will do chunking in the future also
-    fvec = ebattrvec.EbAttrVec(file_id, ebsent.get_start(), ebsent.get_end())
+    fvec = ebattrvec.EbAttrVec(file_id,
+                               ebsent.get_start(), ebsent.get_end(),
+                               ebsent.get_tokens_text(), ebsent.labels, ebsent.entities)
 
     fvec.set_val('ent_start', ebsent.get_start())
     fvec.set_val('ent_end', ebsent.get_end())

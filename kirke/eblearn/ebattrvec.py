@@ -32,13 +32,18 @@ def init_eb_attrs():
         'le-3-word:bool', 'le-5-word:bool',
         'le-10-word:bool', 'ge-05-lt-10-word:bool',
         'ge-10-lt-20-word:bool', 'ge-20-lt-30-word:bool',
-        'ge-30-lt-40-word:bool', 'ge-40-word:bool']
+        'ge-30-lt-40-word:bool', 'ge-40-word:bool',
+        'bag-of-words:string', 'labels:string-list',
+        'entities:other']
     attr_type_map = {}
     attr_idx_map = {}
     attr_list = []
     binary_indices = []
     numeric_indices = []
     categorical_indices = []
+    string_indices = []
+    string_list_indices = []
+    other_indices = []    
     for i, attr_type in enumerate(attr_type_st_list):
         attr, atype = attr_type.split(':')
         attr_list.append(attr)
@@ -50,24 +55,38 @@ def init_eb_attrs():
             numeric_indices.append(i)
         elif atype == 'categorical':
             categorical_indices.append(i)
+        elif atype == 'string':
+            string_indices.append(i)
+        elif atype == 'string-list':
+            string_list_indices.append(i)
+        elif atype == 'other':
+            other_indices.append(i)                                    
         else:
             raise ValueError('unknown type in init_eb_attrs(): {}'.format(atype))
     return (attr_list, attr_type_map, attr_idx_map,
-            binary_indices, numeric_indices, categorical_indices)
+            binary_indices, numeric_indices, categorical_indices,
+            string_indices, string_list_indices, other_indices)
 
 (EB_ATTR_LIST, EB_ATTR_TYPE_MAP, EB_ATTR_IDX_MAP,
- BINARY_INDICES, NUMERIC_INDICES, CATEGORICAL_INDICES) = init_eb_attrs()
+ BINARY_INDICES, NUMERIC_INDICES, CATEGORICAL_INDICES,
+ STRING_INDICeS, STRING_LIST_INDICES, OTHER_INDICES) = init_eb_attrs()
 
 DEFAULT_IS_TO_VALIDATE = True
+TOKENS_TEXT_INDEX = EB_ATTR_IDX_MAP['bag-of-words']
+LABELS_INDEX = EB_ATTR_IDX_MAP['labels']
+ENTITIES_INDEX = EB_ATTR_IDX_MAP['entities']
 
 # replacing sent2attrs
 class EbAttrVec:
 
-    def __init__(self, file_id, start, end):
+    def __init__(self, file_id, start, end, text, labels, entities):
         self.file_id = file_id
         self.start = start
         self.end = end
         self.attr_val_map = {}
+        self.attr_val_map['bag-of-words'] = text
+        self.attr_val_map['labels'] = labels
+        self.attr_val_map['entities'] = entities
         # fv.set_val('bag_of_words', ebsent.get_tokens_text())
         # intentionally not using ebsent.get_text()
 
@@ -88,6 +107,11 @@ class EbAttrVec:
     def set_val_yesno(self, attr, val):
         self.attr_val_map[attr] = bool(val)
 
+    #def get_tokens_text(self) -> str:
+    #    return self.bag_of_words
+
+    #def get_labels(self):
+    #    return self.labels
 
     def validate_types(self):
         for attr, atype in EB_ATTR_TYPE_MAP.items():
@@ -104,5 +128,11 @@ class EbAttrVec:
                                      type(val), str(val))
             elif atype == 'categorical':
                 pass
+            elif atype == 'string':
+                pass
+            elif atype == 'string-list':
+                pass
+            elif atype == 'other':
+                pass                                    
             else:
                 raise ValueError('failed in validate_type(), unknown type: %s', atype)

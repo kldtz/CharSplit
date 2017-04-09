@@ -38,37 +38,24 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         self.vocabulary = {}  # used for bi_topgram_matrix generation
         self.vocab_id_map = {}
 
-    def fit(self, attrvec_ebsent_list, label_list=None):
+    def fit(self, attrvec_list, label_list=None):
         EbTransformer.fit_count += 1
-        logging.info("fitting #%s called, len(attrvec_ebsent_list) = %d, len(label_list) = %d",
-                     EbTransformer.fit_count, len(attrvec_ebsent_list), len(label_list))
-        attrvec_list = []
-        ebsent_list = []
-        for attrvec, ebsent in attrvec_ebsent_list:
-            attrvec_list.append(attrvec)
-            ebsent_list.append(ebsent)
+        logging.info("fitting #%s called, len(attrvec_list) = %d, len(label_list) = %d",
+                     EbTransformer.fit_count, len(attrvec_list), len(label_list))
 
         # ignore the result X.  The goal here is to set up the vars.
         self.ebantdoc_list_to_csr_matrix(attrvec_list,
-                                         ebsent_list,
                                          label_list,
                                          fit_mode=True)
         return self
 
-    def transform(self, attrvec_ebsent_list):
+    def transform(self, attrvec_list):
         EbTransformer.transform_count += 1
-        logging.debug("transform called #%d, len(attrvec_ebsent_list) = %d",
-                      EbTransformer.transform_count, len(attrvec_ebsent_list))
-
-        attrvec_list = []
-        ebsent_list = []
-        for attrvec, ebsent in attrvec_ebsent_list:
-            attrvec_list.append(attrvec)
-            ebsent_list.append(ebsent)
+        logging.debug("transform called #%d, len(attrvec_list) = %d",
+                      EbTransformer.transform_count, len(attrvec_list))
 
         # pylint: disable=C0103
         X = self.ebantdoc_list_to_csr_matrix(attrvec_list,
-                                             ebsent_list,
                                              [],
                                              fit_mode=False)
         return X
@@ -77,12 +64,10 @@ class EbTransformer(BaseEstimator, TransformerMixin):
     # pylint: disable=R0912, R0914
     def ebantdoc_list_to_csr_matrix(self,
                                     attrvec_list,
-                                    ebsent_list,
                                     label_list,
                                     fit_mode=False):
         # prov = self.provision
         # print("attrvec_list.size = ", len(attrvec_list))
-        # print("ebsent_list.size = ", len(ebsent_list))
         # print("label_list.size = ", len(label_list))
         num_rows = len(attrvec_list)
 
@@ -110,14 +95,14 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         sent_st_list = []
         positive_sent_st_list = []  # only populated if fit_mode
         if fit_mode:  # label_list:  # for testing, there is no label_list
-            for ebsent, label in zip(ebsent_list, label_list):
-                sent_st = ebsent.get_tokens_text()
+            for attrvec, label in zip(attrvec_list, label_list):
+                sent_st = attrvec[ebattrvec.TOKENS_TEXT_INDEX]
                 sent_st_list.append(sent_st)
                 if label:
                     positive_sent_st_list.append(sent_st)
         else:
-            for ebsent in ebsent_list:
-                sent_st = ebsent.get_tokens_text()
+            for attrvec in attrvec_list:
+                sent_st = attrvec[ebattrvec.TOKENS_TEXT_INDEX]
                 sent_st_list.append(sent_st)
 
         nostop_sent_st_list = stopwordutils.remove_stopwords(sent_st_list, mode=2)

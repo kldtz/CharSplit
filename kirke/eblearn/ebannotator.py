@@ -86,14 +86,14 @@ class ProvisionAnnotator:
         # ebsent_list = eb_antdoc.get_ebsent_list()
         # print("txt_fn = '{}', vec_size= {}, ant_list = {}".format(txt_fn,
         # len(instance_list), ant_list))
-        ebsent_list = eb_antdoc.get_ebsent_list()
+        attrvec_list = eb_antdoc.get_attrvec_list()
 
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
 
 
         prov = self.provision
-        prob_ebsent_list = list(zip(prob_list, ebsent_list))
-        prov_annotations = ebpostproc.obtain_postproc(prov).post_process(prob_ebsent_list,
+        prob_attrvec_list = list(zip(prob_list, attrvec_list))
+        prov_annotations = ebpostproc.obtain_postproc(prov).post_process(prob_attrvec_list,
                                                                          self.threshold,
                                                                          provision=prov)
 

@@ -10,7 +10,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import GroupKFold
 from sklearn.pipeline import Pipeline
 
-from kirke.eblearn import ebpostproc
+from kirke.eblearn import ebpostproc, ebattrvec
 from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformer import EbTransformer
 from kirke.utils import evalutils
@@ -47,16 +47,13 @@ class ProvisionClassifier(EbClassifier):
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):
         logging.info('train_antdoc_list()...')
 
-        attrvec_list, ebsent_list, group_id_list = [], [], []
+        attrvec_list, group_id_list = [], []
         for group_id, eb_antdoc in enumerate(ebantdoc_list):
-            attrvec_list.extend(eb_antdoc.get_attrvec_list())
-            tmp_ebsent_list = eb_antdoc.get_ebsent_list()
-            ebsent_list.extend(tmp_ebsent_list)
-            group_id_list.extend([group_id] * len(tmp_ebsent_list))
+            tmp_attrvec_list = eb_antdoc.get_attrvec_list()
+            attrvec_list.extend(tmp_attrvec_list)
+            group_id_list.extend([group_id] * len(tmp_attrvec_list))
 
-        label_list = [self.provision in ebsent.labels for ebsent in ebsent_list]
-        attrvec_ebsent_list = list(zip(attrvec_list, ebsent_list))
-        # print("attrvec_ebsent_list.size = ", len(attrvec_ebsent_list))
+        label_list = [self.provision in attrvec[ebattrvec.LABELS_INDEX] for attrvec in attrvec_list]
 
         # TODO, jshaw, explore this more in future.
         # iterations = 50  (for 10 iteration, f1=0.91; for 50 iterations, f1=0.90,
@@ -75,7 +72,7 @@ class ProvisionClassifier(EbClassifier):
         #    parameters = {'C': [.01,.1,1,10,100]}
         #    sgd_clf = LogisticRegression()
 
-        group_kfold = list(GroupKFold().split(attrvec_ebsent_list, label_list,
+        group_kfold = list(GroupKFold().split(attrvec_list, label_list,
                                               groups=group_id_list))
         grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
                                    verbose=1, cv=group_kfold)
@@ -85,7 +82,7 @@ class ProvisionClassifier(EbClassifier):
         print("parameters:")
         pprint(parameters)
         time_0 = time()
-        grid_search.fit(attrvec_ebsent_list, label_list)
+        grid_search.fit(attrvec_list, label_list)
         print("done in %0.3fs" % (time() - time_0))
 
         print("Best score: %0.3f" % grid_search.best_score_)
@@ -106,14 +103,11 @@ class ProvisionClassifier(EbClassifier):
         # logging.info('predict_antdoc()...')
 
         attrvec_list = eb_antdoc.get_attrvec_list()
-        ebsent_list = eb_antdoc.get_ebsent_list()
         # print("attrvec_list.size = ", len(attrvec_list))
-        # print("ebsent_list.size = ", len(ebsent_list))
 
-        # sent_st_list = [ebsent.get_tokens_text() for ebsent in ebsent_list]
+        # sent_st_list = [attrvec[ebattrvec.TOKENS_TEXT_INDEX] for attrvec in attrvec_list]
         # overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
-        attrvec_ebsent_list = list(zip(attrvec_list, ebsent_list))
-        probs = self.eb_grid_search.predict_proba(attrvec_ebsent_list)[:, 1]
+        probs = self.eb_grid_search.predict_proba(attrvec_list)[:, 1]
 
         return probs
 
@@ -132,34 +126,31 @@ class ProvisionClassifier(EbClassifier):
     def predict_and_evaluate(self, ebantdoc_list, work_dir, diagnose_mode=False):
         logging.info('predict_and_evaluate()...')
 
-        attrvec_list, ebsent_list, full_txt_fn_list = [], [], []
+        attrvec_list, full_txt_fn_list = [], []
         for eb_antdoc in ebantdoc_list:
             tmp_attrvec_list = eb_antdoc.get_attrvec_list()
             num_sent = len(tmp_attrvec_list)
             txt_fn = eb_antdoc.get_file_id()
 
             attrvec_list.extend(tmp_attrvec_list)
-            ebsent_list.extend(eb_antdoc.get_ebsent_list())
             # for diagnosis purpose
             full_txt_fn_list.extend([txt_fn] * num_sent)
-        label_list = [self.provision in ebsent.labels for ebsent in ebsent_list]
-        attrvec_ebsent_list = list(zip(attrvec_list, ebsent_list))
+        label_list = [self.provision in attrvec[ebattrvec.LABELS_INDEX] for attrvec in attrvec_list]
 
         # print("attrvec_list.size = ", len(attrvec_list))
-        # print("ebsent_list.size = ", len(ebsent_list))
         # print("label_list.size = ", len(label_list))
         # print("full_txt_fn_list.size = ", len(full_txt_fn_list))
 
         y_te = label_list
         # num_positive = np.count_nonzero(y_te)
         # logging.debug('num true positives in testing = {}'.format(num_positive))
-        sent_st_list = [ebsent.get_tokens_text() for ebsent in ebsent_list]
+        sent_st_list = [attrvec[ebattrvec.TOKENS_TEXT_INDEX] for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
 
         # TODO, jshaw
         # can remove sgd_preds and use 0.5 as the filter
-        # sgd_preds = self.eb_grid_search.predict(attrvec_ebsent_list)
-        probs = self.eb_grid_search.predict_proba(attrvec_ebsent_list)[:, 1]
+        # sgd_preds = self.eb_grid_search.predict(attrvec_list)
+        probs = self.eb_grid_search.predict_proba(attrvec_list)[:, 1]
 
         #print("Grid scores on development set:")
         #print()

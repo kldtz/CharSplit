@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 from kirke.utils import mathutils
 
@@ -41,9 +41,12 @@ def calc_precision_recall_f1(tn, fp, fn, tp, title):
     return prec, recall, f1
 
 
+AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
+
+"""
 # pylint: disable=R0903
 class AnnotationWithProb:
-    __slots__ = ['label', 'start', 'end', 'prob']
+    __slots__ = 
 
     def __init__(self, label, start, end, prob):
         self.label = label
@@ -54,7 +57,7 @@ class AnnotationWithProb:
     def __repr__(self):
         return "AnnotationWithProb('{}', {}, {}, {})".format(self.label, self.start,
                                                              self.end, self.prob)
-
+"""
 
 # pylint: disable=R0914
 def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
@@ -63,8 +66,8 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
 
     pred_ant_list = []
     for adict in ant_list:
-        pred_ant_list.append(AnnotationWithProb(adict['label'], adict['start'],
-                                                adict['end'], adict['prob']))
+        pred_ant_list.append(AnnotationWithProb(adict.label, adict.start,
+                                                adict.end, adict.prob))
     # print("prov_human_ant_list: {}".format(prov_human_ant_list))
     # print("pred_ant_list: {}".format(pred_ant_list))
 

@@ -232,8 +232,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
         attrvec_list.append(fvec.to_list())
         prev_ebsent = ebsent
 
-    eb_antdoc = ebantdoc.EbAnnotatedDoc(txt_file_name, ebsent_list,
-                                        prov_annotation_list, attrvec_list, atext)
+    eb_antdoc = ebantdoc.EbAnnotatedDoc(txt_file_name, prov_annotation_list, attrvec_list, atext)
 
     if txt_file_name and is_cache_enabled:
         txt_basename = os.path.basename(txt_file_name)
