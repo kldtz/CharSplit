@@ -5,7 +5,8 @@ import logging
 import math
 import sys
 import time
-from collections import defaultdict
+from collections import defaultdict, namedtuple
+import operator
 
 from kirke.utils import stopwordutils, strutils
 
@@ -15,6 +16,7 @@ from kirke.utils import stopwordutils, strutils
 DEFAULT_INFOGAIN_VOCAB_SIZE = 100000
 
 def entropy_by_freq_list(freq_list):
+    # print("freq_list = {}".format(freq_list))
     total = 0
     for _, freq in freq_list.items():
         total += freq
@@ -29,19 +31,114 @@ def entropy_by_freq_list(freq_list):
         #    print("count = 0, val = {}".format(val))
     return -result
 
-def to_cond_count_map(label_count_map, cond_dist):
+def entropy_by_freq_list_flat(freq_list):
+    # print("flat freq_list = {}".format(freq_list))
+    total = 0
+    for freq in freq_list:
+        total += freq
+    result = 0.0
+    for count in freq_list:
+        prob = count / total
+        # avoid prob = 0, in which math.log throw exception
+        if count != 0:
+            result += prob * math.log(prob, 2)
+        # it's possible that there is no instance for True
+        #else:
+        #    print("count = 0, val = {}".format(val))
+    return -result
+
+CondCountTuple = namedtuple('CondCountTuple', ['condTTrue', 'condTFalse', 'condFTrue', 'condFFalse'])
+
+def to_cond_count_map(true_count_map,
+                      false_count_map,
+                      cond_dist):
     cond_count_map = defaultdict(lambda: defaultdict(int))
+    # print("\ntrue_count_map = {}".format(true_count_map))
+    # print("false_count_map = {}".format(false_count_map))
+    # print("cond_dist = {}".format(cond_dist))
     for cond, cond_count in cond_dist.items():
-        label_count = label_count_map.get(cond, 0)
+        # print("cond=[{}], count= {}".format(cond, cond_count))
+        if cond:
+            label_count = true_count_map
+        else:
+            label_count = false_count_map
         if label_count != 0:
             cond_count_map[cond][True] = label_count
         cond_count_map[cond][False] = cond_count - label_count
+    # print("cond_count_map = {}".format(cond_count_map))
+    result = CondCountTuple(cond_count_map[True].get(True, 0),
+                            cond_count_map[True].get(False, 0),
+                            cond_count_map[False].get(True, 0),
+                            cond_count_map[False].get(False, 0))
+    # print("resut = {}".format(result))
     return cond_count_map
+
+
+def to_cond_count_tuple(true_count_map,
+                        false_count_map,
+                        cond_dist):
+    cond_count_map = {}
+    # print("\ntrue_count_map = {}".format(true_count_map))
+    # print("false_count_map = {}".format(false_count_map))
+    # print("cond_dist = {}".format(cond_dist))
+    for cond, cond_count in cond_dist.items():
+        # print("cond=[{}], count= {}".format(cond, cond_count))
+        if cond:
+            label_count = true_count_map
+        else:
+            label_count = false_count_map
+            
+        if label_count != 0:
+            cond_count_map[cond] = (label_count, cond_count - label_count)
+        else:
+            cond_count_map[cond] = (0, cond_count - label_count)
+    # print("cond_count_map = {}".format(cond_count_map))
+    result = CondCountTuple(cond_count_map[True][0],
+                            cond_count_map[True][1],
+                            cond_count_map[False][0],
+                            cond_count_map[False][1])
+    # print("resut = {}".format(result))
+    return result
 
 
 def info_gain(cond_count_map, entropy_class):
     col_entropy = column_entropy(cond_count_map)
     return entropy_class - col_entropy
+
+def info_gain_flat(cond_count_map, entropy_class):
+    col_entropy = column_entropy_flat(cond_count_map)
+    return entropy_class - col_entropy
+
+def column_entropy_flat(cond_count_map):
+    # print("float count_count_map = {}".format(cond_count_map))
+    # val_class_freq_map[word_exists][class_label] = freq
+    val_class_freq_map_wordt_classt = cond_count_map.condTTrue
+    val_class_freq_map_wordt_classf = cond_count_map.condTFalse
+    val_class_freq_map_wordf_classt = cond_count_map.condFTrue
+    val_class_freq_map_wordf_classf = cond_count_map.condFFalse
+    
+    val_count_map_wordt = cond_count_map.condTTrue + cond_count_map.condFTrue
+    val_count_map_wordf = cond_count_map.condTFalse + cond_count_map.condFFalse
+    
+    total = (cond_count_map.condTTrue + cond_count_map.condTFalse +
+             cond_count_map.condFTrue + cond_count_map.condFFalse)
+    # print('flat total = {}'.format(total))
+    
+    # wordt
+    ratio = val_count_map_wordt / total
+    entropy_i = entropy_by_freq_list_flat([val_class_freq_map_wordt_classt, val_class_freq_map_wordf_classt])
+    result = ratio * entropy_i
+    #print("flat %s ratio = %.2f" % (True, ratio))
+    #print("flat entropy = %.2f" % entropy_i)
+
+    # wordf
+    ratio = val_count_map_wordf / total
+    entropy_i = entropy_by_freq_list_flat([val_class_freq_map_wordt_classf, val_class_freq_map_wordf_classf])
+
+    #print("flat2 %s ratio = %.2f" % (False, ratio))
+    #print("flat2 entropy = %.2f" % entropy_i)
+    result += ratio * entropy_i
+    return result
 
 
 def column_entropy(cond_count_map):
@@ -59,11 +156,11 @@ def column_entropy(cond_count_map):
     result = 0.0
     for k, count in val_count_map.items():
         ratio = count / total
-        # print("v = {}, total= {}".format(v, total))
-        # print("val_class_freq_map[{}] = {}".format(k, val_class_freq_map[k]))
+        #print("yy total= {}".format(total))
+        #print("yy val_class_freq_map[{}] = {}".format(k, val_class_freq_map[k]))
         entropy_i = entropy_by_freq_list(val_class_freq_map[k])
-        # print("%s ratio = %.2f" % (k, count / total_map[label]))
-        # print(" entropy = %.2f" % entropy_i)
+        #print("yy %s ratio = %.2f" % (k, ratio))
+        #print("yy entropy = %.2f" % entropy_i)
         result += ratio * entropy_i
     return result
 
@@ -91,19 +188,52 @@ def eb_doc_to_all_ngrams(sent_st):
 # tokenize is the tokenizing function
 # pylint: disable=R0914
 def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
-    # sent_wordset_list = []
-    word_label_count_map = defaultdict(lambda: defaultdict(int))
-    cond_dist = defaultdict(int)
+
+    word_freq_map = defaultdict(int)
+    for doc_st, label_val in zip(doc_list, label_list):
+        doc_tokens = tokenize(doc_st)
+        for word in doc_tokens:
+            word_freq_map[word] += 1
+
     vocabs = set([])
+    word_count = 0
+    vocab_size_times_4 = DEFAULT_INFOGAIN_VOCAB_SIZE * 10
+    for word, freq in sorted(word_freq_map.items(), key=operator.itemgetter(1), reverse=True):
+        word_count += 1
+        if word_count > vocab_size_times_4:
+            logging.debug("skipping word with freq less than {}".format(freq)) 
+            break
+        # print('adding vocab: [{}], freq= {}'.format(word, freq))
+        vocabs.add(word)
+
+    # sent_wordset_list = []
+    word_true_count_map = defaultdict(int)
+    word_false_count_map = defaultdict(int)
+    cond_dist = defaultdict(int)
 
     for doc_st, label_val in zip(doc_list, label_list):
         doc_tokens = tokenize(doc_st)
         cond_dist[label_val] += 1
+        # print('label_val = [{}]'.format(label_val))
 
-        vocabs |= doc_tokens
         for word in doc_tokens:
-            word_label_count_map[word][label_val] += 1
+            if word not in vocabs:  # skip word that doesn't occur enough
+                continue
+            if label_val:
+                word_true_count_map[word] += 1
+            else:
+                word_false_count_map[word] += 1
+            word_freq_map[word] += 1
 
+    # count number of freq
+    #print("cond_dist = {}".format(cond_dist))  # False, True
+    #wf_count_map = defaultdict(int)
+    #for word, freq in word_freq_map.items():
+    #    wf_count_map[freq] += 1
+
+    #for freq, count in sorted(wf_count_map.items(), key=operator.itemgetter(1)):
+    #    print("wf_count_map[{}] = {}".format(freq, count))
+    
     # print("word_docids_map[Change] = {}".format(word_docids_map['Change']))
     logging.debug("igain.vocab size = %d", len(vocabs))
 
@@ -123,7 +253,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
     start_time = time.time()
     orig_start_time = start_time
     word_cond_freq_dist_map = {}
-    for i, col_name in enumerate(vocabs):
+    for i, col_name in enumerate(vocabs, 1):
         if i % 100000 == 0:
             now_time = time.time()
             partial_diff = now_time - start_time
@@ -131,12 +261,20 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
             logging.debug("i = %d, took %.4f seconds, total = %.4f seconds",
                           i, partial_diff, total_diff)
             start_time = time.time()
-        cond_count_map = to_cond_count_map(word_label_count_map[col_name], cond_dist)
-        # "{}".format(cond_count_map)
-        word_cond_freq_dist_map[col_name] = cond_count_map
+        #cond_count_map = to_cond_count_map(word_true_count_map[col_name],
+        #                                   word_false_count_map[col_name],
+        #                                   cond_dist)
 
-        igain = info_gain(cond_count_map, entropy_of_class)
-        # print('info_gain(%s) = %.3f' % (col_name, ig))
+        cond_count_tuple = to_cond_count_tuple(word_true_count_map[col_name],
+                                               word_false_count_map[col_name],
+                                               cond_dist)
+
+        word_cond_freq_dist_map[col_name] = cond_count_tuple
+
+        #igain = info_gain(cond_count_map, entropy_of_class)
+        igain = info_gain_flat(cond_count_tuple, entropy_of_class)
+        #if igain != igain2:
+        #    print('info_gain(%s) = %.5f, igain2 = %.5f\n' % (col_name, igain, igain2))
         result.append((igain, col_name))
 
     # take top 5% of all the vocab
@@ -149,21 +287,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
     if debug_mode:
         for igain, word in sorted(result, reverse=True):
             cond_count_map = word_cond_freq_dist_map[word]
-            #print("cond_count_map = {}".format(cond_count_map))
-            #if i > 200000:
-            #    break
-            #i += 1
-            #if ((cond_count_map['True'].get(True, 0) == 1 and
-            # cond_count_map['False'].get(True, 0) == 0) or
-            #    (cond_count_map[True].get(True, 0) == 1 and
-            # cond_count_map[False].get(True, 0) == 0)):
-            #    break
-            cond_count_map_st = ("YES-word=%d, NO-word=%d, YES-xx-word=%d, NO-xx-word=%d" %
-                                 cond_count_map['True'].get(True, 0),
-                                 cond_count_map['False'].get(True, 0),
-                                 cond_count_map['True'].get(False, 0),
-                                 cond_count_map['False'].get(False, 0))
-            print(word, igain, cond_count_map_st, sep='\t')
+            print(word, igain, cond_count_map, sep='\t')
 
     top_ig_ngram_list = [word for ig, word in sorted(result, reverse=True)][:wanted_vocab_size]
 
