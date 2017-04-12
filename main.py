@@ -5,6 +5,7 @@ import logging
 from pprint import pprint
 import sys
 import warnings
+import re
 
 from collections import defaultdict
 import os
@@ -43,12 +44,19 @@ def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
         eb_classifier = provclassifier.ProvisionClassifier(provision)
         model_file_name = model_dir + '/' +  provision + "_provclassifier.pkl"
 
+    """
     ebtrainer.train_eval_annotator(provision,
                                    txt_fn_list_fn,
                                    work_dir,
                                    model_dir,
                                    model_file_name,
                                    eb_classifier)
+    """
+    ebtrainer.train_eval_annotator_with_trte(provision,
+                                             work_dir,
+                                             model_dir,
+                                             model_file_name,
+                                             eb_classifier)
 
 
 def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir):
@@ -63,13 +71,13 @@ def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custo
                                                                 custom_model_dir)
 
 # test multiple annotators    
-def test_annotators(provisions, txt_fn_list_fn, word_dir, model_dir, custom_model_dir):
+def test_annotators(provisions, txt_fn_list_fn, word_dir, model_dir, custom_model_dir, threshold=None):
     provision_set = set([])
     if provisions:
         provision_set = set(provisions.split(','))
 
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
-    eval_status = eb_runner.test_annotators(txt_fn_list_fn, provision_set)
+    eval_status = eb_runner.test_annotators(txt_fn_list_fn, provision_set, threshold)
 
     # return some json accuracy info
     pprint(eval_status)
@@ -103,114 +111,7 @@ def annotate_document(file_name, work_dir, model_dir, custom_model_dir):
     prov_labels_map = eb_runner.annotate_document(file_name)
     pprint(prov_labels_map)
 
-# @deprecated
-def split_provisions_from_posdocs(provisions, txt_fn_list_fn, work_dir, model_dir):
-    warnings.warn("Shouldn't split based on positive labeled docs only.", DeprecationWarning)
-
-    osutils.mkpath(work_dir)
-    osutils.mkpath(model_dir)
-    provision_list = provisions.split(',')
-
-    provision_filelist_map = splittrte.provisions_split(provision_list, txt_fn_list_fn, work_dir=work_dir)
-    for provision in provision_list:
-        eb_antdoc_list = provision_filelist_map[provision]
-        antdoc_fn_list = "{}/{}.doclist.txt".format(model_dir, provision)
-        splittrte.save_antdoc_fn_list(eb_antdoc_list, antdoc_fn_list)
-
-def split_provision_trte(provisions, txt_fn_list_fn, work_dir, model_dir_list):
-    osutils.mkpath(work_dir)
-    for moddir in model_dir_list:
-        osutils.mkpath(moddir)
-
-    eb_antdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
-
-    for provision in provision_list:
-        X = eb_antdoc_list
-        y = [provision in ebantdoc.get_provision_set()
-             for ebantdoc in eb_antdoc_list]
-
-        num_pos, num_neg = 0, 0
-        for yval in y:
-            if yval:
-                num_pos += 1
-            else:
-                num_neg += 1
-        print("provision: {}, pos= {}, neg= {}".format(provision, num_pos, num_neg))
-        # jshaw, hack, such as for sechead
-        if num_neg < 2:
-            y[0] = 0
-            y[1] = 0
-
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-        for moddir in model_dir_list:
-            antdoc_fn_list = "{}/{}.doclist.txt".format(moddir, provision)
-            splittrte.save_antdoc_fn_list(eb_antdoc_list, antdoc_fn_list)
-
-            train_doclist_fn = "{}/{}_train_doclist.txt".format(moddir, provision)    
-            splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
-
-            test_doclist_fn = "{}/{}_test_doclist.txt".format(moddir, provision)
-            splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
-
-
-def split_provision_trte2(provfiles_dir, work_dir, model_dir_list):
-    osutils.mkpath(work_dir)
-    for moddir in model_dir_list:
-        osutils.mkpath(moddir)
-
-    txt_file_set = set([])
-    prov_filelist_map = defaultdict(list)
-    provision_list = []
-
-    for file_name in os.listdir(provfiles_dir):
-        if file_name.endswith('.doclist.txt'):
-            prefix = file_name[:-12]
-            print("prov = [{}]".format(prefix))
-            provision_list.append(prefix)
-            with open("{}/{}".format(provfiles_dir, file_name), 'rt') as fin:
-                for line in fin:
-                    line = line.strip()
-                    txt_file_set.add(line)
-                    prov_filelist_map[prefix].append(line)
-        
-    # fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_map(list(txt_file_set), work_dir=work_dir)
-    fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_provset_map(list(txt_file_set), work_dir=work_dir)    
-
-    for provision in provision_list:
-        eb_antdoc_list = []
-        for fn in prov_filelist_map[provision]:
-            eb_antdoc_list.append(fn_ebantdoc_map[fn])
             
-        X = eb_antdoc_list
-        y = [provision in ebantdoc.get_provision_set()
-             for ebantdoc in eb_antdoc_list]
-
-        num_pos, num_neg = 0, 0
-        for yval in y:
-            if yval:
-                num_pos += 1
-            else:
-                num_neg += 1
-        print("provision: {}, pos= {}, neg= {}".format(provision, num_pos, num_neg))
-        # jshaw, hack, such as for sechead
-        if num_neg < 2:
-            y[0] = 0
-            y[1] = 0
-
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-        for moddir in model_dir_list:
-            antdoc_fn_list = "{}/{}.doclist.txt".format(moddir, provision)
-            splittrte.save_antdoc_fn_list(eb_antdoc_list, antdoc_fn_list)
-
-            train_doclist_fn = "{}/{}_train_doclist.txt".format(moddir, provision)    
-            splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
-
-            test_doclist_fn = "{}/{}_test_doclist.txt".format(moddir, provision)
-            splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
-            
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Training models.')
@@ -228,6 +129,7 @@ if __name__ == '__main__':
     parser.add_argument('--custom_model_dir', required=True, help='output directory for custom trained models')
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
+    parser.add_argument('--threshold', type=float, help='threshold for annotator')    
 
     args = parser.parse_args()
     cmd = args.cmd
@@ -245,7 +147,7 @@ if __name__ == '__main__':
         custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir)
     elif cmd == 'test_annotators':
         # if no --provisions is specified, all annotators are tested
-        test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir, custom_model_dir)
+        test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, threshold=args.threshold)
     elif cmd == 'test_one_annotator':
         if not args.model_file:
             print('please specify --model_file', file=sys.stderr)
@@ -256,6 +158,22 @@ if __name__ == '__main__':
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         annotate_document(args.doc, work_dir, model_dir, custom_model_dir)
+    elif cmd == 'split_provision_trte':
+        if not args.provfiles_dir:
+            print('please specify --provfiles_dir', file=sys.stderr)
+            sys.exit(1)        
+        if not args.model_dirs:
+            print('please specify --model_dirs', file=sys.stderr)
+            sys.exit(1)        
+        model_dir_list = args.model_dirs.split(',')
+        splittrte.split_provision_trte(args.provfiles_dir, work_dir, model_dir_list)        
+    else:
+        print("unknown command: '{}'".format(cmd))
+
+    logging.info('Done.')
+
+
+"""
     elif cmd == 'split_provisions_from_posdocs':
         if not args.provisions:
             print('please specify --provisions', file=sys.stderr)
@@ -269,18 +187,7 @@ if __name__ == '__main__':
             print('please specify --model_dirs', file=sys.stderr)
             sys.exit(1)        
         provision_list = args.provisions.split(',')
-        model_dir_list = args.model_dirs.split(",")
+        model_dir_list = args.model_dirs.split(',')
         split_provision_trte(provision_list, txt_fn_list_fn, work_dir, model_dir_list)
-    elif cmd == 'split_provision_trte2':
-        if not args.provfiles_dir:
-            print('please specify --provfiles_dir', file=sys.stderr)
-            sys.exit(1)        
-        if not args.model_dirs:
-            print('please specify --model_dirs', file=sys.stderr)
-            sys.exit(1)        
-        model_dir_list = args.model_dirs.split(",")
-        split_provision_trte2(args.provfiles_dir, work_dir, model_dir_list)        
-    else:
-        print("unknown command: '{}'".format(cmd))
-
-    logging.info('Done.')
+"""
+    

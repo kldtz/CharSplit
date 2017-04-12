@@ -134,6 +134,7 @@ def load_provision_annotations(filename, provision_name=None):
 
 def load_prov_ebdata(filename, provision_name=None):
     result = []
+    is_test_set = False
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
         for prov, ajson_list in parsed['ants'].items():
@@ -142,23 +143,25 @@ def load_prov_ebdata(filename, provision_name=None):
                 eb_ant = EbProvisionAnnotation(ajson)
                 # print("eb_ant= {}".format(eb_ant))
                 result.append(eb_ant.to_tuple())
+        is_test_set = parsed.get('isTestSet', False)
 
     # if provision_name is specified, only return that specific provision
     if provision_name:
-        return [provision_se for provision_se in result if provision_se.label == provision_name]
+        return [provision_se for provision_se in result if provision_se.label == provision_name], is_test_set
 
-    return result
+    return result, is_test_set
 
 
 class EbAnnotatedDoc:
 
     # pylint: disable=R0913
-    def __init__(self, file_name, prov_ant_list, attrvec_list, text):
+    def __init__(self, file_name, prov_ant_list, attrvec_list, text, is_test):
         self.file_id = file_name
         self.prov_annotation_list = prov_ant_list
         self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
         self.attrvec_list = attrvec_list
         self.text = text
+        self.is_test_set = is_test
 
     def get_file_id(self):
         return self.file_id

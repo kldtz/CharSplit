@@ -8,7 +8,7 @@ from scipy import sparse
 from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from kirke.eblearn import igain, ebattrvec
+from kirke.eblearn import igain, ebattrvec, bigramutils
 from kirke.utils import stopwordutils, strutils
 
 # pylint: disable=C0301
@@ -37,6 +37,7 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         self.n_top_positive_words = []
         self.vocabulary = {}  # used for bi_topgram_matrix generation
         self.vocab_id_map = {}
+        self.positive_vocab = {}
 
     def fit(self, attrvec_list, label_list=None):
         EbTransformer.fit_count += 1
@@ -109,14 +110,19 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
         if fit_mode:
             # we are cheating here because vocab is trained from both training and testing
-            vocabs = igain.doc_label_list_to_vocab(sent_st_list, label_list, tokenize=igain.eb_doc_to_all_ngrams)
+            # logging.info("starting computing info_gain")
+            # vocabs = igain.doc_label_list_to_vocab(sent_st_list, label_list, tokenize=igain.eb_doc_to_all_ngrams)
+            logging.info("starting computing unigram and bigram")
+            vocabs, positive_vocabs = bigramutils.doc_label_list_to_vocab(sent_st_list, label_list, tokenize=bigramutils.eb_doc_to_all_ngrams)
             vocab_id_map = {}
             for vid, vocab in enumerate(vocabs):
                 vocab_id_map[vocab] = vid
             self.vocab_id_map = vocab_id_map
+            self.positive_vocabs = positive_vocabs
 
             # handling bi-topgram
             # only lower case, mode=0, label_list must not be empty
+            logging.info("starting computing bi_topgram")
             nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
             filtered_list = []
             for nostop_positive_sent in nostop_positive_sent_st_list:
@@ -129,12 +135,20 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
         # still need to go through rest of fit_mode because of more vars are setup
 
-        bow_matrix = self.gen_top_ig_ngram_matrix(sent_st_list, tokenize=igain.eb_doc_to_all_ngrams)
+        logging.info("converting into matrix")
+        # bow_matrix = self.gen_top_ig_ngram_matrix(sent_st_list, tokenize=igain.eb_doc_to_all_ngrams)
+        bow_matrix, perc_positive_ngrams = self.gen_top_ngram_matrix(sent_st_list,
+                                                                     tokenize=bigramutils.eb_doc_to_all_ngrams)
 
         # print("n_top_positive_words = {}".format(self.n_top_positive_words))
         bi_topgram_matrix = self.gen_bi_topgram_matrix(nostop_sent_st_list, fit_mode=fit_mode)
 
-        comb_matrix = sparse.hstack((numeric_matrix, categorical_matrix, bow_matrix))
+        # put together my perc_positive_matrix
+        perc_pos_ngram_matrix = np.zeros(shape=(num_rows, 1))
+        for instance_i, perc_pos_ngram in enumerate(perc_positive_ngrams):
+            perc_pos_ngram_matrix[instance_i, 0] = perc_pos_ngram
+
+        comb_matrix = sparse.hstack((numeric_matrix, perc_pos_ngram_matrix, categorical_matrix, bow_matrix))
         sparse_comb_matrix = sparse.csr_matrix(comb_matrix)
 
         nozero_sparse_comb_matrix = self.remove_zero_column(sparse_comb_matrix, fit_mode=fit_mode)
@@ -183,7 +197,7 @@ class EbTransformer(BaseEstimator, TransformerMixin):
                                                   dtype=int)
         return bi_topgram_matrix
 
-
+    """
     def gen_top_ig_ngram_matrix(self, sent_st_list, tokenize):
         # for each sentence, find which top words it contains.  Then generate all pairs of these,
         # and generate the sparse matrix row entries for the rows it contains.
@@ -204,6 +218,39 @@ class EbTransformer(BaseEstimator, TransformerMixin):
                                                 shape=(len(sent_st_list), len(self.vocab_id_map)),
                                                 dtype=int)
         return top_ig_ngram_matrix
+    """
+
+    def gen_top_ngram_matrix(self, sent_st_list, tokenize):
+        # for each sentence, find which top words it contains.  Then generate all pairs of these,
+        # and generate the sparse matrix row entries for the rows it contains.
+        indptr = [0]
+        indices = []
+        data = []
+        perc_positive_ngram_list = []
+        for sent_st in sent_st_list:
+            sent_wordset = tokenize(sent_st)
+
+            count_pos_ngram = 0
+            for ngram in sent_wordset:
+                if ngram in self.positive_vocabs:
+                    count_pos_ngram += 1
+            if sent_wordset:
+                perc_positive_ngram_list.append(count_pos_ngram / len(sent_wordset))
+            else:
+                perc_positive_ngram_list.append(0.0)
+
+            for ngram in sent_wordset:
+                index = self.vocab_id_map.get(ngram)
+                if index:
+                    indices.append(index)
+                    data.append(1)
+            indptr.append(len(indices))
+
+        top_ig_ngram_matrix = sparse.csr_matrix((data, indices, indptr),
+                                                shape=(len(sent_st_list), len(self.vocab_id_map)),
+                                                dtype=int)
+        return top_ig_ngram_matrix, perc_positive_ngram_list
+
 
     # pylint: disable=C0103
     def remove_zero_column(self, X, fit_mode=False):

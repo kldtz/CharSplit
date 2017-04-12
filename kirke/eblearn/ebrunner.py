@@ -12,8 +12,8 @@ def annotate_provision(eb_annotator, eb_antdoc):
     return eb_annotator.annotate_antdoc(eb_antdoc)
 
 
-def test_provision(eb_annotator, eb_antdoc_list):
-    return eb_annotator.test_antdoc_list(eb_antdoc_list)
+def test_provision(eb_annotator, eb_antdoc_list, threshold):
+    return eb_annotator.test_antdoc_list(eb_antdoc_list, threshold)
 
 
 # def annotate_provision(eb_runner, file_name):
@@ -102,7 +102,7 @@ class EbRunner:
         ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_set)
         return ant_result_dict
 
-    def test_annotators(self, txt_fns_file_name, provision_set):
+    def test_annotators(self, txt_fns_file_name, provision_set, threshold=None):
         if not provision_set:
             provision_set = self.provisions
         else:
@@ -115,7 +115,8 @@ class EbRunner:
         with concurrent.futures.ThreadPoolExecutor(8) as executor:
             future_to_provision = {executor.submit(test_provision,
                                                    self.provision_annotator_map[provision],
-                                                   ebantdoc_list):
+                                                   ebantdoc_list,
+                                                   threshold):
                                    provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]

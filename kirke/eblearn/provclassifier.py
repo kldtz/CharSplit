@@ -24,7 +24,7 @@ GLOBAL_THRESHOLD = 0.12
 # The value in this provision_threshold_map is manually
 # set by inspecting the result.  Using 0.06 in general
 # produces too many false positives.
-PROVISION_THRESHOLD_MAP = {'change_control': 0.24,
+PROVISION_THRESHOLD_MAP = {'change_control': 0.42,
                            'confidentiality': 0.24,
                            'equitable_relief': 0.24,
                            'events_default': 0.18,

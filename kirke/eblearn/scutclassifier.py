@@ -23,7 +23,7 @@ GLOBAL_THRESHOLD = 0.12
 # The value in this provision_threshold_map is manually
 # set by inspecting the result.  Using 0.06 in general
 # produces too many false positives.
-PROVISION_THRESHOLD_MAP = {'change_control': 0.24,
+PROVISION_THRESHOLD_MAP = {'change_control': 0.42,
                            'confidentiality': 0.24,
                            'equitable_relief': 0.24,
                            'events_default': 0.18,
@@ -70,17 +70,26 @@ class ShortcutClassifier(EbClassifier):
         # This shows that the "iteration" parameter probably needs tuning.
         iterations = 10
         # TODO, jshaw, uncomment in real code
-        # parameters = {'clf__alpha': 10.0 ** -np.arange(1, 5)}
-        # parameters = {'clf__alpha': 10.0 ** -np.arange(3, 4)}
-        parameters = {'alpha': 10.0 ** -np.arange(-2, 7)}
+        # parameters = {'alpha': 10.0 ** -np.arange(1, 5)}
+        # parameters = {'alpha': 10.0 ** -np.arange(3, 4)}
+        # parameters = {'alpha': 10.0 ** -np.arange(-2, 7)}
+        parameters = {'alpha': 10.0 ** -np.arange(2, 7)}
 
-        #    parameters = {'C': [.01,.1,1,10,100]}
+        #    parameters = {'C': [.01, .1, 1, 10, 100]}
         #    sgd_clf = LogisticRegression()
         group_kfold = list(GroupKFold().split(X_train, y_train, groups=group_id_list))
 
-        sgd_clf = SGDClassifier(loss='log', penalty='l2', n_iter=iterations, shuffle=True, random_state=42, class_weight={True: 10, False: 1})
+        sgd_clf = SGDClassifier(loss='log', penalty='l2', n_iter=iterations, shuffle=True,
+                                random_state=42, class_weight={True: 3, False: 1})
+        # for class_weight=1, fp is 250
+        # for class_weight=2, fp is 320
+        # for class_weight=5, fp is 463
+        # for class_weight=10, fp in 600 range
+        # NOTE: using class_weight='auto' produced very bad result for precision, in 10000 range
+        # using class_weight=100, bad result in 3000 range
 
-        grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=1, scoring='roc_auc', verbose=1, cv=group_kfold)
+        grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=2,
+                                   scoring='roc_auc', verbose=1, cv=group_kfold)
 
         print("Performing grid search...")
         print("parameters:")

@@ -46,6 +46,9 @@ def train_eval_annotator(provision, txt_fn_list,
     for attrvec in attrvec_list:
         if provision in attrvec[ebattrvec.LABELS_INDEX]:
             num_pos_label += 1
+            # jshaw, TODO, remove, for debug purpose, 04/11/2017
+            print("\npositive training for {}".format(provision))
+            print("    [[{}]]".format(attrvec.get_tokens_text()))
         else:
             num_neg_label += 1
 
@@ -126,6 +129,39 @@ def train_eval_annotator(provision, txt_fn_list,
     splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
 
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
+    pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
+
+    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
+    ant_status = prov_annotator.test_antdoc_list(X_test)
+
+    ant_status['provision'] = provision
+    ant_status['pred_status'] = pred_status
+    prov_annotator.eval_status = ant_status
+    pprint(ant_status)
+
+    model_status_fn = model_dir + '/' +  provision + ".status"
+    strutils.dumps(json.dumps(ant_status), model_status_fn)
+
+    return prov_annotator
+
+
+# Take 1/5 of the data out for testing
+# Train on 4/5 of the data
+# pylint: disable=R0915, R0913, R0914
+def train_eval_annotator_with_trte(provision,
+                                   work_dir, model_dir, model_file_name, eb_classifier):
+    logging.info("training_eval_annotator_with_trte(%s) called", provision)
+    logging.info("    work_dir = %s", work_dir)
+    logging.info("    model_dir = %s", model_dir)
+    logging.info("    model_file_name = %s", model_file_name)
+
+    train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
+    X_train = ebtext2antdoc.doclist_to_ebantdoc_list(train_doclist_fn, work_dir)
+    eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
+    X_train = None  # free that memory
+
+    test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
+    X_test = ebtext2antdoc.doclist_to_ebantdoc_list(test_doclist_fn, work_dir)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)

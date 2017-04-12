@@ -197,14 +197,20 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
     else:
         prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
         prov_ebdata_file = Path(prov_ebdata_fn)
-        prov_annotation_list = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
-                                if prov_ebdata_file.is_file() else [])
+        prov_annotation_list, is_test = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
+                                         if prov_ebdata_file.is_file() else [])
 
     ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, atext)
     # print('number of sentences: {}'.format(len(ebsent_list)))
 
+    # if is_test, do not skip_exhibit
+    is_skip_exhibit = not is_test
+    
     # fix any domain specific entity extraction, such as 'Lessee' as a location
     # this is a in-place replacement
+    # We only handle up to "exhibit_appendix,exhibit_appendix_complete"
+    ebsents_without_exhibit = []
+    exhibit_appendix_start = -1
     for ebsent in ebsent_list:
         fix_ner_tags(ebsent)
         populate_ebsent_entities(ebsent)
@@ -213,8 +219,36 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
                                                               ebsent.get_end(),
                                                               prov_annotation_list)
                               if prov_annotation_list else [])
+        # logging.info("overlap_provisions: {}".format(overlap_provisions))
+        
         ebsent.set_labels(overlap_provisions)
+        if is_skip_exhibit:
+            if ('exhibit_appendix' in overlap_provisions or
+                'exhibit_appendix_complete' in overlap_provisions):
+                exhibit_appendix_start = ebsent.get_start()
+                # logging.info('exhibit_appendix_start: {}'.format(exhibit_appendix_start))
+                break
+            ebsents_without_exhibit.append(ebsent)
 
+    # we need to chop provisions after exhibit_appendix_start also
+    if is_skip_exhibit:
+        tmp_prov_annotation_list = []
+        if exhibit_appendix_start != -1:
+            for prov_annotation in prov_annotation_list:
+                if (exhibit_appendix_start <= prov_annotation.start or
+                    mathutils.start_end_overlap((exhibit_appendix_start, exhibit_appendix_start+1),
+                                                (prov_annotation.start, prov_annotation.end))):
+                    #logging.info("skipping prov '{}' {}, after appendix offset {}".format(prov_annotation.label,
+                    #                                                                      prov_annotation.start,
+                    #                                                                      exhibit_appendix_start))
+                    pass
+                else:
+                    tmp_prov_annotation_list.append(prov_annotation)
+
+        # we reset ebsent_list to ebsents_withotu_exhibit
+        ebsent_list = ebsents_without_exhibit
+        prov_annotation_list = tmp_prov_annotation_list
+    
     attrvec_list = []
     num_sent = len(ebsent_list)
     # we need prev and next sentences because such information are used in the
@@ -232,7 +266,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
         attrvec_list.append(fvec.to_list())
         prev_ebsent = ebsent
 
-    eb_antdoc = ebantdoc.EbAnnotatedDoc(txt_file_name, prov_annotation_list, attrvec_list, atext)
+    eb_antdoc = ebantdoc.EbAnnotatedDoc(txt_file_name, prov_annotation_list, attrvec_list, atext, is_test)
 
     if txt_file_name and is_cache_enabled:
         txt_basename = os.path.basename(txt_file_name)
@@ -318,6 +352,7 @@ class EbAntdocProvSet:
     def __init__(self, ebantdoc):
         self.file_id = ebantdoc.get_file_id()
         self.provset = ebantdoc.get_provision_set()
+        self.is_test_set = ebantdoc.is_test_set
 
     def get_file_id(self):
         return self.file_id
@@ -335,11 +370,12 @@ def fnlist_to_fn_ebantdoc_provset_map(fn_list, work_dir):
 
     fn_ebantdoc_map = {}
     for i, txt_file_name in enumerate(fn_list, 1):
+        # if i % 10 == 0:
+        logging.info("loaded #{} ebantdoc: {}".format(i, txt_file_name))
+
         eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir)
         
         fn_ebantdoc_map[txt_file_name] = EbAntdocProvSet(eb_antdoc)
-        if i % 10 == 0:
-            print("loaded #{} ebantdoc".format(i))
     logging.debug('Finished run_feature_extraction()')
 
     return fn_ebantdoc_map

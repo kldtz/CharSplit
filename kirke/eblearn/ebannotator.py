@@ -21,14 +21,14 @@ class ProvisionAnnotator:
     # def train(self):
     #    pass
     # pylint: disable=R0914
-    def test_antdoc_list(self, ebantdoc_list):
+    def test_antdoc_list(self, ebantdoc_list, threshold=None):
         logging.info('test_document_list')
 
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
 
         for ebantdoc in ebantdoc_list:
-            ant_list = self.annotate_antdoc(ebantdoc)
+            ant_list = self.annotate_antdoc(ebantdoc, threshold)
             # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
@@ -54,10 +54,10 @@ class ProvisionAnnotator:
 
         return tmp_eval_status
 
-    def test_antdoc(self, ebantdoc):
+    def test_antdoc(self, ebantdoc, threshold=None):
         logging.info('test_document')
 
-        ant_list = self.annotate_antdoc(ebantdoc)
+        ant_list = self.annotate_antdoc(ebantdoc, threshold)
         # print("ant_list: {}".format(ant_list))
         prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                if hant.label == self.provision]
@@ -81,12 +81,17 @@ class ProvisionAnnotator:
         return tmp_eval_status
 
 
-    def annotate_antdoc(self, eb_antdoc):
+    def annotate_antdoc(self, eb_antdoc, threshold=None):
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
         # print("txt_fn = '{}', vec_size= {}, ant_list = {}".format(txt_fn,
         # len(instance_list), ant_list))
         attrvec_list = eb_antdoc.get_attrvec_list()
+
+        # manually set the threshold
+        # self.provision_classifier.threshold = 0.5
+        if threshold != None:
+            self.threshold = threshold
 
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
 

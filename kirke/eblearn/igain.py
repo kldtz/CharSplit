@@ -13,6 +13,7 @@ from kirke.utils import stopwordutils, strutils
 # we tried 10%, but this seems to be safer to avoid
 # sudden increase in vocab size when corpus size
 # increases drastically
+# DEFAULT_INFOGAIN_VOCAB_SIZE = 400000
 DEFAULT_INFOGAIN_VOCAB_SIZE = 100000
 
 def entropy_by_freq_list(freq_list):
@@ -185,7 +186,7 @@ def eb_doc_to_all_ngrams(sent_st):
 
 
 # doc is a st
-# tokenize is the tokenizing function
+# tokenize is the tokenizing function, such as eb_doc_to_all_ngrams() above
 # pylint: disable=R0914
 def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
 
@@ -194,17 +195,19 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
         doc_tokens = tokenize(doc_st)
         for word in doc_tokens:
             word_freq_map[word] += 1
+    logging.debug("len(word_freq_map) = {}".format(len(word_freq_map)))
 
     vocabs = set([])
     word_count = 0
-    vocab_size_times_4 = DEFAULT_INFOGAIN_VOCAB_SIZE * 10
+    vocab_size_times_10 = DEFAULT_INFOGAIN_VOCAB_SIZE * 15
     for word, freq in sorted(word_freq_map.items(), key=operator.itemgetter(1), reverse=True):
         word_count += 1
-        if word_count > vocab_size_times_4:
+        if word_count > vocab_size_times_10:
             logging.debug("skipping word with freq less than {}".format(freq)) 
             break
         # print('adding vocab: [{}], freq= {}'.format(word, freq))
         vocabs.add(word)
+    word_freq_map = None  # free that memory
 
     # sent_wordset_list = []
     word_true_count_map = defaultdict(int)
@@ -223,7 +226,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
                 word_true_count_map[word] += 1
             else:
                 word_false_count_map[word] += 1
-            word_freq_map[word] += 1
+            # word_freq_map[word] += 1
 
     # count number of freq
     #print("cond_dist = {}".format(cond_dist))  # False, True
