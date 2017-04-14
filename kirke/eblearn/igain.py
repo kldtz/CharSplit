@@ -14,7 +14,8 @@ from kirke.utils import stopwordutils, strutils
 # sudden increase in vocab size when corpus size
 # increases drastically
 # DEFAULT_INFOGAIN_VOCAB_SIZE = 400000
-DEFAULT_INFOGAIN_VOCAB_SIZE = 100000
+# DEFAULT_INFOGAIN_VOCAB_SIZE = 100000
+DEFAULT_INFOGAIN_VOCAB_SIZE = 50000
 
 def entropy_by_freq_list(freq_list):
     # print("freq_list = {}".format(freq_list))
@@ -188,7 +189,7 @@ def eb_doc_to_all_ngrams(sent_st):
 # doc is a st
 # tokenize is the tokenizing function, such as eb_doc_to_all_ngrams() above
 # pylint: disable=R0914
-def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
+def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, provision='default'):
 
     word_freq_map = defaultdict(int)
     for doc_st, label_val in zip(doc_list, label_list):
@@ -288,12 +289,33 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
     top_ig_ngram_list = []
     # i = 0
     if debug_mode:
-        for igain, word in sorted(result, reverse=True):
-            cond_count_map = word_cond_freq_dist_map[word]
-            print(word, igain, cond_count_map, sep='\t')
+        with open("{}.igain.vocab.tsv".format(provision), 'wt') as fout:
+            for igain, word in sorted(result, reverse=True):
+                cond_count_map = word_cond_freq_dist_map[word]
+                print(word, igain, cond_count_map, sep='\t', file=fout)
 
     top_ig_ngram_list = [word for ig, word in sorted(result, reverse=True)][:wanted_vocab_size]
 
+    """
+    MAX_NUM_SKIP_UNIGRAM = 175
+    count_top_ig_unigram = 0
+    top_ig_unigram_list = []
+    count_top_ig_skipgram = 0
+    for ig, word in sorted(result, reverse=True):
+        if count_top_ig_unigram < MAX_NUM_SKIP_UNIGRAM:
+            if ' ' not in word:
+                top_ig_unigram_list.append(word)
+                count_top_ig_unigram += 1
+        if count_top_ig_skipgram > wanted_vocab_size:
+            break
+        top_ig_ngram_list.append(word)
+        count_top_ig_skipgram += 1
+
+    print('len(top_ig_ngram_list_old = {}, {}'.format(len(top_ig_ngram_list_old), top_ig_ngram_list_old[3]))
+    print('len(top_ig_ngram_list = {}, {}'.format(len(top_ig_ngram_list), top_ig_ngram_list[3]))
+    print('len(count_to_ig_unigram_list = {}, {}'.format(len(top_ig_unigram_list), top_ig_unigram_list))
+    return top_ig_ngram_list, top_ig_unigram_list
+    """
     return top_ig_ngram_list
 
 

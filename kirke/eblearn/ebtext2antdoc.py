@@ -7,6 +7,11 @@ from pathlib import Path
 from sklearn.externals import joblib
 
 from kirke.eblearn import sent2ebattrvec
+
+# TODO, remove.  this is mainly for printing out sentence text for debug
+# at the end of parsexxx
+from kirke.eblearn import ebattrvec
+
 from kirke.utils import corenlputils, ebantdoc, mathutils, strutils, osutils
 
 
@@ -160,6 +165,27 @@ def get_labels_if_start_end_overlap(sent_start, sent_end, ant_start_end_list):
             result_label_list.append(ant.label)
     return result_label_list
 
+def save_ebantdoc_sents(eb_antdoc, txt_file_name):
+    txt_basename = os.path.basename(txt_file_name)
+    doc_sents_dir = 'dir-doc-sents'
+    doc_sents_fn = doc_sents_dir + "/" + txt_basename.replace('.txt', '.sent')
+    doc_text = eb_antdoc.text
+    ts_col = 'TRAIN'
+    if eb_antdoc.is_test_set:
+        ts_col = 'TEST'
+    # print("doc_sents_fn = {}".format(doc_sents_fn))
+    with open(doc_sents_fn, 'wt') as fout3:
+        for i, attrvec in enumerate(eb_antdoc.attrvec_list, 1):
+            # print("attrvec = {}".format(attrvec))
+            tmp_start = attrvec[ebattrvec.START_INDEX]
+            tmp_end = attrvec[ebattrvec.END_INDEX]
+            sent_text = doc_text[tmp_start:tmp_end].replace(r'[\n\t]', ' ')
+            labels_st = ""
+            if attrvec[ebattrvec.LABELS_INDEX]:
+                labels_st = ','.join(sorted(attrvec[ebattrvec.LABELS_INDEX]))
+            cols = [str(i), ts_col, labels_st, sent_text]
+            print('\t'.join(cols), file=fout3)    
+
 
 # output_json is not None for debugging purpose
 # pylint: disable=R0914
@@ -176,6 +202,9 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
             if os.path.exists(eb_antdoc_fn):
                 eb_antdoc = joblib.load(eb_antdoc_fn)
                 logging.debug("loading cached version: %s", eb_antdoc_fn)
+
+                # TODO, jshaw, remove after debugging
+                # save_ebantdoc_sents(eb_antdoc, txt_file_name)
                 return eb_antdoc
 
             json_fn = work_dir + "/" + txt_basename.replace('.txt', '.corenlp.json')
@@ -203,9 +232,6 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
     ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, atext)
     # print('number of sentences: {}'.format(len(ebsent_list)))
 
-    # if is_test, do not skip_exhibit
-    is_skip_exhibit = not is_test
-    
     # fix any domain specific entity extraction, such as 'Lessee' as a location
     # this is a in-place replacement
     # We only handle up to "exhibit_appendix,exhibit_appendix_complete"
@@ -222,33 +248,31 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
         # logging.info("overlap_provisions: {}".format(overlap_provisions))
         
         ebsent.set_labels(overlap_provisions)
-        if is_skip_exhibit:
-            if ('exhibit_appendix' in overlap_provisions or
-                'exhibit_appendix_complete' in overlap_provisions):
-                exhibit_appendix_start = ebsent.get_start()
-                # logging.info('exhibit_appendix_start: {}'.format(exhibit_appendix_start))
-                break
-            ebsents_without_exhibit.append(ebsent)
+        if ('exhibit_appendix' in overlap_provisions or
+            'exhibit_appendix_complete' in overlap_provisions):
+            exhibit_appendix_start = ebsent.get_start()
+            # logging.info('exhibit_appendix_start: {}'.format(exhibit_appendix_start))
+            break
+        ebsents_without_exhibit.append(ebsent)
 
     # we need to chop provisions after exhibit_appendix_start also
-    if is_skip_exhibit:
+    if exhibit_appendix_start != -1:
         tmp_prov_annotation_list = []
-        if exhibit_appendix_start != -1:
-            for prov_annotation in prov_annotation_list:
-                if (exhibit_appendix_start <= prov_annotation.start or
-                    mathutils.start_end_overlap((exhibit_appendix_start, exhibit_appendix_start+1),
-                                                (prov_annotation.start, prov_annotation.end))):
-                    #logging.info("skipping prov '{}' {}, after appendix offset {}".format(prov_annotation.label,
-                    #                                                                      prov_annotation.start,
-                    #                                                                      exhibit_appendix_start))
-                    pass
-                else:
-                    tmp_prov_annotation_list.append(prov_annotation)
-
-        # we reset ebsent_list to ebsents_withotu_exhibit
-        ebsent_list = ebsents_without_exhibit
+        for prov_annotation in prov_annotation_list:
+            if (exhibit_appendix_start <= prov_annotation.start or
+                mathutils.start_end_overlap((exhibit_appendix_start, exhibit_appendix_start+1),
+                                            (prov_annotation.start, prov_annotation.end))):
+                #logging.info("skipping prov '{}' {}, after appendix offset {}".format(prov_annotation.label,
+                #                                                                      prov_annotation.start,
+                #                                                                      exhibit_appendix_start))
+                pass
+            else:
+                tmp_prov_annotation_list.append(prov_annotation)
         prov_annotation_list = tmp_prov_annotation_list
-    
+
+    # we reset ebsent_list to ebsents_withotu_exhibit
+    ebsent_list = ebsents_without_exhibit
+
     attrvec_list = []
     num_sent = len(ebsent_list)
     # we need prev and next sentences because such information are used in the
@@ -274,6 +298,11 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
         eb_antdoc_fn = work_dir + "/" + txt_basename.replace('.txt', '.ebantdoc.pkl')
         joblib.dump(eb_antdoc, eb_antdoc_fn)
         logging.debug("save in cached: %s", eb_antdoc_fn)
+
+    # TODO, jshaw, remove, this saves the sentence text version
+    # if txt_file_name:
+    #    save_ebantdoc_sents(eb_antdoc, txt_file_name)
+    
     return eb_antdoc
 
 

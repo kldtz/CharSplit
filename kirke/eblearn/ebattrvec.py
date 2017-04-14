@@ -72,6 +72,8 @@ def init_eb_attrs():
  STRING_INDICeS, STRING_LIST_INDICES, OTHER_INDICES) = init_eb_attrs()
 
 DEFAULT_IS_TO_VALIDATE = True
+START_INDEX = EB_ATTR_IDX_MAP['ent_start']
+END_INDEX = EB_ATTR_IDX_MAP['ent_end']
 TOKENS_TEXT_INDEX = EB_ATTR_IDX_MAP['bag-of-words']
 LABELS_INDEX = EB_ATTR_IDX_MAP['labels']
 ENTITIES_INDEX = EB_ATTR_IDX_MAP['entities']

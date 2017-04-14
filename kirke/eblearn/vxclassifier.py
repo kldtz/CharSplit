@@ -11,8 +11,10 @@ from sklearn.model_selection import GroupKFold
 
 from kirke.eblearn import ebpostproc, ebattrvec
 from kirke.eblearn.ebclassifier import EbClassifier
-from kirke.eblearn.ebtransformer import EbTransformer
+from kirke.eblearn.vxtransformer import VxTransformer
 from kirke.utils import evalutils
+
+from kirke.eblearn import sgd
 
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
@@ -32,7 +34,7 @@ PROVISION_THRESHOLD_MAP = {'change_control': 0.36,
                            'termination': 0.36}
 
 
-class ShortcutClassifier(EbClassifier):
+class VxClassifier(EbClassifier):
 
     def __init__(self, provision):
         EbClassifier.__init__(self, provision)
@@ -57,63 +59,21 @@ class ShortcutClassifier(EbClassifier):
         # NOTE: jshaw
         # this is where there is leakable of information from test set
         # infogain might get some information from test set
-        self.transformer = EbTransformer(provision=self.provision)
+        self.transformer = VxTransformer(provision=self.provision)
         self.transformer.fit(attrvec_list, label_list)
 
         # pylint: disable=C0103
         X_train = self.transformer.transform(attrvec_list)
         y_train = label_list
 
-        # TODO, jshaw, explore this more in future.
-        # iterations = 50  (for 10 iteration, f1=0.91; for 50 iterations, f1=0.90,
-        #                   for 5 iterations, f1=0,89),  So 10 iterations wins for now.
-        # This shows that the "iteration" parameter probably needs tuning.
-        iterations = 50  # 10 was jshaw
-        # TODO, jshaw, uncomment in real code
-        # parameters = {'alpha': 10.0 ** -np.arange(1, 5)}
-        # parameters = {'alpha': 10.0 ** -np.arange(3, 4)}
-        # parameters = {'alpha': 10.0 ** -np.arange(-2, 7)}
-        # parameters = {'alpha': 10.0 ** -np.arange(2, 7)} was jshaw
-        parameters = {'alpha': 10.0 ** -np.arange(3, 8)}
+        print('training for ' + self.provision)
 
+        self.eb_grid_search = sgd.Sgd()
+        self.eb_grid_search.train(X_train, y_train)
 
-        #    parameters = {'C': [.01, .1, 1, 10, 100]}
-        #    sgd_clf = LogisticRegression()
-        group_kfold = list(GroupKFold().split(X_train, y_train, groups=group_id_list))
-
-        sgd_clf = SGDClassifier(loss='log', penalty='l2', n_iter=iterations, shuffle=True,
-                                random_state=42)  # jshaw, , class_weight={True: 3, False: 1})
-        # for class_weight=1, fp is 250
-        # for class_weight=2, fp is 320
-        # for class_weight=5, fp is 463
-        # for class_weight=10, fp in 600 range
-        # NOTE: using class_weight='auto' produced very bad result for precision, in 10000 range
-        # using class_weight=100, bad result in 3000 range
-
-        #grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=2,
-        #                           scoring='roc_auc', verbose=1, cv=group_kfold)
-        grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=-1,
-                                   scoring='f1', verbose=1, cv=group_kfold)        
-
-        print("Performing grid search...")
-        print("parameters:")
-        pprint(parameters)
-        time_0 = time()
-        grid_search.fit(X_train, y_train)
-        print("done in %0.3fs" % (time() - time_0))
-
-        print("Best score: %0.3f" % grid_search.best_score_)
-        print("Best parameters set:")
-        best_parameters = grid_search.best_estimator_.get_params()
-        # pylint: disable=C0201
-        for param_name in sorted(parameters.keys()):
-            print("\t%s: %r" % (param_name, best_parameters[param_name]))
-        print()
-
-        self.eb_grid_search = grid_search
         self.save(model_file_name)
 
-        return grid_search
+        return self.eb_grid_search
 
 
     def predict_antdoc(self, eb_antdoc, work_dir):

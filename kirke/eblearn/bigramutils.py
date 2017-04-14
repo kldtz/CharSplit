@@ -73,5 +73,3 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
             vocabs.add(word)
 
     return vocabs, positive_vocabs
-
-    

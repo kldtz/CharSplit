@@ -2,13 +2,13 @@ import sys
 import copy
 from collections import namedtuple
 
-"""
+
 # pylint: disable=R0903
 class EbToken:
-    _slots__ = ['start', 'end', 'word', 'lemma', 'pos', 'index', 'ner']
+    __slots__ = ['start', 'end', 'word', 'lemma', 'pos', 'index', 'ner']
 
     # pylint: disable=R0913
-    def __init__(self, start, end, word, lemma, pos, ner, index):
+    def __init__(self, start, end, word, lemma, pos, index, ner):
         self.start = start
         self.end = end
         self.word = word
@@ -18,10 +18,11 @@ class EbToken:
         self.ner = ner
 # 13,772 bytes avg per ebsent
 # 1.8 Mb in an ebantdoc
-"""
 
-EbToken = namedtuple('EbToken', ['start', 'end', 'word',
-                                 'lemma', 'pos', 'index', 'ner'])
+# cannot use namedtuple because _fix_incorrect_tokens resets internal
+# in ebtext2antdoc
+#EbToken = namedtuple('EbToken', ['start', 'end', 'word',
+#                                 'lemma', 'pos', 'index', 'ner'])
 # 9,927 bytes avg per ebsent
 # 1.3 Mb in an ebantdoc
 
@@ -46,18 +47,33 @@ def eb_tokens_to_st(eb_token_list):
     return ' '.join(st_list)
 
 
+def eb_tokens_to_lemma_st(eb_token_list):
+    st_list = []
+    for eb_token in eb_token_list:
+        word = eb_token.lemma
+        if ',' in word:
+            # print("word_with_comma: '{}'".format(word), file=sys.stderr)
+            # print("json_tokens has comma: '{}'".format(json_token_list), file=sys.stderr)
+            replace_word = word.replace(',', '')
+            if replace_word:
+                st_list.append(replace_word)
+        else:
+            st_list.append(word)
+    return ' '.join(st_list)
+
+
 # because of the way num_refix_space is used, need to isolate such effect
 # here.
 def to_eb_tokens(token_list, num_prefix_space):
     result = []
     for token in token_list:
-        eb_token = EbToken(token['characterOffsetBegin'] + num_prefix_space,
-                           token['characterOffsetEnd'] + num_prefix_space,
-                           sys.intern(token['word']),
-                           sys.intern(token['lemma']),
-                           sys.intern(token['pos']),
-                           sys.intern(token['ner']),
-                           token['index'])
+        eb_token = EbToken(start=token['characterOffsetBegin'] + num_prefix_space,
+                           end=token['characterOffsetEnd'] + num_prefix_space,
+                           word=sys.intern(token['word']),
+                           lemma=sys.intern(token['lemma']),
+                           pos=sys.intern(token['pos']),
+                           index=token['index'],
+                           ner=sys.intern(token['ner']))
         result.append(eb_token)
     return result
 
@@ -100,7 +116,7 @@ def merge_ebsents(ebsent_list):
 
 # pylint: disable=R0902
 class EbSentence:
-    _slots__ = ['file_id', 'tokens', 'start', 'end',
+    __slots__ = ['file_id', 'tokens', 'start', 'end',
                 'entities', 'labels']
 
     def __init__(self, file_id, json_sent, atext, num_prefix_space):
@@ -122,6 +138,8 @@ class EbSentence:
         self.end = self.tokens[-1].end
         # self.text = atext[self.start:self.end]  # migh have page number
         # self.tokens_text = eb_tokens_to_st(self.tokens)          # no page number
+        # TODO, jshaw, question
+        # when extending tokens, should modify self.entities also?
 
     def __str__(self):
         return 'EbSentence({}, {})'.format(self.start, self.end)
@@ -139,7 +157,10 @@ class EbSentence:
     # this will translate all () -> -lrb- -rrb-, ' -> `` or \'\'
     # no page number
     def get_tokens_text(self):
-        return eb_tokens_to_st(self.tokens)          
+        return eb_tokens_to_st(self.tokens)
+
+    def get_lemma_text(self):
+        return eb_tokens_to_lemma_st(self.tokens)              
 
     def get_start(self):
         return self.start

@@ -15,7 +15,7 @@ def remove_nltab(xst):
 def loads(file_name):
     xst = ''
     try:
-        with open(file_name, 'rt') as myfile:
+        with open(file_name, 'rt', newline='') as myfile:
             xst = myfile.read()
     except IOError as exc:
         logging.error("I/O error(%s) in strutils.loads(%s): %s",
