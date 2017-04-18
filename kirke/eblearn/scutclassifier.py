@@ -18,15 +18,17 @@ from kirke.utils import evalutils
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
 
-GLOBAL_THRESHOLD = 0.12
+GLOBAL_THRESHOLD = 0.24
 
 # The value in this provision_threshold_map is manually
 # set by inspecting the result.  Using 0.06 in general
 # produces too many false positives.
-PROVISION_THRESHOLD_MAP = {'change_control': 0.36,
+PROVISION_THRESHOLD_MAP = {'assign': 0.24,
+                           'change_control': 0.36,
                            'confidentiality': 0.24,
                            'equitable_relief': 0.24,
                            'events_default': 0.18,
+                           'indemnify': 0.24,
                            'sublicense': 0.24,
                            'survival': 0.24,
                            'termination': 0.36}
@@ -37,6 +39,8 @@ class ShortcutClassifier(EbClassifier):
     def __init__(self, provision):
         EbClassifier.__init__(self, provision)
         self.eb_grid_search = None
+        self.best_parameters = None
+        
         self.transformer = None
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
@@ -82,7 +86,7 @@ class ShortcutClassifier(EbClassifier):
         group_kfold = list(GroupKFold().split(X_train, y_train, groups=group_id_list))
 
         sgd_clf = SGDClassifier(loss='log', penalty='l2', n_iter=iterations, shuffle=True,
-                                random_state=42)  # jshaw, , class_weight={True: 3, False: 1})
+                                random_state=42, class_weight={True: 3, False: 1})
         # for class_weight=1, fp is 250
         # for class_weight=2, fp is 320
         # for class_weight=5, fp is 463
@@ -104,13 +108,13 @@ class ShortcutClassifier(EbClassifier):
 
         print("Best score: %0.3f" % grid_search.best_score_)
         print("Best parameters set:")
-        best_parameters = grid_search.best_estimator_.get_params()
+        self.best_parameters = grid_search.best_estimator_.get_params()
         # pylint: disable=C0201
         for param_name in sorted(parameters.keys()):
-            print("\t%s: %r" % (param_name, best_parameters[param_name]))
+            print("\t%s: %r" % (param_name, self.best_parameters[param_name]))
         print()
 
-        self.eb_grid_search = grid_search
+        self.eb_grid_search = grid_search.best_estimator_
         self.save(model_file_name)
 
         return grid_search
@@ -234,6 +238,6 @@ class ShortcutClassifier(EbClassifier):
             evalutils.calc_threshold_prob_status(probs, y_te, self.threshold))
         self.pred_status['override_status'] = (
             evalutils.calc_prob_override_status(probs, y_te, self.threshold, overrides))
-        self.pred_status['best_params_'] = self.eb_grid_search.best_params_
+        self.pred_status['best_params_'] = self.best_parameters
 
         return self.pred_status

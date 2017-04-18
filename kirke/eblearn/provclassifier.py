@@ -39,6 +39,7 @@ class ProvisionClassifier(EbClassifier):
     def __init__(self, provision):
         EbClassifier.__init__(self, provision)
         self.eb_grid_search = None
+        self.best_parameters = None
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
@@ -87,13 +88,14 @@ class ProvisionClassifier(EbClassifier):
 
         print("Best score: %0.3f" % grid_search.best_score_)
         print("Best parameters set:")
-        best_parameters = grid_search.best_estimator_.get_params()
+        self.best_parameters = grid_search.best_estimator_.get_params()
+
         # pylint: disable=C0201
         for param_name in sorted(parameters.keys()):
-            print("\t%s: %r" % (param_name, best_parameters[param_name]))
+            print("\t%s: %r" % (param_name, self.best_parameters[param_name]))
         print()
 
-        self.eb_grid_search = grid_search
+        self.eb_grid_search = grid_search.best_estimator_
         self.save(model_file_name)
 
         return grid_search
@@ -212,6 +214,6 @@ class ProvisionClassifier(EbClassifier):
             evalutils.calc_threshold_prob_status(probs, y_te, self.threshold))
         self.pred_status['override_status'] = (
             evalutils.calc_prob_override_status(probs, y_te, self.threshold, overrides))
-        self.pred_status['best_params_'] = self.eb_grid_search.best_params_
+        self.pred_status['best_params_'] = self.best_parameters
 
         return self.pred_status

@@ -75,9 +75,11 @@ def classifyArff():
 
 
 # classifiers
-WORK_DIR = 'data_from_web'
-MODEL_DIR = 'sample_data2.model'
-CUSTOM_MODEL_DIR = 'sample_data2.custmodel'
+WORK_DIR = 'data-from-web'
+# MODEL_DIR = 'sample_data2.model'
+# CUSTOM_MODEL_DIR = 'sample_data2.custmodel'
+MODEL_DIR = 'dir-scut-model'
+CUSTOM_MODEL_DIR = 'dir-custom-model'
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 
 @app.route('/annotate-doc', methods=['POST'])
@@ -99,6 +101,9 @@ def annotate_uploaded_document():
     # need to retrain all the models, now we only have
     # 10 models
     print("got provision_set: {}".format(provision_set))
+    provision_set = provision_set.remove('description')  # we don't have these provisions
+
+    """
     provision_set = set(['amending_agreement', 'arbitration', 'assign',
                          'change_control', 'choiceoflaw', 'confidentiality',
                          'date', 'equitable_relief', 'events_default', 'exclusivity',
@@ -108,6 +113,7 @@ def annotate_uploaded_document():
                          'termination', 'term'])
                          
     print("reset provision_set: {}".format(provision_set))
+    """
 
     prov_labels_map = eb_runner.annotate_document(file_name, provision_set=provision_set)
     ebannotations = {'ebannotations': prov_labels_map}

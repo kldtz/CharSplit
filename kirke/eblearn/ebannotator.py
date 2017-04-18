@@ -29,6 +29,7 @@ class ProvisionAnnotator:
 
         for ebantdoc in ebantdoc_list:
             ant_list = self.annotate_antdoc(ebantdoc, threshold)
+            print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
             # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]

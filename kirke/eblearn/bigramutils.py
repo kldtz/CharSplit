@@ -6,8 +6,8 @@ import logging
 
 from kirke.utils import stopwordutils, strutils
 
-# NUMBER_OF_TOP_WORDS = 25000
-NUMBER_OF_TOP_WORDS = 50000
+NUMBER_OF_TOP_WORDS = 25000
+# NUMBER_OF_TOP_WORDS = 50000
 
 def eb_doc_to_all_ngrams(sent_st):
     ngram_size = 2

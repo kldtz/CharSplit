@@ -39,6 +39,8 @@ class VxClassifier(EbClassifier):
     def __init__(self, provision):
         EbClassifier.__init__(self, provision)
         self.eb_grid_search = None
+        self.best_parameters = NOne
+        
         self.transformer = None
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
@@ -194,6 +196,6 @@ class VxClassifier(EbClassifier):
             evalutils.calc_threshold_prob_status(probs, y_te, self.threshold))
         self.pred_status['override_status'] = (
             evalutils.calc_prob_override_status(probs, y_te, self.threshold, overrides))
-        self.pred_status['best_params_'] = self.eb_grid_search.best_params_
+        self.pred_status['best_params_'] = self.best_parameters
 
         return self.pred_status

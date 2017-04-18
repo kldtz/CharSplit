@@ -11,6 +11,9 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from kirke.eblearn import igain, ebattrvec, bigramutils
 from kirke.utils import stopwordutils, strutils
 
+
+
+
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
@@ -41,8 +44,13 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
     def fit(self, attrvec_list, label_list=None):
         EbTransformer.fit_count += 1
-        logging.info("fitting #%s called, len(attrvec_list) = %d, len(label_list) = %d",
-                     EbTransformer.fit_count, len(attrvec_list), len(label_list))
+        num_pos_inst = 0
+        for label in label_list:
+            if label:
+                num_pos_inst += 1
+        logging.info("fitting #%s called, len(attrvec_list) = %d, len(label_list) = %d, num_pos = %d",
+                     EbTransformer.fit_count, len(attrvec_list), len(label_list), num_pos_inst)
+        
 
         # ignore the result X.  The goal here is to set up the vars.
         self.ebantdoc_list_to_csr_matrix(attrvec_list,
@@ -160,7 +168,7 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
         # still need to go through rest of fit_mode because of more vars are setup
 
-        logging.info("converting into matrix")
+        # logging.info("converting into matrix")
         # bow_matrix = self.gen_top_ig_ngram_matrix(sent_st_list, tokenize=igain.eb_doc_to_all_ngrams)
         bow_matrix, perc_positive_ngrams = self.gen_top_ngram_matrix(sent_st_list,
                                                                      tokenize=bigramutils.eb_doc_to_all_ngrams)

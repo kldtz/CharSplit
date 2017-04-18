@@ -10,6 +10,9 @@ from kirke.eblearn import ebannotator, ebpostproc, ebtext2antdoc
 from kirke.utils import evalutils, splittrte, strutils
 from kirke.eblearn import ebattrvec
 
+from datetime import datetime
+import time
+
 DEFAULT_CV = 3
 
 # MIN_FULL_TRAINING_SIZE = 30
@@ -48,7 +51,7 @@ def train_eval_annotator(provision, txt_fn_list,
             num_pos_label += 1
             # jshaw, TODO, remove, for debug purpose, 04/11/2017
             print("\npositive training for {}".format(provision))
-            print("    [[{}]]".format(attrvec.get_tokens_text()))
+            print("    [[{}]]".format(attrvec[ebattrvec.TOKENS_TEXT_INDEX]))
         else:
             num_neg_label += 1
 
@@ -82,7 +85,7 @@ def train_eval_annotator(provision, txt_fn_list,
 
         # set up the status of the classifier, based on the best parameter
         print("eb_classifier.best_parameters")
-        best_parameters = eb_classifier.eb_grid_search.best_estimator_.get_params()
+        best_parameters = eb_classifier.best_parameters
         pprint(best_parameters)
         # for param_name in sorted(parameters.keys()):
         #    print("\t%s: %r" % (param_name, best_parameters[param_name]))
@@ -92,7 +95,7 @@ def train_eval_annotator(provision, txt_fn_list,
         iterations = 10
         # now X and y are different
         X_sent = eb_classifier.transformer.transform(attrvec_list)
-        y_label_list = [provision in attrvec.labels for attrvec in attrvec_list]
+        y_label_list = [provision in attrvec[ebattrvec.LABELS_INDEX] for attrvec in attrvec_list]
 
         # the goal here is to provide some status information
         # no guarantee that it is consistent with eb_classifier status yet
@@ -142,6 +145,21 @@ def train_eval_annotator(provision, txt_fn_list,
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
 
+    with open('provision_model_stat.tsv', 'a') as pmout:
+        pstatus = pred_status['pred_status']
+        pcfmtx = pstatus['confusion_matrix']
+        acfmtx = ant_status['confusion_matrix']
+        timestamp = int(time.time())
+        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                 str(timestamp),        
+                 provision,
+                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
+                 pred_status['best_params_']['alpha'],
+                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
+                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
+                 ant_status['threshold'],
+                 ant_status['prec'], ant_status['recall'], ant_status['f1']]
+        print('\t'.join([str(x) for x in aline]), file=pmout)        
     return prov_annotator
 
 
@@ -174,6 +192,23 @@ def train_eval_annotator_with_trte(provision,
 
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
+
+    with open('provision_model_stat.tsv', 'a') as pmout:
+        pstatus = pred_status['pred_status']
+        pcfmtx = pstatus['confusion_matrix']
+        astatus = ant_status['ant_status']
+        acfmtx = astatus['confusion_matrix']
+        timestamp = int(time.time())
+        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                 str(timestamp),
+                 provision,
+                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
+                 pred_status['best_params_']['alpha'],
+                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
+                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
+                 astatus['threshold'],
+                 astatus['prec'], astatus['recall'], astatus['f1']]
+        print('\t'.join([str(x) for x in aline]), file=pmout)
 
     return prov_annotator
 
@@ -226,6 +261,6 @@ def calc_scut_predict_evaluate(scut_classifier, attrvec_list, y_pred, y_te):
     scut_classifier.pred_status['pred_status'] = evalutils.calc_pred_status_with_prob(y_pred, y_te)
     scut_classifier.pred_status['override_status'] = (
         evalutils.calc_pred_override_status(y_pred, y_te, overrides))
-    scut_classifier.pred_status['best_params_'] = scut_classifier.eb_grid_search.best_params_
+    scut_classifier.pred_status['best_params_'] = scut_classifier.best_parameters
 
     return scut_classifier.pred_status

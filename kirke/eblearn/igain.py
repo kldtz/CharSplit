@@ -15,7 +15,8 @@ from kirke.utils import stopwordutils, strutils
 # increases drastically
 # DEFAULT_INFOGAIN_VOCAB_SIZE = 400000
 # DEFAULT_INFOGAIN_VOCAB_SIZE = 100000
-DEFAULT_INFOGAIN_VOCAB_SIZE = 50000
+# DEFAULT_INFOGAIN_VOCAB_SIZE = 50000
+DEFAULT_INFOGAIN_VOCAB_SIZE = 25000
 
 def entropy_by_freq_list(freq_list):
     # print("freq_list = {}".format(freq_list))

@@ -220,14 +220,18 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
 
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
+    prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
+    prov_ebdata_file = Path(prov_ebdata_fn)
+
+    prov_annotation_list = []
+    is_test = False
     if os.path.exists(prov_ant_fn):
         prov_annotation_list = (ebantdoc.load_provision_annotations(prov_ant_fn)
                                 if prov_ant_file.is_file() else [])
-    else:
-        prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
-        prov_ebdata_file = Path(prov_ebdata_fn)
+    elif os.path.exists(prov_ebdata_fn):
         prov_annotation_list, is_test = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
                                          if prov_ebdata_file.is_file() else [])
+
 
     ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, atext)
     # print('number of sentences: {}'.format(len(ebsent_list)))

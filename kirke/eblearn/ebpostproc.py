@@ -7,7 +7,23 @@ from kirke.utils import strutils
 from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
 
-AntResult = namedtuple('AntResult', ['label', 'prob', 'start', 'end', 'text'])
+# AntResult = namedtuple('AntResult', ['label', 'prob', 'start', 'end', 'text'])
+# xxxx namedtuple('AntResult', ['label', 'prob', 'start', 'end', 'text'])
+class AntResult:
+
+    def __init__(self, label, prob, start, end, text):
+        self.label = label
+        self.prob = prob
+        self.start = start
+        self.end = end
+        self.text = text
+
+    def to_dict(self):
+        return {'label': self.label,
+                'prob': self.prob,
+                'start': self.start,
+                'end': self.end,
+                'text': self.text}
 
 class ConciseProbAttrvec:
 
@@ -168,7 +184,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                             prob=cx_prob_attrvec.prob,
                                             start=cx_prob_attrvec.start,
                                             end=cx_prob_attrvec.end,
-                                            text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...'))
+                                            text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...').to_dict())
         return ant_result
 
 
@@ -191,7 +207,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                     prob=cx_prob_attrvec.prob,
                                                     start=entity.start,
                                                     end=entity.end,
-                                                    text=strutils.remove_nltab(entity.text)))
+                                                    text=strutils.remove_nltab(entity.text)).to_dict())
         return ant_result
 
 # pylint: disable=R0903
@@ -200,6 +216,8 @@ class PostPredDateProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'date'
 
+    # TODO, jshaw, it seems that in the original code PythonClassifier.java
+    # the logic is to keep only the first date, not all dates in a doc
     def post_process(self, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
@@ -213,7 +231,7 @@ class PostPredDateProc(EbPostPredictProcessing):
                                                     prob=cx_prob_attrvec.prob,
                                                     start=entity.start,
                                                     end=entity.end,
-                                                    text=strutils.remove_nltab(entity.text)))
+                                                    text=strutils.remove_nltab(entity.text)).to_dict())
         return ant_result
 
 

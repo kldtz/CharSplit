@@ -1,12 +1,16 @@
 
 import concurrent.futures
 import logging
+import os
+import psutil
+import time
 
 from sklearn.externals import joblib
 
 from kirke.eblearn import ebannotator, ebtext2antdoc, ebtrainer, scutclassifier
 from kirke.utils import osutils
 
+DEBUG_MODE = False
 
 def annotate_provision(eb_annotator, eb_antdoc):
     return eb_annotator.annotate_antdoc(eb_antdoc)
@@ -43,6 +47,14 @@ class EbRunner:
         self.provisions = set([])
         self.provision_annotator_map = {}
 
+        pid = os.getpid()
+        py = psutil.Process(pid)
+        # print("megabyte = {}".format(2**20))
+        orig_mem_usage = py.memory_info()[0] / 2**20
+        logging.info('original memory use: {} Mbytes'.format(orig_mem_usage))
+        prev_mem_usage = orig_mem_usage
+        num_model = 0
+
         for model_fn in model_files:
             full_model_fn = model_dir + "/" + model_fn
             prov_classifier = joblib.load(full_model_fn)
@@ -53,6 +65,16 @@ class EbRunner:
                                 clf_provision)
             provision_classifier_map[clf_provision] = prov_classifier
             self.provisions.add(clf_provision)
+            if DEBUG_MODE:
+                # print out memory usage info
+                memoryUse = py.memory_info()[0] / 2**20
+                print('loading #{} {:<50}, mem = {:.2f}, diff {:.2f}'.format(num_model,
+                                                                             full_model_fn,
+                                                                             memoryUse,
+                                                                             memoryUse - prev_mem_usage))
+                prev_mem_usage = memoryUse
+            num_model += 1
+
 
         custom_model_files = osutils.get_model_files(custom_model_dir)
         for custom_model_fn in custom_model_files:
@@ -65,11 +87,28 @@ class EbRunner:
                                 clf_provision)
             provision_classifier_map[clf_provision] = prov_classifier
             self.provisions.add(clf_provision)
+            if DEBUG_MODE:
+                memoryUse = py.memory_info()[0] / 2**20
+                print('loading #{} {:<50}, mem = {:.2f}, diff {:.2f}'.format(num_model,
+                                                                             full_model_fn,
+                                                                             memoryUse,
+                                                                             memoryUse - prev_mem_usage))
+                prev_mem_usage = memoryUse
+            num_model += 1            
 
         for provision in self.provisions:
             pclassifier = provision_classifier_map[provision]
             self.provision_annotator_map[provision] = ebannotator.ProvisionAnnotator(pclassifier,
                                                                                      self.work_dir)
+
+        total_mem_usage = py.memory_info()[0] / 2**20
+        avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
+        print('\ntotal mem: {:.2f},  model mem: {:.2f},  avg: {:.2f}'.format(total_mem_usage,
+                                                                             total_mem_usage - orig_mem_usage,
+                                                                             avg_model_mem))
+            
+            
+            
         logging.info('EbRunner is initiated.')
 
     def run_annotators_in_parallel(self, eb_antdoc, provision_set=None):
@@ -91,6 +130,7 @@ class EbRunner:
         return annotations
 
     def annotate_document(self, file_name, provision_set=None):
+        time1 = time.time()
         if not provision_set:
             provision_set = self.provisions
         else:
@@ -100,6 +140,9 @@ class EbRunner:
 
         # this execute the annotators in parallel
         ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_set)
+
+        time2 = time.time()
+        print('annotate_document() took %0.3f ms' % ((time2 - time1) * 1000.0, ))
         return ant_result_dict
 
     def test_annotators(self, txt_fns_file_name, provision_set, threshold=None):

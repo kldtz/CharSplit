@@ -1,5 +1,11 @@
 #!/bin/bash
 
-main.py --cmd annotate_document --doc "sample_data2/19618.txt" --work_dir "sample_data2.feat" --model_dir "sample_data2.model" --custom_model_dir "sample_data2.custmodel"
+#!/bin/bash
 
+# PROVFILE_DIR=dir-provfiles
+WORK_DIR=dir-work
+MODEL_DIR=dir-model
+SCUT_MODEL_DIR=dir-scut-model
+CUSTOM_MODEL_DIR=dir-custom-model
 
+main.py --cmd annotate_document --doc $1 --work_dir $WORK_DIR --model_dir $MODEL_DIR --custom_model_dir $CUSTOM_MODEL_DIR
