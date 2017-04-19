@@ -40,7 +40,7 @@ def train_eval_annotator(provision, txt_fn_list,
     logging.info("    model_dir = %s", model_dir)
     logging.info("    model_file_name = %s", model_file_name)
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir)
+    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir, is_bespoke_mode=custom_training_mode)
     attrvec_list = []
     for eb_antdoc in ebantdoc_list:
         attrvec_list.extend(eb_antdoc.get_attrvec_list())
@@ -49,9 +49,8 @@ def train_eval_annotator(provision, txt_fn_list,
     for attrvec in attrvec_list:
         if provision in attrvec[ebattrvec.LABELS_INDEX]:
             num_pos_label += 1
-            # jshaw, TODO, remove, for debug purpose, 04/11/2017
-            print("\npositive training for {}".format(provision))
-            print("    [[{}]]".format(attrvec[ebattrvec.TOKENS_TEXT_INDEX]))
+            # print("\npositive training for {}".format(provision))
+            # print("    [[{}]]".format(attrvec[ebattrvec.TOKENS_TEXT_INDEX]))
         else:
             num_neg_label += 1
 

@@ -189,7 +189,9 @@ def save_ebantdoc_sents(eb_antdoc, txt_file_name):
 
 # output_json is not None for debugging purpose
 # pylint: disable=R0914
-def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
+# If is_bespoke mode, the annotation can change across different bespoke runs.
+# As a result, never cache .ebantdoc.pkl, but can reuse corenlp.json
+def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=False):
     # load/save the corenlp file if output_dir is specified
     is_cache_enabled = False if work_dir is None else DEFAULT_IS_CACHE_ENABLED
 
@@ -199,9 +201,9 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
         # if cache version exists, load that and return
         if is_cache_enabled:
             eb_antdoc_fn = work_dir + "/" + txt_basename.replace('.txt', '.ebantdoc.pkl')
-            if os.path.exists(eb_antdoc_fn):
+            if not is_bespoke_mode and os.path.exists(eb_antdoc_fn):
                 eb_antdoc = joblib.load(eb_antdoc_fn)
-                logging.debug("loading cached version: %s", eb_antdoc_fn)
+                logging.info("loading from cache: %s", eb_antdoc_fn)
 
                 # TODO, jshaw, remove after debugging
                 # save_ebantdoc_sents(eb_antdoc, txt_file_name)
@@ -210,6 +212,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
             json_fn = work_dir + "/" + txt_basename.replace('.txt', '.corenlp.json')
             if os.path.exists(json_fn):
                 corenlp_json = json.loads(strutils.loads(json_fn))
+                logging.info("loading from cache: %s", json_fn)
             else:
                 corenlp_json = corenlputils.annotate(atext)
                 strutils.dumps(json.dumps(corenlp_json), json_fn)
@@ -310,14 +313,14 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None):
     return eb_antdoc
 
 
-def doc_to_ebantdoc(txt_file_name, work_dir):
+def doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode=False):
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
 
     start_time = time.time()
     doc_text = strutils.loads(txt_file_name)
-    eb_antdoc = parse_to_eb_antdoc(doc_text, txt_file_name, work_dir=work_dir)
+    eb_antdoc = parse_to_eb_antdoc(doc_text, txt_file_name, work_dir=work_dir, is_bespoke_mode=is_bespoke_mode)
     now_time = time.time()
     logging.debug('feature extraction: %s, took %.2f seconds',
                   txt_file_name, now_time - start_time)
@@ -325,7 +328,7 @@ def doc_to_ebantdoc(txt_file_name, work_dir):
     return eb_antdoc
 
 
-def doclist_to_ebantdoc_list(doclist_file, work_dir):
+def doclist_to_ebantdoc_list(doclist_file, work_dir, is_bespoke_mode=False):
     logging.debug('doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
@@ -334,7 +337,7 @@ def doclist_to_ebantdoc_list(doclist_file, work_dir):
     with open(doclist_file, 'rt') as fin:
         for i, txt_file_name in enumerate(fin, 1):
             txt_file_name = txt_file_name.strip()
-            eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir)
+            eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode)
             # print("get_size(eb_antdoc) = {} bytes".format(osutils.get_size(eb_antdoc)))
             eb_antdoc_list.append(eb_antdoc)
             if i % 10 == 0:
