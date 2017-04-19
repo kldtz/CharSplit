@@ -19,10 +19,12 @@ from kirke.utils import osutils, strutils
 
 import ebrevia.learn.learner as learner
 
-# TODO: jshaw
-# remove the following line to get rid of all logging messages
+# NOTE: Remove the following line to get rid of all logging messages
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+# TODO: jshaw
+# EB_MODELS is really MODEL_DIR
+# Need to standardize this
 
 app = Flask(__name__)
 app.config['PROPAGATE_EXCEPTIONS'] = True
@@ -30,48 +32,6 @@ app.config['PROPAGATE_EXCEPTIONS'] = True
 eb_files = os.environ['EB_FILES']
 eb_models = os.environ['EB_MODELS']
 print("eb files is: ", eb_files)
-prefix = eb_files + "pymodel/"
-learner_fns = [
-    eb_models + 'learner.pkl',
-    eb_models + 'learner_lease.pkl',
-    eb_models + 'learner_oldlease.pkl',
-    eb_models + 'learner_datePartyTitle.pkl']
-## TODO, jshaw
-## The code in extractor/dev branch has extra models, synchronize this
-## manually
-## eb_models + 'learner_affiliates.pkl']
-
-# autoload all custom field classifiers
-learner_fns = learner_fns + glob.glob(prefix + 'learner_cust_*.pkl')
-
-ls = []
-
-for learner_fn in learner_fns:
-    if (os.path.exists(learner_fn)):
-        # try to load existing learner and simply add new provisions
-        l = joblib.load(learner_fn)
-        l.prefix = prefix
-        print("Loaded existing learner with provisions:", l.clfs.keys())
-    else:
-        l = learner.Learner(prefix)
-    ls.append(l)
-
-# hack due to using older model without re-pickling
-ls[0].bag_transform.newschool = False
-
-
-@app.route('/', methods=['POST'])
-def classifyArff():
-    with tempfile.NamedTemporaryFile() as tmp:
-        arff = tmp.name
-        request.files['arff'].save(arff)
-        types = json.loads(request.form['types'])
-        print("types are ", types)
-        pred = {}
-        for l in ls:
-            learner_types = set(types).intersection(l.clfs.keys())
-            pred.update(l.predict(arff, learner_types))
-        return jsonify({'predictions': pred})
 
 
 # classifiers
@@ -80,6 +40,10 @@ WORK_DIR = 'data-from-web'
 # CUSTOM_MODEL_DIR = 'sample_data2.custmodel'
 MODEL_DIR = 'dir-scut-model'
 CUSTOM_MODEL_DIR = 'dir-custom-model'
+osutils.mkpath(WORK_DIR)
+osutils.mkpath(MODEL_DIR)
+osutils.mkpath(CUSTOM_MODEL_DIR)
+
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 
 @app.route('/annotate-doc', methods=['POST'])
