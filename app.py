@@ -17,7 +17,7 @@ from sklearn.externals import joblib
 from kirke.eblearn import ebrunner
 from kirke.utils import osutils, strutils
 
-import ebrevia.learn.learner as learner
+# import ebrevia.learn.learner as learner
 
 # NOTE: Remove the following line to get rid of all logging messages
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

@@ -187,6 +187,10 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                             text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...').to_dict())
         return ant_result
 
+# Note from PythonClassifier.java:
+# The NER seems to pick up the bare word LLC, INC, and CORP as parties sometimes.  This RE
+# defines strings that should not be considered parties.
+NOT_PARTY_PAT = re.compile(r'(inc|llc|corp)\.?', re.IGNORECASE)
 
 # pylint: disable=R0903
 class PostPredPartyProc(EbPostPredictProcessing):
@@ -203,6 +207,9 @@ class PostPredPartyProc(EbPostPredictProcessing):
             if cx_prob_attrvec.prob >= threshold:
                 for entity in cx_prob_attrvec.entities:
                     if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
+
+                        if 'agreement' in entity.text.lower() or NOT_PARTY_PAT.match(entity.text):
+                            continue
                         ant_result.append(AntResult(label=self.provision,
                                                     prob=cx_prob_attrvec.prob,
                                                     start=entity.start,
@@ -232,13 +239,55 @@ class PostPredDateProc(EbPostPredictProcessing):
                                                     start=entity.start,
                                                     end=entity.end,
                                                     text=strutils.remove_nltab(entity.text)).to_dict())
+                        # return only 1 date
+                        return ant_result
+        return ant_result
+
+#       Pattern titleRE = Pattern.compile(
+#          "(?:exhibit \\d+\\.\\d+\\s+|this )?((?:.+? )?agreement)(?: \\(| is)?",
+#          Pattern.CASE_INSENSITIVE);
+
+# Note from PythonClassifier.java:
+# A title might optionally start with an Exhibit X.X number (for SEC contracts) or optionally
+# start with "this XXXX Agreement".  It may end (optionally) with the word agreement, and
+# with the word is or an open paren (for the defined term parentetical)
+TITLE_PAT = re.compile(r'(?:exhibit \d+\.\d+\s+|this )?((?:.+? )?agreement)(?: \(| is)?', re.IGNORECASE)
+
+class PostPredTitleProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'title'
+
+    def post_process(self, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            if cx_prob_attrvec.prob >= threshold:
+                anttext = cx_prob_attrvec.text
+                print("anttext: '{}'".format(anttext))
+                mat = TITLE_PAT.match(anttext)
+                if mat:
+                    print("attrve.start: '{}'".format(cx_prob_attrvec.start))
+                    print("mat.start(0), end: '{}, {}'".format(mat.start(0), mat.end(0)))
+                    print("mat.start(1), end: '{}, {}'".format(mat.start(1), mat.end(1)))
+                    tmp_start = cx_prob_attrvec.start + mat.start(1)
+                    tmp_title = mat.group(1)
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=tmp_start,
+                                                end=tmp_start + len(tmp_title),
+                                                text=tmp_title).to_dict())
+                    return ant_result
         return ant_result
 
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'party': PostPredPartyProc(),
-    'date': PostPredDateProc()
+    'date': PostPredDateProc(),
+    'title': PostPredTitleProc()
 }
 
 def obtain_postproc(provision):
