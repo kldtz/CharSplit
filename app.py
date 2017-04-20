@@ -65,7 +65,6 @@ def annotate_uploaded_document():
     # need to retrain all the models, now we only have
     # 10 models
     print("got provision_set: {}".format(provision_set))
-    provision_set = provision_set.remove('description')  # we don't have these provisions
 
     """
     provision_set = set(['amending_agreement', 'arbitration', 'assign',
