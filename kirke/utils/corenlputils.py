@@ -30,22 +30,20 @@ def annotate(text_as_string):
     return output
 
 def annotate_for_enhanced_ner(text_as_string):
-    def transform_text(raw_text, patterns, nostrips):
-        regex = re.compile(patterns, re.IGNORECASE)
-
-        def inplace_str_sub(match):
-            if match.group(2).lower() in nostrips:
-                return match.group(1) + match.group(2).capitalize()
-            else:
-                return match.group(1).replace(',', ' ') + match.group(2).capitalize()
-
-        
-        return regex.sub(inplace_str_sub, raw_text) 
-        
-    expressions = r"(,\s*|\b)(inc|corp|llc|ltd)\b"
-    nostrips = set(["ltd"])
+    return annotate(transform_corp_in_text(text_as_string))
     
-    return annotate(transform_text(text_as_string, expressions, nostrips))
+CORP_EXPR = r"(,\s*|\b)(inc|corp|llc|ltd)\b"
+NOSTRIP_SET = set(["ltd"])
+CORP_PAT = re.compile(CORP_EXPR, re.IGNORECASE)
+
+def transform_corp_in_text(raw_text):
+    def inplace_str_sub(match):
+        if match.group(2).lower() in NOSTRIP_SET:
+            return match.group(1) + match.group(2).capitalize()
+        else:
+            return match.group(1).replace(',', ' ') + match.group(2).capitalize()
+            
+    return CORP_PAT.sub(inplace_str_sub, raw_text)
 
 
 
