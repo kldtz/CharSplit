@@ -21,6 +21,7 @@ INCORRECT_CORENLP_ENTITIES = {
     'Service', 'Confidential Information',
     'Confidential Information Agreement',
     'Employment Agreement', 'Employment Agreement',
+    'Intellectual Property',
     'Notice of Termination', 'Territory', 'Base Salary',
     'Company for Cause', 'Term of Employment', 'Treasury Regulations',
     'Treas. Reg', 'Confidential Treatment Requested',

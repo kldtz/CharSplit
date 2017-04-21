@@ -252,7 +252,7 @@ class PostPredDateProc(EbPostPredictProcessing):
 # A title might optionally start with an Exhibit X.X number (for SEC contracts) or optionally
 # start with "this XXXX Agreement".  It may end (optionally) with the word agreement, and
 # with the word is or an open paren (for the defined term parentetical)
-TITLE_PAT = re.compile(r'(?:exhibit \d+\.\d+\s+|this )?((?:.+? )?agreement)(?: \(| is)?', re.IGNORECASE)
+TITLE_PAT = re.compile(r'(?:exhibit \d+\.\d+\s+|this |\s*execution copy\s+)?((?:.+? )?agreement)(?: \(| is)?', re.IGNORECASE)
 
 class PostPredTitleProc(EbPostPredictProcessing):
 
