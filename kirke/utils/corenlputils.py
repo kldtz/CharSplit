@@ -4,6 +4,7 @@ from pycorenlp import StanfordCoreNLP
 
 from kirke.utils.corenlpsent import EbSentence, eb_tokens_to_st
 
+
 NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
 
 
@@ -27,6 +28,23 @@ def annotate(text_as_string):
         'ssplit.newlineIsSentenceBreak': 'two'
     })
     return output
+
+def annotate_for_enhanced_ner(text_as_string):
+    return annotate(transform_corp_in_text(text_as_string))
+    
+CORP_EXPR = r"(,\s*|\b)(inc|corp|llc|ltd)\b"
+NOSTRIP_SET = set(["ltd"])
+CORP_PAT = re.compile(CORP_EXPR, re.IGNORECASE)
+
+def transform_corp_in_text(raw_text):
+    def inplace_str_sub(match):
+        if match.group(2).lower() in NOSTRIP_SET:
+            return match.group(1) + match.group(2).capitalize()
+        else:
+            return match.group(1).replace(',', ' ') + match.group(2).capitalize()
+            
+    return CORP_PAT.sub(inplace_str_sub, raw_text)
+
 
 
 def is_sent_starts_with_lower(ebsent_list, sent_idx):
