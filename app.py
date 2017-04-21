@@ -61,10 +61,13 @@ def annotate_uploaded_document():
     provisions_st = request.form.get('types')
     provision_set = set(provisions_st.split(',') if provisions_st else [])
 
-    # TODO, jshaw
-    # need to retrain all the models, now we only have
-    # 10 models
-    print("got provision_set: {}".format(provision_set))
+    # print("got provision_set: {}".format(provision_set))
+    if "date" in provision_set:        
+        provision_set.add('sigdate')
+        provision_set.add('effectivedate')
+    if "effectivedate_auto" in provision_set:        
+        provision_set.remove('effectivedate_auto')
+        provision_set.add('effectivedate')
 
     """
     provision_set = set(['amending_agreement', 'arbitration', 'assign',

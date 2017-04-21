@@ -35,7 +35,7 @@ class ConciseProbAttrvec:
         self.text = text
         
 
-def to_cx_prob_attrvecs(prob_attrvec_list):
+def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
     return [ConciseProbAttrvec(prob,
                                attrvec[ebattrvec.EB_ATTR_IDX_MAP['ent_start']],
                                attrvec[ebattrvec.EB_ATTR_IDX_MAP['ent_end']],
@@ -163,16 +163,17 @@ def gen_provision_overrides(provision, sent_st_list):
 class EbPostPredictProcessing(ABC):
 
     @abstractmethod
-    def post_process(self, prob_attrvec_list, threshold, provision=None):
+    def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None):
         pass
 
+    
 # pylint: disable=R0903
 class DefaultPostPredictProcessing(EbPostPredictProcessing):
 
     def __init__(self):
         self.provision = 'default'
 
-    def post_process(self, prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+    def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -198,7 +199,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'party'
 
-    def post_process(self, prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+    def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -225,7 +226,7 @@ class PostPredDateProc(EbPostPredictProcessing):
 
     # TODO, jshaw, it seems that in the original code PythonClassifier.java
     # the logic is to keep only the first date, not all dates in a doc
-    def post_process(self, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+    def post_process(self, doc_text, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -258,20 +259,16 @@ class PostPredTitleProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'title'
 
-    def post_process(self, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+    def post_process(self, doc_text, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
             if cx_prob_attrvec.prob >= threshold:
-                anttext = cx_prob_attrvec.text
-                print("anttext: '{}'".format(anttext))
+                anttext = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
                 mat = TITLE_PAT.match(anttext)
                 if mat:
-                    print("attrve.start: '{}'".format(cx_prob_attrvec.start))
-                    print("mat.start(0), end: '{}, {}'".format(mat.start(0), mat.end(0)))
-                    print("mat.start(1), end: '{}, {}'".format(mat.start(1), mat.end(1)))
                     tmp_start = cx_prob_attrvec.start + mat.start(1)
                     tmp_title = mat.group(1)
                     ant_result.append(AntResult(label=self.provision,
@@ -283,12 +280,66 @@ class PostPredTitleProc(EbPostPredictProcessing):
         return ant_result
 
 
+class PostPredBestDateProc(EbPostPredictProcessing):
+
+    def __init__(self, prov_name):
+        self.provision = prov_name
+        self.threshold = 0.5
+
+    def post_process(self, doc_text, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        best_effectivedate_sent = self.get_best(merged_prob_attrvec_list)
+
+        ant_result = []
+        if best_effectivedate_sent:
+            first = None
+            first_after_effective = None
+
+            for entity in best_effectivedate_sent.entities:
+                if entity.ner == EbEntityType.DATE.name:
+                    prior_text = doc_text[best_effectivedate_sent.start:entity.start]
+                    has_prior_text_effective = 'ffective' in prior_text
+
+                    ant_rx = AntResult(label=self.provision,
+                                       prob=best_effectivedate_sent.prob,
+                                       start=entity.start,
+                                       end=entity.end,
+                                       text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
+                    if not first:
+                        first = ant_rx
+                    if has_prior_text_effective and not first_after_effective:
+                        first_after_effective = ant_rx
+                        
+            if first_after_effective:
+                ant_result.append(first_after_effective)
+            elif first:
+                ant_result.append(first)
+
+        return ant_result
+
+    def get_best(self, prob_attrvec_list: List[ConciseProbAttrvec]) -> ConciseProbAttrvec:
+        best_prob = 0
+        best = None
+        for cx_prob_attrvec in prob_attrvec_list:
+            if cx_prob_attrvec.prob >= self.threshold:   # this is not threshold from top
+                if cx_prob_attrvec.prob > best_prob:
+                    best_prob = cx_prob_attrvec.prob
+                    best = cx_prob_attrvec
+        return best
+
+    
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'party': PostPredPartyProc(),
-    'date': PostPredDateProc(),
-    'title': PostPredTitleProc()
+    'title': PostPredTitleProc(),
+    # 'date': PostPredDateProc(),
+    'date': PostPredBestDateProc('date'),
+    'sigdate': PostPredBestDateProc('sigdate'),
+    'effectivedate': PostPredBestDateProc('effectivedate')
 }
+
 
 def obtain_postproc(provision):
     postproc = PROVISION_POSTPROC_MAP.get(provision)

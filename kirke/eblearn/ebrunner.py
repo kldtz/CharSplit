@@ -141,6 +141,19 @@ class EbRunner:
         # this execute the annotators in parallel
         ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_set)
 
+        # special handling for dates, as in PythonDateOfAgreementClassifier.java
+        date_annotations = ant_result_dict.get('date')
+        if not date_annotations:
+            effectivedate_annotations = ant_result_dict.get('effectivedate')
+            if effectivedate_annotations:
+                ant_result_dict['date'] = effectivedate_annotations
+            else:
+                sigdate_annotations = ant_result_dict.get('sigdate')
+                if sigdate_annotations:
+                    ant_result_dict['date'] = sigdate_annotations
+        # user never want to see sigdate
+        ant_result_dict['sigdate'] = []
+
         time2 = time.time()
         print('annotate_document() took %0.3f ms' % ((time2 - time1) * 1000.0, ))
         return ant_result_dict
