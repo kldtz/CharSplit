@@ -191,7 +191,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
 # Note from PythonClassifier.java:
 # The NER seems to pick up the bare word LLC, INC, and CORP as parties sometimes.  This RE
 # defines strings that should not be considered parties.
-NOT_PARTY_PAT = re.compile(r'(inc|llc|corp)\.?', re.IGNORECASE)
+NOT_PARTY_PAT = re.compile(r'((inc|llc|corp)\.?|p\.?\s*o\.?\s*box.*)', re.IGNORECASE)
 
 # pylint: disable=R0903
 class PostPredPartyProc(EbPostPredictProcessing):

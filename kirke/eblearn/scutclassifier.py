@@ -29,6 +29,7 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'equitable_relief': 0.24,
                            'events_default': 0.18,
                            'indemnify': 0.24,
+                           'party': 0.06,
                            'sublicense': 0.24,
                            'survival': 0.24,
                            'termination': 0.36}
@@ -45,6 +46,8 @@ class ShortcutClassifier(EbClassifier):
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
+        if provisoin == 'party':
+            print("scut_threshold for party: {}".format(self.threshold))
 
     # pylint: disable=R0914
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):

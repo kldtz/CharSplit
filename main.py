@@ -108,8 +108,23 @@ def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
     
 def annotate_document(file_name, work_dir, model_dir, custom_model_dir):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
-    prov_labels_map = eb_runner.annotate_document(file_name)
+
+    # TODO, remove, override threshold temporarily
+    party_annotator = eb_runner.provision_annotator_map['party']
+    party_annotator.threshold = 0.06
+    
+    prov_labels_map, doc_text = eb_runner.annotate_document(file_name)
     pprint(prov_labels_map)
+
+def annotate_doc_party(fn_list_fn, work_dir, model_dir, custom_model_dir, threshold=None):
+    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
+    if threshold:
+        party_annotator = eb_runner.provision_annotator_map['party']
+        party_annotator.threshold = threshold
+    with open(fn_list_fn, 'rt') as fin:
+        for line in fin:
+            txt_fn = line.strip()
+            eb_runner.annotate_provision_in_document(txt_fn, provision='party')
 
             
 if __name__ == '__main__':
@@ -129,7 +144,7 @@ if __name__ == '__main__':
     parser.add_argument('--custom_model_dir', required=True, help='output directory for custom trained models')
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
-    parser.add_argument('--threshold', type=float, help='threshold for annotator')    
+    parser.add_argument('--threshold', type=float, help='threshold for annotator')
 
     args = parser.parse_args()
     cmd = args.cmd
@@ -158,6 +173,12 @@ if __name__ == '__main__':
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         annotate_document(args.doc, work_dir, model_dir, custom_model_dir)
+    elif cmd == 'annotate_doc_party':
+        if not args.docs:
+            print('please specify --docs', file=sys.stderr)
+            sys.exit(1)
+        annotate_doc_party(args.docs, work_dir, model_dir, custom_model_dir,
+                               threshold=args.threshold)
     elif cmd == 'split_provision_trte':
         if not args.provfiles_dir:
             print('please specify --provfiles_dir', file=sys.stderr)

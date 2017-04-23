@@ -97,6 +97,8 @@ class ProvisionAnnotator:
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
 
 
+        print("ebannotator({}).threshold = {}".format(self.provision,
+                                                      self.threshold))
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
         prov_annotations = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.text,

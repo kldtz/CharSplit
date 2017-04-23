@@ -156,7 +156,17 @@ class EbRunner:
 
         time2 = time.time()
         print('annotate_document() took %0.3f ms' % ((time2 - time1) * 1000.0, ))
-        return ant_result_dict
+        return ant_result_dict, eb_antdoc.text
+
+    def annotate_provision_in_document(self, file_name, provision: str):
+        ant_result_dict, doc_text = self.annotate_document(file_name, provision_set)
+        prov_list = ant_result_dict[provision]
+        for i, prov in enumerate(prov_list, 1):
+            start = prov['start']
+            end = prov['end']
+            prob = prov['prob']
+            print('{}\t{}\t{}\t{}\t{}\t{}\t{:.4f}'.format(file_name, i, provision, doc_text[start:end], start, end, prob))
+
 
     def test_annotators(self, txt_fns_file_name, provision_set, threshold=None):
         if not provision_set:
