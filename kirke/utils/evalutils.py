@@ -68,8 +68,10 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
 
     pred_ant_list = []
     for adict in ant_list:
-        pred_ant_list.append(AnnotationWithProb(adict.label, adict.start,
-                                                adict.end, adict.prob))
+        pred_ant_list.append(AnnotationWithProb(adict['label'],
+                                                adict['start'],
+                                                adict['end'],
+                                                adict['prob']))
     # print("prov_human_ant_list: {}".format(prov_human_ant_list))
     # print("pred_ant_list: {}".format(pred_ant_list))
 
