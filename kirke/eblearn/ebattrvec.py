@@ -33,6 +33,12 @@ def init_eb_attrs():
         'le-10-word:bool', 'ge-05-lt-10-word:bool',
         'ge-10-lt-20-word:bool', 'ge-20-lt-30-word:bool',
         'ge-30-lt-40-word:bool', 'ge-40-word:bool',
+        'is-1-num-define-party:bool',
+        'is-2-num-define-party:bool',
+        'is-ge2-num-define-party:bool',
+        'has-define-party:bool',
+        'has-define-agreement:bool',
+        'has-word-between:bool',
         'bag-of-words:string', 'labels:string-list',
         'entities:other']
     attr_type_map = {}

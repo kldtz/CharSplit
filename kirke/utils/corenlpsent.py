@@ -16,6 +16,10 @@ class EbToken:
         self.pos = pos
         self.index = index
         self.ner = ner
+
+    def __str__(self):
+        return 'EbToken({}, {}, {}, {}, {}, {})'.format(self.word, self.index, self.pos, self.ner, self.start, self.end)
+
 # 13,772 bytes avg per ebsent
 # 1.8 Mb in an ebantdoc
 

@@ -1,15 +1,36 @@
 import re
 
-from kirke.utils import unicodeutils
+from kirke.utils import unicodeutils, entityutils
 from kirke.eblearn import ebattrvec
 
 HR_PAT = re.compile(r'(\*\*\*+)|(\.\.\.\.+)|(\-\-\-+)')
+
+# AGREEMENT_PAT = re.compile(r'(["“”][^"“”]*agreement["“”])', re.IGNORECASE)
+
+def count_define_party(line: str) -> int:
+    return len(entityutils.extract_define_party(line))
+
+def has_word_agreement(line: str) -> bool:
+    return 'agreement' in line.lower()
+
+#    patlist = AGREEMENT_PAT.finditer(line)
+#    result = []
+#    if patlist:
+#        for pat1 in patlist:
+#            result.append((pat1.group(1), pat1.start(1), pat1.end(1)))
+#    return len(result)
+
+BTW_PAT = re.compile(r'\bbetween\b', re.IGNORECASE)
+
+def has_word_between(line: str):
+    return BTW_PAT.search(line)
 
 
 # pylint: disable=R0912,R0913,R0914,R0915
 def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     tokens = ebsent.get_tokens()
     text_len = len(atext)
+    raw_text = atext[ebsent.start:ebsent.end]
 
     # TODO, pass in the token list, with lemma
     # will do chunking in the future also
@@ -72,6 +93,15 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     fvec.set_val_yesno('ge-30-lt-40-word',
                        num_sent_tokens >= 30 and num_sent_tokens < 40)
     fvec.set_val_yesno('ge-40-word', num_sent_tokens >= 40)
+
+    # for 'party'
+    num_define_party = count_define_party(raw_text)
+    fvec.set_val_yesno('is-1-num-define-party', num_define_party == 1)
+    fvec.set_val_yesno('is-2-num-define-party', num_define_party == 2)
+    fvec.set_val_yesno('is-ge2-num-define-party', num_define_party >= 2)
+    fvec.set_val_yesno('has-define-party', num_define_party > 0)
+    fvec.set_val_yesno('has-define-agreement', has_word_agreement(raw_text))
+    fvec.set_val_yesno('has-word-between', has_word_between(raw_text))
 
     sent_text = atext[ebsent.get_start():ebsent.get_end()]
     fvec.set_val('startCharClass',

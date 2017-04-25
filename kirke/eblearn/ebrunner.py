@@ -159,6 +159,7 @@ class EbRunner:
         return ant_result_dict, eb_antdoc.text
 
     def annotate_provision_in_document(self, file_name, provision: str):
+        provision_set = set([provision])
         ant_result_dict, doc_text = self.annotate_document(file_name, provision_set)
         prov_list = ant_result_dict[provision]
         for i, prov in enumerate(prov_list, 1):

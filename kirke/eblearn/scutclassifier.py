@@ -29,7 +29,7 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'equitable_relief': 0.24,
                            'events_default': 0.18,
                            'indemnify': 0.24,
-                           'party': 0.06,
+                           'party': 0.5,
                            'sublicense': 0.24,
                            'survival': 0.24,
                            'termination': 0.36}

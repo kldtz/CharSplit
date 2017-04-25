@@ -12,7 +12,7 @@ from kirke.eblearn import sent2ebattrvec
 # at the end of parsexxx
 from kirke.eblearn import ebattrvec
 
-from kirke.utils import corenlputils, ebantdoc, mathutils, strutils, osutils
+from kirke.utils import corenlputils, ebantdoc, mathutils, strutils, osutils, entityutils
 
 
 DEFAULT_IS_CACHE_ENABLED = True
@@ -51,7 +51,7 @@ INCORRECT_DATE_ENTITIES = {
     'Date of Change in Control', 'Performance Share Award Grant Date',
     'Partial License Termination'}
 
-INCORRECT_LOC_ENTITIES = {'State of New York'} # ??
+INCORRECT_LOC_ENTITIES = {'State of New York', 'Princeton'} # ??
 
 INCORRECT_DOMAIN_ENTITIES = {
     'Annual Performance Share Award', 'Restated Employment Agreement',
@@ -113,6 +113,7 @@ def _extract_entities(tokens, wanted_ner_names):
     entity_list = []
     prev_entity_tokens = []
     prev_ner = None
+
     for token in tokens:
         curr_ner = token.ner
         if curr_ner in wanted_ner_names:
@@ -136,9 +137,59 @@ def _extract_entities(tokens, wanted_ner_names):
             entity_list.append(eb_entity)
     return entity_list
 
+NAME_POS_SET = set(['NNS', 'CD', 'NNP', 'NN'])
 
-def populate_ebsent_entities(ebsent):
+# this is destructive/in-place
+def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
+    ptr = -1
+    max_token_ptr = len(tokens)
+    # fix incorrect pos
+    for token in tokens:
+        if token.word == 'CORPORATE':
+            token.pos = 'NNP'
+
+    for i, token in enumerate(tokens):
+        # print('{}\t{}'.format(i, token))
+        if token.word[0].isupper() and token.word.lower() in set(['llc.', 'llc', 'inc.', 'inc', 'l.p.', 'n.a.',
+                                                                  'corp', 'corporation', 'corp.', 'ltd.', 'ltd',
+                                                                  'co.', 'co', 'l.l.p.', 'lp', 's.a.', 'sa',
+                                                                  'n.v.', 'plc', 'plc.', 'l.l.c.']):
+            # reset all previous tokens to ORG
+            # print("I am in here")
+            ptr = i
+            while ptr >= 0:
+                if ptr == i - 1 and tokens[ptr].word == ',':
+                    tokens[ptr].ner = ebantdoc.EbEntityType.ORGANIZATION.name
+                    ptr -= 1
+                elif tokens[ptr].pos in NAME_POS_SET:
+                    # print("tokens[{}].pos = {}, {}".format(ptr, tokens[ptr].pos, tokens[ptr]))
+                    tokens[ptr].ner = ebantdoc.EbEntityType.ORGANIZATION.name
+                    ptr -= 1
+                else:
+                    break
+        # separate "the Company and xxx"
+        if (token.word in 'Company' and token.ner == ebantdoc.EbEntityType.ORGANIZATION.name and
+            (i + 1) < max_token_ptr and tokens[i+1].word == 'and' and tokens[i+1].ner == ebantdoc.EbEntityType.ORGANIZATION.name):
+            tokens[i+1].ner = 'O'
+
+    pat_list = entityutils.extract_define_party(raw_sent_text, start_offset=start_offset)
+    if pat_list:
+        for i, token in enumerate(tokens):
+            for pat in pat_list:
+                if mathutils.start_end_overlap((pat[1], pat[2]), (token.start, token.end)):
+                    if token.word in ['-LRB-', '-RRB-']:
+                        token.ner = 'O'
+                    else:  # if token.word in [pat[0],]:  # there are some offsets issue, so need to do this
+                        token.ner = ebantdoc.EbEntityType.ORGANIZATION.name
+
+    #print()
+    #for i, token in enumerate(tokens, 1):
+    #    print('x2 {}\t{}'.format(i, token))
+
+
+def populate_ebsent_entities(ebsent, raw_sent_text):
     tokens = ebsent.get_tokens()
+    _extract_entities_v2(tokens, raw_sent_text, ebsent.start)
     entity_list = _extract_entities(tokens, _WANTED_ENTITY_NAMES)
     if entity_list:
         ebsent.set_entities(entity_list)
@@ -247,7 +298,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
     exhibit_appendix_start = -1
     for ebsent in ebsent_list:
         fix_ner_tags(ebsent)
-        populate_ebsent_entities(ebsent)
+        populate_ebsent_entities(ebsent, atext[ebsent.start:ebsent.end])
 
         overlap_provisions = (get_labels_if_start_end_overlap(ebsent.get_start(),
                                                               ebsent.get_end(),
