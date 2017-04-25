@@ -27,7 +27,7 @@ def has_word_agreement(line: str) -> bool:
 #            result.append((pat1.group(1), pat1.start(1), pat1.end(1)))
 #    return len(result)
 
-BTW_PAT = re.compile(r'\bbetween\b', re.IGNORECASE)
+BTW_PAT = re.compile(r'\b(between|among)\b', re.IGNORECASE)
 
 def has_word_between(line: str):
     return BTW_PAT.search(line)

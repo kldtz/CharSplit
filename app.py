@@ -61,7 +61,7 @@ def annotate_uploaded_document():
     provisions_st = request.form.get('types')
     provision_set = set(provisions_st.split(',') if provisions_st else [])
 
-    # print("got provision_set: {}".format(provision_set))
+    # print("got provision_set: {}".format(sorted(provision_set)))
     """
     if "date" in provision_set:        
         provision_set.add('sigdate')
