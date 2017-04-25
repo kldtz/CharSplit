@@ -62,12 +62,19 @@ def annotate_uploaded_document():
     provision_set = set(provisions_st.split(',') if provisions_st else [])
 
     # print("got provision_set: {}".format(provision_set))
+    """
     if "date" in provision_set:        
         provision_set.add('sigdate')
         provision_set.add('effectivedate')
     if "effectivedate_auto" in provision_set:        
         provision_set.remove('effectivedate_auto')
         provision_set.add('effectivedate')
+    """
+    # it is not an issue if they are duplicated
+    provision_set.add('sigdate')
+    provision_set.add('effectivedate')
+    provision_set.add('date')
+    provision_set.remove('effectivedate_auto')
 
     """
     provision_set = set(['amending_agreement', 'arbitration', 'assign',
@@ -77,11 +84,10 @@ def annotate_uploaded_document():
                          'limliability', 'nonsolicit', 'party',
                          'preamble', 'renewal', 'sublicense', 'survival',
                          'termination', 'term'])
-                         
     print("reset provision_set: {}".format(provision_set))
     """
 
-    prov_labels_map = eb_runner.annotate_document(file_name, provision_set=provision_set)
+    prov_labels_map, doc_text = eb_runner.annotate_document(file_name, provision_set=provision_set)
     ebannotations = {'ebannotations': prov_labels_map}
     # pprint(prov_labels_map)
     pprint(ebannotations)

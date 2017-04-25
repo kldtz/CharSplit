@@ -105,16 +105,13 @@ def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
 
     pprint(ant_status)
 
-    
+
 def annotate_document(file_name, work_dir, model_dir, custom_model_dir):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
-    # TODO, remove, override threshold temporarily
-    party_annotator = eb_runner.provision_annotator_map['party']
-    party_annotator.threshold = 0.06
-    
     prov_labels_map, doc_text = eb_runner.annotate_document(file_name)
     pprint(prov_labels_map)
+
 
 def annotate_doc_party(fn_list_fn, work_dir, model_dir, custom_model_dir, threshold=None):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)

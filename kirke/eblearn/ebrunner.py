@@ -146,10 +146,18 @@ class EbRunner:
         if not date_annotations:
             effectivedate_annotations = ant_result_dict.get('effectivedate')
             if effectivedate_annotations:
+                # make a copy
+                effectivedate_annotations = list(effectivedate_annotations)
+                for eff_ant in effectivedate_annotations:
+                    eff_ant['label'] = 'date'
                 ant_result_dict['date'] = effectivedate_annotations
             else:
                 sigdate_annotations = ant_result_dict.get('sigdate')
                 if sigdate_annotations:
+                    # make a copy
+                    sigdate_annotations = list(sigdate_annotations)
+                    for sig_ant in sigdate_annotations:
+                        sig_ant['label'] = 'date'
                     ant_result_dict['date'] = sigdate_annotations
         # user never want to see sigdate
         ant_result_dict['sigdate'] = []

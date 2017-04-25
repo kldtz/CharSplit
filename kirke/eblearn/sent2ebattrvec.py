@@ -3,6 +3,13 @@ import re
 from kirke.utils import unicodeutils, entityutils
 from kirke.eblearn import ebattrvec
 
+# truncate the following features to avoid outlier issues
+ENT_START_MAX = 50000
+ENT_END_MAX = 50010
+NTH_CANDIDATE_MAX = 500
+NUM_CHARS_MAX = 300
+NUM_WORDS_MAX = 50
+
 HR_PAT = re.compile(r'(\*\*\*+)|(\.\.\.\.+)|(\-\-\-+)')
 
 # AGREEMENT_PAT = re.compile(r'(["“”][^"“”]*agreement["“”])', re.IGNORECASE)
@@ -40,24 +47,26 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
                                # lemma give 3% worse result
                                # ebsent.get_lemma_text(), ebsent.labels, ebsent.entities)
 
-    fvec.set_val('ent_start', ebsent.get_start())
-    fvec.set_val('ent_end', ebsent.get_end())
+    tmp_start = min(ENT_START_MAX, ebsent.get_start())
+    tmp_end = min(ENT_END_MAX, ebsent.get_end())
+    fvec.set_val('ent_start', tmp_start)
+    fvec.set_val('ent_end', tmp_end)
     fvec.set_val('ent_percent_start', 1.0 * ebsent.get_start() / text_len)
     # fvec.set_val('nth_candidate', sent_seq)
-    fvec.set_val('nth_candidate', sent_seq - 1)  # prod version starts with 0
+    fvec.set_val('nth_candidate', min(NTH_CANDIDATE_MAX, sent_seq - 1))  # prod version starts with 0
     if prev_ebsent is None:   # the first sentence
         fvec.set_val('prevLength', 0)        # number of words in a sentence
         fvec.set_val('prevLengthChar', 0)
     else:
-        fvec.set_val('prevLength', prev_ebsent.get_number_tokens())
-        fvec.set_val('prevLengthChar', prev_ebsent.get_number_chars())
+        fvec.set_val('prevLength', min(NUM_WORDS_MAX, prev_ebsent.get_number_tokens()))
+        fvec.set_val('prevLengthChar', min(NUM_CHARS_MAX, prev_ebsent.get_number_chars()))
 
     if next_ebsent is None:
         fvec.set_val('nextLength', 0)
         fvec.set_val('nextLengthChar', 0)
     else:
-        fvec.set_val('nextLength', next_ebsent.get_number_tokens())
-        fvec.set_val('nextLengthChar', next_ebsent.get_number_chars())
+        fvec.set_val('nextLength', min(NUM_WORDS_MAX, next_ebsent.get_number_tokens()))
+        fvec.set_val('nextLengthChar', min(NUM_CHARS_MAX, next_ebsent.get_number_chars()))
 
     if ebsent.get_start() > 0:
         fvec.set_val('prevChar', ord(atext[ebsent.get_start()-1]))
@@ -78,8 +87,8 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
         fvec.set_val('nextCharClass', 0)  # Cn: Other, not assigned
 
     num_sent_tokens = ebsent.get_number_tokens()
-    fvec.set_val('length', num_sent_tokens)
-    fvec.set_val('lengthChar', ebsent.get_number_chars())
+    fvec.set_val('length', min(NUM_WORDS_MAX, num_sent_tokens))
+    fvec.set_val('lengthChar', min(NUM_CHARS_MAX, ebsent.get_number_chars()))
 
     fvec.set_val_yesno('le-3-word', num_sent_tokens <= 3)
     fvec.set_val_yesno('le-5-word', num_sent_tokens <= 5)
