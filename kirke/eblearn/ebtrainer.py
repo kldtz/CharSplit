@@ -47,10 +47,10 @@ def train_eval_annotator(provision, txt_fn_list,
 
     num_pos_label, num_neg_label = 0, 0
     for attrvec in attrvec_list:
-        if provision in attrvec[ebattrvec.LABELS_INDEX]:
+        if provision in attrvec.labels:
             num_pos_label += 1
             # print("\npositive training for {}".format(provision))
-            # print("    [[{}]]".format(attrvec[ebattrvec.TOKENS_TEXT_INDEX]))
+            # print("    [[{}]]".format(attrvec.bag_of_words))
         else:
             num_neg_label += 1
 
@@ -94,7 +94,7 @@ def train_eval_annotator(provision, txt_fn_list,
         iterations = 10
         # now X and y are different
         X_sent = eb_classifier.transformer.transform(attrvec_list)
-        y_label_list = [provision in attrvec[ebattrvec.LABELS_INDEX] for attrvec in attrvec_list]
+        y_label_list = [provision in attrvec.labels for attrvec in attrvec_list]
 
         # the goal here is to provide some status information
         # no guarantee that it is consistent with eb_classifier status yet
@@ -253,7 +253,7 @@ def eval_classifier(txt_fn_list, work_dir, model_file_name):
 def calc_scut_predict_evaluate(scut_classifier, attrvec_list, y_pred, y_te):
     logging.info('calc_scut_predict_evaluate()...')
 
-    sent_st_list = [attrvec[ebattrvec.TOKENS_TEXT_INDEX] for attrvec in attrvec_list]
+    sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
     overrides = ebpostproc.gen_provision_overrides(scut_classifier.provision, sent_st_list)
 
     scut_classifier.pred_status['classifer_type'] = 'scutclassifier'

@@ -44,8 +44,6 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     fvec = ebattrvec.EbAttrVec(file_id,
                                ebsent.get_start(), ebsent.get_end(),
                                ebsent.get_tokens_text(), ebsent.labels, ebsent.entities)
-                               # lemma give 3% worse result
-                               # ebsent.get_lemma_text(), ebsent.labels, ebsent.entities)
 
     tmp_start = min(ENT_START_MAX, ebsent.get_start())
     tmp_end = min(ENT_END_MAX, ebsent.get_end())

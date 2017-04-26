@@ -37,10 +37,10 @@ class ConciseProbAttrvec:
 
 def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
     return [ConciseProbAttrvec(prob,
-                               attrvec[ebattrvec.EB_ATTR_IDX_MAP['ent_start']],
-                               attrvec[ebattrvec.EB_ATTR_IDX_MAP['ent_end']],
-                               attrvec[ebattrvec.ENTITIES_INDEX],
-                               attrvec[ebattrvec.TOKENS_TEXT_INDEX])
+                               attrvec.start,
+                               attrvec.end,
+                               attrvec.entities,
+                               attrvec.bag_of_words)
             for prob, attrvec in prob_attrvec_list]
 
 

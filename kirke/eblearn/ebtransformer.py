@@ -81,18 +81,21 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         num_rows = len(attrvec_list)
 
         # handle numeric_matrix and categorical_matrix
-        binary_indices = ebattrvec.BINARY_INDICES
-        numeric_indices = ebattrvec.NUMERIC_INDICES
-        categorical_indices = ebattrvec.CATEGORICAL_INDICES
-        numeric_matrix = np.zeros(shape=(num_rows, len(binary_indices) + len(numeric_indices)))
-        categorical_matrix = np.zeros(shape=(num_rows, len(categorical_indices)))
+        # binary_indices = ebattrvec.BINARY_INDICES
+        # numeric_indices = ebattrvec.NUMERIC_INDICES
+        # categorical_indices = ebattrvec.CATEGORICAL_INDICES
+        numeric_matrix = np.zeros(shape=(num_rows,
+                                         len(ebattrvec.binary_attr_list) +
+                                         len(ebattrvec.numeric_attr_list)))
+        categorical_matrix = np.zeros(shape=(num_rows,
+                                             len(ebattrvec.categorical_attr_list)))
         for instance_i, attrvec in enumerate(attrvec_list):
-            for ibin, binary_index in enumerate(binary_indices):
-                numeric_matrix[instance_i, ibin] = strutils.bool_to_int(attrvec[binary_index])
-            for inum, numeric_index in enumerate(numeric_indices):
-                numeric_matrix[instance_i, len(binary_indices) + inum] = attrvec[numeric_index]
-            for icat, cat_index in enumerate(categorical_indices):
-                categorical_matrix[instance_i, icat] = attrvec[cat_index]
+            for ibin, binary_attr in enumerate(ebattrvec.binary_attr_list):
+                numeric_matrix[instance_i, ibin] = strutils.bool_to_int(attrvec.get_val(binary_attr))
+            for inum, numeric_attr in enumerate(ebattrvec.numeric_attr_list):
+                numeric_matrix[instance_i, len(ebattrvec.binary_attr_list) + inum] = attrvec.get_val(numeric_attr)
+            for icat, cat_attr in enumerate(ebattrvec.categorical_attr_list):
+                categorical_matrix[instance_i, icat] = attrvec.get_val(cat_attr)
         if fit_mode:
             numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
             categorical_matrix = self.one_hot_encoder.fit_transform(categorical_matrix)
@@ -105,13 +108,13 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         positive_sent_st_list = []  # only populated if fit_mode
         if fit_mode:  # label_list:  # for testing, there is no label_list
             for attrvec, label in zip(attrvec_list, label_list):
-                sent_st = attrvec[ebattrvec.TOKENS_TEXT_INDEX]
+                sent_st = attrvec.bag_of_words
                 sent_st_list.append(sent_st)
                 if label:
                     positive_sent_st_list.append(sent_st)
         else:
             for attrvec in attrvec_list:
-                sent_st = attrvec[ebattrvec.TOKENS_TEXT_INDEX]
+                sent_st = attrvec.bag_of_words
                 sent_st_list.append(sent_st)
 
         nostop_sent_st_list = stopwordutils.remove_stopwords(sent_st_list, mode=2)

@@ -229,12 +229,12 @@ def save_ebantdoc_sents(eb_antdoc, txt_file_name):
     with open(doc_sents_fn, 'wt') as fout3:
         for i, attrvec in enumerate(eb_antdoc.attrvec_list, 1):
             # print("attrvec = {}".format(attrvec))
-            tmp_start = attrvec[ebattrvec.START_INDEX]
-            tmp_end = attrvec[ebattrvec.END_INDEX]
+            tmp_start = attrvec.start
+            tmp_end = attrvec.end
             sent_text = doc_text[tmp_start:tmp_end].replace(r'[\n\t]', ' ')
             labels_st = ""
-            if attrvec[ebattrvec.LABELS_INDEX]:
-                labels_st = ','.join(sorted(attrvec[ebattrvec.LABELS_INDEX]))
+            if attrvec.labels:
+                labels_st = ','.join(sorted(attrvec.labels))
             cols = [str(i), ts_col, labels_st, sent_text]
             print('\t'.join(cols), file=fout3)    
 
@@ -346,7 +346,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
         fvec = sent2ebattrvec.sent2ebattrvec(txt_file_name, ebsent, sent_idx + 1,
                                              prev_ebsent, next_ebsent, atext)
 
-        attrvec_list.append(fvec.to_list())
+        attrvec_list.append(fvec)
         prev_ebsent = ebsent
 
     eb_antdoc = ebantdoc.EbAnnotatedDoc(txt_file_name, prov_annotation_list, attrvec_list, atext, is_test)

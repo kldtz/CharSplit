@@ -35,13 +35,13 @@ if __name__ == '__main__':
     # print("doc_sents_fn = {}".format(doc_sents_fn))
     for i, attrvec in enumerate(eb_antdoc.attrvec_list, 1):
         # print("attrvec = {}".format(attrvec))
-        tmp_start = attrvec[ebattrvec.START_INDEX]
-        tmp_end = attrvec[ebattrvec.END_INDEX]
+        tmp_start = attrvec.start
+        tmp_end = attrvec.end
         sent_text = doc_text[tmp_start:tmp_end].replace(r'[\n\t]', ' ')
-        # sent_text = attrvec[ebattrvec.TOKENS_TEXT_INDEX]
+        # sent_text = attrvec.bag_of_words
         labels_st = ""
-        if attrvec[ebattrvec.LABELS_INDEX]:
-            labels_st = ','.join(sorted(attrvec[ebattrvec.LABELS_INDEX]))
+        if attrvec.labels:
+            labels_st = ','.join(sorted(attrvec.labels)
         cols = [str(i), ts_col, labels_st, sent_text, str(attrvec)]
         print('\t'.join(cols))
 

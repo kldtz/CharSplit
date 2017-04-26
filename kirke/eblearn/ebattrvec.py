@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 # has_org, has_loc, has_person, has_date, hr ('yes', 'no')
 binary_indices = [0, 1, 2, 3, 9]
@@ -14,135 +16,97 @@ categorical_indices = list(range(10, 18))
 binary_indices.extend(list(range(24, 32)))
 """
 
-def init_eb_attrs():
-    attr_type_st_list = [
-        'has_organization:bool', 'has_location:bool',
-        'has_person:bool', 'has_date:bool',
-        'contains_prep_phrase:bool',
-        'ent_start:numeric', 'ent_end:numeric',
-        'ent_percent_start:numeric',
-        'nth_candidate:numeric', 'hr:bool',
-        'startCharClass:categorical', 'endCharClass:categorical',
-        'prevCharClass:categorical', 'nextCharClass:categorical',
-        'startChar:categorical', 'endChar:categorical',
-        'prevChar:categorical', 'nextChar:categorical',
-        'length:numeric', 'prevLength:numeric',
-        'nextLength:numeric', 'lengthChar:numeric',
-        'prevLengthChar:numeric', 'nextLengthChar:numeric',
-        'le-3-word:bool', 'le-5-word:bool',
-        'le-10-word:bool', 'ge-05-lt-10-word:bool',
-        'ge-10-lt-20-word:bool', 'ge-20-lt-30-word:bool',
-        'ge-30-lt-40-word:bool', 'ge-40-word:bool',
-        # for party
-        'is-1-num-define-party:bool',
-        'is-2-num-define-party:bool',
-        'is-ge2-num-define-party:bool',
-        'has-define-party:bool',
-        'has-define-agreement:bool',
-        'has-word-between:bool',
-        # end of for party
-        'bag-of-words:string', 'labels:string-list',
-        'entities:other']
-    attr_type_map = {}
-    attr_idx_map = {}
-    attr_list = []
-    binary_indices = []
-    numeric_indices = []
-    categorical_indices = []
-    string_indices = []
-    string_list_indices = []
-    other_indices = []    
-    for i, attr_type in enumerate(attr_type_st_list):
-        attr, atype = attr_type.split(':')
-        attr_list.append(attr)
-        attr_type_map[attr] = atype
-        attr_idx_map[attr] = i
-        if atype == 'bool':
-            binary_indices.append(i)
-        elif atype == 'numeric':
-            numeric_indices.append(i)
-        elif atype == 'categorical':
-            categorical_indices.append(i)
-        elif atype == 'string':
-            string_indices.append(i)
-        elif atype == 'string-list':
-            string_list_indices.append(i)
-        elif atype == 'other':
-            other_indices.append(i)                                    
-        else:
-            raise ValueError('unknown type in init_eb_attrs(): {}'.format(atype))
-    return (attr_list, attr_type_map, attr_idx_map,
-            binary_indices, numeric_indices, categorical_indices,
-            string_indices, string_list_indices, other_indices)
+attr_type_st_list = [
+    'has_organization:bool', 'has_location:bool',
+    'has_person:bool', 'has_date:bool',
+    'contains_prep_phrase:bool',
+    'ent_start:numeric', 'ent_end:numeric',
+    'ent_percent_start:numeric',
+    'nth_candidate:numeric', 'hr:bool',
+    'startCharClass:categorical', 'endCharClass:categorical',
+    'prevCharClass:categorical', 'nextCharClass:categorical',
+    'startChar:categorical', 'endChar:categorical',
+    'prevChar:categorical', 'nextChar:categorical',
+    'length:numeric', 'prevLength:numeric',
+    'nextLength:numeric', 'lengthChar:numeric',
+    'prevLengthChar:numeric', 'nextLengthChar:numeric',
+    'le-3-word:bool', 'le-5-word:bool',
+    'le-10-word:bool', 'ge-05-lt-10-word:bool',
+    'ge-10-lt-20-word:bool', 'ge-20-lt-30-word:bool',
+    'ge-30-lt-40-word:bool', 'ge-40-word:bool']
 
-(EB_ATTR_LIST, EB_ATTR_TYPE_MAP, EB_ATTR_IDX_MAP,
- BINARY_INDICES, NUMERIC_INDICES, CATEGORICAL_INDICES,
- STRING_INDICeS, STRING_LIST_INDICES, OTHER_INDICES) = init_eb_attrs()
+# lemma as text/bag-of-words give 3% worse result
+# now use corenlp token instead
+misc_attr_type_st_list = [
+    'bag-of-words:string', 'labels:string-list',
+    'entities:other']
 
-DEFAULT_IS_TO_VALIDATE = True
-START_INDEX = EB_ATTR_IDX_MAP['ent_start']
-END_INDEX = EB_ATTR_IDX_MAP['ent_end']
-TOKENS_TEXT_INDEX = EB_ATTR_IDX_MAP['bag-of-words']
-LABELS_INDEX = EB_ATTR_IDX_MAP['labels']
-ENTITIES_INDEX = EB_ATTR_IDX_MAP['entities']
+extra_party_attr_type_st_list = [
+    'is-1-num-define-party:bool',
+    'is-2-num-define-party:bool',
+    'is-ge2-num-define-party:bool',
+    'has-define-party:bool',
+    'has-define-agreement:bool',
+    'has-word-between:bool']
 
+default_attr_type_st_list = attr_type_st_list + misc_attr_type_st_list
+default_attr_type_list = [tuple(attr_type.split(':')) for attr_type
+                          in default_attr_type_st_list]
+default_attr_st_list = [attr_type[0] for attr_type
+                        in default_attr_type_list]
+
+party_attr_type_st_list = (attr_type_st_list + extra_party_attr_type_st_list +
+                           misc_attr_type_st_list)
+party_attr_type_list = [tuple(attr_type.split(':')) for attr_type
+                        in party_attr_type_st_list]
+party_attr_st_list = [attr_type[0] for attr_type
+                      in party_attr_type_list]
+
+binary_attr_list = [attr_type[0] for attr_type
+                    in party_attr_type_list if attr_type[1] == 'bool']
+numeric_attr_list = [attr_type[0] for attr_type
+                    in party_attr_type_list if attr_type[1] == 'numeric']
+categorical_attr_list = [attr_type[0] for attr_type
+                    in party_attr_type_list if attr_type[1] == 'categorical']
+string_attr_list = [attr_type[0] for attr_type
+                    in party_attr_type_list if attr_type[1] == 'string']
+string_list_attr_list = [attr_type[0] for attr_type
+                    in party_attr_type_list if attr_type[1] == 'string-list']
+other_attr_list = [attr_type[0] for attr_type
+                    in party_attr_type_list if attr_type[1] not in ['bool',
+                                                                    'numeric',
+                                                                    'categorical',
+                                                                    'string',
+                                                                    'string-list']]
+
+
+print("default_attr_st_list: {}".format(default_attr_st_list))
+print("party_attr_st_list: {}".format(party_attr_st_list))
+
+print("binary_attr_list: {}".format(binary_attr_list))
+print("numeric_attr_list: {}".format(numeric_attr_list))
+print("categorical_attr_list: {}".format(categorical_attr_list))
+print("string_attr_list: {}".format(string_attr_list))
+print("string_list_attr_list: {}".format(string_list_attr_list))
+print("other_attr_list: {}".format(other_attr_list))
+    
 # replacing sent2attrs
 class EbAttrVec:
 
-    def __init__(self, file_id, start, end, text, labels, entities):
+    def __init__(self, file_id, start, end, sent_text, labels, entities):
         self.file_id = file_id
-        self.start = start
-        self.end = end
-        self.attr_val_map = {}
-        self.attr_val_map['bag-of-words'] = text
-        self.attr_val_map['labels'] = labels
-        self.attr_val_map['entities'] = entities
-        # fv.set_val('bag_of_words', ebsent.get_tokens_text())
-        # intentionally not using ebsent.get_text()
+        self.start = start  # this differs from ent_start, which can be chopped
+        self.end = end      # similar to above, ent_end
+        self.bag_of_words = sent_text
+        self.labels = labels
+        self.entities = entities
 
-    def to_list(self):
-        if DEFAULT_IS_TO_VALIDATE:
-            self.validate_types()
-        # result = [self.start, self.end]
-        result = [self.attr_val_map.get(attr) for attr in EB_ATTR_LIST]
-        # result.extend([','.join(self.labels), entities_to_st(self.entities), self.text])
-        return result
-
-    # def get_val(self, attr_name):
-    #    return self.vec[EB_ATTR_IDX_MAP.get(attr_name)]
+    def get_val(self, attr_name):
+        return getattr(self, attr_name)
 
     def set_val(self, attr, val):
-        self.attr_val_map[attr] = val
+        setattr(self, attr, val)
 
     def set_val_yesno(self, attr, val):
-        self.attr_val_map[attr] = bool(val)
+        setattr(self, attr, bool(val))
 
-    #def get_tokens_text(self) -> str:
-    #    return self.bag_of_words
-
-    #def get_labels(self):
-    #    return self.labels
-
-    def validate_types(self):
-        for attr, atype in EB_ATTR_TYPE_MAP.items():
-            val = self.attr_val_map.get(attr)
-            if val is None:
-                raise ValueError('failed in validate_type(), attr(%s) is None', attr)
-            if atype == 'bool':
-                if not isinstance(val, bool):
-                    raise ValueError('failed in validate_type(), bool != %s %s',
-                                     type(val), str(val))
-            elif atype == 'numeric':
-                if not isinstance(val, (int, float)):
-                    raise ValueError('failed in validate_type(), numeric != %s %s',
-                                     type(val), str(val))
-            elif atype == 'categorical':
-                pass
-            elif atype == 'string':
-                pass
-            elif atype == 'string-list':
-                pass
-            elif atype == 'other':
-                pass                                    
-            else:
-                raise ValueError('failed in validate_type(), unknown type: %s', atype)

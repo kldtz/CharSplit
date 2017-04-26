@@ -56,7 +56,7 @@ class ShortcutClassifier(EbClassifier):
             attrvec_list.extend(tmp_attrvec_list)
             group_id_list.extend([group_id] * len(tmp_attrvec_list))
 
-        label_list = [self.provision in attrvec[ebattrvec.LABELS_INDEX] for attrvec in attrvec_list]
+        label_list = [self.provision in attrvec.labels for attrvec in attrvec_list]
 
         # NOTE: jshaw
         # this is where there is leakable of information from test set
@@ -126,7 +126,7 @@ class ShortcutClassifier(EbClassifier):
         attrvec_list = eb_antdoc.get_attrvec_list()
         # print("attrvec_list.size = ", len(attrvec_list))
 
-        # sent_st_list = [attrvec[ebattrvec.TOKENS_TEXT_INDEX] for attrvec in attrvec_list]
+        # sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
         # overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
 
         # pylint: disable=C0103
@@ -159,7 +159,7 @@ class ShortcutClassifier(EbClassifier):
             attrvec_list.extend(tmp_attrvec_list)
             # for diagnosis purpose
             full_txt_fn_list.extend([txt_fn] * num_sent)
-        label_list = [self.provision in attrvec[ebattrvec.LABELS_INDEX] for attrvec in attrvec_list]
+        label_list = [self.provision in attrvec.labels for attrvec in attrvec_list]
 
         # print("attrvec_list.size = ", len(attrvec_list))
         # print("label_list.size = ", len(label_list))
@@ -170,7 +170,7 @@ class ShortcutClassifier(EbClassifier):
         y_te = label_list
         # num_positive = np.count_nonzero(y_te)
         # logging.debug('num true positives in testing = {}'.format(num_positive))
-        sent_st_list = [attrvec[ebattrvec.TOKENS_TEXT_INDEX] for attrvec in attrvec_list]
+        sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
 
         # TODO, jshaw
