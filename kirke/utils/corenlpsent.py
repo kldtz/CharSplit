@@ -1,6 +1,5 @@
 import sys
 import copy
-from collections import namedtuple
 
 
 # pylint: disable=R0903
@@ -18,7 +17,12 @@ class EbToken:
         self.ner = ner
 
     def __str__(self):
-        return 'EbToken({}, {}, {}, {}, {}, {})'.format(self.word, self.index, self.pos, self.ner, self.start, self.end)
+        return 'EbToken({}, {}, {}, {}, {}, {})'.format(self.word,
+                                                        self.index,
+                                                        self.pos,
+                                                        self.ner,
+                                                        self.start,
+                                                        self.end)
 
 # 13,772 bytes avg per ebsent
 # 1.8 Mb in an ebantdoc
@@ -30,8 +34,7 @@ class EbToken:
 # 9,927 bytes avg per ebsent
 # 1.3 Mb in an ebantdoc
 
-
-
+# pylint: disable=fixme
 # TODO, In future, without arff, probably don't need this
 # Digits might have commas in tokens, "23,000"
 # In addition, for "December 17, 2012", there is a comma token also.
@@ -121,8 +124,11 @@ def merge_ebsents(ebsent_list):
 # pylint: disable=R0902
 class EbSentence:
     __slots__ = ['file_id', 'tokens', 'start', 'end',
-                'entities', 'labels']
+                 'entities', 'labels']
 
+    # Still passing atext now just in case to be used
+    # in future.
+    # pylint: disable=unused-argument
     def __init__(self, file_id, json_sent, atext, num_prefix_space):
         tokens = json_sent['tokens']
         self.file_id = file_id
@@ -137,11 +143,15 @@ class EbSentence:
         # set of strings
         self.labels = set([])
 
+    # Still passing atext now just in case to be used
+    # in future.
+    # pylint: disable=unused-argument
     def extend_tokens(self, tokens, atext):
         self.tokens.extend(tokens)
         self.end = self.tokens[-1].end
         # self.text = atext[self.start:self.end]  # migh have page number
         # self.tokens_text = eb_tokens_to_st(self.tokens)          # no page number
+        # pylint: disable=fixme
         # TODO, jshaw, question
         # when extending tokens, should modify self.entities also?
 
@@ -164,7 +174,7 @@ class EbSentence:
         return eb_tokens_to_st(self.tokens)
 
     def get_lemma_text(self):
-        return eb_tokens_to_lemma_st(self.tokens)              
+        return eb_tokens_to_lemma_st(self.tokens)
 
     def get_start(self):
         return self.start

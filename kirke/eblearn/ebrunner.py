@@ -1,5 +1,6 @@
 
 import concurrent.futures
+import copy
 import logging
 import os
 import psutil
@@ -146,16 +147,16 @@ class EbRunner:
         if not date_annotations:
             effectivedate_annotations = ant_result_dict.get('effectivedate')
             if effectivedate_annotations:
-                # make a copy
-                effectivedate_annotations = list(effectivedate_annotations)
+                # make a copy to preserve original list
+                effectivedate_annotations = copy.deepcopy(effectivedate_annotations)
                 for eff_ant in effectivedate_annotations:
                     eff_ant['label'] = 'date'
                 ant_result_dict['date'] = effectivedate_annotations
             else:
                 sigdate_annotations = ant_result_dict.get('sigdate')
                 if sigdate_annotations:
-                    # make a copy
-                    sigdate_annotations = list(sigdate_annotations)
+                    # make a copy to preserve original list
+                    sigdate_annotations = copy.deepcopy(sigdate_annotations)
                     for sig_ant in sigdate_annotations:
                         sig_ant['label'] = 'date'
                     ant_result_dict['date'] = sigdate_annotations
@@ -163,9 +164,10 @@ class EbRunner:
         ant_result_dict['sigdate'] = []
 
         time2 = time.time()
-        print('annotate_document() took %0.3f ms' % ((time2 - time1) * 1000.0, ))
+        logging.info('annotate_document() took %0.3f ms', ((time2 - time1) * 1000.0, ))
         return ant_result_dict, eb_antdoc.text
 
+    
     def annotate_provision_in_document(self, file_name, provision: str):
         provision_set = set([provision])
         ant_result_dict, doc_text = self.annotate_document(file_name, provision_set)

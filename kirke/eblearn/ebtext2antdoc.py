@@ -63,7 +63,23 @@ INCORRECT_DOMAIN_ENTITIES = {
     'Exhibit C.', 'Excess Rent', 'Release of Claims', 'Reason of Death',
     'Notice', 'Intellectual Property Rights', 'Financial Interest',
     'Change of Control', 'Change of Control and Executive',
-    'Limited Warranty'}
+    'Limited Warranty',
+    'Delaware Limited Liability Company'}
+
+_WANTED_ENTITY_NAMES = {ebantdoc.EbEntityType.PERSON.name,
+                        ebantdoc.EbEntityType.ORGANIZATION.name,
+                        ebantdoc.EbEntityType.LOCATION.name,
+                        ebantdoc.EbEntityType.DATE.name,
+                        ebantdoc.EbEntityType.DEFINE_TERM.name}
+
+_LOC_OR_ORG = {ebantdoc.EbEntityType.ORGANIZATION.name,
+               ebantdoc.EbEntityType.LOCATION.name}
+
+_PERSON_DFTERM_SET = set([ebantdoc.EbEntityType.DEFINE_TERM.name,
+                          ebantdoc.EbEntityType.PERSON.name])
+_ORG_DFTERM_SET = set([ebantdoc.EbEntityType.DEFINE_TERM.name,
+                       ebantdoc.EbEntityType.ORGANIZATION.name])
+
 
 def _fix_incorrect_tokens(xst, orig_label, token_list, entity_st_set, new_ner):
     if xst in entity_st_set:
@@ -89,6 +105,13 @@ def _tokens_to_entity(token_list):
     if label == 'DOMAIN-X':
         return None
 
+    entity_ner_set = set([token.ner for token in token_list])
+    if len(entity_ner_set) > 1:
+        entity_ner_set.remove(ebantdoc.EbEntityType.DEFINE_TERM.name)
+        label = entity_ner_set.pop()
+    elif len(entity_ner_set) == 1 and entity_ner_set.pop() == ebantdoc.EbEntityType.DEFINE_TERM.name:
+        return None
+
     label = _fix_incorrect_tokens(xst, label, token_list, INCORRECT_PERSON_ENTITIES,
                                   ebantdoc.EbEntityType.PERSON.name)
     label = _fix_incorrect_tokens(xst, label, token_list, INCORRECT_ORG_ENTITIES,
@@ -100,13 +123,15 @@ def _tokens_to_entity(token_list):
 
     return ebantdoc.EbEntity(start, end, label, xst)
 
-_WANTED_ENTITY_NAMES = {ebantdoc.EbEntityType.PERSON.name,
-                        ebantdoc.EbEntityType.ORGANIZATION.name,
-                        ebantdoc.EbEntityType.LOCATION.name,
-                        ebantdoc.EbEntityType.DATE.name}
 
-_LOC_OR_ORG = {ebantdoc.EbEntityType.ORGANIZATION.name,
-               ebantdoc.EbEntityType.LOCATION.name}
+def is_distinct_ner_type(ner1, ner2):
+    if ner1 == ner2:
+        return False
+    if (ner1 in _PERSON_DFTERM_SET and ner2 in _PERSON_DFTERM_SET):
+        return False
+    if (ner1 in _ORG_DFTERM_SET and ner2 in _ORG_DFTERM_SET):
+        return False
+    return True
 
 
 def _extract_entities(tokens, wanted_ner_names):
@@ -117,7 +142,7 @@ def _extract_entities(tokens, wanted_ner_names):
     for token in tokens:
         curr_ner = token.ner
         if curr_ner in wanted_ner_names:
-            if curr_ner != prev_ner and prev_entity_tokens:
+            if is_distinct_ner_type(curr_ner, prev_ner) and prev_entity_tokens:
                 eb_entity = _tokens_to_entity(prev_entity_tokens)
                 if eb_entity:
                     entity_list.append(eb_entity)
@@ -137,7 +162,8 @@ def _extract_entities(tokens, wanted_ner_names):
             entity_list.append(eb_entity)
     return entity_list
 
-NAME_POS_SET = set(['NNS', 'CD', 'NNP', 'NN'])
+# 'POS' == "'s"
+NAME_POS_SET = set(['NNS', 'CD', 'NNP', 'NN', 'POS'])
 
 # this is destructive/in-place
 def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
@@ -150,10 +176,13 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
 
     for i, token in enumerate(tokens):
         # print('{}\t{}'.format(i, token))
-        if token.word[0].isupper() and token.word.lower() in set(['llc.', 'llc', 'inc.', 'inc', 'l.p.', 'n.a.',
-                                                                  'corp', 'corporation', 'corp.', 'ltd.', 'ltd',
-                                                                  'co.', 'co', 'l.l.p.', 'lp', 's.a.', 'sa',
-                                                                  'n.v.', 'plc', 'plc.', 'l.l.c.']):
+        if (token.word[0].isupper() and
+            token.word.lower() in set(['llc.', 'llc', 'inc.', 'inc',
+                                       'l.p.', 'n.a.', 'corp',
+                                       'corporation', 'corp.', 'ltd.',
+                                       'ltd', 'co.', 'co', 'l.l.p.',
+                                       'lp', 's.a.', 'sa',
+                                       'n.v.', 'plc', 'plc.', 'l.l.c.'])):
             # reset all previous tokens to ORG
             # print("I am in here")
             ptr = i
@@ -169,7 +198,8 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
                     break
         # separate "the Company and xxx"
         if (token.word in 'Company' and token.ner == ebantdoc.EbEntityType.ORGANIZATION.name and
-            (i + 1) < max_token_ptr and tokens[i+1].word == 'and' and tokens[i+1].ner == ebantdoc.EbEntityType.ORGANIZATION.name):
+            (i + 1) < max_token_ptr and tokens[i+1].word == 'and' and
+            tokens[i+1].ner == ebantdoc.EbEntityType.ORGANIZATION.name):
             tokens[i+1].ner = 'O'
 
     pat_list = entityutils.extract_define_party(raw_sent_text, start_offset=start_offset)
@@ -177,14 +207,11 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
         for i, token in enumerate(tokens):
             for pat in pat_list:
                 if mathutils.start_end_overlap((pat[1], pat[2]), (token.start, token.end)):
-                    if token.word in ['-LRB-', '-RRB-']:
-                        token.ner = 'O'
-                    else:  # if token.word in [pat[0],]:  # there are some offsets issue, so need to do this
-                        token.ner = ebantdoc.EbEntityType.ORGANIZATION.name
+                    token.ner = ebantdoc.EbEntityType.DEFINE_TERM.name
 
     #print()
     #for i, token in enumerate(tokens, 1):
-    #    print('x2 {}\t{}'.format(i, token))
+    #    print('x234 {}\t{}'.format(i, token))
 
 
 def populate_ebsent_entities(ebsent, raw_sent_text):
@@ -361,7 +388,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
     # TODO, jshaw, remove, this saves the sentence text version
     # if txt_file_name:
     #    save_ebantdoc_sents(eb_antdoc, txt_file_name)
-    
+
     return eb_antdoc
 
 
@@ -407,23 +434,6 @@ def fnlist_to_fn_ebantdoc_map(fn_list, work_dir):
         osutils.mkpath(work_dir)
 
     fn_ebantdoc_map = {}
-    """
-    fn_list_extra = ['36074.clean.txt',
-                     '60558.clean.txt',
-                     '37351.clean.txt',
-                     '40792.clean.txt',
-                     '44168.clean.txt',
-                     '37404.clean.txt',
-                     '37005.clean.txt',
-                     '38894.clean.txt',
-                     '37851.clean.txt',
-                     '55899.clean.txt',
-                     '41200.clean.txt']
-    fn_list_extra2 = [ "dir-data/{}".format(fn) for fn in fn_list_extra]
-
-    print("fn_list[0] = [{}]".format(fn_list[0]))
-    print("fn_list_extra2[0] = [{}]".format(fn_list_extra2[0]))    
-"""
     
     for i, txt_file_name in enumerate(fn_list, 1):
         eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir)

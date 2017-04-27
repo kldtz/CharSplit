@@ -17,7 +17,6 @@ from kirke.utils import evalutils
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
-
 GLOBAL_THRESHOLD = 0.24
 
 # The value in this provision_threshold_map is manually
@@ -26,6 +25,7 @@ GLOBAL_THRESHOLD = 0.24
 PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'change_control': 0.36,
                            'confidentiality': 0.24,
+                           'date': 0.10,
                            'equitable_relief': 0.24,
                            'events_default': 0.18,
                            'indemnify': 0.24,
@@ -35,17 +35,31 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'termination': 0.36}
 
 
+PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
+                                     ebattrvec.PARTY_NUMERIC_ATTR_LIST,
+                                     ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
+                           'default': (ebattrvec.DEFAULT_BINARY_ATTR_LIST,
+                                       ebattrvec.DEFAULT_NUMERIC_ATTR_LIST,
+                                       ebattrvec.DEFAULT_CATEGORICAL_ATTR_LIST)}
+
+def get_transformer_attr_list_by_provision(provision: str):
+    if PROVISION_ATTRLISTS_MAP.get(provision):
+        return PROVISION_ATTRLISTS_MAP.get(provision)
+    return PROVISION_ATTRLISTS_MAP.get('default')
+
+
 class ShortcutClassifier(EbClassifier):
 
     def __init__(self, provision):
         EbClassifier.__init__(self, provision)
         self.eb_grid_search = None
         self.best_parameters = None
-        
+
         self.transformer = None
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
+
     # pylint: disable=R0914
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):
         logging.info('train_antdoc_list()...')
@@ -61,18 +75,21 @@ class ShortcutClassifier(EbClassifier):
         # NOTE: jshaw
         # this is where there is leakable of information from test set
         # infogain might get some information from test set
-        self.transformer = EbTransformer(provision=self.provision)
+        (binary_attr_list, numeric_attr_list, categorical_attr_list) = get_transformer_attr_list_by_provision(self.provision)
+        self.transformer = EbTransformer(self.provision, binary_attr_list, numeric_attr_list, categorical_attr_list)
         self.transformer.fit(attrvec_list, label_list)
 
         # pylint: disable=C0103
         X_train = self.transformer.transform(attrvec_list)
         y_train = label_list
 
+        # pylint: disable=fixme
         # TODO, jshaw, explore this more in future.
         # iterations = 50  (for 10 iteration, f1=0.91; for 50 iterations, f1=0.90,
         #                   for 5 iterations, f1=0,89),  So 10 iterations wins for now.
         # This shows that the "iteration" parameter probably needs tuning.
         iterations = 50  # 10 was jshaw
+        # pylint: disable=fixme
         # TODO, jshaw, uncomment in real code
         # parameters = {'alpha': 10.0 ** -np.arange(1, 5)}
         # parameters = {'alpha': 10.0 ** -np.arange(3, 4)}
@@ -97,7 +114,7 @@ class ShortcutClassifier(EbClassifier):
         #grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=2,
         #                           scoring='roc_auc', verbose=1, cv=group_kfold)
         grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=-1,
-                                   scoring='f1', verbose=1, cv=group_kfold)        
+                                   scoring='f1', verbose=1, cv=group_kfold)
 
         print("Performing grid search...")
         print("parameters:")
@@ -126,12 +143,20 @@ class ShortcutClassifier(EbClassifier):
         attrvec_list = eb_antdoc.get_attrvec_list()
         # print("attrvec_list.size = ", len(attrvec_list))
 
-        # sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
-        # overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
+        doc_text = eb_antdoc.text
+        sent_st_list = [doc_text[attrvec.start:attrvec.end]
+                        for attrvec in attrvec_list]
+        overrides = ebpostproc.gen_provision_overrides(self.provision,
+                                                       sent_st_list)
 
         # pylint: disable=C0103
         X_test = self.transformer.transform(attrvec_list)
         probs = self.eb_grid_search.predict_proba(X_test)[:, 1]
+
+        # do the override
+        for i, override in enumerate(overrides):
+            if override:
+                probs[i] = 1.0
 
         return probs
 
@@ -173,6 +198,7 @@ class ShortcutClassifier(EbClassifier):
         sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
 
+        # pylint: disable=fixme
         # TODO, jshaw
         # can remove sgd_preds and use 0.5 as the filter
         # sgd_preds = self.eb_grid_search.predict(attrvec_list)

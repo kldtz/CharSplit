@@ -33,6 +33,18 @@ PROVISION_THRESHOLD_MAP = {'change_control': 0.42,
                            'termination': 0.36,
                            'l_alterations': 0.3}
 
+PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
+                                     ebattrvec.PARTY_NUMERIC_ATTR_LIST,
+                                     ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
+                           'default': (ebattrvec.DEFAULT_BINARY_ATTR_LIST,
+                                       ebattrvec.DEFAULT_NUMERIC_ATTR_LIST,
+                                       ebattrvec.DEFAULT_CATEGORICAL_ATTR_LIST)}
+
+def get_transformer_attr_list_by_provision(provision: str):
+    if PROVISION_ATTRLISTS_MAP.get(provision):
+        return PROVISION_ATTRLISTS_MAP.get(provision)
+    return PROVISION_ATTRLISTS_MAP.get('default')
+
 
 class ProvisionClassifier(EbClassifier):
 
@@ -56,17 +68,22 @@ class ProvisionClassifier(EbClassifier):
 
         label_list = [self.provision in attrvec.labels for attrvec in attrvec_list]
 
+        # pylint: disable=fixme
         # TODO, jshaw, explore this more in future.
         # iterations = 50  (for 10 iteration, f1=0.91; for 50 iterations, f1=0.90,
         #                   for 5 iterations, f1=0,89),  So 10 iterations wins for now.
         # This shows that the "iteration" parameter probably needs tuning.
         iterations = 10
+
+        (binary_attr_list, numeric_attr_list, categorical_attr_list) = get_transformer_attr_list_by_provision(self.provision)
+        axx_transformer = EbTransformer(self.provision, binary_attr_list, numeric_attr_list, categorical_attr_list)
         pipeline = Pipeline([
-            ('eb_transformer', EbTransformer(provision=self.provision)),
+            ('eb_transformer', axx_transformer),
             ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=iterations,
                                   shuffle=True, random_state=42,
                                   class_weight={True: 10, False: 1}))])
 
+        # pylint: disable=fixme
         # TODO, jshaw, uncomment in real code
         # parameters = {'clf__alpha': 10.0 ** -np.arange(1, 5)}
         parameters = {'clf__alpha': 10.0 ** -np.arange(3, 4)}
@@ -107,9 +124,18 @@ class ProvisionClassifier(EbClassifier):
         attrvec_list = eb_antdoc.get_attrvec_list()
         # print("attrvec_list.size = ", len(attrvec_list))
 
-        # sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
-        # overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
+        doc_text = eb_antdoc.text
+        sent_st_list = [doc_text[attrvec.start:attrvec.end]
+                        for attrvec in attrvec_list]
+        overrides = ebpostproc.gen_provision_overrides(self.provision,
+                                                       sent_st_list)
+        
         probs = self.eb_grid_search.predict_proba(attrvec_list)[:, 1]
+
+        # do the override
+        for i, override in enumerate(overrides):
+            if override:
+                probs[i] = 1.0
 
         return probs
 
@@ -149,6 +175,7 @@ class ProvisionClassifier(EbClassifier):
         sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
 
+        # pylint: disable=fixme
         # TODO, jshaw
         # can remove sgd_preds and use 0.5 as the filter
         # sgd_preds = self.eb_grid_search.predict(attrvec_list)

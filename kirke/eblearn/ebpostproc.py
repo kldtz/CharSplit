@@ -1,16 +1,16 @@
 import re
 from abc import ABC, abstractmethod
-from collections import namedtuple
 from typing import List
 
 from kirke.utils import strutils
 from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
 
-# AntResult = namedtuple('AntResult', ['label', 'prob', 'start', 'end', 'text'])
-# xxxx namedtuple('AntResult', ['label', 'prob', 'start', 'end', 'text'])
+
+# pylint: disable=too-few-public-methods
 class AntResult:
 
+    # pylint: disable=too-many-arguments
     def __init__(self, label, prob, start, end, text):
         self.label = label
         self.prob = prob
@@ -25,15 +25,18 @@ class AntResult:
                 'end': self.end,
                 'text': self.text}
 
+
+# pylint: disable=too-few-public-methods
 class ConciseProbAttrvec:
 
+    # pylint: disable=too-many-arguments
     def __init__(self, prob, start, end, entities, text):
         self.prob = prob
         self.start = start
         self.end = end
         self.entities = entities
         self.text = text
-        
+
 
 def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
     return [ConciseProbAttrvec(prob,
@@ -44,6 +47,7 @@ def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
             for prob, attrvec in prob_attrvec_list]
 
 
+# pylint: disable=invalid-name
 def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list):
     # don't bother with len 1
     if len(cx_prob_attrvec_list) == 1:
@@ -86,8 +90,10 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
     return result
 
 
-"""
+# pylint: disable=fixme
 ## TODO, jshaw, should be removed because ebsent is no longer accessible in ebantdoc
+# pylint: disable=pointless-string-statement
+"""
 # pylint: disable=C0103
 def merge_ebsent_probs_with_entities(prob_ebsent_list):
     # don't bother with len 1
@@ -147,6 +153,7 @@ def gen_provision_overrides(provision, sent_st_list):
 
     provision_pattern = PROVISION_PAT_MAP.get(provision)
     for sent_idx, sent_st in enumerate(sent_st_list):
+        # pylint: disable=fixme
         toks = sent_st.split()   # TODO, a little repetitive, split again
         num_words = len(toks)
         num_numeric = sum(1 for tok in toks if strutils.is_number(tok))
@@ -166,16 +173,18 @@ class EbPostPredictProcessing(ABC):
     def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None):
         pass
 
-    
+
 # pylint: disable=R0903
 class DefaultPostPredictProcessing(EbPostPredictProcessing):
 
     def __init__(self):
         self.provision = 'default'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
-        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
@@ -185,6 +194,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                             prob=cx_prob_attrvec.prob,
                                             start=cx_prob_attrvec.start,
                                             end=cx_prob_attrvec.end,
+                                            # pylint: disable=line-too-long
                                             text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...').to_dict())
         return ant_result
 
@@ -199,7 +209,8 @@ class PostPredPartyProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'party'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -215,43 +226,16 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                     prob=cx_prob_attrvec.prob,
                                                     start=entity.start,
                                                     end=entity.end,
+                                                    # pylint: disable=line-too-long
                                                     text=strutils.remove_nltab(entity.text)).to_dict())
         return ant_result
 
-# pylint: disable=R0903
-class PostPredDateProc(EbPostPredictProcessing):
-
-    def __init__(self):
-        self.provision = 'date'
-
-    # TODO, jshaw, it seems that in the original code PythonClassifier.java
-    # the logic is to keep only the first date, not all dates in a doc
-    def post_process(self, doc_text, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
-        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
-        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
-
-        ant_result = []
-        for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
-                for entity in cx_prob_attrvec.entities:
-                    if entity.ner == EbEntityType.DATE.name:
-                        ant_result.append(AntResult(label=self.provision,
-                                                    prob=cx_prob_attrvec.prob,
-                                                    start=entity.start,
-                                                    end=entity.end,
-                                                    text=strutils.remove_nltab(entity.text)).to_dict())
-                        # return only 1 date
-                        return ant_result
-        return ant_result
-
-#       Pattern titleRE = Pattern.compile(
-#          "(?:exhibit \\d+\\.\\d+\\s+|this )?((?:.+? )?agreement)(?: \\(| is)?",
-#          Pattern.CASE_INSENSITIVE);
 
 # Note from PythonClassifier.java:
 # A title might optionally start with an Exhibit X.X number (for SEC contracts) or optionally
 # start with "this XXXX Agreement".  It may end (optionally) with the word agreement, and
 # with the word is or an open paren (for the defined term parentetical)
+# pylint: disable=line-too-long
 TITLE_PAT = re.compile(r'(?:exhibit \d+\.\d+\s+|this |\s*execution copy\s+)?((?:.+? )?agreement)(?: \(| is)?', re.IGNORECASE)
 
 class PostPredTitleProc(EbPostPredictProcessing):
@@ -259,7 +243,8 @@ class PostPredTitleProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'title'
 
-    def post_process(self, doc_text, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+    def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -280,17 +265,69 @@ class PostPredTitleProc(EbPostPredictProcessing):
         return ant_result
 
 
+# used by both PostPredDateProc, PostPredEffectiveDate
+def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold) -> ConciseProbAttrvec:
+    best_prob = 0
+    best = None
+    for cx_prob_attrvec in prob_attrvec_list:
+        if cx_prob_attrvec.prob >= threshold:   # this is not threshold from top
+            if cx_prob_attrvec.prob > best_prob:
+                best_prob = cx_prob_attrvec.prob
+                best = cx_prob_attrvec
+    return best
+
+
+# pylint: disable=R0903
 class PostPredBestDateProc(EbPostPredictProcessing):
+
+    def __init__(self, prov):
+        self.provision = prov
+        self.threshold = 0.1
+
+    # TODO, jshaw, it seems that in the original code PythonClassifier.java
+    # the logic is to keep only the first date, not all dates in a doc
+    def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+
+        best_date_sent = get_best_date(merged_prob_attrvec_list,
+                                       self.threshold)
+
+        ant_result = []
+        if best_date_sent:
+            for entity in best_date_sent.entities:
+                if entity.ner == EbEntityType.DATE.name:
+                    ant_rx = AntResult(label=self.provision,
+                                       prob=best_date_sent.prob,
+                                       start=entity.start,
+                                       end=entity.end,
+                                       # pylint: disable=line-too-long
+                                       text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
+                    ant_result.append(ant_rx)
+
+                    # print("post_process, bestDate({}) = {}".format(self.provision, ant_result))
+                    return ant_result
+
+        # print("post_process, bestDate2({}) = {}".format(self.provision, ant_result))
+        return ant_result
+
+
+class PostPredEffectiveDateProc(EbPostPredictProcessing):
 
     def __init__(self, prov_name):
         self.provision = prov_name
         self.threshold = 0.5
 
-    def post_process(self, doc_text, cx_prob_attrvec_list, threshold, provision=None) -> List[AntResult]:
+    def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
-        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
 
-        best_effectivedate_sent = self.get_best(merged_prob_attrvec_list)
+        best_effectivedate_sent = get_best_date(merged_prob_attrvec_list,
+                                                self.threshold)
 
         ant_result = []
         if best_effectivedate_sent:
@@ -306,38 +343,30 @@ class PostPredBestDateProc(EbPostPredictProcessing):
                                        prob=best_effectivedate_sent.prob,
                                        start=entity.start,
                                        end=entity.end,
+                                       # pylint: disable=line-too-long
                                        text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
                     if not first:
                         first = ant_rx
                     if has_prior_text_effective and not first_after_effective:
                         first_after_effective = ant_rx
-                        
+
             if first_after_effective:
                 ant_result.append(first_after_effective)
             elif first:
                 ant_result.append(first)
 
+        # print("post_process, effectivedate({}) = {}".format(self.provision, ant_result))
+
         return ant_result
 
-    def get_best(self, prob_attrvec_list: List[ConciseProbAttrvec]) -> ConciseProbAttrvec:
-        best_prob = 0
-        best = None
-        for cx_prob_attrvec in prob_attrvec_list:
-            if cx_prob_attrvec.prob >= self.threshold:   # this is not threshold from top
-                if cx_prob_attrvec.prob > best_prob:
-                    best_prob = cx_prob_attrvec.prob
-                    best = cx_prob_attrvec
-        return best
 
-    
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'party': PostPredPartyProc(),
     'title': PostPredTitleProc(),
-    # 'date': PostPredDateProc(),
     'date': PostPredBestDateProc('date'),
     'sigdate': PostPredBestDateProc('sigdate'),
-    'effectivedate': PostPredBestDateProc('effectivedate')
+    'effectivedate': PostPredEffectiveDateProc('effectivedate')
 }
 
 

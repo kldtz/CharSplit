@@ -3,7 +3,6 @@
 import csv
 import logging
 import math
-import sys
 import time
 from collections import defaultdict, namedtuple
 import operator
@@ -50,7 +49,8 @@ def entropy_by_freq_list_flat(freq_list):
         #    print("count = 0, val = {}".format(val))
     return -result
 
-CondCountTuple = namedtuple('CondCountTuple', ['condTTrue', 'condTFalse', 'condFTrue', 'condFFalse'])
+CondCountTuple = namedtuple('CondCountTuple', ['condTTrue', 'condTFalse',
+                                               'condFTrue', 'condFFalse'])
 
 def to_cond_count_map(true_count_map,
                       false_count_map,
@@ -69,10 +69,10 @@ def to_cond_count_map(true_count_map,
             cond_count_map[cond][True] = label_count
         cond_count_map[cond][False] = cond_count - label_count
     # print("cond_count_map = {}".format(cond_count_map))
-    result = CondCountTuple(cond_count_map[True].get(True, 0),
-                            cond_count_map[True].get(False, 0),
-                            cond_count_map[False].get(True, 0),
-                            cond_count_map[False].get(False, 0))
+    #result = CondCountTuple(cond_count_map[True].get(True, 0),
+    #                        cond_count_map[True].get(False, 0),
+    #                        cond_count_map[False].get(True, 0),
+    #                        cond_count_map[False].get(False, 0))
     # print("resut = {}".format(result))
     return cond_count_map
 
@@ -90,7 +90,7 @@ def to_cond_count_tuple(true_count_map,
             label_count = true_count_map
         else:
             label_count = false_count_map
-            
+
         if label_count != 0:
             cond_count_map[cond] = (label_count, cond_count - label_count)
         else:
@@ -119,24 +119,26 @@ def column_entropy_flat(cond_count_map):
     val_class_freq_map_wordt_classf = cond_count_map.condTFalse
     val_class_freq_map_wordf_classt = cond_count_map.condFTrue
     val_class_freq_map_wordf_classf = cond_count_map.condFFalse
-    
+
     val_count_map_wordt = cond_count_map.condTTrue + cond_count_map.condFTrue
     val_count_map_wordf = cond_count_map.condTFalse + cond_count_map.condFFalse
-    
+
     total = (cond_count_map.condTTrue + cond_count_map.condTFalse +
              cond_count_map.condFTrue + cond_count_map.condFFalse)
     # print('flat total = {}'.format(total))
-    
+
     # wordt
     ratio = val_count_map_wordt / total
-    entropy_i = entropy_by_freq_list_flat([val_class_freq_map_wordt_classt, val_class_freq_map_wordf_classt])
+    entropy_i = entropy_by_freq_list_flat([val_class_freq_map_wordt_classt,
+                                           val_class_freq_map_wordf_classt])
     result = ratio * entropy_i
     #print("flat %s ratio = %.2f" % (True, ratio))
     #print("flat entropy = %.2f" % entropy_i)
 
     # wordf
     ratio = val_count_map_wordf / total
-    entropy_i = entropy_by_freq_list_flat([val_class_freq_map_wordt_classf, val_class_freq_map_wordf_classf])
+    entropy_i = entropy_by_freq_list_flat([val_class_freq_map_wordt_classf,
+                                           val_class_freq_map_wordf_classf])
 
     #print("flat2 %s ratio = %.2f" % (False, ratio))
     #print("flat2 entropy = %.2f" % entropy_i)
@@ -190,6 +192,8 @@ def eb_doc_to_all_ngrams(sent_st):
 # doc is a st
 # tokenize is the tokenizing function, such as eb_doc_to_all_ngrams() above
 # pylint: disable=R0914
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-statements
 def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, provision='default'):
 
     word_freq_map = defaultdict(int)
@@ -197,7 +201,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
         doc_tokens = tokenize(doc_st)
         for word in doc_tokens:
             word_freq_map[word] += 1
-    logging.debug("len(word_freq_map) = {}".format(len(word_freq_map)))
+    logging.debug("len(word_freq_map) = %d", len(word_freq_map))
 
     vocabs = set([])
     word_count = 0
@@ -205,7 +209,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
     for word, freq in sorted(word_freq_map.items(), key=operator.itemgetter(1), reverse=True):
         word_count += 1
         if word_count > vocab_size_times_10:
-            logging.debug("skipping word with freq less than {}".format(freq)) 
+            logging.debug("skipping word with freq less than %d", freq)
             break
         # print('adding vocab: [{}], freq= {}'.format(word, freq))
         vocabs.add(word)
@@ -238,7 +242,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
 
     #for freq, count in sorted(wf_count_map.items(), key=operator.itemgetter(1)):
     #    print("wf_count_map[{}] = {}".format(freq, count))
-    
+
     # print("word_docids_map[Change] = {}".format(word_docids_map['Change']))
     logging.debug("igain.vocab size = %d", len(vocabs))
 
@@ -297,6 +301,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
 
     top_ig_ngram_list = [word for ig, word in sorted(result, reverse=True)][:wanted_vocab_size]
 
+    # pylint: disable=pointless-string-statement
     """
     MAX_NUM_SKIP_UNIGRAM = 175
     count_top_ig_unigram = 0
@@ -312,11 +317,15 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
         top_ig_ngram_list.append(word)
         count_top_ig_skipgram += 1
 
-    print('len(top_ig_ngram_list_old = {}, {}'.format(len(top_ig_ngram_list_old), top_ig_ngram_list_old[3]))
-    print('len(top_ig_ngram_list = {}, {}'.format(len(top_ig_ngram_list), top_ig_ngram_list[3]))
-    print('len(count_to_ig_unigram_list = {}, {}'.format(len(top_ig_unigram_list), top_ig_unigram_list))
+    print('len(top_ig_ngram_list_old = {}, {}'.
+          format(len(top_ig_ngram_list_old), top_ig_ngram_list_old[3]))
+    print('len(top_ig_ngram_list = {}, {}'.
+          format(len(top_ig_ngram_list), top_ig_ngram_list[3]))
+    print('len(count_to_ig_unigram_list = {}, {}'.
+          format(len(top_ig_unigram_list), top_ig_unigram_list))
     return top_ig_ngram_list, top_ig_unigram_list
     """
+
     return top_ig_ngram_list
 
 
@@ -372,6 +381,7 @@ def read_eb_sents_to_word_label_count_map(file_name):
     return vocab, cond_dist, word_label_count_map
 
 
+# pylint: disable=fixme
 # TODO, jsahw
 # Is this function ever called?
 # pylint: disable=C0103

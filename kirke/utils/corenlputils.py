@@ -8,8 +8,8 @@ from kirke.utils.corenlpsent import EbSentence, eb_tokens_to_st
 NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
 
 
-# http://stanfordnlp.github.io/CoreNLP/ner.html#sutime        
-# Using default NER models, 
+# http://stanfordnlp.github.io/CoreNLP/ner.html#sutime
+# Using default NER models,
 # By default, the models used will be the 3class, 7class,
 # and MISCclass models, in that order.
 # We should use 3class first because of the reason stated in
@@ -31,18 +31,18 @@ def annotate(text_as_string):
 
 def annotate_for_enhanced_ner(text_as_string):
     return annotate(transform_corp_in_text(text_as_string))
-    
+
 CORP_EXPR = r"(,\s*|\b)(inc|corp|llc|ltd)\b"
 NOSTRIP_SET = set(["ltd"])
 CORP_PAT = re.compile(CORP_EXPR, re.IGNORECASE)
 
 def transform_corp_in_text(raw_text):
+
     def inplace_str_sub(match):
         if match.group(2).lower() in NOSTRIP_SET:
             return match.group(1) + match.group(2).capitalize()
-        else:
-            return match.group(1).replace(',', ' ') + match.group(2).capitalize()
-            
+        return match.group(1).replace(',', ' ') + match.group(2).capitalize()
+
     return CORP_PAT.sub(inplace_str_sub, raw_text)
 
 
@@ -61,23 +61,16 @@ def is_sent_starts_with_lower(ebsent_list, sent_idx):
 PAGE_NUMBER_PAT = re.compile(r'^(\d+|(page\s+)?\-?\s*\d+\s*\-?)$', re.IGNORECASE)
 
 
-def is_page_number_st(xst):
-    return PAGE_NUMBER_PAT.match(xst)
-
-
-def is_sent_page_number(ebsent_list, sent_idx):
+def is_sent_page_number(ebsent_list, sent_idx, doc_text):
     num_sent = len(ebsent_list)
     if sent_idx < num_sent:
-        # get first character of the sentence
-        tokens = ebsent_list[sent_idx].get_tokens()
         # n
         # -n-
         # page n
         # page -n-
-        if len(tokens) < 5:
-            page_num_st = eb_tokens_to_st(tokens)
-            if is_page_number_st(page_num_st):
-                return True
+        ebsent = ebsent_list[sent_idx]
+        sent_txt = doc_text[ebsent.start:ebsent.end]
+        return PAGE_NUMBER_PAT.match(sent_txt)
     return False
 
 
@@ -91,6 +84,7 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
         # print("ebsent #{}: {}".format(sent_idx, ebsent))
         # sent_st = ebsent.get_text()
         sent_st = atext[ebsent.get_start():ebsent.get_end()]
+        # pylint: disable=fixme
         if sent_st:  # TODO: jshaw, a bug, not sure how this is possible
                      # 36973.clean.txt
             last_char = sent_st[-1]
@@ -101,8 +95,9 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
                     ebsent.extend_tokens(ebsent_list[sent_idx+1].get_tokens(),
                                          atext)
                     sent_idx += 1
-                elif (is_sent_page_number(ebsent_list, sent_idx+1) and
-                      is_sent_starts_with_lower(ebsent_list, sent_idx+1)):
+                elif is_sent_page_number(ebsent_list, sent_idx+1, atext) and sent_idx + 2 < num_sent:
+                #elif (is_sent_page_number(ebsent_list, sent_idx+1, atext) and
+                #      is_sent_starts_with_lower(ebsent_list, sent_idx+1)):
                     # throw away the page number tokens
                     ebsent.extend_tokens(ebsent_list[sent_idx+2].get_tokens(),
                                          atext)

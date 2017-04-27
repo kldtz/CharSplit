@@ -8,6 +8,7 @@ class EbEntityType(Enum):
     ORGANIZATION = 2
     LOCATION = 3
     DATE = 4
+    DEFINE_TERM = 5
 
 EB_PROVISION_ST_LIST = ['party', 'date', 'title', 'change_control', 'assign',
                         'indemnify', 'sublicense', 'securities_transfer',
@@ -137,7 +138,7 @@ def load_prov_ebdata(filename, provision_name=None):
     is_test_set = False
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
-        for prov, ajson_list in parsed['ants'].items():
+        for _, ajson_list in parsed['ants'].items():
             # print("ajson_map: {}".format(ajson_map))
             for ajson in ajson_list:
                 eb_ant = EbProvisionAnnotation(ajson)
@@ -147,7 +148,8 @@ def load_prov_ebdata(filename, provision_name=None):
 
     # if provision_name is specified, only return that specific provision
     if provision_name:
-        return [provision_se for provision_se in result if provision_se.label == provision_name], is_test_set
+        return [provision_se for provision_se in result
+                if provision_se.label == provision_name], is_test_set
 
     return result, is_test_set
 

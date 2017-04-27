@@ -16,7 +16,7 @@ categorical_indices = list(range(10, 18))
 binary_indices.extend(list(range(24, 32)))
 """
 
-attr_type_st_list = [
+DEFAULT_ATTR_TYPE_ST_LIST = [
     'has_organization:bool', 'has_location:bool',
     'has_person:bool', 'has_date:bool',
     'contains_prep_phrase:bool',
@@ -37,11 +37,11 @@ attr_type_st_list = [
 
 # lemma as text/bag-of-words give 3% worse result
 # now use corenlp token instead
-misc_attr_type_st_list = [
-    'bag-of-words:string', 'labels:string-list',
-    'entities:other']
+#MISC_ATTR_TYPE_ST_LIST = [
+#    'bag-of-words:string', 'labels:string-list',
+#    'entities:other']
 
-extra_party_attr_type_st_list = [
+EXTRA_PARTY_ATTR_TYPE_ST_LIST = [
     'is-1-num-define-party:bool',
     'is-2-num-define-party:bool',
     'is-ge2-num-define-party:bool',
@@ -49,50 +49,56 @@ extra_party_attr_type_st_list = [
     'has-define-agreement:bool',
     'has-word-between:bool']
 
-default_attr_type_st_list = attr_type_st_list + misc_attr_type_st_list
-default_attr_type_list = [tuple(attr_type.split(':')) for attr_type
-                          in default_attr_type_st_list]
-default_attr_st_list = [attr_type[0] for attr_type
-                        in default_attr_type_list]
+DEFAULT_ATTR_TYPE_LIST = [tuple(attr_type.split(':')) for attr_type
+                          in DEFAULT_ATTR_TYPE_ST_LIST]
+DEFAULT_ATTR_ST_LIST = [attr_type[0] for attr_type
+                        in DEFAULT_ATTR_TYPE_LIST]
 
-party_attr_type_st_list = (attr_type_st_list + extra_party_attr_type_st_list +
-                           misc_attr_type_st_list)
-party_attr_type_list = [tuple(attr_type.split(':')) for attr_type
-                        in party_attr_type_st_list]
-party_attr_st_list = [attr_type[0] for attr_type
-                      in party_attr_type_list]
+PARTY_ATTR_TYPE_ST_LIST = DEFAULT_ATTR_TYPE_ST_LIST + EXTRA_PARTY_ATTR_TYPE_ST_LIST
+PARTY_ATTR_TYPE_LIST = [tuple(attr_type.split(':')) for attr_type
+                        in PARTY_ATTR_TYPE_ST_LIST]
+PARTY_ATTR_ST_LIST = [attr_type[0] for attr_type
+                      in PARTY_ATTR_TYPE_LIST]
 
-binary_attr_list = [attr_type[0] for attr_type
-                    in party_attr_type_list if attr_type[1] == 'bool']
-numeric_attr_list = [attr_type[0] for attr_type
-                    in party_attr_type_list if attr_type[1] == 'numeric']
-categorical_attr_list = [attr_type[0] for attr_type
-                    in party_attr_type_list if attr_type[1] == 'categorical']
-string_attr_list = [attr_type[0] for attr_type
-                    in party_attr_type_list if attr_type[1] == 'string']
-string_list_attr_list = [attr_type[0] for attr_type
-                    in party_attr_type_list if attr_type[1] == 'string-list']
-other_attr_list = [attr_type[0] for attr_type
-                    in party_attr_type_list if attr_type[1] not in ['bool',
-                                                                    'numeric',
-                                                                    'categorical',
-                                                                    'string',
-                                                                    'string-list']]
+DEFAULT_BINARY_ATTR_LIST = [attr_type[0] for attr_type
+                            in DEFAULT_ATTR_TYPE_LIST
+                            if attr_type[1] == 'bool']
+DEFAULT_NUMERIC_ATTR_LIST = [attr_type[0] for attr_type
+                             in DEFAULT_ATTR_TYPE_LIST
+                             if attr_type[1] == 'numeric']
+DEFAULT_CATEGORICAL_ATTR_LIST = [attr_type[0] for attr_type
+                                 in DEFAULT_ATTR_TYPE_LIST
+                                 if attr_type[1] == 'categorical']
+
+PARTY_BINARY_ATTR_LIST = [attr_type[0] for attr_type
+                          in PARTY_ATTR_TYPE_LIST
+                          if attr_type[1] == 'bool']
+PARTY_NUMERIC_ATTR_LIST = [attr_type[0] for attr_type
+                           in PARTY_ATTR_TYPE_LIST
+                           if attr_type[1] == 'numeric']
+PARTY_CATEGORICAL_ATTR_LIST = [attr_type[0] for attr_type
+                               in PARTY_ATTR_TYPE_LIST if
+                               attr_type[1] == 'categorical']
 
 
-print("default_attr_st_list: {}".format(default_attr_st_list))
-print("party_attr_st_list: {}".format(party_attr_st_list))
+# print("default_attr_st_list: {}".format(DEFAULT_ATTR_ST_LIST))
+# print("party_attr_st_list: {}".format(PARTY_ATTR_ST_LIST))
 
-print("binary_attr_list: {}".format(binary_attr_list))
-print("numeric_attr_list: {}".format(numeric_attr_list))
-print("categorical_attr_list: {}".format(categorical_attr_list))
-print("string_attr_list: {}".format(string_attr_list))
-print("string_list_attr_list: {}".format(string_list_attr_list))
-print("other_attr_list: {}".format(other_attr_list))
-    
+# print("default_binary_attr_list: {}".format(DEFAULT_BINARY_ATTR_LIST))
+# print("default_numeric_attr_list: {}".format(DEFAULT_NUMERIC_ATTR_LIST))
+# print("default_categorical_attr_list: {}".format(DEFAULT_CATEGORICAL_ATTR_LIST))
+
+# print("party_binary_attr_list: {}".format(PARTY_BINARY_ATTR_LIST))
+# print("party_numeric_attr_list: {}".format(PARTY_NUMERIC_ATTR_LIST))
+# print("party_categorical_attr_list: {}".format(PARTY_CATEGORICAL_ATTR_LIST))
+
+
 # replacing sent2attrs
 class EbAttrVec:
+    """Store values representing a sentence.  It is the major part
+       of ebantdoc"""
 
+    # pylint: disable=too-many-arguments
     def __init__(self, file_id, start, end, sent_text, labels, entities):
         self.file_id = file_id
         self.start = start  # this differs from ent_start, which can be chopped
@@ -102,11 +108,13 @@ class EbAttrVec:
         self.entities = entities
 
     def get_val(self, attr_name):
+        """Return value of the attribute"""
         return getattr(self, attr_name)
 
     def set_val(self, attr, val):
+        """Set value of the attribute"""
         setattr(self, attr, val)
 
     def set_val_yesno(self, attr, val):
+        """Convert val to boolean before set it"""
         setattr(self, attr, bool(val))
-

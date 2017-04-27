@@ -96,9 +96,23 @@ class ProvisionAnnotator:
 
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
 
+        """
+        if self.provision == 'date':
+            doc_text = eb_antdoc.text
+            for i, (attrvec, prob) in enumerate(zip(attrvec_list, prob_list), 1):
+                if i < 10:
+                    start = attrvec.start
+                    end = attrvec.end
+                    print("{}. date, {}, {}, {}".format(i, prob, doc_text[start:end], len(attrvec.entities)))
+                    for entity in attrvec.entities:
+                        print("     {}".format(entity))
+                else:
+                    break
+        """
 
-        print("ebannotator({}).threshold = {}".format(self.provision,
-                                                      self.threshold))
+        #print("ebannotator({}).threshold = {}".format(self.provision,
+        #self.threshold))
+
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
         prov_annotations = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.text,

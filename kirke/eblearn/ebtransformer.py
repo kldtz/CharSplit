@@ -8,7 +8,7 @@ from scipy import sparse
 from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from kirke.eblearn import igain, ebattrvec, bigramutils
+from kirke.eblearn import igain, bigramutils
 from kirke.utils import stopwordutils, strutils
 
 
@@ -29,9 +29,13 @@ class EbTransformer(BaseEstimator, TransformerMixin):
     transform_count = 0
 
     """Transform a list ebantdoc to matrix."""
-    def __init__(self, provision):
+    def __init__(self, provision, binary_attr_list, numeric_attr_list, categorical_attr_list):
         # provision is needed because of infogain computation need to know the classes
         self.provision = provision
+        self.binary_attr_list = binary_attr_list
+        self.numeric_attr_list = numeric_attr_list
+        self.categorical_attr_list = categorical_attr_list
+
         self.cols_to_keep = []   # used in remove_zero_columns
 
         self.min_max_scaler = preprocessing.MinMaxScaler()
@@ -81,20 +85,17 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         num_rows = len(attrvec_list)
 
         # handle numeric_matrix and categorical_matrix
-        # binary_indices = ebattrvec.BINARY_INDICES
-        # numeric_indices = ebattrvec.NUMERIC_INDICES
-        # categorical_indices = ebattrvec.CATEGORICAL_INDICES
         numeric_matrix = np.zeros(shape=(num_rows,
-                                         len(ebattrvec.binary_attr_list) +
-                                         len(ebattrvec.numeric_attr_list)))
+                                         len(self.binary_attr_list) +
+                                         len(self.numeric_attr_list)))
         categorical_matrix = np.zeros(shape=(num_rows,
-                                             len(ebattrvec.categorical_attr_list)))
+                                             len(self.categorical_attr_list)))
         for instance_i, attrvec in enumerate(attrvec_list):
-            for ibin, binary_attr in enumerate(ebattrvec.binary_attr_list):
+            for ibin, binary_attr in enumerate(self.binary_attr_list):
                 numeric_matrix[instance_i, ibin] = strutils.bool_to_int(attrvec.get_val(binary_attr))
-            for inum, numeric_attr in enumerate(ebattrvec.numeric_attr_list):
-                numeric_matrix[instance_i, len(ebattrvec.binary_attr_list) + inum] = attrvec.get_val(numeric_attr)
-            for icat, cat_attr in enumerate(ebattrvec.categorical_attr_list):
+            for inum, numeric_attr in enumerate(self.numeric_attr_list):
+                numeric_matrix[instance_i, len(self.binary_attr_list) + inum] = attrvec.get_val(numeric_attr)
+            for icat, cat_attr in enumerate(self.categorical_attr_list):
                 categorical_matrix[instance_i, icat] = attrvec.get_val(cat_attr)
         if fit_mode:
             numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)

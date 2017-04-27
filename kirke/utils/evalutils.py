@@ -43,21 +43,6 @@ def calc_precision_recall_f1(tn, fp, fn, tp, title):
 
 AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
 
-"""
-# pylint: disable=R0903
-class AnnotationWithProb:
-    __slots__ = 
-
-    def __init__(self, label, start, end, prob):
-        self.label = label
-        self.start = start
-        self.end = end
-        self.prob = prob
-
-    def __repr__(self):
-        return "AnnotationWithProb('{}', {}, {}, {})".format(self.label, self.start,
-                                                             self.end, self.prob)
-"""
 
 # pylint: disable=R0914
 def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_mode=False):

@@ -111,8 +111,7 @@ def is_all_dash_underline(xst):
 def bool_to_int(bxx):
     if bxx:
         return 1
-    else:
-        return 0
+    return 0
 
 
 def yesno_to_int(xst):
