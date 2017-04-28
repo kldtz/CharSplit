@@ -20,7 +20,7 @@ from kirke.utils import osutils, strutils
 # import ebrevia.learn.learner as learner
 
 # NOTE: Remove the following line to get rid of all logging messages
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
 app.config['PROPAGATE_EXCEPTIONS'] = True
