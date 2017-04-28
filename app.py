@@ -20,11 +20,7 @@ from kirke.utils import osutils, strutils
 # import ebrevia.learn.learner as learner
 
 # NOTE: Remove the following line to get rid of all logging messages
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# TODO: jshaw
-# EB_MODELS is really MODEL_DIR
-# Need to standardize this
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
 app.config['PROPAGATE_EXCEPTIONS'] = True
@@ -36,10 +32,8 @@ print("eb files is: ", eb_files)
 
 # classifiers
 WORK_DIR = 'data-from-web'
-# MODEL_DIR = 'sample_data2.model'
-# CUSTOM_MODEL_DIR = 'sample_data2.custmodel'
-MODEL_DIR = 'dir-scut-model'
-CUSTOM_MODEL_DIR = 'dir-custom-model'
+MODEL_DIR = eb_models
+CUSTOM_MODEL_DIR = eb_files + 'pymodel'
 osutils.mkpath(WORK_DIR)
 osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
@@ -48,90 +42,57 @@ eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 
 @app.route('/annotate-doc', methods=['POST'])
 def annotate_uploaded_document():
+    request_work_dir = request.form.get('workdir')
+    if request_work_dir:
+        work_dir = request_work_dir
+        print("work_dir = {}".format(work_dir))
+        osutils.mkpath(work_dir)
+    else:
+        work_dir = WORK_DIR
+
     request_file_name = request.files['file'].filename
     if request_file_name:
         if not request_file_name.endswith('.txt'):
             request_file_name += '.txt'
         txt_basename = os.path.basename(request_file_name)
-        file_name = os.path.normpath(os.path.join(WORK_DIR, txt_basename))
+        file_name = os.path.normpath(os.path.join(work_dir, txt_basename))
     else:
-        file_name = tempfile.NamedTemporaryFile(dir=WORK_DIR).name + '.txt'
+        file_name = tempfile.NamedTemporaryFile(dir=work_dir).name + '.txt'
 
     request.files['file'].save(file_name)
     provisions_st = request.form.get('types')
     provision_set = set(provisions_st.split(',') if provisions_st else [])
 
+
     # print("got provision_set: {}".format(sorted(provision_set)))
-    """
-    if "date" in provision_set:        
-        provision_set.add('sigdate')
-        provision_set.add('effectivedate')
-    if "effectivedate_auto" in provision_set:        
-        provision_set.remove('effectivedate_auto')
-        provision_set.add('effectivedate')
-    """
-    # it is not an issue if they are duplicated
+    provision_set.add('date')
     provision_set.add('sigdate')
     provision_set.add('effectivedate')
-    provision_set.add('date')
-    provision_set.remove('effectivedate_auto')
+    if "effectivedate_auto" in provision_set:
+        provision_set.remove('effectivedate_auto')
 
-    """
-    provision_set = set(['amending_agreement', 'arbitration', 'assign',
-                         'change_control', 'choiceoflaw', 'confidentiality',
-                         'date', 'equitable_relief', 'events_default', 'exclusivity',
-                         'indemnify', 'insurance', 'jurisdiction',
-                         'limliability', 'nonsolicit', 'party',
-                         'preamble', 'renewal', 'sublicense', 'survival',
-                         'termination', 'term'])
-    print("reset provision_set: {}".format(provision_set))
-    """
-
-    prov_labels_map, doc_text = eb_runner.annotate_document(file_name, provision_set=provision_set)
+    prov_labels_map, doc_text = eb_runner.annotate_document(file_name, provision_set=provision_set, work_dir=work_dir)
     ebannotations = {'ebannotations': prov_labels_map}
     # pprint(prov_labels_map)
-    pprint(ebannotations)
+    # pprint(ebannotations)
+
     return json.dumps(ebannotations)
-    # print("simple stuff: type({})".format(type(prov_labels_map)))
-    # print("simple stuff: {}".format(json.dumps(prov_labels_map)))
-    # print("complex stuff: {}".format(jsonify(prov_labels_map)))
-    # return json.dumps(prov_labels_map)
-    # return jsonify(prov_labels_map)
-
-
-@app.route('/cust-train/<cust_id>', methods=['POST'])
-def cust_train(cust_id):
-    name = 'cust_' + cust_id
-    train_file = eb_files + 'models/sentencesV1_cust_' + cust_id + '.arff'
-    test_file = eb_files + 'models/test-data/sentencesV1_cust_' + cust_id + '.arff'
-    provisions = [name]
-    fname = prefix + 'learner_cust_' + cust_id + '.pkl'
-
-    newL = learner.Learner(prefix, False)
-    newL.train(train_file, test_file, provisions)
-    newL.save(fname)
-
-    # add learner to running set of classifiers
-    found = False
-    for i, l in enumerate(ls):
-        if name in l.clfs.keys():
-            print("REPLACING CLASSIFIER")
-            ls[i] = newL
-            found = True
-    if not found:
-        print("ADDING CLASSIFIER")
-        ls.append(newL)
-
-    # return some json accuracy info
-    return jsonify(newL.clfs[name].sgdClassifier.stats)
 
 
 @app.route('/custom-train/<cust_id>', methods=['POST'])
 def custom_train(cust_id):
+    request_work_dir = request.form.get('workdir')
+    if request_work_dir:
+        work_dir = request_work_dir
+        print("work_dir = {}".format(work_dir))
+        osutils.mkpath(work_dir)
+    else:
+        work_dir = WORK_DIR
+
     # to ensure that no accidental file name overlap
     print("cust_id = {}".format(cust_id))
     provision = 'cust_{}'.format(cust_id)
-    tmp_dir = '{}/{}'.format(WORK_DIR, provision)
+    tmp_dir = '{}/{}'.format(work_dir, provision)
     osutils.mkpath(tmp_dir)
     fn_list = request.files.getlist('file')
     ant_fnames = []
@@ -143,8 +104,8 @@ def custom_train(cust_id):
         elif name.endswith('.txt'):
             txt_fnames.append(name)
             full_txt_fnames.append('{}/{}'.format(tmp_dir, name))
-    print("txt_fnames (size={}) = {}".format(len(txt_fnames), txt_fnames))
-    print("ant_fnames (size={})= {}".format(len(ant_fnames), ant_fnames))
+    # print("txt_fnames (size={}) = {}".format(len(txt_fnames), txt_fnames))
+    # print("ant_fnames (size={})= {}".format(len(ant_fnames), ant_fnames))
 
     # name2 = request.form.get('custom_id')
     # print("name2 = {}".format(name2))
@@ -154,7 +115,7 @@ def custom_train(cust_id):
 
     for fstorage in fn_list:
         fn = '{}/{}'.format(tmp_dir, fstorage.filename)
-        print("saving file '{}'".format(fn))
+        # print("saving file '{}'".format(fn))
         fstorage.save(fn)
     txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames.list')
     strutils.dumps('\n'.join(full_txt_fnames), txt_fn_list_fn)
@@ -165,7 +126,8 @@ def custom_train(cust_id):
     # Following the logic in the original code.
     eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                                 provision,
-                                                                CUSTOM_MODEL_DIR)
+                                                                CUSTOM_MODEL_DIR,
+                                                                work_dir=work_dir)
     # copy the result into the expected format for client
     pred_status = eval_status['pred_status']['pred_status']
     cf = pred_status['confusion_matrix']

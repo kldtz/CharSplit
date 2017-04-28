@@ -115,8 +115,8 @@ class EbRunner:
     def run_annotators_in_parallel(self, eb_antdoc, provision_set=None):
         if not provision_set:
             provision_set = self.provisions
-        else:
-            logging.info("user specified provision list: %s", provision_set)
+        #else:
+        #    logging.info("user specified provision list: %s", provision_set)
 
         annotations = {}
         with concurrent.futures.ThreadPoolExecutor(8) as executor:
@@ -130,14 +130,17 @@ class EbRunner:
                 annotations[provision] = data
         return annotations
 
-    def annotate_document(self, file_name, provision_set=None):
+    def annotate_document(self, file_name, provision_set=None, work_dir=None):
         time1 = time.time()
         if not provision_set:
             provision_set = self.provisions
-        else:
-            logging.info('user specified provision list: %s', provision_set)            
+        #else:
+        #    logging.info('user specified provision list: %s', provision_set)
 
-        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, self.work_dir)
+        if not work_dir:
+            work_dir = self.work_dir
+
+        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, work_dir)
 
         # this execute the annotators in parallel
         ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_set)
@@ -164,7 +167,7 @@ class EbRunner:
         ant_result_dict['sigdate'] = []
 
         time2 = time.time()
-        logging.info('annotate_document() took %0.3f ms', ((time2 - time1) * 1000.0, ))
+        logging.info('annotate_document(%s) took %0.3f ms', file_name, (time2 - time1) * 1000.0)
         return ant_result_dict, eb_antdoc.text
 
     
@@ -206,18 +209,20 @@ class EbRunner:
     #
     # pylint: disable=C0103
     def custom_train_provision_and_evaluate(self, txt_fn_list, provision,
-                                            custom_model_dir):
+                                            custom_model_dir, work_dir=None):
 
         logging.info("txt_fn_list_fn: %s", txt_fn_list)
 
         model_file_name = '{}/{}_scutclassifier.pkl'.format(custom_model_dir,
                                                             provision)
         logging.info("custom_mode_file: %s", model_file_name)
+        if not work_dir:
+            work_dir = self.work_dir
 
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
         eb_annotator = ebtrainer.train_eval_annotator(provision,
                                                       txt_fn_list,
-                                                      self.work_dir,
+                                                      work_dir,
                                                       custom_model_dir,
                                                       model_file_name,
                                                       eb_classifier,
