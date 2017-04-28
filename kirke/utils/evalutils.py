@@ -191,9 +191,7 @@ def calc_doc_ant_confusion_matrix_precx2(prov_human_ant_list, ant_list, txt, dia
 #
 # utilities
 #
-# pylint: disable=W0613
-def print_with_threshold(probs, y_te, overrides):
-    pass
+
 
 # pylint: disable=W0105
 """
@@ -347,8 +345,7 @@ def calc_prob_override_status(probs, y_te, threshold, overrides):
     tn, fp, fn, tp = 0, 0, 0, 0
 
     for i, prob in enumerate(list(probs)):
-        override = overrides[i]
-        pred = prob >= threshold or override
+        pred = (prob + overrides[i]) >= threshold
         if y_te[i] == 1:
             if pred:
                 tp += 1

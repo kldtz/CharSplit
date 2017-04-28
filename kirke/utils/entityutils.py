@@ -52,3 +52,35 @@ def extract_define_party(line: str, start_offset=0):
     #    print("xxx {}".format(atuple))
 
     return result
+
+
+
+US_STATE_LIST = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+
+US_STATES_ST = r'\b(' + '|'.join([state.lower() for state in US_STATE_LIST]) + r')\b'
+
+US_STATES_PAT = re.compile(r'\b(' + '|'.join([state.lower() for state in US_STATE_LIST]) + r')\b', re.IGNORECASE)
+# print("states = {}".format(US_STATES_ST))
+
+def extract_states(line):
+    state_list = []
+    for m in US_STATES_PAT.finditer(line):
+        start = m.start(1)
+        end = m.end(1)
+        # print("found ({}, {}) [{}]".format(start, end, az_st[start:end]))
+        state_list.append((start, end, m.group(1)))
+    return state_list
+
+
+def extract_unique_states(line):
+    state_list = []
+    found_state_set = set([])
+    for m in US_STATES_PAT.finditer(line):
+        start = m.start(1)
+        end = m.end(1)
+        state = m.group(1)
+        # print("found ({}, {}) [{}]".format(start, end, az_st[start:end]))
+        if state not in found_state_set:
+            state_list.append((start, end, state))
+            found_state_set.add(state)
+    return state_list

@@ -256,10 +256,13 @@ def calc_scut_predict_evaluate(scut_classifier, attrvec_list, y_pred, y_te):
     sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
     overrides = ebpostproc.gen_provision_overrides(scut_classifier.provision, sent_st_list)
 
+    threshold = scut_classifier.threshold
+
     scut_classifier.pred_status['classifer_type'] = 'scutclassifier'
     scut_classifier.pred_status['pred_status'] = evalutils.calc_pred_status_with_prob(y_pred, y_te)
     scut_classifier.pred_status['override_status'] = (
-        evalutils.calc_pred_override_status(y_pred, y_te, overrides))
+        # evalutils.calc_pred_override_status(y_pred, y_te, overrides))
+        evalutils.calc_prob_override_status(y_pred, y_te, threshold, overrides))
     scut_classifier.pred_status['best_params_'] = scut_classifier.best_parameters
 
     return scut_classifier.pred_status

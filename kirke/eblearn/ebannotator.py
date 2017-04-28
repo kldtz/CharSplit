@@ -96,6 +96,7 @@ class ProvisionAnnotator:
 
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
 
+        # TODO, jshaw, can be removed if wanted
         """
         if self.provision == 'date':
             doc_text = eb_antdoc.text

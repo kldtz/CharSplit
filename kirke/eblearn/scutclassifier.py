@@ -146,8 +146,7 @@ class ShortcutClassifier(EbClassifier):
         doc_text = eb_antdoc.text
         sent_st_list = [doc_text[attrvec.start:attrvec.end]
                         for attrvec in attrvec_list]
-        overrides = ebpostproc.gen_provision_overrides(self.provision,
-                                                       sent_st_list)
+        overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
 
         # pylint: disable=C0103
         X_test = self.transformer.transform(attrvec_list)
@@ -155,8 +154,9 @@ class ShortcutClassifier(EbClassifier):
 
         # do the override
         for i, override in enumerate(overrides):
-            if override:
-                probs[i] = 1.0
+            if override != 0.0:
+                probs[i] += override
+                probs[i] = min(probs[i], 1.0)
 
         return probs
 
@@ -254,7 +254,6 @@ class ShortcutClassifier(EbClassifier):
         """
 
         # print("probs: {}".format(sorted(probs, reverse=True)))
-        evalutils.print_with_threshold(probs, y_te, overrides)
 
         self.pred_status['classifer_type'] = 'scutclassifier'
         self.pred_status['pred_status'] = evalutils.calc_pred_status_with_prob(probs, y_te)

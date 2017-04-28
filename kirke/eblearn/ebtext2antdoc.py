@@ -312,7 +312,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
                                 if prov_ant_file.is_file() else [])
     elif os.path.exists(prov_ebdata_fn):
         prov_annotation_list, is_test = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
-                                         if prov_ebdata_file.is_file() else [])
+                                         if prov_ebdata_file.is_file() else ([], False))
 
 
     ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, atext)

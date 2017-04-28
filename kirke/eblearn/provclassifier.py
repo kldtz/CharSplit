@@ -134,8 +134,9 @@ class ProvisionClassifier(EbClassifier):
 
         # do the override
         for i, override in enumerate(overrides):
-            if override:
-                probs[i] = 1.0
+            if override != 0.0:
+                probs[i] += override
+                probs[i] = min(probs[i], 1.0)
 
         return probs
 
@@ -231,7 +232,6 @@ class ProvisionClassifier(EbClassifier):
         """
 
         # print("probs: {}".format(sorted(probs, reverse=True)))
-        evalutils.print_with_threshold(probs, y_te, overrides)
 
         self.pred_status['classifer_type'] = 'provclassifier'
         self.pred_status['pred_status'] = evalutils.calc_pred_status_with_prob(probs, y_te)

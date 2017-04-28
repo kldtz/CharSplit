@@ -2,9 +2,23 @@ import re
 from abc import ABC, abstractmethod
 from typing import List
 
-from kirke.utils import strutils
+from kirke.utils import strutils, entityutils
 from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
+
+
+PROVISION_PAT_MAP = {
+    'change_control': (re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL), 1.0),
+#    'confidentiality': (re.compile(r'(information.*confidential|confidential.*information)',
+#                                   re.IGNORECASE | re.DOTALL), 1.0),
+    'limliability': (re.compile(r'((is|are)\s+not\s+(liable|responsible)|'
+                               r'will\s+not\s+be\s+(held\s+)?(liable|responsible)|'
+                               r'no\s+(\S+\s+){1,5}(is|will\s+be)\s+responsible\s+for|'
+                               r'not\s+(be\s+)?required\s+to\s+make\s+(\S+\s+){1,3}payment|'
+                               r'need\s+not\s+make\s(\S+\s+){1,3}payment)',
+                                re.IGNORECASE | re.DOTALL), 1.0),
+    'term': (re.compile(r'[“"]Termination\s+Date[”"]', re.IGNORECASE | re.DOTALL), 1.0)
+}
 
 
 # pylint: disable=too-few-public-methods
@@ -90,68 +104,23 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
     return result
 
 
-# pylint: disable=fixme
-## TODO, jshaw, should be removed because ebsent is no longer accessible in ebantdoc
-# pylint: disable=pointless-string-statement
-"""
-# pylint: disable=C0103
-def merge_ebsent_probs_with_entities(prob_ebsent_list):
-    # don't bother with len 1
-    if len(prob_ebsent_list) == 1:
-        return prob_ebsent_list[0]
-
-    max_prob, _ = prob_ebsent_list[0]
-    for prob, _ in prob_ebsent_list[1:]:
-        if prob > max_prob:
-            max_prob = prob
-
-    #for i, (prob, start, end) in enumerate(prob_start_end_list):
-    #    print("jjj: {}".format((prob, start, end)))
-    #print("result jjj: {}".format((max_prob, min_start, max_end)))
-
-    ebsent_list = [ebsent for prob, ebsent in prob_ebsent_list]
-    return (max_prob, corenlpsent.merge_ebsents(ebsent_list))
-
-
-def merge_prob_ebsents(prob_ebsent_list, threshold):
-    result = []
-    prev_list = []
-    for prob, ebsent in prob_ebsent_list:
-        if prob >= threshold:
-            prev_list.append((prob, ebsent))
-        else:
-            if prev_list:
-                result.append(merge_ebsent_probs_with_entities(prev_list))
-                prev_list = []
-            result.append((prob, ebsent))
-    if prev_list:
-        result.append(merge_ebsent_probs_with_entities(prev_list))
-    return result
-"""
-
-PROVISION_PAT_MAP = {
-    'change_control': re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL),
-    'confidentiality': re.compile(r'(information.*confidential|confidential.*information)',
-                                  re.IGNORECASE | re.DOTALL),
-    'limliability': re.compile(r'((is|are)\s+not\s+(liable|responsible)|'
-                               r'will\s+not\s+be\s+(held\s+)?(liable|responsible)|'
-                               r'no\s+(\S+\s+){1,5}(is|will\s+be)\s+responsible\s+for|'
-                               r'not\s+(be\s+)?required\s+to\s+make\s+(\S+\s+){1,3}payment|'
-                               r'need\s+not\s+make\s(\S+\s+){1,3}payment)',
-                               re.IGNORECASE | re.DOTALL),
-    'term': re.compile(r'[“"]Termination\s+Date[”"]', re.IGNORECASE | re.DOTALL)}
-
 
 # override some provisions during testing
 def gen_provision_overrides(provision, sent_st_list):
-    overrides = [None for _ in range(len(sent_st_list))]
+    overrides = [0.0 for _ in range(len(sent_st_list))]
 
     global_min_length = 6
     min_pattern_override_length = 8
     if provision == 'term':
         min_pattern_override_length = 0
 
-    provision_pattern = PROVISION_PAT_MAP.get(provision)
+    provision_pattern = None
+    adjust_prob = 0.0
+    pat_adjscore = PROVISION_PAT_MAP.get(provision)
+    if pat_adjscore:
+        provision_pattern = pat_adjscore[0]
+        adjust_prob = pat_adjscore[1]
+
     for sent_idx, sent_st in enumerate(sent_st_list):
         # pylint: disable=fixme
         toks = sent_st.split()   # TODO, a little repetitive, split again
@@ -160,9 +129,9 @@ def gen_provision_overrides(provision, sent_st_list):
         is_toc = num_words > 60 and num_numeric / num_words > .2
         if (provision_pattern and provision_pattern.search(sent_st) and
                 num_words > min_pattern_override_length and not is_toc):
-            overrides[sent_idx] = 1
+            overrides[sent_idx] = adjust_prob
         if num_words < global_min_length:
-            overrides[sent_idx] = 0
+            overrides[sent_idx] = 0.0
     return overrides
 
 
@@ -228,6 +197,40 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                     end=entity.end,
                                                     # pylint: disable=line-too-long
                                                     text=strutils.remove_nltab(entity.text)).to_dict())
+        return ant_result
+
+
+class PostPredChoiceOfLawProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'choiceoflaw'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            if cx_prob_attrvec.prob >= threshold:
+                anttext = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
+                state_se_tuple_list = entityutils.extract_unique_states(anttext)
+                if state_se_tuple_list:
+                    for state_se in state_se_tuple_list:
+                        tmp_start = cx_prob_attrvec.start + state_se[0]
+                        tmp_end = cx_prob_attrvec.start + state_se[1]
+                        tmp_state = state_se[2]
+                        ant_result.append(AntResult(label=self.provision,
+                                                    prob=cx_prob_attrvec.prob,
+                                                    start=tmp_start,
+                                                    end=tmp_end,
+                                                    text=tmp_state).to_dict())
+                else:
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=cx_prob_attrvec.start,
+                                                end=cx_prob_attrvec.end,
+                                                text=anttext).to_dict())
         return ant_result
 
 
@@ -362,11 +365,12 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
-    'party': PostPredPartyProc(),
-    'title': PostPredTitleProc(),
+    'choiceoflaw': PostPredChoiceOfLawProc(),
     'date': PostPredBestDateProc('date'),
+    'effectivedate': PostPredEffectiveDateProc('effectivedate'),
+    'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
-    'effectivedate': PostPredEffectiveDateProc('effectivedate')
+    'title': PostPredTitleProc(),
 }
 
 

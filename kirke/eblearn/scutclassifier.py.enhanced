@@ -224,7 +224,6 @@ class ShortcutClassifier(EbClassifier):
         """
 
         # print("probs: {}".format(sorted(probs, reverse=True)))
-        evalutils.print_with_threshold(probs, y_te, overrides)
 
         self.pred_status['classifer_type'] = 'scutclassifier'
         self.pred_status['pred_status'] = evalutils.calc_pred_status_with_prob(probs, y_te)
