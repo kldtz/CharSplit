@@ -15,18 +15,36 @@ NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
 # We should use 3class first because of the reason stated in
 # http://stackoverflow.com/questions/33905412/why-does-stanford-corenlp-ner-annotator-load-3-models-by-default
 
+# We encountered characters, 1, 2, 16, 31 in input to corenlp before.
+# These characters passed through the processing and appeared as they are
+# in the JSON output.  Unfortunately, these are not valid characters in JSON.
+# Replace them for now
+BAD_CTRL_CHARS = set([0, 1, 2, 3, 4, 5, 6, 7, 8,
+                      # 9, \t
+                      # 10 \n
+                      11, 12,
+                      # 13 \r
+                      14, 15, 16, 17, 18, 19, 20,
+                      21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                      31,
+                      127])
+IGNORABLE_CTRL_CHARS = ''.join([chr(chx) for chx in BAD_CTRL_CHARS])
+IGNORABLE_CTRL_PAT = re.compile(r'[' + IGNORABLE_CTRL_CHARS + ']')
+
+def replace_ignorable_ctrl_chars(line: str) -> str:
+    return re.sub(IGNORABLE_CTRL_PAT, ' ', line)
 
 # WARNING: all the spaces before the first non-space character will be removed in the output.
 # In other words, the offsets will be incorrect if there are prefix spaces in the text.
 # We will fix those issues in the later modules, not here.
 def annotate(text_as_string):
+    no_ctrl_chars_text = replace_ignorable_ctrl_chars(text_as_string)
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
-    output = NLP_SERVER.annotate(text_as_string, properties={
-        'annotators': 'tokenize,ssplit,pos,lemma,ner',
-        'outputFormat': 'json',
-        'ssplit.newlineIsSentenceBreak': 'two'
-    })
+    output = NLP_SERVER.annotate(no_ctrl_chars_text,
+                                 properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
+                                             'outputFormat': 'json',
+                                             'ssplit.newlineIsSentenceBreak': 'two'})
     return output
 
 def annotate_for_enhanced_ner(text_as_string):
