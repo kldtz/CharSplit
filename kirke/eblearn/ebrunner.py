@@ -167,7 +167,7 @@ class EbRunner:
         ant_result_dict['sigdate'] = []
 
         time2 = time.time()
-        logging.info('annotate_document(%s) took %0.3f ms', file_name, (time2 - time1) * 1000.0)
+        logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
         return ant_result_dict, eb_antdoc.text
 
     

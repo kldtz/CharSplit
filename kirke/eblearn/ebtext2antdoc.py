@@ -274,6 +274,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
     # load/save the corenlp file if output_dir is specified
     is_cache_enabled = False if work_dir is None else DEFAULT_IS_CACHE_ENABLED
 
+    start_time = time.time()
     # print("txt_file_name= [{}]".format(txt_file_name))
     if txt_file_name:
         txt_basename = os.path.basename(txt_file_name)
@@ -281,8 +282,10 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
         if is_cache_enabled:
             eb_antdoc_fn = work_dir + "/" + txt_basename.replace('.txt', '.ebantdoc.pkl')
             if not is_bespoke_mode and os.path.exists(eb_antdoc_fn):
+                start_time_1 = time.time()
                 eb_antdoc = joblib.load(eb_antdoc_fn)
-                logging.info("loading from cache: %s", eb_antdoc_fn)
+                start_time_2 = time.time()
+                logging.debug("loading from cache: %s, took %.0f msec", eb_antdoc_fn, (start_time_2 - start_time_1) * 1000)
 
                 # TODO, jshaw, remove after debugging
                 # save_ebantdoc_sents(eb_antdoc, txt_file_name)
@@ -290,15 +293,26 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
 
             json_fn = work_dir + "/" + txt_basename.replace('.txt', '.corenlp.json')
             if os.path.exists(json_fn):
+                start_time_1 = time.time()
                 corenlp_json = json.loads(strutils.loads(json_fn))
-                logging.info("loading from cache: %s", json_fn)
+                start_time_2 = time.time()
+                logging.debug("loading from cache: %s, took %.0f msec", json_fn, (start_time_2 - start_time_1) * 1000)
             else:
+                start_time_1 = time.time()
                 corenlp_json = corenlputils.annotate_for_enhanced_ner(atext)
+                start_time_2 = time.time()
                 strutils.dumps(json.dumps(corenlp_json), json_fn)
+                logging.debug("saving to cache: %s, took %.0f msec", json_fn, (start_time_2 - start_time_1) * 1000)
         else:
+            start_time_1 = time.time()
             corenlp_json = corenlputils.annotate_for_enhanced_ner(atext)
+            start_time_2 = time.time()
+            logging.debug("calling corenlp, took %.0f msec", (start_time_2 - start_time_1) * 1000)
     else:
+        start_time_1 = time.time()
         corenlp_json = corenlputils.annotate_for_enhanced_ner(atext)
+        start_time_2 = time.time()
+        logging.debug("calling corenlp, took %.0f msec", (start_time_2 - start_time_1) * 1000)
 
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
@@ -314,8 +328,10 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
         prov_annotation_list, is_test = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
                                          if prov_ebdata_file.is_file() else ([], False))
 
-
+    start_time_1 = time.time()
     ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, atext)
+    start_time_2 = time.time()
+    logging.debug("convert corenlp json to ebsent, took %.0f msec", (start_time_2 - start_time_1) * 1000)
     # print('number of sentences: {}'.format(len(ebsent_list)))
 
     # fix any domain specific entity extraction, such as 'Lessee' as a location
@@ -359,6 +375,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
     # we reset ebsent_list to ebsents_withotu_exhibit
     ebsent_list = ebsents_without_exhibit
 
+    start_time_1 = time.time()
     attrvec_list = []
     num_sent = len(ebsent_list)
     # we need prev and next sentences because such information are used in the
@@ -377,13 +394,20 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
         prev_ebsent = ebsent
 
     eb_antdoc = ebantdoc.EbAnnotatedDoc(txt_file_name, prov_annotation_list, attrvec_list, atext, is_test)
+    start_time_2 = time.time()
+    logging.debug("convert ebsents to attrvecs, took %.0f msec", (start_time_2 - start_time_1) * 1000)
 
     if txt_file_name and is_cache_enabled:
         txt_basename = os.path.basename(txt_file_name)
         # if cache version exists, load that and return
         eb_antdoc_fn = work_dir + "/" + txt_basename.replace('.txt', '.ebantdoc.pkl')
+        start_time_1 = time.time()
         joblib.dump(eb_antdoc, eb_antdoc_fn)
-        logging.debug("save in cached: %s", eb_antdoc_fn)
+        start_time_2 = time.time()
+        logging.debug("save in cached: %s, took %.0f msec", eb_antdoc_fn, (start_time_2 - start_time_1) * 1000)
+
+    end_time = time.time()
+    logging.debug("parse_to_ebantdoc: %s, took %.0f msec", eb_antdoc_fn, (end_time - start_time) * 1000)
 
     # TODO, jshaw, remove, this saves the sentence text version
     # if txt_file_name:
@@ -399,9 +423,14 @@ def doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode=False):
 
     start_time = time.time()
     doc_text = strutils.loads(txt_file_name)
-    eb_antdoc = parse_to_eb_antdoc(doc_text, txt_file_name, work_dir=work_dir, is_bespoke_mode=is_bespoke_mode)
     now_time = time.time()
-    logging.debug('feature extraction: %s, took %.2f seconds',
+    logging.debug('reading text doc: %s, took %.0f msec', txt_file_name, (now_time - start_time) * 1000)
+    eb_antdoc = parse_to_eb_antdoc(doc_text,
+                                   txt_file_name,
+                                   work_dir=work_dir,
+                                   is_bespoke_mode=is_bespoke_mode)
+    now_time = time.time()
+    logging.debug('doc_to_ebantdoc(): %s, took %.2f sec',
                   txt_file_name, now_time - start_time)
 
     return eb_antdoc

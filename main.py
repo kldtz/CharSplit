@@ -17,7 +17,8 @@ from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
 from kirke.eblearn import ebtext2antdoc, ebannotator
 from kirke.utils import osutils, splittrte
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 # This trains on ALL data, no separate testing

@@ -156,6 +156,28 @@ def tokens_to_all_ngrams(word_list, max_n=1):
     return sent_wordset
 
 
+# We encountered characters, 1, 2, 16, 31 in input to corenlp before.
+# These characters passed through the processing and appeared as they are
+# in the JSON output.  Unfortunately, these are not valid characters in JSON and
+# should be escaped according to json.org.  Replace them for now
+BAD_JSON_CTRL_CHARS = set([0, 1, 2, 3, 4, 5, 6, 7,
+                           # 8, \b
+                           # 9, \t
+                           # 10 \n
+                           11,
+                           # 12 \f
+                           # 13 \r
+                           14, 15, 16, 17, 18, 19, 20,
+                           21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                           31,
+                           127])
+
+IGNORABLE_JSON_CTRL_CHARS = ''.join([chr(chx) for chx in BAD_JSON_CTRL_CHARS])
+IGNORABLE_JSON_CTRL_PAT = re.compile(r'[' + IGNORABLE_JSON_CTRL_CHARS + ']')
+
+def replace_ignorable_json_ctrl_chars(line: str) -> str:
+    return re.sub(IGNORABLE_JSON_CTRL_PAT, ' ', line)
+
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
     print(str(_get_num_prefix_space("abc")))      # 0

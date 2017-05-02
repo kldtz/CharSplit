@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import logging
+import time
 
 from nltk import FreqDist
 import numpy as np
@@ -63,14 +64,16 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, attrvec_list):
-        EbTransformer.transform_count += 1
-        logging.debug("transform called #%d, len(attrvec_list) = %d",
-                      EbTransformer.transform_count, len(attrvec_list))
-
         # pylint: disable=C0103
+        start_time = time.time()
         X = self.ebantdoc_list_to_csr_matrix(attrvec_list,
                                              [],
                                              fit_mode=False)
+        end_time = time.time()
+        EbTransformer.transform_count += 1
+        logging.debug("%s transform called #%d, len(attrvec_list) = %d, took %.0f msec",
+                      self.provision, EbTransformer.transform_count, len(attrvec_list), (end_time - start_time) * 1000)
+
         return X
 
     # label_list is a list of booleans

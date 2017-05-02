@@ -1,4 +1,5 @@
 import logging
+import time
 
 from kirke.eblearn import ebpostproc
 from kirke.utils import evalutils
@@ -22,7 +23,7 @@ class ProvisionAnnotator:
     #    pass
     # pylint: disable=R0914
     def test_antdoc_list(self, ebantdoc_list, threshold=None):
-        logging.info('test_document_list')
+        logging.debug('test_document_list')
 
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
@@ -56,7 +57,7 @@ class ProvisionAnnotator:
         return tmp_eval_status
 
     def test_antdoc(self, ebantdoc, threshold=None):
-        logging.info('test_document')
+        logging.debug('test_document')
 
         ant_list = self.annotate_antdoc(ebantdoc, threshold)
         # print("ant_list: {}".format(ant_list))
@@ -94,7 +95,10 @@ class ProvisionAnnotator:
         if threshold != None:
             self.threshold = threshold
 
+        start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
+        end_time = time.time()
+        logging.debug("predict_antdoc(%s) took %.0f msec", eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         # TODO, jshaw, can be removed if wanted
         """
