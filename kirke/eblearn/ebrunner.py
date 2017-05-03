@@ -42,7 +42,6 @@ class EbRunner:
         self.custom_model_dir = custom_model_dir
 
         # load the available classifiers from dir_model
-        # xxx
         model_files = osutils.get_model_files(model_dir)
         provision_classifier_map = {}
         self.provisions = set([])
@@ -60,7 +59,7 @@ class EbRunner:
             full_model_fn = model_dir + "/" + model_fn
             prov_classifier = joblib.load(full_model_fn)
             clf_provision = prov_classifier.provision
-            logging.info("ebrunner loading: %s, %s", clf_provision, full_model_fn)
+            logging.info("ebrunner loading #%d: %s, %s", num_model, clf_provision, full_model_fn)
             if clf_provision in self.provisions:
                 logging.warning("*** WARNING ***  Replacing an existing provision: %s",
                                 clf_provision)
@@ -82,7 +81,7 @@ class EbRunner:
             full_custom_model_fn = custom_model_dir + "/" + custom_model_fn
             prov_classifier = joblib.load(full_custom_model_fn)
             clf_provision = prov_classifier.provision
-            logging.info("ebrunner loading: %s, %s", clf_provision, full_custom_model_fn)
+            logging.info("ebrunner loading custom #%d: %s, %s", num_model, clf_provision, full_custom_model_fn)
             if clf_provision in self.provisions:
                 logging.warning("*** WARNING ***  Replacing an existing provision: %s",
                                 clf_provision)
