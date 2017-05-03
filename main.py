@@ -111,6 +111,7 @@ def annotate_document(file_name, work_dir, model_dir, custom_model_dir):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
     prov_labels_map, doc_text = eb_runner.annotate_document(file_name)
+    # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
     pprint(prov_labels_map)
 
 

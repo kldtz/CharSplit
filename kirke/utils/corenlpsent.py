@@ -176,15 +176,6 @@ class EbSentence:
     def get_lemma_text(self):
         return eb_tokens_to_lemma_st(self.tokens)
 
-    def get_start(self):
-        return self.start
-
-    def get_end(self):
-        return self.end
-
-#    def get_text(self):
-#        return self.text
-
     def get_number_chars(self):
         # return len(self.text)
         return self.end - self.start

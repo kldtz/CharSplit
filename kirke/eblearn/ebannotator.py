@@ -98,7 +98,7 @@ class ProvisionAnnotator:
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
-        logging.debug("predict_antdoc(%s) took %.0f msec", eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logging.debug("predict_antdoc(%s, %s) took %.0f msec", self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         # TODO, jshaw, can be removed if wanted
         """

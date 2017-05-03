@@ -13,7 +13,7 @@ from kirke.eblearn import igain, bigramutils
 from kirke.utils import stopwordutils, strutils
 
 
-
+DEBUG_MODE = False
 
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
@@ -43,9 +43,11 @@ class EbTransformer(BaseEstimator, TransformerMixin):
         self.one_hot_encoder = preprocessing.OneHotEncoder(handle_unknown='ignore')
 
         self.n_top_positive_words = []
-        self.vocabulary = {}  # used for bi_topgram_matrix generation
         self.vocab_id_map = {}
         self.positive_vocab = {}
+
+        self.vocabulary = {}  # used for bi_topgram_matrix generation
+
 
     def fit(self, attrvec_list, label_list=None):
         EbTransformer.fit_count += 1
@@ -147,13 +149,14 @@ class EbTransformer(BaseEstimator, TransformerMixin):
             self.vocab_id_map = vocab_id_map
             self.positive_vocabs = positive_vocabs
 
-            with open("{}_vocabs.tsv".format(self.provision), "wt") as fvcabout:
-                for vocab in vocabs:
-                    print(vocab, file=fvcabout)
+            if DEBUG_MODE:
+                with open("{}_vocabs.tsv".format(self.provision), "wt") as fvcabout:
+                    for vocab in vocabs:
+                        print(vocab, file=fvcabout)
 
-            with open("{}_posvocabs.tsv".format(self.provision), "wt") as fvcabout:
-                for vocab in positive_vocabs:
-                    print(vocab, file=fvcabout)                    
+                with open("{}_posvocabs.tsv".format(self.provision), "wt") as fvcabout:
+                    for vocab in positive_vocabs:
+                        print(vocab, file=fvcabout)
 
             # handling bi-topgram
             # only lower case, mode=0, label_list must not be empty

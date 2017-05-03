@@ -98,6 +98,10 @@ class EbAttrVec:
     """Store values representing a sentence.  It is the major part
        of ebantdoc"""
 
+    # Intentionally not making this a slot because we want flexibility in defining
+    # new features.
+    # __slots__ = ['file_id', 'start', 'end', 'bag_of_words', 'labels', 'entities']
+
     # pylint: disable=too-many-arguments
     def __init__(self, file_id, start, end, sent_text, labels, entities):
         self.file_id = file_id

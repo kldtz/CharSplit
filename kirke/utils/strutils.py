@@ -40,6 +40,14 @@ def dumps(xst, file_name):
         logging.error("Error '%s' occured. Arguments %s.", exc.message, str(exc.args))
 
 
+def load_str_list(file_name):
+    st_list = []
+    with open(file_name, 'rt', newline='') as fin:
+        for line in fin:
+            st_list.append(line.strip())
+    return st_list
+
+
 def save_str_list(str_list, file_name):
     with open(file_name, 'wt') as fout:
         for xst in str_list:

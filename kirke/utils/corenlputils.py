@@ -85,7 +85,7 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
         ebsent = ebsent_list[sent_idx]
         # print("ebsent #{}: {}".format(sent_idx, ebsent))
         # sent_st = ebsent.get_text()
-        sent_st = atext[ebsent.get_start():ebsent.get_end()]
+        sent_st = atext[ebsent.start:ebsent.end]
         # pylint: disable=fixme
         if sent_st:  # TODO: jshaw, a bug, not sure how this is possible
                      # 36973.clean.txt

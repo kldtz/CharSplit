@@ -328,10 +328,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
         prov_annotation_list, is_test = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
                                          if prov_ebdata_file.is_file() else ([], False))
 
-    start_time_1 = time.time()
     ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, atext)
-    start_time_2 = time.time()
-    logging.debug("convert corenlp json to ebsent, took %.0f msec", (start_time_2 - start_time_1) * 1000)
     # print('number of sentences: {}'.format(len(ebsent_list)))
 
     # fix any domain specific entity extraction, such as 'Lessee' as a location
@@ -343,8 +340,8 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
         fix_ner_tags(ebsent)
         populate_ebsent_entities(ebsent, atext[ebsent.start:ebsent.end])
 
-        overlap_provisions = (get_labels_if_start_end_overlap(ebsent.get_start(),
-                                                              ebsent.get_end(),
+        overlap_provisions = (get_labels_if_start_end_overlap(ebsent.start,
+                                                              ebsent.end,
                                                               prov_annotation_list)
                               if prov_annotation_list else [])
         # logging.info("overlap_provisions: {}".format(overlap_provisions))
@@ -352,7 +349,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
         ebsent.set_labels(overlap_provisions)
         if ('exhibit_appendix' in overlap_provisions or
             'exhibit_appendix_complete' in overlap_provisions):
-            exhibit_appendix_start = ebsent.get_start()
+            exhibit_appendix_start = ebsent.start
             # logging.info('exhibit_appendix_start: {}'.format(exhibit_appendix_start))
             break
         ebsents_without_exhibit.append(ebsent)
@@ -375,7 +372,6 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
     # we reset ebsent_list to ebsents_withotu_exhibit
     ebsent_list = ebsents_without_exhibit
 
-    start_time_1 = time.time()
     attrvec_list = []
     num_sent = len(ebsent_list)
     # we need prev and next sentences because such information are used in the
@@ -389,13 +385,10 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
             next_ebsent = None
         fvec = sent2ebattrvec.sent2ebattrvec(txt_file_name, ebsent, sent_idx + 1,
                                              prev_ebsent, next_ebsent, atext)
-
         attrvec_list.append(fvec)
         prev_ebsent = ebsent
 
     eb_antdoc = ebantdoc.EbAnnotatedDoc(txt_file_name, prov_annotation_list, attrvec_list, atext, is_test)
-    start_time_2 = time.time()
-    logging.debug("convert ebsents to attrvecs, took %.0f msec", (start_time_2 - start_time_1) * 1000)
 
     if txt_file_name and is_cache_enabled:
         txt_basename = os.path.basename(txt_file_name)
@@ -423,8 +416,6 @@ def doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode=False):
 
     start_time = time.time()
     doc_text = strutils.loads(txt_file_name)
-    now_time = time.time()
-    logging.debug('reading text doc: %s, took %.0f msec', txt_file_name, (now_time - start_time) * 1000)
     eb_antdoc = parse_to_eb_antdoc(doc_text,
                                    txt_file_name,
                                    work_dir=work_dir,
@@ -446,10 +437,7 @@ def doclist_to_ebantdoc_list(doclist_file, work_dir, is_bespoke_mode=False):
         for i, txt_file_name in enumerate(fin, 1):
             txt_file_name = txt_file_name.strip()
             eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode)
-            # print("get_size(eb_antdoc) = {} bytes".format(osutils.get_size(eb_antdoc)))
             eb_antdoc_list.append(eb_antdoc)
-            if i % 10 == 0:
-                print("doclist_to_ebantdoc_list #{}".format(i))
     logging.debug('Finished run_feature_extraction()')
 
     return eb_antdoc_list

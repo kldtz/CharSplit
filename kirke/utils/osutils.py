@@ -18,10 +18,13 @@ def get_last_cmd_line_arg():
         prefix = sys.argv[-1]
     return prefix
 
-
+# Examples of model example file names:
+#   jurisdiction_scutclassifier.pkl
+#   cust_3_scutclassifier.pk
 def get_model_files(dir_name):
     return [f for f in os.listdir(dir_name)
-            if os.path.isfile(os.path.join(dir_name, f)) and f.endswith('.pkl')]
+            if (os.path.isfile(os.path.join(dir_name, f))
+                and f.endswith('classifier.pkl'))]
 
 def get_size(obj, seen=None):
     """Recursively finds size of objects"""
