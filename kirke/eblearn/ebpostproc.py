@@ -104,6 +104,7 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
     return result
 
 
+SHORT_PROVISIONS = set(['title', 'date', 'effectivedate', 'sigdate'])
 
 # override some provisions during testing
 def gen_provision_overrides(provision, sent_st_list):
@@ -132,7 +133,7 @@ def gen_provision_overrides(provision, sent_st_list):
         if (provision_pattern and provision_pattern.search(sent_st) and
             num_words > min_pattern_override_length and not is_toc):
             overrides[sent_idx] = adjust_prob
-        if num_words < global_min_length:
+        if num_words < global_min_length and provision not in SHORT_PROVISIONS:
             overrides[sent_idx] = -10.0
         if is_table_row or contains_dots:
             overrides[sent_idx] = -10.0
