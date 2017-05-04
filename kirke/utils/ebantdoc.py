@@ -1,5 +1,6 @@
 from collections import namedtuple
 from enum import Enum
+import logging
 import json
 
 
@@ -119,6 +120,7 @@ class EbProvisionAnnotation:
 
 def load_provision_annotations(filename, provision_name=None):
     result = []
+    logging.info('load provision %s annotation: [%s]', provision_name, filename)
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
         for ajson in parsed:
