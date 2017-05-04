@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+from typing import List
 
 # pylint: disable=W0703, E1101
 
@@ -151,6 +152,35 @@ def gen_ngram(word_list, max_n=2):
         ngram_words = [word_list[i + j] for j in range(max_n)]
         result.append(' '.join(ngram_words))
     return result
+
+
+ALPHA_WORD_PAT = re.compile(r'[a-zA-Z]+')
+
+ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z0-9]+')
+
+
+def get_alpha_words_gt_len1(line: str, is_lower=True) -> List[str]:
+    if is_lower:
+        line = line.lower()
+    return [word for word in ALPHA_WORD_PAT.findall(line) if len(word) > 1]
+
+
+def get_alpha_words(line: str, is_lower=True) -> List[str]:
+    if is_lower:
+        line = line.lower()
+    return [word for word in ALPHA_WORD_PAT.findall(line)]
+
+
+def get_alphanum_words_gt_len1(line: str, is_lower=True) -> List[str]:
+    if is_lower:
+        line = line.lower()
+    return [word for word in ALPHANUM_WORD_PAT.findall(line) if len(word) > 1]
+
+
+def get_alphanum_words(line: str, is_lower=True) -> List[str]:
+    if is_lower:
+        line = line.lower()
+    return [word for word in ALPHANUM_WORD_PAT.findall(line)]
 
 
 def tokens_to_all_ngrams(word_list, max_n=1):

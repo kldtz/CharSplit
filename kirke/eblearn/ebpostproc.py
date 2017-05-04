@@ -2,7 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import List
 
-from kirke.utils import strutils, entityutils
+from kirke.utils import strutils, entityutils, stopwordutils
 from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
 
@@ -124,7 +124,8 @@ def gen_provision_overrides(provision, sent_st_list):
 
     for sent_idx, sent_st in enumerate(sent_st_list):
         # pylint: disable=fixme
-        toks = sent_st.split()   # TODO, a little repetitive, split again
+        # toks = sent_st.split()   # TODO, a little repetitive, split again
+        toks = stopwordutils.get_nonstopwords_gt_len1(sent_st)
         num_words = len(toks)
         num_numeric = sum(1 for tok in toks if strutils.is_number(tok))
         is_toc = num_words > 60 and num_numeric / num_words > 0.2

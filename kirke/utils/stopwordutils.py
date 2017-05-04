@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from kirke.utils import strutils
-
+from typing import List
 
 def get_sklearn_stopwords():
     file_name = 'dict/sklearn_stopwords.txt'
@@ -25,6 +25,11 @@ def get_corenlp_puncts():
 STOPWORDS = get_sklearn_stopwords()
 PUNCTWORDS = get_corenlp_puncts()
 PUNCT_STOPWORDS = STOPWORDS.union(PUNCTWORDS)
+
+
+def get_nonstopwords_gt_len1(line: str) -> List[str]:
+    words_gt_len1 = strutils.get_alphanum_words_gt_len1(line)
+    return [word for word in words_gt_len1 if word not in STOPWORDS]
 
 
 def is_stopword(word):
