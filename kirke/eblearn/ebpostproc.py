@@ -126,12 +126,16 @@ def gen_provision_overrides(provision, sent_st_list):
         toks = sent_st.split()   # TODO, a little repetitive, split again
         num_words = len(toks)
         num_numeric = sum(1 for tok in toks if strutils.is_number(tok))
-        is_toc = num_words > 60 and num_numeric / num_words > .2
+        is_toc = num_words > 60 and num_numeric / num_words > 0.2
+        is_table_row = num_words > 5 and num_numeric / num_words > 0.3
+        contains_dots = '....' in sent_st
         if (provision_pattern and provision_pattern.search(sent_st) and
-                num_words > min_pattern_override_length and not is_toc):
+            num_words > min_pattern_override_length and not is_toc):
             overrides[sent_idx] = adjust_prob
         if num_words < global_min_length:
-            overrides[sent_idx] = 0.0
+            overrides[sent_idx] = -10.0
+        if is_table_row or contains_dots:
+            overrides[sent_idx] = -10.0
     return overrides
 
 

@@ -155,8 +155,9 @@ class ShortcutClassifier(EbClassifier):
         # do the override
         for i, override in enumerate(overrides):
             if override != 0.0:
-                probs[i] += override
+                probs[i] += override  # this is boosting, not override
                 probs[i] = min(probs[i], 1.0)
+                probs[i] = max(probs[i], 0.0)
 
         return probs
 
