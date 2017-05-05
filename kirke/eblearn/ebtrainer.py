@@ -122,8 +122,13 @@ def train_eval_annotator(provision, txt_fn_list,
     logging.info("training with %d instances, num_pos= %d, num_neg= %d",
                  len(attrvec_list), num_pos_label, num_neg_label)
 
+    if custom_training_mode:
+        test_size = 0.4
+    else:
+        test_size = 0.2
+
     # we have enough positive training instances, so we do testing
-    X_train, X_test, _, _ = train_test_split(X, y, test_size=0.4,
+    X_train, X_test, _, _ = train_test_split(X, y, test_size=test_size,
                                              random_state=42, stratify=y)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
