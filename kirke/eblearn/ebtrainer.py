@@ -13,7 +13,7 @@ from kirke.eblearn import ebattrvec
 from datetime import datetime
 import time
 
-DEFAULT_CV = 3
+DEFAULT_CV = 5
 
 # MIN_FULL_TRAINING_SIZE = 30
 ## this is the original val
