@@ -3,6 +3,7 @@ import logging
 import os
 import time
 from pathlib import Path
+import concurrent.futures
 
 from sklearn.externals import joblib
 
@@ -427,7 +428,40 @@ def doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode=False):
     return eb_antdoc
 
 
+# paralle version
 def doclist_to_ebantdoc_list(doclist_file, work_dir, is_bespoke_mode=False):
+    logging.debug('doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
+    if work_dir is not None and not os.path.isdir(work_dir):
+        logging.debug("mkdir %s", work_dir)
+        osutils.mkpath(work_dir)
+
+    txt_fn_list = []
+    with open(doclist_file, 'rt') as fin:
+        for txt_file_name in fin:
+            txt_fn_list.append(txt_file_name.strip())
+
+    fn_eb_antdoc_map = {}
+    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+        future_to_antdoc = {executor.submit(doc_to_ebantdoc,
+                                            txt_fn,
+                                            work_dir,
+                                            is_bespoke_mode):
+                            txt_fn for txt_fn in txt_fn_list}
+        for future in concurrent.futures.as_completed(future_to_antdoc):
+            txt_fn = future_to_antdoc[future]
+            data = future.result()
+            fn_eb_antdoc_map[txt_fn] = data
+
+    eb_antdoc_list = []
+    for txt_fn in txt_fn_list:
+        eb_antdoc_list.append(fn_eb_antdoc_map[txt_fn])
+
+    logging.debug('Finished run_feature_extraction()')
+
+    return eb_antdoc_list
+
+
+def doclist_to_ebantdoc_list_linear(doclist_file, work_dir, is_bespoke_mode=False):
     logging.debug('doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)

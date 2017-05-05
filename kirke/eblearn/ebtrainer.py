@@ -16,9 +16,10 @@ import time
 DEFAULT_CV = 3
 
 # MIN_FULL_TRAINING_SIZE = 30
-MIN_FULL_TRAINING_SIZE = 50
+## this is the original val
+# MIN_FULL_TRAINING_SIZE = 50
 # MIN_FULL_TRAINING_SIZE = 400
-
+MIN_FULL_TRAINING_SIZE = 150
 
 # Take all the data for training.
 # Unless you know what you are doing, don't use this function, use
@@ -72,7 +73,7 @@ def train_eval_annotator(provision, txt_fn_list,
         y[1] = 0
 
     # only in custom training mode and the positive training instances are too few
-    # only train, no testing
+    # only train, no independent testing
     if custom_training_mode and num_pos_label < MIN_FULL_TRAINING_SIZE:
         logging.info("training with %d instances, no test (<%d) .  num_pos= %d, num_neg= %d",
                      len(attrvec_list), MIN_FULL_TRAINING_SIZE, num_pos_label, num_neg_label)
@@ -122,7 +123,7 @@ def train_eval_annotator(provision, txt_fn_list,
                  len(attrvec_list), num_pos_label, num_neg_label)
 
     # we have enough positive training instances, so we do testing
-    X_train, X_test, _, _ = train_test_split(X, y, test_size=0.2,
+    X_train, X_test, _, _ = train_test_split(X, y, test_size=0.4,
                                              random_state=42, stratify=y)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
