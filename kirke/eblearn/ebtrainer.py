@@ -147,7 +147,8 @@ def train_eval_annotator(provision, txt_fn_list,
     with open('provision_model_stat.tsv', 'a') as pmout:
         pstatus = pred_status['pred_status']
         pcfmtx = pstatus['confusion_matrix']
-        acfmtx = ant_status['confusion_matrix']
+        astatus = ant_status['ant_status']
+        acfmtx = astatus['confusion_matrix']
         timestamp = int(time.time())
         aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
                  str(timestamp),        
@@ -156,8 +157,8 @@ def train_eval_annotator(provision, txt_fn_list,
                  pred_status['best_params_']['alpha'],
                  pstatus['prec'], pstatus['recall'], pstatus['f1'],
                  acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
-                 ant_status['threshold'],
-                 ant_status['prec'], ant_status['recall'], ant_status['f1']]
+                 astatus['threshold'],
+                 astatus['prec'], astatus['recall'], astatus['f1']]
         print('\t'.join([str(x) for x in aline]), file=pmout)        
     return prov_annotator
 
