@@ -1,4 +1,5 @@
 import re
+import logging
 
 from pycorenlp import StanfordCoreNLP
 
@@ -125,6 +126,10 @@ def align_first_word_offset(json_sent_list, atext):
 # returns a list of EbSentence
 def corenlp_json_to_ebsent_list(file_id, ajson, atext):
     result = []
+
+    if isinstance(ajson, str):
+        logging.error('failed to corenlp file_id_xxx: [{}]'.format(file_id))
+        logging.error('ajson= {}...'.format(str(ajson)[:200]))
 
     # num_prefix_space = _strutils.get_num_prefix_space(atext)
     num_prefix_space = align_first_word_offset(ajson['sentences'], atext)
