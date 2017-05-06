@@ -1,6 +1,8 @@
 beautifulsoup4==4.4.0
 Flask==0.10.1
-gunicorn==19.3.0
+gevent==1.2.1
+greenlet==0.4.12
+gunicorn==19.7.1
 html2text==2015.6.21
 html5lib==0.9999999
 itsdangerous==0.24
