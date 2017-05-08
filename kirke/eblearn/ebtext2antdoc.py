@@ -4,6 +4,7 @@ import os
 import time
 from pathlib import Path
 import concurrent.futures
+import gevent
 
 from sklearn.externals import joblib
 
@@ -424,7 +425,9 @@ def doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode=False):
     now_time = time.time()
     logging.debug('doc_to_ebantdoc(): %s, took %.2f sec',
                   txt_file_name, now_time - start_time)
-
+    # in the case or processing many files at once, make sure gevent has
+    # the opportunity to run other waiting threads
+    gevent.sleep(.00001)
     return eb_antdoc
 
 
