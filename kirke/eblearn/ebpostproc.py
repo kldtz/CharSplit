@@ -764,15 +764,6 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
-                else:
-                    # cannot isolate, return whole sentence
-                    sent_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
-                    ant_result.append(AntResult(label=self.provision,
-                                                prob=cx_prob_attrvec.prob,
-                                                start=cx_prob_attrvec.start,
-                                                end=cx_prob_attrvec.start,
-                                                # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(sent_text)).to_dict())
                     break
 
         return ant_result
@@ -804,15 +795,6 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
-                else:
-                    # cannot isolate, return whole sentence
-                    sent_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
-                    ant_result.append(AntResult(label=self.provision,
-                                                prob=cx_prob_attrvec.prob,
-                                                start=cx_prob_attrvec.start,
-                                                end=cx_prob_attrvec.start,
-                                                # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(sent_text)).to_dict())
                     break
 
         return ant_result
@@ -843,15 +825,6 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
-                else:
-                    # cannot isolate, return whole sentence
-                    sent_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
-                    ant_result.append(AntResult(label=self.provision,
-                                                prob=cx_prob_attrvec.prob,
-                                                start=cx_prob_attrvec.start,
-                                                end=cx_prob_attrvec.start,
-                                                # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(sent_text)).to_dict())
                     break
 
         return ant_result
@@ -883,15 +856,6 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
-                else:
-                    # cannot isolate, return whole sentence
-                    sent_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
-                    ant_result.append(AntResult(label=self.provision,
-                                                prob=cx_prob_attrvec.prob,
-                                                start=cx_prob_attrvec.start,
-                                                end=cx_prob_attrvec.start,
-                                                # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(sent_text)).to_dict())
                     break
 
         return ant_result
@@ -923,15 +887,6 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
-                else:
-                    # cannot isolate, return whole sentence
-                    sent_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
-                    ant_result.append(AntResult(label=self.provision,
-                                                prob=cx_prob_attrvec.prob,
-                                                start=cx_prob_attrvec.start,
-                                                end=cx_prob_attrvec.start,
-                                                # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(sent_text)).to_dict())
                     break
 
         return ant_result
@@ -963,15 +918,6 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
-                else:
-                    # cannot isolate, return whole sentence
-                    sent_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
-                    ant_result.append(AntResult(label=self.provision,
-                                                prob=cx_prob_attrvec.prob,
-                                                start=cx_prob_attrvec.start,
-                                                end=cx_prob_attrvec.start,
-                                                # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(sent_text)).to_dict())
                     break
 
         return ant_result
@@ -1003,15 +949,6 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
-                else:
-                    # cannot isolate, return whole sentence
-                    sent_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
-                    ant_result.append(AntResult(label=self.provision,
-                                                prob=cx_prob_attrvec.prob,
-                                                start=cx_prob_attrvec.start,
-                                                end=cx_prob_attrvec.start,
-                                                # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(sent_text)).to_dict())
                     break
 
         return ant_result
