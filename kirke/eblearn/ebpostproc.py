@@ -2,7 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import List
 
-from kirke.utils import strutils, entityutils, stopwordutils
+from kirke.utils import strutils, entityutils, stopwordutils, mathutils
 from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
 
@@ -205,6 +205,754 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                     text=strutils.remove_nltab(entity.text)).to_dict())
         return ant_result
 
+EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
+
+EMPLOYER_PAT = re.compile(r'.*[“"”](Company|COMPANY|Corporation|Association)[“"”]?\)?')
+EMPLOYER_PAT2 = re.compile(r'.*(Employer)[“"”]?\)?', re.IGNORECASE)
+
+LICENSEE_PAT = re.compile(r'.*(Licensee|LICENSEE|licensee|Purchaser|PURCHASER|Buyer|BUYER|Customer|CUSTOMER)[“"”]?\)?')
+
+LICENSOR_PAT = re.compile(r'.*(Licensor|LICENSOR|licensor|Seller|SELLER|Manufacturer|MANUFACTURER|Supplier|SUPPLIER|Vendor|VENDOR)[“"”]?\)?')
+
+BORROWER_PAT = re.compile(r'[^“"”]+[“"”](Borrower|BORROWER|borrower)[“"”]?\)?')
+
+LENDER_PAT = re.compile(r'[^“"”]+[“"”]?(Lender|LENDER|Noteholder|Issuer|Provider|Purchase|SUBSCRIBER|Subscriber|Bank)s?[“"”]?\)?')
+LENDER_PAT2 = re.compile(r'[“"”]Banks?[“"”]', re.IGNORECASE)
+
+AGENT_PAT = re.compile(r'[^“"”]+[“"”]?(Agent|AGENT|Arranger)s?[“"”]?\)?')
+
+DEBUG_MODE = False
+
+def pick_best_provision(found_provision_list, has_x3=False):
+
+    for found_provision in found_provision_list:
+        prov_st, prov_start, prov_end, match_type = found_provision
+
+        if DEBUG_MODE:
+            print("   --check prov {} ({}, {}): {}".format(match_type,
+                                                           prov_start,
+                                                           prov_end,
+                                                           prov_st))
+    if not found_provision_list:
+        return found_provision_list
+    final_list = []
+    rest_list = []
+    for found_provision in found_provision_list:
+        prov_st, prov_start, prov_end, match_type = found_provision
+        if match_type == 'x1':
+            final_list.append(found_provision)
+        else:
+            rest_list.append(found_provision)
+    # take the first one in final_list
+    if final_list:
+        return final_list[0]
+
+    rest_list2 = []
+    for found_provision in rest_list:
+        prov_st, prov_start, prov_end, match_type = found_provision
+        if match_type == 'x2':
+            final_list.append(found_provision)
+        else:
+            rest_list2.append(found_provision)
+
+    # take the first one in final_list
+    if final_list:
+        return final_list[0]
+
+    if has_x3:
+        return rest_list2[0]
+    return []
+
+
+def extract_ea_employer(sent_start, sent_end, attrvec_entities, doc_text):
+    is_provision_found = False
+    prov_end_start_map = {}
+    found_provision_list = []
+    person_after_list = []
+
+    for entity in attrvec_entities:
+        if (entity.ner == 'ORGANIZATION' and
+            mathutils.start_end_overlap((entity.start, entity.end),
+                                        (sent_start, sent_end))):
+            # print("  entities: {}".format(entity))
+            if DEBUG_MODE:
+                print("  entities: {}".format(entity))
+
+            entity_doc_st = doc_text[entity.start:entity.end]
+            if ("Company" in entity_doc_st or
+                "COMPANY" in entity_doc_st or
+                "Corporation" in entity_doc_st or
+                "CORPORATION" in entity_doc_st or
+                "Employer" in entity_doc_st or
+                "EMPLOYER" in entity_doc_st):
+                found_provision_list.append((entity_doc_st,
+                                             entity.start,
+                                             entity.end, 'x1'))
+                is_provision_found = True
+            person_after_list.append(entity.end)
+            prov_end_start_map[entity.end] = entity.start
+
+    if not is_provision_found:
+        person_after_list.append(sent_end)
+        for i, person_end in enumerate(person_after_list[:-1]):
+            person_after_sent = doc_text[person_end:person_after_list[i+1]].replace(r'[\n\r]', ' ')
+            if DEBUG_MODE:
+                print("  person_xafter_st: [{}]".format(person_after_sent))
+
+            mat = EMPLOYER_PAT.search(person_after_sent)
+            if mat:
+                prov_start = prov_end_start_map[person_end]
+                prov_end = person_end + mat.end()
+                found_doc_st = doc_text[prov_start:prov_end]
+                found_provision_list.append((found_doc_st,
+                                             prov_start,
+                                             prov_end, 'x2'))
+                is_provision_found = True
+
+            if not is_provision_found:
+                mat2 = EMPLOYER_PAT2.search(person_after_sent)
+                if mat2:
+                    prov_start = prov_end_start_map[person_end]
+                    prov_end = person_end + mat2.end()
+                    found_doc_st = doc_text[prov_start:prov_end]
+                    found_provision_list.append((found_doc_st,
+                                                 prov_start,
+                                                 prov_end, 'x3'))
+                    is_provision_found = True
+
+    best_provision = pick_best_provision(found_provision_list, has_x3=True)
+
+    if best_provision:
+        prov_st, prov_start, prov_end, match_type = best_provision
+        if DEBUG_MODE:
+            print("*** found prov {} ({}, {}): {}".format(match_type,
+                                                          prov_start,
+                                                          prov_end,
+                                                          prov_st))
+        return best_provision
+
+    return None
+
+
+def extract_ea_employee(sent_start, sent_end, attrvec_entities, doc_text):
+    is_provision_found = False
+    prov_end_start_map = {}
+    found_provision_list = []
+    person_after_list = []
+
+    for entity in attrvec_entities:
+        if (entity.ner == 'PERSON' and
+            mathutils.start_end_overlap((entity.start, entity.end),
+                                        (sent_start, sent_end))):
+            # print("  entities: {}".format(entity))
+            if DEBUG_MODE:
+                print("  entities: {}".format(entity))
+
+            entity_doc_st = doc_text[entity.start:entity.end]
+            if ("Executive" in entity_doc_st or
+                "Employee" in entity_doc_st):
+                found_provision_list.append((entity_doc_st,
+                                             entity.start,
+                                             entity.end, 'x1'))
+                is_provision_found = True
+            person_after_list.append(entity.end)
+            prov_end_start_map[entity.end] = entity.start
+
+    if not is_provision_found:
+        person_after_list.append(sent_end)
+        for i, person_end in enumerate(person_after_list[:-1]):
+            person_after_sent = doc_text[person_end:person_after_list[i+1]].replace(r'[\n\r]', ' ')
+            if DEBUG_MODE:
+                print("  person_xafter_st: [{}]".format(person_after_sent))
+
+            mat = EMPLOYEE_PAT.search(person_after_sent)
+            if mat:
+                prov_start = prov_end_start_map[person_end]
+                prov_end = person_end + mat.end()
+                found_doc_st = doc_text[prov_start:prov_end]
+                found_provision_list.append((found_doc_st,
+                                             prov_start,
+                                             prov_end, 'x2'))
+                is_provision_found = True
+
+    best_provision = pick_best_provision(found_provision_list)
+
+    if best_provision:
+        prov_st, prov_start, prov_end, match_type = best_provision
+        if DEBUG_MODE:
+            print("*** found prov {} ({}, {}): {}".format(match_type,
+                                                          prov_start,
+                                                          prov_end,
+                                                          prov_st))
+        return best_provision
+
+    return None
+
+
+def extract_lic_licensee(sent_start, sent_end, attrvec_entities, doc_text):
+    is_provision_found = False
+    prov_end_start_map = {}
+    found_provision_list = []
+    person_after_list = []
+    person_before_list = []
+
+    for entity in attrvec_entities:
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+            mathutils.start_end_overlap((entity.start, entity.end),
+                                        (sent_start, sent_end))):
+            # print("  entities: {}".format(entity))
+            if DEBUG_MODE:
+                print("  entities: {}".format(entity))
+
+            entity_doc_st = doc_text[entity.start:entity.end]
+            if ("Licensee" in entity_doc_st or
+                "LICENSEE" in entity_doc_st):
+                found_provision_list.append((entity_doc_st,
+                                             entity.start,
+                                             entity.end, 'x1'))
+                is_provision_found = True
+            person_after_list.append(entity.end)
+            prov_end_start_map[entity.end] = entity.start
+            person_before_list.append((entity.start, entity.end))
+
+    if not is_provision_found:
+        person_after_list.append(sent_end)
+        for i, person_end in enumerate(person_after_list[:-1]):
+            person_after_sent = doc_text[person_end:person_after_list[i+1]].replace(r'[\n\r]', ' ')
+            if DEBUG_MODE:
+                print("  person_xafter_st: [{}]".format(person_after_sent))
+
+            mat = LICENSEE_PAT.search(person_after_sent)
+            if mat:
+                prov_start = prov_end_start_map[person_end]
+                prov_end = person_end + mat.end()
+                found_doc_st = doc_text[prov_start:prov_end]
+                found_provision_list.append((found_doc_st,
+                                             prov_start,
+                                             prov_end, 'x2'))
+                is_provision_found = True
+
+            if not is_provision_found:
+                for person_before, person_end in person_before_list:
+                    if person_before != sent_start:
+                        person_before_sent = doc_text[sent_start:person_before].replace(r'[\n\r]', ' ')
+                        last_word_mat = re.search(r'\S+\s*$', person_before_sent)
+                        if last_word_mat:
+                            if 'licensee' in last_word_mat.group().lower():
+                                prov_start = sent_start + last_word_mat.start()
+                                prov_end = person_end
+                                found_doc_st = doc_text[prov_start:prov_end]
+                                found_provision_list.append((found_doc_st,
+                                                             prov_start,
+                                                             prov_end, 'x3'))
+                                is_provision_found = True
+
+    best_provision = pick_best_provision(found_provision_list, has_x3=True)
+
+    if best_provision:
+        prov_st, prov_start, prov_end, match_type = best_provision
+        if DEBUG_MODE:
+            print("*** found prov {} ({}, {}): {}".format(match_type,
+                                                          prov_start,
+                                                          prov_end,
+                                                          prov_st))
+        return best_provision
+
+    return None
+
+
+def extract_lic_licensor(sent_start, sent_end, attrvec_entities, doc_text):
+    is_provision_found = False
+    prov_end_start_map = {}
+    found_provision_list = []
+    person_after_list = []
+    person_before_list = []
+
+    for entity in attrvec_entities:
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+            mathutils.start_end_overlap((entity.start, entity.end),
+                                        (sent_start, sent_end))):
+            # print("  entities: {}".format(entity))
+            if DEBUG_MODE:
+                print("  entities: {}".format(entity))
+
+            entity_doc_st = doc_text[entity.start:entity.end]
+            if ("Licensor" in entity_doc_st or
+                "LICENSOR" in entity_doc_st or
+                "Manufacturer" in entity_doc_st or
+                "MANUFACTURER" in entity_doc_st or
+                "Supplier" in entity_doc_st or
+                "SUPPLIER" in entity_doc_st or
+                "Vendor" in entity_doc_st or
+                "VENDOR" in entity_doc_st or
+                "Seller" in entity_doc_st or
+                "SELLER" in entity_doc_st):
+                found_provision_list.append((entity_doc_st,
+                                             entity.start,
+                                             entity.end, 'x1'))
+                is_provision_found = True
+            person_after_list.append(entity.end)
+            prov_end_start_map[entity.end] = entity.start
+            person_before_list.append((entity.start, entity.end))
+
+    if not is_provision_found:
+        person_after_list.append(sent_end)
+        for i, person_end in enumerate(person_after_list[:-1]):
+            person_after_sent = doc_text[person_end:person_after_list[i+1]].replace(r'[\n\r]', ' ')
+            if DEBUG_MODE:
+                print("  person_xafter_st: [{}]".format(person_after_sent))
+
+            mat = LICENSOR_PAT.search(person_after_sent)
+            if mat:
+                prov_start = prov_end_start_map[person_end]
+                prov_end = person_end + mat.end()
+                found_doc_st = doc_text[prov_start:prov_end]
+                found_provision_list.append((found_doc_st,
+                                             prov_start,
+                                             prov_end, 'x2'))
+                is_provision_found = True
+
+            if not is_provision_found:
+                for person_before, person_end in person_before_list:
+                    if person_before != sent_start:
+                        person_before_sent = doc_text[sent_start:person_before].replace(r'[\n\r]', ' ')
+                        last_word_mat = re.search(r'\S+\s*$', person_before_sent)
+                        if last_word_mat:
+                            if 'licensor' in last_word_mat.group().lower():
+                                prov_start = sent_start + last_word_mat.start()
+                                prov_end = person_end
+                                found_doc_st = doc_text[prov_start:prov_end]
+                                found_provision_list.append((found_doc_st,
+                                                             prov_start,
+                                                             prov_end, 'x3'))
+                                is_provision_found = True
+
+    best_provision = pick_best_provision(found_provision_list, has_x3=True)
+
+    if best_provision:
+        prov_st, prov_start, prov_end, match_type = best_provision
+        if DEBUG_MODE:
+            print("*** found prov {} ({}, {}): {}".format(match_type,
+                                                          prov_start,
+                                                          prov_end,
+                                                          prov_st))
+        return best_provision
+
+    return None
+
+
+def extract_la_borrower(sent_start, sent_end, attrvec_entities, doc_text):
+    is_provision_found = False
+    prov_end_start_map = {}
+    found_provision_list = []
+    person_after_list = []
+    person_before_list = []
+
+    for entity in attrvec_entities:
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+            mathutils.start_end_overlap((entity.start, entity.end),
+                                        (sent_start, sent_end))):
+            # print("  entities: {}".format(entity))
+            if DEBUG_MODE:
+                print("  entities: {}".format(entity))
+
+            entity_doc_st = doc_text[entity.start:entity.end]
+            if ("Borrower" in entity_doc_st or
+                "BORROWER" in entity_doc_st) and re.search(r'[“"”]', entity_doc_st):
+                found_provision_list.append((entity_doc_st,
+                                             entity.start,
+                                             entity.end, 'x1'))
+                is_provision_found = True
+            person_after_list.append(entity.end)
+            prov_end_start_map[entity.end] = entity.start
+            person_before_list.append((entity.start, entity.end))
+
+    if not is_provision_found:
+        person_after_list.append(sent_end)
+        for i, person_end in enumerate(person_after_list[:-1]):
+            person_after_sent = doc_text[person_end:person_after_list[i+1]].replace(r'[\n\r]', ' ')
+            if DEBUG_MODE:
+                print("  person_xafter_st: [{}]".format(person_after_sent))
+
+            mat = BORROWER_PAT.search(person_after_sent)
+            if mat:
+                prov_start = prov_end_start_map[person_end]
+                prov_end = person_end + mat.end()
+                found_doc_st = doc_text[prov_start:prov_end]
+                found_provision_list.append((found_doc_st,
+                                             prov_start,
+                                             prov_end, 'x2'))
+                is_provision_found = True
+
+    best_provision = pick_best_provision(found_provision_list)
+
+    if best_provision:
+        prov_st, prov_start, prov_end, match_type = best_provision
+        if DEBUG_MODE:
+            print("*** found prov {} ({}, {}): {}".format(match_type,
+                                                          prov_start,
+                                                          prov_end,
+                                                          prov_st))
+        return best_provision
+
+    return None
+
+
+def extract_la_lender(sent_start, sent_end, attrvec_entities, doc_text):
+    is_provision_found = False
+    prov_end_start_map = {}
+    found_provision_list = []
+    person_after_list = []
+    person_before_list = []
+
+    for entity in attrvec_entities:
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+            mathutils.start_end_overlap((entity.start, entity.end),
+                                        (sent_start, sent_end))):
+            # print("  entities: {}".format(entity))
+            if DEBUG_MODE:
+                print("  entities: {}".format(entity))
+
+            entity_doc_st = doc_text[entity.start:entity.end]
+            if ("Lender" in entity_doc_st or
+                "Noteholder" in entity_doc_st or
+                "Issuer" in entity_doc_st or
+                "Bank" in entity_doc_st or
+                "Subscriber" in entity_doc_st or
+                "SUBSCRIBER" in entity_doc_st or
+                "Provider" in entity_doc_st or
+                "Purchaser" in entity_doc_st or
+                "LENDER" in entity_doc_st):
+                found_provision_list.append((entity_doc_st,
+                                             entity.start,
+                                             entity.end, 'x1'))
+                is_provision_found = True
+            person_after_list.append(entity.end)
+            prov_end_start_map[entity.end] = entity.start
+            person_before_list.append((entity.start, entity.end))
+
+    if not is_provision_found:
+        person_after_list.append(sent_end)
+        for i, person_end in enumerate(person_after_list[:-1]):
+            person_after_sent = doc_text[person_end:person_after_list[i+1]].replace(r'[\n\r]', ' ')
+            if DEBUG_MODE:
+                print("  person_xafter_st: [{}]".format(person_after_sent))
+
+            mat = LENDER_PAT.search(person_after_sent)
+            if mat:
+                prov_start = prov_end_start_map[person_end]
+                prov_end = person_end + mat.end()
+                found_doc_st = doc_text[prov_start:prov_end]
+                found_provision_list.append((found_doc_st,
+                                             prov_start,
+                                             prov_end, 'x2'))
+                is_provision_found = True
+
+            if not is_provision_found:
+                mat = LENDER_PAT2.search(person_after_sent)
+                if mat:
+                    prov_start = prov_end_start_map[person_end]
+                    prov_end = person_end + mat.end()
+                    found_doc_st = doc_text[prov_start:prov_end]
+                    found_provision_list.append((found_doc_st,
+                                                 prov_start,
+                                                 prov_end, 'x3'))
+                    is_provision_found = True
+
+    best_provision = pick_best_provision(found_provision_list, has_x3=True)
+
+    if best_provision:
+        prov_st, prov_start, prov_end, match_type = best_provision
+        if DEBUG_MODE:
+            print("*** found prov {} ({}, {}): {}".format(match_type,
+                                                          prov_start,
+                                                          prov_end,
+                                                          prov_st))
+        return best_provision
+
+    return None
+
+
+def extract_la_agent_trustee(sent_start, sent_end, attrvec_entities, doc_text):
+    is_provision_found = False
+    prov_end_start_map = {}
+    found_provision_list = []
+    person_after_list = []
+    person_before_list = []
+
+    for entity in attrvec_entities:
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+            mathutils.start_end_overlap((entity.start, entity.end),
+                                        (sent_start, sent_end))):
+            # print("  entities: {}".format(entity))
+            if DEBUG_MODE:
+                print("  entities: {}".format(entity))
+
+            entity_doc_st = doc_text[entity.start:entity.end]
+            if ("Agent" in entity_doc_st or
+                "Noteholder" in entity_doc_st or
+                "Issuer" in entity_doc_st or
+                # "Bank" in entity_doc_st or
+                "Subscriber" in entity_doc_st or
+                "SUBSCRIBER" in entity_doc_st or
+                "Provider" in entity_doc_st or
+                "Purchaser" in entity_doc_st or
+                "AGENT" in entity_doc_st) and len(entity_doc_st.split()) > 1:
+                # the last number of token check is for "KeyBank"  
+                found_provision_list.append((entity_doc_st,
+                                             entity.start,
+                                             entity.end, 'x1'))
+                is_provision_found = True
+            person_after_list.append(entity.end)
+            prov_end_start_map[entity.end] = entity.start
+            person_before_list.append((entity.start, entity.end))
+
+    if not is_provision_found:
+        person_after_list.append(sent_end)
+        for i, person_end in enumerate(person_after_list[:-1]):
+            person_after_sent = doc_text[person_end:person_after_list[i+1]].replace(r'[\n\r]', ' ')
+            if DEBUG_MODE:
+                print("  person_xafter_st: [{}]".format(person_after_sent))
+
+            mat = AGENT_PAT.search(person_after_sent)
+            if mat:
+                prov_start = prov_end_start_map[person_end]
+                prov_end = person_end + mat.end()
+                found_doc_st = doc_text[prov_start:prov_end]
+                found_provision_list.append((found_doc_st,
+                                             prov_start,
+                                             prov_end, 'x2'))
+                is_provision_found = True
+
+    best_provision = pick_best_provision(found_provision_list, has_x3=True)
+
+    if best_provision:
+        prov_st, prov_start, prov_end, match_type = best_provision
+        if DEBUG_MODE:
+            print("*** found prov {} ({}, {}): {}".format(match_type,
+                                                          prov_start,
+                                                          prov_end,
+                                                          prov_st))
+        return best_provision
+
+    return None
+
+
+# pylint: disable=R0903
+class PostPredEaEmployerProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'ea_employer'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            if cx_prob_attrvec.prob >= threshold:
+                employer_matched_span = extract_ea_employer(cx_prob_attrvec.start,
+                                                            cx_prob_attrvec.end,
+                                                            cx_prob_attrvec.entities,
+                                                            doc_text)
+                if employer_matched_span:
+                    prov_st, prov_start, prov_end, match_type = employer_matched_span
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=prov_start,
+                                                end=prov_end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                    break
+
+        return ant_result
+
+
+# pylint: disable=R0903
+class PostPredEaEmployeeProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'ea_employee'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            if cx_prob_attrvec.prob >= threshold:
+                employee_matched_span = extract_ea_employee(cx_prob_attrvec.start,
+                                                            cx_prob_attrvec.end,
+                                                            cx_prob_attrvec.entities,
+                                                            doc_text)
+                if employee_matched_span:
+                    prov_st, prov_start, prov_end, match_type = employee_matched_span
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=prov_start,
+                                                end=prov_end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                    break
+
+        return ant_result
+
+# pylint: disable=R0903
+class PostPredLicLicenseeProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'lic_licensee'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            if cx_prob_attrvec.prob >= threshold:
+                licensee_matched_span = extract_lic_licensee(cx_prob_attrvec.start,
+                                                             cx_prob_attrvec.end,
+                                                             cx_prob_attrvec.entities,
+                                                             doc_text)
+                if licensee_matched_span:
+                    prov_st, prov_start, prov_end, match_type = licensee_matched_span
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=prov_start,
+                                                end=prov_end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                    break
+
+        return ant_result
+
+
+# pylint: disable=R0903
+class PostPredLicLicensorProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'lic_licensor'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            if cx_prob_attrvec.prob >= threshold:
+                licensor_matched_span = extract_lic_licensor(cx_prob_attrvec.start,
+                                                             cx_prob_attrvec.end,
+                                                             cx_prob_attrvec.entities,
+                                                             doc_text)
+                if licensor_matched_span:
+                    prov_st, prov_start, prov_end, match_type = licensor_matched_span
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=prov_start,
+                                                end=prov_end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                    break
+
+        return ant_result
+
+
+# pylint: disable=R0903
+class PostPredLaBorrowerProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'la_borrower'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            if cx_prob_attrvec.prob >= threshold:
+                borrower_matched_span = extract_la_borrower(cx_prob_attrvec.start,
+                                                             cx_prob_attrvec.end,
+                                                             cx_prob_attrvec.entities,
+                                                             doc_text)
+                if borrower_matched_span:
+                    prov_st, prov_start, prov_end, match_type = borrower_matched_span
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=prov_start,
+                                                end=prov_end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                    break
+
+        return ant_result
+
+
+# pylint: disable=R0903
+class PostPredLaLenderProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'la_lender'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            if cx_prob_attrvec.prob >= threshold:
+                lender_matched_span = extract_la_lender(cx_prob_attrvec.start,
+                                                             cx_prob_attrvec.end,
+                                                             cx_prob_attrvec.entities,
+                                                             doc_text)
+                if lender_matched_span:
+                    prov_st, prov_start, prov_end, match_type = lender_matched_span
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=prov_start,
+                                                end=prov_end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                    break
+
+        return ant_result
+
+
+# pylint: disable=R0903
+class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'la_AgentTrustee'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            if cx_prob_attrvec.prob >= threshold:
+                agent_trustee_matched_span = extract_la_agent_trustee(cx_prob_attrvec.start,
+                                                                      cx_prob_attrvec.end,
+                                                                      cx_prob_attrvec.entities,
+                                                                      doc_text)
+                if agent_trustee_matched_span:
+                    prov_st, prov_start, prov_end, match_type = agent_trustee_matched_span
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=prov_start,
+                                                end=prov_end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                    break
+
+        return ant_result
+
 
 class PostPredChoiceOfLawProc(EbPostPredictProcessing):
 
@@ -373,7 +1121,14 @@ PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'choiceoflaw': PostPredChoiceOfLawProc(),
     'date': PostPredBestDateProc('date'),
+    'ea_employee': PostPredEaEmployeeProc(),
+    'ea_employer': PostPredEaEmployerProc(),
     'effectivedate': PostPredEffectiveDateProc('effectivedate'),
+    'la_borrower': PostPredLaBorrowerProc(),
+    'la_lender': PostPredLaLenderProc(),
+    'la_agent_trustee': PostPredLaAgentTrusteeProc(),
+    'lic_licensee': PostPredLicLicenseeProc(),
+    'lic_licensor': PostPredLicLicensorProc(),
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),
