@@ -41,7 +41,11 @@ def train_eval_annotator(provision, txt_fn_list,
     logging.info("    model_dir = %s", model_dir)
     logging.info("    model_file_name = %s", model_file_name)
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir, is_bespoke_mode=custom_training_mode)
+    if custom_training_mode:
+        ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir, is_bespoke_mode=True, provision=provision)
+    else:
+        ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir, is_bespoke_mode=False, provision=None)
+
     attrvec_list = []
     for eb_antdoc in ebantdoc_list:
         attrvec_list.extend(eb_antdoc.get_attrvec_list())

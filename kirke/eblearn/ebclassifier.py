@@ -28,8 +28,8 @@ class EbClassifier(ABC):
         logging.info("saving model file: %s", model_file_name)
         joblib.dump(self, model_file_name)
 
-    def train(self, txt_fn_list, work_dir, model_file_name):
-        ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
+    def train(self, txt_fn_list, work_dir, model_file_name, provision=None):
+        ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir, provision=provision)
         return self.train_antdoc_list(ebantdoc_list, work_dir, model_file_name)
 
     @abstractmethod

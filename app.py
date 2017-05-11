@@ -64,17 +64,18 @@ def annotate_uploaded_document():
     provision_set = set(provisions_st.split(',') if provisions_st else [])
 
 
-    # print("got provision_set: {}".format(sorted(provision_set)))
-    provision_set.add('date')
-    provision_set.add('sigdate')
-    provision_set.add('effectivedate')
-    if "effectivedate_auto" in provision_set:
-        provision_set.remove('effectivedate_auto')
-    # make sure these are removed due to low accuracy
-    if "lic_licensee" in provision_set:
-        provision_set.remove('lic_licensee')
-    if "lic_licensor" in provision_set:
-        provision_set.remove('lic_licensor')
+    if provision_set:
+        # print("got provision_set: {}".format(sorted(provision_set)))
+        provision_set.add('date')
+        provision_set.add('sigdate')
+        provision_set.add('effectivedate')
+        if "effectivedate_auto" in provision_set:
+            provision_set.remove('effectivedate_auto')
+        # make sure these are removed due to low accuracy
+        if "lic_licensee" in provision_set:
+            provision_set.remove('lic_licensee')
+        if "lic_licensor" in provision_set:
+            provision_set.remove('lic_licensor')
 
     prov_labels_map, doc_text = eb_runner.annotate_document(file_name, provision_set=provision_set, work_dir=work_dir)
     ebannotations = {'ebannotations': prov_labels_map}
