@@ -30,6 +30,7 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'events_default': 0.18,
                            'indemnify': 0.24,
                            'party': 0.5,
+                           'pricing_salary': 0.36,
                            'sublicense': 0.24,
                            'survival': 0.24,
                            'termination': 0.36}
