@@ -927,7 +927,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
 class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
 
     def __init__(self):
-        self.provision = 'la_AgentTrustee'
+        self.provision = 'la_agent_trustee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
                      provision=None) -> List[AntResult]:
