@@ -5,7 +5,7 @@ from pycorenlp import StanfordCoreNLP
 
 from kirke.utils.corenlpsent import EbSentence, eb_tokens_to_st
 
-from kirke.utils.strutils import replace_ignorable_json_ctrl_chars
+from kirke.utils.strutils import corenlp_normalize_text
 
 
 NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
@@ -23,7 +23,7 @@ NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
 # In other words, the offsets will be incorrect if there are prefix spaces in the text.
 # We will fix those issues in the later modules, not here.
 def annotate(text_as_string):
-    no_ctrl_chars_text = replace_ignorable_json_ctrl_chars(text_as_string)
+    no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
     output = NLP_SERVER.annotate(no_ctrl_chars_text,

@@ -6,6 +6,7 @@ import os
 import re
 from typing import List
 
+import urllib
 # pylint: disable=W0703, E1101
 
 def remove_nltab(xst):
@@ -213,15 +214,18 @@ BAD_JSON_CTRL_CHARS = set([0, 1, 2, 3, 4, 5, 6, 7,
 IGNORABLE_JSON_CTRL_CHARS = ''.join([chr(chx) for chx in BAD_JSON_CTRL_CHARS])
 IGNORABLE_JSON_CTRL_PAT = re.compile(r'[' + IGNORABLE_JSON_CTRL_CHARS + ']')
 
-UUENCODE_REMOVE_PAT = re.compile(r'%(\d)')
-
 def replace_ignorable_json_ctrl_chars(line: str) -> str:
     line = re.sub(IGNORABLE_JSON_CTRL_PAT, ' ', line)
     # TODO, in future, regex these
     line = line.replace('\u201c', '"')
     line = line.replace('\u201d', '"')
     line = line.replace('\u2019', "'")
-    line = re.sub(UUENCODE_REMOVE_PAT, r' \1', line)
+    return line
+
+
+def corenlp_normalize_text(doc_text):
+    line = replace_ignorable_json_ctrl_chars(doc_text)
+    line = urllib.parse.quote(line)
     return line
 
 
