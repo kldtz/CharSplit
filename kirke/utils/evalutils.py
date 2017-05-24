@@ -49,8 +49,6 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
     tp, fp, tn, fn = 0, 0, 0, 0
     # print("calc_doc_ant_confusion_matrix:")
 
-    diagnose_mode = True
-
     pred_ant_list = []
     for adict in ant_list:
         pred_ant_list.append(AnnotationWithProb(adict['label'],

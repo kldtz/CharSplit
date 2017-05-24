@@ -273,7 +273,7 @@ def save_ebantdoc_sents(eb_antdoc, txt_file_name):
 # pylint: disable=R0914
 # If is_bespoke mode, the annotation can change across different bespoke runs.
 # As a result, never cache .ebantdoc.pkl, but can reuse corenlp.json
-def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=False):
+def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=False, provision=None):
     # load/save the corenlp file if output_dir is specified
     is_cache_enabled = False if work_dir is None else DEFAULT_IS_CACHE_ENABLED
 
@@ -343,8 +343,11 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
     prov_annotation_list = []
     is_test = False
     if os.path.exists(prov_ant_fn):
-        prov_annotation_list = (ebantdoc.load_provision_annotations(prov_ant_fn)
+        # in is_bespoke_mode, only the annotation for a particular provision
+        # is returned.
+        prov_annotation_list = (ebantdoc.load_provision_annotations(prov_ant_fn, provision)
                                 if prov_ant_file.is_file() else [])
+
     elif os.path.exists(prov_ebdata_fn):
         prov_annotation_list, is_test = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
                                          if prov_ebdata_file.is_file() else ([], False))
@@ -434,7 +437,7 @@ def parse_to_eb_antdoc(atext, txt_file_name, work_dir=None, is_bespoke_mode=Fals
     return eb_antdoc
 
 
-def doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode=False):
+def doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode=False, provision=None):
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
@@ -444,7 +447,8 @@ def doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode=False):
     eb_antdoc = parse_to_eb_antdoc(doc_text,
                                    txt_file_name,
                                    work_dir=work_dir,
-                                   is_bespoke_mode=is_bespoke_mode)
+                                   is_bespoke_mode=is_bespoke_mode,
+                                   provision=provision)
     now_time = time.time()
     logging.debug('doc_to_ebantdoc(): %s, took %.2f sec',
                   txt_file_name, now_time - start_time)
@@ -455,7 +459,10 @@ def doc_to_ebantdoc(txt_file_name, work_dir, is_bespoke_mode=False):
 
 
 # paralle version
-def doclist_to_ebantdoc_list(doclist_file, work_dir, is_bespoke_mode=False):
+def doclist_to_ebantdoc_list(doclist_file,
+                             work_dir,
+                             is_bespoke_mode=False,
+                             provision=None):
     logging.debug('doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
@@ -471,7 +478,8 @@ def doclist_to_ebantdoc_list(doclist_file, work_dir, is_bespoke_mode=False):
         future_to_antdoc = {executor.submit(doc_to_ebantdoc,
                                             txt_fn,
                                             work_dir,
-                                            is_bespoke_mode):
+                                            is_bespoke_mode,
+                                            provision):
                             txt_fn for txt_fn in txt_fn_list}
         for future in concurrent.futures.as_completed(future_to_antdoc):
             txt_fn = future_to_antdoc[future]
