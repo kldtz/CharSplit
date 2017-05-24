@@ -5,6 +5,7 @@ import logging
 import os
 import psutil
 import time
+from datetime import datetime
 
 from sklearn.externals import joblib
 
@@ -30,6 +31,8 @@ def test_provision(eb_annotator, eb_antdoc_list, threshold):
 #  clf.train(train_file,test_file,bag_matrix,bag_matrix_te,Y,Y_te)
 #  return clf
 
+pid = os.getpid()
+py = psutil.Process(pid)
 
 class EbRunner:
 
@@ -40,6 +43,7 @@ class EbRunner:
         self.model_dir = model_dir
         self.work_dir = work_dir
         self.custom_model_dir = custom_model_dir
+        self.custom_model_timestamp_map = {}
 
         # load the available classifiers from dir_model
         model_files = osutils.get_model_files(model_dir)
@@ -47,8 +51,6 @@ class EbRunner:
         self.provisions = set([])
         self.provision_annotator_map = {}
 
-        pid = os.getpid()
-        py = psutil.Process(pid)
         # print("megabyte = {}".format(2**20))
         orig_mem_usage = py.memory_info()[0] / 2**20
         logging.info('original memory use: {} Mbytes'.format(orig_mem_usage))
@@ -75,9 +77,13 @@ class EbRunner:
                 prev_mem_usage = memoryUse
             num_model += 1
 
-
         custom_model_files = osutils.get_model_files(custom_model_dir)
         for custom_model_fn in custom_model_files:
+            # record the timestamp for update if needed in the future
+            mtime = os.path.getmtime(os.path.join(self.custom_model_dir, custom_model_fn))
+            last_modified_date = datetime.fromtimestamp(mtime)
+            self.custom_model_timestamp_map[custom_model_fn] = last_modified_date
+
             full_custom_model_fn = custom_model_dir + "/" + custom_model_fn
             prov_classifier = joblib.load(full_custom_model_fn)
             clf_provision = prov_classifier.provision
@@ -94,7 +100,7 @@ class EbRunner:
                                                                              memoryUse,
                                                                              memoryUse - prev_mem_usage))
                 prev_mem_usage = memoryUse
-            num_model += 1            
+            num_model += 1
 
         for provision in self.provisions:
             pclassifier = provision_classifier_map[provision]
@@ -129,6 +135,50 @@ class EbRunner:
                 annotations[provision] = data
         return annotations
 
+    def update_custom_models(self):
+        provision_classifier_map = {}
+        orig_mem_usage = py.memory_info()[0] / 2**20
+        num_model = 0
+
+        start_time_1 = time.time()
+        for fn in osutils.get_model_files(self.custom_model_dir):
+            mtime = os.path.getmtime(os.path.join(self.custom_model_dir, fn))
+            last_modified_date = datetime.fromtimestamp(mtime)
+            # print("hi {} {}".format(fn, last_modified_date))
+
+            old_timestamp = self.custom_model_timestamp_map.get(fn)
+            if old_timestamp and old_timestamp == last_modified_date:
+                pass
+            else:
+                prev_mem_usage = py.memory_info()[0] / 2**20
+                # logging.info('current memory use: {} Mbytes'.format(prev_mem_usage))
+
+                full_custom_model_fn = self.custom_model_dir + "/" + fn
+                prov_classifier = joblib.load(full_custom_model_fn)
+                clf_provision = prov_classifier.provision
+                #if clf_provision in self.provisions:
+                #    logging.warning("*** WARNING ***  Replacing an existing provision: %s",
+                #                    clf_provision)
+                provision_classifier_map[clf_provision] = prov_classifier
+                self.custom_model_timestamp_map[fn] = last_modified_date
+                self.provisions.add(clf_provision)
+                num_model += 1
+
+        if provision_classifier_map:
+            for provision in provision_classifier_map.keys():
+                logging.info("updating annotator: {}".format(provision))
+                pclassifier = provision_classifier_map[provision]
+                self.provision_annotator_map[provision] = ebannotator.ProvisionAnnotator(pclassifier,
+                                                                                         self.work_dir)
+
+            total_mem_usage = py.memory_info()[0] / 2**20
+            avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
+            logging.info('total mem: {:.2f},  model mem: {:.2f},  avg: {:.2f}'.format(total_mem_usage,
+                                                                                      total_mem_usage - orig_mem_usage,
+                                                                                      avg_model_mem))
+            start_time_2 = time.time()
+            logging.info('updating custom models took %.0f msec', (start_time_2 - start_time_1) * 1000)
+
     def annotate_document(self, file_name, provision_set=None, work_dir=None):
         time1 = time.time()
         if not provision_set:
@@ -138,6 +188,10 @@ class EbRunner:
 
         if not work_dir:
             work_dir = self.work_dir
+
+        # update custom models if necessary by checking dir.
+        # custom models can be update by other workers
+        self.update_custom_models()
 
         eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, work_dir)
 
@@ -235,5 +289,11 @@ class EbRunner:
             logging.info("Adding annotator, '%s', %s.", provision, model_file_name)
             self.provisions.add(provision)
         self.provision_annotator_map[provision] = eb_annotator
+
+        # updating the model timestamp, for update purpose
+        local_custom_model_fn = "{}_scutclassifier.pkl".format(provision)
+        mtime = os.path.getmtime(os.path.join(self.custom_model_dir, local_custom_model_fn))
+        last_modified_date = datetime.fromtimestamp(mtime)
+        self.custom_model_timestamp_map[local_custom_model_fn] = last_modified_date
 
         return eb_annotator.get_eval_status()
