@@ -19,7 +19,7 @@ from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
 from kirke.eblearn import ebtext2antdoc, ebannotator
 from kirke.utils import osutils, splittrte, ebantdoc
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
 
 
 if __name__ == '__main__':

@@ -12,7 +12,8 @@ from kirke.utils.corenlputils import annotate
 
 from kirke.utils import strutils
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
+
 
 def test_same(orig_text):
     text = orig_text

@@ -2,25 +2,21 @@
 
 # TODO should we be able to train individual provisions separately
 
-import glob
 import json
 import logging
 import os
 import os.path
 from pprint import pprint
-import sys
 import tempfile
 
 from flask import Flask, request, jsonify
-from sklearn.externals import joblib
 
 from kirke.eblearn import ebrunner
 from kirke.utils import osutils, strutils
 
-# import ebrevia.learn.learner as learner
-
 # NOTE: Remove the following line to get rid of all logging messages
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
+
 
 app = Flask(__name__)
 app.config['PROPAGATE_EXCEPTIONS'] = True
@@ -40,6 +36,13 @@ osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
 
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
+
+IS_SUPPORT_DOC_CLASSIFICATION = False
+eb_doccat_runner = None
+doccat_model_fn = MODEL_DIR + '/ebrevia_docclassifier.pkl'
+if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
+    eb_doccat_runner = ebrunner.EbDocCatRunner(MODEL_DIR)
+
 
 @app.route('/annotate-doc', methods=['POST'])
 def annotate_uploaded_document():
@@ -64,7 +67,6 @@ def annotate_uploaded_document():
     provisions_st = request.form.get('types')
     provision_set = set(provisions_st.split(',') if provisions_st else [])
 
-
     if provision_set:
         # print("got provision_set: {}".format(sorted(provision_set)))
         provision_set.add('date')
@@ -78,14 +80,21 @@ def annotate_uploaded_document():
         if "lic_licensor" in provision_set:
             provision_set.remove('lic_licensor')
 
-    prov_labels_map, doc_text = eb_runner.annotate_document(file_name, provision_set=provision_set, work_dir=work_dir)
+    prov_labels_map, _ = eb_runner.annotate_document(file_name,
+                                                     provision_set=provision_set,
+                                                     work_dir=work_dir)
     ebannotations = {'ebannotations': prov_labels_map}
     # pprint(prov_labels_map)
     # pprint(ebannotations)
 
+    if eb_doccat_runner != None:
+        doc_catnames = eb_doccat_runner.classify_document(file_name)
+        ebannotations['tags'] = doc_catnames
+
     return json.dumps(ebannotations)
 
 
+# pylint: disable=too-many-locals
 @app.route('/custom-train/<cust_id>', methods=['POST'])
 def custom_train(cust_id):
     request_work_dir = request.form.get('workdir')
@@ -121,9 +130,7 @@ def custom_train(cust_id):
     # print("provision = {}".format(provision))
 
     for fstorage in fn_list:
-        fn = '{}/{}'.format(tmp_dir, fstorage.filename)
-        # print("saving file '{}'".format(fn))
-        fstorage.save(fn)
+        fstorage.save('{}/{}'.format(tmp_dir, fstorage.filename))
     txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames.list')
     strutils.dumps('\n'.join(full_txt_fnames), txt_fn_list_fn)
 
@@ -137,35 +144,18 @@ def custom_train(cust_id):
                                                                 work_dir=work_dir)
     # copy the result into the expected format for client
     pred_status = eval_status['pred_status']['pred_status']
-    cf = pred_status['confusion_matrix']
-    status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
+    cf_mtx = pred_status['confusion_matrix']
+    status = {'confusion_matrix': [[cf_mtx['tn'], cf_mtx['fp']], [cf_mtx['fn'], cf_mtx['tp']]],
               'fscore': pred_status['f1'],
               'precision': pred_status['prec'],
               'recall': pred_status['recall']}
 
     print("status:")
     pprint(status)
-              
+
     # return some json accuracy info
     return jsonify(status)
 
 
 if __name__ == '__main__':
-    train_file = '/Users/jakem/training-data/sentencesV1_party_small.arff'
-    test_file = '/Users/jakem/training-data/test-data/sentencesV1_party_small.arff'
-    provisions = ['date', 'party', 'title']
-    fname = eb_models + 'learner_datePartyTitle.pkl'
-    # where to store temporary output files
-
-    if (len(sys.argv) == 2 and sys.argv[1] == '--train'):
-        l = learner.Learner(prefix, False)
-        # doesn't run on weekends
-        l.train(train_file, test_file, provisions)
-        l.save(fname)
-    elif (len(sys.argv) == 3 and sys.argv[1] == '--cust-train'):
-        cust_train(sys.argv[2])
-    elif (len(sys.argv) == 2 and sys.argv[1] == '--test'):
-        # predict
-        ls[1].predict(test_file)
-    else:
-        app.run()
+    app.run()

@@ -3,9 +3,9 @@ import concurrent.futures
 import copy
 import logging
 import os
-import psutil
 import time
 from datetime import datetime
+import psutil
 
 from sklearn.externals import joblib
 
@@ -36,6 +36,7 @@ py = psutil.Process(pid)
 
 class EbRunner:
 
+    # pylint: disable=too-many-locals,too-many-statements
     def __init__(self, model_dir, work_dir, custom_model_dir):
         osutils.mkpath(model_dir)
         osutils.mkpath(work_dir)
@@ -53,7 +54,7 @@ class EbRunner:
 
         # print("megabyte = {}".format(2**20))
         orig_mem_usage = py.memory_info()[0] / 2**20
-        logging.info('original memory use: {} Mbytes'.format(orig_mem_usage))
+        logging.info('original memory use: %d Mbytes', orig_mem_usage)
         prev_mem_usage = orig_mem_usage
         num_model = 0
 
@@ -69,12 +70,13 @@ class EbRunner:
             self.provisions.add(clf_provision)
             if DEBUG_MODE:
                 # print out memory usage info
-                memoryUse = py.memory_info()[0] / 2**20
+                memory_use = py.memory_info()[0] / 2**20
+                # pylint: disable=line-too-long
                 print('loading #{} {:<50}, mem = {:.2f}, diff {:.2f}'.format(num_model,
                                                                              full_model_fn,
-                                                                             memoryUse,
-                                                                             memoryUse - prev_mem_usage))
-                prev_mem_usage = memoryUse
+                                                                             memory_use,
+                                                                             memory_use - prev_mem_usage))
+                prev_mem_usage = memory_use
             num_model += 1
 
         custom_model_files = osutils.get_model_files(custom_model_dir)
@@ -87,19 +89,21 @@ class EbRunner:
             full_custom_model_fn = custom_model_dir + "/" + custom_model_fn
             prov_classifier = joblib.load(full_custom_model_fn)
             clf_provision = prov_classifier.provision
-            logging.info("ebrunner loading custom #%d: %s, %s", num_model, clf_provision, full_custom_model_fn)
+            logging.info("ebrunner loading custom #%d: %s, %s", num_model,
+                         clf_provision, full_custom_model_fn)
             if clf_provision in self.provisions:
                 logging.warning("*** WARNING ***  Replacing an existing provision: %s",
                                 clf_provision)
             provision_classifier_map[clf_provision] = prov_classifier
             self.provisions.add(clf_provision)
             if DEBUG_MODE:
-                memoryUse = py.memory_info()[0] / 2**20
+                memory_use = py.memory_info()[0] / 2**20
+                # pylint: disable=line-too-long
                 print('loading #{} {:<50}, mem = {:.2f}, diff {:.2f}'.format(num_model,
                                                                              full_model_fn,
-                                                                             memoryUse,
-                                                                             memoryUse - prev_mem_usage))
-                prev_mem_usage = memoryUse
+                                                                             memory_use,
+                                                                             memory_use - prev_mem_usage))
+                prev_mem_usage = memory_use
             num_model += 1
 
         for provision in self.provisions:
@@ -109,12 +113,10 @@ class EbRunner:
 
         total_mem_usage = py.memory_info()[0] / 2**20
         avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
+        # pylint: disable=line-too-long
         print('\ntotal mem: {:.2f},  model mem: {:.2f},  avg: {:.2f}'.format(total_mem_usage,
                                                                              total_mem_usage - orig_mem_usage,
                                                                              avg_model_mem))
-            
-            
-            
         logging.info('EbRunner is initiated.')
 
     def run_annotators_in_parallel(self, eb_antdoc, provision_set=None):
@@ -141,38 +143,39 @@ class EbRunner:
         num_model = 0
 
         start_time_1 = time.time()
-        for fn in osutils.get_model_files(self.custom_model_dir):
-            mtime = os.path.getmtime(os.path.join(self.custom_model_dir, fn))
+        for fname in osutils.get_model_files(self.custom_model_dir):
+            mtime = os.path.getmtime(os.path.join(self.custom_model_dir, fname))
             last_modified_date = datetime.fromtimestamp(mtime)
             # print("hi {} {}".format(fn, last_modified_date))
 
-            old_timestamp = self.custom_model_timestamp_map.get(fn)
+            old_timestamp = self.custom_model_timestamp_map.get(fname)
             if old_timestamp and old_timestamp == last_modified_date:
                 pass
             else:
-                prev_mem_usage = py.memory_info()[0] / 2**20
+                # prev_mem_usage = py.memory_info()[0] / 2**20
                 # logging.info('current memory use: {} Mbytes'.format(prev_mem_usage))
 
-                full_custom_model_fn = self.custom_model_dir + "/" + fn
+                full_custom_model_fn = self.custom_model_dir + "/" + fname
                 prov_classifier = joblib.load(full_custom_model_fn)
                 clf_provision = prov_classifier.provision
                 #if clf_provision in self.provisions:
                 #    logging.warning("*** WARNING ***  Replacing an existing provision: %s",
                 #                    clf_provision)
                 provision_classifier_map[clf_provision] = prov_classifier
-                self.custom_model_timestamp_map[fn] = last_modified_date
+                self.custom_model_timestamp_map[fname] = last_modified_date
                 self.provisions.add(clf_provision)
                 num_model += 1
 
         if provision_classifier_map:
-            for provision in provision_classifier_map.keys():
-                logging.info("updating annotator: {}".format(provision))
+            for provision in provision_classifier_map:
+                logging.info("updating annotator: %s", provision)
                 pclassifier = provision_classifier_map[provision]
-                self.provision_annotator_map[provision] = ebannotator.ProvisionAnnotator(pclassifier,
-                                                                                         self.work_dir)
+                self.provision_annotator_map[provision] = \
+                    ebannotator.ProvisionAnnotator(pclassifier, self.work_dir)
 
             total_mem_usage = py.memory_info()[0] / 2**20
             avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
+            # pylint: disable=line-too-long
             logging.info('total mem: {:.2f},  model mem: {:.2f},  avg: {:.2f}'.format(total_mem_usage,
                                                                                       total_mem_usage - orig_mem_usage,
                                                                                       avg_model_mem))
@@ -223,7 +226,7 @@ class EbRunner:
         logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
         return ant_result_dict, eb_antdoc.text
 
-    
+
     def annotate_provision_in_document(self, file_name, provision: str):
         provision_set = set([provision])
         ant_result_dict, doc_text = self.annotate_document(file_name, provision_set)
@@ -232,7 +235,8 @@ class EbRunner:
             start = prov['start']
             end = prov['end']
             prob = prov['prob']
-            print('{}\t{}\t{}\t{}\t{}\t{}\t{:.4f}'.format(file_name, i, provision, doc_text[start:end], start, end, prob))
+            print('{}\t{}\t{}\t{}\t{}\t{}\t{:.4f}'.format(file_name, i, provision,
+                                                          doc_text[start:end], start, end, prob))
 
 
     def test_annotators(self, txt_fns_file_name, provision_set, threshold=None):
@@ -297,3 +301,24 @@ class EbRunner:
         self.custom_model_timestamp_map[local_custom_model_fn] = last_modified_date
 
         return eb_annotator.get_eval_status()
+
+
+# pylint: disable=too-few-public-methods
+class EbDocCatRunner:
+
+    def __init__(self, model_dir):
+        osutils.mkpath(model_dir)
+        self.model_dir = model_dir
+
+        # load the available classifiers from dir_model
+        full_model_fn = self.model_dir + '/ebrevia_docclassifier.pkl'
+
+        self.doc_classifier = joblib.load(full_model_fn)
+        logging.info("EbDocCatRunner loading %s, %s", full_model_fn,
+                     str(self.doc_classifier.catname_list))
+
+    def classify_document(self, fname):
+        print("classifying document: [{}]".format(fname))
+        with open(fname, 'rt') as fin:
+            doc_text = fin.read()
+            return self.doc_classifier.predict(doc_text)
