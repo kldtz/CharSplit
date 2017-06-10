@@ -25,14 +25,17 @@ def load_data(txt_fn_list_fn):
             txt_fn = line.strip()
             ebdata_fn = txt_fn.replace('.txt', '.ebdata')
 
+            with open(ebdata_fn, 'rt') as ebdata_fin:
+                tags = json.loads(ebdata_fin.read())['tags']
+                catids = doccategory.tags_to_catids(tags)
+                # if not catids:  # skip all document with no coretags
+                #    continue
+                catids_list.append(catids)
+
             with open(txt_fn, 'rt') as txt_fin:
                 doc_text = txt_fin.read()
                 doc_text_list.append(doc_text_to_docfeats(doc_text))
 
-            with open(ebdata_fn, 'rt') as ebdata_fin:
-                tags = json.loads(ebdata_fin.read())['tags']
-                catids = doccategory.tags_to_catids(tags)
-                catids_list.append(catids)
     # print('len(doc_text_list) = {}'.format(len(doc_text_list)))
     # print('len(catid_list) = {}'.format(len(catids_list)))
 
