@@ -27,6 +27,7 @@ def load_data(txt_fn_list_fn):
 
             with open(ebdata_fn, 'rt') as ebdata_fin:
                 tags = json.loads(ebdata_fin.read())['tags']
+                tags = [tag.strip() for tag in tags]
                 catids = doccategory.tags_to_catids(tags)
                 # if not catids:  # skip all document with no coretags
                 #    continue
