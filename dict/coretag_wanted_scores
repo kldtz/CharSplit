@@ -1,0 +1,76 @@
+Amendment	0.95
+Employment Agmt.	0.96
+Revolving Credit Agmt.	0.85
+Consulting Services Agmt.	0.87
+Note Purchase Agmt.	0.91
+Loan Agmt.	0.72
+Promissory Note	0.86
+Conversion Agmt.	0.85
+Stock Purchase Agmt.	0.81
+Marketing Agmt.	0.73
+Equity/Note Distribution Agmt.	0.85
+Merger/Acquisition Agmt.	0.92
+Confidentiality/Non-Disclosure Agmt.	0.85
+Warrant	0.9
+Non-Compete Agmt.	0.88
+Manufacturing Agmt.	0.84
+Joint Venture Agmt.	0.84
+Sales Agmt.	0.71
+At-the-market Offering Agmt.	0.73
+Assignment & Assumption Agmt.	0.79
+Royalty Agmt.	0.93
+
+
+                                      precision    recall  f1-score   support
+
+                           Amendment       0.99      0.92      0.96       143
+                    Employment Agmt.       0.98      0.94      0.96        50
+              Revolving Credit Agmt.       0.95      0.87      0.91        61
+           Consulting Services Agmt.       0.88      0.82      0.85        45
+                 Note Purchase Agmt.       1.00      0.84      0.92        45
+                          Loan Agmt.       0.78      0.44      0.56        32
+                     Promissory Note       0.71      0.85      0.77        20
+                    Conversion Agmt.       0.71      0.85      0.77        20
+                Stock Purchase Agmt.       0.83      0.60      0.70        25
+                     Marketing Agmt.       0.93      0.83      0.88        30
+      Equity/Note Distribution Agmt.       0.79      0.79      0.79        19
+            Merger/Acquisition Agmt.       0.95      0.86      0.90        22
+Confidentiality/Non-Disclosure Agmt.       0.93      0.78      0.85        18
+                             Warrant       0.95      0.86      0.90        22
+                   Non-Compete Agmt.       0.92      0.85      0.88        13
+                 Manufacturing Agmt.       0.90      0.78      0.84        23
+                 Joint Venture Agmt.       0.90      0.75      0.82        12
+                         Sales Agmt.       0.56      0.56      0.56         9
+        At-the-market Offering Agmt.       1.00      0.56      0.71         9
+       Assignment & Assumption Agmt.       1.00      0.80      0.89         5
+                       Royalty Agmt.       0.75      1.00      0.86         3
+
+                         avg / total       0.92      0.83      0.86       626
+
+                                      precision    recall  f1-score   support
+
+                           Amendment       0.96      0.94      0.95       139
+                    Employment Agmt.       0.98      0.95      0.97        61
+              Revolving Credit Agmt.       0.93      0.82      0.87        66
+           Consulting Services Agmt.       0.88      0.86      0.87        57
+                 Note Purchase Agmt.       0.86      0.90      0.88        42
+                          Loan Agmt.       0.83      0.78      0.81        37
+                     Promissory Note       0.86      0.77      0.81        31
+                    Conversion Agmt.       0.96      0.73      0.83        30
+                Stock Purchase Agmt.       0.79      0.88      0.83        17
+                     Marketing Agmt.       0.69      0.61      0.65        18
+      Equity/Note Distribution Agmt.       0.88      0.79      0.83        19
+            Merger/Acquisition Agmt.       1.00      0.78      0.88        18
+Confidentiality/Non-Disclosure Agmt.       0.84      0.84      0.84        19
+                             Warrant       1.00      0.88      0.94        17
+                   Non-Compete Agmt.       0.88      1.00      0.93        14
+                 Manufacturing Agmt.       0.88      1.00      0.93         7
+                 Joint Venture Agmt.       1.00      0.84      0.91        19
+                         Sales Agmt.       1.00      0.79      0.88        14
+        At-the-market Offering Agmt.       1.00      0.83      0.91         6
+       Assignment & Assumption Agmt.       0.50      0.40      0.44         5
+                       Royalty Agmt.       1.00      1.00      1.00         3
+
+                         avg / total       0.91      0.86      0.88       639
+
+avg precision= 0.92, recall= 0.84, f1= 0.87

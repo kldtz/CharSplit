@@ -48,12 +48,13 @@ class UnigramDocClassifier(DocClassifier):
         self.transformer = None
         self.catname_list = []
 
-    def train(self, txt_fn_list_fn, model_file_name, catnames=None):
+    def train(self, txt_fn_list_fn, model_file_name):
 
         logging.info('start training unigram document classifier: [%s]', txt_fn_list_fn)
+
         # each y is a list of catid
         # pylint: disable=invalid-name
-        X_both, y_both, catname_list = doccatutils.load_data_catnames(txt_fn_list_fn, catnames)
+        X_both, y_both, catname_list = doccatutils.load_data(txt_fn_list_fn, is_step1=False)
 
         # TODO, in future, this should be influnced by catnames
         self.catname_list = catname_list
@@ -79,18 +80,19 @@ class UnigramDocClassifier(DocClassifier):
 
         self.classifier = sgd
         self.save(model_file_name)
+        print("wrote '{}'".format(model_file_name))
         return sgd
 
     # pylint: disable=too-many-locals
-    def train_and_evaluate(self, txt_fn_list_fn, catnames=None):
+    def train_and_evaluate(self, txt_fn_list_fn, is_step1=False):
         logging.info('start training and evaluate unigram document classifier: [%s]',
                      txt_fn_list_fn)
 
         # pylint: disable=invalid-name
-        EB_DOC_KFOLD = 10
+        EB_DOC_KFOLD = 5
 
         # each y is a list of catid
-        X_both, y_both = doccatutils.load_data(txt_fn_list_fn)
+        X_both, y_both, catname_list = doccatutils.load_data(txt_fn_list_fn, is_step1)
 
         X_both = np.asarray(X_both)
         y_both = np.asarray(y_both)
@@ -122,7 +124,7 @@ class UnigramDocClassifier(DocClassifier):
 
             #for pred, yval in zip(preds, y_test):
             #    print("pred= {}, yval= {}".format(pred, yval))
-            result = classification_report(y_test, preds, target_names=doccategory.doc_cat_names)
+            result = classification_report(y_test, preds, target_names=catname_list)
             print(result)
 
             prec, recall, f1 = doccatutils.report_to_eval_scores(result)

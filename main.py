@@ -40,14 +40,13 @@ def train_doc_classifier(txt_fn_list_fn, model_dir):
     doc_classifier = UnigramDocClassifier()
     model_file_name = model_dir + "/ebrevia_docclassifier.pkl"
 
-    doc_classifier.train(txt_fn_list_fn,
-                         model_file_name)
+    doc_classifier.train(txt_fn_list_fn, model_file_name)
 
 
-def train_eval_doc_classifier(txt_fn_list_fn):
+def train_eval_doc_classifier(txt_fn_list_fn, is_step1=False):
     doc_classifier = UnigramDocClassifier()
 
-    doc_classifier.train_and_evaluate(txt_fn_list_fn)
+    doc_classifier.train_and_evaluate(txt_fn_list_fn, is_step1)
 
 
 def classify_document(file_name, model_dir):
@@ -221,6 +220,9 @@ if __name__ == '__main__':
     elif cmd == 'train_eval_doc_classifier':
         # doccatutils.train_eval_doc_classifier(txt_fn_list_fn)
         train_eval_doc_classifier(txt_fn_list_fn)
+    elif cmd == 'train_eval_doc_step1_classifier':
+        # doccatutils.train_eval_doc_classifier(txt_fn_list_fn)
+        train_eval_doc_classifier(txt_fn_list_fn, is_step1=True)
     elif cmd == 'classify_doc':
         classify_document(args.doc, model_dir)
     else:

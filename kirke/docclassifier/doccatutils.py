@@ -8,17 +8,20 @@ from nltk.stem import SnowballStemmer
 
 from kirke.docclassifier import doccategory
 
-# pylint: disable=unused-argument
-def load_data_catnames(txt_fn_list_fn, catname_list):
-    # currently ignore catname_list
-    doc_text_list, catids_list = load_data(txt_fn_list_fn)
-    # TODO, todo, the last returned valu is a hack.
-    # Not influenced by catname_list.
-    return doc_text_list, catids_list, doccategory.doc_cat_names
+# based on eval set, 250 seems to work best
+# TEXT_SIZE = 1000
+TEXT_SIZE = 250
 
 
-def load_data(txt_fn_list_fn):
+def load_data(txt_fn_list_fn, is_step1=False):
     doc_text_list, catids_list = [], []
+
+    catnames = []
+    catname_catid_map = {}
+    if is_step1:
+        catnames, catname_catid_map, catid_catname_map = doccategory.init_doccats_step1()
+    else:
+        catnames, catname_catid_map, catid_catname_map = doccategory.load_doccats_prod()
 
     with open(txt_fn_list_fn, 'rt') as fin:
         for line in fin:
@@ -28,7 +31,8 @@ def load_data(txt_fn_list_fn):
             with open(ebdata_fn, 'rt') as ebdata_fin:
                 tags = json.loads(ebdata_fin.read())['tags']
                 tags = [tag.strip() for tag in tags]
-                catids = doccategory.tags_to_catids(tags)
+                catids = doccategory.tags_to_catids(tags, catname_catid_map)
+                # print('catids: [{}]'.format(catids))
                 # if not catids:  # skip all document with no coretags
                 #    continue
                 catids_list.append(catids)
@@ -40,13 +44,13 @@ def load_data(txt_fn_list_fn):
     # print('len(doc_text_list) = {}'.format(len(doc_text_list)))
     # print('len(catid_list) = {}'.format(len(catids_list)))
 
-    return doc_text_list, catids_list
+    return doc_text_list, catids_list, catnames
 
 
 _STEMMER = SnowballStemmer("english")
 _EN_STOPWORD_SET = stopwords.words('english')
 
-def doc_text_to_docfeats(doc_text, wanted_text_len=1000):
+def doc_text_to_docfeats(doc_text, wanted_text_len=TEXT_SIZE):
     lc_doc_text = doc_text.lower()
     # Based on the training and testing set, wanted_text_len = 250 is
     # the best (0.88), but our corpus might not reflect real life.

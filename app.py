@@ -37,15 +37,24 @@ osutils.mkpath(CUSTOM_MODEL_DIR)
 
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 
-IS_SUPPORT_DOC_CLASSIFICATION = False
 eb_doccat_runner = None
 doccat_model_fn = MODEL_DIR + '/ebrevia_docclassifier.pkl'
-if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
+if os.path.exists(doccat_model_fn):
     eb_doccat_runner = ebrunner.EbDocCatRunner(MODEL_DIR)
 
+eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
 @app.route('/annotate-doc', methods=['POST'])
 def annotate_uploaded_document():
+
+    # verify if the request is for document classification or language detection only
+    provisions_st = request.form.get('types')
+    provision_set = set(provisions_st.split(',') if provisions_st else [])
+    is_classify_doc = request.form.get('classify-doc')
+    is_detect_lang = request.form.get('detect-lang')
+
+    ebannotations = {}
+
     request_work_dir = request.form.get('workdir')
     if request_work_dir:
         work_dir = request_work_dir
@@ -64,32 +73,50 @@ def annotate_uploaded_document():
         file_name = tempfile.NamedTemporaryFile(dir=work_dir).name + '.txt'
 
     request.files['file'].save(file_name)
-    provisions_st = request.form.get('types')
-    provision_set = set(provisions_st.split(',') if provisions_st else [])
+
+    # cannot just access the request.files['file'].read() earlier, which
+    # make it unavailable to the rest of the code.
+    if is_detect_lang:
+        atext = strutils.loads(file_name)
+        detect_lang = eb_langdetect_runner.detect_lang(atext)
+        ebannotations['lang'] = detect_lang
+        logging.info("detected language '{}'".format(detect_lang))
+        # if no other classification is specified, return early
+        if not provision_set and not is_classify_doc:
+            return json.dumps(ebannotations)
+
+    if is_classify_doc:
+        if eb_doccat_runner != None:
+            logging.info("classify document '{}'".format(file_name))
+            doc_catnames = eb_doccat_runner.classify_document(file_name)
+            ebannotations['tags'] = doc_catnames
+        else:
+            logging.warning('is_classify_doc is specified, but no models for eb_doccat_runner')
+            ebannotations['tags'] = []
 
     if provision_set:
-        # print("got provision_set: {}".format(sorted(provision_set)))
-        provision_set.add('date')
-        provision_set.add('sigdate')
-        provision_set.add('effectivedate')
-        if "effectivedate_auto" in provision_set:
-            provision_set.remove('effectivedate_auto')
-        # make sure these are removed due to low accuracy
-        if "lic_licensee" in provision_set:
-            provision_set.remove('lic_licensee')
-        if "lic_licensor" in provision_set:
-            provision_set.remove('lic_licensor')
+        if 'all-provs' in provision_set:
+            provision_set = set([])
+        else:
+            # print("got provision_set: {}".format(sorted(provision_set)))
+            provision_set.add('date')
+            provision_set.add('sigdate')
+            provision_set.add('effectivedate')
+            if "effectivedate_auto" in provision_set:
+                provision_set.remove('effectivedate_auto')
+            # make sure these are removed due to low accuracy
+            if "lic_licensee" in provision_set:
+                provision_set.remove('lic_licensee')
+            if "lic_licensor" in provision_set:
+                provision_set.remove('lic_licensor')
 
-    prov_labels_map, _ = eb_runner.annotate_document(file_name,
-                                                     provision_set=provision_set,
-                                                     work_dir=work_dir)
-    ebannotations = {'ebannotations': prov_labels_map}
-    # pprint(prov_labels_map)
-    # pprint(ebannotations)
-
-    if eb_doccat_runner != None:
-        doc_catnames = eb_doccat_runner.classify_document(file_name)
-        ebannotations['tags'] = doc_catnames
+        logging.info("annotate with provisions '{}'".format(file_name))
+        prov_labels_map, _ = eb_runner.annotate_document(file_name,
+                                                         provision_set=provision_set,
+                                                         work_dir=work_dir)
+        ebannotations['ebannotations'] = prov_labels_map
+        # pprint(prov_labels_map)
+        # pprint(ebannotations)
 
     return json.dumps(ebannotations)
 
@@ -156,6 +183,74 @@ def custom_train(cust_id):
     # return some json accuracy info
     return jsonify(status)
 
+@app.route('/classify-doc', methods=['POST'])
+def classify_uploaded_document():
+    """
+        Categorize a document.
 
-if __name__ == '__main__':
-    app.run()
+        :return: returns a list of strings representing document categories.
+    """
+
+    request_work_dir = request.form.get('workdir')
+    if request_work_dir:
+        work_dir = request_work_dir
+        osutils.mkpath(work_dir)
+    else:
+        work_dir = WORK_DIR
+
+    request_file_name = request.files['file'].filename
+    if request_file_name:
+        if not request_file_name.endswith('.txt'):
+            request_file_name += '.txt'
+        txt_basename = os.path.basename(request_file_name)
+        file_name = os.path.normpath(os.path.join(work_dir, txt_basename))
+    else:
+        file_name = tempfile.NamedTemporaryFile(dir=work_dir).name + '.txt'
+
+    request.files['file'].save(file_name)
+    ebannotations = {}
+    if eb_doccat_runner != None:
+        logging.info("classify document '{}'".format(file_name))
+        doc_catnames = eb_doccat_runner.classify_document(file_name)
+        ebannotations['tags'] = doc_catnames
+    else:
+        logging.warning('is_classify_doc is specified, but no models for eb_doccat_runner')
+        ebannotations['tags'] = []
+
+    return json.dumps(ebannotations)
+
+
+# https://github.com/Mimino666/langdetect
+# This language dectect library is a port of Google's language detection
+# library.  It supports 55 languages, based on the above link:
+# af, ar, bg, bn, ca, cs, cy, da, de, el, en, es, et, fa, fi, fr, gu, he, hi,
+# hr, hu, id, it, ja, kn, ko, lt, lv, mk, ml, mr, ne, nl, no, pa, pl, pt, ro,
+# ru, sk, sl, so, sq, sv, sw, ta, te, th, tl, tr, uk, ur, vi, zh-cn, zh-tw
+@app.route('/detect-lang', methods=['POST'])
+def detect_lang():
+    """
+        Detect a language after read a file from a HTTP POST request.
+
+        :return: returns a string containing the language.
+    """
+    atext = request.files['file'].read().decode('utf-8')
+
+    detect_lang = eb_langdetect_runner.detect_lang(atext)
+    logging.info("detected language '{}'".format(detect_lang))
+    return json.dumps({'lang': detect_lang })
+
+
+@app.route('/detect-langs', methods=['POST'])
+def detect_langs():
+    """
+        Detect top languages and their probabilities after read a file from
+        a HTTP POST request.
+
+        :return: returns a string containing comma separated pairs of "lang=prob",
+                 i.e., "fi=0.8571380931883487,pl=0.14285995413090066"
+    """
+    atext = request.files['file'].read().decode('utf-8')
+
+    detect_langs = eb_langdetect_runner.detect_langs(atext)
+    logging.info("detected languages '{}'".format(detect_langs))
+    return json.dumps({'lang-probs': detect_langs })

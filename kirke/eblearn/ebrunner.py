@@ -7,6 +7,8 @@ import time
 from datetime import datetime
 import psutil
 
+import langdetect
+
 from sklearn.externals import joblib
 
 from kirke.eblearn import ebannotator, ebtext2antdoc, ebtrainer, scutclassifier
@@ -312,13 +314,37 @@ class EbDocCatRunner:
 
         # load the available classifiers from dir_model
         full_model_fn = self.model_dir + '/ebrevia_docclassifier.pkl'
+        print("model_fn = [{}]".format(full_model_fn))
 
         self.doc_classifier = joblib.load(full_model_fn)
         logging.info("EbDocCatRunner loading %s, %s", full_model_fn,
                      str(self.doc_classifier.catname_list))
 
     def classify_document(self, fname):
-        print("classifying document: [{}]".format(fname))
+        # logging.info("classifying document: '{}'".format(fname))
         with open(fname, 'rt') as fin:
             doc_text = fin.read()
             return self.doc_classifier.predict(doc_text)
+
+
+class EbLangDetectRunner:
+
+    def __init__(self):
+        pass
+
+    def detect_lang(self, atext):
+        try:
+            detect_lang = langdetect.detect(atext) or 'unknown'
+        except:
+            detect_lang = 'unknown'
+        # logging.info("detected language '{}'".format(detect_lang))
+        return detect_lang
+
+    def detect_langs(self, atext):
+        try:
+            lang_probs = langdetect.detect_langs(atext)
+            detect_langs = ','.join(['{}={}'.format(lang.lang, lang.prob) for lang in lang_probs])
+        except:
+            detect_langs = 'unknown=0.00001'
+        # logging.info("detected languages '{}'".format(detect_langs))
+        return detect_langs

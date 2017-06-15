@@ -10,6 +10,8 @@ def load_normtags(normtag_fname):
     with open(normtag_fname, 'rt') as fin:
         for line in fin:
             aname, norm_name = line.strip().split('\t')
+            aname = aname.strip()
+            norm_name = norm_name.strip()            
 
             if aname != norm_name:
                 aname_to_normtag_map[aname] = norm_name
@@ -32,16 +34,21 @@ def create_wanted_tags(txt_fn_list_fn):
                 tags = json.loads(ebdata_fin.read())['tags']
 
                 for tag in set(tags):
+                    tag = tag.strip()
                     tag_count_map[tag] += 1
 
     wanted_tags = []
     not_found_tags = []    
-    for tag, freq in sorted(tag_count_map.items(), key=operator.itemgetter(1), reverse=True):
+    for i, (tag, freq) in enumerate(sorted(tag_count_map.items(), key=operator.itemgetter(1), reverse=True)):
         norm_tag = NAME2NORMTAG_MAP.get(tag)
         if norm_tag:
             if freq >= 20:
                 wanted_tags.append(norm_tag)
-            print('tag\t{}\t{}\t{}'.format(norm_tag, freq, tag))
+            else:
+                # print('xxx less 20 tag\t{}\t{}\t{}\t{}'.format(i, norm_tag, freq, tag))
+                print('skip_tag2\t{}\t{}\t{}'.format(norm_tag, freq, tag))                
+                
+            print('tag\t{}\t{}\t{}\t{}'.format(i, norm_tag, freq, tag))
         else:
             not_found_tags.append((tag, freq))
 
@@ -102,46 +109,3 @@ def create_wanted_tags_file(txt_fn_list_fn):
 create_wanted_tags_file('sample.filelist')
 
 
-        
-"""
-doc_cat_names = []
-
-catname_catid_map = {}
-catid_catname_map = {}
-
-# there is a repeated entry "Loan Agreement"
-catid = 0
-for _, catname in FNPAT_CATNAME_MAP.items():
-    if not catname_catid_map.get(catname):
-        catname_catid_map[catname] = catid
-        catid_catname_map[catid] = catname
-        catid += 1
-        doc_cat_names.append(catname)
-
-
-def tags_to_catnames(tags):
-    labels = []
-    label_str = ' '.join(tags).lower()
-    for word in FNPAT_CATNAME_MAP:
-        pat = r"\b" + word.lower() + r"\b"
-        if re.search(pat, label_str):
-            labels.append(FNPAT_CATNAME_MAP[word])
-    return labels
-
-
-def tags_to_catids(tags):
-    catnames = tags_to_catnames(tags)
-    return catnames_to_catids(catnames)
-
-
-def catnames_to_catids(catnames):
-    return sorted([catname_catid_map[catname] for catname in catnames])
-
-
-def catname_to_catid(catname):
-    return catname_catid_map.get(catname)
-
-
-def catid_to_catname(catid):
-    return catid_catname_map.get(catid)
-"""
