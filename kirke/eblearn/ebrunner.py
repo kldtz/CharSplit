@@ -11,6 +11,7 @@ from sklearn.externals import joblib
 
 from kirke.eblearn import ebannotator, ebtext2antdoc, ebtrainer, scutclassifier
 from kirke.utils import osutils
+from kirke.utils.processify import processify
 
 DEBUG_MODE = False
 
@@ -261,6 +262,7 @@ class EbRunner:
     # custom_train_provision_and_evaluate
     #
     # pylint: disable=C0103
+    @deprecated
     def custom_train_provision_and_evaluate(self, txt_fn_list, provision,
                                             custom_model_dir, work_dir=None):
 
@@ -297,3 +299,31 @@ class EbRunner:
         self.custom_model_timestamp_map[local_custom_model_fn] = last_modified_date
 
         return eb_annotator.get_eval_status()
+
+
+#
+# custom_train_provision_and_evaluate
+#
+# pylint: disable=C0103
+@processify
+def processify_custom_train_provision_and_evaluate(txt_fn_list,
+                                                   provision,
+                                                   custom_model_dir,
+                                                   work_dir):
+
+    logging.info("txt_fn_list_fn: %s", txt_fn_list)
+
+    model_file_name = '{}/{}_scutclassifier.pkl'.format(custom_model_dir,
+                                                        provision)
+    logging.info("custom_mode_file: %s", model_file_name)
+
+    eb_classifier = scutclassifier.ShortcutClassifier(provision)
+    eb_annotator = ebtrainer.train_eval_annotator(provision,
+                                                  txt_fn_list,
+                                                  work_dir,
+                                                  custom_model_dir,
+                                                  model_file_name,
+                                                  eb_classifier,
+                                                  custom_training_mode=True)
+
+    return eb_annotator.get_eval_status()

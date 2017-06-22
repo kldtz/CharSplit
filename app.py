@@ -41,6 +41,7 @@ osutils.mkpath(CUSTOM_MODEL_DIR)
 
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 
+
 @app.route('/annotate-doc', methods=['POST'])
 def annotate_uploaded_document():
     request_work_dir = request.form.get('workdir')
@@ -127,14 +128,18 @@ def custom_train(cust_id):
     txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames.list')
     strutils.dumps('\n'.join(full_txt_fnames), txt_fn_list_fn)
 
-    # When deploying, swap below two lines.  Otherwise, the error says
-    # sample size 0 because no document has such provision.
-    # provision = 'change_control'
-    # Following the logic in the original code.
-    eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
-                                                                provision,
-                                                                CUSTOM_MODEL_DIR,
-                                                                work_dir=work_dir)
+    # Due to memory leak which is probably caused by memory fragmentation,
+    # don't use custom_train_provision_and_evaluate().
+    # eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
+    #                                                             provision,
+    #                                                             CUSTOM_MODEL_DIR,
+    #                                                             work_dir=work_dir)
+    # Use a separate process to train instead.
+    eval_status = ebrunner.processify_custom_train_provision_and_evaluate(txt_fn_list_fn,
+                                                                          provision,
+                                                                          CUSTOM_MODEL_DIR,
+                                                                          work_dir=work_dir)
+
     # copy the result into the expected format for client
     pred_status = eval_status['pred_status']['pred_status']
     cf = pred_status['confusion_matrix']
