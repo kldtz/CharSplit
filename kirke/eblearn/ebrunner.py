@@ -262,7 +262,7 @@ class EbRunner:
     # custom_train_provision_and_evaluate
     #
     # pylint: disable=C0103
-    @deprecated
+    # deprecated
     def custom_train_provision_and_evaluate(self, txt_fn_list, provision,
                                             custom_model_dir, work_dir=None):
 
