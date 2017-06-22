@@ -42,12 +42,12 @@ def processify(func):
         p.join()
 
         if error:
-            # ex_value can be null, then it cause the process to crash
-            logging.error("error: {}".format(error), file=sys.stderr)
+            # ex_value can be null, then it causes the process to crash
+            logging.error("error: {}".format(error))
             # ex_type, ex_value, tb_str = error
             # message = '%s (in subprocess)\n%s' % (ex_value.message, tb_str)
             # raise ex_type(message)
-            raise Exception("error: {}".error)
+            raise Exception("error: {}".format(error))
 
         return ret
     return wrapper
