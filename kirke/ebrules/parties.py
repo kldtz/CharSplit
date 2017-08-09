@@ -16,30 +16,33 @@ TERM_CANT_HAVE = [r'\bdate\b', r'\boffice\b', r'\bdefined\b']
 """Get keywords"""
 
 
-def cap_rm_dot(s):
+dot_space = re.compile(r'[\.\s]+')
+
+
+def cap_rm_dot_space(s):
     """Allows comparison between different cases (e.g. L.L.C. and Llc)."""
-    return s.strip().upper().replace('.', '')
+    return dot_space.sub('', s.strip().upper())
 
 
 with open(DATA_DIR + 'states.list') as f:
-    states = [cap_rm_dot(state) for state in f.read().splitlines()]
+    states = [cap_rm_dot_space(state) for state in f.read().splitlines()]
 with open(DATA_DIR + 'business_suffixes.list') as f:
     business_suffixes = f.read().splitlines()
 with open(DATA_DIR + 'name_suffixes.list') as f:
     name_suffixes = f.read().splitlines()
 suffixes = business_suffixes + name_suffixes
 max_suffix_words = max(len(s.split()) for s in suffixes)
-business_suffixes = [cap_rm_dot(s) for s in business_suffixes]
-suffixes = business_suffixes + [cap_rm_dot(s) for s in name_suffixes]
+business_suffixes = [cap_rm_dot_space(s) for s in business_suffixes]
+suffixes = business_suffixes + [cap_rm_dot_space(s) for s in name_suffixes]
 
 
 """Process parts of strings (already split by comma, and, & semicolon)"""
 
 
-def maybe_title(s):
+def keep(s):
     """Eliminate titles (the "Agreement") as potential parties and terms."""
-    alphanumeric_chars = ''.join([c for c in s if c.isalnum()])
-    return titles.title_ratio(alphanumeric_chars) > 73
+    alphanum_chars = ''.join([c for c in s if c.isalnum()])
+    return titles.title_ratio(alphanum_chars) < 73 if alphanum_chars else False
 
 
 party_regexes = [re.compile(p, re.IGNORECASE) for p in PARTY_CANT_HAVE]
@@ -47,17 +50,14 @@ party_regexes = [re.compile(p, re.IGNORECASE) for p in PARTY_CANT_HAVE]
 
 def process_part(p):
     # Reject if just a state or state abbreviations (only 2 characters)
-    if len(p) < 3 or cap_rm_dot(p) in states:
+    if len(p) < 3 or cap_rm_dot_space(p) in states:
         return ''
 
     # Terminate at a single-word business suffix or business suffix abbreviation
-    words = p.split()
-    new_words = []
-    for word in words:
-        new_words.append(word)
-        if cap_rm_dot(word) in business_suffixes:
+    for word in p.split():
+        if cap_rm_dot_space(word) in business_suffixes:
+            p = p[:p.index(word) + len(word)]
             break
-    p = ' '.join(new_words)
 
     # Remove certain phrases like 'on the one hand'
     for r in party_regexes:
@@ -68,7 +68,7 @@ def process_part(p):
         p = p[:len(p) - len(p.split()[-1]) - 1]
 
     # Return the processed part if not a title
-    return p if not maybe_title(p) else ''
+    return p if keep(p) else ''
 
 
 """Process terms"""
@@ -79,13 +79,13 @@ term_regexes = [re.compile(t, re.IGNORECASE) for t in TERM_CANT_HAVE]
 
 def process_term(t):
     """Ignore if term is a title or contains words that a term cannot have."""
-    return '' if maybe_title(t) or any(r.search(t) for r in term_regexes) else t
+    return t if keep(t) and not any(r.search(t) for r in term_regexes) else ''
 
 
 """Helper functions and regexes for extracting parties from party line"""
 
 
-party_chars = set(string.ascii_letters).union(string.digits).union('=')
+party_chars = set(string.ascii_letters).union(string.digits).union('=.')
 
 
 def party_strip(s):
@@ -93,7 +93,7 @@ def party_strip(s):
     return s.strip(str(non_party_chars)) if non_party_chars else s
 
 
-sentence_does_not_continue = r'(?![^\s]| \(| [^A-Z]+ )'
+sentence_does_not_continue = r'(?=\s+(?:[A-Z0-9].|[a-z][A-Z0-9]))'
 not_few_letters = r'(?<!\b[A-Za-z]\.)(?<!\b[A-Za-z]{2}\.)'
 not_number = r'(?<!\bN(O|o)\.)(?<!\bN(O|o)(S|s)\.)'
 real_period = r'\.' + sentence_does_not_continue + not_few_letters + not_number
@@ -127,8 +127,11 @@ def extract_between_among(s):
     # Temporarily sub defined terms with '=' to avoid splitting on their commas
     terms = parens.findall(s)
     s = non_comma_separators.sub(',', parens.sub('=', s))
-    parts = party_strip(s).split(', ')
-    parts = [p for part in parts for p in paren_symbol.split(part) if p]
+
+    # Split the string into parts, applying party_strip between each step
+    parts = [party_strip(part) for part in party_strip(s).split(', ')]
+    parts = [party_strip(q) for p in parts for q in paren_symbol.split(p) if q]
+    parts = [q for q in parts if q]
 
     # Process parts and decide which parts to keep
     new_parts = ['']
@@ -144,9 +147,9 @@ def extract_between_among(s):
         if not p.strip():
             continue
 
-        # Mark for deletion if first word lowercase
+        # Mark for deletion if first word has no uppercase letters or digits
         first_word = p.split()[0]
-        if first_word.islower():
+        if not any(c.isupper() or c.isdigit() for c in first_word):
             new_parts.append('^')
             continue
 
@@ -162,16 +165,15 @@ def extract_between_among(s):
             check_again = False
             words = p.strip().split()
             for i in range(max_suffix_words):
-                words_considered = cap_rm_dot(''.join(words[:i]))
+                words_considered = cap_rm_dot_space(''.join(words[:i]))
                 if any(words_considered == s for s in suffixes):
                     seen_suffixes += ' ' + ' '.join(words[:i])
                     p = ' '.join(words[i:])
                     check_again = True
                     break
         if seen_suffixes:
-            # Append suffixes and add carot to "protect" from zip code deletion
+            # Append suffixes
             new_parts[-1] += ',' + seen_suffixes
-            new_parts.append('^')
             continue
 
         # Process then keep the part if not a title, etc.
@@ -255,7 +257,7 @@ def parties_to_offsets(parties, party_line):
             if start_index != -1:
                 offsets.append((start_index, start_index + len(part)))
         parties[i] = offsets
-    return parties
+    return [p for p in parties if p]
 
 
 def extract_parties(filepath):
