@@ -1,6 +1,7 @@
 
 import concurrent.futures
 import copy
+import json
 import logging
 import os
 import psutil
@@ -9,9 +10,12 @@ from datetime import datetime
 
 from sklearn.externals import joblib
 
-from kirke.eblearn import ebannotator, ebtext2antdoc, ebtrainer, scutclassifier
-from kirke.utils import osutils
-from kirke.utils.processify import processify
+from kirke.eblearn import ebannotator, ebtext2antdoc, ebtrainer, scutclassifier, lineannotator
+from kirke.utils import osutils, strutils, txtreader
+
+from kirke.docstruct import docreader, htmltxtparser, doc_pdf_reader
+
+from kirke.ebrules import rateclassifier, titles, parties
 
 DEBUG_MODE = False
 
@@ -34,6 +38,7 @@ def test_provision(eb_annotator, eb_antdoc_list, threshold):
 
 pid = os.getpid()
 py = psutil.Process(pid)
+
 
 class EbRunner:
 
@@ -108,14 +113,14 @@ class EbRunner:
             self.provision_annotator_map[provision] = ebannotator.ProvisionAnnotator(pclassifier,
                                                                                      self.work_dir)
 
+        self.title_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
+        self.party_annotator = lineannotator.LineAnnotator('party', parties.PartyAnnotator('party'))
+
         total_mem_usage = py.memory_info()[0] / 2**20
         avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
-        print('\ntotal mem: {:.2f},  model mem: {:.2f},  avg: {:.2f}'.format(total_mem_usage,
-                                                                             total_mem_usage - orig_mem_usage,
-                                                                             avg_model_mem))
-            
-            
-            
+        logging.info('total mem: {:.2f},  model mem: {:.2f},  avg: {:.2f}'.format(total_mem_usage,
+                                                                                  total_mem_usage - orig_mem_usage,
+                                                                                  avg_model_mem))
         logging.info('EbRunner is initiated.')
 
     def run_annotators_in_parallel(self, eb_antdoc, provision_set=None):
@@ -180,7 +185,13 @@ class EbRunner:
             start_time_2 = time.time()
             logging.info('updating custom models took %.0f msec', (start_time_2 - start_time_1) * 1000)
 
-    def annotate_document(self, file_name, provision_set=None, work_dir=None):
+
+    def annotate_text_document(self,
+                               file_name,
+                               provision_set=None,
+                               work_dir=None,
+                               is_called_by_pdfboxed=False,
+                               is_doc_structure=False):
         time1 = time.time()
         if not provision_set:
             provision_set = self.provisions
@@ -194,7 +205,17 @@ class EbRunner:
         # custom models can be update by other workers
         self.update_custom_models()
 
-        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, work_dir)
+        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name,
+                                                  work_dir,
+                                                  is_doc_structure=is_doc_structure)
+
+        # if the file contains too few words, don't bother
+        # otherwise, might cause classifier error if only have 1 error because of minmax
+        if len(eb_antdoc.text) < 100:
+            empty_result = {}
+            for prov in provision_set:
+                empty_result[prov] = []
+            return empty_result, eb_antdoc.text
 
         # this execute the annotators in parallel
         ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_set)
@@ -220,14 +241,257 @@ class EbRunner:
         # user never want to see sigdate
         ant_result_dict['sigdate'] = []
 
+        if not is_called_by_pdfboxed:
+            # save the prov_labels_map
+            prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
+            prov_ants_st = json.dumps(ant_result_dict)
+            strutils.dumps(prov_ants_st, prov_ants_fn)
+
         time2 = time.time()
         logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
         return ant_result_dict, eb_antdoc.text
 
-    
+    # this parses both originally text and html documents
+    # It's main goal is to detect sechead
+    # optionally pagenum, footer, toc, signature
+    def annotate_htmled_document(self, file_name, provision_set=None, work_dir=None):
+        time1 = time.time()
+
+        base_fname = os.path.basename(file_name)
+
+        # gap_span_list is for sentv2.txt or xxx.txt?
+        # the offsets in para_list is for doc_text
+        #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
+        #     docreader.parse_html_document(file_name, linfo_file_name, work_dir=work_dir)
+
+        paras_with_attrs, para_doc_text, gap_span_list, orig_doc_text = \
+            htmltxtparser.parse_document(file_name,
+                                         work_dir=work_dir)
+        text4nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.txt'))
+        txtreader.dumps(para_doc_text, text4nlp_fn)
+        # print('wrote {}'.format(text4nlp_fn))
+
+        # I am a little messed up on from_to lists
+        # not sure exactly what "from" means, original text or nlp text
+        to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
+
+        prov_labels_map, text4nlp = self.annotate_text_document(text4nlp_fn,
+                                                                provision_set=provision_set,
+                                                                work_dir=work_dir,
+                                                                is_doc_structure=True,
+                                                                is_called_by_pdfboxed=True)
+
+        # title works on the para_doc_text, not original text. so the
+        # offsets needs to be adjusted, just like for text4nlp stuff
+        title_ant_list = self.title_annotator.annotate_antdoc(paras_with_attrs, para_doc_text)
+        # now we override title from classifier.
+        prov_labels_map['title'] = title_ant_list
+
+        party_ant_list = self.party_annotator.annotate_antdoc(paras_with_attrs, para_doc_text)
+        if party_ant_list:
+            # now we override title from classifier.
+            prov_labels_map['party'] = party_ant_list        
+
+        # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
+
+        # translate the offsets
+        all_prov_ant_list = []
+        for provision, ant_list in prov_labels_map.items():
+            for antx in ant_list:
+                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
+                xstart = antx['start']
+                xend = antx['end']
+                antx['corenlp_start'] = xstart
+                antx['corenlp_end'] = xend
+                antx['start'] = docreader.find_offset_to(xstart, from_list, to_list)
+                antx['end'] = docreader.find_offset_to(xend, from_list, to_list)
+
+                all_prov_ant_list.append(antx)
+
+        # this update the 'start_end_span_list' in each antx in-place
+        docreader.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
+
+        # HTML document has no table detection, so 'rate-table' annotation is an empty list
+        prov_labels_map['rate_table'] = []
+
+        # save the prov_labels_map
+        prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
+        prov_ants_st = json.dumps(prov_labels_map)
+        strutils.dumps(prov_ants_st, prov_ants_fn)
+
+        time2 = time.time()
+        logging.info('annotate_htmled_document(%s) took %0.2f sec', file_name, (time2 - time1))
+        return prov_labels_map, orig_doc_text
+
+
+    # this parses both originally text and html documents
+    # It's main goal is to detect sechead
+    # optionally pagenum, footer, toc, signature
+    def annotate_pdfboxed_document(self, file_name, offsets_file_name, provision_set=None, work_dir=None):
+        time1 = time.time()
+
+        orig_text, nl_text, paraline_text, nl_fname, paraline_fname = \
+           doc_pdf_reader.to_nl_paraline_texts(file_name, offsets_file_name, work_dir=work_dir)
+
+        # file_name = paraline_fname
+        base_fname = os.path.basename(file_name)
+
+        # gap_span_list is for sentv2.txt or xxx.txt?
+        # the offsets in para_list is for doc_text
+        #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
+        #     docreader.parse_html_document(file_name, linfo_file_name, work_dir=work_dir)
+
+        paras_with_attrs, para_doc_text, gap_span_list, orig_doc_text = \
+            htmltxtparser.parse_document(file_name,
+                                         work_dir=work_dir, is_combine_line=False)
+        text4nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.txt'))
+        txtreader.dumps(para_doc_text, text4nlp_fn)
+        # print('wrote {}'.format(text4nlp_fn))
+
+        to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
+
+        prov_labels_map, text4nlp = self.annotate_text_document(text4nlp_fn,
+                                                                provision_set=provision_set,
+                                                                work_dir=work_dir,
+                                                                is_doc_structure=True,
+                                                                is_called_by_pdfboxed=True)
+
+        # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
+
+        # translate the offsets
+        all_prov_ant_list = []
+        for provision, ant_list in prov_labels_map.items():
+            for antx in ant_list:
+                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
+                xstart = antx['start']
+                xend = antx['end']
+                antx['corenlp_start'] = xstart
+                antx['corenlp_end'] = xend
+                antx['start'] = docreader.find_offset_to(xstart, from_list, to_list)
+                antx['end'] = docreader.find_offset_to(xend, from_list, to_list)
+                all_prov_ant_list.append(antx)
+
+        # title works on the para_doc_text, not original text. so the
+        # offsets needs to be adjusted, just like for text4nlp stuff.
+        # The offsets here differs from above because of line break differs.
+        # As a result, probably more page numbers are detected correctly and skipped.
+        nl_paras_with_attrs, nl_para_doc_text, nl_gap_span_list, nl_orig_doc_text = \
+            htmltxtparser.parse_document(paraline_fname,
+                                         work_dir=work_dir, is_combine_line=False)
+        nl_to_list, nl_from_list = htmltxtparser.paras_to_fromto_lists(nl_paras_with_attrs)
+        title_ant_list = self.title_annotator.annotate_antdoc(nl_paras_with_attrs, nl_para_doc_text)
+        # print('title_start, end = {}'.format(title_ant_list))
+        # TODO, be careful about override title!
+        # now we override.
+        if title_ant_list:
+            for antx in title_ant_list:
+                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
+                xstart = antx['start']
+                xend = antx['end']
+                antx['corenlp_start'] = xstart
+                antx['corenlp_end'] = xend
+                antx['start'] = docreader.find_offset_to(xstart, nl_from_list, nl_to_list)
+                antx['end'] = docreader.find_offset_to(xend, nl_from_list, nl_to_list)
+                all_prov_ant_list.append(antx)
+        prov_labels_map['title'] = title_ant_list
+
+        party_ant_list = self.party_annotator.annotate_antdoc(nl_paras_with_attrs, nl_para_doc_text)
+        # print('title_start, end = {}'.format(title_ant_list))
+        # TODO, be careful about override title!
+        # now we override.
+        if party_ant_list:
+            for antx in party_ant_list:
+                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
+                xstart = antx['start']
+                xend = antx['end']
+                antx['corenlp_start'] = xstart
+                antx['corenlp_end'] = xend
+                antx['start'] = docreader.find_offset_to(xstart, nl_from_list, nl_to_list)
+                antx['end'] = docreader.find_offset_to(xend, nl_from_list, nl_to_list)
+                all_prov_ant_list.append(antx)
+        prov_labels_map['party'] = party_ant_list
+
+        # this update the 'start_end_span_list' in each antx in-place
+        docreader.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
+
+        # HTML document has no table detection, so 'rate-table' annotation is an empty list
+        prov_labels_map['rate_table'] = []
+
+        # save the prov_labels_map
+        prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
+        prov_ants_st = json.dumps(prov_labels_map)
+        strutils.dumps(prov_ants_st, prov_ants_fn)
+
+        time2 = time.time()
+        logging.info('annotate_htmled_document(%s) took %0.2f sec', file_name, (time2 - time1))
+        return prov_labels_map, orig_doc_text
+
+
+    # TODO, this is the same as main.annotate_pdfboxed_document?
+    # this calls annotate_text_document()
+    def annotate_pdfboxed_document_for_table(self, file_name, linfo_file_name, provision_set=None, work_dir=None):
+        time1 = time.time()
+
+        base_fname = os.path.basename(file_name)
+
+        # gap_span_list is for sentv2.txt or xxx.txt?
+        # the offsets in para_list is for doc_text
+        doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
+             docreader.parse_document(file_name, linfo_file_name, work_dir=work_dir)
+
+        # now file_name.nlp.txt and file_name.nlp.offsets.json are created
+        # text4nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.txt'))
+        # text4nlp_offsets_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.offsets.json'))
+
+        prov_labels_map, text4nlp = self.annotate_text_document(text4nlp_fn,
+                                                                provision_set=provision_set,
+                                                                work_dir=work_dir,
+                                                                is_called_by_pdfboxed=True)
+        # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
+
+        # translate the offsets
+        from_list, to_list = docreader.read_fromto_json(text4nlp_offsets_fn)
+        all_prov_ant_list = []
+        for provision, ant_list in prov_labels_map.items():
+            for antx in ant_list:
+                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
+                xstart = antx['start']
+                xend = antx['end']
+                antx['corenlp_start'] = xstart
+                antx['corenlp_end'] = xend
+                antx['start'] = docreader.find_offset_to(xstart, from_list, to_list)
+                antx['end'] = docreader.find_offset_to(xend, from_list, to_list)
+
+                all_prov_ant_list.append(antx)
+
+        # this update the 'start_end_span_list' in each antx in-place
+        docreader.update_ant_spans(all_prov_ant_list, gap_span_list, doc_text)
+
+        # apply rule-based classification system
+        # the offsets in para_list is for doc_text, so update the annotations after
+        # adjustment were made
+        table_list = docreader.extract_table_list(para_list)
+        #if table_list:
+        #    for i, atable in enumerate(table_list, 1):
+        #        print("table #{}".format(i))
+        #        for sentV4 in atable:
+        #            print("\t{}".format(sentV4.text))
+        prov_labels_map['rate_table'] = rateclassifier.classify_table_list(table_list, doc_text)
+        # print("rate_table = {}".format(rateclassifier.classify_table_list(table_list, doc_text)))
+
+        # save the prov_labels_map
+        prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
+        prov_ants_st = json.dumps(prov_labels_map)
+        strutils.dumps(prov_ants_st, prov_ants_fn)
+
+        time2 = time.time()
+        logging.info('annotate_pdfboxed_document(%s) took %0.2f sec', file_name, (time2 - time1))
+        return prov_labels_map, doc_text
+
+
     def annotate_provision_in_document(self, file_name, provision: str):
         provision_set = set([provision])
-        ant_result_dict, doc_text = self.annotate_document(file_name, provision_set)
+        ant_result_dict, doc_text = self.annotate_text_document(file_name, provision_set)
         prov_list = ant_result_dict[provision]
         for i, prov in enumerate(prov_list, 1):
             start = prov['start']
@@ -262,9 +526,10 @@ class EbRunner:
     # custom_train_provision_and_evaluate
     #
     # pylint: disable=C0103
-    # deprecated
     def custom_train_provision_and_evaluate(self, txt_fn_list, provision,
-                                            custom_model_dir, work_dir=None):
+                                            custom_model_dir,
+                                            is_doc_structure=True,
+                                            work_dir=None):
 
         logging.info("txt_fn_list_fn: %s", txt_fn_list)
 
@@ -281,6 +546,7 @@ class EbRunner:
                                                       custom_model_dir,
                                                       model_file_name,
                                                       eb_classifier,
+                                                      is_doc_structure=is_doc_structure,
                                                       custom_training_mode=True)
 
         # update the hashmap of classifier
@@ -299,31 +565,3 @@ class EbRunner:
         self.custom_model_timestamp_map[local_custom_model_fn] = last_modified_date
 
         return eb_annotator.get_eval_status()
-
-
-#
-# custom_train_provision_and_evaluate
-#
-# pylint: disable=C0103
-@processify
-def processify_custom_train_provision_and_evaluate(txt_fn_list,
-                                                   provision,
-                                                   custom_model_dir,
-                                                   work_dir):
-
-    logging.info("txt_fn_list_fn: %s", txt_fn_list)
-
-    model_file_name = '{}/{}_scutclassifier.pkl'.format(custom_model_dir,
-                                                        provision)
-    logging.info("custom_mode_file: %s", model_file_name)
-
-    eb_classifier = scutclassifier.ShortcutClassifier(provision)
-    eb_annotator = ebtrainer.train_eval_annotator(provision,
-                                                  txt_fn_list,
-                                                  work_dir,
-                                                  custom_model_dir,
-                                                  model_file_name,
-                                                  eb_classifier,
-                                                  custom_training_mode=True)
-
-    return eb_annotator.get_eval_status()

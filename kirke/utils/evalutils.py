@@ -116,6 +116,93 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
     return tp, fn, fp, tn
 
 
+# for 'title', we want to match any title annotation
+# if any matched, we passed.  Don't care about any other.
+# pylint: disable=R0914
+def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
+    tp, fp, tn, fn = 0, 0, 0, 0
+    # print("calc_doc_ant_confusion_matrix:")
+
+    pred_ant_list = []
+    for adict in ant_list:
+        pred_ant_list.append(AnnotationWithProb(adict['label'],
+                                                adict['start'],
+                                                adict['end'],
+                                                adict['prob']))
+    # print("prov_human_ant_list: {}".format(prov_human_ant_list))
+    # print("pred_ant_list: {}".format(pred_ant_list))
+
+    tp_inst_map = defaultdict(list)
+    fp_inst_list = []
+    fn_inst_list = []
+    tp_fn_set = set([])
+    for hant in prov_human_ant_list:
+
+        pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
+        if pred_overlap_list:
+            # This handles the case there a predicted annotation overlap with one
+            # or more human annotations.
+            tp_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+            tp += 1
+        else:
+            fn_inst_list.append(hant)
+            fn += 1
+
+        tp_fn_set |= set(pred_overlap_list)
+
+    for pant in pred_ant_list:
+        # skip if in TP or FP before
+        if pant in tp_fn_set:
+            continue
+        # if pred:
+        fp_inst_list.append(pant)
+        fp += 1
+
+    # we only care about any match
+    if tp:
+        fn = 0
+        fp = 0
+        return tp, fn, fp, tn
+
+    if fp:
+        fp = 1
+
+    if fn:
+        fn = 1
+
+    # print("tp= {}, fn= {}, fp = {}, tn = {}".format(tp, fn, fp, tn))
+
+    # there is no tn, because we deal with only annotations
+    if diagnose_mode:
+        print("tp = {}".format(tp))
+        for i, hant in enumerate(sorted(tp_inst_map.keys())):
+            hstart, hend, _ = hant
+            print("\ntp #{}, start= {}, end= {}".format(i+1, hstart, hend))
+            print(txt[hstart:hend])
+            tp_inst_list = tp_inst_map[hant]
+            for j, pred_ant in enumerate(tp_inst_list):
+                print("     inst #%d, start2= %d, end2= %d, prob= %.6f" %
+                      (j+1, pred_ant.start, pred_ant.end, pred_ant.prob))
+                print("     ", end='')
+                print("[[" + txt[pred_ant.start:pred_ant.end] + "]]")
+
+        print("\n\nfn = {}".format(fn))
+        for i, hant in enumerate(fn_inst_list):
+            print("\nfn #%d, start= %d, end= %d, label = %s" %
+                  (i+1, hant.start, hant.end, hant.label))
+            print("     ", end='')
+            print("[[" + txt[hant.start:hant.end] + "]]")
+
+        print("\n\nfp = {}".format(fp))
+        for i, pred_ant in enumerate(fp_inst_list):
+            print("\nfp #%d, start= %d, end= %d, prob= %.6f" %
+                  (i, pred_ant.start, pred_ant.end, pred_ant.prob))
+            print("[[" + txt[pred_ant.start:pred_ant.end] + "]]")
+
+    return tp, fn, fp, tn
+
+
+
 # pylint: disable=R0914
 def calc_doc_ant_confusion_matrix_precx2(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
     tp, fp, tn, fn = 0, 0, 0, 0
