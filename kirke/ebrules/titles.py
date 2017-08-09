@@ -314,10 +314,13 @@ def extract_offsets(paras_attr_list):
                          'score': score, 'ratio': ratio_score}
 
     # Return the title's start and end lines
-    line_start, line_end = title['offsets'] if title['ratio'] >= MIN_TITLE_RATIO else (None, None)
+    line_start, line_end, chopped_offset = title['offsets'] if title['ratio'] >= MIN_TITLE_RATIO else (None, None)
     if line_start is not None:
         start_offset = start_end_list[line_start][0]
-        end_offset = start_end_list[line_end][1]
+        if chopped_offset == -1:
+            end_offset = start_end_list[line_end][1]
+        else:
+            end_offset = start_end_list[line_end][0] + chopped_offset
         return start_offset, end_offset
         
     return None, None
