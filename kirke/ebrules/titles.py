@@ -85,7 +85,7 @@ cant_have = ['among', 'between', 'by and', 'date', 'dated', 'effective',
              'entered', 'for', 'this', 'vice']
 cant_begin_regex = re.compile(r'(?:{})\b'.format('|'.join(cant_begin)))
 cant_end_regex = re.compile(r'\b(?:{})$'.format('|'.join(cant_end)))
-cant_have_pattern = r'^(?:(.*?)\s+)??(?:{})'
+cant_have_pattern = r'^(?:(.*?)\s+)??(?:{})\b'
 cant_have_regex = re.compile(cant_have_pattern.format('|'.join(cant_have)))
 
 
@@ -314,7 +314,7 @@ def extract_offsets(paras_attr_list):
                          'score': score, 'ratio': ratio_score}
 
     # Return the title's start and end lines
-    line_start, line_end, chopped_offset = title['offsets'] if title['ratio'] >= MIN_TITLE_RATIO else (None, None)
+    line_start, line_end, chopped_offset = title['offsets'] if title['ratio'] >= MIN_TITLE_RATIO else (None, None, None)
     if line_start is not None:
         start_offset = start_end_list[line_start][0]
         if chopped_offset == -1:
