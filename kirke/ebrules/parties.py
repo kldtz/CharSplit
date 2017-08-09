@@ -141,24 +141,7 @@ def extract_between_among(s):
             new_parts.append(p)
             continue
 
-        # Take out 'the ' from beginning of string; bail if remaining is empty
-        while p.startswith('the '):
-            p = p[4:]
-        if not p.strip():
-            continue
-
-        # Mark for deletion if first word has no uppercase letters or digits
-        first_word = p.split()[0]
-        if not any(c.isupper() or c.isdigit() for c in first_word):
-            new_parts.append('^')
-            continue
-
-        # If zip code or year in part and not already deleting ('^'), mark '+'
-        if zip_code_year.search(p):
-            new_parts.append('+')
-            continue
-
-        # If first word is a suffix (MD MBA), should add to previous party name
+        # If first word is a suffix (MD MBA), add to previous and remove from p
         seen_suffixes = ''
         check_again = True
         while check_again:
@@ -174,6 +157,22 @@ def extract_between_among(s):
         if seen_suffixes:
             # Append suffixes
             new_parts[-1] += ',' + seen_suffixes
+
+        # Take out 'the ' from beginning of string; bail if remaining is empty
+        while p.startswith('the '):
+            p = p[4:]
+        if not p.strip():
+            continue
+
+        # Mark for deletion if first word has no uppercase letters or digits
+        first_word = p.split()[0]
+        if not any(c.isupper() or c.isdigit() for c in first_word):
+            new_parts.append('^')
+            continue
+
+        # If zip code or year in part and not already deleting ('^'), mark '+'
+        if zip_code_year.search(p):
+            new_parts.append('+')
             continue
 
         # Process then keep the part if not a title, etc.
