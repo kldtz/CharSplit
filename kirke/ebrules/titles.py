@@ -80,12 +80,13 @@ with open(DATA_DIR + 'past_titles_train.list') as f:
 
 cant_begin = ['and', 'for', 'to']
 cant_end = ['and', 'co', 'corp', 'for', 'limited', 'the', 'this', 'to']
-# any line cannot start with 'cant_have' words
+# any line cannot have 'cant_have' words
 cant_have = ['among', 'between', 'by and', 'date', 'dated', 'effective',
              'entered', 'for', 'this', 'vice']
 cant_begin_regex = re.compile(r'(?:{})\b'.format('|'.join(cant_begin)))
 cant_end_regex = re.compile(r'\b(?:{})$'.format('|'.join(cant_end)))
-cant_have_regex = re.compile(r'(?:{})\b'.format('|'.join(cant_have)))
+cant_have_pattern = r'^(?:(.*?)\s+)??(?:{})'
+cant_have_regex = re.compile(cant_have_pattern.format('|'.join(cant_have)))
 
 
 def extract_lines_v2(paras_attr_list):
@@ -107,7 +108,8 @@ def extract_lines_v2(paras_attr_list):
             if line_st:
                 title = 1 if 'title' in para_attrs else 0
                 maybe_title = 1 if 'maybe_title' in para_attrs else 0
-                line = {'line': line_st, 'start': i, 'end': i,
+                # end_char is exclusive-end for last line (-1 = entire line)
+                line = {'line': line_st, 'start': i, 'end': i, 'end_char': -1,
                         'title': title, 'maybe_title': maybe_title}
                 lines.append(line)
         start_end_list.append((offset, offset + line_st_len))
@@ -121,10 +123,16 @@ def extract_lines_v2(paras_attr_list):
     if not lines:
         return lines, start_end_list
 
-    # Terminate at first line-beginning cant_have word, keeping first line
-    for i in range(1, len(lines)):
-        if cant_have_regex.match(lines[i]['line']):
-            lines = lines[:i]
+    # Terminate at first cant_have word
+    for i in range(len(lines)):
+        match = cant_have_regex.findall(lines[i]['line'])
+        if match:
+            if match[0]:
+                lines[i]['line'] = match[0]
+                lines[i]['end_char'] = len(match[0])
+                lines = lines[:i + 1]
+            else:
+                lines = lines[:i]
             break
 
     # Some words should not start and/or end a title
@@ -135,6 +143,7 @@ def extract_lines_v2(paras_attr_list):
         if prev_cant_end or cant_begin:
             new_line[-1]['line'] += ' ' + lines[i]['line']
             new_line[-1]['end'] = lines[i]['end']
+            new_line[-1]['end_char'] = lines[i]['end_char']
             new_line[-1]['title'] *= lines[i]['title']
             new_line[-1]['maybe_title'] *= lines[i]['maybe_title']
         else:
@@ -167,7 +176,8 @@ def extract_lines(filepath):
                 if line:
                     title = 1 if 'title' in tags else 0
                     maybe_title = 1 if 'maybe_title' in tags else 0
-                    line = {'line': line, 'start': i, 'end': i,
+                    # end_char is exclusive-end for last line (-1 = entire line)
+                    line = {'line': line, 'start': i, 'end': i, 'end_char': -1,
                             'title': title, 'maybe_title': maybe_title}
                     lines.append(line)
         else:
@@ -179,10 +189,16 @@ def extract_lines(filepath):
     if not lines:
         return lines
 
-    # Terminate at first line-beginning cant_have word, keeping first line
-    for i in range(1, len(lines)):
-        if cant_have_regex.match(lines[i]['line']):
-            lines = lines[:i]
+    # Terminate at first cant_have word
+    for i in range(len(lines)):
+        match = cant_have_regex.findall(lines[i]['line'])
+        if match:
+            if match[0]:
+                lines[i]['line'] = match[0]
+                lines[i]['end_char'] = len(match[0])
+                lines = lines[:i + 1]
+            else:
+                lines = lines[:i]
             break
 
     # Some words should not start and/or end a title
@@ -193,6 +209,7 @@ def extract_lines(filepath):
         if prev_cant_end or cant_begin:
             new_line[-1]['line'] += ' ' + lines[i]['line']
             new_line[-1]['end'] = lines[i]['end']
+            new_line[-1]['end_char'] = lines[i]['end_char']
             new_line[-1]['title'] *= lines[i]['title']
             new_line[-1]['maybe_title'] *= lines[i]['maybe_title']
         else:
@@ -221,10 +238,12 @@ def extract_title(filepath):
     if not lines:
         return None
 
-    # Calculate line span as well as each line's title ratio for each line
+    # Calculate line span as well as each line's title ratio
     line_span = lines[-1]['end'] - lines[0]['start'] + 1
     title_ratios = [title_ratio(l['line']) for l in lines]
-    title = {'start_end': (-1, -1), 'score': -1, 'ratio': -1}
+
+    # Placeholder title. offsets: start, end, end_char (exclusive)
+    title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1}
 
     # Find best title; all individual scores range from 0 to 1
     for i in range(len(lines)):
@@ -249,11 +268,11 @@ def extract_title(filepath):
 
             # Update title if higher score
             if score > title['score']:
-                title = {'start_end': (start, end), 'score': score,
-                         'ratio': ratio_score}
+                title = {'offsets': (start, end, lines[j]['end_char']),
+                         'score': score, 'ratio': ratio_score}
 
     # Return the title's start and end lines
-    return title['start_end'] if title['ratio'] >= MIN_TITLE_RATIO else None
+    return title['offsets'] if title['ratio'] >= MIN_TITLE_RATIO else None
 
 def extract_offsets(paras_attr_list):
     # Grab lines from the file
@@ -261,10 +280,12 @@ def extract_offsets(paras_attr_list):
     if not lines:
         return None, None
 
-    # Calculate line span as well as each line's title ratio for each line
+    # Calculate line span as well as each line's title ratio
     line_span = lines[-1]['end'] - lines[0]['start'] + 1
     title_ratios = [title_ratio(l['line']) for l in lines]
-    title = {'start_end': (-1, -1), 'score': -1, 'ratio': -1}
+
+    # Placeholder title. offsets: start, end, end_char (exclusive)
+    title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1}
 
     # Find best title; all individual scores range from 0 to 1
     for i in range(len(lines)):
@@ -289,11 +310,11 @@ def extract_offsets(paras_attr_list):
 
             # Update title if higher score
             if score > title['score']:
-                title = {'start_end': (start, end), 'score': score,
-                         'ratio': ratio_score}
+                title = {'offsets': (start, end, lines[j]['end_char']),
+                         'score': score, 'ratio': ratio_score}
 
     # Return the title's start and end lines
-    line_start, line_end = title['start_end'] if title['ratio'] >= MIN_TITLE_RATIO else (None, None)
+    line_start, line_end = title['offsets'] if title['ratio'] >= MIN_TITLE_RATIO else (None, None)
     if line_start is not None:
         start_offset = start_end_list[line_start][0]
         end_offset = start_end_list[line_end][1]
