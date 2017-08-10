@@ -119,10 +119,6 @@ def extract_lines_v2(paras_attr_list):
         if num_lines_before_first_eng_para > -1:
             lines = lines[:num_lines_before_first_eng_para]
 
-    # Bail if no lines or neither 'party_line' or 'first_eng_para' found
-    if not lines:
-        return lines, start_end_list
-
     # Terminate at first cant_have word
     for i in range(len(lines)):
         match = cant_have_regex.findall(lines[i]['line'])
@@ -134,6 +130,10 @@ def extract_lines_v2(paras_attr_list):
             else:
                 lines = lines[:i]
             break
+
+    # Bail if no lines or neither 'party_line' or 'first_eng_para' found
+    if not lines:
+        return lines, start_end_list
 
     # Some words should not start and/or end a title
     new_line = [lines[0]]
@@ -185,10 +185,6 @@ def extract_lines(filepath):
             if num_lines_before_first_eng_para > -1:
                 lines = lines[:num_lines_before_first_eng_para]
 
-    # Bail if no lines or neither 'party_line' or 'first_eng_para' found
-    if not lines:
-        return lines
-
     # Terminate at first cant_have word
     for i in range(len(lines)):
         match = cant_have_regex.findall(lines[i]['line'])
@@ -200,6 +196,10 @@ def extract_lines(filepath):
             else:
                 lines = lines[:i]
             break
+
+    # Bail if no lines or neither 'party_line' or 'first_eng_para' found
+    if not lines:
+        return lines
 
     # Some words should not start and/or end a title
     new_line = [lines[0]]
