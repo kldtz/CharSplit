@@ -47,8 +47,8 @@ def extract_before_and_party_line(paras_attr_list):
 # bad, DATE_AS_OF_PAT = re.compile(r"as of ((?!by).)* by\b", re.IGNORECASE)
 # DATE_AS_OF_PAT = re.compile(r"as of (\S+\s+){1,2,3,4}(by\b|[\(\"•]+effective)", re.IGNORECASE)
 DATE_AS_OF_PAT = re.compile(r"as of (.*)", re.IGNORECASE)
-DIGIT_PAT = re.compile(r'\d')
-BY_PAT = re.compile(r'\s+(by\b|\()', re.IGNORECASE)
+DIGIT_PAT = re.compile(r'[l\d]')
+BY_PAT = re.compile(r'\s+(by\b|\(|[, ]*between)', re.IGNORECASE)
 EFFECTIVE_FOR_AS_IF_PAT = re.compile(r'\s*[\(\“\"]+effective', re.IGNORECASE)
 
 
@@ -112,6 +112,16 @@ def extract_dates_from_party_line(line):
         else:
             result.append((mat.start(), mat.end(), mat.group(),  'date'))
 
+    for mat in DATE_PAT4.finditer(line):
+        # print("date_pat4: {}".format(mat.group()))
+        char40_before = line[max(mat.start()-40, 0):mat.start()]
+        char40_after = line[mat.end():mat.end()+40]
+        if (EFFECTIVE_PAT.search(char40_before) or
+            EFFECTIVE_PAT.search(char40_after)):
+            result.append((mat.start(), mat.end(), mat.group(), 'effectivedate_auto'))
+        else:
+            result.append((mat.start(), mat.end(), mat.group(),  'date'))
+
     return result
 
 MONTH_LIST = ['January', 'February', 'March', 'April', 'May',
@@ -124,18 +134,21 @@ ALL_MONTH_LIST = MONTH_LIST + MONTH_ABBR_LIST
 
 ALL_MONTH_PAT = '|'.join(ALL_MONTH_LIST)
 
-DATE_PAT1_ST = '(' + ALL_MONTH_PAT + r')\s+\d{1,2}[,\s]+\d{4}'
+DATE_PAT1_ST = '(' + ALL_MONTH_PAT + r')\s+[l\d]{1,2}[,\s]+[l\d]{4}'
 # DATE_PAT_ST = '(' + ALL_MONTH_PAT + r')'
 # print('DATE_PAT_ST = "{}"'.format(DATE_PAT1_ST))
                          
 DATE_PAT1 = re.compile(DATE_PAT1_ST, re.IGNORECASE)
 
 
-DATE_PAT2_ST = '\d{1,2}\s*(' + ALL_MONTH_PAT + r')[,\s]+\d{4}'
+DATE_PAT2_ST = r'[l\d]{1,2}\s*(' + ALL_MONTH_PAT + r')[,\s]+[l\d]{4}'
 DATE_PAT2 = re.compile(DATE_PAT2_ST, re.IGNORECASE)
 
-DATE_PAT3_ST = '(the *)?\d{1,2}(th|st|rd)?\s*(day of)?\s*(' + ALL_MONTH_PAT + r')[,\s]+\d{4}'
+DATE_PAT3_ST = r'(the *)?[l\d]{1,2}(th|st|rd)?\s*(day of)?\s*(' + ALL_MONTH_PAT + r')[,\s]+[l\d]{4}'
 DATE_PAT3 = re.compile(DATE_PAT3_ST, re.IGNORECASE)
+
+DATE_PAT4_ST = r'\b[l\d]{1,2}[\-\/][l\d]{1,2}[\-\/][l\d]{2,4}\b'
+DATE_PAT4 = re.compile(DATE_PAT4_ST, re.IGNORECASE)
 
 EFFECTIVE_PAT = re.compile(r'effective', re.IGNORECASE)
                          
@@ -168,6 +181,19 @@ def extract_dates_v2(line, line_start, doc_text=''):
             result.append((mat.start(), mat.end(), mat.group(),  'date'))
 
     for mat in DATE_PAT2.finditer(line):
+        if doc_text:
+            char40_before = doc_text[max(line_start + mat.start() - 40, 0):line_start + mat.start()]
+            char40_after = doc_text[line_start + mat.end():line_start + mat.end() + 40]
+        else:
+            char40_before = line[max(mat.start()-40, 0):mat.start()]
+            char40_after = line[mat.end():mat.end()+40]
+        if (EFFECTIVE_PAT.search(char40_before) or
+            EFFECTIVE_PAT.search(char40_after)):
+            result.append((mat.start(), mat.end(), mat.group(), 'effectivedate_auto'))
+        else:
+            result.append((mat.start(), mat.end(), mat.group(),  'date'))
+
+    for mat in DATE_PAT4.finditer(line):
         if doc_text:
             char40_before = doc_text[max(line_start + mat.start() - 40, 0):line_start + mat.start()]
             char40_after = doc_text[line_start + mat.end():line_start + mat.end() + 40]
