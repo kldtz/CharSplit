@@ -604,14 +604,16 @@ def parse_document(file_name, offsets_file_name, work_dir):
     doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = load_pdf_offsets(offsets_file_name)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
-    nl_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
     linebreak_offset_list = [lbrk['offset'] for lbrk in line_breaks]
     ch_list = list(orig_doc_text)
     for linebreak_offset in linebreak_offset_list:
         ch_list[linebreak_offset] = '\n'
     nl_text = ''.join(ch_list)
-    txtreader.dumps(nl_text, nl_fn)
-    print('wrote {}'.format(nl_fn))
+
+    if debug_mode:
+        nl_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
+        txtreader.dumps(nl_text, nl_fn)
+        print('wrote {}'.format(nl_fn))
 
     doc_text = nl_text
 
@@ -703,61 +705,62 @@ def parse_document(file_name, offsets_file_name, work_dir):
         pageinfo.init_pblockinfos()
     """
 
-    paged_para_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paged_para.txt'))
-    with open(paged_para_fn, 'wt') as fout:
-        for pageinfo in pageinfo_list:
-            for pblockinfo in pageinfo.pblockinfo_list:
-                # print('[{}]'.format(pblockinfo.text), file=fout)
-                print(pblockinfo.text, file=fout)
-                print('', file=fout)
-        print('wrote {}'.format(paged_para_fn))
+    if debug_mode:
+        paged_para_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paged_para.txt'))
+        with open(paged_para_fn, 'wt') as fout:
+            for pageinfo in pageinfo_list:
+                for pblockinfo in pageinfo.pblockinfo_list:
+                    # print('[{}]'.format(pblockinfo.text), file=fout)
+                    print(pblockinfo.text, file=fout)
+                    print('', file=fout)
+            print('wrote {}'.format(paged_para_fn))
 
-    paged_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paged_debug.txt'))
-    with open(paged_debug_fn, 'wt') as fout:
-        for pageinfo in pageinfo_list:
-            for line4nlp in pageinfo.line4nlp_list:
-                print('orig=({}, {}), nlp=({}, {}), ydiff= {}, xStart= {}, xEnd= {}, yStart= {}, yEnd= {}, linebreak= {}'.format(line4nlp.orig_start, line4nlp.orig_end,
-                                                                      line4nlp.nlp_start, line4nlp.nlp_end,
-                                                                      line4nlp.ydiff,
-                                                                      line4nlp.xStart,
-                                                                      line4nlp.xEnd,
-                                                                      line4nlp.yStart,
-                                                                      line4nlp.yEnd,
-                                                                      line4nlp.linebreak),
-                      file=fout)
-                print('[{}]'.format(doc_text[line4nlp.orig_start:line4nlp.orig_end].replace('\n', ' ')), file=fout)
-                print('', file=fout)
-        print('wrote {}'.format(paged_debug_fn))
+        paged_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paged_debug.txt'))
+        with open(paged_debug_fn, 'wt') as fout:
+            for pageinfo in pageinfo_list:
+                for line4nlp in pageinfo.line4nlp_list:
+                    print('orig=({}, {}), nlp=({}, {}), ydiff= {}, xStart= {}, xEnd= {}, yStart= {}, yEnd= {}, linebreak= {}'.format(line4nlp.orig_start, line4nlp.orig_end,
+                                                                          line4nlp.nlp_start, line4nlp.nlp_end,
+                                                                          line4nlp.ydiff,
+                                                                          line4nlp.xStart,
+                                                                          line4nlp.xEnd,
+                                                                          line4nlp.yStart,
+                                                                          line4nlp.yEnd,
+                                                                          line4nlp.linebreak),
+                          file=fout)
+                    print('[{}]'.format(doc_text[line4nlp.orig_start:line4nlp.orig_end].replace('\n', ' ')), file=fout)
+                    print('', file=fout)
+            print('wrote {}'.format(paged_debug_fn))
 
-    nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.txt'))
-    with open(nlp_fn, 'wt') as fout:
-        for pageinfo in pageinfo_list:
-            for line4nlp in pageinfo.line4nlp_list:
-                print(doc_text[line4nlp.orig_start:line4nlp.orig_end].replace('\n', ' '), file=fout)
-                print('', file=fout)
-        print('wrote {}'.format(nlp_fn))
+        nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.txt'))
+        with open(nlp_fn, 'wt') as fout:
+            for pageinfo in pageinfo_list:
+                for line4nlp in pageinfo.line4nlp_list:
+                    print(doc_text[line4nlp.orig_start:line4nlp.orig_end].replace('\n', ' '), file=fout)
+                    print('', file=fout)
+            print('wrote {}'.format(nlp_fn))
 
 
-    sep_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paraline.txt'))
-    with open(sep_fn, 'wt') as fout:
-        prev_end_offset = 0
-        for block_info in block_info_list:
-            diff_prev_end_offset = block_info.start - prev_end_offset
-            # output eoln
-            for i in range(max(diff_prev_end_offset - 1, 0)):
+        sep_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paraline.txt'))
+        with open(sep_fn, 'wt') as fout:
+            prev_end_offset = 0
+            for block_info in block_info_list:
+                diff_prev_end_offset = block_info.start - prev_end_offset
+                # output eoln
+                for i in range(max(diff_prev_end_offset - 1, 0)):
+                    print('', file=fout)
+                # print('df= {}'.format(diff_prev_end_offset), file=fout)
+                # print('', file=fout)
+                block_text = doc_text[block_info.start:block_info.end]
+                if block_info.is_multi_lines:
+                    print(block_text, file=fout)
+                else:
+                    print(block_text.replace('\n', ' '), file=fout)
+                # print('', file=fout)
+                prev_end_offset = block_info.end
+            for i in range(doc_len - block_info.end -1):
                 print('', file=fout)
-            # print('df= {}'.format(diff_prev_end_offset), file=fout)
-            # print('', file=fout)
-            block_text = doc_text[block_info.start:block_info.end]
-            if block_info.is_multi_lines:
-                print(block_text, file=fout)
-            else:
-                print(block_text.replace('\n', ' '), file=fout)
-            # print('', file=fout)
-            prev_end_offset = block_info.end
-        for i in range(doc_len - block_info.end -1):
-            print('', file=fout)
-        print('wrote {}'.format(sep_fn))
+            print('wrote {}'.format(sep_fn))
 
 
 def parse_document_old(file_name, offsets_file_name, work_dir):

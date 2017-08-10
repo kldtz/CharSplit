@@ -454,8 +454,9 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
             not 'skip_as_template' in attr2_list and
             partyutils.is_party_line(line) and
             (first_eng_para_idx == -1 or
+             found_toc or
              # it was 10 before
-             abs(first_eng_para_idx - line_idx) < 30)):
+             abs(first_eng_para_idx - line_idx) < 40)):
             attr2_list.append('party_line')
             party_line_idx = line_idx
             lc_party_line = line.lower()
@@ -522,7 +523,7 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
 # 'is_combine_line' indicates if the system combines line when doing sechead identification
 # for HTML docs, this shoulbe True.  For PDF documents, this should be False.
 def parse_document(file_name, work_dir, is_combine_line=True):
-    debug_mode = True
+    debug_mode = False
 
     base_fname = os.path.basename(file_name)
     orig_doc_text = txtreader.loads(file_name)

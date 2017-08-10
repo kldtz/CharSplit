@@ -47,6 +47,7 @@ this_agreement_pat = re.compile(r'this.*agreement\b', re.IGNORECASE)
 
 
 def is_party_line(line):
+
     if len(line) < 40:  # don't want to match line "BY AND BETWEEN" in title page
         return False
     if engutils.is_skip_template_line(line):
@@ -59,6 +60,12 @@ def is_party_line(line):
     lc_line = line.lower()
     if 'between' in lc_line and engutils.has_date(lc_line):
         return True
+    if 'made' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
+        return True
+    if 'issued' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
+        return True
+    if 'entered' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
+        return True            
     if 'between' in lc_line and 'agreement' in lc_line:
         return True
     # assigns lease to

@@ -315,14 +315,14 @@ def extract_offsets(paras_attr_list, para_text):
         return None
 
     start, end, party_line = start_end_partyline
-    print("party_line ({}, {})".format(start, end))
-    print("[{}]".format(party_line)) 
+    # print("party_line ({}, {})".format(start, end))
+    # print("[{}]".format(party_line))
     
     # Extract parties and return their offsets
     parties = extract_parties_from_party_line(party_line)
     offset_pair_list = parties_to_offsets(parties, party_line)
     out_list = []
-    logging.info("offset_pair_list: {}".format(offset_pair_list))
+    # logging.info("offset_pair_list: {}".format(offset_pair_list))
     for party_term_ox_list in offset_pair_list:
         if len(party_term_ox_list) == 2:
             party_start, party_end = party_term_ox_list[0]
@@ -334,7 +334,7 @@ def extract_offsets(paras_attr_list, para_text):
             out_list.append(((start + party_start, start + party_end),
                              None))
         
-    logging.info("out_list: {}".format(out_list))
+    # logging.info("out_list: {}".format(out_list))
     return out_list
 
 

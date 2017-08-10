@@ -45,22 +45,73 @@ def extract_before_and_party_line(paras_attr_list):
 
 # DATE_AS_OF_PAT = re.compile(r"as of (.*\d.*) by\b", re.IGNORECASE)
 # bad, DATE_AS_OF_PAT = re.compile(r"as of ((?!by).)* by\b", re.IGNORECASE)
-DATE_AS_OF_PAT = re.compile(r"as of (.*?) by\b", re.IGNORECASE)
+# DATE_AS_OF_PAT = re.compile(r"as of (\S+\s+){1,2,3,4}(by\b|[\(\"•]+effective)", re.IGNORECASE)
+DATE_AS_OF_PAT = re.compile(r"as of (.*)", re.IGNORECASE)
 DIGIT_PAT = re.compile(r'\d')
+BY_PAT = re.compile(r'\s+(by\b|\()', re.IGNORECASE)
+EFFECTIVE_FOR_AS_IF_PAT = re.compile(r'\s*[\(\“\"]+effective', re.IGNORECASE)
+
 
 def extract_dates_from_party_line(line):
     result = []
+    # very special case, for handling signature
     for mat in DATE_AS_OF_PAT.finditer(line):
-        if DIGIT_PAT.search(mat.group(1)):   # hand written date
+        maybe_date = mat.group(1)
+        by_mat = BY_PAT.search(maybe_date)
+        date_start, date_end = -1, -1
+        if by_mat:  # hand written date
+            maybe_date_st = line[mat.start(1):mat.start(1)+by_mat.start()]
+            # print("maybe_date_st1: [{}], len= {}".format(maybe_date_st, len(maybe_date_st)))
+            if len(maybe_date_st) < 20 or (len(maybe_date_st) < 35 and 'day' in maybe_date_st.lower()):  # signature
+                date_start = mat.start(1)
+                date_end = mat.start(1)+by_mat.start()
+        effective_mat = EFFECTIVE_FOR_AS_IF_PAT.search(maybe_date)
+        if effective_mat:  # hand written date
+            maybe_date_st = line[mat.start(1):mat.start(1)+effective_mat.start()]
+            # print("maybe_date_st2: [{}], len= {}".format(maybe_date_st, len(maybe_date_st)))
+            if len(maybe_date_st) < 20 or (len(maybe_date_st) < 35 and 'day' in maybe_date_st.lower()):  # signature
+                date_start = mat.start(1)
+                date_end = mat.start(1)+by_mat.start()
+        if date_start != -1:
             char40_before = line[max(mat.start()-40, 0):mat.start()]
             char40_after = line[mat.end():mat.end()+40]
-            print('char40_before = [{}]'.format(char40_before))
-            print('char40_after = [{}]'.format(char40_after))        
             if (EFFECTIVE_PAT.search(char40_before) or
-                EFFECTIVE_PAT.search(char40_after)):            
-                result.append((mat.start(1), mat.end(1), mat.group(1), 'effectivedate_auto'))
+                EFFECTIVE_PAT.search(char40_after)):
+                result.append((date_start, date_end, maybe_date_st, 'effectivedate_auto'))
             else:
-                result.append((mat.start(1), mat.end(1), mat.group(1), 'date'))
+                result.append((date_start, date_end, maybe_date_st, 'date'))
+    # print("as_if result date: {}".format(result))
+
+    for mat in DATE_PAT1.finditer(line):
+        # print("date_pat1: {}".format(mat.group()))
+        char40_before = line[max(mat.start()-40, 0):mat.start()]
+        char40_after = line[mat.end():mat.end()+40]
+        if (EFFECTIVE_PAT.search(char40_before) or
+            EFFECTIVE_PAT.search(char40_after)):
+            result.append((mat.start(), mat.end(), mat.group(), 'effectivedate_auto'))
+        else:
+            result.append((mat.start(), mat.end(), mat.group(),  'date'))
+
+    for mat in DATE_PAT3.finditer(line):
+        # print("date_pat3: {}".format(mat.group()))
+        char40_before = line[max(mat.start()-40, 0):mat.start()]
+        char40_after = line[mat.end():mat.end()+40]
+        if (EFFECTIVE_PAT.search(char40_before) or
+            EFFECTIVE_PAT.search(char40_after)):
+            result.append((mat.start(), mat.end(), mat.group(), 'effectivedate_auto'))
+        else:
+            result.append((mat.start(), mat.end(), mat.group(),  'date'))
+
+    for mat in DATE_PAT2.finditer(line):
+        # print("date_pat2: {}".format(mat.group()))
+        char40_before = line[max(mat.start()-40, 0):mat.start()]
+        char40_after = line[mat.end():mat.end()+40]
+        if (EFFECTIVE_PAT.search(char40_before) or
+            EFFECTIVE_PAT.search(char40_after)):
+            result.append((mat.start(), mat.end(), mat.group(), 'effectivedate_auto'))
+        else:
+            result.append((mat.start(), mat.end(), mat.group(),  'date'))
+
     return result
 
 MONTH_LIST = ['January', 'February', 'March', 'April', 'May',
@@ -73,11 +124,18 @@ ALL_MONTH_LIST = MONTH_LIST + MONTH_ABBR_LIST
 
 ALL_MONTH_PAT = '|'.join(ALL_MONTH_LIST)
 
-DATE_PAT_ST = '(' + ALL_MONTH_PAT + r')\s+\d{1,2},?\s+\d{2,4}'
+DATE_PAT1_ST = '(' + ALL_MONTH_PAT + r')\s+\d{1,2}[,\s]+\d{4}'
 # DATE_PAT_ST = '(' + ALL_MONTH_PAT + r')'
-print('DATE_PAT_ST = "{}"'.format(DATE_PAT_ST))
+# print('DATE_PAT_ST = "{}"'.format(DATE_PAT1_ST))
                          
-DATE_PAT1 = re.compile(DATE_PAT_ST, re.IGNORECASE)
+DATE_PAT1 = re.compile(DATE_PAT1_ST, re.IGNORECASE)
+
+
+DATE_PAT2_ST = '\d{1,2}\s*(' + ALL_MONTH_PAT + r')[,\s]+\d{4}'
+DATE_PAT2 = re.compile(DATE_PAT2_ST, re.IGNORECASE)
+
+DATE_PAT3_ST = '(the *)?\d{1,2}(th|st|rd)?\s*(day of)?\s*(' + ALL_MONTH_PAT + r')[,\s]+\d{4}'
+DATE_PAT3 = re.compile(DATE_PAT3_ST, re.IGNORECASE)
 
 EFFECTIVE_PAT = re.compile(r'effective', re.IGNORECASE)
                          
@@ -95,6 +153,33 @@ def extract_dates_v2(line, line_start, doc_text=''):
             result.append((mat.start(), mat.end(), mat.group(), 'effectivedate_auto'))
         else:
             result.append((mat.start(), mat.end(), mat.group(),  'date'))
+
+    for mat in DATE_PAT3.finditer(line):
+        if doc_text:
+            char40_before = doc_text[max(line_start + mat.start() - 40, 0):line_start + mat.start()]
+            char40_after = doc_text[line_start + mat.end():line_start + mat.end() + 40]
+        else:
+            char40_before = line[max(mat.start()-40, 0):mat.start()]
+            char40_after = line[mat.end():mat.end()+40]
+        if (EFFECTIVE_PAT.search(char40_before) or
+            EFFECTIVE_PAT.search(char40_after)):
+            result.append((mat.start(), mat.end(), mat.group(), 'effectivedate_auto'))
+        else:
+            result.append((mat.start(), mat.end(), mat.group(),  'date'))
+
+    for mat in DATE_PAT2.finditer(line):
+        if doc_text:
+            char40_before = doc_text[max(line_start + mat.start() - 40, 0):line_start + mat.start()]
+            char40_after = doc_text[line_start + mat.end():line_start + mat.end() + 40]
+        else:
+            char40_before = line[max(mat.start()-40, 0):mat.start()]
+            char40_after = line[mat.end():mat.end()+40]
+        if (EFFECTIVE_PAT.search(char40_before) or
+            EFFECTIVE_PAT.search(char40_after)):
+            result.append((mat.start(), mat.end(), mat.group(), 'effectivedate_auto'))
+        else:
+            result.append((mat.start(), mat.end(), mat.group(),  'date'))
+
     return result
 
 
@@ -130,7 +215,7 @@ def extract_dates(filepath):
         found_dates = extract_dates_v2(xline, line_start, doc_text='')
         if found_dates:
             before_dates.extend(found_dates)
-    print('before_dates: {}'.format(before_dates))
+    # print('before_dates: {}'.format(before_dates))
 
     if not before_dates and not party_line_ox:
         return None
@@ -144,7 +229,7 @@ def extract_dates(filepath):
 def extract_offsets(paras_attr_list, paras_text):
     """Return list of parties (lists of (start, inclusive-end) offsets)."""
 
-    logging.info('extract_offsets: len(paras_text) = {}'.format(len(paras_text)))
+    # logging.info('extract_offsets: len(paras_text) = {}'.format(len(paras_text)))
     # Grab lines from the file
     before_lines, start_end_partyline = extract_before_and_party_line(paras_attr_list)
 
@@ -156,7 +241,6 @@ def extract_offsets(paras_attr_list, paras_text):
 
         # Extract parties and return their offsets
         partyline_dates = extract_dates_from_party_line(partyline)
-        out_list = []
         # logging.info("partyline dates: {}".format(partyline_dates))
         if partyline_dates:
             adjusted_dates = []
@@ -164,9 +248,7 @@ def extract_offsets(paras_attr_list, paras_text):
                 start, end, date_st, date_type = date_ox
                 adjusted_dates.append((partyline_start + start, partyline_start + end, date_type))
             partyline_dates = adjusted_dates
-    #for date_ox in partyline_dates:
-    #    date_start, date_end, date_st = date_ox
-    #    out_list.append((partyline_start + date_start, partyline_start + date_end, date_st))
+    # print('partyline_dates: {}'.format(partyline_dates))
 
     before_dates = [] 
     for line_start, line_end, xline in before_lines:
@@ -180,9 +262,22 @@ def extract_offsets(paras_attr_list, paras_text):
     if not before_dates and not partyline_dates:
         return None
 
-    # Extract parties and return their offsets
-    out_list = partyline_dates + before_dates
-        
+    # we want first effective date and date, no more
+    out_list = []
+    # if effective date is mentioned in before_dates, that's effective date for the doc.
+    # in party line, the effective date can be effective date for master doc
+    xx_effective_dates = [date_ox for date_ox in before_dates if date_ox[2] == 'effectivedate_auto']
+    if not xx_effective_dates:
+        xx_effective_dates = [date_ox for date_ox in partyline_dates if date_ox[2] == 'effectivedate_auto']
+    if xx_effective_dates:
+        out_list.append(xx_effective_dates[0])
+
+    xx_dates = [date_ox for date_ox in partyline_dates if date_ox[2] == 'date']
+    if not xx_dates:
+        xx_dates = [date_ox for date_ox in before_dates if date_ox[2] == 'date']
+    if xx_dates:
+        out_list.append(xx_dates[0])
+
     # logging.info("out_list: {}".format(out_list))
     return out_list
 

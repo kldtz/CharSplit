@@ -88,7 +88,7 @@ def annotate_uploaded_document():
             provision_set.remove('rate_table')
 
     # TODO, hacked, remove when not debugging
-    provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
+    # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
 
     if pdf_offsets_file_name:  # original file is pdf or word file
         prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(txt_file_name,
