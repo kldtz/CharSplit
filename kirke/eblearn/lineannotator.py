@@ -86,14 +86,13 @@ class LineAnnotator:
         return tmp_eval_status
 
 
-    def annotate_antdoc(self, paras_with_attrs, doc_text):
+    def annotate_antdoc(self, paras_with_attrs, paras_text):
         prov_annotations = []
         if self.provision == 'party':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
-            party_offset_pair_list = self.provision_annotator.extract_provision_offsets(paras_attr_list)
+            party_offset_pair_list = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
             
             if party_offset_pair_list:
-                prov_annotations = []
                 for i, party_offset_pair in enumerate(party_offset_pair_list, 1):
                     (party_start, party_end), term_ox = party_offset_pair
                     prov_annotations.append({'end': party_end,
@@ -101,7 +100,7 @@ class LineAnnotator:
                                              'id': i,
                                              'start': party_start,
                                              'prob': 1.0,
-                                             'text': doc_text[party_start:party_end]})
+                                             'text': paras_text[party_start:party_end]})
                     if term_ox:
                         term_start, term_end = term_ox
                         prov_annotations.append({'end': term_end,
@@ -109,10 +108,29 @@ class LineAnnotator:
                                                  'id': i,
                                                  'start': term_start,
                                                  'prob': 1.0,
-                                                 'text': doc_text[term_start:term_end]})
+                                                 'text': paras_text[term_start:term_end]})
+        elif self.provision == 'date':
+            paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
+            # prov_type can be 'date', 'effective-date', 'signature-date'
+            date_list = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
+
+
+            # print('title_start, end = ({}, {})'.format(start_offset, end_offset))
+
+            #print("ebannotator({}).threshold = {}".format(self.provision,
+            #self.threshold))
+
+            if date_list:
+                for i, date_ox in enumerate(date_list, 1):
+                    start_offset, end_offset, prov_type = date_ox
+                    prov_annotations.append({'end': end_offset,
+                                             'label': prov_type,
+                                             'start': start_offset,
+                                             'prob': 1.0,
+                                             'text': paras_text[start_offset:end_offset]})
         else:
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
-            start_offset, end_offset = self.provision_annotator.extract_provision_offsets(paras_attr_list)
+            start_offset, end_offset = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
 
             # print('title_start, end = ({}, {})'.format(start_offset, end_offset))
 
@@ -124,6 +142,6 @@ class LineAnnotator:
                                      'label': self.provision,
                                      'start': start_offset,
                                      'prob': 1.0,
-                                     'text': doc_text[start_offset:end_offset]}]
+                                     'text': paras_text[start_offset:end_offset]}]
 
         return prov_annotations

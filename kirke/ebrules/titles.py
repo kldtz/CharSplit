@@ -274,7 +274,8 @@ def extract_title(filepath):
     # Return the title's start and end lines
     return title['offsets'] if title['ratio'] >= MIN_TITLE_RATIO else None
 
-def extract_offsets(paras_attr_list):
+# paras_text is ignored for now
+def extract_offsets(paras_attr_list, paras_text):
     # Grab lines from the file
     lines, start_end_list = extract_lines_v2(paras_attr_list)
     if not lines:
@@ -331,6 +332,6 @@ class TitleAnnotator:
     def __init__(self, provision):
         self.provision = 'title'
 
-    def extract_provision_offsets(self, paras_with_attrs):
-        return extract_offsets(paras_with_attrs)
+    def extract_provision_offsets(self, paras_with_attrs, paras_text):
+        return extract_offsets(paras_with_attrs, paras_text)
         

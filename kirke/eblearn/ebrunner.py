@@ -15,7 +15,7 @@ from kirke.utils import osutils, strutils, txtreader
 
 from kirke.docstruct import docreader, htmltxtparser, doc_pdf_reader
 
-from kirke.ebrules import rateclassifier, titles, parties
+from kirke.ebrules import rateclassifier, titles, parties, dates
 
 DEBUG_MODE = False
 
@@ -115,6 +115,7 @@ class EbRunner:
 
         self.title_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
         self.party_annotator = lineannotator.LineAnnotator('party', parties.PartyAnnotator('party'))
+        self.date_annotator = lineannotator.LineAnnotator('date', dates.DateAnnotator('date'))
 
         total_mem_usage = py.memory_info()[0] / 2**20
         avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
@@ -223,7 +224,11 @@ class EbRunner:
         # special handling for dates, as in PythonDateOfAgreementClassifier.java
         date_annotations = ant_result_dict.get('date')
         if not date_annotations:
-            effectivedate_annotations = ant_result_dict.get('effectivedate')
+            effectivedate_annotations = ant_result_dict.get('effectivedate_auto')
+            # first try to get effectivedate from rule-based approach
+            # if none, then try get from ML approach.  The label is already correct.
+            if not effectivedate_annotations:
+                effectivedate_annotations = ant_result_dict.get('effectivedate')
             if effectivedate_annotations:
                 # make a copy to preserve original list
                 effectivedate_annotations = copy.deepcopy(effectivedate_annotations)
@@ -290,7 +295,24 @@ class EbRunner:
         party_ant_list = self.party_annotator.annotate_antdoc(paras_with_attrs, para_doc_text)
         if party_ant_list:
             # now we override title from classifier.
-            prov_labels_map['party'] = party_ant_list        
+            prov_labels_map['party'] = party_ant_list
+
+        date_ant_list = self.date_annotator.annotate_antdoc(paras_with_attrs, para_doc_text)
+        logging.info("running date_annotator()------11111111111111111111--------- {}".format(len(date_ant_list)))
+        if date_ant_list:
+            xx_effective_date_list = []
+            xx_date_list = []
+            for antx in date_ant_list:
+                if antx['label'] == 'effectivedate_auto':
+                    xx_effective_date_list.append(antx)
+                else:
+                    xx_date_list.append(antx)
+            if xx_effective_date_list:
+                prov_labels_map['effectivedate_auto'] = xx_effective_date_list
+                # prov_labels_map['effectivedate'] = xx_effective_date_list
+            if xx_date_list:
+                prov_labels_map['date'] = xx_date_list
+
 
         # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
 
@@ -409,7 +431,34 @@ class EbRunner:
                 antx['start'] = docreader.find_offset_to(xstart, nl_from_list, nl_to_list)
                 antx['end'] = docreader.find_offset_to(xend, nl_from_list, nl_to_list)
                 all_prov_ant_list.append(antx)
-        prov_labels_map['party'] = party_ant_list
+            prov_labels_map['party'] = party_ant_list
+
+
+        date_ant_list = self.date_annotator.annotate_antdoc(nl_paras_with_attrs, nl_para_doc_text)
+        logging.info("running date_annotator()------2222222222222222--------- {}".format(len(date_ant_list)))
+        if date_ant_list:
+            xx_effective_date_list = []
+            xx_date_list = []
+            for antx in date_ant_list:
+                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
+                xstart = antx['start']
+                xend = antx['end']
+                antx['corenlp_start'] = xstart
+                antx['corenlp_end'] = xend
+                antx['start'] = docreader.find_offset_to(xstart, nl_from_list, nl_to_list)
+                antx['end'] = docreader.find_offset_to(xend, nl_from_list, nl_to_list)
+                all_prov_ant_list.append(antx)
+
+                if antx['label'] == 'effectivedate_auto':
+                    xx_effective_date_list.append(antx)
+                else:
+                    xx_date_list.append(antx)
+            if xx_effective_date_list:
+                prov_labels_map['effectivedate_auto'] = xx_effective_date_list
+                # prov_labels_map['effectivedate'] = xx_effective_date_list
+            if xx_date_list:
+                prov_labels_map['date'] = xx_date_list
+
 
         # this update the 'start_end_span_list' in each antx in-place
         docreader.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)

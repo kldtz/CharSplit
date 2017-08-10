@@ -1094,7 +1094,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
             for entity in best_effectivedate_sent.entities:
                 if entity.ner == EbEntityType.DATE.name:
                     prior_text = doc_text[best_effectivedate_sent.start:entity.start]
-                    has_prior_text_effective = 'ffective' in prior_text
+                    has_prior_text_effective = 'effective' in prior_text.lower()
 
                     ant_rx = AntResult(label=self.provision,
                                        prob=best_effectivedate_sent.prob,
@@ -1123,7 +1123,9 @@ PROVISION_POSTPROC_MAP = {
     'date': PostPredBestDateProc('date'),
     'ea_employee': PostPredEaEmployeeProc(),
     'ea_employer': PostPredEaEmployerProc(),
-    'effectivedate': PostPredEffectiveDateProc('effectivedate'),
+    # The classifier label is "effectivedate", but 'extractor' is expecting
+    # 'effectivedate_auto'
+    'effectivedate': PostPredEffectiveDateProc('effectivedate_auto'),
     'la_borrower': PostPredLaBorrowerProc(),
     'la_lender': PostPredLaLenderProc(),
     'la_agent_trustee': PostPredLaAgentTrusteeProc(),

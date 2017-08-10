@@ -248,15 +248,16 @@ def extract_parties_from_party_line(s):
 
 def parties_to_offsets(parties, party_line):
     """Converts string parts of parties to offsets (relative to party line)."""
-    print("parties..... {}".format(parties))
-    for i in range(len(parties)):
-        offsets = []
-        for part in parties[i]:
-            start_index = party_line.find(part)
-            if start_index != -1:
-                offsets.append((start_index, start_index + len(part)))
-        parties[i] = offsets
-    return [p for p in parties if p]
+    if parties:
+        for i in range(len(parties)):
+            offsets = []
+            for part in parties[i]:
+                start_index = party_line.find(part)
+                if start_index != -1:
+                    offsets.append((start_index, start_index + len(part)))
+            parties[i] = offsets
+        return [p for p in parties if p]
+    return []
 
 
 def extract_parties(filepath):
@@ -302,8 +303,8 @@ def extract_party_line(paras_attr_list):
     return None
 
 
-
-def extract_offsets(paras_attr_list):
+# paras_text is not used for title right now
+def extract_offsets(paras_attr_list, para_text):
     """Return list of parties (lists of (start, inclusive-end) offsets)."""
 
     # Grab lines from the file
@@ -322,14 +323,14 @@ def extract_offsets(paras_attr_list):
     offset_pair_list = parties_to_offsets(parties, party_line)
     out_list = []
     logging.info("offset_pair_list: {}".format(offset_pair_list))
-    for party_ox, term_ox in offset_pair_list:
-        if party_ox:
-            party_start, party_end = party_ox
-        if term_ox:
-            defined_term_start, defined_term_end = term_ox
+    for party_term_ox_list in offset_pair_list:
+        if len(party_term_ox_list) == 2:
+            party_start, party_end = party_term_ox_list[0]
+            defined_term_start, defined_term_end = party_term_ox_list[1]
             out_list.append(((start + party_start, start + party_end),
                              (start + defined_term_start, start + defined_term_end)))
         else:
+            party_start, party_end = party_term_ox_list[0]
             out_list.append(((start + party_start, start + party_end),
                              None))
         
@@ -342,6 +343,6 @@ class PartyAnnotator:
     def __init__(self, provision):
         self.provision = 'party'
 
-    def extract_provision_offsets(self, paras_with_attrs):
-        return extract_offsets(paras_with_attrs)
+    def extract_provision_offsets(self, paras_with_attrs, paras_text):
+        return extract_offsets(paras_with_attrs, paras_text)
         
