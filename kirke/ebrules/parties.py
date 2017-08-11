@@ -127,7 +127,7 @@ def first_sentence(s):
     return match.group() if match else s
 
 
-parens = re.compile(r'\(.*?\)')
+parens = re.compile(r'\([^\)]*?(?:“|")[^\)]*?(?:"|”)[^\)]*?\)')
 non_comma_separators = re.compile(r',\sand|\sand|;')
 paren_symbol = re.compile(r'(=)')
 zip_code_year = re.compile(r'\b\d{5}(?:\-\d{4})?\b|\b(?:19|20)\d{2}\b')
