@@ -99,7 +99,7 @@ class LineAnnotator:
                                              'label': self.provision,
                                              'id': i,
                                              'start': party_start,
-                                             'prob': 1.0,
+                                             'prob': 0.986,  # avereage human temperature
                                              'text': paras_text[party_start:party_end]})
                     if term_ox:
                         term_start, term_end = term_ox
@@ -107,7 +107,7 @@ class LineAnnotator:
                                                  'label': self.provision,
                                                  'id': i,
                                                  'start': term_start,
-                                                 'prob': 1.0,
+                                                 'prob': 0.986,  # avereage human temperature
                                                  'text': paras_text[term_start:term_end]})
         elif self.provision == 'date':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
@@ -126,7 +126,7 @@ class LineAnnotator:
                     prov_annotations.append({'end': end_offset,
                                              'label': prov_type,
                                              'start': start_offset,
-                                             'prob': 1.0,
+                                             'prob': 0.986,  # avereage human temperature
                                              'text': paras_text[start_offset:end_offset]})
         else:
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
@@ -141,7 +141,7 @@ class LineAnnotator:
                 prov_annotations = [{'end': end_offset,
                                      'label': self.provision,
                                      'start': start_offset,
-                                     'prob': 1.0,
+                                     'prob': 0.986,  # avereage human temperature
                                      'text': paras_text[start_offset:end_offset]}]
 
         return prov_annotations

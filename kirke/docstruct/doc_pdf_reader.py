@@ -553,19 +553,12 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir):
             pgid_pblockinfos_map[page_num].append(block_info)
             block_info_list.append(block_info)
 
+    # the code below DOESN'T ALWAYS produces the .paraline.txt with same size as
+    # .txt.  This is due to block offset overlaps in "\s\n\n" => "\s\n\s\s",
+    # block (start 0, end 1) followed by block (start 1, end 42).  Normally
+    # 2nd block start doesn't overlap with first block end.  2 out of 30 has this
+    # issue.
     """
-    pageinfo_list = []
-    nlp_offset = 0
-    for page_offset in page_offsets:
-        start = page_offset['start']
-        end = page_offset['end']
-        page_num = page_offset['id']
-        pblockinfo_list = pgid_pblockinfos_map[page_num]
-        pinfo = PageInfo(start, end, page_num, pblockinfo_list)
-        nlp_offset = pinfo.init_line4nlp_list(nlp_offset)
-        pageinfo_list.append(pinfo)
-    """
-
     paraline_list = []
     prev_end_offset = 0
     for block_info in block_info_list:
@@ -586,6 +579,18 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir):
     for i in range(doc_len - block_info.end):
         paraline_list.append('')
     paraline_text = '\n'.join(paraline_list)
+    """
+    # Now, switch to array replacement.  This is not affected by the wrong block info.
+    # It simply override everys block based on the indexes, so guarantees not to create
+    # extra stuff.
+    ch_list = list(nl_text)
+    for block_info in block_info_list:
+        block_text = block_info.text  # because of pblock might have multiple paragraphs; sad.
+        if block_info.is_multi_lines:
+            ch_list[block_info.start:block_info.end] = list(block_text)
+        else:
+            ch_list[block_info.start:block_info.end] = list(block_text.replace('\n', ' '))
+    paraline_text = ''.join(ch_list)
 
     # save the result
     paraline_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paraline.txt'))

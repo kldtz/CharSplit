@@ -47,7 +47,7 @@ def extract_before_and_party_line(paras_attr_list):
 # bad, DATE_AS_OF_PAT = re.compile(r"as of ((?!by).)* by\b", re.IGNORECASE)
 # DATE_AS_OF_PAT = re.compile(r"as of (\S+\s+){1,2,3,4}(by\b|[\(\"•]+effective)", re.IGNORECASE)
 DATE_AS_OF_PAT = re.compile(r"as of (.*)", re.IGNORECASE)
-DIGIT_PAT = re.compile(r'[l\d]')
+DIGIT_PAT = re.compile(r'[oOl\d]')
 BY_PAT = re.compile(r'\s+(by\b|\(|[, ]*between)', re.IGNORECASE)
 EFFECTIVE_FOR_AS_IF_PAT = re.compile(r'\s*[\(\“\"]+effective', re.IGNORECASE)
 
@@ -134,20 +134,20 @@ ALL_MONTH_LIST = MONTH_LIST + MONTH_ABBR_LIST
 
 ALL_MONTH_PAT = '|'.join(ALL_MONTH_LIST)
 
-DATE_PAT1_ST = '(' + ALL_MONTH_PAT + r')\s+[l\d]{1,2}[,\s]+[l\d]{4}'
+DATE_PAT1_ST = '(' + ALL_MONTH_PAT + r')\s+[oOl\d]{1,2}[,\s]+[oOl\d]{4}'
 # DATE_PAT_ST = '(' + ALL_MONTH_PAT + r')'
 # print('DATE_PAT_ST = "{}"'.format(DATE_PAT1_ST))
                          
 DATE_PAT1 = re.compile(DATE_PAT1_ST, re.IGNORECASE)
 
 
-DATE_PAT2_ST = r'[l\d]{1,2}\s*(' + ALL_MONTH_PAT + r')[,\s]+[l\d]{4}'
+DATE_PAT2_ST = r'[oOl\d]{1,2}\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
 DATE_PAT2 = re.compile(DATE_PAT2_ST, re.IGNORECASE)
 
-DATE_PAT3_ST = r'(the *)?[l\d]{1,2}(th|st|rd)?\s*(day of)?\s*(' + ALL_MONTH_PAT + r')[,\s]+[l\d]{4}'
+DATE_PAT3_ST = r'(the *)?[oOl\d]{1,2}(th|st|rd)?\s*(day of)?\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
 DATE_PAT3 = re.compile(DATE_PAT3_ST, re.IGNORECASE)
 
-DATE_PAT4_ST = r'\b[l\d]{1,2}[\-\/][l\d]{1,2}[\-\/][l\d]{2,4}\b'
+DATE_PAT4_ST = r'\b([oOl\d]{1,2}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{2,4}|[oOl\d]{2,4}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{1,2})\b'
 DATE_PAT4 = re.compile(DATE_PAT4_ST, re.IGNORECASE)
 
 EFFECTIVE_PAT = re.compile(r'effective', re.IGNORECASE)
