@@ -261,14 +261,14 @@ def extract_party_islands(filepath):
     for line in lines:
         if len(line['text'].split()) < 2:
             continue
-        suffix_matches = agent_regex.finditer(line['text'])
+        suffix_matches = suffix_regex.finditer(line['text'])
         for match in suffix_matches:
             parties.append((line['id'], line['start'] + match.start(),
                             line['start'] + match.end()))
-        agent_matches = agent_regex.finditer(line['text'])
-        for match in agent_matches:
-            parties.append((line['id'], line['start'] + match.start(),
-                            line['start'] + match.end()))
+        # agent_matches = agent_regex.finditer(line['text'])
+        # for match in agent_matches:
+        #     parties.append((line['id'], line['start'] + match.start(),
+        #                     line['start'] + match.end()))
         if name_regex.search(line['text']):
             parties.append((line['id'], line['start'], line['end']))
 
