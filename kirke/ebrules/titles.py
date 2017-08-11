@@ -2,6 +2,7 @@ from fuzzywuzzy import fuzz, process
 from math import ceil
 import re
 import string
+from unidecode import unidecode
 
 from scipy import stats
 
@@ -65,7 +66,7 @@ def tag(s):
 
 def process_as_title(s):
     """Must lower before tag (1st) & tag before remove whitespace (New York)"""
-    return ''.join(tag(alnum_strip(s.lower())).split())
+    return ''.join(tag(alnum_strip(unidecode(s).lower())).split())
 
 
 """Get and process past titles to match against."""
@@ -81,8 +82,8 @@ with open(DATA_DIR + 'past_titles_train.list') as f:
 cant_begin = ['and', 'for', 'to']
 cant_end = ['and', 'co', 'corp', 'for', 'limited', 'the', 'this', 'to']
 # any line cannot have 'cant_have' words
-cant_have = ['among', 'between', 'by and', 'date', 'dated', 'effective',
-             'entered', 'for', 'this', 'vice']
+cant_have = ['among', 'amongst', 'between', 'by and', 'date', 'dated',
+             'effective', 'entered', 'for', 'this', 'vice']
 cant_begin_regex = re.compile(r'(?:{})\b'.format('|'.join(cant_begin)))
 cant_end_regex = re.compile(r'\b(?:{})$'.format('|'.join(cant_end)))
 cant_have_pattern = r'^(?:(.*?)\s+)??(?:{})\b'
@@ -116,8 +117,7 @@ def extract_lines_v2(paras_attr_list):
         offset += line_st_len + 1
     else:
         # No party_line found (loop did not break)
-        if num_lines_before_first_eng_para > -1:
-            lines = lines[:num_lines_before_first_eng_para]
+        lines = lines[:num_lines_before_first_eng_para]
 
     # Terminate at first cant_have word
     for i in range(len(lines)):
@@ -182,8 +182,7 @@ def extract_lines(filepath):
                     lines.append(line)
         else:
             # No party_line found (loop did not break)
-            if num_lines_before_first_eng_para > -1:
-                lines = lines[:num_lines_before_first_eng_para]
+            lines = lines[:num_lines_before_first_eng_para]
 
     # Terminate at first cant_have word
     for i in range(len(lines)):
@@ -226,10 +225,16 @@ num_titles_to_match = ceil(TITLES_MATCH_PCT / 100 * len(titles))
 
 
 def title_ratio(s):
-    ratios = process.extract(process_as_title(s), titles, scorer=fuzz.ratio,
-                             limit=num_titles_to_match)
-    ratios = [ratio[1] for ratio in ratios]
-    return stats.hmean(ratios) if 0 not in ratios else 0
+    s = process_as_title(s)
+    if s:
+        ratios = process.extract(s, titles, scorer=fuzz.ratio,
+                                 limit = num_titles_to_match)
+        ratios = [ratio[1] for ratio in ratios]
+        if 0 not in ratios:
+            return stats.hmean(ratios)
+    
+    # If either s is empty after processing or a ratio was 0
+    return 0
 
 
 def extract_title(filepath):

@@ -133,6 +133,10 @@ paren_symbol = re.compile(r'(=)')
 zip_code_year = re.compile(r'\b\d{5}(?:\-\d{4})?\b|\b(?:19|20)\d{2}\b')
 quote = re.compile(r'“|"|”')
 
+# Supports US (5 or 5-4), UK, Australia (4), Switzerland (4), Shanghai (6)
+UK_STD = '[A-Z]{1,2}[0-9R][0-9A-Z]? (?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
+zip_code_year = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
+
 
 """Extract parties from party line"""
 
