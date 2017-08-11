@@ -5,7 +5,6 @@ import pandas as pd
 import pickle
 import re
 import string
-from unidecode import unidecode
 
 
 """Config. RETRAIN retrains the classifier."""
@@ -132,7 +131,6 @@ def classify(s):
     if (len(s) not in range(MIN_ADDRESS_LEN, MAX_ADDRESS_LEN + 1)
         or not any(c.isalpha() for c in s)):
         return 0
-    s = unidecode(s)
     features = find_features(s, NUM_DIGIT_CHUNKS, load_keywords())
     return classifier.prob_classify(features).prob(1)
 

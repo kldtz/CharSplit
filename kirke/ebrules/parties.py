@@ -4,7 +4,7 @@ import re
 import string
 import logging
 
-from kirke.ebrules import titles
+from kirke.ebrules import titles, party_islands
 from kirke.utils import strutils
 
 
@@ -57,6 +57,8 @@ def is_invalid_party(line):
         ' court' in lc_line):
         return True
     if ' this ' in lc_line:
+        return True
+    if 'page ' in lc_line:
         return True
     if ZIP_PAT.search(lc_line):
         return True
@@ -333,26 +335,6 @@ def extract_party_line(paras_attr_list):
     return None
 
 
-def extract_parties_from_non_partyline(paras_attr_list):
-    lines = []
-    offset = 0
-    start_end_list = []
-    for i, (line_st, para_attrs) in enumerate(paras_attr_list):
-        # attrs_st = '|'.join([str(attr) for attr in para_attrs])
-        # print('\t'.join([attrs_st, '[{}]'.format(line_st)]), file=fout1)
-        line_st_len = len(line_st)
-
-        if 'party_line' in para_attrs:
-            return offset, offset + line_st_len, line_st
-        offset += line_st_len + 1
-
-        # don't bother if party_line is too far from start of the doc
-        if i > 2000:
-            return None
-
-    return None
-
-
 # paras_text is not used for title right now
 def extract_offsets(paras_attr_list, para_text):
     """Return list of parties (lists of (start, inclusive-end) offsets)."""
@@ -381,11 +363,10 @@ def extract_offsets(paras_attr_list, para_text):
                 out_list.append(((start + party_start, start + party_end),
                                  None))
 
-    """
-    non_partyline_parties = extract_parties_from_non_partyline(paras_attr_list)
+    logging.info("trying out extract_party_islands ========================================================")
+    non_partyline_parties = party_islands.extract_party_islands_offset(paras_attr_list)
     for start, end in non_partyline_parties:
-      out_list.append(((start, end), None))
-    """
+        out_list.append(((start, end), None))
         
     # logging.info("out_list: {}".format(out_list))
     return out_list

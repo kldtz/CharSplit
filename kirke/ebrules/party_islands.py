@@ -1,4 +1,6 @@
 import re
+import logging
+
 from kirke.ebrules import addresses
 from kirke.ebrules import titles
 
@@ -95,6 +97,65 @@ def extract_lines(filepath):
     return lines
 
 
+def extract_lines_v2(paras_attr_list):
+    # Get title
+    # title = titles.extract_title(filepath)
+    # title_start, title_end, title_end_char = title if title else (-1, -1, -1)
+
+    # Initial pass of lines before party_line (if no p_l, before first_eng_para)
+    lines = []
+    num_lines_before_first_eng_para = 0
+    offset = 0
+    start_end_list = []
+
+    for i, (line_st, para_attrs) in enumerate(paras_attr_list):
+        line_st_len = len(line_st)
+        start_end_list.append((offset, offset + line_st_len))
+        offset += line_st_len + 1
+    
+    for i, (line_st, para_attrs) in enumerate(paras_attr_list):
+        if 'party_line' in para_attrs:
+            break
+        if 'first_eng_para' in para_attrs:
+            num_lines_before_first_eng_para = len(lines)
+        if 'toc' in para_attrs or 'skip_as_template' in para_attrs:
+            continue
+
+        # Isolate the text and check that it is not whitespace
+        line = line_st
+        if not line.strip():
+            continue
+
+        # Don't consider titles
+        start_char = 0
+        """
+        if title_start <= i < title_end:
+            continue
+        if i == title_end:
+            if title_end_char == -1:
+                # Entire line is the title (which will not be considered)
+                continue
+            line = line[title_end_char:]
+            start_char = title_end_char
+        """
+
+        # Don't consider dates, phone numbers, emails, addresses, & currency
+        if (month.search(line) or phone.search(line) or email.search(line)
+            or addresses.classify(line) > 30 or currency.search(line)):
+            continue
+
+        # Line is of interest; append to lines
+        line = (line, i, start_char)
+        lines.append(line)
+    else:
+        # No party line was found (loop did not break)
+        lines = lines[:num_lines_before_first_eng_para]
+
+    # Return the lines of interest
+    return lines, start_end_list
+
+
+
 """Extract party islands from a file."""
 
 
@@ -103,6 +164,59 @@ colon = r':'
 between = ['among', 'amongst', 'and', 'between']
 between = r'\b(?:{})\b'.format('|'.join(between))
 split_patterns = re.compile(r'({}|{}|{})'.format(parens, colon, between), re.I)
+
+def extract_party_islands_offset(paras_attr_list):
+    # Grab lines from the file
+    logging.info("trying out extract_party_islands ===================================1111=== len= {}".format(len(paras_attr_list)))
+    
+    extracted_lines, start_end_list = extract_lines_v2(paras_attr_list)
+
+    logging.info("trying out extract_party_islands ===================================1111=== len= {}".format(len(extracted_lines)))
+    lines = []
+    for (line, id, start_char) in extracted_lines:
+        # Split the line
+        parts = split_patterns.split(line)
+
+        # Add indices
+        new_parts = []
+        curr_index = start_char
+        for part in parts:
+            start = curr_index
+            curr_index += len(part)
+            new_parts.append((part, start, curr_index))
+
+        # Strip spaces from each new_part, then add to lines
+        for (text, start, end) in new_parts:
+            if text.strip():
+                while text[0] == ' ':
+                    text = text[1:]
+                    start += 1
+                while text[-1] == ' ':
+                    text = text[:-1]
+                    end -= 1
+                lines.append({'text': text, 'id': id,
+                              'start': start, 'end': end})
+
+    logging.info("trying ou3233232423111=== len= {}".format(len(lines)))
+    # For each line, keep if has a suffix (truncate), name, or agent
+    parties = []
+    for line in lines:
+        suffix_matches = suffix_regex.findall(line['text'])
+        if suffix_matches:
+            parties.append((line['id'], line['start'],
+                            line['start'] + len(suffix_matches[0])))
+            continue
+        if name_regex.search(line['text']) or agent_regex.search(line['text']):
+            parties.append((line['id'], line['start'], line['end']))
+
+    logging.info("len(start_end_list) = {}".format(len(start_end_list)))
+    out_list = []
+    for line_num, start, end in parties:
+        print("line_num = {}, start = {}, end = {}".format(line_num, start,end))
+        out_list.append((start_end_list[line_num][0] + start, start_end_list[line_num][0] + end))
+
+    # Return parties list. Each party: (line id, start char, exclusive end char)
+    return out_list
 
 
 def extract_party_islands(filepath):
