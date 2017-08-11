@@ -42,6 +42,10 @@ suffixes = business_suffixes + [cap_rm_dot_space(s) for s in name_suffixes]
 invalid_parties_st_list = strutils.load_str_list('dict/parties/invalid.parties.txt')
 invalid_parties_set = set(invalid_parties_st_list)
 
+VALID_1WORD_PARTY_SET = ['customer']
+def is_valid_1word_party(line):
+    return line.lower() in VALID_1WORD_PARTY_SET
+
 ZIP_PAT = re.compile(r'[loO\d]{5,6}')
 def is_invalid_party(line):
     if ':' in line or '/' in line:
@@ -49,7 +53,8 @@ def is_invalid_party(line):
     if len(line) <= 2:
         return True
     lc_line = line.lower()
-    if 'floor' in lc_line:
+    if ('floor' in lc_line or ' road' in lc_line or
+        ' court' in lc_line):
         return True
     if ' this ' in lc_line:
         return True
@@ -322,9 +327,29 @@ def extract_party_line(paras_attr_list):
         offset += line_st_len + 1
 
         # don't bother if party_line is too far from start of the doc
-        if i > 2000:  
+        if i > 2000:
             return None
         
+    return None
+
+
+def extract_parties_from_non_partyline(paras_attr_list):
+    lines = []
+    offset = 0
+    start_end_list = []
+    for i, (line_st, para_attrs) in enumerate(paras_attr_list):
+        # attrs_st = '|'.join([str(attr) for attr in para_attrs])
+        # print('\t'.join([attrs_st, '[{}]'.format(line_st)]), file=fout1)
+        line_st_len = len(line_st)
+
+        if 'party_line' in para_attrs:
+            return offset, offset + line_st_len, line_st
+        offset += line_st_len + 1
+
+        # don't bother if party_line is too far from start of the doc
+        if i > 2000:
+            return None
+
     return None
 
 
@@ -332,32 +357,35 @@ def extract_party_line(paras_attr_list):
 def extract_offsets(paras_attr_list, para_text):
     """Return list of parties (lists of (start, inclusive-end) offsets)."""
 
+    out_list = []
+
     # Grab lines from the file
     start_end_partyline = extract_party_line(paras_attr_list)
+    if start_end_partyline:
+        start, end, party_line = start_end_partyline
+        # print("party_line ({}, {})".format(start, end))
+        # print("[{}]".format(party_line))
 
-    # Return None if no party_line was found
-    if not start_end_partyline:
-        return None
+        # Extract parties and return their offsets
+        parties = extract_parties_from_party_line(party_line)
+        offset_pair_list = parties_to_offsets(parties, party_line)
+        # logging.info("offset_pair_list: {}".format(offset_pair_list))
+        for party_term_ox_list in offset_pair_list:
+            if len(party_term_ox_list) == 2:
+                party_start, party_end = party_term_ox_list[0]
+                defined_term_start, defined_term_end = party_term_ox_list[1]
+                out_list.append(((start + party_start, start + party_end),
+                                 (start + defined_term_start, start + defined_term_end)))
+            else:
+                party_start, party_end = party_term_ox_list[0]
+                out_list.append(((start + party_start, start + party_end),
+                                 None))
 
-    start, end, party_line = start_end_partyline
-    # print("party_line ({}, {})".format(start, end))
-    # print("[{}]".format(party_line))
-    
-    # Extract parties and return their offsets
-    parties = extract_parties_from_party_line(party_line)
-    offset_pair_list = parties_to_offsets(parties, party_line)
-    out_list = []
-    # logging.info("offset_pair_list: {}".format(offset_pair_list))
-    for party_term_ox_list in offset_pair_list:
-        if len(party_term_ox_list) == 2:
-            party_start, party_end = party_term_ox_list[0]
-            defined_term_start, defined_term_end = party_term_ox_list[1]
-            out_list.append(((start + party_start, start + party_end),
-                             (start + defined_term_start, start + defined_term_end)))
-        else:
-            party_start, party_end = party_term_ox_list[0]
-            out_list.append(((start + party_start, start + party_end),
-                             None))
+    """
+    non_partyline_parties = extract_parties_from_non_partyline(paras_attr_list)
+    for start, end in non_partyline_parties:
+      out_list.append(((start, end), None))
+    """
         
     # logging.info("out_list: {}".format(out_list))
     return out_list

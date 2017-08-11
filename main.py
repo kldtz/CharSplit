@@ -148,12 +148,10 @@ def annotate_document(file_name, work_dir, model_dir, custom_model_dir):
     #                                                        work_dir=work_dir)
 
     if os.path.exists(pdf_offsets_filename):
-        print("hhhhhh")
         prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(file_name,
                                                                          pdf_offsets_filename,
                                                                          work_dir=work_dir)
     else:
-        print("hhhhhh2222")        
         prov_labels_map, doc_text = eb_runner.annotate_htmled_document(file_name,
                                                                        work_dir=work_dir)
 

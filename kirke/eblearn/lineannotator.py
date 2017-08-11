@@ -97,7 +97,8 @@ class LineAnnotator:
                     (party_start, party_end), term_ox = party_offset_pair
                     party_st = paras_text[party_start:party_end]
                     num_words = len(party_st.split())
-                    if not parties.is_invalid_party(party_st) and num_words > 1:
+                    if (not parties.is_invalid_party(party_st) and
+                        (num_words > 1 or (num_words == 1 and parties.is_valid_1word_party(party_st)))):
                         prov_annotations.append({'end': party_end,
                                                  'label': self.provision,
                                                  'id': i,

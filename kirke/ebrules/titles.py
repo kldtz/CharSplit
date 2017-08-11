@@ -2,7 +2,7 @@ from fuzzywuzzy import fuzz, process
 from math import ceil
 import re
 import string
-from unidecode import unidecode
+# from unidecode import unidecode
 
 from scipy import stats
 
@@ -66,7 +66,7 @@ def tag(s):
 
 def process_as_title(s):
     """Must lower before tag (1st) & tag before remove whitespace (New York)"""
-    return ''.join(tag(alnum_strip(unidecode(s).lower())).split())
+    return ''.join(tag(alnum_strip(s.lower())).split())
 
 
 """Get and process past titles to match against."""

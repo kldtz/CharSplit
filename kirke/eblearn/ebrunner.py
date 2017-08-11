@@ -57,7 +57,7 @@ def update_dates_by_domain_rules(ant_result_dict):
     date_annotations = ant_result_dict.get('date')
     if not date_annotations:
         effectivedate_annotations = ant_result_dict.get('effectivedate_auto')
-        print("effectivedate_annotation = {}".format(effectivedate_annotations))
+        # print("effectivedate_annotation = {}".format(effectivedate_annotations))
         if effectivedate_annotations:
             # make a copy to preserve original list
             effectivedate_annotations = copy.deepcopy(effectivedate_annotations)
@@ -307,7 +307,7 @@ class EbRunner:
             if not date_annotations:
                 # print("-------------------------------------bbbbbbbbbbbbbbbbbb")
                 effectivedate_annotations = ant_result_dict.get('effectivedate_auto')
-                print("effectivedate_annotation = {}".format(effectivedate_annotations))
+                # print("effectivedate_annotation = {}".format(effectivedate_annotations))
                 if effectivedate_annotations:
                     # make a copy to preserve original list
                     effectivedate_annotations = copy.deepcopy(effectivedate_annotations)
@@ -435,7 +435,9 @@ class EbRunner:
                 prov_labels_map['effectivedate_auto'] = xx_effective_date_list
                 # replace date IFF classification date is very large
                 ml_date = prov_labels_map.get('date')
-                if ml_date and ml_date[0]['prob'] < 0.3:
+                # print("ml_date = {}".format(ml_date))
+                # replace the case wehre "1001" is matched as a date, with prob 0.4
+                if ml_date and ml_date[0]['prob'] <= 0.5:
                     prov_labels_map['date'] = []  # let override later in update_dates_by_domain_rules()
                 # prov_labels_map['effectivedate'] = xx_effective_date_list
             if xx_date_list:

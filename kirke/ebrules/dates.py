@@ -165,7 +165,7 @@ DATE_PAT3_ST = r'((the|this)\s*)?[oOl\d]{1,2}(\S\S)?\s*(day (of|o f))?\s*(' + AL
 DATE_PAT3_1_ST = r'((the|this)\s*)?\S+\s+(day (of|o f))\s+\S+[,\s]+[oOl\d]{4}'
 DATE_PAT3 = re.compile(r'(' + DATE_PAT3_ST + r'|' + DATE_PAT3_1_ST + r')\b', re.IGNORECASE)
 
-DATE_PAT4_ST = r'\b([oOl\d]{1,2}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{2,4}|[oOl\d]{2,4}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{1,2})\b'
+DATE_PAT4_ST = r'\b([oOl\d]{1,2}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{2,4}|[oOl\d]{4}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{1,2})\b'
 DATE_PAT4 = re.compile(DATE_PAT4_ST, re.IGNORECASE)
 
 EFFECTIVE_PAT = re.compile(r'effective', re.IGNORECASE)
