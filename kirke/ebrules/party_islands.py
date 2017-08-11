@@ -11,14 +11,15 @@ DATA_DIR = './dict/party_islands/'
 """Regexes."""
 
 
-def word_regex(words):
+def word_regex_title_upper(words):
     """Returns general regular expression for matching any word in words."""
-    return re.compile(r'\b(?:{})\b'.format('|'.join(words)), re.I)
+    words = [w.title() for w in words] + [w.upper() for w in words]
+    return re.compile(r'\b(?:{})\b'.format('|'.join(words)))
 
 
 months = ['January', 'February', 'March', 'April', 'May', 'June',
           'July', 'August', 'September', 'October', 'November', 'December']
-month = word_regex(months)
+month = word_regex_title_upper(months)
 
 
 # Source: https://stackoverflow.com/questions/123559/
@@ -35,11 +36,14 @@ currency = re.compile(r'\$.*\d|\d.*\bdollars\b', re.I)
 
 with open(DATA_DIR + 'business_suffixes.list') as f:
     suffixes = f.read().splitlines()
-suffix_regex = re.compile(r'(^.*?\b(?:{})\b)'.format('|'.join(suffixes)), re.I)
-with open(DATA_DIR + 'first_names.list') as f:
-    name_regex = word_regex(f.read().splitlines())
+suffixes = [s.title() for s in suffixes] + [s.upper() for s in suffixes]
+suffix_regex = re.compile(r'^.*?\b(?:{})\b'.format('|'.join(suffixes)))
+
+
+with open(DATA_DIR + '538_names.list') as f:
+    name_regex = word_regex_title_upper(f.read().splitlines())
 with open(DATA_DIR + 'agents.list') as f:
-    agent_regex = word_regex(f.read().splitlines())
+    agent_regex = word_regex_title_upper(f.read().splitlines())
 
 
 """Extract lines from a file."""
@@ -60,7 +64,9 @@ def extract_lines(filepath):
                 break
             if 'first_eng_para' in tags:
                 num_lines_before_first_eng_para = len(lines)
-            if 'toc' in tags or 'skip_as_template' in tags:
+            if 'toc' in tags:
+                break
+            if 'skip_as_template' in tags:
                 continue
 
             # Isolate the text and check that it is not whitespace
@@ -201,12 +207,17 @@ def extract_party_islands_offset(paras_attr_list):
     # For each line, keep if has a suffix (truncate), name, or agent
     parties = []
     for line in lines:
-        suffix_matches = suffix_regex.findall(line['text'])
-        if suffix_matches:
-            parties.append((line['id'], line['start'],
-                            line['start'] + len(suffix_matches[0])))
+        if len(line['text'].split()) < 2:
             continue
-        if name_regex.search(line['text']) or agent_regex.search(line['text']):
+        suffix_matches = agent_regex.finditer(line['text'])
+        for match in suffix_matches:
+            parties.append((line['id'], line['start'] + match.start(),
+                            line['start'] + match.end()))
+        agent_matches = agent_regex.finditer(line['text'])
+        for match in agent_matches:
+            parties.append((line['id'], line['start'] + match.start(),
+                            line['start'] + match.end()))
+        if name_regex.search(line['text']):
             parties.append((line['id'], line['start'], line['end']))
 
     logging.info("len(start_end_list) = {}".format(len(start_end_list)))
@@ -248,12 +259,17 @@ def extract_party_islands(filepath):
     # For each line, keep if has a suffix (truncate), name, or agent
     parties = []
     for line in lines:
-        suffix_matches = suffix_regex.findall(line['text'])
-        if suffix_matches:
-            parties.append((line['id'], line['start'],
-                            line['start'] + len(suffix_matches[0])))
+        if len(line['text'].split()) < 2:
             continue
-        if name_regex.search(line['text']) or agent_regex.search(line['text']):
+        suffix_matches = agent_regex.finditer(line['text'])
+        for match in suffix_matches:
+            parties.append((line['id'], line['start'] + match.start(),
+                            line['start'] + match.end()))
+        agent_matches = agent_regex.finditer(line['text'])
+        for match in agent_matches:
+            parties.append((line['id'], line['start'] + match.start(),
+                            line['start'] + match.end()))
+        if name_regex.search(line['text']):
             parties.append((line['id'], line['start'], line['end']))
 
     # Return parties list. Each party: (line id, start char, exclusive end char)
