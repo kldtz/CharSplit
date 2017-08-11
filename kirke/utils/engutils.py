@@ -477,7 +477,7 @@ date_pat = re.compile(r'({})\b.*\d\d\d\d\b'.format('|'.join(MONTH_ST_LIST)),
 # the xxx day of xxx 2016
 date2_pat = re.compile(r'\bday of\b.*\d\d\d\d\b', re.IGNORECASE)
 
-date3_pat = re.compile(r'\bdated\b', re.IGNORECASE)
+date3_pat = re.compile(r'\b(dated|\d{4})\b', re.IGNORECASE)
 
 def is_date_line(line):
     if len(line) > 50:  # don't want to match line "BY AND BETWEEN" in title page

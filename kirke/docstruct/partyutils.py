@@ -65,7 +65,10 @@ def is_party_line(line):
     if 'issued' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
         return True
     if 'entered' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
-        return True            
+        return True
+    # power of attorney
+    if 'made on' in lc_line and engutils.has_date(lc_line) and 'power' in lc_line:
+        return True
     if 'between' in lc_line and 'agreement' in lc_line:
         return True
     # assigns lease to

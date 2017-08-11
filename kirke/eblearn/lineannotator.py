@@ -5,7 +5,7 @@ from kirke.eblearn import ebpostproc
 from kirke.utils import evalutils
 
 from kirke.docstruct import htmltxtparser
-from kirke.ebrules import titles
+from kirke.ebrules import titles, parties
 
 
 class LineAnnotator:
@@ -95,20 +95,25 @@ class LineAnnotator:
             if party_offset_pair_list:
                 for i, party_offset_pair in enumerate(party_offset_pair_list, 1):
                     (party_start, party_end), term_ox = party_offset_pair
-                    prov_annotations.append({'end': party_end,
-                                             'label': self.provision,
-                                             'id': i,
-                                             'start': party_start,
-                                             'prob': 0.986,  # avereage human temperature
-                                             'text': paras_text[party_start:party_end]})
-                    if term_ox:
-                        term_start, term_end = term_ox
-                        prov_annotations.append({'end': term_end,
+                    party_st = paras_text[party_start:party_end]
+                    num_words = len(party_st.split())
+                    if not parties.is_invalid_party(party_st) and num_words > 1:
+                        prov_annotations.append({'end': party_end,
                                                  'label': self.provision,
                                                  'id': i,
-                                                 'start': term_start,
-                                                 'prob': 0.986,  # avereage human temperature
-                                                 'text': paras_text[term_start:term_end]})
+                                                 'start': party_start,
+                                                 'prob': 0.91,
+                                                 'text': paras_text[party_start:party_end]})
+                    if term_ox:
+                        term_start, term_end = term_ox
+                        party_st = paras_text[term_start:term_end]
+                        if not parties.is_invalid_party(party_st):
+                            prov_annotations.append({'end': term_end,
+                                                     'label': self.provision,
+                                                     'id': i,
+                                                     'start': term_start,
+                                                     'prob': 0.91,
+                                                     'text': paras_text[term_start:term_end]})
         elif self.provision == 'date':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             # prov_type can be 'date', 'effective-date', 'signature-date'
@@ -126,7 +131,7 @@ class LineAnnotator:
                     prov_annotations.append({'end': end_offset,
                                              'label': prov_type,
                                              'start': start_offset,
-                                             'prob': 0.986,  # avereage human temperature
+                                             'prob': 0.91,
                                              'text': paras_text[start_offset:end_offset]})
         else:
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
@@ -141,7 +146,7 @@ class LineAnnotator:
                 prov_annotations = [{'end': end_offset,
                                      'label': self.provision,
                                      'start': start_offset,
-                                     'prob': 0.986,  # avereage human temperature
+                                     'prob': 0.91,
                                      'text': paras_text[start_offset:end_offset]}]
 
         return prov_annotations

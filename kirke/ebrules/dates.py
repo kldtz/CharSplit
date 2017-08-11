@@ -51,10 +51,12 @@ DIGIT_PAT = re.compile(r'[oOl\d]')
 BY_PAT = re.compile(r'\s+(by\b|\(|[, ]*between)', re.IGNORECASE)
 EFFECTIVE_FOR_AS_IF_PAT = re.compile(r'\s*[\(\“\"]+effective', re.IGNORECASE)
 
+# handd-written 2012, it can be up to 3 word in hand-writing
+DATE_MADE_ON_PAT = re.compile(r'\bmade on ((\S+|\S+\s+\S+|\S+\s+\S+\s+\S+) \d{4})\b', re.IGNORECASE)
 
 def extract_dates_from_party_line(line):
     result = []
-    # very special case, for handling signature
+    # very special case, for handling handwriting
     for mat in DATE_AS_OF_PAT.finditer(line):
         maybe_date = mat.group(1)
         by_mat = BY_PAT.search(maybe_date)
@@ -80,6 +82,18 @@ def extract_dates_from_party_line(line):
                 result.append((date_start, date_end, maybe_date_st, 'effectivedate_auto'))
             else:
                 result.append((date_start, date_end, maybe_date_st, 'date'))
+
+    for mat in DATE_MADE_ON_PAT.finditer(line):
+        maybe_date_st = mat.group(1)
+        if maybe_date_st:
+            char40_before = line[max(mat.start()-40, 0):mat.start()]
+            char40_after = line[mat.end():mat.end()+40]
+            if (EFFECTIVE_PAT.search(char40_before) or
+                EFFECTIVE_PAT.search(char40_after)):
+                result.append((mat.start(1), mat.end(1), maybe_date_st, 'effectivedate_auto'))
+            else:
+                result.append((mat.start(1), mat.end(1), maybe_date_st, 'date'))
+
     # print("as_if result date: {}".format(result))
 
     for mat in DATE_PAT1.finditer(line):
@@ -126,7 +140,9 @@ def extract_dates_from_party_line(line):
 
 MONTH_LIST = ['January', 'February', 'March', 'April', 'May',
               'June', 'July', 'August', 'September', 'October',
-              'November', 'December']
+              'November', 'December',
+              # for OCR misspelling?
+              'M ay']
 MONTH_ABBR_LIST = ['Jan.?', 'Feb.?', 'Mar.?', 'Apr.?',
                    'Jun.?', 'Jul.?', 'Sep.?', 'Sept.?', 'Oct.?',
                    'Nov.?', 'Dec.?']
@@ -144,8 +160,10 @@ DATE_PAT1 = re.compile(DATE_PAT1_ST, re.IGNORECASE)
 DATE_PAT2_ST = r'[oOl\d]{1,2}\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
 DATE_PAT2 = re.compile(DATE_PAT2_ST, re.IGNORECASE)
 
-DATE_PAT3_ST = r'(the *)?[oOl\d]{1,2}(th|st|rd)?\s*(day of)?\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
-DATE_PAT3 = re.compile(DATE_PAT3_ST, re.IGNORECASE)
+# 'st|nd|rd' can have ocr errors, so up to 3 chars
+DATE_PAT3_ST = r'((the|this)\s*)?[oOl\d]{1,2}(\S\S)?\s*(day (of|o f))?\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
+DATE_PAT3_1_ST = r'((the|this)\s*)?\S+\s+(day (of|o f))\s+\S+[,\s]+[oOl\d]{4}'
+DATE_PAT3 = re.compile(r'(' + DATE_PAT3_ST + r'|' + DATE_PAT3_1_ST + r')\b', re.IGNORECASE)
 
 DATE_PAT4_ST = r'\b([oOl\d]{1,2}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{2,4}|[oOl\d]{2,4}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{1,2})\b'
 DATE_PAT4 = re.compile(DATE_PAT4_ST, re.IGNORECASE)

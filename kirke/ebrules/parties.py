@@ -1,8 +1,11 @@
-from kirke.ebrules import titles
+
 from itertools import groupby
 import re
 import string
 import logging
+
+from kirke.ebrules import titles
+from kirke.utils import strutils
 
 
 """Config"""
@@ -35,6 +38,24 @@ max_suffix_words = max(len(s.split()) for s in suffixes)
 business_suffixes = [cap_rm_dot_space(s) for s in business_suffixes]
 suffixes = business_suffixes + [cap_rm_dot_space(s) for s in name_suffixes]
 
+# load invalid party phrases
+invalid_parties_st_list = strutils.load_str_list('dict/parties/invalid.parties.txt')
+invalid_parties_set = set(invalid_parties_st_list)
+
+ZIP_PAT = re.compile(r'[loO\d]{5,6}')
+def is_invalid_party(line):
+    if ':' in line or '/' in line:
+        return True
+    if len(line) <= 2:
+        return True
+    lc_line = line.lower()
+    if 'floor' in lc_line:
+        return True
+    if ' this ' in lc_line:
+        return True
+    if ZIP_PAT.search(lc_line):
+        return True
+    return lc_line in invalid_parties_set
 
 """Process parts of strings (already split by comma, and, & semicolon)"""
 
