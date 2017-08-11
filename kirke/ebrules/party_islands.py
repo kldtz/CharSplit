@@ -259,17 +259,19 @@ def extract_party_islands(filepath):
     # For each line, keep if has a suffix (truncate), name, or agent
     parties = []
     for line in lines:
-        if len(line['text'].split()) < 2:
+        text = line['text']
+        if len(text.split()) < 2 or any(c.isdigit() for c in text):
             continue
-        suffix_matches = suffix_regex.finditer(line['text'])
-        for match in suffix_matches:
-            parties.append((line['id'], line['start'] + match.start(),
-                            line['start'] + match.end()))
+        suffix_matches = suffix_regex.findall(text)
+        if suffix_matches:
+            parties.append((line['id'], line['start'],
+                            line['start'] + len(suffix_matches[0])))
+            continue
         # agent_matches = agent_regex.finditer(line['text'])
         # for match in agent_matches:
         #     parties.append((line['id'], line['start'] + match.start(),
         #                     line['start'] + match.end()))
-        if name_regex.search(line['text']):
+        if name_regex.search(text):
             parties.append((line['id'], line['start'], line['end']))
 
     # Return parties list. Each party: (line id, start char, exclusive end char)
