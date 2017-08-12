@@ -173,11 +173,8 @@ split_patterns = re.compile(r'({}|{}|{})'.format(parens, colon, between), re.I)
 
 def extract_party_islands_offset(paras_attr_list):
     # Grab lines from the file
-    logging.info("trying out extract_party_islands ===================================1111=== len= {}".format(len(paras_attr_list)))
-    
     extracted_lines, start_end_list = extract_lines_v2(paras_attr_list)
 
-    logging.info("trying out extract_party_islands ===================================1111=== len= {}".format(len(extracted_lines)))
     lines = []
     for (line, id, start_char) in extracted_lines:
         # Split the line
@@ -203,7 +200,6 @@ def extract_party_islands_offset(paras_attr_list):
                 lines.append({'text': text, 'id': id,
                               'start': start, 'end': end})
 
-    logging.info("trying ou3233232423111=== len= {}".format(len(lines)))
     # For each line, keep if has a suffix (truncate), name, or agent
     parties = []
     for line in lines:
@@ -220,10 +216,8 @@ def extract_party_islands_offset(paras_attr_list):
         if name_regex.search(line['text']):
             parties.append((line['id'], line['start'], line['end']))
 
-    logging.info("len(start_end_list) = {}".format(len(start_end_list)))
     out_list = []
     for line_num, start, end in parties:
-        print("line_num = {}, start = {}, end = {}".format(line_num, start,end))
         out_list.append((start_end_list[line_num][0] + start, start_end_list[line_num][0] + end))
 
     # Return parties list. Each party: (line id, start char, exclusive end char)

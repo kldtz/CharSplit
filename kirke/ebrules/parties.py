@@ -363,10 +363,11 @@ def extract_offsets(paras_attr_list, para_text):
                 out_list.append(((start + party_start, start + party_end),
                                  None))
 
-    logging.info("trying out extract_party_islands ========================================================")
+    """
     non_partyline_parties = party_islands.extract_party_islands_offset(paras_attr_list)
     for start, end in non_partyline_parties:
         out_list.append(((start, end), None))
+    """
         
     # logging.info("out_list: {}".format(out_list))
     return out_list
