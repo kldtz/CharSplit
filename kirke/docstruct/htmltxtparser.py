@@ -523,7 +523,7 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
 # 'is_combine_line' indicates if the system combines line when doing sechead identification
 # for HTML docs, this shoulbe True.  For PDF documents, this should be False.
 def parse_document(file_name, work_dir, is_combine_line=True):
-    debug_mode = True
+    debug_mode = False
 
     base_fname = os.path.basename(file_name)
     orig_doc_text = txtreader.loads(file_name)

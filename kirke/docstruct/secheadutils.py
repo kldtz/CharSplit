@@ -521,11 +521,15 @@ def extract_sechead_v4(line: str,
           prefix and strutils.is_parens_all_digits(prefix)):
         pass    
     else:
-        logging.warning('bbbad sechead extraction:')
-        logging.warning('\tprev_line[:60]: [{}]'.format(last_extract_sechead_v4_line[:60]))
-        logging.warning('\tcurr_line[:60]: [{}]'.format(line[:60]))
-        logging.warning('\tcomb_prefix, comb_head = [{}]\t[{}]'.format(comb_prefix, comb_head))
-        logging.warning('\tprefix, head = [{}]\t[{}]'.format(prefix, head))
+        pass
+        # TODO, jshaw
+        # This sould be enabled.  Disabled for now
+        # because in production
+        # logging.warning('bbbad sechead extraction:')
+        # logging.warning('\tprev_line[:60]: [{}]'.format(last_extract_sechead_v4_line[:60]))
+        # logging.warning('\tcurr_line[:60]: [{}]'.format(line[:60]))
+        # logging.warning('\tcomb_prefix, comb_head = [{}]\t[{}]'.format(comb_prefix, comb_head))
+        # logging.warning('\tprefix, head = [{}]\t[{}]'.format(prefix, head))
         
     return None, None, None, -1 
 

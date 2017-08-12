@@ -262,6 +262,26 @@ def eval_annotator(txt_fn_list, work_dir, model_file_name):
     pprint(provision_status_map)
 
 
+def eval_ml_rule_annotator(txt_fn_list, work_dir, model_file_name):
+    eb_classifier = joblib.load(model_file_name)
+    provision = eb_classifier.provision
+    print("provision = {}".format(provision))
+
+    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
+    print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
+
+    pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
+
+    provision_status_map = {'provision': provision,
+                            'pred_status': pred_status}
+
+    # update the hashmap of annotators
+    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
+    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
+
+    pprint(provision_status_map)
+
+
 def eval_line_annotator_with_trte(provision,
                                   model_dir='dir-scut-model',
                                   work_dir='dir-work',

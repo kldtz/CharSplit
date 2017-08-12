@@ -158,7 +158,7 @@ def custom_train(cust_id):
     eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                                 provision,
                                                                 CUSTOM_MODEL_DIR,
-                                                                is_doc_structure=True,
+                                                                is_doc_structure=False,
                                                                 work_dir=work_dir)
     # copy the result into the expected format for client
     pred_status = eval_status['pred_status']['pred_status']

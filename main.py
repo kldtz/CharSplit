@@ -66,8 +66,16 @@ def eval_line_annotator_with_trte(provision,
                                             model_dir=model_dir,
                                             is_doc_structure=is_doc_structure)
 
+def eval_ml_rule_annotator_with_trte(provision,
+                                     work_dir,
+                                     model_dir):
+    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
+    eb_runner.eval_ml_rule_annotator_with_trte(provision,
+                                               work_dir=work_dir,
+                                               model_dir=model_dir)
 
-def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=True):
+
+def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=False):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
     # cust_id = '12345'
@@ -221,9 +229,9 @@ if __name__ == '__main__':
                         work_dir,
                         model_dir,
                         args.scut,
-                        is_doc_structure=True)
+                        is_doc_structure=False)
     elif cmd == 'custom_train_annotator':
-        custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=False)
     elif cmd == 'test_annotators':
         # if no --provisions is specified, all annotators are tested
         test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir, custom_model_dir,
@@ -263,6 +271,13 @@ if __name__ == '__main__':
                                       work_dir,
                                       model_dir,
                                       is_doc_structure=True)
+    elif cmd == 'eval_ml_rule_annotator':
+        if not args.provision:
+            print('please specify --provision', file=sys.stderr)
+            sys.exit(1)
+        eval_ml_rule_annotator_with_trte(args.provision,
+                                         work_dir,
+                                         model_dir)
     elif cmd == 'split_provision_trte':
         if not args.provfiles_dir:
             print('please specify --provfiles_dir', file=sys.stderr)
@@ -271,10 +286,12 @@ if __name__ == '__main__':
             print('please specify --model_dirs', file=sys.stderr)
             sys.exit(1)        
         model_dir_list = args.model_dirs.split(',')
+        # for HTML document, without doc structure
+        # is_doc_structure has to be false.
         splittrte.split_provision_trte(args.provfiles_dir,
                                        work_dir,
                                        model_dir_list,
-                                       is_doc_structure=True)
+                                       is_doc_structure=False)
     else:
         print("unknown command: '{}'".format(cmd))
 
