@@ -299,8 +299,8 @@ class EbRunner:
             prov_labels_map['party'] = party_ant_list
 
 
+        # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(nl_paras_with_attrs, nl_para_doc_text)
-        # logging.info("running date_annotator()------2222222222222222--------- {}".format(len(date_ant_list)))
         if date_ant_list:
             xx_effective_date_list = []
             xx_date_list = []
