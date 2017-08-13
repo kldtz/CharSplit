@@ -4,7 +4,7 @@ import re
 import string
 import logging
 
-from kirke.ebrules import titles, party_islands
+from kirke.ebrules import titles
 from kirke.utils import strutils
 
 
