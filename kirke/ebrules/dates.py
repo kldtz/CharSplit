@@ -150,7 +150,7 @@ ALL_MONTH_LIST = MONTH_LIST + MONTH_ABBR_LIST
 
 ALL_MONTH_PAT = '|'.join(ALL_MONTH_LIST)
 
-DATE_PAT1_ST = '(' + ALL_MONTH_PAT + r')\s+[oOl\d]{1,2}[,\s]+[oOl\d]{4}'
+DATE_PAT1_ST = '(' + ALL_MONTH_PAT + r')\s+[oOl\d]{1,2}(\S\S)?[,\s]+[oOl\d]{4}'
 # DATE_PAT_ST = '(' + ALL_MONTH_PAT + r')'
 # print('DATE_PAT_ST = "{}"'.format(DATE_PAT1_ST))
                          
@@ -161,8 +161,8 @@ DATE_PAT2_ST = r'[oOl\d]{1,2}\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
 DATE_PAT2 = re.compile(DATE_PAT2_ST, re.IGNORECASE)
 
 # 'st|nd|rd' can have ocr errors, so up to 3 chars
-DATE_PAT3_ST = r'((the|this)\s*)?[oOl\d]{1,2}(\S\S)?\s*(day (of|o f))?\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
-DATE_PAT3_1_ST = r'((the|this)\s*)?\S+\s+(day (of|o f))\s+\S+[,\s]+[oOl\d]{4}'
+DATE_PAT3_ST = r'((the|this)\s*)?[oOl\d]{1,2}(\S\S)?\s*((day )?(of|o f))?\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
+DATE_PAT3_1_ST = r'((the|this)\s*)?\S+\s+((day )?(of|o f))\s+\S+[,\s]+[oOl\d]{4}'
 DATE_PAT3 = re.compile(r'(' + DATE_PAT3_ST + r'|' + DATE_PAT3_1_ST + r')\b', re.IGNORECASE)
 
 DATE_PAT4_ST = r'\b([oOl\d]{1,2}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{2,4}|[oOl\d]{4}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{1,2})\b'
