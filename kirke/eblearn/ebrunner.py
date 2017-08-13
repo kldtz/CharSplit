@@ -319,12 +319,14 @@ class EbRunner:
                     xx_date_list.append(antx)
             if xx_effective_date_list:
                 prov_labels_map['effectivedate_auto'] = xx_effective_date_list
-                # replace date IFF classification date is very large
-                ml_date = prov_labels_map.get('date')
+                ## replace date IFF classification date is very large
+                ## replace the case wehre "1001" is matched as a date, with prob 0.4
+                ## This modification is anecdotal, not firmly verified.
+                ## this is hacking on the date threshold.
+                # ml_date = prov_labels_map.get('date')
                 # print("ml_date = {}".format(ml_date))
-                # replace the case wehre "1001" is matched as a date, with prob 0.4
-                if ml_date and ml_date[0]['prob'] <= 0.5:
-                    prov_labels_map['date'] = []  # let override later in update_dates_by_domain_rules()
+                # if ml_date and ml_date[0]['prob'] <= 0.5:
+                #    prov_labels_map['date'] = []  # let override later in update_dates_by_domain_rules()
                 # prov_labels_map['effectivedate'] = xx_effective_date_list
             if xx_date_list:
                 prov_labels_map['date'] = xx_date_list
@@ -421,6 +423,10 @@ class EbRunner:
                                                                      provision_set=provision_set,
                                                                      work_dir=work_dir)
 
+        # because special case of 'effectivdate_auto'
+        if not prov_labels_map.get('effectivedate_auto'):
+            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate')
+
         # TODO, uncomment this below for production
         # this will updae prov_labels_map
         self.apply_line_annotators(prov_labels_map,
@@ -429,9 +435,11 @@ class EbRunner:
                                    # for HTML, we combine lines for sechead
                                    is_combine_line=True)
 
+
         # HTML document has no table detection, so 'rate-table' annotation is an empty list
         prov_labels_map['rate_table'] = []
 
+        # jshaw. evalxxx, composite
         update_dates_by_domain_rules(prov_labels_map)
 
         # save the prov_labels_map
@@ -458,6 +466,9 @@ class EbRunner:
         prov_labels_map, orig_doc_text = self.annotate_text_document(file_name,
                                                                      provision_set=provision_set,
                                                                      work_dir=work_dir)
+        # because special case of 'effectivdate_auto'
+        if not prov_labels_map.get('effectivedate_auto'):
+            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate')
 
         # this will updae prov_labels_map
         self.apply_line_annotators(prov_labels_map,
@@ -642,14 +653,18 @@ class EbRunner:
                 prov_labels_map, doc_text = self.annotate_htmled_document(test_fn,
                                                                           provision_set=set([provision]),
                                                                           work_dir=work_dir)
-                ant_list = prov_labels_map.get(provision)
+                # special treatment for effectivedate, which is really effectivedate_auto
+                if provision == 'effectivedate':
+                    ant_list = prov_labels_map.get('effectivedate_auto', [])
+                else:
+                    ant_list = prov_labels_map.get(provision)
+
                 print("\ntest_fn = {}".format(test_fn))
                 print("ant_list: {}".format(ant_list))
                 ebantdoc, ebant_fn = ebtext2antdoc.load_cached_ebantdoc(test_fn,
                                                                         is_bespoke_mode=False,
                                                                         work_dir=work_dir,
                                                                         is_cache_enabled=True)
-
 
                 print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
                 # print("ant_list: {}".format(ant_list))
