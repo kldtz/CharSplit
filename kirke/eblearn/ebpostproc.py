@@ -5,6 +5,7 @@ from typing import List
 from kirke.utils import strutils, entityutils, stopwordutils, mathutils
 from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
+from kirke.ebrules import dates
 
 
 PROVISION_PAT_MAP = {
@@ -1116,6 +1117,41 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
 
         return ant_result
 
+class PostPredLCommencementDateProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'l_commencement_date'
+        self.threshold = 0.24
+
+    def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+
+        #tagged_sents = filter_provision_list(self.provision,
+#                                             self.threshold,
+ #                                            merged_prob_attrvec_list)
+
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            print("sent: [{}]".format(doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
+            if cx_prob_attrvec.prob >= threshold:
+                print("commencement! {}".format(cx_prob_attrvec.text[:50]) + '...')
+                line = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
+                date_list = dates.extract_dates_from_party_line(line)
+                print("date_list = {}".format(date_list))
+                for xdate in date_list:
+                    print("returned [{}]".format(strutils.remove_nltab(line[xdate[0]:xdate[1]][:50])))
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=cx_prob_attrvec.start + xdate[0],
+                                                end=cx_prob_attrvec.start + xdate[1],
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(line[xdate[0]:xdate[1]][:50]) + '...').to_dict())
+        return ant_result
+    
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
@@ -1131,6 +1167,7 @@ PROVISION_POSTPROC_MAP = {
     'la_agent_trustee': PostPredLaAgentTrusteeProc(),
     'lic_licensee': PostPredLicLicenseeProc(),
     'lic_licensor': PostPredLicLicensorProc(),
+    'l_commencement_date': PostPredLCommencementDateProc(),
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),
