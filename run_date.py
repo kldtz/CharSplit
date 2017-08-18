@@ -26,15 +26,16 @@ if __name__ == '__main__':
 
     fname = args.file
 
-    """
     line = 'entered into as of __________, 2011 (the “Effective Date”)'
     line = 'made this 22nd day of April, 2014'
     line = '[ ], 2012'
     line = 'dated as of March     , 2009'
+
+    line = 'dated as of the 1 st day of April, 2005'
     xxx = dates.extract_dates_from_party_line(line)
     print("{}\t{}".format(line, xxx))
-    """
 
+    """
     with open(fname, 'rt') as fin:
         for line in fin:
             line = line.strip()
@@ -44,5 +45,6 @@ if __name__ == '__main__':
             print("{}\t{}".format(line, xxx))
             # if len(xxx) != 1:
             #    print("{}\t{}".format(line, xxx))
+    """
 
     # print(dates.extract_dates(fname))

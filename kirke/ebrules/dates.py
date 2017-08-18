@@ -192,7 +192,7 @@ DATE_PAT2 = re.compile(r'(' + DATE_PAT2_ST + '|' + DATE_PAT2_1_ST + r')\b', re.I
 
 
 # 'st|nd|rd' can have ocr errors, so up to 3 chars
-DATE_PAT3_ST = r'((the|this)\s*)?[oOl\d]{1,2}(\S\S)?\s*((day )?(of|o f))?\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
+DATE_PAT3_ST = r'((the|this)\s*)?[oOl\d]{1,2}(\s*\S\S)?\s*((day )?(of|o f))?\s*(' + ALL_MONTH_PAT + r')[,\s]+[oOl\d]{4}'
 DATE_PAT3_1_ST = r'((the|this)\s*)?\S+\s+(day (of|o f))\s+\S+[,\s]+[oOl\d]{4}'
 # date without year, "this x 21st day of x december, 2009"
 DATE_PAT3_2_ST = r'((the|this)\s*)+\S+\s+((day )?(of|o f))\s+\S*(' + ALL_MONTH_PAT + r')([,\s]+[oOl\d]{4})?'
