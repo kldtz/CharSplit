@@ -103,13 +103,14 @@ class EbAttrVec:
     # __slots__ = ['file_id', 'start', 'end', 'bag_of_words', 'labels', 'entities']
 
     # pylint: disable=too-many-arguments
-    def __init__(self, file_id, start, end, sent_text, labels, entities):
+    def __init__(self, file_id, start, end, sent_text, labels, entities, sechead):
         self.file_id = file_id
         self.start = start  # this differs from ent_start, which can be chopped
         self.end = end      # similar to above, ent_end
         self.bag_of_words = sent_text
         self.labels = labels
         self.entities = entities
+        self.sechead = sechead
 
     def get_val(self, attr_name):
         """Return value of the attribute"""

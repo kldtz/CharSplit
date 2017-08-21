@@ -14,13 +14,16 @@ import os
 from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
 
-from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
+from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifierv1_2
 from kirke.eblearn import ebtext2antdoc, ebannotator
 from kirke.utils import osutils, splittrte, strutils
 
 from kirke.docstruct import docreader
 
 from kirke.ebrules import rateclassifier
+
+SCUT_CLF_VERSION = '1.2'
+PROV_CLF_VERSION = '1.0'
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -29,11 +32,11 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 # This trains on ALL data, no separate testing
 def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
     if is_scut:
-        eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        model_file_name = model_dir + '/' + provision + "_scutclassifier.pkl"
+        eb_classifier = scutclassifierv1_2.ShortcutClassifierV1_2(provision)
+        model_file_name = '{}/{}'.format(model_dir, provision + '_scutclassifier.v{}.pkl'.format(SCUT_CLF_VERSION))
     else:
         eb_classifier = provclassifier.ProvisionClassifier(provision)
-        model_file_name = model_dir + '/' + provision + "_provclassifier.pkl"
+        model_file_name = '{}/{}'.format(model_dir, provision + '_provclassifier.v{}.pkl'.format(PROV_CLF_VERSION))
 
     ebtrainer._train_classifier(txt_fn_list_fn,
                                 work_dir,
@@ -42,13 +45,13 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
 
 
 # This separates out training and testing data, trains only on training data.
-def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_doc_structure=False):
+def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_doc_structure=True):
     if is_scut:
-        eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        model_file_name = model_dir + '/' +  provision + "_scutclassifier.pkl"
+        eb_classifier = scutclassifierv1_2.ShortcutClassifierV1_2(provision)
+        model_file_name = '{}/{}'.format(model_dir, provision + '_scutclassifier.v{}.pkl'.format(SCUT_CLF_VERSION))
     else:
         eb_classifier = provclassifier.ProvisionClassifier(provision)
-        model_file_name = model_dir + '/' +  provision + "_provclassifier.pkl"
+        model_file_name = '{}/{}'.format(model_dir, provision + '_provclassifier.v{}.pkl'.format(PROV_CLF_VERSION))
 
     ebtrainer.train_eval_annotator_with_trte(provision,
                                              work_dir,
@@ -75,7 +78,7 @@ def eval_ml_rule_annotator_with_trte(provision,
                                                model_dir=model_dir)
 
 
-def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=False):
+def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=True):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
     # cust_id = '12345'
@@ -229,9 +232,9 @@ if __name__ == '__main__':
                         work_dir,
                         model_dir,
                         args.scut,
-                        is_doc_structure=False)
+                        is_doc_structure=True)
     elif cmd == 'custom_train_annotator':
-        custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=False)
+        custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
     elif cmd == 'test_annotators':
         # if no --provisions is specified, all annotators are tested
         test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir, custom_model_dir,
@@ -291,7 +294,7 @@ if __name__ == '__main__':
         splittrte.split_provision_trte(args.provfiles_dir,
                                        work_dir,
                                        model_dir_list,
-                                       is_doc_structure=False)
+                                       is_doc_structure=True)
     else:
         print("unknown command: '{}'".format(cmd))
 

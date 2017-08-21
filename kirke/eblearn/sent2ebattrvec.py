@@ -47,7 +47,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     # will do chunking in the future also
     fvec = ebattrvec.EbAttrVec(file_id,
                                ebsent.start, ebsent.end,
-                               ebsent.get_tokens_text(), ebsent.labels, ebsent.entities)
+                               ebsent.get_tokens_text(), ebsent.labels, ebsent.entities, ebsent.sechead)
 
     tmp_start = min(ENT_START_MAX, ebsent.start)
     tmp_end = min(ENT_END_MAX, ebsent.end)

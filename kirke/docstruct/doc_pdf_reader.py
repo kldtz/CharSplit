@@ -476,8 +476,11 @@ def save_debug_txt_files(work_dir, base_fname, doc_text,
         print('wrote {}'.format(page_fn))
 
 def to_nl_paraline_texts(file_name, offsets_file_name, work_dir):
+    debug_mode = True
     base_fname = os.path.basename(file_name)
 
+    if debug_mode:
+        print('reading text doc: [{}]'.format(file_name), file=sys.stderr)
     orig_doc_text = strutils.loads(file_name)
     doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = load_pdf_offsets(offsets_file_name)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
@@ -491,7 +494,8 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir):
     # save the result
     nl_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
     txtreader.dumps(nl_text, nl_fn)
-    # print('wrote {}, size= {}'.format(nl_fn, len(nl_text)))
+    if debug_mode:
+        print('wrote {}, size= {}'.format(nl_fn, len(nl_text)), file=sys.stderr)
 
     doc_text = nl_text
 
@@ -595,13 +599,14 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir):
     # save the result
     paraline_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paraline.txt'))
     txtreader.dumps(paraline_text, paraline_fn)
-    # print('wrote {}, size= {}'.format(paraline_fn, len(paraline_text)))
+    if debug_mode:
+        print('wrote {}, size= {}'.format(paraline_fn, len(paraline_text)), file=sys.stderr)
 
     return orig_doc_text, nl_text, paraline_text, nl_fn, paraline_fn
 
 
 def parse_document(file_name, offsets_file_name, work_dir):
-    debug_mode = False
+    debug_mode = True
 
     base_fname = os.path.basename(file_name)
 
