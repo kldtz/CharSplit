@@ -161,6 +161,13 @@ def prefer_effectivedate_over_date(alist):
             start_end_tuple_map[(elt[0], elt[1])] = elt
     return start_end_tuple_map.values()
 
+def extract_std_dates(line):
+    """Extract standard-format dates from a given line."""
+    dates = [(mat.start(), mat.end())
+             for pat in (DATE_PAT1, DATE_PAT2, DATE_PAT3, DATE_PAT4)
+             for mat in pat.finditer(line)]
+    return mathutils.remove_subsumed(dates)
+
 
 MONTH_LIST = ['January', 'February', 'March', 'April', 'May',
               'June', 'July', 'August', 'September', 'October',
