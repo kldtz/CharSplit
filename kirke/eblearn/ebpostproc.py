@@ -1136,14 +1136,14 @@ class PostPredLCommencementDateProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            print("sent: [{}]".format(doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
+            # print("sent: [{}]".format(doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
             if cx_prob_attrvec.prob >= threshold:
-                print("commencement! {}".format(cx_prob_attrvec.text[:50]) + '...')
+                # print("commencement! {}".format(cx_prob_attrvec.text[:50]) + '...')
                 line = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
                 date_list = dates.extract_dates_from_party_line(line)
-                print("date_list = {}".format(date_list))
+                # print("date_list = {}".format(date_list))
                 for xdate in date_list:
-                    print("returned [{}]".format(strutils.remove_nltab(line[xdate[0]:xdate[1]][:50])))
+                    # print("returned [{}]".format(strutils.remove_nltab(line[xdate[0]:xdate[1]][:50])))
                     ant_result.append(AntResult(label=self.provision,
                                                 prob=cx_prob_attrvec.prob,
                                                 start=cx_prob_attrvec.start + xdate[0],

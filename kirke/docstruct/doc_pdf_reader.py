@@ -476,7 +476,7 @@ def save_debug_txt_files(work_dir, base_fname, doc_text,
         print('wrote {}'.format(page_fn))
 
 def to_nl_paraline_texts(file_name, offsets_file_name, work_dir):
-    debug_mode = True
+    debug_mode = False
     base_fname = os.path.basename(file_name)
 
     if debug_mode:
