@@ -9,6 +9,7 @@ from scipy import sparse
 from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 
+from kirke.eblearn import ebattrvec
 from kirke.eblearn import igain, bigramutils
 from kirke.utils import stopwordutils, strutils
 
@@ -18,6 +19,20 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 
 DEBUG_MODE = False
+
+
+PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
+                                     ebattrvec.PARTY_NUMERIC_ATTR_LIST,
+                                     ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
+                           'default': (ebattrvec.DEFAULT_BINARY_ATTR_LIST,
+                                       ebattrvec.DEFAULT_NUMERIC_ATTR_LIST,
+                                       ebattrvec.DEFAULT_CATEGORICAL_ATTR_LIST)}
+
+def get_transformer_attr_list_by_provision(provision: str):
+    if PROVISION_ATTRLISTS_MAP.get(provision):
+        return PROVISION_ATTRLISTS_MAP.get(provision)
+    return PROVISION_ATTRLISTS_MAP.get('default')
+
 
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
@@ -31,9 +46,15 @@ class EbTransformerV1_2(EbTransformerBase):
     MAX_NUM_BI_TOPGRAM_WORDS = 175
 
     """Transform a list ebantdoc to matrix."""
-    def __init__(self, provision, binary_attr_list, numeric_attr_list, categorical_attr_list):
+    def __init__(self, provision):
         # provision is needed because of infogain computation need to know the classes
         super(EbTransformerV1_2, self).__init__(provision)
+        self.version = '1.2'
+
+        logging.info('EbTransformerV1_2({})'.format(self.provision))
+        (binary_attr_list, numeric_attr_list, categorical_attr_list) = \
+                get_transformer_attr_list_by_provision(self.provision)
+
         # self.provision = provision
         self.binary_attr_list = binary_attr_list
         self.numeric_attr_list = numeric_attr_list

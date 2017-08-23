@@ -71,21 +71,24 @@ def entities_to_dict_list(entities):
     return []
 
 
-# ProvisionAnnotationTuple = namedtuple('ProvisionAnnotation', ['label', 'start', 'end'])
+# cannot use this because in line 600 prov_annotation.start = xxx in ebtext2antdoc.py
+# maybe fix in future.
+# ProvisionAnnotation = namedtuple('ProvisionAnnotation', ['start', 'end', 'label'])
 # pylint: disable=R0903
 class ProvisionAnnotation:
-    __slots__ = ['label', 'start', 'end']
+    __slots__ = ['start', 'end', 'label']
 
-    def __init__(self, label, start, end):
-        self.label = label
+    def __init__(self, start, end, label):
         self.start = start
         self.end = end
+        self.label = label
 
     def __repr__(self):
-        return "ProvisionAnnotation('{}', {}, {})".format(self.label, self.start, self.end)
+        return "ProvisionAnnotation('{}', {}, {})".format(self.start, self.end, self.label)
 
     def __lt__(self, other):
         return (self.start, self.end) < (other.start, other.end)
+
               
 #    def to_tuple(self):
 #        return (self.lable, self.start, self.end)
@@ -119,7 +122,7 @@ class EbProvisionAnnotation:
         return str(self.to_dict())
 
     def to_tuple(self):
-        return ProvisionAnnotation(self.ptype, self.start, self.end)
+        return ProvisionAnnotation(self.start, self.end, self.ptype)
 
 
 def load_provision_annotations(filename, provision_name=None):

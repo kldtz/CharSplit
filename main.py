@@ -14,7 +14,8 @@ import os
 from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
 
-from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifierv1_2
+from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier, ebtransformerv1_2
+from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.eblearn import ebtext2antdoc, ebannotator
 from kirke.utils import osutils, splittrte, strutils
 
@@ -32,7 +33,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 # This trains on ALL data, no separate testing
 def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
     if is_scut:
-        eb_classifier = scutclassifierv1_2.ShortcutClassifierV1_2(provision)
+        eb_classifier = scutclassifier.ShortcutClassifier(provision, EbTransformerV1_2(provision))
         model_file_name = '{}/{}'.format(model_dir, provision + '_scutclassifier.v{}.pkl'.format(SCUT_CLF_VERSION))
     else:
         eb_classifier = provclassifier.ProvisionClassifier(provision)
@@ -47,7 +48,7 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
 # This separates out training and testing data, trains only on training data.
 def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_doc_structure=True):
     if is_scut:
-        eb_classifier = scutclassifierv1_2.ShortcutClassifierV1_2(provision)
+        eb_classifier = scutclassifier.ShortcutClassifier(provision, EbTransformerV1_2(provision))
         model_file_name = '{}/{}'.format(model_dir, provision + '_scutclassifier.v{}.pkl'.format(SCUT_CLF_VERSION))
     else:
         eb_classifier = provclassifier.ProvisionClassifier(provision)

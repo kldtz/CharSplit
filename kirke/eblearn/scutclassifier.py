@@ -36,27 +36,15 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'termination': 0.36}
 
 
-PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
-                                     ebattrvec.PARTY_NUMERIC_ATTR_LIST,
-                                     ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
-                           'default': (ebattrvec.DEFAULT_BINARY_ATTR_LIST,
-                                       ebattrvec.DEFAULT_NUMERIC_ATTR_LIST,
-                                       ebattrvec.DEFAULT_CATEGORICAL_ATTR_LIST)}
-
-def get_transformer_attr_list_by_provision(provision: str):
-    if PROVISION_ATTRLISTS_MAP.get(provision):
-        return PROVISION_ATTRLISTS_MAP.get(provision)
-    return PROVISION_ATTRLISTS_MAP.get('default')
-
-
 class ShortcutClassifier(EbClassifier):
 
-    def __init__(self, provision):
+    def __init__(self, provision, transformer):
         EbClassifier.__init__(self, provision)
         self.eb_grid_search = None
         self.best_parameters = None
 
-        self.transformer = None
+        # EbTransformer(self.provision, binary_attr_list, numeric_attr_list, categorical_attr_list)
+        self.transformer = transformer
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
@@ -76,8 +64,6 @@ class ShortcutClassifier(EbClassifier):
         # NOTE: jshaw
         # this is where there is leakable of information from test set
         # infogain might get some information from test set
-        (binary_attr_list, numeric_attr_list, categorical_attr_list) = get_transformer_attr_list_by_provision(self.provision)
-        self.transformer = EbTransformer(self.provision, binary_attr_list, numeric_attr_list, categorical_attr_list)
         self.transformer.fit(attrvec_list, label_list)
 
         # pylint: disable=C0103
