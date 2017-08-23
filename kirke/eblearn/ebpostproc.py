@@ -1256,7 +1256,9 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                             continue
 
             # Fall through with original line (handles just-date lines)
-            ant_result.append(self.ant(line, cx_prob_attrvec, (0, len(line))))
+            if cx_prob_attrvec.prob >= threshold:
+                ant_result.append(self.ant(line, cx_prob_attrvec,
+                                           (0, len(line))))
 
         # Return results list
         return ant_result
