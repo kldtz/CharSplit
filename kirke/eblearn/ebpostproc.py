@@ -1143,18 +1143,18 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
     lc_regexes = {
         'verbs': re.compile(r'\b{}\b'.format(lc['verbs']), re.I),
         'terms': re.compile(r'\([^)]*?\b{}\s+date\b'.format(lc['nouns']), re.I),
-        'nouns': re.compile(r'(?<!{}\s+)\b{}\s+date\b'
+        'nouns': re.compile(r'(?<!{})\s*{}\s+date\b'
                             .format(lc['noun_revokers'], lc['nouns']), re.I),
-        'end': re.compile(r'^\s*\S*\s*(?<!{}\s+)\b{}\s+date\s*:?\s*$'
+        'end': re.compile(r'^\s*\S*\s*(?<!{})\s*{}\s+date\s*:?\s*$'
                           .format(lc['noun_revokers'], lc['nouns']), re.I),
         'revokers': revokers_regex
     }
     le_regexes = {
         'verbs': re.compile(r'\b{}\b'.format(le['verbs']), re.I),
         'terms': re.compile(r'\([^)]*?\b{}\s+date\b'.format(le['nouns']), re.I),
-        'nouns': re.compile(r'(?<!{}\s+)\b{}\s+date\b'
+        'nouns': re.compile(r'(?<!{})\s*{}\s+date\b'
                             .format(le['noun_revokers'], le['nouns']), re.I),
-        'end': re.compile(r'^\s*\S*\s*(?<!{}\s+)\b{}\s+date\s*:?\s*$'
+        'end': re.compile(r'^\s*\S*\s*(?<!{})\s*{}\s+date\s*:?\s*$'
                           .format(le['noun_revokers'], le['nouns']), re.I),
         'revokers': revokers_regex
     }
