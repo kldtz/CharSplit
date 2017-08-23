@@ -34,3 +34,14 @@ def remove_subsumed(alist):
         if not is_subsumed(result, elt):
             result.append(elt)
     return result
+
+def offset_percentage(offsets1, offsets2):
+    """A metric for how exact a true positive matches an annotated provision."""
+    distance = abs(offsets2[0] - offsets1[0]) + abs(offsets2[1] - offsets1[1])
+    total_characters = (offsets1[1] - offsets1[0]) + (offsets2[1] - offsets2[0])
+    return 100 * max(1 - distance / total_characters, 0)
+
+def offset_score(answers_offsets, pred_offsets):
+    """Returns the best offset_percentage. Returned 0s should be ignored."""
+    percentages = [offset_percentage(a, pred_offsets) for a in answers_offsets]
+    return max(percentages) if percentages else 0
