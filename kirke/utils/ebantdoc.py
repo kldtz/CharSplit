@@ -1,8 +1,9 @@
 from collections import namedtuple
 from enum import Enum
-import logging
 import json
-
+import logging
+import os
+from pathlib import Path
 
 class EbEntityType(Enum):
     PERSON = 1
@@ -125,9 +126,31 @@ class EbProvisionAnnotation:
         return ProvisionAnnotation(self.start, self.end, self.ptype)
 
 
-def load_provision_annotations(filename, provision_name=None):
+# the result is a list of
+# (start, end, ant_name)
+def load_prov_annotation_list(txt_file_name, provision=None):
+    prov_ant_fn = txt_file_name.replace('.txt', '.ant')
+    prov_ant_file = Path(prov_ant_fn)
+    prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
+    prov_ebdata_file = Path(prov_ebdata_fn)
+
+    prov_annotation_list = []
+    is_test = False
+    if os.path.exists(prov_ant_fn):
+        # in is_bespoke_mode, only the annotation for a particular provision
+        # is returned.
+        prov_annotation_list = (load_prov_ant(prov_ant_fn, provision)
+                                if prov_ant_file.is_file() else [])
+
+    elif os.path.exists(prov_ebdata_fn):
+        prov_annotation_list, is_test = (load_prov_ebdata(prov_ebdata_fn, provision)
+                                         if prov_ebdata_file.is_file() else ([], False))
+    return prov_annotation_list, is_test
+
+
+def load_prov_ant(filename, provision_name=None):
     result = []
-    logging.info('load provision %s annotation: [%s]', provision_name, filename)
+    # logging.info('load provision %s annotation: [%s]', provision_name, filename)
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
         for ajson in parsed:
