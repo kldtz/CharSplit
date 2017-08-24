@@ -9,8 +9,8 @@ import concurrent.futures
 
 from sklearn.externals import joblib
 
-from kirke.eblearn import sent2ebattrvec
-from kirke.eblearn import ebsentutils
+from kirke.eblearn import sent2ebattrvec, ebsentutils
+from kirke.docstruct import doc_pdf_reader
 
 # TODO, remove.  this is mainly for printing out sentence text for debug
 # at the end of parsexxx
@@ -71,7 +71,10 @@ class EbAnnotatedDoc2:
                  para_prov_ant_list,   # adjusted
                  attrvec_list,         # adjusted
                  to_list,
-                 from_list):
+                 from_list,
+                 gap_span_list,
+                 nl_text='',
+                 paraline_text=''):
         self.file_id = file_name
         self.text = text
         self.prov_annotation_list = prov_ant_list
@@ -84,6 +87,7 @@ class EbAnnotatedDoc2:
         # to map to original offsets
         self.to_list = to_list
         self.from_list = from_list
+        self.gap_span_list = gap_span_list
 
     def get_file_id(self):
         return self.file_id
@@ -285,49 +289,13 @@ def remove_prov_greater_offset(prov_annotation_list, max_offset):
     return [prov_ant for prov_ant in prov_annotation_list if prov_ant.start < max_offset]
 
 
-# stop at 'exhibit_appendix' or 'exhibit_appendix_complete'
-def html_to_ebantdoc2(txt_file_name, work_dir, is_cache_enabled=True, is_bespoke_mode=False):
-    debug_mode = True
-    doc_text = txtreader.loads(txt_file_name)
-    prov_annotation_list, is_test = ebantdoc.load_prov_annotation_list(txt_file_name)
-    max_txt_size = len(doc_text)
-    is_chopped = False
-    for prov_ant in prov_annotation_list:
-        if prov_ant.label in set(['exhibit_appendix', 'exhibit_appendix_complete']):
-            # print('{}\t{}\t{}\t{}'.format(txt_file_name, prov_ant.start, prov_ant.end, prov_ant.label))
-            if prov_ant.start < max_txt_size:
-                max_txt_size = prov_ant.start
-                is_chopped = True
-    if is_chopped:
-        # print("txt_chopped: [{}]".format(doc_text[max_txt_size:max_txt_size+50] + "..."))
-        doc_text = doc_text[:max_txt_size]
-        prov_annotation_list = remove_prov_greater_offset(prov_annotation_list, max_txt_size)
-
-
-    # perform document structuring all all text file
-    # First perform document structuring
-    #   The new text file will have section header in separate lines, plus
-    #   no page number.
-    # Then, go through CoreNlp with the new text file
-    # Adjusted the offsets in the annotation from corenlp
-
-    txt_base_fname = os.path.basename(txt_file_name)
-    # write the shortened files
-    txt_file_name = '{}/{}'.format(work_dir, txt_base_fname)
-    txtreader.dumps(doc_text, txt_file_name)
-    if debug_mode:
-        print('wrote {}'.format(txt_file_name, file=sys.stderr))
-    
-    paras_with_attrs, para_doc_text, gap_span_list, _ = \
-            htmltxtparser.parse_document(txt_file_name,
-                                         work_dir=work_dir,
-                                         is_combine_line=True)
-
-    txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
-    txtreader.dumps(para_doc_text, txt4nlp_fname)
-    if debug_mode:
-        print("wrote {}".format(txt4nlp_fname), file=sys.stderr)
-
+def xxx_nlptxt_to_attrvec_list(para_doc_text,
+                               txt_file_name,
+                               txt_base_fname,
+                               prov_annotation_list,
+                               paras_with_attrs,
+                               work_dir,
+                               is_cache_enabled):
     # para_doc_text is what is sent, not txt_base_fname
     corenlp_json = text_to_corenlp_json(para_doc_text,
                                         txt_base_fname,
@@ -383,7 +351,6 @@ def html_to_ebantdoc2(txt_file_name, work_dir, is_cache_enabled=True, is_bespoke
 
         ebsent.set_labels(overlap_provisions)
 
-    start_time0 = time.time()
     attrvec_list = []
     num_sent = len(ebsent_list)
     # we need prev and next sentences because such information are used in the
@@ -400,9 +367,65 @@ def html_to_ebantdoc2(txt_file_name, work_dir, is_cache_enabled=True, is_bespoke
         attrvec_list.append(fvec)
         prev_ebsent = ebsent
 
+    return attrvec_list, nlp_prov_ant_list
+
+
+# stop at 'exhibit_appendix' or 'exhibit_appendix_complete'
+def html_to_ebantdoc2(txt_file_name, work_dir, is_cache_enabled=True, is_bespoke_mode=False):
+    debug_mode = True
+    start_time0 = time.time()
+
+    doc_text = txtreader.loads(txt_file_name)
+    prov_annotation_list, is_test = ebantdoc.load_prov_annotation_list(txt_file_name)
+    max_txt_size = len(doc_text)
+    is_chopped = False
+    for prov_ant in prov_annotation_list:
+        if prov_ant.label in set(['exhibit_appendix', 'exhibit_appendix_complete']):
+            # print('{}\t{}\t{}\t{}'.format(txt_file_name, prov_ant.start, prov_ant.end, prov_ant.label))
+            if prov_ant.start < max_txt_size:
+                max_txt_size = prov_ant.start
+                is_chopped = True
+    if is_chopped:
+        # print("txt_chopped: [{}]".format(doc_text[max_txt_size:max_txt_size+50] + "..."))
+        doc_text = doc_text[:max_txt_size]
+        prov_annotation_list = remove_prov_greater_offset(prov_annotation_list, max_txt_size)
+
+
+    # perform document structuring all all text file
+    # First perform document structuring
+    #   The new text file will have section header in separate lines, plus
+    #   no page number.
+    # Then, go through CoreNlp with the new text file
+    # Adjusted the offsets in the annotation from corenlp
+
+    txt_base_fname = os.path.basename(txt_file_name)
+    # write the shortened files
+    # if file is not shortened, write to dir-work
+    txt_file_name = '{}/{}'.format(work_dir, txt_base_fname)
+    txtreader.dumps(doc_text, txt_file_name)
+    if debug_mode:
+        print('wrote {}'.format(txt_file_name, file=sys.stderr))
+
+    paras_with_attrs, para_doc_text, gap_span_list, _ = \
+            htmltxtparser.parse_document(txt_file_name,
+                                         work_dir=work_dir,
+                                         is_combine_line=True)
     # I am a little messed up on from_to lists
     # not sure exactly what "from" means, original text or nlp text
     to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
+
+    txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
+    txtreader.dumps(para_doc_text, txt4nlp_fname)
+    if debug_mode:
+        print("wrote {}".format(txt4nlp_fname), file=sys.stderr)
+
+    attrvec_list, nlp_prov_ant_list = xxx_nlptxt_to_attrvec_list(para_doc_text,
+                                                                 txt_file_name,
+                                                                 txt_base_fname,
+                                                                 prov_annotation_list,
+                                                                 paras_with_attrs,
+                                                                 work_dir,
+                                                                 is_cache_enabled)
 
     eb_antdoc = EbAnnotatedDoc2(txt_file_name,
                                 doc_text,
@@ -412,7 +435,8 @@ def html_to_ebantdoc2(txt_file_name, work_dir, is_cache_enabled=True, is_bespoke
                                 nlp_prov_ant_list,
                                 attrvec_list,
                                 to_list,
-                                from_list)
+                                from_list,
+                                gap_span_list)
                                 
     start_time1 = time.time()
     logging.info("sent2ebattrvec: %d attrvecs, took %.0f msec", len(attrvec_list), (start_time1 - start_time0) * 1000)
@@ -429,12 +453,9 @@ def html_to_ebantdoc2(txt_file_name, work_dir, is_cache_enabled=True, is_bespoke
     end_time = time.time()
     # logging.debug("parse_to_ebantdoc: %s, took %.0f msec", eb_antdoc_fn, (end_time - start_time) * 1000)
 
-    # TODO, jshaw, remove, this saves the sentence text version
-    # if txt_file_name:
-    #    save_ebantdoc_sents(eb_antdoc, txt_file_name)
-
     return eb_antdoc
-        
+
+
 def dump_ebantdoc_attrvec(eb_antdoc):
     from_list = eb_antdoc.from_list
     to_list = eb_antdoc.to_list
@@ -448,9 +469,84 @@ def dump_ebantdoc_attrvec(eb_antdoc):
         print('{}\t{}\t{}'.format(orig_start,  orig_end, eb_antdoc.text[orig_start:orig_end]))        
 
         
-    #if ('exhibit_appendix' in overlap_provisions or
-    #        'exhibit_appendix_complete' in overlap_provisions):
-                
+#if ('exhibit_appendix' in overlap_provisions or
+#        'exhibit_appendix_complete' in overlap_provisions):
+
+# this parses both originally text and html documents
+# It's main goal is to detect sechead
+# optionally pagenum, footer, toc, signature
+def pdf_to_ebantdoc2(txt_file_name, offsets_file_name, work_dir, is_cache_enabled=True, is_bespoke_mode=False):
+    debug_mode = True
+    start_time0 = time.time()
+
+    doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
+       doc_pdf_reader.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
+    prov_annotation_list, is_test = ebantdoc.load_prov_annotation_list(txt_file_name)
+
+    txt_base_fname = os.path.basename(txt_file_name)
+
+    # gap_span_list is for sentv2.txt or xxx.txt?
+    # the offsets in para_list is for doc_text
+    #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
+    #     docreader.parse_html_document(txt_file_name, linfo_file_name, work_dir=work_dir)
+
+    paras_with_attrs, para_doc_text, gap_span_list, _ = \
+        htmltxtparser.parse_document(txt_file_name,
+                                     work_dir=work_dir,
+                                     is_combine_line=False)  # this line diff from annotate_htmled_document()
+    # I am a little messed up on from_to lists
+    # not sure exactly what "from" means, original text or nlp text
+    to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
+
+    text4nlp_fn = '{}/{}'.format(work_dir, txt_base_fname.replace('.txt', '.nlp.txt'))
+    txtreader.dumps(para_doc_text, text4nlp_fn)
+    if debug_mode:
+        print('wrote 235 {}'.format(text4nlp_fn), file=sys.stderr)
+
+
+    txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
+    txtreader.dumps(para_doc_text, txt4nlp_fname)
+    if debug_mode:
+        print("wrote {}".format(txt4nlp_fname), file=sys.stderr)
+
+    attrvec_list, nlp_prov_ant_list = xxx_nlptxt_to_attrvec_list(para_doc_text,
+                                                                 txt_file_name,
+                                                                 txt_base_fname,
+                                                                 prov_annotation_list,
+                                                                 paras_with_attrs,
+                                                                 work_dir,
+                                                                 is_cache_enabled)
+
+    eb_antdoc = EbAnnotatedDoc2(txt_file_name,
+                                doc_text,
+                                prov_annotation_list,
+                                is_test,
+                                para_doc_text,
+                                nlp_prov_ant_list,
+                                attrvec_list,
+                                to_list,
+                                from_list,
+                                gap_span_list,
+                                nl_text = nl_text,
+                                paraline_text = paraline_text)
+
+    start_time1 = time.time()
+    logging.info("sent2ebattrvec: %d attrvecs, took %.0f msec", len(attrvec_list), (start_time1 - start_time0) * 1000)
+
+    # never want to save in bespoke_mode because annotation can change
+    if txt_file_name and is_cache_enabled and not is_bespoke_mode:
+        eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
+        start_time = time.time()
+        joblib.dump(eb_antdoc, eb_antdoc_fn)
+        end_time = time.time()
+        logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                     eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+
+    end_time = time.time()
+    # logging.debug("parse_to_ebantdoc: %s, took %.0f msec", eb_antdoc_fn, (end_time - start_time) * 1000)
+    return eb_antdoc
+
+
 def text_to_ebantdoc2(txt_fname, work_dir=None):
     debug_mode = True
     time1 = time.time()
@@ -458,12 +554,11 @@ def text_to_ebantdoc2(txt_fname, work_dir=None):
     pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
 
     if os.path.exists(pdf_offsets_filename):
-        eb_antdoc2 = pdf_to_ebantdoc2(txt_fname, pdf_offsets_filename, work_dir=work_dir)
+        eb_antdoc = pdf_to_ebantdoc2(txt_fname, pdf_offsets_filename, work_dir=work_dir)
     else:
-        eb_antdoc2 = html_to_ebantdoc2(txt_fname, work_dir=work_dir)
+        eb_antdoc = html_to_ebantdoc2(txt_fname, work_dir=work_dir)
 
-    return eb_antdoc2
-
+    return eb_antdoc
 
 
 def text_to_corenlp_json(doc_text,  # this is what is really processed by corenlp
