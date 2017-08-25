@@ -25,13 +25,16 @@ class LineAnnotator:
     # def train(self):
     #    pass
     # pylint: disable=R0914
-    def test_antdoc_list(self, paras_with_attrs_list, paras_text_list, ebantdoc_list):
-        logging.debug('test_antdoc_list')
+    def test_antdoc_list(self, ebantdoc_list):
+        logging.debug('lineannotator.test_antdoc_list')
 
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
 
-        for ebantdoc, paras_with_attrs, paras_text in zip(ebantdoc_list, paras_with_attrs_list, paras_text_list):
+        for ebantdoc in ebantdoc_list:
+            paras_with_attrs = ebantdoc.paras_with_attrs
+            paras_text = ebantdoc.para_doc_text
+
             ant_list = self.annotate_antdoc(paras_with_attrs, paras_text)
             print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
             # print("ant_list: {}".format(ant_list))
@@ -60,10 +63,12 @@ class LineAnnotator:
         return tmp_eval_status
     
 
-    def test_antdoc(self, paras_with_attrs, doc_text, ebantdoc):
+    def test_antdoc(self, ebantdoc):
         logging.debug('test_document')
+        paras_with_attrs = ebantdoc.paras_with_attrs
+        paras_text = ebantdoc.para_doc_text
 
-        ant_list = self.annotate_antdoc(paras_with_attrs, doc_text)
+        ant_list = self.annotate_antdoc(paras_with_attrs, paras_text)
         # print("ant_list: {}".format(ant_list))
         prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                if hant.label == self.provision]
@@ -74,7 +79,7 @@ class LineAnnotator:
         # pylint: disable=C0103
         tp, fn, fp, tn = evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                  ant_list,
-                                                                 ebantdoc.get_text())
+                                                                 paras_text)
 
         title = "annotate_status, line-based"
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)

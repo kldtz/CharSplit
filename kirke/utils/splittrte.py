@@ -5,8 +5,7 @@ from collections import defaultdict
 import warnings
 import os
 
-from kirke.eblearn import ebtext2antdoc
-from kirke.utils import osutils
+from kirke.utils import osutils, ebantdoc2
 
 
 # Currently, we don't have the information on whether we annotated a document
@@ -16,8 +15,9 @@ from kirke.utils import osutils
 def provisions_split(provision_list, txt_fn_list, work_dir=None, is_doc_structure=False):
     warnings.warn("Shouldn't split based on positive labeled docs only.", DeprecationWarning)
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir,
-                                                           is_doc_structure=is_doc_structure)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list,
+                                                       work_dir=work_dir,
+                                                       is_doc_structure=is_doc_structure)
     # print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     provision_posneg_doc_list_map = defaultdict(lambda: defaultdict(list))
@@ -75,9 +75,9 @@ def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structu
 
     # fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_map(list(txt_file_set),
     #                                                          work_dir=work_dir)
-    fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_provset_map(list(txt_file_set),
-                                                                      work_dir=work_dir,
-                                                                      is_doc_structure=is_doc_structure)
+    fn_ebantdoc_map = ebantdoc2.fnlist_to_fn_ebantdoc_provset_map(list(txt_file_set),
+                                                                  work_dir=work_dir,
+                                                                  is_doc_structure=is_doc_structure)
 
     for provision in provision_list:
         eb_antdoc_list = []

@@ -10,12 +10,11 @@ from datetime import datetime
 
 from sklearn.externals import joblib
 
-from kirke.eblearn import ebannotator, ebtext2antdoc, ebtrainer, scutclassifier, lineannotator
-from kirke.utils import osutils, strutils, txtreader, evalutils
-
 from kirke.docstruct import docreader, htmltxtparser, doc_pdf_reader
-
+from kirke.eblearn import ebannotator, ebtext2antdoc, ebtrainer, scutclassifier, lineannotator
+from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.ebrules import rateclassifier, titles, parties, dates
+from kirke.utils import osutils, strutils, txtreader, evalutils, ebantdoc2
 
 DEBUG_MODE = False
 
@@ -86,6 +85,9 @@ class EbRunner:
         self.work_dir = work_dir
         self.custom_model_dir = custom_model_dir
         self.custom_model_timestamp_map = {}
+        # Kirke can have different custom model versions for the same provision right
+        # after training new ones. Need to keep them unique by remove the old one.
+        self.provision_custom_model_fn_map = {}
 
         # load the available classifiers from dir_model
         model_files = osutils.get_model_files(model_dir)
@@ -126,9 +128,11 @@ class EbRunner:
             last_modified_date = datetime.fromtimestamp(mtime)
             self.custom_model_timestamp_map[custom_model_fn] = last_modified_date
 
-            full_custom_model_fn = custom_model_dir + "/" + custom_model_fn
+            full_custom_model_fn = '{}/{}'.format(custom_model_dir, custom_model_fn)
             prov_classifier = joblib.load(full_custom_model_fn)
             clf_provision = prov_classifier.provision
+            self.provision_custom_model_fn_map[clf_provision] = full_custom_model_fn
+
             logging.info("ebrunner loading custom #%d: %s, %s", num_model, clf_provision, full_custom_model_fn)
             if clf_provision in self.provisions:
                 logging.warning("*** WARNING ***  Replacing an existing provision: %s",
@@ -196,7 +200,7 @@ class EbRunner:
                 prev_mem_usage = py.memory_info()[0] / 2**20
                 # logging.info('current memory use: {} Mbytes'.format(prev_mem_usage))
 
-                full_custom_model_fn = self.custom_model_dir + "/" + fn
+                full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fn)
                 prov_classifier = joblib.load(full_custom_model_fn)
                 clf_provision = prov_classifier.provision
                 #if clf_provision in self.provisions:
@@ -221,6 +225,58 @@ class EbRunner:
                                                                                       avg_model_mem))
             start_time_2 = time.time()
             logging.info('updating custom models took %.0f msec', (start_time_2 - start_time_1) * 1000)
+
+    def annotate_document(self, file_name, provision_set=None, work_dir=None, is_doc_structure=True):
+        time1 = time.time()
+        if not provision_set:
+            provision_set = self.provisions
+        #else:
+        #    logging.info('user specified provision list: %s', provision_set)
+
+        if not work_dir:
+            work_dir = self.work_dir
+
+        # update custom models if necessary by checking dir.
+        # custom models can be update by other workers
+        self.update_custom_models()
+
+        eb_antdoc = ebantdoc2.text_to_ebantdoc2(file_name, work_dir, is_doc_structure=is_doc_structure)
+
+        # if the file contains too few words, don't bother
+        # otherwise, might cause classifier error if only have 1 error because of minmax
+        if len(eb_antdoc.text) < 100:
+            empty_result = {}
+            for prov in provision_set:
+                empty_result[prov] = []
+            return empty_result, eb_antdoc.text
+
+        # this execute the annotators in parallel
+        prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, provision_set)
+
+        # this update the 'start_end_span_list' in each antx in-place
+        docreader.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
+
+        # updae prov_labels_map based on rules
+        self.apply_line_annotators(prov_labels_map,
+                                   file_name,
+                                   work_dir=work_dir,
+                                   # for HTML, we combine lines for sechead
+                                   is_combine_line=True)
+
+        # HTML document has no table detection, so 'rate-table' annotation is an empty list
+        prov_labels_map['rate_table'] = []
+
+        # jshaw. evalxxx, composite
+        update_dates_by_domain_rules(prov_labels_map)
+
+        # save the prov_labels_map
+        prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
+        prov_ants_st = json.dumps(prov_labels_map)
+        strutils.dumps(prov_ants_st, prov_ants_fn)
+
+        time2 = time.time()
+        logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
+        return prov_labels_map, eb_antdoc.text
 
 
     def annotate_text_document(self, file_name, provision_set=None, work_dir=None, is_doc_structure=True):
@@ -487,7 +543,7 @@ class EbRunner:
         logging.info('annotate_htmled_document(%s) took %0.2f sec', file_name, (time2 - time1))
         return prov_labels_map, orig_doc_text
 
-    
+
     # this parses both originally text and html documents
     # It's main goal is to detect sechead
     # optionally pagenum, footer, toc, signature
@@ -670,25 +726,29 @@ class EbRunner:
     # custom_train_provision_and_evaluate
     #
     # pylint: disable=C0103
-    def custom_train_provision_and_evaluate(self, txt_fn_list, provision,
+    def custom_train_provision_and_evaluate(self,
+                                            txt_fn_list,
+                                            provision,
                                             custom_model_dir,
-                                            is_doc_structure=False,
+                                            base_model_fname,
+                                            is_doc_structure=True,
                                             work_dir=None):
 
         logging.info("txt_fn_list_fn: %s", txt_fn_list)
 
-        model_file_name = '{}/{}_scutclassifier.pkl'.format(custom_model_dir,
-                                                            provision)
-        logging.info("custom_mode_file: %s", model_file_name)
         if not work_dir:
             work_dir = self.work_dir
 
-        eb_classifier = scutclassifier.ShortcutClassifier(provision)
+        full_model_fname = '{}/{}'.format(custom_model_dir, base_model_fname)
+        logging.info("custom_mode_file: %s", full_model_fname)
+
+        # eb_classifier = scutclassifier.ShortcutClassifier(provision)
+        eb_classifier = scutclassifier.ShortcutClassifier(provision, EbTransformerV1_2(provision))
         eb_annotator = ebtrainer.train_eval_annotator(provision,
                                                       txt_fn_list,
                                                       work_dir,
                                                       custom_model_dir,
-                                                      model_file_name,
+                                                      full_model_fname,
                                                       eb_classifier,
                                                       is_doc_structure=is_doc_structure,
                                                       custom_training_mode=True)
@@ -696,17 +756,24 @@ class EbRunner:
         # update the hashmap of classifier
         old_provision_annotator = self.provision_annotator_map.get(provision)
         if old_provision_annotator:
-            logging.info("Updating annotator, '%s', %s.", provision, model_file_name)
+            logging.info("Updating annotator, '%s', %s.", provision, full_model_fname)
+            prev_provision_model_fname = self.provision_custom_model_fn_map[provision]
+            if prev_provision_model_fname != full_model_fname:
+                logging.info("removing old customized model file, '%s', %s.", provision, prev_prov_model_fname)
+                os.remove(prev_provision_model_fname)
+                self.provision_custom_model_fn_map[provision] = full_model_fname
+                # the old timestamp for the removed file doesn't matter.
+                # tmp_base_fname = os.path.basename(prev_provision_model_fname)
+                # del self.custom_model_timestamp_map[tmp_base_fname]
         else:
-            logging.info("Adding annotator, '%s', %s.", provision, model_file_name)
+            logging.info("Adding annotator, '%s', %s.", provision, full_model_fname)
             self.provisions.add(provision)
         self.provision_annotator_map[provision] = eb_annotator
 
         # updating the model timestamp, for update purpose
-        local_custom_model_fn = "{}_scutclassifier.pkl".format(provision)
-        mtime = os.path.getmtime(os.path.join(self.custom_model_dir, local_custom_model_fn))
+        mtime = os.path.getmtime(os.path.join(self.custom_model_dir, base_model_fname))
         last_modified_date = datetime.fromtimestamp(mtime)
-        self.custom_model_timestamp_map[local_custom_model_fn] = last_modified_date
+        self.custom_model_timestamp_map[base_model_fname] = last_modified_date
 
         return eb_annotator.get_eval_status()
 

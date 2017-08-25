@@ -1,6 +1,7 @@
 import logging
 import time
 
+from kirke.docstruct import docreader
 from kirke.eblearn import ebpostproc
 from kirke.utils import evalutils
 
@@ -34,6 +35,7 @@ class ProvisionAnnotator:
             print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
             # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
+            # prov_human_ant_list = [hant for hant in ebantdoc.para_prov_ant_list
                                    if hant.label == self.provision]
 
             # print("\nfn: {}".format(ebantdoc.file_id))
@@ -108,31 +110,24 @@ class ProvisionAnnotator:
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
-        logging.debug("predict_antdoc(%s, %s) took %.0f msec", self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
-
-        # TODO, jshaw, can be removed if wanted
-        """
-        if self.provision == 'date':
-            doc_text = eb_antdoc.text
-            for i, (attrvec, prob) in enumerate(zip(attrvec_list, prob_list), 1):
-                if i < 10:
-                    start = attrvec.start
-                    end = attrvec.end
-                    print("{}. date, {}, {}, {}".format(i, prob, doc_text[start:end], len(attrvec.entities)))
-                    for entity in attrvec.entities:
-                        print("     {}".format(entity))
-                else:
-                    break
-        """
-
-        #print("ebannotator({}).threshold = {}".format(self.provision,
-        #self.threshold))
+        logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
+                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.text,
+        prov_annotations = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
                                                                          prob_attrvec_list,
                                                                          self.threshold,
                                                                          provision=prov)
+
+        # translate the offsets
+        for antx in prov_annotations:
+                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
+                xstart = antx['start']
+                xend = antx['end']
+                antx['corenlp_start'] = xstart
+                antx['corenlp_end'] = xend
+                antx['start'] = docreader.find_offset_to(xstart, eb_antdoc.from_list, eb_antdoc.to_list)
+                antx['end'] = docreader.find_offset_to(xend, eb_antdoc.from_list, eb_antdoc.to_list)
 
         return prov_annotations

@@ -124,7 +124,7 @@ class ProvisionClassifier(EbClassifier):
         attrvec_list = eb_antdoc.get_attrvec_list()
         # print("attrvec_list.size = ", len(attrvec_list))
 
-        doc_text = eb_antdoc.text
+        doc_text = eb_antdoc.nlp_text
         sent_st_list = [doc_text[attrvec.start:attrvec.end]
                         for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision,

@@ -7,7 +7,7 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import cross_val_predict, train_test_split
 
 from kirke.eblearn import ebannotator, ebpostproc, ebtext2antdoc, lineannotator
-from kirke.utils import evalutils, splittrte, strutils
+from kirke.utils import evalutils, splittrte, strutils, ebantdoc2
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import titles
 
@@ -46,19 +46,10 @@ def train_eval_annotator(provision, txt_fn_list,
 
     # is_combine_line should be file dependent, PDF than False
     # HTML is True.
-    if custom_training_mode:
-        ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list,
-                                                               work_dir,
-                                                               is_bespoke_mode=True,
-                                                               is_doc_structure=is_doc_structure,
-                                                               provision=provision,
-                                                               is_combine_line=False)
-    else:
-        ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list,
-                                                               work_dir,
-                                                               is_bespoke_mode=False,
-                                                               is_doc_structure=is_doc_structure,
-                                                               provision=None)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list,
+                                                       work_dir,
+                                                       is_bespoke_mode=custom_training_mode,
+                                                       is_doc_structure=is_doc_structure)
 
     attrvec_list = []
     for eb_antdoc in ebantdoc_list:
@@ -199,16 +190,16 @@ def train_eval_annotator_with_trte(provision,
     logging.info("    model_file_name = %s", model_file_name)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
-    X_train = ebtext2antdoc.doclist_to_ebantdoc_list(train_doclist_fn,
-                                                     work_dir,
-                                                     is_doc_structure=is_doc_structure)
+    X_train = ebantdoc2.doclist_to_ebantdoc_list(train_doclist_fn,
+                                                 work_dir,
+                                                 is_doc_structure=is_doc_structure)
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
     X_train = None  # free that memory
 
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
-    X_test = ebtext2antdoc.doclist_to_ebantdoc_list(test_doclist_fn,
-                                                    work_dir,
-                                                    is_doc_structure=is_doc_structure)
+    X_test = ebantdoc2.doclist_to_ebantdoc_list(test_doclist_fn,
+                                                work_dir,
+                                                is_doc_structure=is_doc_structure)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
@@ -247,7 +238,7 @@ def eval_annotator(txt_fn_list, work_dir, model_file_name):
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -288,19 +279,16 @@ def eval_line_annotator_with_trte(provision,
                                   is_doc_structure=False):
 
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
-    ebantdoc_list, paras_with_attrs_list, paras_text_list = \
-        ebtext2antdoc.doclist_to_ebantdoc_list_with_paras(test_doclist_fn,
-                                                          work_dir=work_dir,
-                                                          is_doc_structure=is_doc_structure)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(test_doclist_fn,
+                                                       work_dir=work_dir,
+                                                       is_doc_structure=is_doc_structure)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     provision_status_map = {'provision': provision}
     # update the hashmap of annotators
     prov_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
     # we need ebantdoc_list because it has the annotations
-    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(paras_with_attrs_list,
-                                                                         paras_text_list,
-                                                                         ebantdoc_list)
+    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     pprint(provision_status_map)
 

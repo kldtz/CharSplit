@@ -68,6 +68,7 @@ class EbAnnotatedDoc2:
                  para_doc_text,        # adjusted
                  para_prov_ant_list,   # adjusted
                  attrvec_list,         # adjusted
+                 paras_with_attrs,     # adjusted
                  to_list,
                  from_list,
                  gap_span_list,
@@ -79,9 +80,10 @@ class EbAnnotatedDoc2:
         self.is_test_set = is_test
         self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
 
-        self.para_doc_text = para_doc_text
+        self.nlp_text = para_doc_text
         self.para_prov_ant_list = para_prov_ant_list
         self.attrvec_list = attrvec_list
+        self.paras_with_attrs = paras_with_attrs
         # to map to original offsets
         self.to_list = to_list
         self.from_list = from_list
@@ -114,7 +116,7 @@ def load_cached_ebantdoc2(eb_antdoc_fn: str):
     """Load from pickled file if file exist, otherwise None"""
 
     # if cache version exists, load that and return
-    if is_cache_enabled and os.path.exists(eb_antdoc_fn):
+    if os.path.exists(eb_antdoc_fn):
         start_time = time.time()
         eb_antdoc = joblib.load(eb_antdoc_fn)
         end_time = time.time()
@@ -132,48 +134,70 @@ def dump_ebantdoc_attrvec(eb_antdoc):
     to_list = eb_antdoc.to_list
     for attrvec in eb_antdoc.attrvec_list:
         print('{}\t{}\t{}'.format(attrvec.start,
-                                  attrvec.end, eb_antdoc.para_doc_text[attrvec.start:attrvec.end]))
+                                  attrvec.end, eb_antdoc.nlp_text[attrvec.start:attrvec.end]))
 
-        xstart = attrvec.start
-        xend = attrvec.end
-        orig_start = docreader.find_offset_to(xstart, from_list, to_list)
-        orig_end = docreader.find_offset_to(xend, from_list, to_list)
-        print('{}\t{}\t{}'.format(orig_start,  orig_end, eb_antdoc.text[orig_start:orig_end]))        
+        if from_list:
+            xstart = attrvec.start
+            xend = attrvec.end
+            orig_start = docreader.find_offset_to(xstart, from_list, to_list)
+            orig_end = docreader.find_offset_to(xend, from_list, to_list)
+            print('{}\t{}\t{}'.format(orig_start,  orig_end, eb_antdoc.text[orig_start:orig_end]))
+
+def dump_ebantdoc_attrvec_with_secheads(eb_antdoc):
+    from_list = eb_antdoc.from_list
+    to_list = eb_antdoc.to_list
+    for attrvec in eb_antdoc.attrvec_list:
+        print('{}\t{}\t{}\t{}'.format(attrvec.start,
+                                  attrvec.end,
+                                  attrvec.sechead,
+                                  eb_antdoc.nlp_text[attrvec.start:attrvec.end]))
+
+        if from_list:
+            xstart = attrvec.start
+            xend = attrvec.end
+            orig_start = docreader.find_offset_to(xstart, from_list, to_list)
+            orig_end = docreader.find_offset_to(xend, from_list, to_list)
+            print('{}\t{}\t{}\t{}'.format(orig_start, orig_end, attrvec.sechead,
+                                          eb_antdoc.text[orig_start:orig_end]))
 
         
 def nlptxt_to_attrvec_list(para_doc_text,
-                               txt_file_name,
-                               txt_base_fname,
-                               prov_annotation_list,
-                               paras_with_attrs,
-                               work_dir,
-                               is_cache_enabled):
+                           txt_file_name,
+                           txt_base_fname,
+                           prov_annotation_list,
+                           paras_with_attrs,
+                           work_dir,
+                           is_cache_enabled):
     # para_doc_text is what is sent, not txt_base_fname
     corenlp_json = text_to_corenlp_json(para_doc_text,
                                         txt_base_fname,
                                         work_dir=work_dir,
                                         is_cache_enabled=is_cache_enabled)
-    
-    from_list_xx, to_list_xx = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
-    # At this point, put all document structure information into
-    # ebsent_list
-    # We also adjust all annotations from CoreNlp into the offsets from original
-    # document.  Offsets is no NLP-based.
-    nlp_prov_ant_list = []
-    for prov_annotation in prov_annotation_list:
-        orig_start, orig_end = prov_annotation.start, prov_annotation.end
-        orig_label = prov_annotation.label
 
-        # print("prov_annotation: {}".format(prov_annotation))
-        # print("\torig\t[{}]".format(orig_doc_text[orig_start:orig_end]))
-        # nlp_start = docreader.find_offset_to(orig_start, from_list_xx, to_list_xx)
-        # nlp_end = docreader.find_offset_to(orig_end, from_list_xx, to_list_xx)
-        # print("\tnlp\t[{}]".format(para_doc_text[nlp_start:nlp_end]))
+    if paras_with_attrs:
+        from_list_xx, to_list_xx = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
+        # At this point, put all document structure information into
+        # ebsent_list
+        # We also adjust all annotations from CoreNlp into the offsets from original
+        # document.  Offsets is no NLP-based.
+        nlp_prov_ant_list = []
+        for prov_annotation in prov_annotation_list:
+            orig_start, orig_end = prov_annotation.start, prov_annotation.end
+            orig_label = prov_annotation.label
 
-        xstart = docreader.find_offset_to(orig_start, from_list_xx, to_list_xx)
-        xend = docreader.find_offset_to(orig_end, from_list_xx, to_list_xx)
-        nlp_prov_ant_list.append(ebantdoc.ProvisionAnnotation(xstart, xend, orig_label))
+            # print("prov_annotation: {}".format(prov_annotation))
+            # print("\torig\t[{}]".format(orig_doc_text[orig_start:orig_end]))
+            # nlp_start = docreader.find_offset_to(orig_start, from_list_xx, to_list_xx)
+            # nlp_end = docreader.find_offset_to(orig_end, from_list_xx, to_list_xx)
+            # print("\tnlp\t[{}]".format(para_doc_text[nlp_start:nlp_end]))
+
+            xstart = docreader.find_offset_to(orig_start, from_list_xx, to_list_xx)
+            xend = docreader.find_offset_to(orig_end, from_list_xx, to_list_xx)
+            nlp_prov_ant_list.append(ebantdoc.ProvisionAnnotation(xstart, xend, orig_label))
         # print("prov_annotation: {}".format(prov_annotation))
+    else:
+        nlp_prov_ant_list = prov_annotation_list
+
 
     # let's adjust the offsets in prov_annotation to keep things simple and
     # maximize reuse of existing code.
@@ -185,8 +209,9 @@ def nlptxt_to_attrvec_list(para_doc_text,
     # ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, para_doc_text)
     # print('number of sentences: {}'.format(len(ebsent_list)))
 
-    # still haven't add the sechead info back into
-    ebsentutils.update_ebsents_with_sechead(ebsent_list, paras_with_attrs)
+    if paras_with_attrs:
+        # still haven't add the sechead info back into
+        ebsentutils.update_ebsents_with_sechead(ebsent_list, paras_with_attrs)
 
     # fix any domain specific entity extraction, such as 'Lessee' as a location
     # this is a in-place replacement
@@ -222,7 +247,6 @@ def nlptxt_to_attrvec_list(para_doc_text,
     return attrvec_list, nlp_prov_ant_list
 
 
-# This is not fully tested
 # stop at 'exhibit_appendix' or 'exhibit_appendix_complete'
 def html_no_docstruct_to_ebantdoc2(txt_file_name,
                                    work_dir,
@@ -254,6 +278,7 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
     if debug_mode:
         print('wrote {}'.format(txt_file_name, file=sys.stderr))
 
+    paras_with_attrs = []
     attrvec_list, nlp_prov_ant_list = nlptxt_to_attrvec_list(doc_text,
                                                              txt_file_name,
                                                              txt_base_fname,
@@ -263,11 +288,11 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
                                                              is_cache_enabled)
 
     # there is no nlp.txt
-    para_doc_text = doc_text,
+    para_doc_text = doc_text
     nlp_prov_ant_list = prov_annotation_list
     to_list = []
     from_list = []
-    gpa_span_list = []
+    gap_span_list = []
     eb_antdoc = EbAnnotatedDoc2(txt_file_name,
                                 doc_text,
                                 prov_annotation_list,
@@ -275,14 +300,14 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
                                 para_doc_text,
                                 nlp_prov_ant_list,
                                 attrvec_list,
+                                paras_with_attrs,
                                 to_list,
                                 from_list,
                                 gap_span_list)
                                 
-    # never want to save in bespoke_mode because annotation can change
+    eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
         start_time = time.time()
-        eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
         joblib.dump(eb_antdoc, eb_antdoc_fn)
         end_time = time.time()
         logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
@@ -360,16 +385,16 @@ def html_to_ebantdoc2(txt_file_name,
                                 para_doc_text,
                                 nlp_prov_ant_list,
                                 attrvec_list,
+                                paras_with_attrs,
                                 to_list,
                                 from_list,
                                 gap_span_list)
                                 
     start_time1 = time.time()
 
-    # never want to save in bespoke_mode because annotation can change
+    eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
         start_time = time.time()
-        eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)        
         joblib.dump(eb_antdoc, eb_antdoc_fn)
         end_time = time.time()
         logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
@@ -377,7 +402,7 @@ def html_to_ebantdoc2(txt_file_name,
 
     end_time = time.time()
     logging.info("html_to_ebantdoc2: %s, took %.0f msec; %d attrvecs",
-                 eb_antdoc_fn, (end_time - start_time) * 1000, len(attrvec_list))    
+                 eb_antdoc_fn, (end_time - start_time0) * 1000, len(attrvec_list))
     return eb_antdoc
 
 
@@ -435,6 +460,7 @@ def pdf_to_ebantdoc2(txt_file_name,
                                 para_doc_text,
                                 nlp_prov_ant_list,
                                 attrvec_list,
+                                paras_with_attrs,
                                 to_list,
                                 from_list,
                                 gap_span_list,
@@ -443,10 +469,9 @@ def pdf_to_ebantdoc2(txt_file_name,
 
     start_time1 = time.time()
 
-    # never want to save in bespoke_mode because annotation can change
+    eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
         start_time = time.time()
-        eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
         joblib.dump(eb_antdoc, eb_antdoc_fn)
         end_time = time.time()
         logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
@@ -499,11 +524,12 @@ def text_to_corenlp_json(doc_text,  # this is what is really processed by corenl
 
 def text_to_ebantdoc2(txt_fname,
                       work_dir=None,
-                      is_cache_enabled=False,
+                      is_cache_enabled=True,
                       is_bespoke_mode=False,
                       is_doc_structure=True):
     txt_base_fname = os.path.basename(txt_fname)
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
+    # never want to save in bespoke_mode because annotation can change
     if is_bespoke_mode:
         if os.path.exists(eb_antdoc_fn):
             os.remove(eb_antdoc_fn)
@@ -531,12 +557,34 @@ def text_to_ebantdoc2(txt_fname,
 
 
 
-def doclist_to_ebantdoc2_list(doclist_file,
-                              work_dir,
-                              is_bespoke_mode=False,
-                              is_doc_structure=False):
-    
-    logging.debug('doclist_to_ebantdoc2_list(%s, %s)', doclist_file, work_dir)
+def doclist_to_ebantdoc_list_linear(doclist_file,
+                             work_dir,
+                             is_bespoke_mode=False,
+                             is_doc_structure=False):
+    logging.debug('doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
+    if work_dir is not None and not os.path.isdir(work_dir):
+        logging.debug("mkdir %s", work_dir)
+        osutils.mkpath(work_dir)
+
+    eb_antdoc_list = []
+    with open(doclist_file, 'rt') as fin:
+        for i, txt_file_name in enumerate(fin, 1):
+            txt_file_name = txt_file_name.strip()
+            eb_antdoc = text_to_ebantdoc2(txt_file_name,
+                                          work_dir,
+                                          is_bespoke_mode=is_bespoke_mode,
+                                          is_doc_structure=is_doc_structure)
+            eb_antdoc_list.append(eb_antdoc)
+    logging.debug('Finished ebantdoc2.doc_list_to_ebantdoc_list_linear()')
+
+    return eb_antdoc_list
+
+
+def doclist_to_ebantdoc_list_linear(doclist_file,
+                                    work_dir,
+                                    is_bespoke_mode=False,
+                                    is_doc_structure=False):
+    logging.debug('ebantdoc2.doclist_to_ebantdoc_list_linear(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
@@ -547,10 +595,105 @@ def doclist_to_ebantdoc2_list(doclist_file,
             txt_file_name = txt_file_name.strip()
             eb_antdoc = text_to_ebantdoc2(txt_file_name,
                                           work_dir,
-                                          is_bespoke_mode,
+                                          is_bespoke_mode=is_bespoke_mode,
                                           is_doc_structure=is_doc_structure)
             eb_antdoc_list.append(eb_antdoc)
-    logging.debug('Finished doc_list_to_ebantdoc_list_with_paras()')
+    logging.debug('Finished ebantdoc2.doc_list_to_ebantdoc_list_linear()')
+
+
+def doclist_to_ebantdoc_list(doclist_file,
+                             work_dir,
+                             is_bespoke_mode=False,
+                             is_doc_structure=False):
+    logging.debug('ebantdoc2.doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
+    if work_dir is not None and not os.path.isdir(work_dir):
+        logging.debug("mkdir %s", work_dir)
+        osutils.mkpath(work_dir)
+
+    txt_fn_list = []
+    with open(doclist_file, 'rt') as fin:
+        for txt_file_name in fin:
+            txt_fn_list.append(txt_file_name.strip())
+
+    fn_eb_antdoc_map = {}
+    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+        future_to_antdoc = {executor.submit(text_to_ebantdoc2,
+                                            txt_fn,
+                                            work_dir,
+                                            is_bespoke_mode=is_bespoke_mode,
+                                            is_doc_structure=is_doc_structure):
+                            txt_fn for txt_fn in txt_fn_list}
+        for future in concurrent.futures.as_completed(future_to_antdoc):
+            txt_fn = future_to_antdoc[future]
+            data = future.result()
+            fn_eb_antdoc_map[txt_fn] = data
+
+    eb_antdoc_list = []
+    for txt_fn in txt_fn_list:
+        eb_antdoc_list.append(fn_eb_antdoc_map[txt_fn])
+
+    logging.debug('Finished doclist_to_ebantdoc_list({}/{}), len= {}'.format(work_dir,
+                                                                             doclist_file,
+                                                                             len(txt_fn_list)))
 
     return eb_antdoc_list
 
+
+
+
+
+#    fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_map(list(txt_file_set), work_dir=work_dir)
+def fnlist_to_fn_ebantdoc_map(fn_list, work_dir, is_doc_structure=False):
+    logging.debug('fnlist_to_fn_ebantdoc_map(len(list)=%d, work_dir=%s)', len(fn_list), work_dir)
+    if work_dir is not None and not os.path.isdir(work_dir):
+        logging.debug("mkdir %s", work_dir)
+        osutils.mkpath(work_dir)
+
+    fn_ebantdoc_map = {}
+
+    for i, txt_file_name in enumerate(fn_list, 1):
+        eb_antdoc = text_to_ebantdoc2(txt_file_name,
+                                      work_dir,
+                                      is_doc_structure=is_doc_structure)
+        fn_ebantdoc_map[txt_file_name] = eb_antdoc
+        if i % 10 == 0:
+            print("loaded #{} ebantdoc".format(i))
+    logging.debug('Finished run_feature_extraction()')
+
+    return fn_ebantdoc_map
+
+
+class EbAntdocProvSet:
+
+    def __init__(self, ebantdoc):
+        self.file_id = ebantdoc.get_file_id()
+        self.provset = ebantdoc.get_provision_set()
+        self.is_test_set = ebantdoc.is_test_set
+
+    def get_file_id(self):
+        return self.file_id
+    
+    def get_provision_set(self):
+        return self.provset
+
+
+#    fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_map(list(txt_file_set), work_dir=work_dir)
+def fnlist_to_fn_ebantdoc_provset_map(fn_list, work_dir, is_doc_structure=False):
+    logging.debug('fnlist_to_fn_ebantdoc_map(len(list)=%d, work_dir=%s)', len(fn_list), work_dir)
+    if work_dir is not None and not os.path.isdir(work_dir):
+        logging.debug("mkdir %s", work_dir)
+        osutils.mkpath(work_dir)
+
+    fn_ebantdoc_map = {}
+    for i, txt_file_name in enumerate(fn_list, 1):
+        # if i % 10 == 0:
+        logging.info("loaded #{} ebantdoc: {}".format(i, txt_file_name))
+
+        eb_antdoc = text_to_ebantdoc2(txt_file_name,
+                                      work_dir,
+                                      is_doc_structure=is_doc_structure)
+
+        fn_ebantdoc_map[txt_file_name] = EbAntdocProvSet(eb_antdoc)
+    logging.debug('Finished run_feature_extraction()')
+
+    return fn_ebantdoc_map
