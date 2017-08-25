@@ -100,6 +100,11 @@ def annotate_uploaded_document():
                                                             provision_set=provision_set,
                                                             work_dir=work_dir)
 
+    # because special case of 'effectivdate_auto'
+    if prov_labels_map.get('effectivedate'):
+        prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate', [])
+        del prov_labels_map['effectivedate']
+
     ebannotations = {'ebannotations': prov_labels_map}
     # pprint(prov_labels_map)
     # pprint(ebannotations)

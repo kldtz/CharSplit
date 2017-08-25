@@ -183,22 +183,6 @@ def annotate_document(file_name,
     # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
     pprint.pprint(prov_labels_map)
 
-def annotate_htmled_document(file_name, work_dir, model_dir, custom_model_dir):
-    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
-
-    prov_labels_map, doc_text = eb_runner.annotate_htmled_document(file_name, work_dir=work_dir)
-    # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
-    pprint.pprint(prov_labels_map)
-
-
-# TODO, this is the same as ebrunner.annotate_pdfboxed_document?
-def annotate_pdfboxed_document(file_name, linfo_file_name, work_dir, model_dir, custom_model_dir):
-    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
-
-    prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(file_name, linfo_file_name, work_dir=work_dir)
-
-    pprint.pprint(prov_labels_map)
-
 
 def annotate_doc_party(fn_list_fn, work_dir, model_dir, custom_model_dir, threshold=None):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
@@ -268,17 +252,6 @@ if __name__ == '__main__':
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
-    elif cmd == 'annotate_htmled_document':
-        if not args.doc:
-            print('please specify --doc', file=sys.stderr)
-            sys.exit(1)
-        annotate_htmled_document(args.doc, work_dir, model_dir, custom_model_dir)
-    elif cmd == 'annotate_pdfboxed_document':
-        if not args.doc:
-            print('please specify --doc', file=sys.stderr)
-            sys.exit(1)
-        linfo_fn = args.doc.replace('.txt', '.lineinfo.json')
-        annotate_pdfboxed_document(args.doc, linfo_fn, work_dir, model_dir, custom_model_dir)
     elif cmd == 'annotate_doc_party':
         if not args.docs:
             print('please specify --docs', file=sys.stderr)

@@ -42,20 +42,11 @@ py = psutil.Process(pid)
 # now adjust the date using domain specific logic
 # this operation is destructive
 def update_dates_by_domain_rules(ant_result_dict):
-    # fix the issue with retired 'effectivedate'
-    # first try to get effectivedate from rule-based approach
-    # if none, then try get from ML approach.  The label is already correct.
-    effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
-    if not effectivedate_annotations:
-        effectivedate_annotations = ant_result_dict.get('effectivedate', [])
-        if effectivedate_annotations:  # make a copy in 'effectivedate_auto'
-            ant_result_dict['effectivedate_auto'] = effectivedate_annotations
-            ant_result_dict['effectivedate'] = []
 
     # special handling for dates, as in PythonDateOfAgreementClassifier.java
     date_annotations = ant_result_dict.get('date')
     if not date_annotations:
-        effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
+        effectivedate_annotations = ant_result_dict.get('effectivedate', [])
         # print("effectivedate_annotation = {}".format(effectivedate_annotations))
         if effectivedate_annotations:
             # make a copy to preserve original list
@@ -257,10 +248,14 @@ class EbRunner:
         docreader.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
 
         # updae prov_labels_map based on rules
+        """
+        self.apply_line_annotators2(prov_labels_map,
+                                    eb_antdoc,
+                                    work_dir=work_dir)
+        """
         self.apply_line_annotators(prov_labels_map,
                                    file_name,
                                    work_dir=work_dir,
-                                   # for HTML, we combine lines for sechead
                                    is_combine_line=True)
 
         # HTML document has no table detection, so 'rate-table' annotation is an empty list
@@ -370,12 +365,12 @@ class EbRunner:
                 antx['start'] = docreader.find_offset_to(xstart, nl_from_list, nl_to_list)
                 antx['end'] = docreader.find_offset_to(xend, nl_from_list, nl_to_list)
 
-                if antx['label'] == 'effectivedate_auto':
+                if antx['label'] == 'effectivedate':
                     xx_effective_date_list.append(antx)
                 else:
                     xx_date_list.append(antx)
             if xx_effective_date_list:
-                prov_labels_map['effectivedate_auto'] = xx_effective_date_list
+                prov_labels_map['effectivedate'] = xx_effective_date_list
                 ## replace date IFF classification date is very large
                 ## replace the case wehre "1001" is matched as a date, with prob 0.4
                 ## This modification is anecdotal, not firmly verified.
@@ -499,10 +494,6 @@ class EbRunner:
                                                                 work_dir=work_dir,
                                                                 is_doc_structure=True)
 
-        # because special case of 'effectivdate_auto'
-        if not prov_labels_map.get('effectivedate_auto'):
-            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate', [])
-
         # translate the offsets
         all_prov_ant_list = []
         for provision, ant_list in prov_labels_map.items():
@@ -579,10 +570,6 @@ class EbRunner:
                                                                 provision_set=provision_set,
                                                                 work_dir=work_dir,
                                                                 is_doc_structure=True)
-
-        # because special case of 'effectivdate_auto'
-        if not prov_labels_map.get('effectivedate_auto'):
-            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate', [])
 
         # translate the offsets
         all_prov_ant_list = []
@@ -796,11 +783,7 @@ class EbRunner:
                 prov_labels_map, doc_text = self.annotate_htmled_document(test_fn,
                                                                           provision_set=set([provision]),
                                                                           work_dir=work_dir)
-                # special treatment for effectivedate, which is really effectivedate_auto
-                if provision == 'effectivedate':
-                    ant_list = prov_labels_map.get('effectivedate_auto', [])
-                else:
-                    ant_list = prov_labels_map.get(provision)
+                ant_list = prov_labels_map.get(provision)
 
                 print("\ntest_fn = {}".format(test_fn))
                 print("ant_list: {}".format(ant_list))

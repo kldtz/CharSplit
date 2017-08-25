@@ -1123,9 +1123,7 @@ PROVISION_POSTPROC_MAP = {
     'date': PostPredBestDateProc('date'),
     'ea_employee': PostPredEaEmployeeProc(),
     'ea_employer': PostPredEaEmployerProc(),
-    # The classifier label is "effectivedate", but 'extractor' is expecting
-    # 'effectivedate_auto'
-    'effectivedate': PostPredEffectiveDateProc('effectivedate_auto'),
+    'effectivedate': PostPredEffectiveDateProc('effectivedate'),
     'la_borrower': PostPredLaBorrowerProc(),
     'la_lender': PostPredLaLenderProc(),
     'la_agent_trustee': PostPredLaAgentTrusteeProc(),
