@@ -1,15 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
-from pprint import pprint
-import sys
-import warnings
-import re
-
-import nltk
-
-from kirke.utils import strutils
 from kirke.docstruct import doc_pdf_reader
 
 if __name__ == '__main__':

@@ -3,15 +3,7 @@
 import argparse
 import logging
 import sys
-import warnings
 import re
-import pprint
-
-from kirke.utils import strutils
-from kirke.docstruct import htmltxtparser
-from kirke.utils import ebantdoc, txtreader
-
-from kirke.eblearn.ebtext2antdoc import doc_to_ebantdoc
 import fileinput
 
 DEBUG_MODE = False

@@ -2,16 +2,7 @@
 
 import argparse
 import logging
-from pprint import pprint
-import sys
-from pprint import pprint
-import json
-
-from kirke.utils.corenlputils import annotate
-
-from kirke.eblearn.ebtext2antdoc import doc_to_ebantdoc, load_cached_ebantdoc, print_ebantdoc
-from kirke.eblearn import ebattrvec
-from kirke.utils import osutils
+from kirke.utils import ebantdoc2
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -45,7 +36,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     txt_file_name = args.file
-    eb_antdoc, eb_antdoc_fn = load_cached_ebantdoc(txt_file_name)
+    eb_antdoc, eb_antdoc_fn = ebantdoc2.load_cached_ebantdoc2(txt_file_name)
 
-    print_ebantdoc(eb_antdoc)
-    
+    ebantdoc2.print_ebantdoc(eb_antdoc)
+

@@ -6,7 +6,7 @@ from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import cross_val_predict, train_test_split
 
-from kirke.eblearn import ebannotator, ebpostproc, ebtext2antdoc, lineannotator
+from kirke.eblearn import ebannotator, ebpostproc, lineannotator
 from kirke.utils import evalutils, splittrte, strutils, ebantdoc2
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import titles
@@ -258,7 +258,7 @@ def eval_ml_rule_annotator(txt_fn_list, work_dir, model_file_name):
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -298,7 +298,7 @@ def eval_classifier(txt_fn_list, work_dir, model_file_name):
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)

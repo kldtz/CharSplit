@@ -2,9 +2,9 @@ import re
 from abc import ABC, abstractmethod
 from typing import List
 
-from kirke.utils import strutils, entityutils, stopwordutils, mathutils
-from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
+from kirke.utils import strutils, entityutils, stopwordutils, mathutils
+from kirke.utils.ebsentutils import EbEntityType
 
 
 PROVISION_PAT_MAP = {

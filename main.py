@@ -18,7 +18,7 @@ from sklearn.model_selection import train_test_split
 
 from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier, ebtransformerv1_2
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
-from kirke.eblearn import ebtext2antdoc, ebannotator
+from kirke.eblearn import ebannotator
 from kirke.utils import osutils, splittrte, strutils
 
 from kirke.docstruct import docreader
@@ -126,7 +126,7 @@ def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -149,7 +149,7 @@ def test_title_annotator(txt_fn_list_fn, work_dir, model_file_name):
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -175,10 +175,10 @@ def annotate_document(file_name,
                       is_doc_structure=True):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
-    prov_labels_map, doc_text = eb_runner.annotate_document(file_name,
-                                                            provision_set=provision_set,
-                                                            work_dir=work_dir,
-                                                            is_doc_structure=is_doc_structure)
+    prov_labels_map, _ = eb_runner.annotate_document(file_name,
+                                                     provision_set=provision_set,
+                                                     work_dir=work_dir,
+                                                     is_doc_structure=is_doc_structure)
 
     # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
     pprint.pprint(prov_labels_map)

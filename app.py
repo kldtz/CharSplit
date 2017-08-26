@@ -96,9 +96,9 @@ def annotate_uploaded_document():
     # TODO, hacked, remove when not debugging
     # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
 
-    prov_labels_map, doc_text = eb_runner.annotate_document(txt_file_name,
-                                                            provision_set=provision_set,
-                                                            work_dir=work_dir)
+    prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
+                                                     provision_set=provision_set,
+                                                     work_dir=work_dir)
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):

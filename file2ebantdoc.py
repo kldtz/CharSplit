@@ -9,7 +9,7 @@ import json
 
 from kirke.utils.corenlputils import annotate
 
-from kirke.eblearn.ebtext2antdoc import doc_to_ebantdoc
+from kirke.utils import ebantdoc2
 from kirke.eblearn import ebattrvec
 from kirke.utils import osutils
 
@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     txt_file_name = args.file
     work_dir = '/tmp'
-    eb_antdoc = doc_to_ebantdoc(txt_file_name, work_dir)
+    eb_antdoc = ebantdoc2.text_to_ebantdoc(txt_file_name, work_dir)
 
     doc_text = eb_antdoc.text
     ts_col = 'TRAIN'

@@ -73,8 +73,6 @@ def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structu
                     txt_file_set.add(line)
                     prov_filelist_map[prefix].append(line)
 
-    # fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_map(list(txt_file_set),
-    #                                                          work_dir=work_dir)
     fn_ebantdoc_map = ebantdoc2.fnlist_to_fn_ebantdoc_provset_map(list(txt_file_set),
                                                                   work_dir=work_dir,
                                                                   is_doc_structure=is_doc_structure)

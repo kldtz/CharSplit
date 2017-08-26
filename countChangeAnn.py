@@ -1,24 +1,12 @@
 #!/usr/bin/env python
 
 import argparse
+from collections import defaultdict
 import logging
-from pprint import pprint
-import sys
-import warnings
-import re
-
 from pathlib import Path
 
+from kirke.utils import ebantdoc2
 
-from collections import defaultdict
-import os
-
-from sklearn.externals import joblib
-from sklearn.model_selection import train_test_split
-
-from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
-from kirke.eblearn import ebtext2antdoc, ebannotator
-from kirke.utils import osutils, splittrte, ebantdoc
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -44,8 +32,8 @@ if __name__ == '__main__':
             txt_file_set.add(line)
 
     text_file_list = sorted(txt_file_set)
-    fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_map(text_file_list,
-                                                              work_dir=work_dir)
+    fn_ebantdoc_map = ebantdoc2.fnlist_to_fn_ebantdoc_map(text_file_list,
+                                                          work_dir=work_dir)
 
     
 
@@ -65,11 +53,8 @@ if __name__ == '__main__':
                 pv_list.append(prov_ann)
         fn_prov_list_map[fn] = pv_list
 
+        xprov_annotation_list, is_test = ebantdoc2.load_prov_annotation_list(fn)
 
-        prov_ebdata_fn = fn.replace('.txt', '.ebdata')
-        prov_ebdata_file = Path(prov_ebdata_fn)
-        xprov_annotation_list, is_test = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
-                                         if prov_ebdata_file.is_file() else [])
         pv_list2 = []
         for prov_ann in xprov_annotation_list:
             # if prov_ann.label == 'change_control':

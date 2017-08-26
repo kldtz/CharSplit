@@ -1,13 +1,87 @@
+from collections import namedtuple
+from enum import Enum
+import json
+import os
+from pathlib import Path
 import re
-from kirke.utils import stopwordutils, mathutils, ebantdoc, entityutils
+
+from kirke.utils import stopwordutils, mathutils, entityutils
+
+class EbEntityType(Enum):
+    PERSON = 1
+    ORGANIZATION = 2
+    LOCATION = 3
+    DATE = 4
+    DEFINE_TERM = 5
+
+
+EB_PROVISION_ST_LIST = ['party', 'date', 'title', 'change_control', 'assign',
+                        'indemnify', 'sublicense', 'securities_transfer',
+                        'assign_lender', 'assign_landlord_owner',
+                        'agent_trustee_assign', 'loan_prepay',
+                        'loan_term_ex', 'renewal', 'term', 'termination',
+                        'limliability', 'choiceoflaw', 'arbitration',
+                        'jurisdiction', 'events_default', 'nonsolicit',
+                        'amending_agreement', 'closing_date', 'confidentiality',
+                        'equitable_relief', 'escrow', 'exclusivity',
+                        'force_majeure', 'guaranty', 'insurance',
+                        'jury_trial', 'note_preamble', 'preamble', 'survival',
+                        'third_party_bene', 'l_estoppel_cert', 'l_term',
+                        'l_mutual_waiver_subrogation', 'l_no_lien',
+                        'l_no_recordation_lease', 'l_address',
+                        'l_quiet_enjoy', 'l_time_essence', 'l_address_only',
+                        'l_premises', 'l_square_footage', 'l_execution_date',
+                        'l_commencement_date', 'l_expiration_date', 'l_rent',
+                        'l_operating_escalation', 'l_re_tax',
+                        'l_electric_charges', 'l_security', 'l_default_rate',
+                        'l_renewal_opt', 'l_expansion_opt', 'l_early_term',
+                        'l_building_services', 'l_holdover', 'l_brokers',
+                        'l_permitted_use', 'l_parking', 'l_tenant_assignment',
+                        'l_estoppel_cert_only', 'l_snda', 'l_tenant_notice',
+                        'l_condemnation_term', 'l_damage_term',
+                        'l_landlord_repair', 'l_tenant_repair',
+                        'l_lessee_eod', 'l_lessor_eod']
+EB_PROVISION_ST_SET = set(EB_PROVISION_ST_LIST)
+
+
+EbEntityTuple = namedtuple('EbEntityTuple', ['start', 'end', 'ner', 'text'])
+
+
+class EbEntity:
+    __slots__ = ['start', 'end', 'ner', 'text']
+
+    def __init__(self, start, end, ner, text):
+        self.start = start
+        self.end = end
+        self.ner = ner
+        self.text = text
+
+    def to_tuple(self):
+        return EbEntityTuple(self.start, self.end, self.ner, self.text)
+
+    def __str__(self):
+        return str((self.ner, self.start, self.end, self.text))
+
+    def to_dict(self):
+        return {'ner': self.ner,
+                'start': self.start,
+                'end': self.end,
+                'text': self.text}
+
+
+def entities_to_dict_list(entities):
+    if entities:
+        return [entity.to_dict() for entity in entities]
+    return []
+
 
 # from kirke.utils import corenlputils, ebantdoc, mathutils, strutils, osutils, entityutils, txtreader
 
-_WANTED_ENTITY_NAMES = {ebantdoc.EbEntityType.PERSON.name,
-                        ebantdoc.EbEntityType.ORGANIZATION.name,
-                        ebantdoc.EbEntityType.LOCATION.name,
-                        ebantdoc.EbEntityType.DATE.name,
-                        ebantdoc.EbEntityType.DEFINE_TERM.name}
+_WANTED_ENTITY_NAMES = {EbEntityType.PERSON.name,
+                        EbEntityType.ORGANIZATION.name,
+                        EbEntityType.LOCATION.name,
+                        EbEntityType.DATE.name,
+                        EbEntityType.DEFINE_TERM.name}
 
 INCORRECT_CORENLP_ENTITIES = {
     'Service', 'Confidential Information',
@@ -59,13 +133,13 @@ INCORRECT_DOMAIN_ENTITIES = {
     'Issuing Bank',
     'Delaware Limited Liability Company'}
 
-_LOC_OR_ORG = {ebantdoc.EbEntityType.ORGANIZATION.name,
-               ebantdoc.EbEntityType.LOCATION.name}
+_LOC_OR_ORG = {EbEntityType.ORGANIZATION.name,
+               EbEntityType.LOCATION.name}
 
-_PERSON_DFTERM_SET = set([ebantdoc.EbEntityType.DEFINE_TERM.name,
-                          ebantdoc.EbEntityType.PERSON.name])
-_ORG_DFTERM_SET = set([ebantdoc.EbEntityType.DEFINE_TERM.name,
-                       ebantdoc.EbEntityType.ORGANIZATION.name])
+_PERSON_DFTERM_SET = set([EbEntityType.DEFINE_TERM.name,
+                          EbEntityType.PERSON.name])
+_ORG_DFTERM_SET = set([EbEntityType.DEFINE_TERM.name,
+                       EbEntityType.ORGANIZATION.name])
 
 
 def _fix_incorrect_tokens(xst, orig_label, token_list, entity_st_set, new_ner):
@@ -94,21 +168,21 @@ def _tokens_to_entity(token_list):
 
     entity_ner_set = set([token.ner for token in token_list])
     if len(entity_ner_set) > 1:
-        entity_ner_set.remove(ebantdoc.EbEntityType.DEFINE_TERM.name)
+        entity_ner_set.remove(EbEntityType.DEFINE_TERM.name)
         label = entity_ner_set.pop()
-    elif len(entity_ner_set) == 1 and entity_ner_set.pop() == ebantdoc.EbEntityType.DEFINE_TERM.name:
+    elif len(entity_ner_set) == 1 and entity_ner_set.pop() == EbEntityType.DEFINE_TERM.name:
         return None
 
     label = _fix_incorrect_tokens(xst, label, token_list, INCORRECT_PERSON_ENTITIES,
-                                  ebantdoc.EbEntityType.PERSON.name)
+                                  EbEntityType.PERSON.name)
     label = _fix_incorrect_tokens(xst, label, token_list, INCORRECT_ORG_ENTITIES,
-                                  ebantdoc.EbEntityType.ORGANIZATION.name)
+                                  EbEntityType.ORGANIZATION.name)
     label = _fix_incorrect_tokens(xst, label, token_list, INCORRECT_DATE_ENTITIES,
-                                  ebantdoc.EbEntityType.DATE.name)
+                                  EbEntityType.DATE.name)
     label = _fix_incorrect_tokens(xst, label, token_list, INCORRECT_LOC_ENTITIES,
-                                  ebantdoc.EbEntityType.LOCATION.name)
+                                  EbEntityType.LOCATION.name)
 
-    return ebantdoc.EbEntity(start, end, label, xst)
+    return EbEntity(start, end, label, xst)
 
 
 def is_distinct_ner_type(ner1, ner2):
@@ -176,18 +250,18 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
             ptr = i
             while ptr >= 0:
                 if ptr == i - 1 and tokens[ptr].word == ',':
-                    tokens[ptr].ner = ebantdoc.EbEntityType.ORGANIZATION.name
+                    tokens[ptr].ner = EbEntityType.ORGANIZATION.name
                     ptr -= 1
                 elif tokens[ptr].pos in NAME_POS_SET:
                     # print("tokens[{}].pos = {}, {}".format(ptr, tokens[ptr].pos, tokens[ptr]))
-                    tokens[ptr].ner = ebantdoc.EbEntityType.ORGANIZATION.name
+                    tokens[ptr].ner = EbEntityType.ORGANIZATION.name
                     ptr -= 1
                 else:
                     break
         # separate "the Company and xxx"
-        if (token.word in 'Company' and token.ner == ebantdoc.EbEntityType.ORGANIZATION.name and
+        if (token.word in 'Company' and token.ner == EbEntityType.ORGANIZATION.name and
             (i + 1) < max_token_ptr and tokens[i+1].word == 'and' and
-            tokens[i+1].ner == ebantdoc.EbEntityType.ORGANIZATION.name):
+            tokens[i+1].ner == EbEntityType.ORGANIZATION.name):
             tokens[i+1].ner = 'O'
 
     pat_list = entityutils.extract_define_party(raw_sent_text, start_offset=start_offset)
@@ -195,7 +269,7 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
         for i, token in enumerate(tokens):
             for pat in pat_list:
                 if mathutils.start_end_overlap((pat[1], pat[2]), (token.start, token.end)):
-                    token.ner = ebantdoc.EbEntityType.DEFINE_TERM.name
+                    token.ner = EbEntityType.DEFINE_TERM.name
 
     #print()
     #for i, token in enumerate(tokens, 1):
@@ -260,3 +334,116 @@ def get_labels_if_start_end_overlap(sent_start, sent_end, ant_start_end_list):
     return result_label_list
 
 
+# cannot use this because in line 600 prov_annotation.start = xxx in ebtext2antdoc.py
+# maybe fix in future.
+# ProvisionAnnotation = namedtuple('ProvisionAnnotation', ['start', 'end', 'label'])
+# pylint: disable=R0903
+class ProvisionAnnotation:
+    __slots__ = ['start', 'end', 'label']
+
+    def __init__(self, start, end, label):
+        self.start = start
+        self.end = end
+        self.label = label
+
+    def __repr__(self):
+        return "ProvisionAnnotation('{}', {}, {})".format(self.start, self.end, self.label)
+
+    def __lt__(self, other):
+        return (self.start, self.end) < (other.start, other.end)
+
+              
+#    def to_tuple(self):
+#        return (self.lable, self.start, self.end)
+
+
+# pylint: disable=R0902
+class EbProvisionAnnotation:
+    __slots__ = ['confidence', 'correctness', 'start', 'end',
+                 'ptype', 'text', 'pid', 'custom_text']
+
+    def __init__(self, ajson):
+        self.confidence = ajson['confidence']
+        self.correctness = ajson.get('correctness')
+        self.start = ajson.get('start')
+        self.end = ajson.get('end')
+        self.ptype = ajson.get('type')  # not 'type' but 'ptype'
+        self.text = ajson.get('text')
+        self.pid = ajson.get('id')    # string, not 'id' but 'pid'
+        self.custom_text = ajson.get('customText')  # boolean
+
+    def to_dict(self):
+        return {'confidence': self.confidence,
+                'correctness': self.correctness,
+                'customText': self.custom_text,
+                'start': self.start,
+                'end': self.end,
+                'id': self.pid,
+                'text': self.text,
+                'type': self.ptype}
+
+    def __str__(self):
+        return str(self.to_dict())
+
+    def to_tuple(self):
+        return ProvisionAnnotation(self.start, self.end, self.ptype)
+
+
+# the result is a list of
+# (start, end, ant_name)
+def load_prov_annotation_list(txt_file_name, provision=None):
+    prov_ant_fn = txt_file_name.replace('.txt', '.ant')
+    prov_ant_file = Path(prov_ant_fn)
+    prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
+    prov_ebdata_file = Path(prov_ebdata_fn)
+
+    prov_annotation_list = []
+    is_test = False
+    if os.path.exists(prov_ant_fn):
+        # in is_bespoke_mode, only the annotation for a particular provision
+        # is returned.
+        prov_annotation_list = (load_prov_ant(prov_ant_fn, provision)
+                                if prov_ant_file.is_file() else [])
+
+    elif os.path.exists(prov_ebdata_fn):
+        prov_annotation_list, is_test = (load_prov_ebdata(prov_ebdata_fn, provision)
+                                         if prov_ebdata_file.is_file() else ([], False))
+    return prov_annotation_list, is_test
+
+
+def load_prov_ant(filename, provision_name=None):
+    result = []
+    # logging.info('load provision %s annotation: [%s]', provision_name, filename)
+    with open(filename, 'rt') as handle:
+        parsed = json.load(handle)
+        for ajson in parsed:
+            eb_ant = EbProvisionAnnotation(ajson)
+
+            result.append(eb_ant.to_tuple())
+
+    # if provision_name is specified, only return that specific provision
+    if provision_name:
+        return [provision_se for provision_se in result if provision_se.label == provision_name]
+
+    return result
+
+
+def load_prov_ebdata(filename, provision_name=None):
+    result = []
+    is_test_set = False
+    with open(filename, 'rt') as handle:
+        parsed = json.load(handle)
+        for _, ajson_list in parsed['ants'].items():
+            # print("ajson_map: {}".format(ajson_map))
+            for ajson in ajson_list:
+                eb_ant = EbProvisionAnnotation(ajson)
+                # print("eb_ant= {}".format(eb_ant))
+                result.append(eb_ant.to_tuple())
+        is_test_set = parsed.get('isTestSet', False)
+
+    # if provision_name is specified, only return that specific provision
+    if provision_name:
+        return [provision_se for provision_se in result
+                if provision_se.label == provision_name], is_test_set
+
+    return result, is_test_set

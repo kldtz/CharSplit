@@ -1,17 +1,18 @@
 import concurrent.futures
 import copy
+from datetime import datetime
 import json
 import logging
 import os
 import psutil
 import sys
 import time
-from datetime import datetime
+from typing import List
 
 from sklearn.externals import joblib
 
 from kirke.docstruct import docreader, htmltxtparser, doc_pdf_reader
-from kirke.eblearn import ebannotator, ebtext2antdoc, ebtrainer, scutclassifier, lineannotator
+from kirke.eblearn import ebannotator, ebtrainer, scutclassifier, lineannotator
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.ebrules import rateclassifier, titles, parties, dates
 from kirke.utils import osutils, strutils, txtreader, evalutils, ebantdoc2
@@ -64,6 +65,18 @@ def update_dates_by_domain_rules(ant_result_dict):
                 ant_result_dict['date'] = sigdate_annotations
     # user never want to see sigdate
     ant_result_dict['sigdate'] = []
+
+
+def adjust_offsets_using_from_to_list(ant_list: List, from_list, to_list):
+    for antx in ant_list:
+        # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
+        xstart = antx['start']
+        xend = antx['end']
+        antx['corenlp_start'] = xstart
+        antx['corenlp_end'] = xend
+        antx['start'] = docreader.find_offset_to(xstart, from_list, to_list)
+        antx['end'] = docreader.find_offset_to(xend, from_list, to_list)
+    return ant_list
 
 
 class EbRunner:
@@ -248,15 +261,9 @@ class EbRunner:
         docreader.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
 
         # updae prov_labels_map based on rules
-        """
-        self.apply_line_annotators2(prov_labels_map,
-                                    eb_antdoc,
-                                    work_dir=work_dir)
-        """
         self.apply_line_annotators(prov_labels_map,
-                                   file_name,
-                                   work_dir=work_dir,
-                                   is_combine_line=True)
+                                   eb_antdoc,
+                                   work_dir=work_dir)
 
         # HTML document has no table detection, so 'rate-table' annotation is an empty list
         prov_labels_map['rate_table'] = []
@@ -271,9 +278,9 @@ class EbRunner:
 
         time2 = time.time()
         logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
-        return prov_labels_map, eb_antdoc.text
+        return prov_labels_map, eb_antdoc
 
-
+    """
     def annotate_text_document(self, file_name, provision_set=None, work_dir=None, is_doc_structure=True):
         time1 = time.time()
         if not provision_set:
@@ -288,7 +295,7 @@ class EbRunner:
         # custom models can be update by other workers
         self.update_custom_models()
 
-        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, work_dir, is_doc_structure=is_doc_structure)
+        eb_antdoc = ebantdoc2.text_to_ebantdoc2(file_name, work_dir, is_doc_structure=is_doc_structure)
 
         # if the file contains too few words, don't bother
         # otherwise, might cause classifier error if only have 1 error because of minmax
@@ -304,67 +311,49 @@ class EbRunner:
         time2 = time.time()
         logging.info('annotate_text_document(%s) took %0.2f sec', file_name, (time2 - time1))
         return ant_result_dict, eb_antdoc.text
+    """
 
 
     def apply_line_annotators(self,
                               prov_labels_map,
-                              file_name,
-                              work_dir,
-                              is_combine_line=False):
+                              eb_antdoc,
+                              work_dir):
+
         # title works on the para_doc_text, not original text. so the
         # offsets needs to be adjusted, just like for text4nlp stuff.
         # The offsets here differs from above because of line break differs.
         # As a result, probably more page numbers are detected correctly and skipped.
-        nl_paras_with_attrs, nl_para_doc_text, nl_gap_span_list, nl_orig_doc_text = \
-            htmltxtparser.parse_document(file_name,
-                                         work_dir=work_dir, is_combine_line=is_combine_line)
-        nl_to_list, nl_from_list = htmltxtparser.paras_to_fromto_lists(nl_paras_with_attrs)
+        #nl_paras_with_attrs, nl_para_doc_text, nl_gap_span_list, nl_orig_doc_text = \
+        #    htmltxtparser.parse_document(file_name,
+        #                                 work_dir=work_dir, is_combine_line=is_combine_line)
+        #nl_to_list, nl_from_list = htmltxtparser.paras_to_fromto_lists(nl_paras_with_attrs)
 
-        title_ant_list = self.title_annotator.annotate_antdoc(nl_paras_with_attrs, nl_para_doc_text)
-        # print('title_start, end = {}'.format(title_ant_list))
-        # TODO, be careful about override title!
-        # now we override.
-        if title_ant_list:
-            for antx in title_ant_list:
-                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-                xstart = antx['start']
-                xend = antx['end']
-                antx['corenlp_start'] = xstart
-                antx['corenlp_end'] = xend
-                antx['start'] = docreader.find_offset_to(xstart, nl_from_list, nl_to_list)
-                antx['end'] = docreader.find_offset_to(xend, nl_from_list, nl_to_list)
-        prov_labels_map['title'] = title_ant_list
+        title_ant_list = self.title_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
+                                                              eb_antdoc.nlp_text)
 
-        party_ant_list = self.party_annotator.annotate_antdoc(nl_paras_with_attrs, nl_para_doc_text)
-        # print('title_start, end = {}'.format(title_ant_list))
-        # TODO, be careful about override title!
-        # now we override.
+        # we always replace the title using rules
+        prov_labels_map['title'] = adjust_offsets_using_from_to_list(title_ant_list,
+                                                                     eb_antdoc.from_list,
+                                                                     eb_antdoc.to_list)
+
+        party_ant_list = self.party_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
+                                                              eb_antdoc.nlp_text)
+        # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
-            for antx in party_ant_list:
-                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-                xstart = antx['start']
-                xend = antx['end']
-                antx['corenlp_start'] = xstart
-                antx['corenlp_end'] = xend
-                antx['start'] = docreader.find_offset_to(xstart, nl_from_list, nl_to_list)
-                antx['end'] = docreader.find_offset_to(xend, nl_from_list, nl_to_list)
-            prov_labels_map['party'] = party_ant_list
-
+            prov_labels_map['party'] = adjust_offsets_using_from_to_list(party_ant_list,
+                                                                         eb_antdoc.from_list,
+                                                                         eb_antdoc.to_list)
 
         # comment out all the date code below to disable applying date rule
-        date_ant_list = self.date_annotator.annotate_antdoc(nl_paras_with_attrs, nl_para_doc_text)
+        date_ant_list = self.date_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
+                                                            eb_antdoc.nlp_text)
         if date_ant_list:
             xx_effective_date_list = []
             xx_date_list = []
+            date_ant_list = adjust_offsets_using_from_to_list(date_ant_list,
+                                                              eb_antdoc.from_list,
+                                                              eb_antdoc.to_list)
             for antx in date_ant_list:
-                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-                xstart = antx['start']
-                xend = antx['end']
-                antx['corenlp_start'] = xstart
-                antx['corenlp_end'] = xend
-                antx['start'] = docreader.find_offset_to(xstart, nl_from_list, nl_to_list)
-                antx['end'] = docreader.find_offset_to(xend, nl_from_list, nl_to_list)
-
                 if antx['label'] == 'effectivedate':
                     xx_effective_date_list.append(antx)
                 else:
@@ -403,9 +392,9 @@ class EbRunner:
         # custom models can be update by other workers
         self.update_custom_models()
 
-        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name,
-                                                  work_dir,
-                                                  is_doc_structure=is_doc_structure)
+        eb_antdoc = ebantdoc2.text_to_ebantdoc2(file_name,
+                                                work_dir,
+                                                is_doc_structure=is_doc_structure)
 
         # if the file contains too few words, don't bother
         # otherwise, might cause classifier error if only have 1 error because of minmax
@@ -460,9 +449,10 @@ class EbRunner:
             strutils.dumps(prov_ants_st, prov_ants_fn)
 
         time2 = time.time()
-        logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
+        logging.info('annotate_text_document(%s) took %0.2f sec', file_name, (time2 - time1))
         return ant_result_dict, eb_antdoc.text
 
+    """
     # this parses both originally text and html documents
     # It's main goal is to detect sechead
     # optionally pagenum, footer, toc, signature
@@ -513,10 +503,8 @@ class EbRunner:
 
         # updae prov_labels_map based on rules
         self.apply_line_annotators(prov_labels_map,
-                                   file_name,
-                                   work_dir=work_dir,
-                                   # for HTML, we combine lines for sechead
-                                   is_combine_line=True)
+                                   eb_antdoc,
+                                   work_dir=work_dir)
 
 
         # HTML document has no table detection, so 'rate-table' annotation is an empty list
@@ -533,8 +521,9 @@ class EbRunner:
         time2 = time.time()
         logging.info('annotate_htmled_document(%s) took %0.2f sec', file_name, (time2 - time1))
         return prov_labels_map, orig_doc_text
+    """
 
-
+    """
     # this parses both originally text and html documents
     # It's main goal is to detect sechead
     # optionally pagenum, footer, toc, signature
@@ -612,7 +601,7 @@ class EbRunner:
         time2 = time.time()
         logging.info('annotate_pdfboxed_document(%s) took %0.2f sec', file_name, (time2 - time1))
         return prov_labels_map, orig_doc_text
-
+    """
 
     # TODO, this is the same as main.annotate_pdfboxed_document?
     # this calls annotate_text_document()
@@ -693,8 +682,8 @@ class EbRunner:
         else:
             logging.info('user specified provision list: %s', provision_set)
 
-        ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fns_file_name,
-                                                               self.work_dir)
+        ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fns_file_name,
+                                                           self.work_dir)
 
         annotations = {}
         with concurrent.futures.ThreadPoolExecutor(8) as executor:
@@ -780,17 +769,13 @@ class EbRunner:
             for test_fn in testin:
                 num_test_doc += 1
                 test_fn = test_fn.strip()
-                prov_labels_map, doc_text = self.annotate_htmled_document(test_fn,
-                                                                          provision_set=set([provision]),
-                                                                          work_dir=work_dir)
+                prov_labels_map, ebantdoc = self.annotate_document(test_fn,
+                                                                   provision_set=set([provision]),
+                                                                   work_dir=work_dir)
                 ant_list = prov_labels_map.get(provision)
 
                 print("\ntest_fn = {}".format(test_fn))
                 print("ant_list: {}".format(ant_list))
-                ebantdoc, ebant_fn = ebtext2antdoc.load_cached_ebantdoc(test_fn,
-                                                                        is_bespoke_mode=False,
-                                                                        work_dir=work_dir,
-                                                                        is_cache_enabled=True)
 
                 print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
                 # print("ant_list: {}".format(ant_list))
