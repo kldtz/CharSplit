@@ -17,6 +17,8 @@ from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.ebrules import rateclassifier, titles, parties, dates
 from kirke.utils import osutils, strutils, txtreader, evalutils, ebantdoc2
 
+from kirke.utils.ebantdoc2 import EbDocFormat
+
 DEBUG_MODE = False
 
 def annotate_provision(eb_annotator, eb_antdoc):
@@ -265,8 +267,11 @@ class EbRunner:
                                    eb_antdoc,
                                    work_dir=work_dir)
 
-        # HTML document has no table detection, so 'rate-table' annotation is an empty list
-        prov_labels_map['rate_table'] = []
+        if eb_antdoc.doc_format == EbDocFormat.pdf:
+            prov_labels_map['rate_table'] = apply_rate_table_annotator(eb_antdoc)
+        else:
+            # HTML document has no table detection, so 'rate-table' annotation is an empty list
+            prov_labels_map['rate_table'] = []
 
         # jshaw. evalxxx, composite
         update_dates_by_domain_rules(prov_labels_map)

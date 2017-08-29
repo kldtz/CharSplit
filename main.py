@@ -73,6 +73,7 @@ def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_
                                              eb_classifier,
                                              is_doc_structure=is_doc_structure)
 
+
 def eval_line_annotator_with_trte(provision,
                                   work_dir,
                                   model_dir,
@@ -81,6 +82,7 @@ def eval_line_annotator_with_trte(provision,
                                             work_dir=work_dir,
                                             model_dir=model_dir,
                                             is_doc_structure=is_doc_structure)
+
 
 def eval_ml_rule_annotator_with_trte(provision,
                                      work_dir,
@@ -107,6 +109,7 @@ def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir,
                                                                 base_model_fname,
                                                                 is_doc_structure=is_doc_structure,
                                                                 work_dir=work_dir)
+
 
 # test multiple annotators    
 def test_annotators(provisions, txt_fn_list_fn, word_dir, model_dir, custom_model_dir, threshold=None):
