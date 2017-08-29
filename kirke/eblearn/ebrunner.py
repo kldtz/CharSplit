@@ -75,11 +75,6 @@ def update_dates_by_domain_rules(ant_result_dict):
     # user never want to see sigdate
     ant_result_dict['sigdate'] = []
 
-    # if 'l_execution_date' is being annotated, replace it with 'date'
-    l_execution_dates = ant_result_dict.get('l_execution_date')
-    if l_execution_dates is not None:
-        ant_result_dict['l_execution_date'] = ant_result_dict.get('date', [])
-
 
 class EbRunner:
 
