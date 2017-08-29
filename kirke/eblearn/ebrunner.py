@@ -46,9 +46,9 @@ def update_dates_by_domain_rules(ant_result_dict):
     # fix the issue with retired 'effectivedate'
     # first try to get effectivedate from rule-based approach
     # if none, then try get from ML approach.  The label is already correct.
-    effectivedate_annotations = ant_result_dict.get('effectivedate_auto')
+    effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
     if not effectivedate_annotations:
-        effectivedate_annotations = ant_result_dict.get('effectivedate')
+        effectivedate_annotations = ant_result_dict.get('effectivedate', [])
         if effectivedate_annotations:  # make a copy in 'effectivedate_auto'
             ant_result_dict['effectivedate_auto'] = effectivedate_annotations
             ant_result_dict['effectivedate'] = []
@@ -56,7 +56,7 @@ def update_dates_by_domain_rules(ant_result_dict):
     # special handling for dates, as in PythonDateOfAgreementClassifier.java
     date_annotations = ant_result_dict.get('date')
     if not date_annotations:
-        effectivedate_annotations = ant_result_dict.get('effectivedate_auto')
+        effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
         # print("effectivedate_annotation = {}".format(effectivedate_annotations))
         if effectivedate_annotations:
             # make a copy to preserve original list
@@ -78,7 +78,10 @@ def update_dates_by_domain_rules(ant_result_dict):
     # if 'l_execution_date' is being annotated, replace it with 'date'
     l_execution_dates = ant_result_dict.get('l_execution_date')
     if l_execution_dates is not None:
-        ant_result_dict['l_execution_date'] = ant_result_dict.get('date', [])
+        l_execution_date_annotations = copy.deepcopy(ant_result_dict.get('date', []))
+        for date_ant in l_execution_date_annotations:
+            date_ant['label'] = 'l_execution_date'
+        ant_result_dict['l_execution_date'] = l_execution_date_annotations
 
 
 class EbRunner:
@@ -376,9 +379,9 @@ class EbRunner:
             # fix the issue with retired 'effectivedate'
             # first try to get effectivedate from rule-based approach
             # if none, then try get from ML approach.  The label is already correct.
-            effectivedate_annotations = ant_result_dict.get('effectivedate_auto')
+            effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
             if not effectivedate_annotations:
-                effectivedate_annotations = ant_result_dict.get('effectivedate')
+                effectivedate_annotations = ant_result_dict.get('effectivedate', [])
                 if effectivedate_annotations:  # make a copy in 'effectivedate_auto'
                     ant_result_dict['effectivedate_auto'] = effectivedate_annotations
                     ant_result_dict['effectivedate'] = []
@@ -388,7 +391,7 @@ class EbRunner:
             # print("-------------------------------------aaaaaaaaaaaaaaa")
             if not date_annotations:
                 # print("-------------------------------------bbbbbbbbbbbbbbbbbb")
-                effectivedate_annotations = ant_result_dict.get('effectivedate_auto')
+                effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
                 # print("effectivedate_annotation = {}".format(effectivedate_annotations))
                 if effectivedate_annotations:
                     # make a copy to preserve original list
@@ -430,7 +433,7 @@ class EbRunner:
 
         # because special case of 'effectivdate_auto'
         if not prov_labels_map.get('effectivedate_auto'):
-            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate')
+            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate', [])
 
         # TODO, uncomment this below for production
         # this will updae prov_labels_map
@@ -473,7 +476,7 @@ class EbRunner:
                                                                      work_dir=work_dir)
         # because special case of 'effectivdate_auto'
         if not prov_labels_map.get('effectivedate_auto'):
-            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate')
+            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate', [])
 
         # this will updae prov_labels_map
         self.apply_line_annotators(prov_labels_map,
