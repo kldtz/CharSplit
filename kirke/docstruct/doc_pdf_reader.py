@@ -475,7 +475,6 @@ def save_debug_txt_files(work_dir, base_fname, doc_text,
             print(line, file=fout)
         print('wrote {}'.format(page_fn))
 
-
 def get_nl_fname(base_fname, work_dir):
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
 

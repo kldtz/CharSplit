@@ -68,6 +68,14 @@ def update_dates_by_domain_rules(ant_result_dict):
     # user never want to see sigdate
     ant_result_dict['sigdate'] = []
 
+    # if 'l_execution_date' is being annotated, replace it with 'date'
+    l_execution_dates = ant_result_dict.get('l_execution_date')
+    if l_execution_dates is not None:
+        l_execution_date_annotations = copy.deepcopy(ant_result_dict.get('date', []))
+        for date_ant in l_execution_date_annotations:
+            date_ant['label'] = 'l_execution_date'
+        ant_result_dict['l_execution_date'] = l_execution_date_annotations
+
 
 def adjust_offsets_using_from_to_list(ant_list: List, from_list, to_list):
     for antx in ant_list:
@@ -558,7 +566,6 @@ class EbRunner:
         # I am a little messed up on from_to lists
         # not sure exactly what "from" means, original text or nlp text
         to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
-
 
         prov_labels_map, text4nlp = self.annotate_text_document(file_name,
                                                                 provision_set=provision_set,
