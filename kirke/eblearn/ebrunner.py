@@ -13,7 +13,6 @@ from sklearn.externals import joblib
 
 from kirke.docstruct import docreader, htmltxtparser, doc_pdf_reader
 from kirke.eblearn import ebannotator, ebtrainer, scutclassifier, lineannotator
-from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.ebrules import rateclassifier, titles, parties, dates
 from kirke.utils import osutils, strutils, txtreader, evalutils, ebantdoc2
 
@@ -119,7 +118,12 @@ class EbRunner:
             full_model_fn = model_dir + "/" + model_fn
             prov_classifier = joblib.load(full_model_fn)
             clf_provision = prov_classifier.provision
-            logging.info("ebrunner loading #%d: %s, %s", num_model, clf_provision, full_model_fn)
+            if hasattr(prov_classifier, 'version'):
+                prov_classifier_version = prov_classifier.version
+            else:
+                prov_classifier_version = '1.1'
+            logging.info("ebrunner loading #%d: %s, ver=%s, model_fn=%s",
+                         num_model, clf_provision, prov_classifier_version, full_model_fn)
             if clf_provision in self.provisions:
                 logging.warning("*** WARNING ***  Replacing an existing provision: %s",
                                 clf_provision)
@@ -145,9 +149,13 @@ class EbRunner:
             full_custom_model_fn = '{}/{}'.format(custom_model_dir, custom_model_fn)
             prov_classifier = joblib.load(full_custom_model_fn)
             clf_provision = prov_classifier.provision
+            if hasattr(prov_classifier, 'version'):
+                prov_classifier_version = prov_classifier.version
+            else:
+                prov_classifier_version = '1.1'
             self.provision_custom_model_fn_map[clf_provision] = full_custom_model_fn
-
-            logging.info("ebrunner loading custom #%d: %s, %s", num_model, clf_provision, full_custom_model_fn)
+            logging.info("ebrunner loading custom #%d: %s, ver=%s, model_fn=%s",
+                         num_model, clf_provision, prov_classifier_version, full_custom_model_fn)
             if clf_provision in self.provisions:
                 logging.warning("*** WARNING ***  Replacing an existing provision: %s",
                                 clf_provision)
@@ -276,7 +284,7 @@ class EbRunner:
                                    work_dir=work_dir)
 
         if eb_antdoc.doc_format == EbDocFormat.pdf:
-            prov_labels_map['rate_table'] = apply_rate_table_annotator(eb_antdoc)
+            prov_labels_map['rate_table'] = [] # apply_rate_table_annotator(eb_antdoc)
         else:
             # HTML document has no table detection, so 'rate-table' annotation is an empty list
             prov_labels_map['rate_table'] = []
@@ -731,7 +739,7 @@ class EbRunner:
         logging.info("custom_mode_file: %s", full_model_fname)
 
         # eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        eb_classifier = scutclassifier.ShortcutClassifier(provision, EbTransformerV1_2(provision))
+        eb_classifier = scutclassifier.ShortcutClassifier(provision)
         eb_annotator = ebtrainer.train_eval_annotator(provision,
                                                       txt_fn_list,
                                                       work_dir,

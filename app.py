@@ -103,7 +103,10 @@ def annotate_uploaded_document():
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):
-        prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate', [])
+        effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
+        for eff_ant in effectivedate_annotations:
+            eff_ant['label'] = 'effectivedate_auto'
+        prov_labels_map['effectivedate_auto'] = effectivedate_annotations
         del prov_labels_map['effectivedate']
 
     ebannotations = {'ebannotations': prov_labels_map}

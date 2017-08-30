@@ -29,14 +29,16 @@ def get_corenlp_json_fname(txt_basename, work_dir):
                                    '.corenlp.v{}.json'.format(CORENLP_JSON_VERSION))
     return '{}/{}'.format(work_dir, base_fn)
 
+
+def get_nlp_fname(txt_basename, work_dir):
+    base_fn = txt_basename.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
+    return '{}/{}'.format(work_dir, base_fn)
+
 def get_ebant_fname(txt_basename, work_dir):
     base_fn =  txt_basename.replace('.txt',
                                     '.ebantdoc.v{}.pkl'.format(EBANTDOC_VERSION))
     return '{}/{}'.format(work_dir, base_fn)
 
-def get_nlp_fname(txt_basename, work_dir):
-    base_fn = txt_basename.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
-    return '{}/{}'.format(work_dir, base_fn)
 
 
 class EbDocFormat(Enum):
@@ -268,31 +270,6 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
     txt_file_name, doc_text, prov_annotation_list, is_test = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
-    """
-    doc_text = txtreader.loads(txt_file_name)
-    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name)
-    max_txt_size = len(doc_text)
-    is_chopped = False
-    for prov_ant in prov_annotation_list:
-        if prov_ant.label in set(['exhibit_appendix', 'exhibit_appendix_complete']):
-            # print('{}\t{}\t{}\t{}'.format(txt_file_name, prov_ant.start, prov_ant.end, prov_ant.label))
-            if prov_ant.start < max_txt_size:
-                max_txt_size = prov_ant.start
-                is_chopped = True
-    if is_chopped:
-        # print("txt_chopped: [{}]".format(doc_text[max_txt_size:max_txt_size+50] + "..."))
-        doc_text = doc_text[:max_txt_size]
-        prov_annotation_list = remove_prov_greater_offset(prov_annotation_list, max_txt_size)
-
-
-    # write the shortened files
-    # if file is not shortened, write to dir-work
-    txt_file_name = '{}/{}'.format(work_dir, txt_base_fname)
-    txtreader.dumps(doc_text, txt_file_name)
-    if debug_mode:
-        print('wrote {}'.format(txt_file_name, file=sys.stderr))
-    """
-
     paras_with_attrs = []
     attrvec_list, nlp_prov_ant_list = nlptxt_to_attrvec_list(doc_text,
                                                              txt_file_name,
@@ -376,6 +353,7 @@ def html_to_ebantdoc2(txt_file_name,
     debug_mode = True
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
+    print("html_to_ebantdoc2({}, {}, is_cache_eanbled={}", txt_file_name, work_dir, is_cache_enabled)
 
     txt_file_name, doc_text, prov_annotation_list, is_test = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
@@ -444,7 +422,8 @@ def pdf_to_ebantdoc2(txt_file_name,
     # PDF files are mostly used by our users, not for training and test.
     # Chopping text at exhibit_complete messes up all the offsets info from offsets.json.
     # To avoid this situation, we currently do NOT chop PDF text.  For HTML and others,
-    # such chopping is not an issue.  A correct solution is to not chop, but put a market
+    # such chopping is not an issue since there is associated no offsets.json file.
+    # A correct solution is to not chop, but put a market
     # in the ebantdoc and all the code acts accordingly, such as not to run corenlp on such
     # text because such chopped text should not participate in training and evaluation of
     # ML classification, or any classification.
@@ -467,6 +446,11 @@ def pdf_to_ebantdoc2(txt_file_name,
         htmltxtparser.parse_document(txt_file_name,
                                      work_dir=work_dir,
                                      is_combine_line=False)  # this line diff from annotate_htmled_document()
+
+
+    for i, para_with_attr in enumerate(paras_with_attrs, 1):
+        print('kkkk3333 {}\t{}'.format(i, para_with_attr))
+
     # I am a little messed up on from_to lists
     # not sure exactly what "from" means, original text or nlp text
     to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
@@ -612,7 +596,7 @@ def doclist_to_ebantdoc_list_linear(doclist_file,
                                           is_bespoke_mode=is_bespoke_mode,
                                           is_doc_structure=is_doc_structure)
             eb_antdoc_list.append(eb_antdoc)
-    logging.debug('Finished ebantdoc2.doc_list_to_ebantdoc_list_linear()')
+    logging.debug('Finished ebantdoc2.doclist_to_ebantdoc_list_linear()')
 
 
 def doclist_to_ebantdoc_list(doclist_file,
@@ -712,19 +696,20 @@ def fnlist_to_fn_ebantdoc_provset_map(fn_list, work_dir, is_doc_structure=False)
 def print_para_list(eb_antdoc):
     doc_text = eb_antdoc.text
     for i, para_with_attr in enumerate(eb_antdoc.paras_with_attrs, 1):
-        print('{}\t{}'.format(i, para_with_attr))
-        """
-        tmp_start = para_with_attr.start
-        tmp_end = para_with_attr.end
-        para_text = doc_text[tmp_start:tmp_end].replace(r'[\n\t]', ' ')
-        # sent_text = attrvec.bag_of_words
-        attr_st = ''
-        if attrvec.labels:
-            labels_st = ','.join(sorted(attrvec.labels))
-        cols = [str(i), '({}, {})'.format(tmp_start, tmp_end),
-                labels_st, para_text]
+        # print('{}\t{}'.format(i, para_with_attr))
+        orig_offsets, nlp_offsets, para_text, attr_list = para_with_attr
+        orig_start, orig_end = orig_offsets
+        para_text2 = doc_text[orig_start:orig_end].replace(r'[\n\t]', ' ')[:30]
+
+        tmp_list = []
+        for attr in attr_list:
+            attr_name, attr_val, attr_text, attr_offset = attr
+            tmp_list.append((attr_name, attr_val, attr_text[:20], attr_offset))
+        attr_list = tmp_list
+
+        cols = [str(i), '({}, {})'.format(orig_start, orig_end),
+                str(attr_list), para_text2]
         print('\t'.join(cols))
-"""
 
 
 def print_attrvec_list(eb_antdoc):
@@ -739,3 +724,21 @@ def print_attrvec_list(eb_antdoc):
             labels_st = ','.join(sorted(attrvec.labels))
         cols = [str(i), '[{}]'.format(labels_st), sent_text]
         print('\t'.join(cols))
+
+
+def print_line_list(eb_antdoc):
+    doc_text = eb_antdoc.text
+    for i, para_with_attr in enumerate(eb_antdoc.paras_with_attrs, 1):
+        print('{}\t{}'.format(i, para_with_attr))
+        """
+        tmp_start = para_with_attr.start
+        tmp_end = para_with_attr.end
+        para_text = doc_text[tmp_start:tmp_end].replace(r'[\n\t]', ' ')
+        # sent_text = attrvec.bag_of_words
+        attr_st = ''
+        if attrvec.labels:
+            labels_st = ','.join(sorted(attrvec.labels))
+        cols = [str(i), '({}, {})'.format(tmp_start, tmp_end),
+                labels_st, para_text]
+        print('\t'.join(cols))
+"""

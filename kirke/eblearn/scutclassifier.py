@@ -15,6 +15,10 @@ from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformer import EbTransformer
 from kirke.utils import evalutils
 
+from kirke.eblearn.ebtransformer import EbTransformer
+from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
+from kirke.eblearn.ebtransformerv1_3 import EbTransformerV1_3
+
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
@@ -44,14 +48,19 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
 
 class ShortcutClassifier(EbClassifier):
 
-    def __init__(self, provision, transformer):
+    def __init__(self, provision):
         EbClassifier.__init__(self, provision)
         self.version = SCUT_CLF_VERSION
         self.eb_grid_search = None
         self.best_parameters = None
 
         # EbTransformer(self.provision, binary_attr_list, numeric_attr_list, categorical_attr_list)
-        self.transformer = transformer
+        if not self.version or self.version == '1.1':
+            self.transformer = EbTransformer(provision)
+        if self.version == '1.2':
+            self.transformer = EbTransformerV1_2(provision)
+        elif self.version == '1.3':
+            self.transformer = EbTransformerV1_3(provision)
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)

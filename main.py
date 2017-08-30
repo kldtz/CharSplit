@@ -17,7 +17,6 @@ from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
 
 from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier, ebtransformerv1_2
-from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.eblearn import ebannotator
 from kirke.utils import osutils, splittrte, strutils
 
@@ -38,7 +37,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 # This trains on ALL data, no separate testing
 def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
     if is_scut:
-        eb_classifier = scutclassifier.ShortcutClassifier(provision, EbTransformerV1_2(provision))
+        eb_classifier = scutclassifier.ShortcutClassifier(provision)
         model_file_name = '{}/{}_scutclassifier.v{}.pkl'.format(model_dir,
                                                                 provision,
                                                                 SCUT_CLF_VERSION)
@@ -57,7 +56,7 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
 # This separates out training and testing data, trains only on training data.
 def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_doc_structure=True):
     if is_scut:
-        eb_classifier = scutclassifier.ShortcutClassifier(provision, EbTransformerV1_2(provision))
+        eb_classifier = scutclassifier.ShortcutClassifier(provision)
         model_file_name = '{}/{}_scutclassifier.v{}.pkl'.format(model_dir,
                                                                 provision,
                                                                 SCUT_CLF_VERSION)
@@ -178,12 +177,21 @@ def annotate_document(file_name,
                       is_doc_structure=True):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
+    # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
+    #                      'party', 'warranty', 'termination', 'term']))
     prov_labels_map, _ = eb_runner.annotate_document(file_name,
                                                      provision_set=provision_set,
                                                      work_dir=work_dir,
                                                      is_doc_structure=is_doc_structure)
 
-    # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
+    # because special case of 'effectivdate_auto'
+    if prov_labels_map.get('effectivedate'):
+        effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
+        for eff_ant in effectivedate_annotations:
+            eff_ant['label'] = 'effectivedate_auto'
+        prov_labels_map['effectivedate_auto'] = effectivedate_annotations
+        del prov_labels_map['effectivedate']
+
     pprint.pprint(prov_labels_map)
 
 
