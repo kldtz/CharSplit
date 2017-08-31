@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from kirke.utils import strutils, txtreader
 from kirke.docstruct.pblockinfo import PBlockInfo
-from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo
+from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo, PageInfo3
 from kirke.docstruct import pdfutils
 
 class EbPage:
@@ -45,7 +45,17 @@ class PDFTextDoc:
         self.doc_text = doc_text
         self.page_list = page_list
         self.nlp_block_list = []
-        
+
+    def print_debug_lines(self):
+        paged_fname = 'dir-work/paged-line.txt'
+        for page in self.page_list:
+            print('===== page #{}, start={}, end={}\n'.format(page.page_num,
+                                                              page.start,
+                                                              page.end))
+            print('page_line_list.len= {}'.format(len(page.line_list)))
+
+            for linex in page.line_list:
+                print('{}\t{}'.format(linex.tostr2(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
 
 def get_nl_fname(base_fname, work_dir):
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
@@ -108,7 +118,7 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=True
         while start <= end - 1 and strutils.is_nl(nl_text[end -1]):
             end -= 1
         if start != end:
-            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, lxid_strinfos_map[line_num]))
+            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, block_num, lxid_strinfos_map[line_num]))
         tmp_prev_end = end + 1
 
     pgid_pblockinfos_map = defaultdict(list)
@@ -191,11 +201,12 @@ def parse_document(file_name, work_dir, debug_mode=True):
     base_fname = os.path.basename(file_name)
     offsets_file_name = pdfutils.get_offsets_file_name(file_name)
 
-    orig_doc_text = strutils.loads(file_name)
-    doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = pdfutils.load_pdf_offsets(offsets_file_name)
+    doc_text = strutils.loads(file_name)
+    doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = \
+        pdfutils.load_pdf_offsets(offsets_file_name)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
-    nl_text, nl_fname = text_offsets_to_nl(base_fname, orig_doc_text, line_breaks,
+    nl_text, nl_fname = text_offsets_to_nl(base_fname, doc_text, line_breaks,
                                            work_dir=work_dir, debug_mode=debug_mode)
     
 #    if debug_mode:
@@ -231,7 +242,8 @@ def parse_document(file_name, work_dir, debug_mode=True):
         while start <= end - 1 and strutils.is_nl(nl_text[end -1]):
             end -= 1
         if start != end:
-            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, lxid_strinfos_map[line_num]))
+            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, block_num,
+                                                           lxid_strinfos_map[line_num]))
         tmp_prev_end = end + 1
 
     pgid_pblockinfos_map = defaultdict(list)
@@ -247,6 +259,9 @@ def parse_document(file_name, work_dir, debug_mode=True):
 
         if start != end:
             para_line, is_multi_lines = pdfutils.para_to_para_list(nl_text[start:end])
+
+            linex_list = bxid_lineinfos_map[pblock_id]
+            print("xxxx len(linex_list)= {}".format(len(linex_list)))
             # xStart, xEnd, yStart are initizlied in here
             block_info = PBlockInfo(start,
                                     end,
@@ -265,12 +280,11 @@ def parse_document(file_name, work_dir, debug_mode=True):
         end = page_offset['end']
         page_num = page_offset['id']
         pblockinfo_list = pgid_pblockinfos_map[page_num]
-        pinfo = PageInfo(start, end, page_num, pblockinfo_list)
-        nlp_offset = pinfo.init_line4nlp_list(nlp_offset)
+        print("doing Pageinfo3, page_num = {}".format(page_num))
+        pinfo = PageInfo3(doc_text, start, end, page_num, pblockinfo_list)
         pageinfo_list.append(pinfo)
 
-
-    pdf_text_doc = PDFTextDoc(orig_doc_text, pageinfo_list)
+    pdf_text_doc = PDFTextDoc(doc_text, pageinfo_list)
 
     return pdf_text_doc
 
