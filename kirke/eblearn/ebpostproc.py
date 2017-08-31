@@ -5,6 +5,7 @@ from typing import List
 from kirke.utils import strutils, entityutils, stopwordutils, mathutils
 from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
+from kirke.ebrules import dates
 
 
 PROVISION_PAT_MAP = {
@@ -1094,7 +1095,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
             for entity in best_effectivedate_sent.entities:
                 if entity.ner == EbEntityType.DATE.name:
                     prior_text = doc_text[best_effectivedate_sent.start:entity.start]
-                    has_prior_text_effective = 'ffective' in prior_text
+                    has_prior_text_effective = 'effective' in prior_text.lower()
 
                     ant_rx = AntResult(label=self.provision,
                                        prob=best_effectivedate_sent.prob,
@@ -1116,6 +1117,152 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
 
         return ant_result
 
+class PostPredLeaseDateProc(EbPostPredictProcessing):
+
+    # Class (static) variables for keywords; Rent Commencement Date != C. D.
+    lc = {
+        'verbs': '|'.join(['commence', 'commences', 'commencing', 'commenced',
+                           'begin', 'begins', 'beginning', 'begun']),
+        'nouns': '|'.join(['commencement']),
+        'noun_revokers': '|'.join(['rent'])
+    }
+    le = {
+        'verbs': '|'.join(['expire', 'expires', 'expiring', 'expired',
+                           'terminate', 'terminates', 'terminating',
+                           'terminated', 'cancel', 'canceled', 'cancelled',
+                           'end', 'ends', 'ending', 'ended']),
+        'nouns': '|'.join(['expiration', 'termination']),
+        'noun_revokers': '|'.join(['rent'])
+    }
+    revokers = '|'.join(['earlier', 'earliest', 'later', 'first', 'last',
+                         'former', 'latter', 'previous', 'prior', 'sooner',
+                         '\(a\)', '\(i\)', '\(1\)'])
+
+    # Compile regular expressions once
+    revokers_regex = re.compile(r'\b{}\b'.format(revokers), re.I)
+    lc_regexes = {
+        'verbs': re.compile(r'\b{}\b'.format(lc['verbs']), re.I),
+        'terms': re.compile(r'\([^)]*?\b{}\s+date\b'.format(lc['nouns']), re.I),
+        'nouns': re.compile(r'(?<!{})\s*{}\s+date\b'
+                            .format(lc['noun_revokers'], lc['nouns']), re.I),
+        'end': re.compile(r'^\s*\S*\s*(?<!{})\s*{}\s+date\s*:?\s*$'
+                          .format(lc['noun_revokers'], lc['nouns']), re.I),
+        'revokers': revokers_regex
+    }
+    le_regexes = {
+        'verbs': re.compile(r'\b{}\b'.format(le['verbs']), re.I),
+        'terms': re.compile(r'\([^)]*?\b{}\s+date\b'.format(le['nouns']), re.I),
+        'nouns': re.compile(r'(?<!{})\s*{}\s+date\b'
+                            .format(le['noun_revokers'], le['nouns']), re.I),
+        'end': re.compile(r'^\s*\S*\s*(?<!{})\s*{}\s+date\s*:?\s*$'
+                          .format(le['noun_revokers'], le['nouns']), re.I),
+        'revokers': revokers_regex
+    }
+
+    def __init__(self, prov):
+        """Currently supports both commencement and expiration dates."""
+        self.provision = prov
+        self.regexes = (PostPredLeaseDateProc.lc_regexes
+                        if prov == 'l_commencement_date'
+                        else PostPredLeaseDateProc.le_regexes)
+        self.stop_at_one_date = False
+        self.threshold = 0.24
+
+    def ant(self, line, cx_prob_attrvec, date):
+        """Compiles an ant_result."""
+        text = strutils.remove_nltab(line[date[0]:date[1]][:50]) + '...'
+        return AntResult(label=self.provision, prob=cx_prob_attrvec.prob,
+                         start=cx_prob_attrvec.start + date[0],
+                         end=cx_prob_attrvec.start + date[1],
+                         text=text).to_dict()
+
+    def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
+                     provision=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+        ant_result = []
+        for i, cx_prob_attrvec in enumerate(merged_prob_attrvec_list):
+            # Disregard if no reason to consider as a commencement date
+            line = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
+            if not (cx_prob_attrvec.prob >= threshold
+                    or self.regexes['end'].search(line)):
+                continue
+
+            # Get date start, end offsets relative to current line
+            date_list = sorted(dates.extract_std_dates(line))
+            date_found = False
+
+            # If an l_commencement verb is in the line, take next date
+            for mat in self.regexes['verbs'].finditer(line):
+                date = next((d for d in date_list if d[0] > mat.end()), None)
+                if date:
+                    between_verb_date = line[mat.end():date[0]]
+                    if not self.regexes['revokers'].search(between_verb_date):
+                        date_found = True
+                        ant_result.append(self.ant(line, cx_prob_attrvec, date))
+                        break
+            if date_found:
+                # If stopping when we find a date, return only this date
+                if self.stop_at_one_date:
+                    return [ant_result[-1]]
+                continue
+
+            # If an l_commencement term is in the line, take previous date
+            for mat in self.regexes['terms'].finditer(line):
+                rv_dates = reversed(date_list)
+                date = next((d for d in rv_dates if d[1] < mat.start()), None)
+                if date:
+                    between_term_date = line[mat.end():date[0]]
+                    if not self.regexes['revokers'].search(between_term_date):
+                        date_found = True
+                        ant_result.append(self.ant(line, cx_prob_attrvec, date))
+                        break
+            if date_found:
+                if self.stop_at_one_date:
+                    return [ant_result[-1]]
+                continue
+
+            # If there is an l_commencement non-term noun, take next date
+            for mat in self.regexes['nouns'].finditer(line):
+                date = next((d for d in date_list if d[0] > mat.end()), None)
+                if date:
+                    between_noun_date = line[mat.end():date[0]]
+                    if not self.regexes['revokers'].search(between_noun_date):
+                        date_found = True
+                        ant_result.append(self.ant(line, cx_prob_attrvec, date))
+                        break
+            if date_found:
+                if self.stop_at_one_date:
+                    return [ant_result[-1]]
+                continue
+
+            # If no date found and next line starts with a date, return that
+            if i + 1 < len(merged_prob_attrvec_list):
+                next_attrvec = merged_prob_attrvec_list[i + 1]
+                # Don't want to repeat a date, but does not matter if stopping
+                if next_attrvec.prob < threshold or self.stop_at_one_date:
+                    next_line = doc_text[next_attrvec.start:next_attrvec.end]
+                    next_date_list = dates.extract_std_dates(next_line)
+                    if next_date_list:
+                        # Ensure no alphanumeric chars left or right (lr)
+                        next_date = sorted(next_date_list)[0]
+                        lr = next_line[:next_date[0]] + next_line[next_date[1]:]
+                        if not any(c.isalnum() for c in lr):
+                            ant_result.append(self.ant(next_line, next_attrvec,
+                                                       next_date))
+                            if self.stop_at_one_date:
+                                return [ant_result[-1]]
+                            continue
+
+            # Fall through with original line (handles just-date lines)
+            if cx_prob_attrvec.prob >= threshold:
+                ant_result.append(self.ant(line, cx_prob_attrvec,
+                                           (0, len(line))))
+
+        # Return results list
+        return ant_result
+    
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
@@ -1123,12 +1270,16 @@ PROVISION_POSTPROC_MAP = {
     'date': PostPredBestDateProc('date'),
     'ea_employee': PostPredEaEmployeeProc(),
     'ea_employer': PostPredEaEmployerProc(),
-    'effectivedate': PostPredEffectiveDateProc('effectivedate'),
+    # The classifier label is "effectivedate", but 'extractor' is expecting
+    # 'effectivedate_auto'
+    'effectivedate': PostPredEffectiveDateProc('effectivedate_auto'),
     'la_borrower': PostPredLaBorrowerProc(),
     'la_lender': PostPredLaLenderProc(),
     'la_agent_trustee': PostPredLaAgentTrusteeProc(),
     'lic_licensee': PostPredLicLicenseeProc(),
     'lic_licensor': PostPredLicLicensorProc(),
+    'l_commencement_date': PostPredLeaseDateProc('l_commencement_date'),
+    'l_expiration_date': PostPredLeaseDateProc('l_expiration_date'),
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),

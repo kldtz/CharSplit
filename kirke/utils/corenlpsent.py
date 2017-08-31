@@ -29,7 +29,7 @@ class EbToken:
 
 # cannot use namedtuple because _fix_incorrect_tokens resets internal
 # in ebtext2antdoc
-#EbToken = namedtuple('EbToken', ['start', 'end', 'word',
+# EbToken = namedtuple('EbToken', ['start', 'end', 'word',
 #                                 'lemma', 'pos', 'index', 'ner'])
 # 9,927 bytes avg per ebsent
 # 1.3 Mb in an ebantdoc
@@ -124,14 +124,14 @@ def merge_ebsents(ebsent_list):
 # pylint: disable=R0902
 class EbSentence:
     __slots__ = ['file_id', 'tokens', 'start', 'end',
-                 'entities', 'labels']
+                 'entities', 'labels', 'sechead']
 
     # Still passing atext now just in case to be used
     # in future.
     # pylint: disable=unused-argument
     def __init__(self, file_id, json_sent, atext, num_prefix_space):
-        tokens = json_sent['tokens']
         self.file_id = file_id
+        tokens = json_sent['tokens']
         self.tokens = to_eb_tokens(tokens, num_prefix_space)
         self.start = self.tokens[0].start
         self.end = self.tokens[-1].end
@@ -142,6 +142,7 @@ class EbSentence:
         self.entities = []
         # set of strings
         self.labels = set([])
+        self.sechead = ''
 
     # Still passing atext now just in case to be used
     # in future.
@@ -156,7 +157,7 @@ class EbSentence:
         # when extending tokens, should modify self.entities also?
 
     def __str__(self):
-        return 'EbSentence({}, {})'.format(self.start, self.end)
+        return 'EbSentence({}, {}, {}, {})'.format(self.start, self.end, self.get_tokens_text()[:40], self.sechead)
 
     def get_tokens(self):
         return self.tokens
@@ -191,3 +192,6 @@ class EbSentence:
 
     def set_labels(self, labels):
         self.labels = set(labels)
+
+    def set_sechead(self, sechead):
+        self.sechead = sechead

@@ -4,10 +4,10 @@
 
 import json
 import logging
-import os
 import os.path
 from pprint import pprint
 import tempfile
+
 
 from flask import Flask, request, jsonify
 
@@ -56,6 +56,7 @@ def annotate_uploaded_document():
     ebannotations = {}
 
     request_work_dir = request.form.get('workdir')
+    file_title = request.form.get('fileName')
     if request_work_dir:
         work_dir = request_work_dir
         print("work_dir = {}".format(work_dir))
@@ -63,14 +64,28 @@ def annotate_uploaded_document():
     else:
         work_dir = WORK_DIR
 
-    request_file_name = request.files['file'].filename
-    if request_file_name:
-        if not request_file_name.endswith('.txt'):
-            request_file_name += '.txt'
-        txt_basename = os.path.basename(request_file_name)
-        file_name = os.path.normpath(os.path.join(work_dir, txt_basename))
-    else:
-        file_name = tempfile.NamedTemporaryFile(dir=work_dir).name + '.txt'
+    request_file_name, pdf_offsets_file_name = '', ''
+    fn_list = request.files.getlist('file')
+    for fstorage in fn_list:
+        fn = '{}/{}'.format(work_dir, fstorage.filename)
+        print("saving file '{}'".format(fn))
+        fstorage.save(fn)
+
+        if fn.endswith('.offsets.json'):
+            pdf_offsets_file_name = fn
+        elif fn.endswith('.txt'):
+            txt_file_name = fn
+
+            # save the file name
+            meta_fn = '{}/{}'.format(work_dir,
+                                     fstorage.filename.replace('.txt', '.meta'))
+            print("wrote meta_fn: '{}'".format(meta_fn))
+            print("doc title: '{}'".format(file_title))
+            with open(meta_fn, 'wt') as meta_out:
+                print('pdf_file\t{}'.format(file_title), file=meta_out)
+                print('txt_file\t{}'.format(fstorage.filename), file=meta_out)
+        else:
+            logging.warning('unknown file extension in annotate_uploaded_document(): "{}"'.format(fn))
 
     request.files['file'].save(file_name)
 
@@ -94,29 +109,43 @@ def annotate_uploaded_document():
             logging.warning('is_classify_doc is specified, but no models for eb_doccat_runner')
             ebannotations['tags'] = []
 
-    if provision_set:
-        if 'all-provs' in provision_set:
-            provision_set = set([])
-        else:
-            # print("got provision_set: {}".format(sorted(provision_set)))
-            provision_set.add('date')
-            provision_set.add('sigdate')
-            provision_set.add('effectivedate')
-            if "effectivedate_auto" in provision_set:
-                provision_set.remove('effectivedate_auto')
-            # make sure these are removed due to low accuracy
-            if "lic_licensee" in provision_set:
-                provision_set.remove('lic_licensee')
-            if "lic_licensor" in provision_set:
-                provision_set.remove('lic_licensor')
+    provisions_st = request.form.get('types')
+    provision_set = set(provisions_st.split(',') if provisions_st else [])
 
-        logging.info("annotate with provisions '{}'".format(file_name))
-        prov_labels_map, _ = eb_runner.annotate_document(file_name,
-                                                         provision_set=provision_set,
-                                                         work_dir=work_dir)
-        ebannotations['ebannotations'] = prov_labels_map
-        # pprint(prov_labels_map)
-        # pprint(ebannotations)
+    if provision_set:
+        # print("got provision_set: {}".format(sorted(provision_set)))
+        provision_set.add('date')
+        provision_set.add('sigdate')
+        provision_set.add('effectivedate')
+        if "effectivedate_auto" in provision_set:
+            provision_set.remove('effectivedate_auto')
+        # make sure these are removed due to low accuracy
+        if "lic_licensee" in provision_set:
+            provision_set.remove('lic_licensee')
+        if "lic_licensor" in provision_set:
+            provision_set.remove('lic_licensor')
+        # 'rate_table' is a special provision, with only rule-based model
+        # avoid apploying the normal ML model
+        if "rate_table" in provision_set:
+            provision_set.remove('rate_table')
+
+    # TODO, hacked, remove when not debugging
+    # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
+
+    if pdf_offsets_file_name:  # original file is pdf or word file
+        prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(txt_file_name,
+                                                                         pdf_offsets_file_name,
+                                                                         provision_set=provision_set,
+                                                                         work_dir=work_dir)
+    else:
+        # only text file, no offsets.  Original file is .html or .txt
+        prov_labels_map, doc_text = eb_runner.annotate_htmled_document(txt_file_name,
+                                                                       provision_set=provision_set,
+                                                                       work_dir=work_dir)
+
+    ebannotations = {'ebannotations': prov_labels_map}
+    # pprint(prov_labels_map)
+    # pprint(ebannotations)
 
     return json.dumps(ebannotations)
 
@@ -127,47 +156,52 @@ def custom_train(cust_id):
     request_work_dir = request.form.get('workdir')
     if request_work_dir:
         work_dir = request_work_dir
-        print("work_dir = {}".format(work_dir))
+        logging.info("work_dir = {}".format(work_dir))
         osutils.mkpath(work_dir)
     else:
         work_dir = WORK_DIR
 
     # to ensure that no accidental file name overlap
-    print("cust_id = {}".format(cust_id))
+    logging.info("cust_id = {}".format(cust_id))
     provision = 'cust_{}'.format(cust_id)
     tmp_dir = '{}/{}'.format(work_dir, provision)
     osutils.mkpath(tmp_dir)
     fn_list = request.files.getlist('file')
+    
+    # save all the uploaded files in a location
+    for fstorage in fn_list:
+        fn = '{}/{}'.format(tmp_dir, fstorage.filename)
+        # print("saving file '{}'".format(fn))
+        fstorage.save(fn)
+
     ant_fnames = []
     txt_fnames = []
     full_txt_fnames = []
+    txt_offsets_fn_map = {}
     for name in [fstorage.filename for fstorage in fn_list]:
         if name.endswith('.ant'):
             ant_fnames.append(name)
         elif name.endswith('.txt'):
             txt_fnames.append(name)
             full_txt_fnames.append('{}/{}'.format(tmp_dir, name))
-    # print("txt_fnames (size={}) = {}".format(len(txt_fnames), txt_fnames))
-    # print("ant_fnames (size={})= {}".format(len(ant_fnames), ant_fnames))
+        elif name.endswith('.offsets.json'):
+            # create txt -> offsets.json map in order to do sent4nlp processing
+            tmp_txt_fn = name.replace(".offsets.json", ".txt")
+            txt_offsets_fn_map[tmp_txt_fn] = name
+        else:
+            logging.warning('unknown file extension in custom_train(): "{}"'.format(fn))
 
-    # name2 = request.form.get('custom_id')
-    # print("name2 = {}".format(name2))
-    # if passed in, use 'provision', otherwise, use cust_id
-    # provision = request.form.get('provision', cust_id)
-    # print("provision = {}".format(provision))
+    logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames),
+                                                         full_txt_fnames))
 
-    for fstorage in fn_list:
-        fstorage.save('{}/{}'.format(tmp_dir, fstorage.filename))
     txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames.list')
     strutils.dumps('\n'.join(full_txt_fnames), txt_fn_list_fn)
 
-    # When deploying, swap below two lines.  Otherwise, the error says
-    # sample size 0 because no document has such provision.
-    # provision = 'change_control'
     # Following the logic in the original code.
     eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                                 provision,
                                                                 CUSTOM_MODEL_DIR,
+                                                                is_doc_structure=False,
                                                                 work_dir=work_dir)
     # copy the result into the expected format for client
     pred_status = eval_status['pred_status']['pred_status']
@@ -177,11 +211,12 @@ def custom_train(cust_id):
               'precision': pred_status['prec'],
               'recall': pred_status['recall']}
 
-    print("status:")
-    pprint(status)
-
+    logging.info("status: {}".format(status))
+              
     # return some json accuracy info
     return jsonify(status)
+>>>>>>> master
+
 
 @app.route('/classify-doc', methods=['POST'])
 def classify_uploaded_document():
@@ -254,3 +289,4 @@ def detect_langs():
     detect_langs = eb_langdetect_runner.detect_langs(atext)
     logging.info("detected languages '{}'".format(detect_langs))
     return json.dumps({'lang-probs': detect_langs })
+

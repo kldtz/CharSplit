@@ -43,11 +43,22 @@ def is_punctword(word):
 def is_punct_or_stopword(word):
     return word in PUNCT_STOPWORDS
 
+def count_stopword(word_list):
+    count = 0
+    for word in word_list:
+        if word in STOPWORDS:
+            count += 1
+    return count
+
 
 # pylint: disable=R0911
-def is_eb_stopword(word):
+def is_eb_stopword(word, is_lower=False):
     if not word:  # empty
         return True
+
+    if is_lower:  # lower if needed
+        word = word.lower()
+        
     if word in PUNCT_STOPWORDS:
         return True
     if len(word) < 2:  # one char words are ambiguous
@@ -87,12 +98,26 @@ def get_sent_tokens_list(sent_list, mode=0):
     return sent_tokens_list
 
 
-def tokens_remove_stopwords(token_list):
-    return [token for token in token_list if not is_eb_stopword(token)]
+def tokens_remove_stopwords(token_list, is_lower=False):
+    return [token for token in token_list if not is_eb_stopword(token, is_lower)]
 
 
 def tokens_remove_punct(token_list):
     return [token for token in token_list if not is_punctword(token)]
+
+def is_title_non_stopwords(word_list: List[str]) -> bool:
+    if not word_list:  # no word, return False
+        return False
+    for word in tokens_remove_stopwords(word_list, is_lower=True):
+        if not word[0].isupper():
+            return False
+    return True
+
+def is_line_title_non_stopwords(line: str) -> bool:
+    words = str_to_tokens(line, mode=1)
+    print("words = {}".format(words))
+    return is_title_non_stopwords(words)
+
 
 
 # mode = {lower, keep, keep_both}, 0, 1, 2
