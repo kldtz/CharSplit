@@ -4,6 +4,7 @@ import time
 from kirke.eblearn import ebpostproc
 from kirke.utils import evalutils
 
+PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 class ProvisionAnnotator:
 
@@ -38,9 +39,18 @@ class ProvisionAnnotator:
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
-            xtp, xfn, xfp, xtn = evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
-                                                                         ant_list,
-                                                                         ebantdoc.get_text())
+            if self.provision in PROVISION_EVAL_ANYMATCH_SET:
+                xtp, xfn, xfp, xtn = \
+                    evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
+                                                                     ant_list,
+                                                                     ebantdoc.get_text(),
+                                                                     diagnose_mode=True)
+            else:
+                xtp, xfn, xfp, xtn = \
+                    evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
+                                                            ant_list,
+                                                            ebantdoc.get_text(),
+                                                            diagnose_mode=True)
             tp += xtp
             fn += xfn
             fp += xfp

@@ -83,6 +83,10 @@ class ProvisionAnnotation:
 
     def __repr__(self):
         return "ProvisionAnnotation('{}', {}, {})".format(self.label, self.start, self.end)
+
+    def __lt__(self, other):
+        return (self.start, self.end) < (other.start, other.end)
+              
 #    def to_tuple(self):
 #        return (self.lable, self.start, self.end)
 
