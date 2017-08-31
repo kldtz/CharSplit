@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s : %(levelname)s : %
 
 
 
-IS_SUPPORT_DOC_CLASSIFICATION = False
+IS_SUPPORT_DOC_CLASSIFICATION = True
 
 # This trains on ALL data, no separate testing
 def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
@@ -195,6 +195,17 @@ def annotate_document(file_name, work_dir, model_dir, custom_model_dir):
     # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
     pprint(prov_labels_map)
 
+    eb_doccat_runner = None
+    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
+    if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
+        eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
+
+    print("eb_doccat_runner = {}".format(eb_doccat_runner))
+    if eb_doccat_runner != None:
+        doc_catnames = eb_doccat_runner.classify_document(file_name)
+        pprint({'tags': doc_catnames})
+
+
 def annotate_htmled_document(file_name, work_dir, model_dir, custom_model_dir):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
@@ -209,7 +220,7 @@ def annotate_htmled_document(file_name, work_dir, model_dir, custom_model_dir):
 
     if eb_doccat_runner != None:
         doc_catnames = eb_doccat_runner.classify_document(file_name)
-        print({'tags': doc_catnames})
+        pprint({'tags': doc_catnames})
 
 
 # TODO, this is the same as ebrunner.annotate_pdfboxed_document?
@@ -218,7 +229,16 @@ def annotate_pdfboxed_document(file_name, linfo_file_name, work_dir, model_dir, 
 
     prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(file_name, linfo_file_name, work_dir=work_dir)
 
-    pprint(prov_labels_map)    
+    pprint(prov_labels_map)
+
+    eb_doccat_runner = None
+    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
+    if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
+        eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
+
+    if eb_doccat_runner != None:
+        doc_catnames = eb_doccat_runner.classify_document(file_name)
+        pprint({'tags': doc_catnames})
 
 
 def annotate_doc_party(fn_list_fn, work_dir, model_dir, custom_model_dir, threshold=None):

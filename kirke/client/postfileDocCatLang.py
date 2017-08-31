@@ -41,7 +41,8 @@ if __name__ == '__main__':
         payload['classify-doc'] = True
 
     if not args.noprovs:
-        payload['types'] = 'all-provs'
+        # payload['types'] = 'all-provs'
+        pass
 
     txt_file = Path(args.filename)
     if txt_file.is_file():

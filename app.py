@@ -87,12 +87,10 @@ def annotate_uploaded_document():
         else:
             logging.warning('unknown file extension in annotate_uploaded_document(): "{}"'.format(fn))
 
-    request.files['file'].save(file_name)
-
     # cannot just access the request.files['file'].read() earlier, which
     # make it unavailable to the rest of the code.
     if is_detect_lang:
-        atext = strutils.loads(file_name)
+        atext = strutils.loads(txt_file_name)
         detect_lang = eb_langdetect_runner.detect_lang(atext)
         ebannotations['lang'] = detect_lang
         logging.info("detected language '{}'".format(detect_lang))
@@ -102,15 +100,12 @@ def annotate_uploaded_document():
 
     if is_classify_doc:
         if eb_doccat_runner != None:
-            logging.info("classify document '{}'".format(file_name))
-            doc_catnames = eb_doccat_runner.classify_document(file_name)
+            logging.info("classify document '{}'".format(txt_file_name))
+            doc_catnames = eb_doccat_runner.classify_document(txt_file_name)
             ebannotations['tags'] = doc_catnames
         else:
             logging.warning('is_classify_doc is specified, but no models for eb_doccat_runner')
             ebannotations['tags'] = []
-
-    provisions_st = request.form.get('types')
-    provision_set = set(provisions_st.split(',') if provisions_st else [])
 
     if provision_set:
         # print("got provision_set: {}".format(sorted(provision_set)))
@@ -143,7 +138,7 @@ def annotate_uploaded_document():
                                                                        provision_set=provision_set,
                                                                        work_dir=work_dir)
 
-    ebannotations = {'ebannotations': prov_labels_map}
+    ebannotations['ebannotations'] = prov_labels_map
     # pprint(prov_labels_map)
     # pprint(ebannotations)
 
@@ -215,7 +210,6 @@ def custom_train(cust_id):
               
     # return some json accuracy info
     return jsonify(status)
->>>>>>> master
 
 
 @app.route('/classify-doc', methods=['POST'])
