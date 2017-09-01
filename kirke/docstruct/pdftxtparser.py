@@ -1,61 +1,13 @@
 import os
+import re
 import sys
 from collections import defaultdict
 
 from kirke.utils import strutils, txtreader
-from kirke.docstruct.pblockinfo import PBlockInfo
-from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo, PageInfo3
-from kirke.docstruct import pdfutils
+from kirke.docstruct.pblockinfo import PBlockInfo, GroupedBlockInfo
+from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo, PageInfo3, PDFTextDoc
+from kirke.docstruct import pdfutils, docstructutils
 
-class EbPage:
-
-    def __init__(self, start, end, xStart, xEnd, yStart):
-        self.start = start
-        self.end = end    
-        self.page_num = page_num
-        self.attrs = {}        
-        
-
-class EbBlock:
-
-    def __init__(self, start, end, xStart, xEnd, yStart):
-        self.start = start
-        self.end = end
-        self.xStart = xStart
-        self.yStart = yStart
-        self.page_num = page_num
-        self.is_multi_line = xxx
-        self.lines = lines
-        self.attrs = {}
-
-
-class EbLine:
-    
-    def __init__(self, start, end, xStart, xEnd, yStart):
-        self.start = start
-        self.end = end
-        self.xStart = xStart
-        self.xEnd = xEnd
-        self.yStart = yStart
-        self.attrs = {}
-        
-class PDFTextDoc:
-
-    def __init__(self, doc_text, page_list):
-        self.doc_text = doc_text
-        self.page_list = page_list
-        self.nlp_block_list = []
-
-    def print_debug_lines(self):
-        paged_fname = 'dir-work/paged-line.txt'
-        for page in self.page_list:
-            print('===== page #{}, start={}, end={}\n'.format(page.page_num,
-                                                              page.start,
-                                                              page.end))
-            print('page_line_list.len= {}'.format(len(page.line_list)))
-
-            for linex in page.line_list:
-                print('{}\t{}'.format(linex.tostr2(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
 
 def get_nl_fname(base_fname, work_dir):
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
@@ -118,7 +70,8 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=True
         while start <= end - 1 and strutils.is_nl(nl_text[end -1]):
             end -= 1
         if start != end:
-            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, block_num, lxid_strinfos_map[line_num]))
+            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, block_num,
+                                                           lxid_strinfos_map[line_num]))
         tmp_prev_end = end + 1
 
     pgid_pblockinfos_map = defaultdict(list)
@@ -261,7 +214,6 @@ def parse_document(file_name, work_dir, debug_mode=True):
             para_line, is_multi_lines = pdfutils.para_to_para_list(nl_text[start:end])
 
             linex_list = bxid_lineinfos_map[pblock_id]
-            print("xxxx len(linex_list)= {}".format(len(linex_list)))
             # xStart, xEnd, yStart are initizlied in here
             block_info = PBlockInfo(start,
                                     end,
@@ -280,13 +232,236 @@ def parse_document(file_name, work_dir, debug_mode=True):
         end = page_offset['end']
         page_num = page_offset['id']
         pblockinfo_list = pgid_pblockinfos_map[page_num]
-        print("doing Pageinfo3, page_num = {}".format(page_num))
         pinfo = PageInfo3(doc_text, start, end, page_num, pblockinfo_list)
         pageinfo_list.append(pinfo)
 
     pdf_text_doc = PDFTextDoc(doc_text, pageinfo_list)
 
+    # xxx
+    add_doc_structure_to_doc(pdf_text_doc)
+
     return pdf_text_doc
+
+def merge_if_continue_to_next_page(prev_page, cur_page):
+    if not prev_page.content_line_list or not cur_page.content_line_list:
+        return
+    last_line = prev_page.content_line_list[-1]
+    words = last_line.line_text.split()
+    last_line_block_num = last_line.lineinfo.block_num
+    last_line_align = last_line.align
+
+    first_line = cur_page.content_line_list[0]
+    first_line_align = first_line.align
+
+    # if the last line is not even toward the lower portion of the page, don't
+    # bother merging
+    if last_line.lineinfo.yStart < 600:
+        return
+
+    # LF2 and LF3
+    if (last_line_align != first_line_align and last_line_align[:2] == first_line_align[:2] and
+        # or any type of sechead prefix
+        # TODO, jshaw, implement a better prefix detection in secheadutil
+        first_line.line_text[0] == '('):
+        return
+
+    # dont' join sechead or anything that's centered
+    if first_line.is_centered or first_line.attrs.get('sechead'):
+        return
+
+    # 8 because average word per sentence is known to be around 7
+    if len(words) >= 8 and (words[-1][-1].islower() or strutils.is_not_sent_punct(words[-1][-1])):
+        if not first_line.attrs.get('sechead'):
+            first_line_block_num = first_line.lineinfo.block_num
+            for linex in cur_page.content_line_list:
+                if linex.lineinfo.block_num == first_line_block_num:
+                    linex.lineinfo.block_num = last_line_block_num
+                else:
+                    break
+
+def add_doc_structure_to_doc(pdftxt_doc):
+    # first remove obvious non-content lines, such
+    # toc, page-num, header, footer
+    # Also add section heads
+    for page in pdftxt_doc.page_list:
+        add_doc_structure_to_page(page)
+
+    # merge paragraphs that are across pages
+    prev_page = pdftxt_doc.page_list[0]
+    for apage in pdftxt_doc.page_list[1:]:
+        merge_if_continue_to_next_page(prev_page, apage)
+        prev_page = apage
+
+    # categorize blocks, such as signature, address
+    # xxx
+    block_list_map = defaultdict(list)
+    for apage in pdftxt_doc.page_list:
+        for linex in apage.content_line_list:
+            block_num = linex.lineinfo.block_num
+            block_list_map[block_num].append(linex)
+
+    # the block list is for the document, not a page
+    paged_grouped_block_list = defaultdict(list)
+    for block_num, line_list in sorted(block_list_map.items()):
+       page_num = line_list[0].page_num
+       paged_grouped_block_list[page_num].append(GroupedBlockInfo(page_num, block_num, line_list))
+       # pdftxt_doc.grouped_block_list.append(line_list)
+
+    for page_num in range(1, pdftxt_doc.num_pages + 1):
+        grouped_block_list = paged_grouped_block_list[page_num]
+        grouped_block_list = infer_block_type(grouped_block_list, page_num)
+        pdftxt_doc.paged_grouped_block_list.append(grouped_block_list)
+
+
+def add_doc_structure_to_page(apage):
+    num_line_in_page = len(apage.line_list)
+    prev_line_text = ''
+    # take out lines that are clearly not useful for annotation extractions:
+    #   - toc
+    #   - page_num
+    #   - header, footer
+    content_line_list = []
+    for line_num, line in enumerate(apage.line_list, 1):
+        is_skip = False
+        if docstructutils.is_line_toc(line.line_text):
+            line.attrs['toc'] = True
+            is_skip = True
+            apage.attrs['has_toc'] = True
+        elif docstructutils.is_line_page_num(line.line_text, line.is_centered):
+            line.attrs['page_num'] = True
+            # so we can detect footers after page_num, 1-based
+            apage.attrs['page_num_index'] = line_num
+            is_skip = True
+
+        # 2nd stage of rules
+        is_footer, score = docstructutils.is_line_footer(line.line_text,
+                                                         line_num,
+                                                         num_line_in_page,
+                                                         line.linebreak,
+                                                         apage.attrs.get('page_num_index', -1),  # 1-based
+                                                         line.is_english,
+                                                         line.align,
+                                                         line.lineinfo.yStart)
+        # if score != -1.0:
+        #    print("        is_footer = {}\t{}".format(line.tostr2(), line.line_text))
+        if is_footer:
+            line.attrs['footer'] = True
+            is_skip = True
+
+        prev_line_text = line.line_text
+
+        if not is_skip:
+            content_line_list.append(line)
+
+
+    apage.content_line_list = content_line_list
+
+    # remove secheads after toc section
+    # sechead info is not available until now.  Cannot remove
+    # those earlier.
+    deactivate_toc_detection = False
+    non_sechead_count = 0
+    for line_num, line in enumerate(apage.content_line_list, 1):
+        # sechead detection is applied later
+        # sechead, prefix, head, split_idx
+        sechead_tuple = docstructutils.extract_line_sechead(line.line_text, prev_line_text)
+        if sechead_tuple:
+            if apage.attrs.get('has_toc') and not deactivate_toc_detection:
+                line.attrs['toc'] = True
+            line.attrs['sechead'] = sechead_tuple
+        else:
+            non_sechead_count += 1
+
+        if non_sechead_count >= 3:
+            deactivate_toc_detection = True
+
+    # now remove potential newly added toc lines
+    tmp_list = []
+    for linex in apage.content_line_list:
+        if not linex.attrs.get('toc'):
+            tmp_list.append(linex)
+    apage.content_line_list = tmp_list
+
+SIGNATURE_PREFIX_PAT = re.compile(r'(By|Name|Title)\s*:')
+
+def infer_block_type(grouped_block_list, page_num):
+    has_signature_line = False
+    result = []
+    # first merge blocks that are likely to be signature blocks
+    for grouped_block in grouped_block_list:
+        if len(grouped_block.line_list) == 1:
+            mat = SIGNATURE_PREFIX_PAT.match(grouped_block.line_list[0].line_text)
+            if mat:
+                has_signature_line = True
+                grouped_block.line_list[0].attrs['is_signature'] = True
+                grouped_block.attrs['is_signature'] = True
+        else:
+            for linex in grouped_block.line_list:
+                mat = SIGNATURE_PREFIX_PAT.match(linex.line_text)
+                if mat:
+                    has_signature_line = True
+                    linex.attrs['is_signature'] = True
+                    grouped_block.attrs['is_signature'] = True
+        result.append(grouped_block)
+
+    if has_signature_line:
+        prev_line = None
+        # merge blocks with one signature lines only, not across multiple-line
+        # blocks.
+        block_line_list_map = defaultdict(list)
+        for grouped_block in grouped_block_list:
+            block_num = grouped_block.bid
+            is_signature_line = grouped_block.attrs.get('is_signature')
+            if is_signature_line and len(grouped_block.line_list) == 1:
+                linex = grouped_block.line_list[0]
+                if is_prev_block_signature:
+                    linex.lineinfo.block_num = prev_signature_block_num
+                    block_line_list_map[prev_signature_block_num].append(linex)
+                else:
+                    block_line_list_map[linex.lineinfo.block_num].append(linex)
+                    is_prev_block_signature = True
+                    prev_signature_block_num = linex.lineinfo.block_num
+            else:
+                for linex in grouped_block.line_list:
+                    block_line_list_map[block_num].append(linex)
+                is_prev_block_signature = False
+
+        tmp_list = []
+        for block_num, linex_list in sorted(block_line_list_map.items()):
+            tmp_list.append(linex_list)
+            # GroupedBlockInfo(page_num, block_num,
+
+        block_line_list_map = defaultdict(list)
+        prev_block_num = -1
+        is_prv_maybe_signature = False
+        for linex_list in tmp_list:
+            block_has_signature = False
+            block_num = linex_list[0].lineinfo.block_num
+            for linex in linex_list:
+                if linex.attrs.get('is_signature'):
+                    block_has_signature = True
+
+            if block_has_signature and is_prev_maybe_signature:
+                for linex in linex_list:
+                    block_line_list_map[prev_block_num].append(linex)
+                # now set all line in this block signature
+                for linex in block_line_list_map[prev_block_num]:
+                    linex.attrs['is_signature'] = True
+            else:
+                for linex in linex_list:
+                    block_line_list_map[block_num].append(linex)
+
+            is_prev_maybe_signature = False
+            if len(linex_list) <= 3 and linex_list[0].is_english == False:
+                is_prev_maybe_signature = True
+                prev_block_num = block_num
+
+        result = []
+        for block_num, linex_list in sorted(block_line_list_map.items()):
+            result.append(GroupedBlockInfo(page_num, block_num, linex_list))
+
+    return result
+
 
 
 def save_debug_files(pdf_text_doc, base_fname, work_dir):
@@ -304,14 +479,15 @@ def save_debug_files(pdf_text_doc, base_fname, work_dir):
     with open(paged_debug_fn, 'wt') as fout:
         for pageinfo in pdf_text_doc.page_list:
             for line4nlp in pageinfo.line4nlp_list:
-                print('orig=({}, {}), nlp=({}, {}), ydiff= {}, xStart= {}, xEnd= {}, yStart= {}, yEnd= {}, linebreak= {}'.format(line4nlp.orig_start, line4nlp.orig_end,
-                                                                      line4nlp.nlp_start, line4nlp.nlp_end,
-                                                                      line4nlp.ydiff,
-                                                                      line4nlp.xStart,
-                                                                      line4nlp.xEnd,
-                                                                      line4nlp.yStart,
-                                                                      line4nlp.yEnd,
-                                                                      line4nlp.linebreak),
+                print('orig=(%d, %d), nlp=(%d, %d), ydiff= %.2f, xStart= %.2f, xEnd= %.2f, yStart= %.2f, yEnd= %.2f, linebreak= %d' %
+                      (line4nlp.orig_start, line4nlp.orig_end,
+                       line4nlp.nlp_start, line4nlp.nlp_end,
+                       line4nlp.ydiff,
+                       line4nlp.xStart,
+                       line4nlp.xEnd,
+                       line4nlp.yStart,
+                       line4nlp.yEnd,
+                       line4nlp.linebreak),
                       file=fout)
                 print('[{}]'.format(doc_text[line4nlp.orig_start:line4nlp.orig_end].replace('\n', ' ')), file=fout)
                 print('', file=fout)

@@ -32,6 +32,7 @@ if __name__ == '__main__':
     work_dir = 'dir-work'
     pdf_txt_doc = pdftxtparser.parse_document(txt_fname, work_dir=work_dir)
 
-    pdf_txt_doc.print_debug_lines()
+    # pdf_txt_doc.print_debug_lines()
+    pdf_txt_doc.print_debug_blocks()
 
     logging.info('Done.')

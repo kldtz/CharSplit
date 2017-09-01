@@ -140,3 +140,15 @@ class PBlockInfo:
     def is_LF3(self):
         return self.align_label == 'LF3'
 
+
+
+class GroupedBlockInfo:
+
+    def __init__(self,
+                 pagenum,
+                 bid,
+                 line_list):
+        self.bid = bid
+        self.pagenum = pagenum
+        self.line_list = line_list
+        self.attrs = {}

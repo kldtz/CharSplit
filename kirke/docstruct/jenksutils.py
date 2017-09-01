@@ -104,6 +104,8 @@ def classify(value, breaks):
 
 NUM_DEFAULT_CLUSTER = 5
 
+# Merge breaks that are really adjacent.  Keep the
+# largest one among the adjacent ones.
 def collapse_close_bks(break_list):
     prev_break = break_list[0]
     cur_group = [prev_break]
@@ -126,11 +128,13 @@ class Jenks:
 
     def __init__(self, values):
         self.vals = values
-        print("values: {}".format(values))
+        # print("values: {}".format(values))
         bks = getJenksBreaks(values, NUM_DEFAULT_CLUSTER)
-        print("bks: {}".format(bks))
+        # print("bks: {}".format(bks))
+        # Merge breaks that are really adjacent.  Keep the
+        # largest one among the adjacent ones.
         bks = collapse_close_bks(bks)
-        print("collapsed bks: {}".format(bks))
+        # print("collapsed bks: {}".format(bks))
         
         left_count, center_count, right_count = 1, 1, 1
         aligned_list = ['LF0']  # LF0 will never be used

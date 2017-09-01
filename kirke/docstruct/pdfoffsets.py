@@ -2,7 +2,7 @@
 from collections import namedtuple
 
 from kirke.utils import strutils, mathutils, engutils
-from kirke.docstruct import jenksutils
+from kirke.docstruct import jenksutils, docstructutils
 from time import time
 
 StrInfo = namedtuple('StrInfo', ['start', 'end',
@@ -41,23 +41,63 @@ class LineInfo3:
         self.yStart = min_yStart
 
     def tostr2(self):
-        return 'se=({}, {}), bnum= {}, xs={:.2f}, ys={:.2f}'.format(self.start,
-                                                                    self.end,
-                                                                    self.block_num,
-                                                                    self.xStart,
-                                                                    self.yStart)
+        return 'se=(%d, %d), bnum= %d, xs=%.1f, ys=%.1f' % (self.start, self.end,
+                                                            self.block_num,
+                                                            self.xStart, self.yStart)
+
+    def tostr3(self):
+        return 'se=(%d, %d), bnum= %d, pn= %d' % (self.start, self.end,
+                                                  self.block_num, self.page_num)
+
 
 class LineWithAttrs:
 
-    def __init__(self, lineinfo, ydiff, linebreak, align, is_english):
+    def __init__(self, page_line_num, lineinfo, line_text, page_num,
+                 ydiff, linebreak, align, is_centered, is_english):
+        self.page_line_num = page_line_num  # start from 1, not 0
         self.lineinfo = lineinfo
+        self.line_text = line_text
+        self.page_num = page_num
         self.ydiff = ydiff
         self.linebreak = linebreak
         self.align = align  # inferred
+        self.is_centered = is_centered
         self.is_english = is_english
+        self.attrs = {}
 
     def tostr2(self):
-        return '{}, lbk={:.1f}, algn={}, en={}'.format(self.lineinfo.tostr2(), self.linebreak, self.align, self.is_english)
+        alist = []
+        alist.append('plno=%d' % self.page_line_num)
+        alist.append(self.lineinfo.tostr2())
+        alist.append('lbk=%.1f' % self.linebreak)
+        alist.append('align=%s' % self.align)
+        if self.is_centered:
+            alist.append('center')
+        if not self.is_english:
+            alist.append('not_en')
+        for attr, value in self.attrs.items():
+            alist.append('{}={}'.format(attr, value))
+        alist.append('  ||')
+        return ', '.join(alist)
+
+    def tostr3(self):
+        alist = []
+        alist.append('pn=%d' % self.page_num)
+        # alist.append('plno=%d' % self.page_line_num)
+        alist.append(self.lineinfo.tostr2())
+        alist.append('bnum=%d' % self.lineinfo.block_num)
+        alist.append('align=%s' % self.align)
+        if self.linebreak != 1.0:
+            alist.append('lbk=%.1f' % self.linebreak)
+
+        if self.is_centered:
+            alist.append('center')
+        if not self.is_english:
+            alist.append('not_en')
+        for attr, value in self.attrs.items():
+            alist.append('{}={}'.format(attr, value))
+        alist.append('  ||')
+        return ', '.join(alist)
 
 
 class PageInfo3:
@@ -81,16 +121,26 @@ class PageInfo3:
 
         line_attrs = []
         prev_yStart = 0
-        for lineinfo in lineinfo_list:
+        for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
           ydiff = lineinfo.yStart - prev_yStart
           num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
           align = jenks.classify(lineinfo.xStart)
           line_text = doc_text[lineinfo.start:lineinfo.end]
           is_english = engutils.classify_english_sentence(line_text)
-          line_attrs.append(LineWithAttrs(lineinfo, ydiff, num_linebreak, align, is_english))
+          is_centered = docstructutils.is_line_centered(line_text, lineinfo.xStart, lineinfo.xEnd)
+          line_attrs.append(LineWithAttrs(page_line_num,
+                                          lineinfo, line_text, page_num, ydiff, num_linebreak,
+                                          align, is_centered, is_english))
           prev_yStart = lineinfo.yStart
         self.line_list = line_attrs
+        # attrs of page, such as 'page_num_index'
+        self.attrs = {}
 
+        # conent_line_list is for lines that are not
+        #   - toc
+        #   - page_num
+        #   - header, footer
+        self.content_line_list = []
 
     def compute_avg_single_line_break_ydiff(self):
         total_merged_ydiff, total_merged_lines = 0, 0
@@ -105,6 +155,59 @@ class PageInfo3:
             result = total_merged_ydiff / total_merged_lines
         # print("\npage #{}, avg_single_line_ydiff = {}".format(self.page_num, result))
         return result
+
+
+class PDFTextDoc:
+
+    def __init__(self, doc_text, page_list):
+        self.doc_text = doc_text
+        self.page_list = page_list
+        self.num_pages = len(page_list)
+        self.paged_grouped_block_list = []
+
+    def print_debug_blocks(self):
+        for page_num, grouped_block_list in enumerate(self.paged_grouped_block_list, 1):
+            print('\n===== page #%d, len(block_list)= %d' %
+                  (page_num, len(grouped_block_list)))
+            for grouped_block in grouped_block_list:
+                print()
+                for linex in grouped_block.line_list:
+                    print('{}\t{}'.format(linex.tostr3(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
+
+    def print_debug_lines(self):
+        paged_fname = 'dir-work/paged-line.txt'
+        for page in self.page_list:
+            print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+                  (page.page_num, page.start, page.end, len(page.line_list)))
+
+            attr_list = []
+            for attr, value in page.attrs.items():
+                attr_list.append('{}={}'.format(attr, value))
+            if attr_list:
+                print('  attrs: {}'.format(', '.join(attr_list)))
+
+            prev_block_num = -1
+            for linex in page.content_line_list:
+
+                if linex.lineinfo.block_num != prev_block_num:
+                    print()
+                print('{}\t{}'.format(linex.tostr2(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
+                prev_block_num = linex.lineinfo.block_num
+
+    def print_debug_noskip_lines(self):
+        paged_fname = 'dir-work/paged-line.txt'
+        for page in self.page_list:
+            print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+                  (page.page_num, page.start, page.end, len(page.line_list)))
+
+            attr_list = []
+            for attr, value in page.attrs.items():
+                attr_list.append('{}={}'.format(attr, value))
+            if attr_list:
+                print('  attrs: {}'.format(', '.join(attr_list)))
+
+            for linex in page.line_list:
+                print('{}\t{}'.format(linex.tostr2(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
 
         
 class Line4Nlp:

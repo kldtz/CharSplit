@@ -183,6 +183,12 @@ def is_all_length_1_words(words):
             return False
     return True
 
+WORD_LC_PAT = re.compile('^[a-z]+$')
+
+def is_word_all_lc(word):
+    mat = WORD_LC_PAT.match(word)
+    return mat
+
 # has more than 2 digits that's more than 3 width
 TWO_GT_3_NUM_SEQ_PAT = re.compile(r'\d{3}.*\d{3}')
 def has_likely_phone_number(line):
@@ -343,9 +349,15 @@ def tokens_to_all_ngrams(word_list: List[str], max_n=1) -> Set[str]:
 
 def is_punct(line: str) -> bool:
     if line:
-        return line[0] in r"().,[]-/\\{}`'\":;\?<>"
+        return line[0] in r"().,[]-/\\{}`'\":;\?<>!"
     else:
         return False
+
+def is_sent_punct(line: str) -> bool:
+    return line and len(line) == 1 and line in r'.?!'
+
+def is_not_sent_punct(line: str) -> bool:
+    return line and is_punct(line) and not is_sent_punct(line)
 
 def is_punct_not_period(line: str) -> bool:
     if line:
