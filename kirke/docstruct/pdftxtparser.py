@@ -309,12 +309,12 @@ def add_doc_structure_to_doc(pdftxt_doc):
 
     for page_num in range(1, pdftxt_doc.num_pages + 1):
         grouped_block_list = paged_grouped_block_list[page_num]
-        grouped_block_list = infer_block_type(grouped_block_list, page_num)
         pdftxt_doc.paged_grouped_block_list.append(grouped_block_list)
 
 
 def add_doc_structure_to_page(apage):
     num_line_in_page = len(apage.line_list)
+    page_num = apage.page_num
     prev_line_text = ''
     # take out lines that are clearly not useful for annotation extractions:
     #   - toc
@@ -382,9 +382,27 @@ def add_doc_structure_to_page(apage):
             tmp_list.append(linex)
     apage.content_line_list = tmp_list
 
+    grouped_block_list = line_list_to_grouped_block_list(apage.content_line_list, page_num)
+
+    apage.grouped_block_list = markup_signature_block(grouped_block_list, page_num)
+
+
+def line_list_to_grouped_block_list(linex_list, page_num):
+    block_list_map = defaultdict(list)
+    for linex in linex_list:
+        block_num = linex.lineinfo.block_num
+        block_list_map[block_num].append(linex)
+
+    grouped_block_list = []
+    for block_num, line_list in sorted(block_list_map.items()):
+        grouped_block_list.append(GroupedBlockInfo(page_num, block_num, line_list))
+
+    return grouped_block_list
+
+
 SIGNATURE_PREFIX_PAT = re.compile(r'(By|Name|Title)\s*:')
 
-def infer_block_type(grouped_block_list, page_num):
+def markup_signature_block(grouped_block_list, page_num):
     has_signature_line = False
     result = []
     # first merge blocks that are likely to be signature blocks
@@ -405,7 +423,6 @@ def infer_block_type(grouped_block_list, page_num):
         result.append(grouped_block)
 
     if has_signature_line:
-        prev_line = None
         # merge blocks with one signature lines only, not across multiple-line
         # blocks.
         block_line_list_map = defaultdict(list)
@@ -433,7 +450,7 @@ def infer_block_type(grouped_block_list, page_num):
 
         block_line_list_map = defaultdict(list)
         prev_block_num = -1
-        is_prv_maybe_signature = False
+        is_prev_maybe_signature = False
         for linex_list in tmp_list:
             block_has_signature = False
             block_num = linex_list[0].lineinfo.block_num
@@ -447,6 +464,7 @@ def infer_block_type(grouped_block_list, page_num):
                 # now set all line in this block signature
                 for linex in block_line_list_map[prev_block_num]:
                     linex.attrs['is_signature'] = True
+                    linex.lineinfo.block_num = prev_block_num
             else:
                 for linex in linex_list:
                     block_line_list_map[block_num].append(linex)

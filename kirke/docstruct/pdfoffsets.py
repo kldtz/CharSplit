@@ -85,7 +85,6 @@ class LineWithAttrs:
         alist.append('pn=%d' % self.page_num)
         # alist.append('plno=%d' % self.page_line_num)
         alist.append(self.lineinfo.tostr2())
-        alist.append('bnum=%d' % self.lineinfo.block_num)
         alist.append('align=%s' % self.align)
         if self.linebreak != 1.0:
             alist.append('lbk=%.1f' % self.linebreak)
