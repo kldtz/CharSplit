@@ -76,7 +76,7 @@ PAGENUM_PAT4 = re.compile(r'^\s*\-?[ivxm]+\-?\s*$', re.IGNORECASE)
 PAGENUM_PAT5 = re.compile(r'^\s*pages?\s*\d+\s*of\s*\d+\s*$', re.IGNORECASE)
 
 
-def is_line_page_num(line: str, is_centered: bool):
+def is_line_page_num(line: str, is_centered=False):
     if PAGENUM_SIMPLE1_PAT.match(line):
         # print("pagenumber x1: {}".format(line))
         return True

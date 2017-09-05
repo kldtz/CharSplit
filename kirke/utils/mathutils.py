@@ -45,3 +45,33 @@ def offset_score(answers_offsets, pred_offsets):
     """Returns the best offset_percentage. Returned 0s should be ignored."""
     percentages = [offset_percentage(a, pred_offsets) for a in answers_offsets]
     return max(percentages) if percentages else 0
+
+def find_in_list_of_set(list_of_set, elt):
+    for aset in list_of_set:
+        if elt in aset:
+            return aset
+    return set()
+
+# pairs is a list of 2-tuples
+def pairs_to_sets(pairs):
+    result = []  # list of sets
+    for x1, x2 in pairs:
+        set1 = find_in_list_of_set(result, x1)
+        if set1:
+            if x2 in set1:  # they are already in a set, done
+                pair_finished = True
+                pass
+            else:  # x1 is found, but x2 is not in the same set!?
+                set2 = find_in_list_of_set(result, x2)
+                if set2:  # x1 and x2 are in different set, merge them
+                    set1.update(set2)
+                    result.remove(set2)
+                else:  # x2 is not in any set
+                    set1.add(x2)
+        else:  # x1 is not found
+            set2 = find_in_list_of_set(result, x2)
+            if set2:
+                set2.add(x1)
+            else: # both x1 and x2 are not found
+                result.append({x1, x2})
+    return result

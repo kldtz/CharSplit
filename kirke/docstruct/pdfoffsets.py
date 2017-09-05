@@ -168,6 +168,14 @@ class PDFTextDoc:
         for page_num, grouped_block_list in enumerate(self.paged_grouped_block_list, 1):
             print('\n===== page #%d, len(block_list)= %d' %
                   (page_num, len(grouped_block_list)))
+
+            apage = self.page_list[page_num - 1]
+            attr_list = []
+            for attr, value in apage.attrs.items():
+                attr_list.append('{}={}'.format(attr, value))
+            if attr_list:
+                print('  attrs: {}'.format(', '.join(attr_list)))
+
             for grouped_block in grouped_block_list:
                 print()
                 for linex in grouped_block.line_list:

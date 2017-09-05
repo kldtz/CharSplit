@@ -3,7 +3,7 @@ import re
 import sys
 from collections import defaultdict
 
-from kirke.utils import strutils, txtreader
+from kirke.utils import strutils, txtreader, mathutils
 from kirke.docstruct.pblockinfo import PBlockInfo, GroupedBlockInfo
 from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo, PageInfo3, PDFTextDoc
 from kirke.docstruct import pdfutils, docstructutils
@@ -258,6 +258,11 @@ def merge_if_continue_to_next_page(prev_page, cur_page):
     if last_line.lineinfo.yStart < 600:
         return
 
+    # if last line is not english sentence, no need to merge
+    # Mainly for first page
+    if not last_line.is_english:
+        return
+
     # LF2 and LF3
     if (last_line_align != first_line_align and last_line_align[:2] == first_line_align[:2] and
         # or any type of sechead prefix
@@ -268,6 +273,7 @@ def merge_if_continue_to_next_page(prev_page, cur_page):
     # dont' join sechead or anything that's centered
     if first_line.is_centered or first_line.attrs.get('sechead'):
         return
+
 
     # 8 because average word per sentence is known to be around 7
     if len(words) >= 8 and (words[-1][-1].islower() or strutils.is_not_sent_punct(words[-1][-1])):
@@ -283,6 +289,7 @@ def add_doc_structure_to_doc(pdftxt_doc):
     # first remove obvious non-content lines, such
     # toc, page-num, header, footer
     # Also add section heads
+    # page_attrs_list is to store table information?
     for page in pdftxt_doc.page_list:
         add_doc_structure_to_page(page)
 
@@ -385,6 +392,113 @@ def add_doc_structure_to_page(apage):
     grouped_block_list = line_list_to_grouped_block_list(apage.content_line_list, page_num)
 
     apage.grouped_block_list = markup_signature_block(grouped_block_list, page_num)
+
+    # handle table and chart identification
+    grouped_block_list = apage.grouped_block_list
+    table_blockset_list, chart_blockset_list = markup_table_block(grouped_block_list, page_num)
+    if table_blockset_list:
+        apage.attrs['table_blockset_list'] = table_blockset_list
+        # print("page #{}, table_blockset_list = {}".format(page_num, apage.attrs['table_blockset_list']))
+    if chart_blockset_list:
+        apage.attrs['chart_blockset_list'] = chart_blockset_list
+        # print("page #{}, chart_blockset_list = {}".format(page_num, apage.attrs['chart_blockset_list']))
+
+
+def markup_table_block(grouped_block_list, page_num):
+    has_close_ydiffs = False
+    blocks_with_similar_ys = set([])
+
+    y_lines = []
+    block_lines_map = defaultdict(list)
+    for grouped_block in grouped_block_list:
+        for linex in grouped_block.line_list:
+            y_lines.append((linex.lineinfo.yStart, linex))
+            block_lines_map[linex.lineinfo.block_num].append(linex)
+    prev_yStart = -100
+    prev_block_num = -1
+    for yStart, linex in sorted(y_lines):
+        # there is multiple lines in the same yStart
+        cur_block_num = linex.lineinfo.block_num
+        if yStart - prev_yStart <= 5.0:
+            # print("page_num = {}, ydiff {}".format(page_num, yStart - prev_yStart))
+            blocks_with_similar_ys.add((prev_block_num, cur_block_num))
+        prev_yStart = yStart
+        prev_block_num = cur_block_num
+
+    # now, the blocks are in pairs. Change them to groups or lists
+    blocks_with_similar_ys = mathutils.pairs_to_sets(blocks_with_similar_ys)
+
+    table_blockset_list, chart_blockset_list = [], []
+    table_count = 1
+    for block_num_set in blocks_with_similar_ys:
+        block_align_set_list = []
+        block_first_linex = None
+        for block_num in block_num_set:
+            block_lines = block_lines_map[block_num]
+            align_set = set([])
+            for linex in block_lines:
+                # print("block {} align = {}".format(block_num, linex.align))
+                if not block_first_linex:
+                    block_first_linex = linex
+                align_set.add(linex.align[:2])
+            block_align_set_list.append(align_set)
+
+        is_all_align_size_one = True
+        for block_align_set in block_align_set_list:
+            if len(block_align_set) != 1:
+                is_all_align_size_one = False
+                break
+
+        if is_all_align_size_one:
+            print("table")
+            table_prefix = 'table'
+            table_blockset_list.append(block_num_set)
+        else:
+            print("chart")
+            table_prefix = 'chart'
+            chart_blockset_list.append(block_num_set)
+
+        table_name = '{}-p{}-{}'.format(table_prefix, page_num, table_count)
+        for block_num in block_num_set:
+            block_lines = block_lines_map[block_num]
+            for linex in block_lines:
+                linex.attrs[table_prefix] = table_name
+
+        # merge blocks as we see fit
+        if block_first_linex:
+            merge_centered_lines_before_table(block_first_linex.lineinfo.line_num,
+                                              sorted(block_num_set)[0],
+                                              y_lines,
+                                              table_prefix,
+                                              table_name)
+        else:
+            print("block_first_line is empty, page {}".format(page_num))
+        table_count += 1
+
+    return table_blockset_list, chart_blockset_list
+
+
+def merge_centered_lines_before_table(line_num, block_num, y_lines, table_prefix, table_name):
+    print('line_num = {}'.format(line_num))
+    table_start_idx = -1
+    for line_idx, (_, linex) in enumerate(y_lines):
+        if linex.lineinfo.line_num == line_num:
+            # print("hello {}".format(linex.tostr3()))
+            table_start_idx = line_idx
+            break
+    if table_start_idx != -1:
+        table_start_idx -= 1
+        while table_start_idx >= 0:
+            _, linex = y_lines[table_start_idx]
+            # if not english, merge with the table by block
+            if linex.attrs.get('sechead'):
+                break
+            elif not linex.is_english:
+                linex.lineinfo.block_num = block_num
+                linex.attrs[table_prefix] = table_name
+            else:
+                break
+            table_start_idx -= 1
 
 
 def line_list_to_grouped_block_list(linex_list, page_num):
