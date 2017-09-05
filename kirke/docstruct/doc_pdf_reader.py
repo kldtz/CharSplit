@@ -537,7 +537,7 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir):
         while start <= end - 1 and strutils.is_nl(nl_text[end -1]):
             end -= 1
         if start != end:
-            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, lxid_strinfos_map[line_num]))
+            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, block_num, lxid_strinfos_map[line_num]))
         tmp_prev_end = end + 1
 
     pgid_pblockinfos_map = defaultdict(list)
