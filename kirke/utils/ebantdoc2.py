@@ -19,7 +19,7 @@ from kirke.docstruct import doc_pdf_reader
 from kirke.eblearn import ebattrvec
 
 from kirke.utils import corenlputils, mathutils, strutils, osutils, entityutils, txtreader, ebsentutils
-from kirke.docstruct import htmltxtparser, docreader
+from kirke.docstruct import htmltxtparser, docreader, pdftxtparser
 
 CORENLP_JSON_VERSION = '1.2'
 EBANTDOC_VERSION = '1.2'
@@ -100,6 +100,17 @@ class EbAnnotatedDoc2:
         self.to_list = to_list
         self.from_list = from_list
         self.gap_span_list = gap_span_list
+
+        self.nl_text = nl_text
+        self.paraline_text = paraline_text
+
+        self.table_list = []
+        self.chart_list = []
+        self.toc_list = []
+        self.pagenum_list = []
+        self.footer_list = []
+        self.signature_list = []
+
 
     def get_file_id(self):
         return self.file_id
@@ -407,6 +418,14 @@ def html_to_ebantdoc2(txt_file_name,
                  eb_antdoc_fn, (end_time - start_time0) * 1000, len(attrvec_list))
     return eb_antdoc
 
+def update_special_block_info(eb_antdoc, pdf_txt_doc):
+    eb_antdoc.table_list = pdf_txt_doc.special_blocks_map.get('table')
+    eb_antdoc.chart_list = pdf_txt_doc.special_blocks_map.get('chart')
+    eb_antdoc.signature_list = pdf_txt_doc.special_blocks_map.get('signature')
+    eb_antdoc.toc_list = pdf_txt_doc.special_blocks_map.get('toc')
+    eb_antdoc.pagenum_list = pdf_txt_doc.special_blocks_map.get('pagenum')
+    eb_antdoc.footer_list = pdf_txt_doc.special_blocks_map.get('footer')
+
 
 # this parses both originally text and html documents
 # It's main goal is to detect sechead
@@ -435,6 +454,10 @@ def pdf_to_ebantdoc2(txt_file_name,
 
     doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
        doc_pdf_reader.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
+    # jshaw, This is too much code change.  Keeping the existing code.
+    # pdf_txt_doc = pdftxtparser.parse_document(txt_file_name)
+    # doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
+    #     pdf_txt_doc.get_nl_paraline_texts()
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name)
 
     # gap_span_list is for sentv2.txt or xxx.txt?
@@ -446,7 +469,10 @@ def pdf_to_ebantdoc2(txt_file_name,
         htmltxtparser.parse_document(txt_file_name,
                                      work_dir=work_dir,
                                      is_combine_line=False)  # this line diff from annotate_htmled_document()
-
+    pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)
+    # paras_with_attrs, para_doc_text, gap_span_list, _ = \
+    #    pdf_txt_doc.get_nlp_stuff(txt_file_namne, work_dir=work_dir)
+    pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir)
 
     for i, para_with_attr in enumerate(paras_with_attrs, 1):
         print('kkkk3333 {}\t{}'.format(i, para_with_attr))
@@ -488,6 +514,8 @@ def pdf_to_ebantdoc2(txt_file_name,
                                 gap_span_list,
                                 nl_text = nl_text,
                                 paraline_text = paraline_text)
+
+    update_special_block_info(eb_antdoc, pdf_text_doc)
 
     start_time1 = time.time()
 

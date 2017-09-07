@@ -3,7 +3,6 @@
 import argparse
 import logging
 from pprint import pprint
-import sys
 import warnings
 
 from sklearn.externals import joblib
@@ -28,11 +27,13 @@ if __name__ == '__main__':
     # offsets_fname = doc_fn.replace(".txt", ".lineinfo.json")    
     # doc_pdf_reader.parse_document(doc_fn, offsets_fname, work_dir="/tmp")
 
-    # eb_antdoc =
     work_dir = 'dir-work'
     pdf_txt_doc = pdftxtparser.parse_document(txt_fname, work_dir=work_dir)
+    pdftxtparser.to_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)
 
     # pdf_txt_doc.print_debug_lines()
     pdf_txt_doc.print_debug_blocks()
+
+    pdf_txt_doc.save_debug_pages(txt_fname, work_dir=work_dir)
 
     logging.info('Done.')

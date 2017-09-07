@@ -3,6 +3,7 @@ import re
 from kirke.utils import strutils
 from kirke.docstruct import secheadutils
 
+
 def is_line_centered(line, xStart, xEnd, is_relax_check=False):
     
     if len(line) > 65:
@@ -76,7 +77,13 @@ PAGENUM_PAT4 = re.compile(r'^\s*\-?[ivxm]+\-?\s*$', re.IGNORECASE)
 PAGENUM_PAT5 = re.compile(r'^\s*pages?\s*\d+\s*of\s*\d+\s*$', re.IGNORECASE)
 
 
-def is_line_page_num(line: str, is_centered=False):
+# line_num_in_page is 1-based
+def is_line_page_num(line: str, line_num_in_page, num_line_in_page, line_break, yStart, is_centered=False):
+    if line_break > 5.0 or yStart >= 675:  # seen yStart==687.6 as page number
+        pass
+    elif line_num_in_page > 2 and line_num_in_page <= num_line_in_page - 2:
+        return False
+
     if PAGENUM_SIMPLE1_PAT.match(line):
         # print("pagenumber x1: {}".format(line))
         return True
@@ -142,6 +149,32 @@ def is_line_footer(line: str,
         score += 0.8
     # print('is_footer.score = {}'.format(score))
     return score >= 1, score
+
+
+def is_line_header(line: str,
+                   yStart: float,
+                   line_num: int,
+                   is_english: bool,
+                   # num_line_in_block, int,
+                   num_line_in_page: int):
+    score = 0
+    if yStart < 80.0 and not is_english and len(line) < 30:
+        score += 0.9
+
+    #if num_line_in_block == 1:
+    #    score += 0.2
+    #elif num_line_in_block <= 2:
+    #    score += 0.1
+
+    # first or last line
+    if line_num == 1 or line_num == num_line_in_page:
+        score += 0.3
+
+    if line_num == 2 or line_num == num_line_in_page -1:
+        score += 0.1
+
+    return score >= 1.0
+
 
 
 # returns tuple-4, (sechead|sechead-comb, prefix+num, head, split_idx)

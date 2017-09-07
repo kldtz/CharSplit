@@ -471,6 +471,10 @@ def is_dashed_big_number_st(line: str) -> bool:
 def count_numbers(line: str):
     return len(re.findall(r'\d+', line))
 
+NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
+def find_number(line: str):
+    return NUM_10_PAT.search(line)
+
     
 def is_digit_core(line: str) -> bool:
     return unicodedata.category(line) == 'Nd'
@@ -501,6 +505,7 @@ def count_date(line):
 
 def count_number(line):
     return len(find_substr_indices(r'(\d+)', line))
+    # return len(find_substr_indices(r'(\d*\.\d+|\d+\.\d*|\d+)', line))
 
 
 # We encountered characters, 1, 2, 16, 31 in input to corenlp before.
@@ -544,8 +549,14 @@ def is_space_or_nl(xch):
 def is_nl(xch):
     return xch == '\n' or xch == '\r'
 
+
 def is_double_quote(xch):
     return xch in '“"”'
+
+
+def dict_to_sorted_list(adict):
+    return ['{}={}'.format(attr, value) for attr, value in sorted(adict.items())]
+
 
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3

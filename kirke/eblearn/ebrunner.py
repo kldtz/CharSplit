@@ -284,7 +284,11 @@ class EbRunner:
                                    work_dir=work_dir)
 
         if eb_antdoc.doc_format == EbDocFormat.pdf:
-            prov_labels_map['rate_table'] = [] # apply_rate_table_annotator(eb_antdoc)
+            print("classify_table_list......................................")
+            rate_tables = rateclassifier.classify_table_list(eb_antdoc.table_list, eb_antdoc.nl_text)
+            for rate_table in rate_tables:
+                print("rate_table: {}".format(rate_table))
+            prov_labels_map['rate_table'] = rate_tables
         else:
             # HTML document has no table detection, so 'rate-table' annotation is an empty list
             prov_labels_map['rate_table'] = []

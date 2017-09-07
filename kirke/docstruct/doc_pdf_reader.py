@@ -26,8 +26,7 @@ from kirke.docstruct.doctree import DTreeDoc, DTreeSegment
 
 from kirke.docstruct import tocfinder, parav2finder, footerutils
 
-from kirke.docstruct.pblockinfo import PBlockInfo
-from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo
+from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo, PBlockInfo
                                        
 DEBUG_MODE = False
 

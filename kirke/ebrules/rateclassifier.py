@@ -1,44 +1,42 @@
 from kirke.utils import strutils
+from typing import List
 
 DEBUG_MODE = False
 
-def is_energy_rate_table(para):
+def is_energy_rate_table(st_list: List[str]):
     num_year = 0
     num_list = []
     found_MWh = False
     found_contract_rate = False
     found_payment_rate = False
     found_pricing = False
-    found_exhibit = False
     found_column_year = False
     found_dollar = False
+    found_exhibit = False
 
-    for linenum, sentV4 in enumerate(para):
-        sentV4text = sentV4.text
-        words = sentV4.text.split()
+    for linenum, line_st in enumerate(st_list):
+        words = line_st.split()
+        lc_line_st = line_st.lower()
 
-        lc_sentV4_text = sentV4.text.lower()
-
-        if sentV4.category == 'exhibit' or 'exhibit' in lc_sentV4_text:
+        if 'exhibit' in lc_line_st:
             found_exhibit = True
-        #    title_st_list.append(sentV4.text.lower())
 
-        if 'MWh' in sentV4.text or 'kWh' in sentV4.text:
+        if 'MWh' in line_st or 'kWh' in line_st:
             found_MWh = True
 
-        if strutils.are_all_substrs_in_st(['contract', 'rate'], lc_sentV4_text):
+        if strutils.are_all_substrs_in_st(['contract', 'rate'], lc_line_st):
             found_contract_rate = True
 
-        if strutils.are_all_substrs_in_st(['payment', 'rate'], lc_sentV4_text):
+        if strutils.are_all_substrs_in_st(['payment', 'rate'], lc_line_st):
             found_payment_rate = True
 
-        if 'pricing' in lc_sentV4_text:
+        if 'pricing' in lc_line_st:
             found_pricing = True
 
-        if 'year' in lc_sentV4_text:
+        if 'year' in lc_line_st:
             found_column_year = True
 
-        if '$' in lc_sentV4_text:
+        if '$' in lc_line_st:
             found_dollar = True
 
         # count number of years
@@ -93,18 +91,21 @@ def is_energy_rate_table(para):
 
     return False
 
-def classify_table_list(para_list, doc_text):
+def classify_table_list(table_span_list, doc_text):
     ant_list = []
-    for para in para_list:
-        if is_energy_rate_table(para):
-            startx = para[0].start
-            endx = para[-1].end
+    for table_span in table_span_list:
+        startx = table_span[0]
+        endx = table_span[1]
+        st_text = doc_text[startx:endx]
+        print("classify table_span: {}".format(table_span))
+        print("    txt= {}".format(strutils.remove_nltab(st_text)))
+        if is_energy_rate_table(st_text.split('\n')):
             ant_list.append({'end': endx,
                              'label': 'rate_table',
                              'prob': 1.0,
                              'start': startx,
                              'start_end_span_list': '{}:{}'.format(startx, endx),
-                             'text': strutils.remove_nltab(doc_text[startx:endx])})
+                             'text': strutils.remove_nltab(st_text)})
     return ant_list
 
 

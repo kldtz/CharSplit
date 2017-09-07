@@ -2,10 +2,11 @@ import os
 import re
 import sys
 from collections import defaultdict
+from typing import List
 
 from kirke.utils import strutils, txtreader, mathutils
-from kirke.docstruct.pblockinfo import PBlockInfo, GroupedBlockInfo
-from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo, PageInfo3, PDFTextDoc
+from kirke.docstruct import pdfoffsets
+from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo, PageInfo3, PDFTextDoc, LineWithAttrs, PBlockInfo, GroupedBlockInfo
 from kirke.docstruct import pdfutils, docstructutils
 
 
@@ -148,15 +149,92 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=True
 
     return orig_doc_text, nl_text, paraline_text, nl_fname, paraline_fn
 
+def is_block_multi_line(linex_list):
+
+    if len(linex_list) <= 1:
+        return False
+    if len(linex_list) == 2:  # if first line is a sentence
+        if linex_list[0].is_english and linex_list[0].num_word >= 6:
+            return False
+    # if more than 3 lines, if most lines are english, then multi-line is False
+    num_is_english = 0
+    num_not_english = 0
+    for linex in linex_list:
+        if linex.is_english:
+            num_is_english += 1
+        else:
+            num_not_english += 1
+    return num_is_english < num_not_english
+
+
+def to_paras_with_attrs(pdf_text_doc, file_name, work_dir):
+    base_fname = os.path.basename(file_name)
+
+    cur_attr = []
+    gap_span_list = []
+    omit_line_set = []
+    offset = 0
+    out_line_list = []
+    offsets_line_list = []
+    with open('ashxx.check.offsets.txt', 'wt') as fout1, open('ashxx.with.offsets.txt', 'wt') as fout2:
+
+        for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
+            apage = pdf_text_doc.page_list[page_num - 1]
+            attr_list = sorted(apage.attrs.items())
+            #if attr_list:
+            #    print('  attrs: {}'.format(', '.join(attr_list)))
+            for grouped_block in grouped_block_list:
+
+                is_multi_line = is_block_multi_line(grouped_block.line_list)
+
+                if is_multi_line:
+                    for linex in grouped_block.line_list:
+                        out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                        attr_list = linex.to_attrvals()  # sorted(linex.attrs.items())
+
+                        out_line_list.append(out_line)
+                        offsets_line_list.append(((linex.lineinfo.start, linex.lineinfo.end),
+                                                  (offset, offset + len(out_line)),
+                                                  out_line, attr_list))
+                        offset += len(out_line) + 1  # to add eoln
+                else:
+                    block_lines = []
+                    attr_list = grouped_block.line_list[0].to_attrvals()  # sorted(linex.attrs.items())
+                    block_start = offset
+                    for linex in grouped_block.line_list:
+                        out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                        block_lines.append(out_line)
+                        offset += len(out_line) + 1  # to add eoln
+
+                    block_text = ' '.join(block_lines)
+                    out_line_list.append(block_text)
+                    offsets_line_list.append(((grouped_block.line_list[0].lineinfo.start, grouped_block.line_list[-1].lineinfo.end),
+                                              (block_start, offset - 1),
+                                              block_text, attr_list))
+
+                out_line_list.append('')
+                offsets_line_list.append(((linex.lineinfo.end+2, linex.lineinfo.end+2),
+                                          (offset, offset),
+                                          '', {}))
+                offset += 1
+
+        for out_line in out_line_list:
+            print(out_line, file=fout1)
+        for x, y, out_line, attr_list in offsets_line_list:
+            print('{}, {}\t{}\t[{}]'.format(x, y, sorted(attr_list.items()), out_line), file=fout2)
+
+        print('wrote {}'.format('ashxx.check.offsets.txt'))off
+        print('wrote {}'.format('ashxx.with.offsets.txt'))
+
+    # return lineinfos_paras, paras_doc_text, gap_span_list
 
 
 def parse_document(file_name, work_dir, debug_mode=True):
     base_fname = os.path.basename(file_name)
-    offsets_file_name = pdfutils.get_offsets_file_name(file_name)
 
     doc_text = strutils.loads(file_name)
     doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = \
-        pdfutils.load_pdf_offsets(offsets_file_name)
+        pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name))
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
     nl_text, nl_fname = text_offsets_to_nl(base_fname, doc_text, line_breaks,
@@ -237,7 +315,6 @@ def parse_document(file_name, work_dir, debug_mode=True):
 
     pdf_text_doc = PDFTextDoc(doc_text, pageinfo_list)
 
-    # xxx
     add_doc_structure_to_doc(pdf_text_doc)
 
     return pdf_text_doc
@@ -247,7 +324,7 @@ def merge_if_continue_to_next_page(prev_page, cur_page):
         return
     last_line = prev_page.content_line_list[-1]
     words = last_line.line_text.split()
-    last_line_block_num = last_line.lineinfo.block_num
+    last_line_block_num = last_line.block_num
     last_line_align = last_line.align
 
     first_line = cur_page.content_line_list[0]
@@ -278,12 +355,34 @@ def merge_if_continue_to_next_page(prev_page, cur_page):
     # 8 because average word per sentence is known to be around 7
     if len(words) >= 8 and (words[-1][-1].islower() or strutils.is_not_sent_punct(words[-1][-1])):
         if not first_line.attrs.get('sechead'):
-            first_line_block_num = first_line.lineinfo.block_num
+            first_line_block_num = first_line.block_num
             for linex in cur_page.content_line_list:
-                if linex.lineinfo.block_num == first_line_block_num:
-                    linex.lineinfo.block_num = last_line_block_num
+                if linex.block_num == first_line_block_num:
+                    linex.block_num = last_line_block_num
                 else:
                     break
+
+# this should be moved to pdfutils
+def lines_to_block_offsets(linex_list: List[LineWithAttrs], block_type: str, pagenum: int):
+    if linex_list:
+        start = linex_list[0].lineinfo.start
+        end = linex_list[-1].lineinfo.end
+        return (start, end, {'block-type': block_type, 'pagenum': pagenum})
+    # why would this happen?
+    return (0, 0, {'block-type': block_type})
+
+def line_to_block_offsets(linex, block_type: str, pagenum: int):
+    start = linex.lineinfo.start
+    end = linex.lineinfo.end
+    return (start, end, {'block-type': block_type, 'pagenum': pagenum})
+
+def lines_to_blocknum_map(linex_list):
+    result = defaultdict(list)
+    for linex in linex_list:
+        block_num = linex.block_num
+        result[block_num].append(linex)
+    return result
+
 
 def add_doc_structure_to_doc(pdftxt_doc):
     # first remove obvious non-content lines, such
@@ -291,7 +390,7 @@ def add_doc_structure_to_doc(pdftxt_doc):
     # Also add section heads
     # page_attrs_list is to store table information?
     for page in pdftxt_doc.page_list:
-        add_doc_structure_to_page(page)
+        add_doc_structure_to_page(page, pdftxt_doc)
 
     # merge paragraphs that are across pages
     prev_page = pdftxt_doc.page_list[0]
@@ -304,7 +403,7 @@ def add_doc_structure_to_doc(pdftxt_doc):
     block_list_map = defaultdict(list)
     for apage in pdftxt_doc.page_list:
         for linex in apage.content_line_list:
-            block_num = linex.lineinfo.block_num
+            block_num = linex.block_num
             block_list_map[block_num].append(linex)
 
     # the block list is for the document, not a page
@@ -319,7 +418,7 @@ def add_doc_structure_to_doc(pdftxt_doc):
         pdftxt_doc.paged_grouped_block_list.append(grouped_block_list)
 
 
-def add_doc_structure_to_page(apage):
+def add_doc_structure_to_page(apage, pdf_txt_doc):
     num_line_in_page = len(apage.line_list)
     page_num = apage.page_num
     prev_line_text = ''
@@ -328,16 +427,27 @@ def add_doc_structure_to_page(apage):
     #   - page_num
     #   - header, footer
     content_line_list = []
+    toc_block_list = []
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False
         if docstructutils.is_line_toc(line.line_text):
             line.attrs['toc'] = True
             is_skip = True
             apage.attrs['has_toc'] = True
-        elif docstructutils.is_line_page_num(line.line_text, line.is_centered):
+            toc_block_list.append(line)
+        elif docstructutils.is_line_page_num(line.line_text, line_num, num_line_in_page, line.linebreak, line.lineinfo.yStart, line.is_centered):
             line.attrs['page_num'] = True
             # so we can detect footers after page_num, 1-based
             apage.attrs['page_num_index'] = line_num
+            pdf_txt_doc.special_blocks_map['pagenum'].append(line_to_block_offsets(line, 'pagenum', page_num))
+            is_skip = True
+        elif docstructutils.is_line_header(line.line_text,
+                                           line.lineinfo.yStart,
+                                           line_num,
+                                           line.is_english,
+                                           num_line_in_page):
+            line.attrs['header'] = True
+            pdf_txt_doc.special_blocks_map['header'].append(line_to_block_offsets(line, 'header', page_num))
             is_skip = True
 
         # 2nd stage of rules
@@ -354,6 +464,7 @@ def add_doc_structure_to_page(apage):
         if is_footer:
             line.attrs['footer'] = True
             is_skip = True
+            pdf_txt_doc.special_blocks_map['footer'].append(line_to_block_offsets(line, 'footer', page_num))
 
         prev_line_text = line.line_text
 
@@ -387,21 +498,179 @@ def add_doc_structure_to_page(apage):
     for linex in apage.content_line_list:
         if not linex.attrs.get('toc'):
             tmp_list.append(linex)
+        else:
+            toc_block_list.append(linex)
+
+    if toc_block_list:
+        pdf_txt_doc.special_blocks_map['toc'].append(lines_to_block_offsets(toc_block_list, 'toc', page_num))
+    # TODO, jshaw, take the begin and end of TOC
+    # take any tmp_list that's falls inside TOC and drop them
+    # from regular text.  Probably TOC recognition errors.
+    # NOT DONE YET.
     apage.content_line_list = tmp_list
 
-    grouped_block_list = line_list_to_grouped_block_list(apage.content_line_list, page_num)
+    grouped_block_list = pdfoffsets.line_list_to_grouped_block_list(apage.content_line_list, page_num)
 
     apage.grouped_block_list = markup_signature_block(grouped_block_list, page_num)
+    for grouped_block in apage.grouped_block_list:
+        # GroupedBlockInfo(page_num, block_num, linex_list))
+        if grouped_block.line_list and grouped_block.line_list[0].attrs.get('is_signature'):
+            pdf_txt_doc.special_blocks_map['signature'].append(lines_to_block_offsets(grouped_block.line_list, 'signature', page_num))
+
+    table_with_number_list = markup_table_block2(grouped_block_list, page_num)
+    print("table_with_number_list: {}, page_num = {}".format(table_with_number_list, page_num))
+    if table_with_number_list:
+        blocknum_lines_map = lines_to_blocknum_map(apage.content_line_list)
+        if apage.attrs.get('table_blockset_list'):
+            apage.attrs['table_blockset_list'].extends(table_with_number_list)
+        else:
+            apage.attrs['table_blockset_list'] = table_with_number_list
+
+        print("page #{}, table_blockset_list = {}".format(page_num, apage.attrs['table_blockset_list']))
+        for table_blockset in table_with_number_list:
+            table_lines = []
+            for blocknum in sorted(table_blockset):
+                for linex in blocknum_lines_map[blocknum]:
+                    table_lines.append(linex)
+            print("blocknum {}, len(lines) = {}".format(blocknum, len(blocknum_lines_map[blocknum])))
+            pdf_txt_doc.special_blocks_map['table'].append(lines_to_block_offsets(table_lines, 'table', page_num))
 
     # handle table and chart identification
     grouped_block_list = apage.grouped_block_list
     table_blockset_list, chart_blockset_list = markup_table_block(grouped_block_list, page_num)
+
+    blocknum_lines_map = lines_to_blocknum_map(apage.content_line_list)
     if table_blockset_list:
-        apage.attrs['table_blockset_list'] = table_blockset_list
-        # print("page #{}, table_blockset_list = {}".format(page_num, apage.attrs['table_blockset_list']))
+        if apage.attrs.get('table_blockset_list'):
+            apage.attrs['table_blockset_list'].extends(table_with_number_list)
+        else:
+            apage.attrs['table_blockset_list'] = table_with_number_list
+
+        # pdf_txt_doc.special_blocks_map['table'].append(lines_to_block_offsets(table_block_list))
+        print("page #{}, table_blockset_list = {}".format(page_num, apage.attrs['table_blockset_list']))
+        for table_blockset in table_blockset_list:
+            table_lines = []
+            for blocknum in sorted(table_blockset):
+                for linex in blocknum_lines_map[blocknum]:
+                    table_lines.append(linex)
+            print("blocknum {}, len(lines) = {}".format(blocknum, len(blocknum_lines_map[blocknum])))
+            pdf_txt_doc.special_blocks_map['table'].append(lines_to_block_offsets(table_lines, 'table', page_num))
     if chart_blockset_list:
         apage.attrs['chart_blockset_list'] = chart_blockset_list
-        # print("page #{}, chart_blockset_list = {}".format(page_num, apage.attrs['chart_blockset_list']))
+        print("page #{}, chart_blockset_list = {}".format(page_num, apage.attrs['chart_blockset_list']))
+        for table_blockset in chart_blockset_list:
+            table_lines = []
+            for blocknum in sorted(table_blockset):
+                for linex in blocknum_lines_map[blocknum]:
+                    table_lines.append(linex)
+            pdf_txt_doc.special_blocks_map['chart'].append(lines_to_block_offsets(table_lines, 'chart', page_num))
+
+def markup_table_block2(grouped_block_list, page_num):
+    maybe_table_with_numbers = []
+
+    # first try to see if tables should be formed from separated blocks
+    num_table_one_line_block = 0
+    num_line = 0
+    for grouped_block in grouped_block_list:
+        num_line_in_block = len(grouped_block.line_list)
+        if num_line_in_block == 1:
+            linex = grouped_block.line_list[0]
+            if len(linex.line_text) < 30 and not linex.is_english and linex.is_centered:
+                num_table_one_line_block += 1
+        num_line += num_line_in_block
+
+    if num_line > 7 and num_table_one_line_block >= 3:
+        print('markup_table_block2, page = {}'.format(page_num))
+        print("should collapse......................")
+
+        # for debug purpose only
+        print("for debug purpose:  35234")
+        for grouped_block in grouped_block_list:
+            print()
+            for linex in grouped_block.line_list:
+                print("    linex: {}\t[{}...]".format(linex.tostr5(), linex.line_text[:15]))
+
+        # find the most common
+        line_aligned_map = defaultdict(list)
+        linex_list = []
+        for grouped_block in grouped_block_list:
+            for linex in grouped_block.line_list:
+                linex_list.append(linex)
+                prefix = 'align={}, cn={}, en={}'.format(linex.align, linex.is_centered, linex.is_english)
+                line_aligned_map[prefix].append(linex)
+        freq_align_list = sorted([(len(alist), prefix, alist) for prefix, alist in line_aligned_map.items()], reverse=True)
+        lenx, prefix, maybe_collapse_lines = freq_align_list[0]
+        #for lenx, prefix, alist in freq_align_list:
+        #    print("lenx= {}, prefix = {}".format(lenx, prefix))
+        #    for linex in alist:
+        #        print("      linex: {}".format(linex.tostr3()))
+        if lenx >= 3:  # as long as this is more than 3
+            maybe_collapse_lines = sorted(maybe_collapse_lines)
+            linex0 = maybe_collapse_lines[0]
+            bnum0 = linex0.block_num
+            # linex_size = len(maybe_collapse_lines)
+            prev_bnum = bnum0
+            is_collpased = False
+            # we assume there is only 1 such table in a page
+            is_collapsed = False
+            for i, linex in enumerate(maybe_collapse_lines[1:]):
+                cur_block_num = linex.block_num
+                if linex.block_num == prev_bnum:  # already in the same block
+                    break
+                elif linex.block_num - prev_bnum <= 2:
+                    linex.block_num = bnum0
+                    is_collapsed = True
+                else:
+                    break  # stop once we cannot find 3 consecutive diff
+                prev_bnum = cur_block_num
+
+            if is_collapsed:
+                print("collapsed......................")
+            else:
+                print("NOT collapsed......................")
+            grouped_block_list = pdfoffsets.line_list_to_grouped_block_list(linex_list, page_num)
+
+    for grouped_block in grouped_block_list:
+        num_line_in_block = len(grouped_block.line_list)
+        num_line_with_number = 0
+        for linex in grouped_block.line_list:
+            if strutils.find_number(linex.line_text) and len(linex.line_text) < 30 and not linex.is_english:
+                num_line_with_number += 1
+        # print('num_line_in_block = {}, num_line_with_number = {}'.format(num_line_in_block, num_line_with_number))
+        if num_line_in_block >= 3 and 1.0 * num_line_with_number / num_line_in_block > 0.7:
+            maybe_table_with_numbers.append(grouped_block)
+
+    table_blockset_list = []
+    if maybe_table_with_numbers:
+        print("mabye_table_with_number, pagenum = {}".format(page_num))
+        y_lines = []
+        for grouped_block in grouped_block_list:
+            for linex in grouped_block.line_list:
+                y_lines.append((linex.lineinfo.yStart, linex))
+                # print("len(linex.lineinfo.str_list) = {}".format(len(linex.lineinfo.strinfo_list)))
+                # print("linex.lineinfo.str_list = {}".format(linex.lineinfo.strinfo_list))
+
+        table_prefix = 'table'
+        table_count = 100
+        for grouped_block in maybe_table_with_numbers:
+            table_name = '{}-p{}-{}'.format(table_prefix, page_num, table_count)
+            for linex in grouped_block.line_list:
+                linex.attrs[table_prefix] = table_name
+
+            block_first_linex = grouped_block.line_list[0]
+            # merge blocks as we see fit
+            if block_first_linex:
+                merge_centered_lines_before_table(block_first_linex.lineinfo.line_num,
+                                                  block_first_linex.block_num,
+                                                  y_lines,
+                                                  table_prefix,
+                                                  table_name)
+            else:
+                print("block_first_line is empty, page {}".format(page_num))
+
+            table_count += 1
+            table_blockset_list.append({block_first_linex.block_num,})
+    return table_blockset_list
 
 
 def markup_table_block(grouped_block_list, page_num):
@@ -413,12 +682,12 @@ def markup_table_block(grouped_block_list, page_num):
     for grouped_block in grouped_block_list:
         for linex in grouped_block.line_list:
             y_lines.append((linex.lineinfo.yStart, linex))
-            block_lines_map[linex.lineinfo.block_num].append(linex)
+            block_lines_map[linex.block_num].append(linex)
     prev_yStart = -100
     prev_block_num = -1
     for yStart, linex in sorted(y_lines):
         # there is multiple lines in the same yStart
-        cur_block_num = linex.lineinfo.block_num
+        cur_block_num = linex.block_num
         if yStart - prev_yStart <= 5.0:
             # print("page_num = {}, ydiff {}".format(page_num, yStart - prev_yStart))
             blocks_with_similar_ys.add((prev_block_num, cur_block_num))
@@ -450,11 +719,9 @@ def markup_table_block(grouped_block_list, page_num):
                 break
 
         if is_all_align_size_one:
-            print("table")
             table_prefix = 'table'
             table_blockset_list.append(block_num_set)
         else:
-            print("chart")
             table_prefix = 'chart'
             chart_blockset_list.append(block_num_set)
 
@@ -479,7 +746,6 @@ def markup_table_block(grouped_block_list, page_num):
 
 
 def merge_centered_lines_before_table(line_num, block_num, y_lines, table_prefix, table_name):
-    print('line_num = {}'.format(line_num))
     table_start_idx = -1
     for line_idx, (_, linex) in enumerate(y_lines):
         if linex.lineinfo.line_num == line_num:
@@ -492,26 +758,20 @@ def merge_centered_lines_before_table(line_num, block_num, y_lines, table_prefix
             _, linex = y_lines[table_start_idx]
             # if not english, merge with the table by block
             if linex.attrs.get('sechead'):
+                # we take sechead before a table
+                linex.block_num = block_num
+                linex.attrs[table_prefix] = table_name
                 break
+            elif linex.is_centered:
+                linex.block_num = block_num
+                linex.attrs[table_prefix] = table_name
             elif not linex.is_english:
-                linex.lineinfo.block_num = block_num
+                linex.block_num = block_num
                 linex.attrs[table_prefix] = table_name
             else:
                 break
             table_start_idx -= 1
 
-
-def line_list_to_grouped_block_list(linex_list, page_num):
-    block_list_map = defaultdict(list)
-    for linex in linex_list:
-        block_num = linex.lineinfo.block_num
-        block_list_map[block_num].append(linex)
-
-    grouped_block_list = []
-    for block_num, line_list in sorted(block_list_map.items()):
-        grouped_block_list.append(GroupedBlockInfo(page_num, block_num, line_list))
-
-    return grouped_block_list
 
 
 SIGNATURE_PREFIX_PAT = re.compile(r'(By|Name|Title)\s*:')
@@ -546,12 +806,12 @@ def markup_signature_block(grouped_block_list, page_num):
             if is_signature_line and len(grouped_block.line_list) == 1:
                 linex = grouped_block.line_list[0]
                 if is_prev_block_signature:
-                    linex.lineinfo.block_num = prev_signature_block_num
+                    linex.block_num = prev_signature_block_num
                     block_line_list_map[prev_signature_block_num].append(linex)
                 else:
-                    block_line_list_map[linex.lineinfo.block_num].append(linex)
+                    block_line_list_map[linex.block_num].append(linex)
                     is_prev_block_signature = True
-                    prev_signature_block_num = linex.lineinfo.block_num
+                    prev_signature_block_num = linex.block_num
             else:
                 for linex in grouped_block.line_list:
                     block_line_list_map[block_num].append(linex)
@@ -567,7 +827,7 @@ def markup_signature_block(grouped_block_list, page_num):
         is_prev_maybe_signature = False
         for linex_list in tmp_list:
             block_has_signature = False
-            block_num = linex_list[0].lineinfo.block_num
+            block_num = linex_list[0].block_num
             for linex in linex_list:
                 if linex.attrs.get('is_signature'):
                     block_has_signature = True
@@ -578,13 +838,13 @@ def markup_signature_block(grouped_block_list, page_num):
                 # now set all line in this block signature
                 for linex in block_line_list_map[prev_block_num]:
                     linex.attrs['is_signature'] = True
-                    linex.lineinfo.block_num = prev_block_num
+                    linex.block_num = prev_block_num
             else:
                 for linex in linex_list:
                     block_line_list_map[block_num].append(linex)
 
             is_prev_maybe_signature = False
-            if len(linex_list) <= 3 and linex_list[0].is_english == False:
+            if len(linex_list) <= 3 and not linex_list[0].is_english:
                 is_prev_maybe_signature = True
                 prev_block_num = block_num
 
@@ -593,7 +853,6 @@ def markup_signature_block(grouped_block_list, page_num):
             result.append(GroupedBlockInfo(page_num, block_num, linex_list))
 
     return result
-
 
 
 def save_debug_files(pdf_text_doc, base_fname, work_dir):
