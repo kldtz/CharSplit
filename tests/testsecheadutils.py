@@ -93,6 +93,10 @@ class TestSecHeadUtils(unittest.TestCase):
                           ('5.', 'Operating     Requirements / Performance'))
 
 
+    def test_is_line_sechead_prefix(self):
+        "Test is_line_sechead_prefix"
+        self.assertTrue(secheadutils.is_line_sechead_prefix('EXHIBITC'))
+
 
 if __name__ == "__main__":
     unittest.main()

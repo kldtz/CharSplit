@@ -434,7 +434,7 @@ def pdf_to_ebantdoc2(txt_file_name,
                      offsets_file_name,
                      work_dir,
                      is_cache_enabled=True):
-    debug_mode = True
+    debug_mode = False
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
 
@@ -450,7 +450,8 @@ def pdf_to_ebantdoc2(txt_file_name,
     ##    chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
     # copy txt file to work/txt_base_name, to be consistent with html_to_ebantdoc2()
-    shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
+    if txt_file_name != '{}/{}'.format(work_dir, txt_base_fname):
+        shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
 
     doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
        doc_pdf_reader.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
@@ -474,8 +475,8 @@ def pdf_to_ebantdoc2(txt_file_name,
     #    pdf_txt_doc.get_nlp_stuff(txt_file_namne, work_dir=work_dir)
     pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir)
 
-    for i, para_with_attr in enumerate(paras_with_attrs, 1):
-        print('kkkk3333 {}\t{}'.format(i, para_with_attr))
+    #for i, para_with_attr in enumerate(paras_with_attrs, 1):
+    #    print('kkkk3333 {}\t{}'.format(i, para_with_attr))
 
     # I am a little messed up on from_to lists
     # not sure exactly what "from" means, original text or nlp text

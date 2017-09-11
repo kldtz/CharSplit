@@ -96,3 +96,32 @@ and date annotator use this format.
 This file has the 
 
 .nl.debug.txt
+
+
+==============================
+Description of document structuring
+
+This is a high level description of add_doc_structure_to_doc():
+
+add_doc_structure_to_page():
+  add doc structure to each page
+    - categorize lines
+      - toc
+      - pagenum
+      - header
+      - footer
+      - section head
+    - work only on content line
+
+    - categorize blocks into
+      - address
+      - signature
+      - table
+      - chart
+
+merge paragraph across adjacent pages
+  - based on is_english and yStart
+
+output the result in
+  - a list of page
+  - a page is a list of block (GroupedBlockInfo)

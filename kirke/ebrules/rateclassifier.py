@@ -14,6 +14,10 @@ def is_energy_rate_table(st_list: List[str]):
     found_dollar = False
     found_exhibit = False
 
+    if DEBUG_MODE:
+        table_text = ' '.join(st_list)
+        print("table_text =[{}]".format(table_text))
+
     for linenum, line_st in enumerate(st_list):
         words = line_st.split()
         lc_line_st = line_st.lower()
@@ -97,8 +101,9 @@ def classify_table_list(table_span_list, doc_text):
         startx = table_span[0]
         endx = table_span[1]
         st_text = doc_text[startx:endx]
-        print("classify table_span: {}".format(table_span))
-        print("    txt= {}".format(strutils.remove_nltab(st_text)))
+        # TODO, jshaw, this is outputing a lot of interesting bad tables...
+        # print("classify table_span: {}".format(table_span))
+        # print("    txt= {}".format(strutils.remove_nltab(st_text)))
         if is_energy_rate_table(st_text.split('\n')):
             ant_list.append({'end': endx,
                              'label': 'rate_table',

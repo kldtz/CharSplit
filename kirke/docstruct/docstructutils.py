@@ -1,7 +1,8 @@
 import re
+from typing import List
 
 from kirke.utils import strutils
-from kirke.docstruct import secheadutils
+from kirke.docstruct import secheadutils, addrutils
 
 
 def is_line_centered(line, xStart, xEnd, is_relax_check=False):
@@ -41,7 +42,8 @@ def is_line_centered(line, xStart, xEnd, is_relax_check=False):
 # should not check for eoln because bad OCR or other extra text
 # 'TABLE OF CONTENTS OFFICE LEASE'
 TOC_PREFIX_PAT = re.compile(r'^\s*(table\s*of\s*contents?|contents?)\s*:?', re.IGNORECASE)
-TOC_PREFIX_2_PAT = re.compile(r'^(.+)\.{5}')
+# 5 periods
+TOC_PREFIX_2_PAT = re.compile(r'^(.+)(\.\.\.\.\.|\. \. \. \. \. )')
 
 
 def is_line_toc(line):
@@ -78,13 +80,15 @@ PAGENUM_PAT5 = re.compile(r'^\s*pages?\s*\d+\s*of\s*\d+\s*$', re.IGNORECASE)
 
 
 # line_num_in_page is 1-based
-def is_line_page_num(line: str, line_num_in_page, num_line_in_page, line_break, yStart, is_centered=False):
-    if line_break > 5.0 or yStart >= 675:  # seen yStart==687.6 as page number
+def is_line_page_num(line: str, line_num_in_page=1, num_line_in_page=20,
+                     line_break=6.0, yStart=700.0, is_centered=False):
+    if line_break > 5.0 or yStart >= 675.0:  # seen yStart==687.6 as page number
         pass
     elif line_num_in_page > 2 and line_num_in_page <= num_line_in_page - 2:
         return False
 
-    if PAGENUM_SIMPLE1_PAT.match(line):
+    # 'page' in toc header
+    if line.lower() == 'page' or PAGENUM_SIMPLE1_PAT.match(line):
         # print("pagenumber x1: {}".format(line))
         return True
     # if is_center_lineinfo(lineinfo):
@@ -155,10 +159,11 @@ def is_line_header(line: str,
                    yStart: float,
                    line_num: int,
                    is_english: bool,
+                   is_centered: bool,
                    # num_line_in_block, int,
                    num_line_in_page: int):
     score = 0
-    if yStart < 80.0 and not is_english and len(line) < 30:
+    if yStart < 80.0 and not is_english and len(line) < 30 and not is_centered:
         score += 0.9
 
     #if num_line_in_block == 1:
@@ -206,3 +211,27 @@ def extract_line_sechead(line: str, prev_line: str):
             return sechead, prefix, head, split_idx
     return False
 
+
+SIGNATURE_PREFIX_PAT = re.compile(r'(By|Name|Title)(.*?):')
+# SIGNATURE_PREFIX_PAT = re.compile(r'(By|Name|Title)\s*:')
+
+def is_line_signature_prefix(line: str):
+    mat = SIGNATURE_PREFIX_PAT.match(line)
+    # print("mat = [{}]".format(mat.group(2)))
+    # to handle 'Name.~:,', 'By_:', or 'Title_:'
+    if mat and len(mat.group(2)) <= 3:
+        return True
+    return False
+
+
+def is_line_address(line: str):
+    # this is the incorrect version
+    # return addrutils.is_address_line(line)
+    return False
+
+
+ADDRESS_PREFIX_PAT = re.compile(r'(Tel|Attention|Fax|c/o|C/O)')
+
+def is_line_address_prefix(line: str):
+    mat = ADDRESS_PREFIX_PAT.match(line)
+    return mat

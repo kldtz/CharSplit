@@ -34,6 +34,6 @@ if __name__ == '__main__':
     # pdf_txt_doc.print_debug_lines()
     pdf_txt_doc.print_debug_blocks()
 
-    pdf_txt_doc.save_debug_pages(txt_fname, work_dir=work_dir)
+    pdf_txt_doc.save_debug_pages(work_dir=work_dir, extension='.paged.debug.tsv')
 
     logging.info('Done.')

@@ -1543,8 +1543,13 @@ def st_sechead_str(xst):
 
     return ' '.join(words)
 
-line_sechead_prefix_pat = re.compile('^\s*\(?([\d\.]+|[a-zA-Z])\)?\s*$')
+line_sechead_prefix_pat_only = re.compile('^\s*\(?([\d\.]+|[a-zA-Z])\)?\s*$')
+
+line_sechead_prefix_pat = re.compile('^\s*(\(?([\d\.]+|[a-zA-Z])\)|(exhibit|section|article))', re.I)
 
 def is_line_sechead_prefix_only(line: str):
+    return line_sechead_prefix_pat_only.match(line)
+
+def is_line_sechead_prefix(line: str):
     return line_sechead_prefix_pat.match(line)
 

@@ -1,13 +1,13 @@
+import argparse
+import logging
 import os
 import re
 import sys
 from collections import defaultdict
-from typing import List
 
 from kirke.utils import strutils, txtreader, mathutils
-from kirke.docstruct import pdfoffsets
-from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo, PageInfo3, PDFTextDoc, LineWithAttrs, PBlockInfo, GroupedBlockInfo
-from kirke.docstruct import pdfutils, docstructutils
+from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo3, PDFTextDoc, PBlockInfo, GroupedBlockInfo
+from kirke.docstruct import pdfutils, docstructutils, pdfoffsets, secheadutils
 
 
 def get_nl_fname(base_fname, work_dir):
@@ -223,8 +223,8 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir):
         for x, y, out_line, attr_list in offsets_line_list:
             print('{}, {}\t{}\t[{}]'.format(x, y, sorted(attr_list.items()), out_line), file=fout2)
 
-        print('wrote {}'.format('ashxx.check.offsets.txt'))off
-        print('wrote {}'.format('ashxx.with.offsets.txt'))
+        print('wrote {}'.format('ashxx.check.offsets.txt'), file=sys.stderr)
+        print('wrote {}'.format('ashxx.with.offsets.txt'), file=sys.stderr)
 
     # return lineinfos_paras, paras_doc_text, gap_span_list
 
@@ -313,7 +313,7 @@ def parse_document(file_name, work_dir, debug_mode=True):
         pinfo = PageInfo3(doc_text, start, end, page_num, pblockinfo_list)
         pageinfo_list.append(pinfo)
 
-    pdf_text_doc = PDFTextDoc(doc_text, pageinfo_list)
+    pdf_text_doc = PDFTextDoc(file_name, doc_text, pageinfo_list)
 
     add_doc_structure_to_doc(pdf_text_doc)
 
@@ -362,26 +362,54 @@ def merge_if_continue_to_next_page(prev_page, cur_page):
                 else:
                     break
 
-# this should be moved to pdfutils
-def lines_to_block_offsets(linex_list: List[LineWithAttrs], block_type: str, pagenum: int):
-    if linex_list:
-        start = linex_list[0].lineinfo.start
-        end = linex_list[-1].lineinfo.end
-        return (start, end, {'block-type': block_type, 'pagenum': pagenum})
-    # why would this happen?
-    return (0, 0, {'block-type': block_type})
+def reset_all_is_english(pdftxt_doc):
+    block_list_map = defaultdict(list)
+    page_special_attrs = ['signature', 'address']
+    for apage in pdftxt_doc.page_list:
+        for linex in apage.content_line_list:
+            block_num = linex.block_num
+            block_list_map[block_num].append(linex)
+            # set up a page's special attrs for optimization later
+            for special_attr in page_special_attrs:
+                if linex.attrs.get(special_attr):
+                    apage.attrs['has_{}'.format(special_attr)] = True
 
-def line_to_block_offsets(linex, block_type: str, pagenum: int):
-    start = linex.lineinfo.start
-    end = linex.lineinfo.end
-    return (start, end, {'block-type': block_type, 'pagenum': pagenum})
+    # special_attrs = ['signature', 'address', 'table', 'chart']
+    special_attrs = ['signature', 'address']
+    for _, linex_list in block_list_map.items():
+        if len(linex_list) > 1:
+            linex_0 = linex_list[0]
+            last_linex = linex_list[-1]
+            if not last_linex.is_english and linex_0.is_english:
+                last_linex.is_english = True
 
-def lines_to_blocknum_map(linex_list):
-    result = defaultdict(list)
-    for linex in linex_list:
-        block_num = linex.block_num
-        result[block_num].append(linex)
-    return result
+            # if signature or address block, distribute the tag
+            special_attr_map = {}
+            for special_attr in special_attrs:
+                for linex in linex_list:
+                    if linex.attrs.get(special_attr):
+                        special_attr_map[special_attr] = True
+
+            # distribute special attribute to all linex
+            for special_attr in special_attrs:
+                if special_attr_map.get(special_attr):
+                    for linex in linex_list:
+                        linex.attrs[special_attr] = True
+
+def merge_adjacent_line_with_special_attr(apage):
+    special_attrs = ['signature', 'address']
+    for special_attr in special_attrs:
+        if apage.attrs.get('has_{}'.format(special_attr)):
+            prev_line = apage.content_line_list[0]
+            prev_block_num = prev_line.block_num
+            prev_has_special_attr = prev_line.attrs.get(special_attr)
+            for linex in apage.content_line_list[1:]:
+                has_special_attr = linex.attrs.get(special_attr)
+                if has_special_attr and prev_has_special_attr:
+                    linex.block_num = prev_block_num
+
+                prev_block_num = linex.block_num
+                prev_has_special_attr = has_special_attr
 
 
 def add_doc_structure_to_doc(pdftxt_doc):
@@ -397,9 +425,22 @@ def add_doc_structure_to_doc(pdftxt_doc):
     for apage in pdftxt_doc.page_list[1:]:
         merge_if_continue_to_next_page(prev_page, apage)
         prev_page = apage
+    reset_all_is_english(pdftxt_doc)
 
-    # categorize blocks, such as signature, address
-    # xxx
+    # now we have basic block_group with correct
+    # is_english set.  Useful for merging
+    # blocks with only 1 lines as table, or signature section
+    for apage in pdftxt_doc.page_list:
+        merge_adjacent_line_with_special_attr(apage)
+    pdftxt_doc.save_debug_pages(extension='.debug.mergepage.tsv')
+
+    for apage in pdftxt_doc.page_list:
+        # TODO, temporary remove this
+        add_sections_to_page(apage, pdftxt_doc)
+    pdftxt_doc.save_debug_pages(extension='.debug_after_section.tsv')
+
+    # Redo block info because they might be in different
+    # pages.
     block_list_map = defaultdict(list)
     for apage in pdftxt_doc.page_list:
         for linex in apage.content_line_list:
@@ -409,14 +450,105 @@ def add_doc_structure_to_doc(pdftxt_doc):
     # the block list is for the document, not a page
     paged_grouped_block_list = defaultdict(list)
     for block_num, line_list in sorted(block_list_map.items()):
-       page_num = line_list[0].page_num
-       paged_grouped_block_list[page_num].append(GroupedBlockInfo(page_num, block_num, line_list))
-       # pdftxt_doc.grouped_block_list.append(line_list)
+        # take the page of the first line in a block as the page_num
+        page_num = line_list[0].page_num
+        paged_grouped_block_list[page_num].append(GroupedBlockInfo(page_num, block_num, line_list))
 
+    # each page is a list of grouped_block
+    pdftxt_doc.paged_grouped_block_list = []
     for page_num in range(1, pdftxt_doc.num_pages + 1):
         grouped_block_list = paged_grouped_block_list[page_num]
         pdftxt_doc.paged_grouped_block_list.append(grouped_block_list)
 
+
+def add_sections_to_page(apage, pdf_txt_doc):
+    page_num = apage.page_num
+    grouped_block_list = pdfoffsets.line_list_to_grouped_block_list(apage.content_line_list, page_num)
+
+    # we don't collapse title pages and toc's
+    if page_num > 10:
+        grouped_block_list = collapse_similar_aligned_block_lines(grouped_block_list, page_num)
+
+    apage.grouped_block_list = grouped_block_list
+
+    is_skip_table_and_chart_detection = False
+    special_attrs = ['signature', 'address']
+    for special_attr in special_attrs:
+        if apage.attrs.get('has_{}'.format(special_attr)):
+            # print("skip table_and_char_detection because of has_{}".format(special_attr))
+            is_skip_table_and_chart_detection = True
+
+    if is_skip_table_and_chart_detection:
+        return
+
+    # handle table and chart identification
+    grouped_block_list = apage.grouped_block_list
+    markup_table_block_by_non_english(grouped_block_list, apage)
+    if not apage.attrs.get('has_table'):
+        table_blockset_list, chart_blockset_list = markup_table_block_by_columns(grouped_block_list, page_num)
+
+    # create the annotation for table and chart from apage.content_line_list
+    extract_tables_from_markups(apage, pdf_txt_doc)
+
+
+def markup_table_block_by_non_english(grouped_block_list, apage):
+    # print("\nmarkup_table_block_by_non_english, apage = {}".format(apage.page_num))
+    for grouped_block in grouped_block_list:
+        num_non_english_line = 0  # also short
+        num_numeric_line = 0
+        num_group_line = len(grouped_block.line_list)
+        for linex in grouped_block.line_list:
+            if (len(linex.line_text) < 30 and not linex.is_english and linex.is_centered and
+                len(linex.line_text.split()) >= 2 and
+                not linex.attrs.get('sechead') and not secheadutils.is_line_sechead_prefix(linex.line_text)):
+                num_non_english_line += 1
+            if (not linex.is_english and len(strutils.extract_numbers(linex.line_text)) > 2):
+                num_numeric_line += 1
+
+        #print("num_non_english_line = {}, num_group_line = {}".format(num_non_english_line,
+        #                                                              num_group_line))
+
+        if ((num_non_english_line >= 4 and float(num_non_english_line) / num_group_line >= 0.2) or
+            (num_numeric_line >= 2 and float(num_numeric_line) / num_group_line >= 0.4)):
+            # this is a tables
+            apage.attrs['has_table'] = True  # so that other table routine doesn't have to fire
+
+            merged_linex_list = grouped_block.line_list
+            table_prefix = 'table'
+            table_count = 300
+            table_name = '{}-p{}-{}'.format(table_prefix, apage.page_num, table_count)
+            for linex in merged_linex_list:
+                linex.attrs[table_prefix] = table_name
+
+            block_first_linex = merged_linex_list[0]
+            # merge blocks as we see fit
+            # print("merge_centered_line_before_table(), markup_table_by_non_english...")
+            merge_centered_lines_before_table(block_first_linex.lineinfo.line_num,
+                                              block_first_linex.block_num,
+                                              # page_linex_list,
+                                              apage.content_line_list,
+                                              table_prefix,
+                                              table_name)
+
+
+def extract_tables_from_markups(apage, pdf_txt_doc):
+    tableid_lines_map = defaultdict(list)
+    chartid_lines_map = defaultdict(list)
+    for linex in apage.content_line_list:
+        table_id = linex.attrs.get('table')
+        chart_id = linex.attrs.get('chart')
+        if table_id:
+            tableid_lines_map[table_id].append(linex)
+        elif chart_id:
+            chartid_lines_map[chart_id].append(linex)
+    for tableid, table_lines in tableid_lines_map.items():
+        pdf_txt_doc.special_blocks_map['table'].append(pdfoffsets.lines_to_block_offsets(table_lines,
+                                                                                         'table',
+                                                                                         apage.page_num))
+    for chartid, chart_lines in chartid_lines_map.items():
+        pdf_txt_doc.special_blocks_map['chart'].append(pdfoffsets.lines_to_block_offsets(chart_lines,
+                                                                                         'chart',
+                                                                                         apage.page_num))
 
 def add_doc_structure_to_page(apage, pdf_txt_doc):
     num_line_in_page = len(apage.line_list)
@@ -439,16 +571,23 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
             line.attrs['page_num'] = True
             # so we can detect footers after page_num, 1-based
             apage.attrs['page_num_index'] = line_num
-            pdf_txt_doc.special_blocks_map['pagenum'].append(line_to_block_offsets(line, 'pagenum', page_num))
+            pdf_txt_doc.special_blocks_map['pagenum'].append(pdfoffsets.line_to_block_offsets(line, 'pagenum', page_num))
             is_skip = True
         elif docstructutils.is_line_header(line.line_text,
                                            line.lineinfo.yStart,
                                            line_num,
                                            line.is_english,
+                                           line.is_centered,
                                            num_line_in_page):
             line.attrs['header'] = True
-            pdf_txt_doc.special_blocks_map['header'].append(line_to_block_offsets(line, 'header', page_num))
+            pdf_txt_doc.special_blocks_map['header'].append(pdfoffsets.line_to_block_offsets(line, 'header', page_num))
             is_skip = True
+        elif docstructutils.is_line_signature_prefix(line.line_text):
+            line.attrs['signature'] = True
+            # not skipped
+        elif docstructutils.is_line_address_prefix(line.line_text):
+            line.attrs['address'] = True
+            # not skipped
 
         # 2nd stage of rules
         is_footer, score = docstructutils.is_line_footer(line.line_text,
@@ -464,7 +603,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         if is_footer:
             line.attrs['footer'] = True
             is_skip = True
-            pdf_txt_doc.special_blocks_map['footer'].append(line_to_block_offsets(line, 'footer', page_num))
+            pdf_txt_doc.special_blocks_map['footer'].append(pdfoffsets.line_to_block_offsets(line, 'footer', page_num))
 
         prev_line_text = line.line_text
 
@@ -502,186 +641,175 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
             toc_block_list.append(linex)
 
     if toc_block_list:
-        pdf_txt_doc.special_blocks_map['toc'].append(lines_to_block_offsets(toc_block_list, 'toc', page_num))
+        pdf_txt_doc.special_blocks_map['toc'].append(pdfoffsets.lines_to_block_offsets(toc_block_list, 'toc', page_num))
     # TODO, jshaw, take the begin and end of TOC
     # take any tmp_list that's falls inside TOC and drop them
     # from regular text.  Probably TOC recognition errors.
     # NOT DONE YET.
     apage.content_line_list = tmp_list
 
-    grouped_block_list = pdfoffsets.line_list_to_grouped_block_list(apage.content_line_list, page_num)
 
-    apage.grouped_block_list = markup_signature_block(grouped_block_list, page_num)
-    for grouped_block in apage.grouped_block_list:
-        # GroupedBlockInfo(page_num, block_num, linex_list))
-        if grouped_block.line_list and grouped_block.line_list[0].attrs.get('is_signature'):
-            pdf_txt_doc.special_blocks_map['signature'].append(lines_to_block_offsets(grouped_block.line_list, 'signature', page_num))
-
-    table_with_number_list = markup_table_block2(grouped_block_list, page_num)
-    print("table_with_number_list: {}, page_num = {}".format(table_with_number_list, page_num))
-    if table_with_number_list:
-        blocknum_lines_map = lines_to_blocknum_map(apage.content_line_list)
-        if apage.attrs.get('table_blockset_list'):
-            apage.attrs['table_blockset_list'].extends(table_with_number_list)
+def get_longest_consecutive_line_group(linex_list):
+    # linex_list = remove_linex_with_sechead(linex_list)
+    # linex_list = list(filter(lambda linex: not linex.attrs.get('sechead'), linex_list))
+    group_list = []
+    prev_block_num = linex_list[0].block_num
+    prev_align = linex_list[0].align
+    cur_group = [linex_list[0]]
+    group_list.append(cur_group)
+    for linex in linex_list[1:]:
+        # print("prev_block_num = {}, linex.block_num = {}".format(prev_block_num, linex.block_num))
+        if linex.block_num == prev_block_num + 1 and linex.align == prev_align:  # they are consecutive and aligned
+            cur_group.append(linex)
         else:
-            apage.attrs['table_blockset_list'] = table_with_number_list
+            cur_group = [linex]
+            group_list.append(cur_group)
+        prev_block_num = linex.block_num
+        prev_align = linex.align
 
-        print("page #{}, table_blockset_list = {}".format(page_num, apage.attrs['table_blockset_list']))
-        for table_blockset in table_with_number_list:
-            table_lines = []
-            for blocknum in sorted(table_blockset):
-                for linex in blocknum_lines_map[blocknum]:
-                    table_lines.append(linex)
-            print("blocknum {}, len(lines) = {}".format(blocknum, len(blocknum_lines_map[blocknum])))
-            pdf_txt_doc.special_blocks_map['table'].append(lines_to_block_offsets(table_lines, 'table', page_num))
+    group_list_by_size = sorted([(len(groupx), groupx) for groupx in group_list], reverse=True)
+    """
+    for group_num, (gsize, groupx) in enumerate(group_list_by_size):
+        print("group #{}, size = {}".format(group_num, gsize))
+        for linex in groupx:
+            print("    linex: {}".format(linex.tostr4()))
+    """
+    return group_list_by_size[0][1]  # return longest linex_list
 
-    # handle table and chart identification
-    grouped_block_list = apage.grouped_block_list
-    table_blockset_list, chart_blockset_list = markup_table_block(grouped_block_list, page_num)
 
-    blocknum_lines_map = lines_to_blocknum_map(apage.content_line_list)
-    if table_blockset_list:
-        if apage.attrs.get('table_blockset_list'):
-            apage.attrs['table_blockset_list'].extends(table_with_number_list)
-        else:
-            apage.attrs['table_blockset_list'] = table_with_number_list
-
-        # pdf_txt_doc.special_blocks_map['table'].append(lines_to_block_offsets(table_block_list))
-        print("page #{}, table_blockset_list = {}".format(page_num, apage.attrs['table_blockset_list']))
-        for table_blockset in table_blockset_list:
-            table_lines = []
-            for blocknum in sorted(table_blockset):
-                for linex in blocknum_lines_map[blocknum]:
-                    table_lines.append(linex)
-            print("blocknum {}, len(lines) = {}".format(blocknum, len(blocknum_lines_map[blocknum])))
-            pdf_txt_doc.special_blocks_map['table'].append(lines_to_block_offsets(table_lines, 'table', page_num))
-    if chart_blockset_list:
-        apage.attrs['chart_blockset_list'] = chart_blockset_list
-        print("page #{}, chart_blockset_list = {}".format(page_num, apage.attrs['chart_blockset_list']))
-        for table_blockset in chart_blockset_list:
-            table_lines = []
-            for blocknum in sorted(table_blockset):
-                for linex in blocknum_lines_map[blocknum]:
-                    table_lines.append(linex)
-            pdf_txt_doc.special_blocks_map['chart'].append(lines_to_block_offsets(table_lines, 'chart', page_num))
-
-def markup_table_block2(grouped_block_list, page_num):
-    maybe_table_with_numbers = []
+def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
 
     # first try to see if tables should be formed from separated blocks
     num_table_one_line_block = 0
     num_line = 0
+    blocks_with_one_line = []
     for grouped_block in grouped_block_list:
         num_line_in_block = len(grouped_block.line_list)
         if num_line_in_block == 1:
             linex = grouped_block.line_list[0]
-            if len(linex.line_text) < 30 and not linex.is_english and linex.is_centered:
+            if (len(linex.line_text) < 30 and not linex.is_english
+                and not linex.attrs.get('sechead') and not secheadutils.is_line_sechead_prefix(linex.line_text)):
                 num_table_one_line_block += 1
+                blocks_with_one_line.append(linex)
         num_line += num_line_in_block
 
-    if num_line > 7 and num_table_one_line_block >= 3:
-        print('markup_table_block2, page = {}'.format(page_num))
-        print("should collapse......................")
+    if num_table_one_line_block < 3:
+        return grouped_block_list
+    else:
+        #print('collapse_similar_aligned_block_lines, page = %d, num_table_one_line_block = %d' %
+        #      (page_num, num_table_one_line_block))
 
         # for debug purpose only
-        print("for debug purpose:  35234")
+        """
+        print("for debug purpose:  33334")
         for grouped_block in grouped_block_list:
             print()
             for linex in grouped_block.line_list:
                 print("    linex: {}\t[{}...]".format(linex.tostr5(), linex.line_text[:15]))
+        """
 
-        # find the most common
-        line_aligned_map = defaultdict(list)
-        linex_list = []
-        for grouped_block in grouped_block_list:
-            for linex in grouped_block.line_list:
-                linex_list.append(linex)
-                prefix = 'align={}, cn={}, en={}'.format(linex.align, linex.is_centered, linex.is_english)
-                line_aligned_map[prefix].append(linex)
-        freq_align_list = sorted([(len(alist), prefix, alist) for prefix, alist in line_aligned_map.items()], reverse=True)
-        lenx, prefix, maybe_collapse_lines = freq_align_list[0]
-        #for lenx, prefix, alist in freq_align_list:
-        #    print("lenx= {}, prefix = {}".format(lenx, prefix))
-        #    for linex in alist:
-        #        print("      linex: {}".format(linex.tostr3()))
-        if lenx >= 3:  # as long as this is more than 3
-            maybe_collapse_lines = sorted(maybe_collapse_lines)
-            linex0 = maybe_collapse_lines[0]
-            bnum0 = linex0.block_num
-            # linex_size = len(maybe_collapse_lines)
-            prev_bnum = bnum0
-            is_collpased = False
-            # we assume there is only 1 such table in a page
-            is_collapsed = False
-            for i, linex in enumerate(maybe_collapse_lines[1:]):
-                cur_block_num = linex.block_num
-                if linex.block_num == prev_bnum:  # already in the same block
-                    break
-                elif linex.block_num - prev_bnum <= 2:
-                    linex.block_num = bnum0
-                    is_collapsed = True
-                else:
-                    break  # stop once we cannot find 3 consecutive diff
-                prev_bnum = cur_block_num
+        # find the longest consecutive one
+        longest_consecutive_group = get_longest_consecutive_line_group(blocks_with_one_line)
 
-            if is_collapsed:
-                print("collapsed......................")
-            else:
-                print("NOT collapsed......................")
-            grouped_block_list = pdfoffsets.line_list_to_grouped_block_list(linex_list, page_num)
+        if len(longest_consecutive_group) < 3:
+            return grouped_block_list
 
+    # found a collapsable group
+    #for linex in longest_consecutive_group:
+    #    print("collapse_line = {}".format(linex.tostr4()))
+
+    # now expand backward, the lines or block before
+    first_merged_linex = longest_consecutive_group[0]
+    last_merged_linex = longest_consecutive_group[-1]
+    first_merged_line_num = first_merged_linex.lineinfo.line_num
+    last_merged_line_num = last_merged_linex.lineinfo.line_num
+    page_linex_list = []
+    page_line_index = 0
+    first_index, last_index = -1, -1
+    last_index = -1
     for grouped_block in grouped_block_list:
-        num_line_in_block = len(grouped_block.line_list)
-        num_line_with_number = 0
         for linex in grouped_block.line_list:
-            if strutils.find_number(linex.line_text) and len(linex.line_text) < 30 and not linex.is_english:
-                num_line_with_number += 1
-        # print('num_line_in_block = {}, num_line_with_number = {}'.format(num_line_in_block, num_line_with_number))
-        if num_line_in_block >= 3 and 1.0 * num_line_with_number / num_line_in_block > 0.7:
-            maybe_table_with_numbers.append(grouped_block)
+            if linex.lineinfo.line_num == first_merged_line_num:
+                first_index = page_line_index
+            elif linex.lineinfo.line_num == last_merged_line_num:
+                last_index = page_line_index
+            page_linex_list.append(linex)
+            page_line_index += 1
+    # print('first_index = {}, last_index = {}'.format(first_index, last_index))
 
-    table_blockset_list = []
-    if maybe_table_with_numbers:
-        print("mabye_table_with_number, pagenum = {}".format(page_num))
-        y_lines = []
-        for grouped_block in grouped_block_list:
-            for linex in grouped_block.line_list:
-                y_lines.append((linex.lineinfo.yStart, linex))
-                # print("len(linex.lineinfo.str_list) = {}".format(len(linex.lineinfo.strinfo_list)))
-                # print("linex.lineinfo.str_list = {}".format(linex.lineinfo.strinfo_list))
+    line_index = first_index - 1
+    while line_index >= 0:  # merge if align and not en
+        linex = page_linex_list[line_index]
+        if (not linex.is_english and linex.align == first_merged_linex.align and
+            not (linex.attrs.get('sechead') or secheadutils.is_line_sechead_prefix(linex.line_text))):
+            line_index -= 1
+        else:
+            break
+    found_block_start_line_num = line_index + 1
 
+    # now expand forward
+    line_index = last_index + 1
+    last_index = len(page_linex_list)
+    while line_index < last_index :  # merge if align and not en
+        linex = page_linex_list[line_index]
+        if (not linex.is_english and linex.align == first_merged_linex.align and
+            not (linex.attrs.get('sechead') or secheadutils.is_line_sechead_prefix(linex.line_text))):
+            line_index += 1
+        else:
+            break
+    found_block_end_line_num = line_index
+
+    # print('found start, end = ({}, {})'.format(found_block_start_line_num, found_block_end_line_num))
+    # print('found start = {}'.format(page_linex_list[found_block_start_line_num].tostr4()))
+    # print('found end = {}'.format(page_linex_list[found_block_end_line_num-1].tostr4()))
+
+    num_line_with_number = 0
+    merged_block_num = page_linex_list[found_block_start_line_num].block_num
+    merged_linex_list = []
+    for i in range(found_block_start_line_num, found_block_end_line_num):
+        linex = page_linex_list[i]
+        linex.block_num = merged_block_num
+        merged_linex_list.append(linex)
+        if strutils.find_number(linex.line_text):
+            num_line_with_number += 1
+
+    # check to see if the merged block should be a table
+    # print('num_line_in_block = {}, num_line_with_number = {}'.format(num_line_in_block, num_line_with_number))
+    merged_block_size = len(merged_linex_list)
+    # print('num_line_with_number = {}'.format(num_line_with_number))
+    # print("merged_block_size = {}".format(merged_block_size))
+    if float(num_line_with_number) / merged_block_size > 0.7:  # this is a table
         table_prefix = 'table'
-        table_count = 100
-        for grouped_block in maybe_table_with_numbers:
-            table_name = '{}-p{}-{}'.format(table_prefix, page_num, table_count)
-            for linex in grouped_block.line_list:
-                linex.attrs[table_prefix] = table_name
+        table_count = 200
+        table_name = '{}-p{}-{}'.format(table_prefix, page_num, table_count)
+        for linex in merged_linex_list:
+            linex.attrs[table_prefix] = table_name
 
-            block_first_linex = grouped_block.line_list[0]
-            # merge blocks as we see fit
-            if block_first_linex:
-                merge_centered_lines_before_table(block_first_linex.lineinfo.line_num,
-                                                  block_first_linex.block_num,
-                                                  y_lines,
-                                                  table_prefix,
-                                                  table_name)
-            else:
-                print("block_first_line is empty, page {}".format(page_num))
+        block_first_linex = merged_linex_list[0]
+        # merge blocks as we see fit
+        # print("merge_centered_line_before_table(), collapse_similar...")
+        merge_centered_lines_before_table(block_first_linex.lineinfo.line_num,
+                                          block_first_linex.block_num,
+                                          page_linex_list,
+                                          table_prefix,
+                                          table_name)
 
-            table_count += 1
-            table_blockset_list.append({block_first_linex.block_num,})
-    return table_blockset_list
+    grouped_block_list = pdfoffsets.line_list_to_grouped_block_list(page_linex_list, page_num)
+
+    return grouped_block_list
 
 
-def markup_table_block(grouped_block_list, page_num):
+def markup_table_block_by_columns(grouped_block_list, page_num):
     has_close_ydiffs = False
     blocks_with_similar_ys = set([])
 
     y_lines = []
+    page_linex_list = []
     block_lines_map = defaultdict(list)
     for grouped_block in grouped_block_list:
         for linex in grouped_block.line_list:
             y_lines.append((linex.lineinfo.yStart, linex))
+            page_linex_list.append(linex)
             block_lines_map[linex.block_num].append(linex)
     prev_yStart = -100
     prev_block_num = -1
@@ -702,7 +830,8 @@ def markup_table_block(grouped_block_list, page_num):
     for block_num_set in blocks_with_similar_ys:
         block_align_set_list = []
         block_first_linex = None
-        for block_num in block_num_set:
+        # print("block_num_set, makrup_table_by_columns... {}".format(block_num_set))
+        for block_num in sorted(block_num_set):
             block_lines = block_lines_map[block_num]
             align_set = set([])
             for linex in block_lines:
@@ -733,186 +862,158 @@ def markup_table_block(grouped_block_list, page_num):
 
         # merge blocks as we see fit
         if block_first_linex:
+            # print("merge_centered_line_before_table(), markup_table_by_columns...")
             merge_centered_lines_before_table(block_first_linex.lineinfo.line_num,
                                               sorted(block_num_set)[0],
-                                              y_lines,
+                                              page_linex_list,
                                               table_prefix,
                                               table_name)
-        else:
-            print("block_first_line is empty, page {}".format(page_num))
+        #else:
+        #    print("block_first_line is empty, page {}".format(page_num))
         table_count += 1
 
     return table_blockset_list, chart_blockset_list
 
+def get_merge_reason(linex):
+    special_attrs = ['signature', 'address', 'table', 'chart']
+    for special_attr in special_attrs:
+        if linex.attrs.get(special_attr):
+            return special_attr
+    return ''
 
-def merge_centered_lines_before_table(line_num, block_num, y_lines, table_prefix, table_name):
+def merge_centered_lines_before_table(line_num, block_num, content_linex_list, table_prefix, table_name):
     table_start_idx = -1
-    for line_idx, (_, linex) in enumerate(y_lines):
+    debug_mode = False
+
+    for line_idx, linex in enumerate(content_linex_list):
         if linex.lineinfo.line_num == line_num:
-            # print("hello {}".format(linex.tostr3()))
+            if debug_mode:
+                print("hello {} || {}".format(linex.tostr3(), linex.line_text))
             table_start_idx = line_idx
             break
+
+    if debug_mode:
+        print("merge_centered_lines_before_table(), xxx, table_start_idx = {}".format(table_start_idx))
+    first_merge_reason = get_merge_reason(content_linex_list[0])
     if table_start_idx != -1:
         table_start_idx -= 1
+        prev_merge_reason = first_merge_reason
         while table_start_idx >= 0:
-            _, linex = y_lines[table_start_idx]
+            linex = content_linex_list[table_start_idx]
+            merge_reason = get_merge_reason(linex)
+            if debug_mode:
+                print("jjj linex = {} || {}".format(linex.tostr4(), linex.line_text[:20]))
             # if not english, merge with the table by block
             if linex.attrs.get('sechead'):
-                # we take sechead before a table
-                linex.block_num = block_num
+                # print('linex is sechead....')
+                # we take sechead before a table, but sechead block_num stays
+                # linex.block_num = block_num
                 linex.attrs[table_prefix] = table_name
+                # there might be multiple sechead lines before
+                table_start_idx -= 1
+                while table_start_idx >= 0:
+                    tmp_linex = content_linex_list[table_start_idx]
+                    if tmp_linex.attrs.get('sechead'):
+                        tmp_linex.attrs[table_prefix] = table_name
+                        table_start_idx -= 1
+                    else:
+                        break
+                break
+            elif merge_reason != '' and merge_reason != first_merge_reason and prev_merge_reason == '':
+                # print("break due to merge_reason, linex.block_num = {}".format(linex.block_num))
                 break
             elif linex.is_centered:
+                # print('linex is centered....')
                 linex.block_num = block_num
                 linex.attrs[table_prefix] = table_name
             elif not linex.is_english:
+                # print('linex is not english....')
                 linex.block_num = block_num
                 linex.attrs[table_prefix] = table_name
             else:
+                # print('linex is breaking....')
                 break
             table_start_idx -= 1
+            prev_merge_reason = merge_reason
 
+        # check if everything before table is OK to include as a part of that table
+        if debug_mode:
+            print("table_start_idx = {}".format(table_start_idx))
+        prev_block_linex_list_map = defaultdict(list)
+        for line_idx, linex in enumerate(content_linex_list):
+            block_num = linex.block_num
+            prev_block_linex_list_map[block_num].append(linex)
+            if line_idx == table_start_idx:
+                break
 
+        is_ok_table_heading = False
+        prev_block_list = [linex_list for block_num, linex_list in sorted(prev_block_linex_list_map.items())]
 
-SIGNATURE_PREFIX_PAT = re.compile(r'(By|Name|Title)\s*:')
-
-def markup_signature_block(grouped_block_list, page_num):
-    has_signature_line = False
-    result = []
-    # first merge blocks that are likely to be signature blocks
-    for grouped_block in grouped_block_list:
-        if len(grouped_block.line_list) == 1:
-            mat = SIGNATURE_PREFIX_PAT.match(grouped_block.line_list[0].line_text)
-            if mat:
-                has_signature_line = True
-                grouped_block.line_list[0].attrs['is_signature'] = True
-                grouped_block.attrs['is_signature'] = True
-        else:
-            for linex in grouped_block.line_list:
-                mat = SIGNATURE_PREFIX_PAT.match(linex.line_text)
-                if mat:
-                    has_signature_line = True
-                    linex.attrs['is_signature'] = True
-                    grouped_block.attrs['is_signature'] = True
-        result.append(grouped_block)
-
-    if has_signature_line:
-        # merge blocks with one signature lines only, not across multiple-line
-        # blocks.
-        block_line_list_map = defaultdict(list)
-        for grouped_block in grouped_block_list:
-            block_num = grouped_block.bid
-            is_signature_line = grouped_block.attrs.get('is_signature')
-            if is_signature_line and len(grouped_block.line_list) == 1:
-                linex = grouped_block.line_list[0]
-                if is_prev_block_signature:
-                    linex.block_num = prev_signature_block_num
-                    block_line_list_map[prev_signature_block_num].append(linex)
-                else:
-                    block_line_list_map[linex.block_num].append(linex)
-                    is_prev_block_signature = True
-                    prev_signature_block_num = linex.block_num
-            else:
-                for linex in grouped_block.line_list:
-                    block_line_list_map[block_num].append(linex)
-                is_prev_block_signature = False
-
-        tmp_list = []
-        for block_num, linex_list in sorted(block_line_list_map.items()):
-            tmp_list.append(linex_list)
-            # GroupedBlockInfo(page_num, block_num,
-
-        block_line_list_map = defaultdict(list)
-        prev_block_num = -1
-        is_prev_maybe_signature = False
-        for linex_list in tmp_list:
-            block_has_signature = False
-            block_num = linex_list[0].block_num
-            for linex in linex_list:
-                if linex.attrs.get('is_signature'):
-                    block_has_signature = True
-
-            if block_has_signature and is_prev_maybe_signature:
+        # for debug
+        if debug_mode:
+            for blockx, linex_list in enumerate(prev_block_list):
+                print("\npre-block: {}".format(blockx))
                 for linex in linex_list:
-                    block_line_list_map[prev_block_num].append(linex)
-                # now set all line in this block signature
-                for linex in block_line_list_map[prev_block_num]:
-                    linex.attrs['is_signature'] = True
-                    linex.block_num = prev_block_num
-            else:
-                for linex in linex_list:
-                    block_line_list_map[block_num].append(linex)
+                    print("     linex: {} || {}".format(linex.tostr5(), linex.line_text))
 
-            is_prev_maybe_signature = False
-            if len(linex_list) <= 3 and not linex_list[0].is_english:
-                is_prev_maybe_signature = True
-                prev_block_num = block_num
-
-        result = []
-        for block_num, linex_list in sorted(block_line_list_map.items()):
-            result.append(GroupedBlockInfo(page_num, block_num, linex_list))
-
-    return result
+        if len(prev_block_list) <= 3:  # sechead + table head + short description
+            num_is_header_block = 0
+            for linex_list in prev_block_list:
+                first_linex = linex_list[0]
+                if first_linex.is_centered or first_linex.attrs.get('sechead'):
+                    num_is_header_block += 1
+                elif len(linex_list) <= 3:   # short descripton shouldn't be more than 3 lines
+                    num_is_header_block += 1
+            if debug_mode:
+                print("num_is_header_block = {}, len(prev_block_list)= {}".format(num_is_header_block,
+                                                                                  len(prev_block_list)))
+            if float(num_is_header_block) / len(prev_block_list) >= 0.5:
+                is_ok_table_heading = True
 
 
-def save_debug_files(pdf_text_doc, base_fname, work_dir):
-    doc_text = pdf_text_doc.doc_text
-    paged_para_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paged_para.txt'))
-    with open(paged_para_fn, 'wt') as fout:
-        for pageinfo in pdf_text_doc.page_list:
-            for pblockinfo in pageinfo.pblockinfo_list:
-                # print('[{}]'.format(pblockinfo.text), file=fout)
-                print(pblockinfo.text, file=fout)
-                print('', file=fout)
-        print('wrote {}'.format(paged_para_fn))
-
-    paged_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paged_debug.txt'))
-    with open(paged_debug_fn, 'wt') as fout:
-        for pageinfo in pdf_text_doc.page_list:
-            for line4nlp in pageinfo.line4nlp_list:
-                print('orig=(%d, %d), nlp=(%d, %d), ydiff= %.2f, xStart= %.2f, xEnd= %.2f, yStart= %.2f, yEnd= %.2f, linebreak= %d' %
-                      (line4nlp.orig_start, line4nlp.orig_end,
-                       line4nlp.nlp_start, line4nlp.nlp_end,
-                       line4nlp.ydiff,
-                       line4nlp.xStart,
-                       line4nlp.xEnd,
-                       line4nlp.yStart,
-                       line4nlp.yEnd,
-                       line4nlp.linebreak),
-                      file=fout)
-                print('[{}]'.format(doc_text[line4nlp.orig_start:line4nlp.orig_end].replace('\n', ' ')), file=fout)
-                print('', file=fout)
-        print('wrote {}'.format(paged_debug_fn))
-    """    
-        # probably not being called
-        nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlpXXX333.txt'))
-        with open(nlp_fn, 'wt') as fout:
-            for pageinfo in pageinfo_list:
-                for line4nlp in pageinfo.line4nlp_list:
-                    print(doc_text[line4nlp.orig_start:line4nlp.orig_end].replace('\n', ' '), file=fout)
-                    print('', file=fout)
-            print('wrote {}'.format(nlp_fn))
-
-
-        sep_fn = get_paraline_fname(base_fname, work_dir)
-        with open(sep_fn, 'wt') as fout:
-            prev_end_offset = 0
-            for block_info in block_info_list:
-                diff_prev_end_offset = block_info.start - prev_end_offset
-                # output eoln
-                for i in range(max(diff_prev_end_offset - 1, 0)):
-                    print('', file=fout)
-                # print('df= {}'.format(diff_prev_end_offset), file=fout)
-                # print('', file=fout)
-                block_text = doc_text[block_info.start:block_info.end]
-                if block_info.is_multi_lines:
-                    print(block_text, file=fout)
+        # if there is less than 4 lines in the page before tha table
+        # all all those lines as a part of table for signal gathering
+        if table_start_idx < 4:
+            while table_start_idx >= 0:
+                if debug_mode:
+                    print("zzz table_start_idx = {}, len(content_linex_list) = {}".format(table_start_idx,
+                                                                                          len(content_linex_list)))
+                tmp_linex = content_linex_list[table_start_idx]
+                if not tmp_linex.is_english:
+                    tmp_linex.attrs[table_prefix] = table_name
+                    table_start_idx -= 1
                 else:
-                    print(block_text.replace('\n', ' '), file=fout)
-                # print('', file=fout)
-                prev_end_offset = block_info.end
-            for i in range(doc_len - block_info.end -1):
-                print('', file=fout)
-            print('wrote {}'.format(sep_fn))
-"""
-    
+                    break
+        elif is_ok_table_heading:
+            while table_start_idx >= 0:
+                if debug_mode:
+                    print("zz2 table_start_idx = {}, len(content_linex_list) = {}".format(table_start_idx,
+                                                                                          len(content_linex_list)))
+                tmp_linex = content_linex_list[table_start_idx]
+                tmp_linex.attrs[table_prefix] = table_name
+                table_start_idx -= 1
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Parse a document into a document structure.')
+    parser.add_argument("-v", "--verbosity", help="increase output verbosity")
+    parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
+    parser.add_argument('file', help='a file to be annotated')
+
+    args = parser.parse_args()
+    txt_fname = args.file
+
+    # offsets_fname = doc_fn.replace(".txt", ".lineinfo.json")
+    # doc_pdf_reader.parse_document(doc_fn, offsets_fname, work_dir="/tmp")
+
+    work_dir = 'dir-work'
+    pdf_txt_doc = parse_document(txt_fname, work_dir=work_dir)
+    to_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)
+
+    # pdf_txt_doc.print_debug_lines()
+    pdf_txt_doc.print_debug_blocks()
+
+    pdf_txt_doc.save_debug_pages(work_dir=work_dir, extension='.paged.debug.tsv')
+
+    logging.info('Done.')

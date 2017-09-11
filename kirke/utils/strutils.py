@@ -468,8 +468,11 @@ def is_dashed_big_number_st(line: str) -> bool:
             return True
     return False
 
+def extract_numbers(line: str):
+    return re.findall(r'(\d*\.\d+|\d+\.\d*|\d+)', line)
+
 def count_numbers(line: str):
-    return len(re.findall(r'\d+', line))
+    return len(extract_numbers(line))
 
 NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
 def find_number(line: str):

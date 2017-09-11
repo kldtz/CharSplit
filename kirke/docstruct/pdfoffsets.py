@@ -1,15 +1,11 @@
 from collections import namedtuple, Counter, defaultdict
-import copy
 from functools import total_ordering
-import json
 import os
-import re
 import sys
-from time import time
 from typing import List
 
-from kirke.docstruct import docstructutils, jenksutils, tokenizer
-from kirke.utils import engutils, mathutils, stopwordutils, strutils
+from kirke.docstruct import jenksutils, docstructutils
+from kirke.utils import engutils, strutils
 
 
 StrInfo = namedtuple('StrInfo', ['start', 'end',
@@ -21,11 +17,12 @@ MIN_X_END = -1
 
 class PDFTextDoc:
 
-    def __init__(self, doc_text, page_list):
+    def __init__(self, file_name: str, doc_text: str, page_list):
+        self.file_name = file_name
         self.doc_text = doc_text
         self.page_list = page_list
         self.num_pages = len(page_list)
-        self.paged_grouped_block_list = []
+        self.paged_grouped_block_list = []      # each page is a list of grouped_block
         self.special_blocks_map = defaultdict(list)
 
     def print_debug_blocks(self):
@@ -53,10 +50,9 @@ class PDFTextDoc:
                 alist = [(attr, value) for attr, value in sorted(adict.items())]
                 print("\t{}\t{}\t{}\t[{}...]".format(start, end, alist, self.doc_text[start:end][:15].replace('\n', ' ')))
 
-    def save_debug_pages(self, txt_fname: str, work_dir: str):
-
-        base_fname = os.path.basename(txt_fname)
-        paged_debug_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paged.debug.tsv'))
+    def save_debug_pages(self, extension: str, work_dir='dir-work'):
+        base_fname = os.path.basename(self.file_name)
+        paged_debug_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
         with open(paged_debug_fname, 'wt') as fout:
             for page in self.page_list:
                 print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
@@ -107,6 +103,67 @@ class PDFTextDoc:
 
             for linex in page.line_list:
                 print('{}\t{}'.format(linex.tostr2(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
+
+
+class PageInfo3:
+
+    def __init__(self, doc_text, start, end, page_num, pblockinfo_list):
+        self.start = start
+        self.end = end
+        self.page_num = page_num
+        self.pblockinfo_list = pblockinfo_list
+        self.avg_single_line_break_ydiff = self.compute_avg_single_line_break_ydiff()
+
+        # self.line_list = init_line_with_attr_list()
+
+        lineinfo_list = [lineinfo
+                         for pblockinfo in self.pblockinfo_list
+                         for lineinfo in pblockinfo.lineinfo_list]
+        xstart_list = [lineinfo.xStart for lineinfo in lineinfo_list]
+
+        # print("leninfo_list = {}, xstart_list = {}, page_num = {}".format(len(lineinfo_list),
+        # xstart_list, page_num))
+        if lineinfo_list:  # not an empty page
+            if len(xstart_list) == 1:
+                xstart_list.append(xstart_list[0])  # duplicate itself to avoid jenks error with only element
+            jenks = jenksutils.Jenks(xstart_list)
+
+        line_attrs = []
+        prev_yStart = 0
+        for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
+          ydiff = lineinfo.yStart - prev_yStart
+          num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
+          align = jenks.classify(lineinfo.xStart)
+          line_text = doc_text[lineinfo.start:lineinfo.end]
+          is_english = engutils.classify_english_sentence(line_text)
+          is_centered = docstructutils.is_line_centered(line_text, lineinfo.xStart, lineinfo.xEnd)
+          line_attrs.append(LineWithAttrs(page_line_num,
+                                          lineinfo, line_text, page_num, ydiff, num_linebreak,
+                                          align, is_centered, is_english))
+          prev_yStart = lineinfo.yStart
+        self.line_list = line_attrs
+        # attrs of page, such as 'page_num_index'
+        self.attrs = {}
+
+        # conent_line_list is for lines that are not
+        #   - toc
+        #   - page_num
+        #   - header, footer
+        self.content_line_list = []
+
+    def compute_avg_single_line_break_ydiff(self):
+        total_merged_ydiff, total_merged_lines = 0, 0
+        for pblockinfo in self.pblockinfo_list:
+            is_multi_lines = pblockinfo.is_multi_lines
+            if not (is_multi_lines or len(pblockinfo.lineinfo_list) == 1):
+                total_merged_ydiff += pblockinfo.yEnd - pblockinfo.yStart
+                total_merged_lines += len(pblockinfo.lineinfo_list) - 1
+
+        result = 14.0  # default value, just in case
+        if total_merged_lines != 0:
+            result = total_merged_ydiff / total_merged_lines
+        # print("\npage #{}, avg_single_line_ydiff = {}".format(self.page_num, result))
+        return result
 
 
 class LineInfo3:
@@ -198,6 +255,9 @@ class LineWithAttrs:
         if self.linebreak != 1.0:
             alist.append('lbk=%.1f' % self.linebreak)
 
+        if len(self.lineinfo.strinfo_list) != 1:
+            alist.append('len(strlst)=%d' % len(self.lineinfo.strinfo_list))
+
         if self.is_centered:
             alist.append('center')
         if not self.is_english:
@@ -233,6 +293,9 @@ class LineWithAttrs:
         if self.linebreak != 1.0:
             alist.append('lbk=%.1f' % self.linebreak)
 
+        if len(self.lineinfo.strinfo_list) != 1:
+            alist.append('len(strlst)=%d' % len(self.lineinfo.strinfo_list))
+
         if self.is_centered:
             alist.append('center')
         if not self.is_english:
@@ -255,66 +318,6 @@ class LineWithAttrs:
         adict.update(self.attrs)
         return adict
 
-
-class PageInfo3:
-
-    def __init__(self, doc_text, start, end, page_num, pblockinfo_list):
-        self.start = start
-        self.end = end
-        self.page_num = page_num
-        self.pblockinfo_list = pblockinfo_list
-        self.avg_single_line_break_ydiff = self.compute_avg_single_line_break_ydiff()
-
-        # self.line_list = init_line_with_attr_list()
-
-        lineinfo_list = [lineinfo
-                         for pblockinfo in self.pblockinfo_list
-                         for lineinfo in pblockinfo.lineinfo_list]
-        xstart_list = [lineinfo.xStart for lineinfo in lineinfo_list]
-
-        # print("leninfo_list = {}, xstart_list = {}, page_num = {}".format(len(lineinfo_list),
-        # xstart_list, page_num))
-        if lineinfo_list:  # not an empty page
-            if len(xstart_list) == 1:
-                xstart_list.append(xstart_list[0])  # duplicate itself to avoid jenks error with only element
-            jenks = jenksutils.Jenks(xstart_list)
-
-        line_attrs = []
-        prev_yStart = 0
-        for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
-          ydiff = lineinfo.yStart - prev_yStart
-          num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
-          align = jenks.classify(lineinfo.xStart)
-          line_text = doc_text[lineinfo.start:lineinfo.end]
-          is_english = engutils.classify_english_sentence(line_text)
-          is_centered = docstructutils.is_line_centered(line_text, lineinfo.xStart, lineinfo.xEnd)
-          line_attrs.append(LineWithAttrs(page_line_num,
-                                          lineinfo, line_text, page_num, ydiff, num_linebreak,
-                                          align, is_centered, is_english))
-          prev_yStart = lineinfo.yStart
-        self.line_list = line_attrs
-        # attrs of page, such as 'page_num_index'
-        self.attrs = {}
-
-        # conent_line_list is for lines that are not
-        #   - toc
-        #   - page_num
-        #   - header, footer
-        self.content_line_list = []
-
-    def compute_avg_single_line_break_ydiff(self):
-        total_merged_ydiff, total_merged_lines = 0, 0
-        for pblockinfo in self.pblockinfo_list:
-            is_multi_lines = pblockinfo.is_multi_lines
-            if not (is_multi_lines or len(pblockinfo.lineinfo_list) == 1):
-                total_merged_ydiff += pblockinfo.yEnd - pblockinfo.yStart
-                total_merged_lines += len(pblockinfo.lineinfo_list) - 1
-
-        result = 14.0  # default value, just in case
-        if total_merged_lines != 0:
-            result = total_merged_ydiff / total_merged_lines
-        # print("\npage #{}, avg_single_line_ydiff = {}".format(self.page_num, result))
-        return result
 
 
         
@@ -565,6 +568,31 @@ class GroupedBlockInfo:
         self.attrs = {}
 
 
+
+
+def lines_to_block_offsets(linex_list: List[LineWithAttrs], block_type: str, pagenum: int):
+    if linex_list:
+        start = linex_list[0].lineinfo.start
+        end = linex_list[-1].lineinfo.end
+        return (start, end, {'block-type': block_type, 'pagenum': pagenum})
+    # why would this happen?
+    return (0, 0, {'block-type': block_type})
+
+
+def line_to_block_offsets(linex, block_type: str, pagenum: int):
+    start = linex.lineinfo.start
+    end = linex.lineinfo.end
+    return (start, end, {'block-type': block_type, 'pagenum': pagenum})
+
+
+def lines_to_blocknum_map(linex_list):
+    result = defaultdict(list)
+    for linex in linex_list:
+        block_num = linex.block_num
+        result[block_num].append(linex)
+    return result
+
+
 def line_list_to_grouped_block_list(linex_list, page_num):
     block_list_map = defaultdict(list)
     for linex in linex_list:
@@ -576,4 +604,3 @@ def line_list_to_grouped_block_list(linex_list, page_num):
         grouped_block_list.append(GroupedBlockInfo(page_num, block_num, line_list))
 
     return grouped_block_list
-
