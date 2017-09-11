@@ -1,7 +1,7 @@
 import logging
 import time
 
-from kirke.docstruct import docreader
+from kirke.docstruct import docutils
 from kirke.eblearn import ebpostproc
 from kirke.utils import evalutils
 
@@ -127,7 +127,7 @@ class ProvisionAnnotator:
                 xend = antx['end']
                 antx['corenlp_start'] = xstart
                 antx['corenlp_end'] = xend
-                antx['start'] = docreader.find_offset_to(xstart, eb_antdoc.from_list, eb_antdoc.to_list)
-                antx['end'] = docreader.find_offset_to(xend, eb_antdoc.from_list, eb_antdoc.to_list)
+                antx['start'] = docutils.find_offset_to(xstart, eb_antdoc.from_list, eb_antdoc.to_list)
+                antx['end'] = docutils.find_offset_to(xend, eb_antdoc.from_list, eb_antdoc.to_list)
 
         return prov_annotations

@@ -21,8 +21,6 @@ from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier, e
 from kirke.eblearn import ebannotator
 from kirke.utils import osutils, splittrte, strutils
 
-from kirke.docstruct import docreader
-
 from kirke.ebrules import rateclassifier
 
 config = configparser.ConfigParser()

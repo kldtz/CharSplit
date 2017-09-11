@@ -11,10 +11,10 @@ from typing import List
 
 from sklearn.externals import joblib
 
-from kirke.docstruct import docreader, htmltxtparser, doc_pdf_reader
+from kirke.docstruct import docutils
 from kirke.eblearn import ebannotator, ebtrainer, scutclassifier, lineannotator
 from kirke.ebrules import rateclassifier, titles, parties, dates
-from kirke.utils import osutils, strutils, txtreader, evalutils, ebantdoc2
+from kirke.utils import osutils, strutils, evalutils, ebantdoc2
 
 from kirke.utils.ebantdoc2 import EbDocFormat
 
@@ -83,8 +83,8 @@ def adjust_offsets_using_from_to_list(ant_list: List, from_list, to_list):
         xend = antx['end']
         antx['corenlp_start'] = xstart
         antx['corenlp_end'] = xend
-        antx['start'] = docreader.find_offset_to(xstart, from_list, to_list)
-        antx['end'] = docreader.find_offset_to(xend, from_list, to_list)
+        antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
+        antx['end'] = docutils.find_offset_to(xend, from_list, to_list)
     return ant_list
 
 
@@ -276,7 +276,7 @@ class EbRunner:
         prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, provision_set)
 
         # this update the 'start_end_span_list' in each antx in-place
-        docreader.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
+        docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
 
         # updae prov_labels_map based on rules
         self.apply_line_annotators(prov_labels_map,
@@ -490,7 +490,7 @@ class EbRunner:
         # gap_span_list is for sentv2.txt or xxx.txt?
         # the offsets in para_list is for doc_text
         #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
-        #     docreader.parse_html_document(file_name, linfo_file_name, work_dir=work_dir)
+        #     docutils.parse_html_document(file_name, linfo_file_name, work_dir=work_dir)
 
         paras_with_attrs, para_doc_text, gap_span_list, orig_doc_text = \
             htmltxtparser.parse_document(file_name,
@@ -518,13 +518,13 @@ class EbRunner:
                 xend = antx['end']
                 antx['corenlp_start'] = xstart
                 antx['corenlp_end'] = xend
-                antx['start'] = docreader.find_offset_to(xstart, from_list, to_list)
-                antx['end'] = docreader.find_offset_to(xend, from_list, to_list)
+                antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
+                antx['end'] = docutils.find_offset_to(xend, from_list, to_list)
 
                 all_prov_ant_list.append(antx)
 
         # this update the 'start_end_span_list' in each antx in-place
-        docreader.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
+        docutils.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
 
         # updae prov_labels_map based on rules
         self.apply_line_annotators(prov_labels_map,
@@ -557,14 +557,14 @@ class EbRunner:
         time1 = time.time()
 
         orig_text, nl_text, paraline_text, nl_fname, paraline_fname = \
-           doc_pdf_reader.to_nl_paraline_texts(file_name, offsets_file_name, work_dir=work_dir)
+           pdftxtparser.to_nl_paraline_texts(file_name, offsets_file_name, work_dir=work_dir)
         
         base_fname = os.path.basename(file_name)
 
         # gap_span_list is for sentv2.txt or xxx.txt?
         # the offsets in para_list is for doc_text
         #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
-        #     docreader.parse_html_document(file_name, linfo_file_name, work_dir=work_dir)
+        #     docutils.parse_html_document(file_name, linfo_file_name, work_dir=work_dir)
 
         paras_with_attrs, para_doc_text, gap_span_list, orig_doc_text = \
             htmltxtparser.parse_document(file_name,
@@ -593,13 +593,13 @@ class EbRunner:
                 xend = antx['end']
                 antx['corenlp_start'] = xstart
                 antx['corenlp_end'] = xend
-                antx['start'] = docreader.find_offset_to(xstart, from_list, to_list)
-                antx['end'] = docreader.find_offset_to(xend, from_list, to_list)
+                antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
+                antx['end'] = docutils.find_offset_to(xend, from_list, to_list)
 
                 all_prov_ant_list.append(antx)
 
         # this update the 'start_end_span_list' in each antx in-place
-        docreader.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
+        docutils.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
 
 
         # updae prov_labels_map based on rules
@@ -610,7 +610,7 @@ class EbRunner:
                                    is_combine_line=False)
 
         # this update the 'start_end_span_list' in each antx in-place
-        # docreader.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
+        # docutils.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
 
         # HTML document has no table detection, so 'rate-table' annotation is an empty list
         prov_labels_map['rate_table'] = []
@@ -637,7 +637,7 @@ class EbRunner:
         # gap_span_list is for sentv2.txt or xxx.txt?
         # the offsets in para_list is for doc_text
         doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
-             docreader.parse_document(file_name, linfo_file_name, work_dir=work_dir)
+             docutils.parse_document(file_name, linfo_file_name, work_dir=work_dir)
 
         # now file_name.nlp.txt and file_name.nlp.offsets.json are created
         # text4nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.txt'))
@@ -650,7 +650,7 @@ class EbRunner:
         # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
 
         # translate the offsets
-        from_list, to_list = docreader.read_fromto_json(text4nlp_offsets_fn)
+        from_list, to_list = docutils.read_fromto_json(text4nlp_offsets_fn)
         all_prov_ant_list = []
         for provision, ant_list in prov_labels_map.items():
             for antx in ant_list:
@@ -659,18 +659,18 @@ class EbRunner:
                 xend = antx['end']
                 antx['corenlp_start'] = xstart
                 antx['corenlp_end'] = xend
-                antx['start'] = docreader.find_offset_to(xstart, from_list, to_list)
-                antx['end'] = docreader.find_offset_to(xend, from_list, to_list)
+                antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
+                antx['end'] = docutils.find_offset_to(xend, from_list, to_list)
 
                 all_prov_ant_list.append(antx)
 
         # this update the 'start_end_span_list' in each antx in-place
-        docreader.update_ant_spans(all_prov_ant_list, gap_span_list, doc_text)
+        docutils.update_ant_spans(all_prov_ant_list, gap_span_list, doc_text)
 
         # apply rule-based classification system
         # the offsets in para_list is for doc_text, so update the annotations after
         # adjustment were made
-        table_list = docreader.extract_table_list(para_list)
+        table_list = docutils.extract_table_list(para_list)
         #if table_list:
         #    for i, atable in enumerate(table_list, 1):
         #        print("table #{}".format(i))
@@ -759,7 +759,7 @@ class EbRunner:
             logging.info("Updating annotator, '%s', %s.", provision, full_model_fname)
             prev_provision_model_fname = self.provision_custom_model_fn_map[provision]
             if prev_provision_model_fname != full_model_fname:
-                logging.info("removing old customized model file, '%s', %s.", provision, prev_prov_model_fname)
+                logging.info("removing old customized model file, '%s', %s.", provision, prev_provision_model_fname)
                 os.remove(prev_provision_model_fname)
                 self.provision_custom_model_fn_map[provision] = full_model_fname
                 # the old timestamp for the removed file doesn't matter.

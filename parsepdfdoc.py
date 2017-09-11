@@ -24,9 +24,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     txt_fname = args.file
 
-    # offsets_fname = doc_fn.replace(".txt", ".lineinfo.json")    
-    # doc_pdf_reader.parse_document(doc_fn, offsets_fname, work_dir="/tmp")
-
     work_dir = 'dir-work'
     pdf_txt_doc = pdftxtparser.parse_document(txt_fname, work_dir=work_dir)
     pdftxtparser.to_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)

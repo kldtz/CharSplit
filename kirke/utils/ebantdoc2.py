@@ -13,13 +13,10 @@ import time
 
 from sklearn.externals import joblib
 
-from kirke.eblearn import sent2ebattrvec
-from kirke.docstruct import doc_pdf_reader
-
 from kirke.eblearn import ebattrvec
-
+from kirke.eblearn import sent2ebattrvec
+from kirke.docstruct import htmltxtparser, docutils, pdftxtparser
 from kirke.utils import corenlputils, mathutils, strutils, osutils, entityutils, txtreader, ebsentutils
-from kirke.docstruct import htmltxtparser, docreader, pdftxtparser
 
 CORENLP_JSON_VERSION = '1.2'
 EBANTDOC_VERSION = '1.2'
@@ -58,13 +55,13 @@ class EbDocFormat(Enum):
                 xend = antx['end']
                 antx['corenlp_start'] = xstart
                 antx['corenlp_end'] = xend
-                antx['start'] = docreader.find_offset_to(xstart, from_list, to_list)
-                antx['end'] = docreader.find_offset_to(xend, from_list, to_list)
+                antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
+                antx['end'] = docutils.find_offset_to(xend, from_list, to_list)
 
                 all_prov_ant_list.append(antx)
 
         # this update the 'start_end_span_list' in each antx in-place
-        docreader.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
+        docutils.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
 """
 
 class EbAnnotatedDoc2:
@@ -162,8 +159,8 @@ def dump_ebantdoc_attrvec(eb_antdoc):
         if from_list:
             xstart = attrvec.start
             xend = attrvec.end
-            orig_start = docreader.find_offset_to(xstart, from_list, to_list)
-            orig_end = docreader.find_offset_to(xend, from_list, to_list)
+            orig_start = docutils.find_offset_to(xstart, from_list, to_list)
+            orig_end = docutils.find_offset_to(xend, from_list, to_list)
             print('{}\t{}\t{}'.format(orig_start,  orig_end, eb_antdoc.text[orig_start:orig_end]))
 
 def dump_ebantdoc_attrvec_with_secheads(eb_antdoc):
@@ -178,8 +175,8 @@ def dump_ebantdoc_attrvec_with_secheads(eb_antdoc):
         if from_list:
             xstart = attrvec.start
             xend = attrvec.end
-            orig_start = docreader.find_offset_to(xstart, from_list, to_list)
-            orig_end = docreader.find_offset_to(xend, from_list, to_list)
+            orig_start = docutils.find_offset_to(xstart, from_list, to_list)
+            orig_end = docutils.find_offset_to(xend, from_list, to_list)
             print('{}\t{}\t{}\t{}'.format(orig_start, orig_end, attrvec.sechead,
                                           eb_antdoc.text[orig_start:orig_end]))
 
@@ -210,12 +207,12 @@ def nlptxt_to_attrvec_list(para_doc_text,
 
             # print("prov_annotation: {}".format(prov_annotation))
             # print("\torig\t[{}]".format(orig_doc_text[orig_start:orig_end]))
-            # nlp_start = docreader.find_offset_to(orig_start, from_list_xx, to_list_xx)
-            # nlp_end = docreader.find_offset_to(orig_end, from_list_xx, to_list_xx)
+            # nlp_start = docutils.find_offset_to(orig_start, from_list_xx, to_list_xx)
+            # nlp_end = docutils.find_offset_to(orig_end, from_list_xx, to_list_xx)
             # print("\tnlp\t[{}]".format(para_doc_text[nlp_start:nlp_end]))
 
-            xstart = docreader.find_offset_to(orig_start, from_list_xx, to_list_xx)
-            xend = docreader.find_offset_to(orig_end, from_list_xx, to_list_xx)
+            xstart = docutils.find_offset_to(orig_start, from_list_xx, to_list_xx)
+            xend = docutils.find_offset_to(orig_end, from_list_xx, to_list_xx)
             nlp_prov_ant_list.append(ebsentutils.ProvisionAnnotation(xstart, xend, orig_label))
         # print("prov_annotation: {}".format(prov_annotation))
     else:
@@ -454,7 +451,7 @@ def pdf_to_ebantdoc2(txt_file_name,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
 
     doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
-       doc_pdf_reader.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
+        pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
     # jshaw, This is too much code change.  Keeping the existing code.
     # pdf_txt_doc = pdftxtparser.parse_document(txt_file_name)
     # doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
@@ -464,7 +461,7 @@ def pdf_to_ebantdoc2(txt_file_name,
     # gap_span_list is for sentv2.txt or xxx.txt?
     # the offsets in para_list is for doc_text
     #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
-    #     docreader.parse_html_document(txt_file_name, linfo_file_name, work_dir=work_dir)
+    #     docutils.parse_html_document(txt_file_name, linfo_file_name, work_dir=work_dir)
 
     paras_with_attrs, para_doc_text, gap_span_list, _ = \
         htmltxtparser.parse_document(txt_file_name,
