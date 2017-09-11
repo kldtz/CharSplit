@@ -67,6 +67,15 @@ def is_invalid_party(line):
 """Process parts of strings (already split by comma, and, & semicolon)"""
 
 
+# Companies list from wikipedia.org/wiki/List_of_companies_of_the_United_States
+with open(DATA_DIR + 'companies.list') as f:
+    valid_lower = {w for w in f.read().split() if w.isalpha() and w.islower()}
+
+
+def invalid_lower(word):
+    return word.isalpha() and word.islower() and word not in valid_lower
+
+
 def keep(s):
     """Eliminate titles (the "Agreement") as potential parties and terms."""
     alphanum_chars = ''.join([c for c in s if c.isalnum()])
@@ -83,7 +92,7 @@ def process_part(p):
 
     # Terminate at a single-word business suffix or business suffix abbreviation
     for word in p.split():
-        if cap_rm_dot_space(word) in business_suffixes:
+        if cap_rm_dot_space(word) in business_suffixes or invalid_lower(word):
             p = p[:p.index(word) + len(word)]
             break
 
@@ -220,7 +229,10 @@ def extract_between_among(s):
     for i in range(len(grps)):
         zip_code_inds = [j for j, part in enumerate(grps[i]) if part == '+']
         if zip_code_inds:
-            grps[i] = grps[i][max(zip_code_inds) + 1:]
+            new_start = max(zip_code_inds) + 1
+            terms_before = [part for part in grps[i][:new_start] if part == '=']
+            new_parts = grps[i][new_start:]
+            grps[i] = terms_before + new_parts
     parts = [part for g in grps for part in g]
 
     # Add terms back in
