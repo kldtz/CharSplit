@@ -11,7 +11,7 @@ def is_line_centered(line, xStart, xEnd, is_relax_check=False):
         return False
     if strutils.is_all_caps_space(line) and len(line) > 52:
         return False
-    
+
     right_diff = 612 - xEnd   # (0, 0, 595, 842);
     left_diff = xStart
 
@@ -47,6 +47,11 @@ TOC_PREFIX_2_PAT = re.compile(r'^(.+)(\.\.\.\.\.|\. \. \. \. \. )')
 
 
 def is_line_toc(line):
+    # sometimes a signature line might look like toc
+    # By: .,.....
+    if is_line_signature_prefix(line):
+        return False
+
     mat = TOC_PREFIX_PAT.search(line)
     if mat:
         return True
@@ -154,6 +159,7 @@ def is_line_footer(line: str,
     # print('is_footer.score = {}'.format(score))
     return score >= 1, score
 
+HEADER_PAT = re.compile(r'(execution copy|anx343534)', re.I)
 
 def is_line_header(line: str,
                    yStart: float,
@@ -163,8 +169,14 @@ def is_line_header(line: str,
                    # num_line_in_block, int,
                    num_line_in_page: int):
     score = 0
-    if yStart < 80.0 and not is_english and len(line) < 30 and not is_centered:
+    if yStart < 80.0 and not is_english and len(line) < 30:
         score += 0.9
+    elif HEADER_PAT.match(line) and yStart < 140:
+        score += 0.9
+
+    # sometimes, 'exhibit a' can be mistaken for header
+    if is_centered:  # a negative feature
+        score -= 0.3
 
     #if num_line_in_block == 1:
     #    score += 0.2
@@ -174,8 +186,7 @@ def is_line_header(line: str,
     # first or last line
     if line_num == 1 or line_num == num_line_in_page:
         score += 0.3
-
-    if line_num == 2 or line_num == num_line_in_page -1:
+    elif line_num == 2 or line_num == num_line_in_page -1:
         score += 0.1
 
     return score >= 1.0

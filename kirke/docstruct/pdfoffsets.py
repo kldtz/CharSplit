@@ -86,7 +86,8 @@ class PDFTextDoc:
 
                 if linex.lineinfo.block_num != prev_block_num:
                     print()
-                print('{}\t{}'.format(linex.tostr2(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
+                print('{}\t{}'.format(linex.tostr2(),
+                                      self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
                 prev_block_num = linex.lineinfo.block_num
 
     def print_debug_noskip_lines(self):
@@ -102,7 +103,25 @@ class PDFTextDoc:
                 print('  attrs: {}'.format(', '.join(attr_list)))
 
             for linex in page.line_list:
-                print('{}\t{}'.format(linex.tostr2(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
+                print('{}\t{}'.format(linex.tostr2(),
+                                      self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
+
+def sorted_pblocks_by_yStart(pblockinfo_list):
+    if not pblockinfo_list:
+        return pblockinfo_list
+    min_block_num = pblockinfo_list[0].bid
+    for pblockinfo in pblockinfo_list[1:]:
+        if pblockinfo.bid < min_block_num:
+            min_block_num = pblockinfo.bid
+
+    ystart_pblockinfo_list = [x[1] for x in sorted([(pb.yStart, pb) for pb in pblockinfo_list])]
+    result = []
+    for syblockid, pblockinfo in enumerate(ystart_pblockinfo_list):
+        pblockinfo.bid = min_block_num + syblockid
+        for lineinfo in pblockinfo.lineinfo_list:
+            lineinfo.bid = pblockinfo.bid
+            # print("xxx linex: {}".format(linex.tostr2()))
+    return ystart_pblockinfo_list
 
 
 class PageInfo3:
@@ -111,6 +130,12 @@ class PageInfo3:
         self.start = start
         self.end = end
         self.page_num = page_num
+
+        # need to order the blocks by their yStart first.
+        # this impact the line list also.
+        # Fixes header and footer issues due to out of order lines.
+        # Also out of order blocks due to tables and header.  p76 carousel.txt
+        pblockinfo_list = sorted_pblocks_by_yStart(pblockinfo_list)
         self.pblockinfo_list = pblockinfo_list
         self.avg_single_line_break_ydiff = self.compute_avg_single_line_break_ydiff()
 
@@ -151,6 +176,7 @@ class PageInfo3:
         #   - header, footer
         self.content_line_list = []
 
+
     def compute_avg_single_line_break_ydiff(self):
         total_merged_ydiff, total_merged_lines = 0, 0
         for pblockinfo in self.pblockinfo_list:
@@ -172,7 +198,8 @@ class LineInfo3:
         self.start = start
         self.end = end
         self.line_num = line_num
-        self.bid = block_num
+        self.obid = block_num   # original block id from pdfbox
+        self.bid = block_num    # ordered by block's yStart
         self.strinfo_list = strinfo_list
 
         min_xStart, min_yStart = MAX_Y_DIFF, MAX_Y_DIFF
@@ -194,17 +221,17 @@ class LineInfo3:
         self.yStart = min_yStart
 
     def tostr2(self):
-        return 'se=(%d, %d), bid= %d, xs=%.1f, ys=%.1f' % (self.start, self.end,
-                                                            self.bid,
-                                                            self.xStart, self.yStart)
+        return 'se=(%d, %d), bid= %d, obid = %d, xs=%.1f, ys=%.1f' % (self.start, self.end,
+                                                                      self.bid, self.obid,
+                                                                      self.xStart, self.yStart)
 
     def tostr3(self):
-        return 'se=(%d, %d), bid= %d, pn= %d' % (self.start, self.end,
-                                                  self.bid, self.page_num)
+        return 'se=(%d, %d), bid= %d, obid = %d, pn= %d' % (self.start, self.end,
+                                                            self.bid, self.obid, self.page_num)
 
 
     def tostr4(self):
-        return 'bid= %d' % (self.bid ,)
+        return 'bid= %d, obid= %d' % (self.bid, self.obid)
 
 
 class LineWithAttrs:
@@ -332,7 +359,8 @@ class PBlockInfo:
                  is_multi_lines):
         self.start = start
         self.end = end
-        self.bid = bid
+        self.obid = bid     # original block id
+        self.bid = bid      # sorted by yStart
         self.pagenum = pagenum
         self.text = text
         self.length = len(text)
@@ -461,13 +489,17 @@ class GroupedBlockInfo:
         self.attrs = {}
 
 
-
-
 def lines_to_block_offsets(linex_list: List[LineWithAttrs], block_type: str, pagenum: int):
     if linex_list:
-        start = linex_list[0].lineinfo.start
-        end = linex_list[-1].lineinfo.end
-        return (start, end, {'block-type': block_type, 'pagenum': pagenum})
+        min_start, max_end = linex_list[0].lineinfo.start, linex_list[-1].lineinfo.end
+        # in case the original line order are not correct from pdfbox, we
+        # ensure the min and max are correct
+        for linex in linex_list:
+            if linex.lineinfo.start < min_start:
+                min_start = linex.lineinfo.start
+            if linex.lineinfo.end > max_end:
+                max_end = linex.lineinfo.end
+        return (min_start, max_end, {'block-type': block_type, 'pagenum': pagenum})
     # why would this happen?
     return (0, 0, {'block-type': block_type})
 

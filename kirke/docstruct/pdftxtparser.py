@@ -1,13 +1,16 @@
 import argparse
+from collections import defaultdict
 import logging
 import os
 import re
 import sys
-from collections import defaultdict
 
+
+from kirke.docstruct import docstructutils
+from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
+from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, PageInfo3, PBlockInfo
+from kirke.docstruct.pdfoffsets import PDFTextDoc, StrInfo
 from kirke.utils import strutils, txtreader, mathutils
-from kirke.docstruct.pdfoffsets import StrInfo, LineInfo3, PageInfo3, PDFTextDoc, PBlockInfo, GroupedBlockInfo
-from kirke.docstruct import pdfutils, docstructutils, pdfoffsets, secheadutils
 
 
 def get_nl_fname(base_fname, work_dir):
@@ -318,6 +321,7 @@ def parse_document(file_name, work_dir, debug_mode=True):
     add_doc_structure_to_doc(pdf_text_doc)
 
     return pdf_text_doc
+
 
 def merge_if_continue_to_next_page(prev_page, cur_page):
     if not prev_page.content_line_list or not cur_page.content_line_list:
