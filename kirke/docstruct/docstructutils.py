@@ -2,7 +2,8 @@ import re
 from typing import List
 
 from kirke.utils import strutils
-from kirke.docstruct import secheadutils, addrutils
+from kirke.docstruct import secheadutils
+from kirke.ebrules import addresses
 
 
 def is_line_centered(line, xStart, xEnd, is_relax_check=False):
@@ -10,6 +11,9 @@ def is_line_centered(line, xStart, xEnd, is_relax_check=False):
     if len(line) > 65:
         return False
     if strutils.is_all_caps_space(line) and len(line) > 52:
+        return False
+    # cendered but all lowercase doesn't mean it is a heading
+    if strutils.is_all_lower(line) and len(line) > 52:
         return False
 
     right_diff = 612 - xEnd   # (0, 0, 595, 842);
@@ -41,24 +45,30 @@ def is_line_centered(line, xStart, xEnd, is_relax_check=False):
 
 # should not check for eoln because bad OCR or other extra text
 # 'TABLE OF CONTENTS OFFICE LEASE'
-TOC_PREFIX_PAT = re.compile(r'^\s*(table\s*of\s*contents?|contents?)\s*:?', re.IGNORECASE)
+TOC_HEADING_PAT = re.compile(r'^\s*(table\s*of\s*contents?|contents?)\s*:?$', re.IGNORECASE)
 # 5 periods
-TOC_PREFIX_2_PAT = re.compile(r'^(.+)(\.\.\.\.\.|\. \. \. \. \. )')
+TOC_PREFIX_2_PAT = re.compile(r'(\.\.\.\.\.|\. \. \. \. \. )')
+
+def is_line_toc_heading(line: str):
+    return TOC_HEADING_PAT.search(line)
 
 
-def is_line_toc(line):
+def is_line_toc(line: str):
     # sometimes a signature line might look like toc
     # By: .,.....
     if is_line_signature_prefix(line):
         return False
 
-    mat = TOC_PREFIX_PAT.search(line)
+    mat = TOC_HEADING_PAT.search(line)
     if mat:
         return True
 
     mat = TOC_PREFIX_2_PAT.search(line)
     if mat:
-        return True
+        # need to verify it again for the rest of the line
+        line_left = line[mat.end(1):]
+        # print('line_left = [{}]'.format(line_left))
+        return TOC_PREFIX_2_PAT.search(line_left)
     return False
 
 
@@ -90,6 +100,10 @@ def is_line_page_num(line: str, line_num_in_page=1, num_line_in_page=20,
     if line_break > 5.0 or yStart >= 675.0:  # seen yStart==687.6 as page number
         pass
     elif line_num_in_page > 2 and line_num_in_page <= num_line_in_page - 2:
+        return False
+
+    # no sechead in page number, if it is obvious sechead
+    if secheadutils.is_line_sechead_strict_prefix(line):
         return False
 
     # 'page' in toc header
@@ -156,10 +170,16 @@ def is_line_footer(line: str,
         score += 0.2
     if page_num_index != -1 and page_line_num >= page_num_index:
         score += 0.8
+
+    # no sechead in footer, if it is obvious sechead
+    if secheadutils.is_line_sechead_strict_prefix(line):
+        score -= 20
+
     # print('is_footer.score = {}'.format(score))
     return score >= 1, score
 
-HEADER_PAT = re.compile(r'(execution copy|anx343534)', re.I)
+
+HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', re.I)
 
 def is_line_header(line: str,
                    yStart: float,
@@ -173,6 +193,12 @@ def is_line_header(line: str,
         score += 0.9
     elif HEADER_PAT.match(line) and yStart < 140:
         score += 0.9
+
+    if (secheadutils.is_line_sechead_prefix(line) or
+        # don't use is_line_address(), too costly
+        is_line_address_prefix(line) or
+        is_line_signature_prefix(line)):
+        score -= 0.9
 
     # sometimes, 'exhibit a' can be mistaken for header
     if is_centered:  # a negative feature
@@ -235,14 +261,13 @@ def is_line_signature_prefix(line: str):
     return False
 
 
-def is_line_address(line: str):
-    # this is the incorrect version
-    # return addrutils.is_address_line(line)
-    return False
-
-
-ADDRESS_PREFIX_PAT = re.compile(r'(Tel|Attention|Fax|c/o|C/O)')
+ADDRESS_PREFIX_PAT = re.compile(r'(attention|attn|c/o|email:|facsimi|fax|phone|tel|p[ \.]+o[ \.]+box)', re.I)
 
 def is_line_address_prefix(line: str):
     mat = ADDRESS_PREFIX_PAT.match(line)
     return mat
+
+def is_line_address(line: str, is_english=False, is_sechead=False):
+    if is_english or is_sechead:
+        return False
+    return addresses.classify(line) >= 0.5

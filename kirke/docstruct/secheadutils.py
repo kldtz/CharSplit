@@ -1543,13 +1543,43 @@ def st_sechead_str(xst):
 
     return ' '.join(words)
 
-line_sechead_prefix_pat_only = re.compile('^\s*\(?([\d\.]+|[a-zA-Z])\)?\s*$')
 
-line_sechead_prefix_pat = re.compile('^\s*(\(?([\d\.]+|[a-zA-Z])\)|(exhibit|section|article))', re.I)
+line_sechead_prefix_pat_only = re.compile(r'^\s*\(?([\d\.]+|[a-zA-Z])\)?\s*$')
+
 
 def is_line_sechead_prefix_only(line: str):
     return line_sechead_prefix_pat_only.match(line)
 
+
+# a) xxx
+# 1.2) xxx
+SECHEAD_PREFIX_PAT1 = r'(\(?([\d\.]+|[a-zA-Z])\))\s*\w'
+
+# exhibit xxx
+# exmlxxx xxx
+# article xxx
+SECHEAD_PREFIX_PAT2 = r'(exhibit|exmllit|exml|section|article)\s*\w'
+
+# 1.2 xxx
+# a. xxx
+# 1. xxx
+SECHEAD_PREFIX_PAT3 = r'((\d+\.|\d+\.\d+|\d+\.\d+\.\d+|\d+\.\d+\.\d+\.\d+)\.?|[a-zA-Z]\. )\s*\w'
+
+SECHEAD_PREFIX_LIST = (SECHEAD_PREFIX_PAT1,
+                       SECHEAD_PREFIX_PAT2,
+                       SECHEAD_PREFIX_PAT3)
+
+line_sechead_prefix_pat = re.compile(r'^\s*({})'.format('|'.join(SECHEAD_PREFIX_LIST), re.I))
+
 def is_line_sechead_prefix(line: str):
     return line_sechead_prefix_pat.match(line)
 
+
+# cannot have 1. xxx, must have at least 2 digit sequences
+# 1.2 xx
+SECHEAD_PREFIX_STRICT_PAT3 = r'((\d+\.\d+|\d+\.\d+\.\d+|\d+\.\d+\.\d+\.\d+)\.?|[a-zA-Z]\. )\s*\w'
+
+line_sechead_strict_prefix_pat = re.compile(r'^\s*{}'.format(SECHEAD_PREFIX_STRICT_PAT3), re.I)
+
+def is_line_sechead_strict_prefix(line: str):
+    return line_sechead_strict_prefix_pat.match(line)

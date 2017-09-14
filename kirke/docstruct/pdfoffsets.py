@@ -221,9 +221,11 @@ class LineInfo3:
         self.yStart = min_yStart
 
     def tostr2(self):
-        return 'se=(%d, %d), bid= %d, obid = %d, xs=%.1f, ys=%.1f' % (self.start, self.end,
-                                                                      self.bid, self.obid,
-                                                                      self.xStart, self.yStart)
+        return 'se=(%d, %d), bid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f' % (self.start, self.end,
+                                                                                self.bid, self.obid,
+                                                                                self.xStart,
+                                                                                self.xEnd,
+                                                                                self.yStart)
 
     def tostr3(self):
         return 'se=(%d, %d), bid= %d, obid = %d, pn= %d' % (self.start, self.end,

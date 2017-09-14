@@ -240,6 +240,15 @@ def is_all_dash_underline(line: str) -> bool:
 def is_all_caps_space(line: str) -> bool:
     return CAP_SPACE_PAT.match(line)
 
+def is_all_lower(line: str) -> bool:
+    words = line.split()
+    if not words:
+        return False
+    for word in words:
+        if not word[0].islower():
+            return False
+    return True
+
 
 def bool_to_int(bxx: bool) -> int:
     if bxx:
@@ -454,6 +463,11 @@ def is_all_title(words: List[str]) -> bool:
                 return False
     return is_alpha_word
     
+ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)
+
+def has_alpha(line: str):
+    return ANY_ALPHA_PAT.search(line)
+
 
 DIGIT_PAT = re.compile(r'^\d+$')
 def is_digit_st(line: str) -> bool:

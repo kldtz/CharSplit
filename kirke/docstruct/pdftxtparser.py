@@ -487,9 +487,10 @@ def add_sections_to_page(apage, pdf_txt_doc):
 
     # handle table and chart identification
     grouped_block_list = apage.grouped_block_list
+    # if successful, markup_table_block_by_non_english will set 'has_table', a page attribute
     markup_table_block_by_non_english(grouped_block_list, apage)
     if not apage.attrs.get('has_table'):
-        table_blockset_list, chart_blockset_list = markup_table_block_by_columns(grouped_block_list, page_num)
+        markup_table_block_by_columns(grouped_block_list, page_num)
 
     # create the annotation for table and chart from apage.content_line_list
     extract_tables_from_markups(apage, pdf_txt_doc)
@@ -589,7 +590,11 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         elif docstructutils.is_line_signature_prefix(line.line_text):
             line.attrs['signature'] = True
             # not skipped
-        elif docstructutils.is_line_address_prefix(line.line_text):
+        elif (docstructutils.is_line_address_prefix(line.line_text) or
+              docstructutils.is_line_address(line.line_text,
+                                             is_english=line.is_english,
+                                             is_sechead=secheadutils.is_line_sechead_prefix(line.line_text))):
+                                             # is_sechead=line.attrs.get('sechead'))):
             line.attrs['address'] = True
             # not skipped
 
@@ -614,19 +619,71 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         if not is_skip:
             content_line_list.append(line)
 
-
     apage.content_line_list = content_line_list
+
+    # if a whole page is all sechead, a toc
+    num_sechead = 0
+    first_sechead = None
+    last_sechead = None
+    for line_seq, linex in enumerate(content_line_list):
+        if secheadutils.is_line_sechead_prefix(linex.line_text):
+            last_sechead = line_seq
+            if first_sechead is None:
+                first_sechead = line_seq
+            num_sechead += 1
+    #print("xxe page_num = {}, len(content_line) = {}, num_sechead = {}".format(apage.page_num,
+    #                                                                           len(content_line_list),
+    #                                                                           num_sechead))
+    if len(content_line_list) > 5 and num_sechead / len(content_line_list) >= 0.8:
+        for line_seq, linex in enumerate(content_line_list):
+            if line_seq >= first_sechead and line_seq <= last_sechead:
+                linex.attrs['toc'] = True
+        apage.attrs['has_toc'] = True
+
+    # if there is no toc line, we are done here
+    if not apage.attrs.get('has_toc'):
+        return
 
     # remove secheads after toc section
     # sechead info is not available until now.  Cannot remove
     # those earlier.
+    tmp_toc_lines = []
+    table_of_content_line_idx = -1  # if not found, start from beginning
+    for line_seq, linex in enumerate(apage.line_list):  # this is line_list, not content_line_list
+        if docstructutils.is_line_toc_heading(linex.line_text):
+            table_of_content_line_idx = line_seq
+        if linex.attrs.get('toc'):
+            tmp_toc_lines.append((line_seq, linex))
+
+    # print("pagenum = {}, len(toc_lines) = {}".format(apage.page_num, len(tmp_toc_lines)))
+    # print("              table_of_conent_line_idx = {}".format(table_of_content_line_idx))
+    if len(tmp_toc_lines) <= 3 and apage.page_num > 10 and table_of_content_line_idx == -1:
+        # there is no toc, just ocr error
+        for linex in apage.line_list:
+            if linex.attrs.get('toc'):
+                linex.attrs['toc'] = False
+        apage.attrs['has_toc'] = False
+        return
+
+    # we are here, so there must be toc lines
+    first_toc_line, _ = tmp_toc_lines[0]
+    last_toc_line, _ = tmp_toc_lines[-1]
+    if len(tmp_toc_lines) >= 10:
+        if table_of_content_line_idx != -1:
+            for linex in apage.line_list[table_of_content_line_idx:last_toc_line+1]:
+                linex.attrs['toc'] = True
+        else:
+            for linex in apage.line_list[first_toc_line:last_toc_line+1]:
+                linex.attrs['toc'] = True
+
     deactivate_toc_detection = False
     non_sechead_count = 0
-    for line_num, line in enumerate(apage.content_line_list, 1):
+    for line in apage.line_list[last_toc_line + 1:]:
         # sechead detection is applied later
         # sechead, prefix, head, split_idx
         sechead_tuple = docstructutils.extract_line_sechead(line.line_text, prev_line_text)
-        if sechead_tuple:
+        is_sechead_prefix = secheadutils.is_line_sechead_prefix(line.line_text)
+        if sechead_tuple or is_sechead_prefix:
             if apage.attrs.get('has_toc') and not deactivate_toc_detection:
                 line.attrs['toc'] = True
             line.attrs['sechead'] = sechead_tuple
@@ -635,6 +692,46 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
 
         if non_sechead_count >= 3:
             deactivate_toc_detection = True
+
+
+    # there can be toc lines that are not marked correct because they are more
+    # english
+    tmp_toc_lines = []
+    for line_seq, linex in enumerate(apage.line_list):  # this is line_list, not content_line_list
+        if linex.attrs.get('toc'):
+            tmp_toc_lines.append((line_seq, linex))
+
+    first_toc_line, _ = tmp_toc_lines[0]
+    last_toc_line, _ = tmp_toc_lines[-1]
+    # print("toc pagenum = %d, first = %d, last = %d" % (apage.page_num, first_toc_line, last_toc_line))
+    # now mark all those in the middle as toc lines
+    not_toc_lines_between = []
+    outside_lines = []
+    for line_seq, linex in enumerate(apage.line_list):
+        if line_seq >= first_toc_line and line_seq <= last_toc_line:
+            # collect all missed lines
+            if not linex.attrs.get('toc'):
+                not_toc_lines_between.append(linex)
+        else:
+            outside_lines.append(linex)
+    # print("pagenum = {}, not_toc_line = {}, toc_lines = {}".format(apage.page_num, len(not_toc_lines_between), len(tmp_toc_lines)))
+    # if missed toc lines between tocs is too small, mark them as toc lines
+    if len(not_toc_lines_between) / len(tmp_toc_lines) <= 0.4:
+        """
+        for linex in not_toc_lines_between:  # this is for the whole page??
+            # print("to be toc lines: {} || {}".format(linex.tostr5(), linex.line_text))
+            linex.attrs['toc'] = True
+        for linex in outside_lines:
+            linex.attrs['toc'] = True
+        """
+        for linex in apage.line_list:
+            if linex.attrs.get('toc'):
+                pass
+            # don't expect to see address or signature with toc
+            elif linex.attrs.get('footer') or linex.attrs.get('header') or linex.attrs.get('page_num'):
+                pass
+            else:
+                linex.attrs['toc'] = True
 
     # now remove potential newly added toc lines
     tmp_list = []
@@ -803,80 +900,174 @@ def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
     return grouped_block_list
 
 
+# the lines are sorted by xStart
+def get_lines_from_block_nums_sorted_xStart(block_num_list, block_lines_map):
+    xStart_line_list = []
+    for block_num in block_num_list:
+        for linex in block_lines_map[block_num]:
+            xStart_line_list.append((linex.lineinfo.xStart, linex))
+    return [x[1] for x in sorted(xStart_line_list)]
+
+
+def get_lines_from_block_nums_sorted_obid(block_num_list, block_lines_map):
+    obid_line_list = []
+    for block_num in block_num_list:
+        for linex in block_lines_map[block_num]:
+            obid_line_list.append((linex.lineinfo.obid, linex))
+    return [x[1] for x in sorted(obid_line_list)]
+
+
 def markup_table_block_by_columns(grouped_block_list, page_num):
+    debug_mode = False
     has_close_ydiffs = False
     blocks_with_similar_ys = set([])
 
     y_lines = []
-    page_linex_list = []
     block_lines_map = defaultdict(list)
     for grouped_block in grouped_block_list:
         for linex in grouped_block.line_list:
             y_lines.append((linex.lineinfo.yStart, linex))
-            page_linex_list.append(linex)
             block_lines_map[linex.block_num].append(linex)
     prev_yStart = -100
     prev_block_num = -1
+    page_linex_list = []  # sorted by yStart
     for yStart, linex in sorted(y_lines):
         # there is multiple lines in the same yStart
         cur_block_num = linex.block_num
+        # TODO, MAYBE ISSUE: jshaw
+        # there might be multiple lines with yStart <= 5.0
         if yStart - prev_yStart <= 5.0:
-            # print("page_num = {}, ydiff {}".format(page_num, yStart - prev_yStart))
-            blocks_with_similar_ys.add((prev_block_num, cur_block_num))
+            # There are chart that the block_num are the same, but ydiff is similar.
+            # Yet to finally decide.
+            # A formula that's merged by pdfbox
+            if prev_block_num != cur_block_num:
+                # print("page_num = {}, ydiff {:.2f}, pre_block_num = {}, cur_block_num = {}".format(page_num, yStart - prev_yStart,
+                #                                                                                   prev_block_num, cur_block_num))
+                # print("     prev_yStart = {:.1f}, yStart = {:.1f}".format(prev_yStart, yStart))
+                blocks_with_similar_ys.add((prev_block_num, cur_block_num))
+        page_linex_list.append(linex)
         prev_yStart = yStart
         prev_block_num = cur_block_num
 
+    if not blocks_with_similar_ys:  # no overlap
+        return
+
+    # if there is blocks_with_similar_ys, but only 2 lines
+    # if one of them is short, probably a mistake as table_by_columns.
+    # Probably a pdfbox line separation mistake
+    if len(blocks_with_similar_ys) == 1:
+        # look through the set:
+        # this is only 1 tuple in the set, so only iterate once
+        for block_with_similar_ys in blocks_with_similar_ys:
+            sorted_block_num_list = sorted(block_with_similar_ys)
+            merged_linex_list = get_lines_from_block_nums_sorted_obid(sorted_block_num_list, block_lines_map)
+            # one of them is very short
+            if len(merged_linex_list) == 2:
+                # only if one is a long line, the other is short
+                if ((len(merged_linex_list[0].line_text) < 20 and len(merged_linex_list[1].line_text) > 40) or
+                    (len(merged_linex_list[1].line_text) < 20 and len(merged_linex_list[0].line_text) > 40)):
+                    print("only 2 lines are in 2 columns, reject as a table")
+                    return
+
+    if debug_mode:
+        print("markup_table_block_by_columns(), page_num = {}".format(page_num))
+        for yStart, linex in sorted(y_lines):
+            print("ystart= {}, {} || {}".format(yStart, linex.tostr5(), linex.line_text))
     # now, the blocks are in pairs. Change them to groups or lists
     blocks_with_similar_ys = mathutils.pairs_to_sets(blocks_with_similar_ys)
 
-    table_blockset_list, chart_blockset_list = [], []
+    #print("\nafter pairs_to_sets()")
+    #for x, blocknum_set in enumerate(blocks_with_similar_ys):
+    #    print("blocknum_set #{}: {}".format(x, blocknum_set))
+
+    # now merge row first, then merge rows into table
+    block_first_linex = None
+
     table_count = 1
     for block_num_set in blocks_with_similar_ys:
-        block_align_set_list = []
-        block_first_linex = None
+        sorted_block_num_list = sorted(block_num_set)
+        min_block_num = sorted_block_num_list[0]
+
+        # merged_linex_list = get_lines_from_block_nums_sorted_xStart(sorted_block_num_list, block_lines_map)
+        merged_linex_list = get_lines_from_block_nums_sorted_obid(sorted_block_num_list, block_lines_map)
+        # merged_block_lines_map[sorted_block_num_list[0]] =
         # print("block_num_set, makrup_table_by_columns... {}".format(block_num_set))
-        for block_num in sorted(block_num_set):
-            block_lines = block_lines_map[block_num]
-            align_set = set([])
-            for linex in block_lines:
-                # print("block {} align = {}".format(block_num, linex.align))
-                if not block_first_linex:
-                    block_first_linex = linex
-                align_set.add(linex.align[:2])
-            block_align_set_list.append(align_set)
 
-        is_all_align_size_one = True
-        for block_align_set in block_align_set_list:
-            if len(block_align_set) != 1:
-                is_all_align_size_one = False
-                break
-
-        if is_all_align_size_one:
-            table_prefix = 'table'
-            table_blockset_list.append(block_num_set)
-        else:
-            table_prefix = 'chart'
-            chart_blockset_list.append(block_num_set)
-
+        table_prefix = 'table'
         table_name = '{}-p{}-{}'.format(table_prefix, page_num, table_count)
         for block_num in block_num_set:
             block_lines = block_lines_map[block_num]
             for linex in block_lines:
                 linex.attrs[table_prefix] = table_name
+                linex.block_num = min_block_num
+        table_count += 1
+
+    # merge tables that are adjacent to each other
+    # basically each column is a row
+    prev_table_label = ''
+    prev_table_block_num = -1
+    for linex in page_linex_list:
+        cur_table_label = linex.attrs.get('table', '')
+        if cur_table_label and prev_table_label:
+            if cur_table_label != prev_table_label:
+                linex.attrs['table'] = prev_table_label
+                linex.attrs['table-row'] = linex.block_num
+                linex.block_num = prev_table_block_num
+            else:  # if they are equal, do nothing
+                linex.attrs['table-row'] = linex.block_num
+        elif cur_table_label and not prev_table_label:  # found a new table
+            prev_table_label = cur_table_label
+            prev_table_block_num = linex.block_num
+            linex.attrs['table-row'] = linex.block_num
+            # current label is already correct
+        elif not cur_table_label:  # both prev_table_label is empty or has value
+            prev_table_label = ''
+            prev_table_block_num = -1
+
+    table_lines_map = defaultdict(list)
+    for linex in page_linex_list:
+        table_label = linex.attrs.get('table')
+        if table_label:
+            table_lines_map[table_label].append(linex)
+
+    for table_label, linex_list in table_lines_map.items():
+        block_first_linex = None
+        align_count_map = defaultdict(int)
+
+        for linex in linex_list:
+            # print("   linex {} || {}".format(linex.tostr5(), linex.line_text))
+            if not block_first_linex:
+                block_first_linex = linex
+            align_count_map[linex.align[:2]] += 1
+
+        #for align_st, count in align_count_map.items():
+        #    print("align = {}, count = {}".format(align_st, count))
+
+        align_count_gt_2_list = list(filter(lambda x: x[1] > 2, align_count_map.items()))
+        #for align_st, count in align_count_gt_2_list:
+        #    print("align = {}, count = {}".format(align_st, count))
+
+        if len(align_count_gt_2_list) <= 1:  # 0 means short table
+            # table_prefix = 'table'
+            # no need to do anything, linex.attrs['table'] is correct already
+            table_prefix = 'table'
+            table_name = block_first_linex.attrs['table']
+        else:
+            table_prefix = 'chart'
+            for linex in linex_list:
+                linex.attrs['chart'] = linex.attrs['table'].replace('table', 'chart')
+                del linex.attrs['table']
+            table_name = block_first_linex.attrs['chart']
 
         # merge blocks as we see fit
         if block_first_linex:
             # print("merge_centered_line_before_table(), markup_table_by_columns...")
             merge_centered_lines_before_table(block_first_linex.lineinfo.line_num,
-                                              sorted(block_num_set)[0],
+                                              block_first_linex.block_num,
                                               page_linex_list,
                                               table_prefix,
                                               table_name)
-        #else:
-        #    print("block_first_line is empty, page {}".format(page_num))
-        table_count += 1
 
-    return table_blockset_list, chart_blockset_list
 
 def get_merge_reason(linex):
     special_attrs = ['signature', 'address', 'table', 'chart']
@@ -884,6 +1075,7 @@ def get_merge_reason(linex):
         if linex.attrs.get(special_attr):
             return special_attr
     return ''
+
 
 def merge_centered_lines_before_table(line_num, block_num, content_linex_list, table_prefix, table_name):
     table_start_idx = -1
@@ -907,9 +1099,18 @@ def merge_centered_lines_before_table(line_num, block_num, content_linex_list, t
             merge_reason = get_merge_reason(linex)
             if debug_mode:
                 print("jjj linex = {} || {}".format(linex.tostr4(), linex.line_text[:20]))
+                print("   merge_reason = [{}], prev_merge_reason = [{}]".format(merge_reason,
+                                                                                prev_merge_reason))
+            # previous is merged due to centered and now, we have either address, signature
+            # table, or chart.  don't merge
+            if not prev_merge_reason and merge_reason:
+                if debug_mode:
+                    print("break1")
+                break
             # if not english, merge with the table by block
             if linex.attrs.get('sechead'):
-                # print('linex is sechead....')
+                if debug_mode:
+                    print('linex is sechead....')
                 # we take sechead before a table, but sechead block_num stays
                 # linex.block_num = block_num
                 linex.attrs[table_prefix] = table_name
@@ -924,18 +1125,22 @@ def merge_centered_lines_before_table(line_num, block_num, content_linex_list, t
                         break
                 break
             elif merge_reason != '' and merge_reason != first_merge_reason and prev_merge_reason == '':
-                # print("break due to merge_reason, linex.block_num = {}".format(linex.block_num))
+                if debug_mode:
+                    print("break due to merge_reason, linex.block_num = {}".format(linex.block_num))
                 break
             elif linex.is_centered:
-                # print('linex is centered....')
+                if debug_mode:
+                    print('linex is centered....')
                 linex.block_num = block_num
                 linex.attrs[table_prefix] = table_name
             elif not linex.is_english:
-                # print('linex is not english....')
+                if debug_mode:
+                    print('linex is not english....')
                 linex.block_num = block_num
                 linex.attrs[table_prefix] = table_name
             else:
-                # print('linex is breaking....')
+                if debug_mode:
+                    print('linex is breaking....')
                 break
             table_start_idx -= 1
             prev_merge_reason = merge_reason
@@ -962,18 +1167,22 @@ def merge_centered_lines_before_table(line_num, block_num, content_linex_list, t
 
         if len(prev_block_list) <= 3:  # sechead + table head + short description
             num_is_header_block = 0
+            max_english_lines_in_block = 0
             for linex_list in prev_block_list:
                 first_linex = linex_list[0]
                 if first_linex.is_centered or first_linex.attrs.get('sechead'):
                     num_is_header_block += 1
                 elif len(linex_list) <= 3:   # short descripton shouldn't be more than 3 lines
                     num_is_header_block += 1
+
+                if len(linex_list) > max_english_lines_in_block:
+                    max_english_lines_in_block = len(linex_list)
             if debug_mode:
                 print("num_is_header_block = {}, len(prev_block_list)= {}".format(num_is_header_block,
                                                                                   len(prev_block_list)))
-            if float(num_is_header_block) / len(prev_block_list) >= 0.5:
+            if (not max_english_lines_in_block > 3 and
+                float(num_is_header_block) / len(prev_block_list) >= 0.5):
                 is_ok_table_heading = True
-
 
         # if there is less than 4 lines in the page before tha table
         # all all those lines as a part of table for signal gathering
