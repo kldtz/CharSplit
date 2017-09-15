@@ -91,12 +91,14 @@ def annotate_uploaded_document():
     # make it unavailable to the rest of the code.
     if is_detect_lang:
         atext = strutils.loads(txt_file_name)
-        detect_lang = eb_langdetect_runner.detect_lang(atext)
-        ebannotations['lang'] = detect_lang
-        logging.info("detected language '{}'".format(detect_lang))
+        doc_lang = eb_langdetect_runner.detect_lang(atext)
+        ebannotations['lang'] = doc_lang
+        logging.info("detected language '{}'".format(doc_lang))
         # if no other classification is specified, return early
         if not provision_set and not is_classify_doc:
             return json.dumps(ebannotations)
+    else:
+        detect_lang = "en"
 
     if is_classify_doc:
         if eb_doccat_runner != None:
@@ -131,12 +133,14 @@ def annotate_uploaded_document():
         prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(txt_file_name,
                                                                          pdf_offsets_file_name,
                                                                          provision_set=provision_set,
-                                                                         work_dir=work_dir)
+                                                                         work_dir=work_dir,
+									 doc_lang=doc_lang)
     else:
         # only text file, no offsets.  Original file is .html or .txt
         prov_labels_map, doc_text = eb_runner.annotate_htmled_document(txt_file_name,
                                                                        provision_set=provision_set,
-                                                                       work_dir=work_dir)
+                                                                       work_dir=work_dir,
+								       doc_lang=doc_lang)
 
     ebannotations['ebannotations'] = prov_labels_map
     # pprint(prov_labels_map)

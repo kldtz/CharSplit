@@ -342,7 +342,8 @@ def text_file_name_to_corenlp_json(txt_file_name,
                                    para_doc_text,
                                    is_bespoke_mode,
                                    work_dir,
-                                   is_cache_enabled=False):
+                                   is_cache_enabled=False,
+				   doc_lang="en"):
     # print("txt_file_name= [{}]".format(txt_file_name))
     if txt_file_name:
         txt_basename = os.path.basename(txt_file_name)
@@ -364,24 +365,24 @@ def text_file_name_to_corenlp_json(txt_file_name,
                     os.remove(json_fn)
                     # rest is the same as the 'else' part of no such file exists
                     start_time = time.time()
-                    corenlp_json = corenlputils.annotate_for_enhanced_ner(para_doc_text)
+                    corenlp_json = corenlputils.annotate_for_enhanced_ner(para_doc_text, doc_lang=doc_lang)
                     end_time = time.time()
                     strutils.dumps(json.dumps(corenlp_json), json_fn)
                     logging.info("wrote cache file: %s, took %.0f msec", json_fn, (end_time - start_time) * 1000)
             else:
                 start_time = time.time()
-                corenlp_json = corenlputils.annotate_for_enhanced_ner(para_doc_text)
+                corenlp_json = corenlputils.annotate_for_enhanced_ner(para_doc_text, doc_lang=doc_lang)
                 end_time = time.time()
                 strutils.dumps(json.dumps(corenlp_json), json_fn)
                 logging.info("wrote cache file: %s, took %.0f msec", json_fn, (end_time - start_time) * 1000)
         else:
             start_time = time.time()
-            corenlp_json = corenlputils.annotate_for_enhanced_ner(para_doc_text)
+            corenlp_json = corenlputils.annotate_for_enhanced_ner(para_doc_text, doc_lang=doc_lang)
             end_time = time.time()
             logging.info("calling corenlp, took %.0f msec", (end_time - start_time) * 1000)
     else:
         start_time = time.time()
-        corenlp_json = corenlputils.annotate_for_enhanced_ner(para_doc_text)
+        corenlp_json = corenlputils.annotate_for_enhanced_ner(para_doc_text, doc_lang=doc_lang)
         end_time = time.time()
         logging.info("calling corenlp, took %.0f msec", (end_time - start_time) * 1000)
 
@@ -394,6 +395,7 @@ def text_file_name_to_corenlp_json(txt_file_name,
 # As a result, never cache .ebantdoc.pkl, but can reuse corenlp.json
 def parse_to_eb_antdoc(atext,
                        txt_file_name,
+		       doc_lang="en",
                        work_dir=None,
                        is_bespoke_mode=False,
                        provision=None):
@@ -413,6 +415,7 @@ def parse_to_eb_antdoc(atext,
         return eb_antdoc
 
     corenlp_json = text_file_name_to_corenlp_json(txt_file_name,
+						  doc_lang=doc_lang,
                                                   para_doc_text=atext,
                                                   is_bespoke_mode=is_bespoke_mode,
                                                   work_dir=work_dir,
@@ -703,10 +706,11 @@ def parse_to_eb_antdoc_with_doc_structure(atext_ignore,
 
 def doc_to_ebantdoc(txt_file_name,
                     work_dir,
+                    doc_lang="en",
                     is_bespoke_mode=False,
                     is_doc_structure=False,
                     provision=None,
-                    is_combine_line=True):
+                    is_combine_line=True,):
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
@@ -716,6 +720,7 @@ def doc_to_ebantdoc(txt_file_name,
     if is_doc_structure:
         eb_antdoc = parse_to_eb_antdoc_with_doc_structure(doc_text,
                                                           txt_file_name,
+							  doc_lang=doc_lang,
                                                           work_dir=work_dir,
                                                           is_bespoke_mode=is_bespoke_mode,
                                                           provision=provision,
@@ -723,6 +728,7 @@ def doc_to_ebantdoc(txt_file_name,
     else:
         eb_antdoc = parse_to_eb_antdoc(doc_text,
                                        txt_file_name,
+				       doc_lang=doc_lang,
                                        work_dir=work_dir,
                                        is_bespoke_mode=is_bespoke_mode,
                                        provision=provision)

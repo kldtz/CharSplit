@@ -22,18 +22,27 @@ NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
 # WARNING: all the spaces before the first non-space character will be removed in the output.
 # In other words, the offsets will be incorrect if there are prefix spaces in the text.
 # We will fix those issues in the later modules, not here.
-def annotate(text_as_string):
+def annotate(text_as_string, doc_lang):
     no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
-    output = NLP_SERVER.annotate(no_ctrl_chars_text,
+    supported_langs = ["fr", "es", "ar", "de", "zh-cn"]
+    if doc_lang in supported_langs:
+      doc_lang = doc_lang[:2]
+      output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                  properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
                                              'outputFormat': 'json',
-                                             'ssplit.newlineIsSentenceBreak': 'two'})
+                                             'ssplit.newlineIsSentenceBreak': 'two',
+				             'pipelineLanguage': doc_lang})
+    else:
+     output = NLP_SERVER.annotate(no_ctrl_chars_text,
+                                 properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
+                                             'outputFormat': 'json',
+                                             'ssplit.newlineIsSentenceBreak': 'two'}) 
     return output
 
-def annotate_for_enhanced_ner(text_as_string):
-    return annotate(transform_corp_in_text(text_as_string))
+def annotate_for_enhanced_ner(text_as_string, doc_lang="en"):
+    return annotate(transform_corp_in_text(text_as_string), doc_lang)
 
 CORP_EXPR = r"(,\s*|\b)(inc|corp|llc|ltd)\b"
 NOSTRIP_SET = set(["ltd"])

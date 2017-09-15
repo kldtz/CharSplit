@@ -178,6 +178,12 @@ def test_title_annotator(txt_fn_list_fn, work_dir, model_file_name):
 
 def annotate_document(file_name, work_dir, model_dir, custom_model_dir):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
+    eb_langdetect_runner = ebrunner.EbLangDetectRunner()
+   
+    atext = strutils.loads(file_name)
+    doc_lang = eb_langdetect_runner.detect_lang(atext)
+    logging.info("detected language '{}'".format(doc_lang))
+    
 
     pdf_offsets_filename = file_name.replace('.txt', '.offsets.json')
 
@@ -187,10 +193,12 @@ def annotate_document(file_name, work_dir, model_dir, custom_model_dir):
     if os.path.exists(pdf_offsets_filename):
         prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(file_name,
                                                                          pdf_offsets_filename,
-                                                                         work_dir=work_dir)
+                                                                         work_dir=work_dir,
+									 doc_lang=doc_lang)
     else:
         prov_labels_map, doc_text = eb_runner.annotate_htmled_document(file_name,
-                                                                       work_dir=work_dir)
+                                                                       work_dir=work_dir,
+								       doc_lang=doc_lang)
 
     # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
     pprint(prov_labels_map)

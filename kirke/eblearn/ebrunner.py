@@ -238,7 +238,7 @@ class EbRunner:
             logging.info('updating custom models took %.0f msec', (start_time_2 - start_time_1) * 1000)
 
 
-    def annotate_text_document(self, file_name, provision_set=None, work_dir=None):
+    def annotate_text_document(self, file_name, provision_set=None, work_dir=None, doc_lang="en"):
         time1 = time.time()
         if not provision_set:
             provision_set = self.provisions
@@ -252,7 +252,7 @@ class EbRunner:
         # custom models can be update by other workers
         self.update_custom_models()
 
-        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, work_dir)
+        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, work_dir, doc_lang)
 
         # if the file contains too few words, don't bother
         # otherwise, might cause classifier error if only have 1 error because of minmax
@@ -430,14 +430,15 @@ class EbRunner:
     # this parses both originally text and html documents
     # It's main goal is to detect sechead
     # optionally pagenum, footer, toc, signature
-    def annotate_htmled_document(self, file_name, provision_set=None, work_dir=None):
+    def annotate_htmled_document(self, file_name, provision_set=None, work_dir=None, doc_lang="en"):
         time1 = time.time()
 
         # base_fname = os.path.basename(file_name)
 
         prov_labels_map, orig_doc_text = self.annotate_text_document(file_name,
                                                                      provision_set=provision_set,
-                                                                     work_dir=work_dir)
+                                                                     work_dir=work_dir,
+								     doc_lang=doc_lang)
 
         # because special case of 'effectivdate_auto'
         if not prov_labels_map.get('effectivedate_auto'):
@@ -471,7 +472,7 @@ class EbRunner:
     # this parses both originally text and html documents
     # It's main goal is to detect sechead
     # optionally pagenum, footer, toc, signature
-    def annotate_pdfboxed_document(self, file_name, offsets_file_name, provision_set=None, work_dir=None):
+    def annotate_pdfboxed_document(self, file_name, offsets_file_name, provision_set=None, work_dir=None, doc_lang="en"):
         time1 = time.time()
 
         orig_text, nl_text, paraline_text, nl_fname, paraline_fname = \
@@ -481,7 +482,8 @@ class EbRunner:
 
         prov_labels_map, orig_doc_text = self.annotate_text_document(file_name,
                                                                      provision_set=provision_set,
-                                                                     work_dir=work_dir)
+                                                                     work_dir=work_dir,
+								     doc_lang=doc_lang)
         # because special case of 'effectivdate_auto'
         if not prov_labels_map.get('effectivedate_auto'):
             prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate', [])
