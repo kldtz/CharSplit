@@ -29,6 +29,45 @@ def load_lines_with_offsets(file_name: str):
                 
             offset += orig_length
 
+
+# return list of page offsets, and list of list of line offsets
+def load_page_lines_with_offsets(file_name: str):
+    doc_text = loads(file_name)
+    paged_text_list = doc_text.split(chr(12))  # pdftotext use ^L as page marker
+
+    # if the last one is empty, remove it
+    for page_num, paged_text in enumerate(paged_text_list, 1):
+        print('len(page #{}) = {}'.format(page_num, len(paged_text)))
+    #print("len(paged_text_list) == {}".format(len(paged_text_list)))
+    if len(paged_text_list[-1]) == 0:
+        paged_text_list = paged_text_list[:-1]
+
+    print("after")
+    for page_num, paged_text in enumerate(paged_text_list, 1):
+        print('len(page #{}) = {}'.format(page_num, len(paged_text)))
+
+    page_offsets = []
+    offset = 0
+    for paged_text in paged_text_list:
+        page_len = len(paged_text)
+        end = offset + page_len
+        page_offsets.append((offset, end))
+        offset = end + 1  # for ^L
+
+    page_list = []
+    paged_line_list = []
+    for (page_start, page_end), paged_text in zip(page_offsets, paged_text_list):
+        offset = page_start
+        for line in paged_text.split('\n'):
+            line_len = len(line)
+            end = offset + line_len
+            paged_line_list.append((offset, end, line))
+
+            offset = end + 1  # for eoln
+        page_list.append(paged_line_list)
+    return page_offsets, page_list
+
+
 BE_SPACE_PAT = re.compile('^(\s*)(.*)$')
 
 # remove all begin and end spaces for lines

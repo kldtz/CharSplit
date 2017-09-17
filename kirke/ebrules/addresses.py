@@ -57,10 +57,12 @@ def load_keywords():
 
 # Regex and string constants
 DIGIT = re.compile(r'\d')
-UK_STD = '[A-Z]{1,2}[0-9R][0-9A-Z]? (?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
-ZIP_CODE_FORMATS = [re.compile('\b\d{5}[-\s]+\d{4}\b'), re.compile('\b\d{5}\b'),
-                    re.compile('\b\d{4}\b'), re.compile('\b\d{6}\b'),
-                    re.compile('\b' + UK_STD + '\b')]
+UK_STD = r'[A-Z]{1,2}[0-9R][0-9A-Z]? (?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
+ZIP_CODE_FORMATS = [re.compile(r'\b\d{5}[-\s]+\d{4}\b'),
+                    re.compile(r'\b\d{5}\b'),
+                    re.compile(r'\b\d{4}\b'),
+                    re.compile(r'\b\d{6}\b'),
+                    re.compile(r'\b' + UK_STD + r'\b')]
 ALNUM_SET = set(string.ascii_letters).union(string.digits)
 NON_ALNUM = re.compile(r'[^A-Za-z\d]')
 

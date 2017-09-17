@@ -1558,7 +1558,9 @@ SECHEAD_PREFIX_PAT1 = r'(\(?([\d\.]+|[a-zA-Z])\))\s*\w'
 # exhibit xxx
 # exmlxxx xxx
 # article xxx
-SECHEAD_PREFIX_PAT2 = r'(exhibit|exmllit|exml|section|article)\s*\w'
+# exhibitc    # because of ocr error
+# SECHEAD_PREFIX_PAT2 = r'(exhibit|exmllit|exml|section|article)\s*\w'
+SECHEAD_PREFIX_PAT2 = r'(exhibit|exmllit|exml|section|article)'
 
 # 1.2 xxx
 # a. xxx
@@ -1569,7 +1571,7 @@ SECHEAD_PREFIX_LIST = (SECHEAD_PREFIX_PAT1,
                        SECHEAD_PREFIX_PAT2,
                        SECHEAD_PREFIX_PAT3)
 
-line_sechead_prefix_pat = re.compile(r'^\s*({})'.format('|'.join(SECHEAD_PREFIX_LIST), re.I))
+line_sechead_prefix_pat = re.compile(r'^\s*({})'.format('|'.join(SECHEAD_PREFIX_LIST)), re.I)
 
 def is_line_sechead_prefix(line: str):
     return line_sechead_prefix_pat.match(line)

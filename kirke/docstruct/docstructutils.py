@@ -270,4 +270,8 @@ def is_line_address_prefix(line: str):
 def is_line_address(line: str, is_english=False, is_sechead=False):
     if is_english or is_sechead:
         return False
-    return addresses.classify(line) >= 0.5
+    # each call takes 7 or 8 msec.  Too slow when
+    # a file has 60000 lines, such as a lot of tables with
+    # short non-english lines
+    # return addresses.classify(line) >= 0.5
+    return is_line_address_prefix(line)
