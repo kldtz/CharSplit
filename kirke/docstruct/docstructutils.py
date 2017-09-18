@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from kirke.utils import strutils
+from kirke.utils import engutils, strutils
 from kirke.docstruct import secheadutils
 from kirke.ebrules import addresses
 
@@ -240,7 +240,7 @@ def is_invalid_sechead(sechead, prefix, head, split_idx):
     return False
 
 
-def extract_line_sechead(line: str, prev_line: str):
+def extract_line_sechead(line: str, prev_line=None):
     # sechead, prefix, head, split_idx = secheadutils.extract_sechead_v4(line, is_combine_line=False)
     sechead, prefix, head, split_idx = secheadutils.extract_sechead_v4(line, is_combine_line=True)
     if sechead:
@@ -275,3 +275,20 @@ def is_line_address(line: str, is_english=False, is_sechead=False):
     # short non-english lines
     # return addresses.classify(line) >= 0.5
     return is_line_address_prefix(line)
+
+
+PHONE_PAT = re.compile(r'(tel\S*|phone|fax|facsim\S*|phone num\S*)?[\s:]*(\(?\d\d\d\)?[\s\-]*\d\d\d[\s\-]*\d\d\d\d)', re.I)
+
+
+def is_line_phone_number(line):
+    return PHONE_PAT.match(line)
+
+
+EMAIL_PAT = re.compile(r'(email*)?[\s:]*\S+@\S+\.\S+', re.I)
+
+def is_line_email(line):
+    return EMAIL_PAT.match(line)
+
+
+def is_line_english(line: str) -> bool:
+    return engutils.classify_english_sentence(line)
