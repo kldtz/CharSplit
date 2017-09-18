@@ -98,7 +98,7 @@ def annotate_uploaded_document():
         if not provision_set and not is_classify_doc:
             return json.dumps(ebannotations)
     else:
-        detect_lang = "en"
+        doc_lang = "en"
 
     if is_classify_doc:
         if eb_doccat_runner != None:
