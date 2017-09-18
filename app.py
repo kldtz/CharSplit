@@ -89,16 +89,14 @@ def annotate_uploaded_document():
 
     # cannot just access the request.files['file'].read() earlier, which
     # make it unavailable to the rest of the code.
-    if is_detect_lang:
-        atext = strutils.loads(txt_file_name)
-        doc_lang = eb_langdetect_runner.detect_lang(atext)
-        ebannotations['lang'] = doc_lang
-        logging.info("detected language '{}'".format(doc_lang))
-        # if no other classification is specified, return early
-        if not provision_set and not is_classify_doc:
-            return json.dumps(ebannotations)
-    else:
-        doc_lang = "en"
+    
+    atext = strutils.loads(txt_file_name)
+    doc_lang = eb_langdetect_runner.detect_lang(atext)
+    ebannotations['lang'] = doc_lang
+    logging.info("detected language '{}'".format(doc_lang))
+    # if no other classification is specified, return early
+    if not provision_set and not is_classify_doc:
+        return json.dumps(ebannotations)
 
     if is_classify_doc:
         if eb_doccat_runner != None:
