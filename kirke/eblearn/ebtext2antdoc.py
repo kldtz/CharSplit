@@ -710,7 +710,7 @@ def doc_to_ebantdoc(txt_file_name,
                     is_bespoke_mode=False,
                     is_doc_structure=False,
                     provision=None,
-                    is_combine_line=True,):
+                    is_combine_line=True):
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
