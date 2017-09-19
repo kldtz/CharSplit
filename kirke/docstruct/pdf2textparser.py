@@ -11,8 +11,9 @@ from kirke.docstruct import docstructutils
 from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
 from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, PageInfo3, PBlockInfo
 from kirke.docstruct.pdfoffsets import PDFTextDoc, StrInfo
-from kirke.utils import strutils, txtreader, mathutils
+from kirke.utils import mathutils, strutils, txtreader
 
+DEBUG_MODE = True
 
 class PageInfo6:
 
@@ -47,7 +48,14 @@ class Line6WithAttrs:
     def __init__(self,
                  start, end,
                  page_line_num, line_text, page_num,
-                 str_list, attrs):
+                 num_char_per_line: int):
+
+        self.orig_line_text = line_text
+        line_text = remove_ocr_error_23(line_text)
+        # print("    jjj line {}, {} spaces={} ||\t [{}]".format(start, end, find_large_spaces(line), line))
+        # need num_char_per_line to computer is_centered()
+        str_list, line_attrs = line2str6_list(line_text, start, num_char_per_line)
+
         self.start = start
         self.end = end
         self.page_line_num = page_line_num  # start from 1, not 0
@@ -55,7 +63,7 @@ class Line6WithAttrs:
         self.length = len(line_text)
         self.page_num = page_num
         self.str_list = str_list
-        self.attrs = attrs
+        self.attrs = line_attrs
         self.is_english = docstructutils.is_line_english(line_text)
         self.table_cell_list = []
         self.col_dividers = []
@@ -63,15 +71,37 @@ class Line6WithAttrs:
     def __lt__(self, other):
         return (self.start, ).__lt__((other.start, ))
 
+    def attrs_str_filter(self):
+        out_pairs = []
+        for attr, value in sorted(self.attrs.items()):
+            if attr == 'lr_ratio' and value in [-1, 0.0]:
+                pass
+            elif attr == 'str_xstarts' and value == [0]:
+                pass
+            else:
+                out_pairs.append('{}={}'.format(attr, value))
+        return out_pairs
+
     def __str__(self):
         # print("    jjj line {}, {} spaces={} ||\t [{}]".format(start, end, find_large_spaces(line), line))
         alist = []
         alist.append('pg=%d' % self.page_num)
         alist.append('ln=%d' % self.page_line_num)
         alist.append('se=(%d, %d)' % (self.start, self.end))
-        alist.append(', '.join(['{}={}'.format(attr, value) for attr, value in sorted(self.attrs.items())]))
+        alist.append(', '.join(self.attrs_str_filter()))
 
         return '{} ||\t[{}]'.format(', '.join(alist), self.line_text)
+
+
+    def str_orig(self):
+        # print("    jjj line {}, {} spaces={} ||\t [{}]".format(start, end, find_large_spaces(line), line))
+        alist = []
+        alist.append('pg=%d' % self.page_num)
+        alist.append('ln=%d' % self.page_line_num)
+        alist.append('se=(%d, %d)' % (self.start, self.end))
+        alist.append(', '.join(self.attrs_str_filter()))
+
+        return '{} ||\t[{}]'.format(', '.join(alist), self.orig_line_text)
 
     def tostr2(self):
         # print("    jjj line {}, {} spaces={} ||\t [{}]".format(start, end, find_large_spaces(line), line))
@@ -130,20 +160,6 @@ class TableCell:
         self.str6 = str6
 
 
-# full character per line is 160
-# This is computed per document now.
-# Stored PdfTextDoc6
-# NUM_CHAR_PER_LINE = 160
-
-def is_line_centered(line: str, num_char_per_line: int, str_start: int):
-    num_right_space = num_char_per_line - len(line)
-    if num_right_space <= 0:
-        # print('str_start = {}, num_right_space= {}'.format(float(str_start), num_right_space))
-        num_right_space = 1
-    left_to_right_ratio = round(float(str_start) / num_right_space, 2)
-    return (left_to_right_ratio >= 0.83 and left_to_right_ratio <= 1.17, left_to_right_ratio)
-
-
 def line2str6_list(line:str, line_start: int, num_char_per_line: int) -> (List[Str6], Dict):
     space_offset_list = find_large_spaces(line)
     str_list = []
@@ -176,8 +192,10 @@ def line2str6_list(line:str, line_start: int, num_char_per_line: int) -> (List[S
         if secheadutils.is_line_sechead_prefix(str_line):
             is_sechead_prefix = True
             sechead_tuple = docstructutils.extract_line_sechead(str_line)
-            if sechead_tuple:
-                attrs['sechead'] = sechead_tuple 
+            is_english = docstructutils.is_line_english(str_line)
+            if sechead_tuple and not is_english:
+                attrs['sechead'] = sechead_tuple
+            attrs['not_table'] = True
 
         if docstructutils.is_line_phone_number(str_line):
             is_phone_number = True
@@ -199,11 +217,24 @@ def line2str6_list(line:str, line_start: int, num_char_per_line: int) -> (List[S
         str_start = prev_end
         str_list.append(Str6(line_start + str_start, line_start + len(line), line[str_start:], str_start, len(line)))
 
+        # sometimes a sechead was separated into str_list with length 2
+        tmp_is_sechead = secheadutils.is_line_sechead_prefix(line)
+        if tmp_is_sechead:
+            if len(str_list) == 2:
+                sechead_tuple = docstructutils.extract_line_sechead(line)
+                is_english = docstructutils.is_line_english(line)
+                if sechead_tuple and not is_english:  # we only mark sechead if we can find it as column 2 line
+                    is_sechead_prefix = True
+                    attrs['sechead'] = sechead_tuple
+        if tmp_is_sechead:
+            attrs['not_table'] = True
+
+
     attrs['num_col'] = len(str_list)
     if is_centered:
         attrs['cn'] = True
     if is_sechead_prefix:
-        attrs['sec'] = True
+        attrs['sec_prefix'] = True
     if is_phone_number:
         attrs['pho'] = True
     if is_email:
@@ -258,8 +289,13 @@ def find_large_spaces(line: str):
     return alist
 
 
+# sometimes ocr might recognize folding marks as ...
+# will return original line if no change to save memory
 def remove_ocr_error_23(line: str) -> str:
-    return strutils.replace_dot3plus_with_spaces(line)
+    tmp_str = strutils.replace_dot3plus_with_spaces(line)
+    if tmp_str != line:
+        return tmp_str
+    return line
 
 def parse_document(file_name, work_dir, debug_mode=True):
     base_fname = os.path.basename(file_name)
@@ -288,8 +324,9 @@ def parse_document(file_name, work_dir, debug_mode=True):
         # take 90%
         top90 = int(len(sorted_line_len_list) * 0.90)
         num_char_per_line = sorted_line_len_list[top90]
-    print("sorted_line_len_list = {}".format(sorted_line_len_list))
-    print("num_char_per_line = {}".format(num_char_per_line))
+    # print("sorted_line_len_list = {}".format(sorted_line_len_list))
+    if DEBUG_MODE:
+        print("num_char_per_line = {}".format(num_char_per_line))
 
     pageinfo6_list = []
     for page_num, (page_offset, paged_line_list) in enumerate(zip(page_offsets, page_list), 1):
@@ -297,14 +334,9 @@ def parse_document(file_name, work_dir, debug_mode=True):
         linex_list = []
         for line_seq, (start, end, line) in enumerate(paged_line_list, 1):
 
-            line = remove_ocr_error_23(line)
-            # print("    jjj line {}, {} spaces={} ||\t [{}]".format(start, end, find_large_spaces(line), line))
-            # need num_char_per_line to computer is_centered()
-            str_list, line_attrs = line2str6_list(line, start, num_char_per_line)
-
-            linex = Line6WithAttrs(start, end, line_seq, line, page_num, str_list, line_attrs)
+            linex = Line6WithAttrs(start, end, line_seq, line, page_num, num_char_per_line)
             linex_list.append(linex)
-            print(linex)
+            print(linex.str_orig())
         pageinfo6_list.append(PageInfo6(page_start, page_end, page_num, linex_list))
 
     pdf_text_doc = PDFTextDoc6(file_name, doc_text, pageinfo6_list, num_char_per_line)
@@ -362,17 +394,6 @@ def find_column_dividers(linex_list: List[Line6WithAttrs]):
     divide_list.append(max_col)
     return divide_list
     
-def no_english_in_list(alist: List[str]) -> bool:
-    if not alist:
-        return True
-    # for strx in alist:
-        # if docstructutils.is_line_english(strx):
-        # return False
-    first_strx = alist[0]
-    words = first_strx.split()
-    if len(words) > 7:
-        return False
-    return True
 
 def find_lines_with_same_cols(linex_list: List[Line6WithAttrs]):
     first_line = linex_list[0]
@@ -427,15 +448,16 @@ def separate_secheads(block_list):
         cur_block = []
         out_block_list.append(cur_block)
         for line_seq, linex in enumerate(block):
-            if linex.attrs.get('sechead'):
+            if linex.attrs.get('sechead') or is_line_header(linex):
+            # if linex.attrs.get('sec'):
                 if cur_block:  # already has something
-                    cur_block = [linex]
+                    cur_block = [linex]  # create a new one
                     out_block_list.append(cur_block)
-                    cur_block = []
+                    cur_block = []       # add an empty one
                     out_block_list.append(cur_block)
                 else:  # nothing in cur_block
                     cur_block.append(linex)
-                    cur_block = []
+                    cur_block = []       # add an empty one
                     out_block_list.append(cur_block)
             else:
                 cur_block.append(linex)
@@ -444,7 +466,81 @@ def separate_secheads(block_list):
     return [block for block in out_block_list if block]
 
 
+# this inserts break before
+def separate_asterisks(block_list):
+    out_block_list = []
+    for block in block_list:
+        cur_block = []
+        out_block_list.append(cur_block)
+        for line_seq, linex in enumerate(block):
+            if is_line_startswith_asterisk(linex.line_text):
+                if cur_block:  # already has something
+                    cur_block = [linex]
+                    out_block_list.append(cur_block)
+                else:  # nothing in cur_block
+                    cur_block.append(linex)
+            else:
+                cur_block.append(linex)
+    # filter out empty blocks, this shouldn't happen
+    # but just in case
+    return [block for block in out_block_list if block]
+
+"""
+# this inserts break after, not really, it need to insert before and after
+def separate_header(block_list):
+    out_block_list = []
+    for block in block_list:
+        cur_block = []
+        out_block_list.append(cur_block)
+        for line_seq, linex in enumerate(block):
+            if is_line_header(linex.line_text):
+                if cur_block:  # already has something
+                    cur_block.append(
+                    cur_
+                    out_block_list.append(cur_block)
+                else:  # nothing in cur_block
+                    cur_block.append(linex)
+            else:
+                cur_block.append(linex)
+    # filter out empty blocks, this shouldn't happen
+    # but just in case
+    return [block for block in out_block_list if block]
+"""
+
+
 def markup_table(linex_list: List[Line6WithAttrs]):
+    # is one column, not a table
+    if (len(linex_list) >= 2 and
+        linex_list[0].attrs['num_col'] == 1 and
+        linex_list[1].attrs['num_col'] == 1):
+        return []
+
+    num_lines = len(linex_list)
+    num_is_english = 0
+    linex_with_col_1 = 0
+    for linex in linex_list:
+        if linex.attrs['num_col'] == 1:
+            linex_with_col_1 += 1
+            if linex.is_english:
+                num_is_english += 1
+    # soemtimes first line has 2 column because of sechead
+    if float(linex_with_col_1) / num_lines >= 0.5 and num_is_english >= 0.5:
+        return []
+
+    # check if we already know it cannot be a table, such as sechead
+    if linex_list[0].attrs.get('not_table'):
+        return []
+
+    # for section prefixed paragraphs, such as 6.2 xxx  english
+    if len(linex_list) == 2:
+        first_linex = linex_list[0]
+        second_linex = linex_list[1]
+        if (first_linex.attrs['num_col'] == 2 and
+            docstructutils.is_line_english(first_linex.str_list[1].text) and
+            second_linex.attrs['num_col'] == 1 and
+            docstructutils.is_line_english(first_linex.str_list[0].text)):
+            return []
+
     lines_with_same_cols = find_lines_with_same_cols(linex_list)
     # only 1 column and is centered, most likely not a table
     # but still can be the first line of a table, but centered.  :-(
@@ -520,7 +616,21 @@ def is_column_country_address(linex: Line6WithAttrs):
     return False
 
 def is_column_discount_type(linex: Line6WithAttrs):
-    if (len(linex.str_list) >= 2 and linex.str_list[0].text.lower().startswith("discount type")):
+    if (len(linex.str_list) >= 2 and
+        (linex.str_list[0].text.lower().startswith("discount type") or
+         linex.str_list[0].text.lower().startswith("discount category"))):
+        return True
+    return False
+
+
+def is_column_equal_to_or(linex: Line6WithAttrs):
+    if (len(linex.str_list) >= 1 and linex.str_list[0].text.lower().startswith("equal to or")):
+        return True
+    return False
+
+
+def is_column_credit_to(linex: Line6WithAttrs):
+    if (len(linex.str_list) >= 1 and linex.str_list[0].text.lower().startswith("credit to")):
         return True
     return False
 
@@ -542,10 +652,11 @@ def is_column_service(linex: Line6WithAttrs):
 
 
 def is_column_pricing_schedule(linex: Line6WithAttrs):
-    if (len(linex.str_list) >= 2 and
+    if (len(linex.str_list) >= 1 and
         # for both 'Pricing Schedule Term' and
         # 'Pricing Schedule Term Start Date' 
-        linex.str_list[0].text.lower().startswith("pricing schedule term")):
+        # linex.str_list[0].text.lower().startswith("pricing schedule term")):
+        linex.str_list[0].text.lower().startswith('pricing sched')):
         return True
     return False        
 
@@ -556,6 +667,10 @@ def is_known_table_header(linex: Line6WithAttrs):
     if is_column_customer(linex):
         return True
     if is_column_discount_type(linex):
+        return True
+    if is_column_equal_to_or(linex):
+        return True
+    if is_column_credit_to(linex):
         return True
     #if is_column_service(linex):
     #    return True
@@ -655,28 +770,6 @@ def fix_known_block_errors(block_list):
 
     return out_block_list
 
-# 'By ....', so cannot really require ':;' at the end
-ADDRESS_PREFIX_PAT = re.compile(r'\s*(attention|attn|by|city|country|email|name|phone|s[lt]reet address|title|zip|zip\s*code)\s*[:;]?', re.I)
-
-def is_line_address_prefix(line: str):
-    return ADDRESS_PREFIX_PAT.match(line)
-
-
-def is_block_address(linex_list: List[Line6WithAttrs]):
-    if linex_list and linex_list[0].attrs.get('table-header'):
-        return False
-    num_non_address_line = 0
-    for linex in linex_list:
-        for strx in linex.str_list:
-            if is_line_address_prefix(linex.line_text):
-                return True
-
-        if linex.is_english:
-            return False
-        num_non_address_line += 1
-        if num_non_address_line >= 5:
-            return False
-    return False
 
 def print_blocks(msg: str, page_num: int, block_list: List[List[Line6WithAttrs]]):
     print("\n\n===== page #{}, {}".format(page_num, msg))
@@ -692,9 +785,9 @@ def print_blocks(msg: str, page_num: int, block_list: List[List[Line6WithAttrs]]
         if is_table:
             print()
             if block:
-                print('col_dividers: {}'.format(block[0].col_dividers))
+                print('  || ^^^^^ TABLE, col_dividers: {}'.format(block[0].col_dividers))
             for linex in block:
-                print("  table.line {}".format(linex.tostr2()))
+                print('  || table.line {}'.format(linex.tostr2()))
 
 
 def add_doc_structure_to_page(apage: PageInfo6, pdf_txt_doc):
@@ -702,7 +795,7 @@ def add_doc_structure_to_page(apage: PageInfo6, pdf_txt_doc):
     page_num = apage.page_num
     prev_line_text = ''
 
-    debug_mode = True
+    debug_mode = False
 
     block_list = separate_block_by_empty_lines(apage.linex_list)
     if debug_mode:
@@ -713,6 +806,7 @@ def add_doc_structure_to_page(apage: PageInfo6, pdf_txt_doc):
 
     block_list = separate_page_nums(block_list)
     block_list = separate_secheads(block_list)
+    block_list = separate_asterisks(block_list)
     if debug_mode:
         print_blocks("after separate_page_nums", apage.page_num, block_list)
 
@@ -735,7 +829,7 @@ def is_next_block_has_number(last_block_line_num, last_block_num_cols, next_bloc
     first_line = next_block[0]
     if first_line.attrs.get('table-header'):
         return False
-    if (first_line.page_line_num <= last_block_line_num + 2 and
+    if (first_line.page_line_num <= last_block_line_num + 4 and
         last_block_num_cols == len(first_line.col_dividers)):
         #for linex in next_block[:5]:
         #    if strutils.strlist_has_number([str6.text for str6 in linex.str_list]):
@@ -812,6 +906,76 @@ ATT_PAGE_NUM_PAT = re.compile(r'^\s*({})\s*$'.format('|'.join(IGNORE_LINE_LIST))
 
 def is_line_page_num(line: str) -> bool :
     return ATT_PAGE_NUM_PAT.match(line)
+
+
+# 'By ....', so cannot really require ':;' at the end
+ADDRESS_PREFIX_PAT = re.compile(r'\s*(attention|attn|by|city|country|email|name|phone|s[lt]reet address|title|zip|zip\s*code)\s*[:;]?', re.I)
+
+def is_line_address_prefix(line: str):
+    return ADDRESS_PREFIX_PAT.match(line)
+
+
+def is_block_address(linex_list: List[Line6WithAttrs]):
+    if linex_list and linex_list[0].attrs.get('table-header'):
+        return False
+    num_non_address_line = 0
+    for linex in linex_list:
+        for strx in linex.str_list:
+            if is_line_address_prefix(linex.line_text):
+                return True
+
+        if linex.is_english:
+            return False
+        num_non_address_line += 1
+        if num_non_address_line >= 5:
+            return False
+    return False
+
+
+# full character per line is 160
+# This is computed per document now.
+# Stored PdfTextDoc6
+# NUM_CHAR_PER_LINE = 160
+def is_line_centered(line: str, num_char_per_line: int, str_start: int):
+    num_right_space = num_char_per_line - len(line)
+    if num_right_space <= 0:
+        # print('str_start = {}, num_right_space= {}'.format(float(str_start), num_right_space))
+        num_right_space = 1
+    left_to_right_ratio = round(float(str_start) / num_right_space, 2)
+    return (left_to_right_ratio >= 0.75 and left_to_right_ratio <= 1.25, left_to_right_ratio)
+
+
+def no_english_in_list(alist: List[str]) -> bool:
+    if not alist:
+        return True
+    # for strx in alist:
+        # if docstructutils.is_line_english(strx):
+        # return False
+    first_strx = alist[0]
+    words = first_strx.split()
+    if len(words) > 7:
+        return False
+    return True
+
+STARTS_WITH_ASTERISK_PAT = re.compile(r'\s*\*')
+
+
+def is_line_startswith_asterisk(line: str) -> bool:
+    return STARTS_WITH_ASTERISK_PAT.match(line)
+
+
+KNOWN_HEADER_ST_LIST = ['AT&T VPN SERVICE',
+                        'CUSTOMER EMAIL SERVICE REQUEST'
+                        'Customer Signature Page',
+                        'FOR LOCAL ACCESS SERVICE COMPONENTS',
+                        'PRICING SCHEDULE']
+
+KNOWN_HEADER_PAT = re.compile(r'\s*({})'.format('|'.join(KNOWN_HEADER_ST_LIST)), re.I)
+
+def is_line_header(linex: Line6WithAttrs) -> bool:
+    if linex.page_line_num <= 14 and linex.attrs.get('cn') and KNOWN_HEADER_PAT.match(linex.line_text):
+        return True
+    return False
 
 
 if __name__ == '__main__':

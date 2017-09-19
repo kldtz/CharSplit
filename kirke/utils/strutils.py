@@ -579,7 +579,7 @@ def space_repl_same_length(mat):
     return ' ' * len(mat.group())
 
 def replace_dot3plus_with_spaces(line: str) -> str:
-    return re.sub(r'([\.\-][\.\-][\.\-]+)', space_repl_same_length, line)
+    return re.sub(r'([\.\-_][\.\-_][\.\-_]+)', space_repl_same_length, line)
 
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
