@@ -4,7 +4,7 @@ import logging
 import os
 import re
 import sys
-from typing import List
+from typing import List, Dict
 
 
 from kirke.docstruct import docstructutils
@@ -14,15 +14,26 @@ from kirke.docstruct.pdfoffsets import PDFTextDoc, StrInfo
 from kirke.utils import strutils, txtreader, mathutils
 
 
+class PageInfo6:
+
+    def __init__(self, start, end, page_num, linex_list):
+        self.start = start
+        self.end = end
+        self.page_num = page_num
+        self.linex_list = linex_list
+
+
 class PDFTextDoc6:
 
-    def __init__(self, file_name: str, doc_text: str, page_list):
+    def __init__(self, file_name: str, doc_text: str,
+                 page_list: List[PageInfo6], num_char_per_line: int):
         self.file_name = file_name
         self.doc_text = doc_text
         self.page_list = page_list
         self.num_pages = len(page_list)
         self.pageinfo6_list = []
         self.special_blocks_map = defaultdict(list)
+        self.num_char_per_line = num_char_per_line
 
     def print_debug_blocks(self):
         for page_num, paged_linexes in enumerate(self.paged_linexes_list, 1):
@@ -30,15 +41,6 @@ class PDFTextDoc6:
             for line_seq, linex in enumerate(paged_linexes, 1):
                 print("linex #{} {} ||\t{}".format(line_seq, linex.tostr(),
                                                    linex.line_text))
-
-class PageInfo6:
-    
-    def __init__(self, start, end, page_num, linex_list):
-        self.start = start
-        self.end = end
-        self.page_num = page_num
-        self.linex_list = linex_list
-        
 
 class Line6WithAttrs:
 
@@ -129,21 +131,28 @@ class TableCell:
 
 
 # full character per line is 160
-NUM_CHAR_PER_LINE = 160
+# This is computed per document now.
+# Stored PdfTextDoc6
+# NUM_CHAR_PER_LINE = 160
 
-def is_line_centered(line: str):
-    return False
+def is_line_centered(line: str, num_char_per_line: int, str_start: int):
+    num_right_space = num_char_per_line - len(line)
+    if num_right_space <= 0:
+        # print('str_start = {}, num_right_space= {}'.format(float(str_start), num_right_space))
+        num_right_space = 1
+    left_to_right_ratio = round(float(str_start) / num_right_space, 2)
+    return (left_to_right_ratio >= 0.83 and left_to_right_ratio <= 1.17, left_to_right_ratio)
 
 
-def line2str6_list(line:str, line_start: int):
+def line2str6_list(line:str, line_start: int, num_char_per_line: int) -> (List[Str6], Dict):
     space_offset_list = find_large_spaces(line)
     str_list = []
     num_column = 0
     is_centered = False
-    left_to_right_ratio = -1
+    lr_ratio = -1  # left_to_right_ratio
     is_sechead_prefix = False
     is_phone_number = False
-    is_email = False    
+    is_email = False
     attrs = {}
 
     if len(space_offset_list) == 0:
@@ -154,6 +163,7 @@ def line2str6_list(line:str, line_start: int):
         str_line = line[str_start:]
         str_list.append(Str6(line_start + str_start, line_start + len(line), str_line, str_start, len(line)))
 
+        """
         num_right_space = NUM_CHAR_PER_LINE - len(line)
         if num_right_space <= 0:
             # print('str_start = {}, num_right_space= {}'.format(float(str_start), num_right_space))
@@ -161,6 +171,8 @@ def line2str6_list(line:str, line_start: int):
         left_to_right_ratio = float(str_start) / num_right_space
         if left_to_right_ratio >= 0.9  and left_to_right_ratio <= 1.1:
             is_centered = True
+        """
+        is_centered, lr_ratio = is_line_centered(line, num_char_per_line, str_start)
         if secheadutils.is_line_sechead_prefix(str_line):
             is_sechead_prefix = True
             sechead_tuple = docstructutils.extract_line_sechead(str_line)
@@ -196,6 +208,10 @@ def line2str6_list(line:str, line_start: int):
         attrs['pho'] = True
     if is_email:
         attrs['eml'] = True
+    if is_line_page_num(line):
+        attrs['pagenum'] = True
+
+    attrs['lr_ratio'] = lr_ratio
 
     if str_list:
         attrs['str_xstarts'] = [str6.xstart for str6 in str_list]
@@ -210,6 +226,7 @@ def line2str6_list(line:str, line_start: int):
     return str_list, attrs
     
 
+"""
 # remove all begin and end spaces for lines
 # 'be' = begin_end
 def load_paged_text_with_offsets(file_name: str):
@@ -228,8 +245,10 @@ def load_paged_text_with_offsets(file_name: str):
 
     print("page_offsets = {}".format(page_offset_list))
     return []
+"""
 
-FOUR_OR_MORE_SPACES = re.compile(r'\s{4}\s*')
+FOUR_OR_MORE_SPACES = re.compile(r'(^\s*|\s{4}\s*)')
+
 
 def find_large_spaces(line: str):
     alist = []
@@ -237,8 +256,11 @@ def find_large_spaces(line: str):
         start, end = mat.start(), mat.end() 
         alist.append((start, end, end - start))
     return alist
-    
-                
+
+
+def remove_ocr_error_23(line: str) -> str:
+    return strutils.replace_dot3plus_with_spaces(line)
+
 def parse_document(file_name, work_dir, debug_mode=True):
     base_fname = os.path.basename(file_name)
 
@@ -246,26 +268,53 @@ def parse_document(file_name, work_dir, debug_mode=True):
 
     page_offsets, page_list = txtreader.load_page_lines_with_offsets(file_name)
 
+    # compute the num_char_per_line
+    line_len_list = []
+    for paged_line_list in page_list:
+        for start, end, line in paged_line_list:
+            line_len = end - start
+            if line_len != 0:
+                line_len_list.append(line_len)
+    # figure3 out the length of a full line for computing center
+    sorted_line_len_list = sorted(line_len_list)
+    if not sorted_line_len_list:
+        num_char_per_line = 0
+    elif len(sorted_line_len_list) <= 10:
+        num_char_per_line = sorted_line_len_list[-1]  # max
+    else:
+        # take the average of the last 2 number
+        #num_char_per_line = int((sorted_line_len_list[-2] +
+        #                         sorted_line_len_list[-1]) / 2)
+        # take 90%
+        top90 = int(len(sorted_line_len_list) * 0.90)
+        num_char_per_line = sorted_line_len_list[top90]
+    print("sorted_line_len_list = {}".format(sorted_line_len_list))
+    print("num_char_per_line = {}".format(num_char_per_line))
+
     pageinfo6_list = []
     for page_num, (page_offset, paged_line_list) in enumerate(zip(page_offsets, page_list), 1):
         page_start, page_end = page_offset
         linex_list = []
         for line_seq, (start, end, line) in enumerate(paged_line_list, 1):
+
+            line = remove_ocr_error_23(line)
             # print("    jjj line {}, {} spaces={} ||\t [{}]".format(start, end, find_large_spaces(line), line))
-            str_list, line_attrs = line2str6_list(line, start)
+            # need num_char_per_line to computer is_centered()
+            str_list, line_attrs = line2str6_list(line, start, num_char_per_line)
 
             linex = Line6WithAttrs(start, end, line_seq, line, page_num, str_list, line_attrs)
             linex_list.append(linex)
             print(linex)
         pageinfo6_list.append(PageInfo6(page_start, page_end, page_num, linex_list))
 
-    pdf_text_doc = PDFTextDoc6(file_name, doc_text, pageinfo6_list)
+    pdf_text_doc = PDFTextDoc6(file_name, doc_text, pageinfo6_list, num_char_per_line)
 
     add_doc_structure_to_doc(pdf_text_doc)
 
     # add_doc_structure_to_doc(pdf_text_doc)
     return pdf_text_doc
 
+NUM_CHAR_PER_LINE = 160
 
 def add_doc_structure_to_doc(pdftxt_doc):
     # first remove obvious non-content lines, such
@@ -303,7 +352,9 @@ def find_column_dividers(linex_list: List[Line6WithAttrs]):
         if col_isspace_count[idx] == max_space_count:
             consec_space += 1
         else:
-            if consec_space > 4:
+            if idx <= 4 and consec_space == idx:
+                divide_list.append(idx)
+            elif consec_space > 4:
                 divide_list.append(idx)
             consec_space = 0
 
@@ -312,6 +363,8 @@ def find_column_dividers(linex_list: List[Line6WithAttrs]):
     return divide_list
     
 def no_english_in_list(alist: List[str]) -> bool:
+    if not alist:
+        return True
     # for strx in alist:
         # if docstructutils.is_line_english(strx):
         # return False
@@ -340,6 +393,57 @@ def find_lines_with_same_cols(linex_list: List[Line6WithAttrs]):
     return result
 
 
+def separate_page_nums(block_list):
+    out_block_list = []
+    for block in block_list:
+        is_prev_pagenum = False
+        cur_block = []
+        out_block_list.append(cur_block)
+        for line_seq, linex in enumerate(block):
+            if not linex.attrs.get('pagenum'):
+                if line_seq == 0 or not is_prev_pagenum:
+                    cur_block.append(linex)
+                else:
+                    # non-page after page-num
+                    cur_block = [linex]
+                    out_block_list.append(cur_block)
+                is_prev_pagenum = False
+            else:
+                if line_seq == 0 or is_prev_pagenum:  # for first line and other
+                    # already in pagenum mode, no change
+                    cur_block.append(linex)
+                else:
+                    # pagenum in after non-page-numbs
+                    cur_block = [linex]
+                    out_block_list.append(cur_block)
+                is_prev_pagenum = True
+
+    return out_block_list
+
+
+def separate_secheads(block_list):
+    out_block_list = []
+    for block in block_list:
+        cur_block = []
+        out_block_list.append(cur_block)
+        for line_seq, linex in enumerate(block):
+            if linex.attrs.get('sechead'):
+                if cur_block:  # already has something
+                    cur_block = [linex]
+                    out_block_list.append(cur_block)
+                    cur_block = []
+                    out_block_list.append(cur_block)
+                else:  # nothing in cur_block
+                    cur_block.append(linex)
+                    cur_block = []
+                    out_block_list.append(cur_block)
+            else:
+                cur_block.append(linex)
+
+    # filter out empty blocks
+    return [block for block in out_block_list if block]
+
+
 def markup_table(linex_list: List[Line6WithAttrs]):
     lines_with_same_cols = find_lines_with_same_cols(linex_list)
     # only 1 column and is centered, most likely not a table
@@ -347,7 +451,6 @@ def markup_table(linex_list: List[Line6WithAttrs]):
     if lines_with_same_cols and lines_with_same_cols[0].attrs.get('cn'):
         return []
     col_dividers = find_column_dividers(lines_with_same_cols)
-    # print('column dividers: {}'.format(col_dividers))
 
     if len(col_dividers) > 2:
         chopped_divs = col_dividers[1:]
@@ -443,7 +546,6 @@ def is_column_pricing_schedule(linex: Line6WithAttrs):
         # for both 'Pricing Schedule Term' and
         # 'Pricing Schedule Term Start Date' 
         linex.str_list[0].text.lower().startswith("pricing schedule term")):
-        # print("ttttttttttttttt {}".format(linex))
         return True
     return False        
 
@@ -575,35 +677,49 @@ def is_block_address(linex_list: List[Line6WithAttrs]):
         if num_non_address_line >= 5:
             return False
     return False
-    
+
+def print_blocks(msg: str, page_num: int, block_list: List[List[Line6WithAttrs]]):
+    print("\n\n===== page #{}, {}".format(page_num, msg))
+    for block_seq, block in enumerate(block_list, 0):
+
+        print("\n  === block #{}".format(block_seq))
+
+        is_table = block[0].table_cell_list
+
+        for linex in block:
+            print("  line6 {}".format(linex))
+
+        if is_table:
+            print()
+            if block:
+                print('col_dividers: {}'.format(block[0].col_dividers))
+            for linex in block:
+                print("  table.line {}".format(linex.tostr2()))
+
 
 def add_doc_structure_to_page(apage: PageInfo6, pdf_txt_doc):
     num_line_in_page = len(apage.linex_list)
     page_num = apage.page_num
     prev_line_text = ''
 
-    cur_block = []
-    block_list = [cur_block]
+    debug_mode = True
 
-    is_prev_line_empty = False
-    for line_num, linex in enumerate(apage.linex_list, 1):
-        if linex.line_text:
-            cur_block.append(linex)
-            is_prev_line_empty = False
-        else:  # not linex.line_text
-            if is_prev_line_empty:
-                pass
-            else:  # prev_line not empty, and current line empty
-                cur_block = []
-                block_list.append(cur_block)
-            is_prev_line_empty = True
+    block_list = separate_block_by_empty_lines(apage.linex_list)
+    if debug_mode:
+        print_blocks("after block_by_empty_lines", apage.page_num, block_list)
 
     # non_empty_block_list = [block for block in block_list if len(block) != 0]
     # non_empty_block_list = block_list
 
+    block_list = separate_page_nums(block_list)
+    block_list = separate_secheads(block_list)
+    if debug_mode:
+        print_blocks("after separate_page_nums", apage.page_num, block_list)
+
     # split tables with known table_headers
     block_list = fix_known_block_errors(block_list)
-    
+    if debug_mode:
+        print_blocks("after fix_known_block_errors", apage.page_num, block_list)
 
     for block_seq, block in enumerate(block_list, 0):
         col_dividers = markup_table(block)
@@ -612,23 +728,7 @@ def add_doc_structure_to_page(apage: PageInfo6, pdf_txt_doc):
     block_list = merge_adjacent_tables(block_list)
 
     # print("block_list2 = {}".format(len(block_list)))
-
-    print("\n\n===== page #{}".format(apage.page_num))
-    for block_seq, block in enumerate(block_list, 0):
-
-        print("\n  === block #{}".format(block_seq))
-
-        is_table = block[0].table_cell_list
-        
-        for linex in block:
-            print("  line6 {}".format(linex))
-
-        if is_table:
-            print()
-            for linex in block:
-                print("  table.line {}".format(linex.tostr2()))
-
-
+    print_blocks("final xxxxxxxxxxxxxxxxxxxxxxx", apage.page_num, block_list)
 
 
 def is_next_block_has_number(last_block_line_num, last_block_num_cols, next_block):
@@ -641,6 +741,28 @@ def is_next_block_has_number(last_block_line_num, last_block_num_cols, next_bloc
         #    if strutils.strlist_has_number([str6.text for str6 in linex.str_list]):
         return True
     return False
+
+
+def separate_block_by_empty_lines(linex_list: List[Str6]):
+    cur_block = []
+    block_list = [cur_block]
+
+    is_prev_line_empty = False
+    for line_num, linex in enumerate(linex_list, 1):
+        if linex.line_text:
+            cur_block.append(linex)
+            is_prev_line_empty = False
+        else:  # not linex.line_text
+            if is_prev_line_empty:
+                pass
+            else:  # prev_line not empty, and current line empty
+                cur_block = []
+                block_list.append(cur_block)
+            is_prev_line_empty = True
+    # filter out empty block
+    return [block for block in block_list if block]
+
+
 
 
 def merge_adjacent_tables(block_list):
@@ -678,6 +800,18 @@ def merge_adjacent_tables(block_list):
         
     return out_block_list
 
+IGNORE_LINE_LIST = [r'at&t and customer confidential information',
+                    r'asap!',
+                    r'page\s*\d+\s*of\s*\d+',
+                    # this is the first|last page of
+                    r'this is the \S+\s*page of.*']
+
+ATT_PAGE_NUM_PAT = re.compile(r'^\s*({})\s*$'.format('|'.join(IGNORE_LINE_LIST)),
+                              re.I)
+
+
+def is_line_page_num(line: str) -> bool :
+    return ATT_PAGE_NUM_PAT.match(line)
 
 
 if __name__ == '__main__':

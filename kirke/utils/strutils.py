@@ -575,6 +575,12 @@ def dict_to_sorted_list(adict):
     return ['{}={}'.format(attr, value) for attr, value in sorted(adict.items())]
 
 
+def space_repl_same_length(mat):
+    return ' ' * len(mat.group())
+
+def replace_dot3plus_with_spaces(line: str) -> str:
+    return re.sub(r'([\.\-][\.\-][\.\-]+)', space_repl_same_length, line)
+
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
     print(str(_get_num_prefix_space("abc")))      # 0
