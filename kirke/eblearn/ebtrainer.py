@@ -74,6 +74,7 @@ def train_eval_annotator(provision, txt_fn_list,
             num_neg_label += 1
 
     # pylint: disable=C0103
+
     X = ebantdoc_list
     y = [provision in ebantdoc.get_provision_set()
          for ebantdoc in ebantdoc_list]

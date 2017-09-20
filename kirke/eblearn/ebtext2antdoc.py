@@ -415,11 +415,11 @@ def parse_to_eb_antdoc(atext,
         return eb_antdoc
 
     corenlp_json = text_file_name_to_corenlp_json(txt_file_name,
-						  doc_lang=doc_lang,
                                                   para_doc_text=atext,
                                                   is_bespoke_mode=is_bespoke_mode,
                                                   work_dir=work_dir,
-                                                  is_cache_enabled=is_cache_enabled)
+                                                  is_cache_enabled=is_cache_enabled,
+                                                  doc_lang=doc_lang)
 
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
@@ -529,6 +529,7 @@ def parse_to_eb_antdoc(atext,
 # As a result, never cache .ebantdoc.pkl, but can reuse corenlp.json
 def parse_to_eb_antdoc_with_doc_structure(atext_ignore,
                                           txt_file_name,
+                                          doc_lang="en",
                                           work_dir=None,
                                           is_bespoke_mode=False,
                                           provision=None,
@@ -821,7 +822,6 @@ def doclist_to_ebantdoc_list(doclist_file,
     logging.debug('Finished doclist_to_ebantdoc_list({}/{}), len= {}'.format(work_dir,
                                                                              doclist_file,
                                                                              len(txt_fn_list)))
-
     return eb_antdoc_list
 
 

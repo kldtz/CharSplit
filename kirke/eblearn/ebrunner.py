@@ -249,9 +249,9 @@ class EbRunner:
             work_dir = self.work_dir
 
         # update custom models if necessary by checking dir.
-        # custom models can be update by other workers
+        # custom models can be update by other workers 
+        
         self.update_custom_models()
-
         eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name, work_dir, doc_lang)
 
         # if the file contains too few words, don't bother
