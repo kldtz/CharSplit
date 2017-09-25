@@ -5,6 +5,18 @@ from kirke.utils import engutils, strutils
 from kirke.docstruct import secheadutils
 from kirke.ebrules import addresses
 
+# TODO, jshaw
+# The header strings in here definitely is somewhat cheating, for AT&T
+# But there is no easy to distinguish between form-based header,
+# such as
+#     AT&T VPN SERVICE
+#     PRICING ADDENDUM
+# and
+# other normal section headings, such as "Article" and more obvious centered
+# title.  Even a page title.
+
+global_page_header_set = strutils.load_lc_str_set('resources/pageheader.txt')
+
 
 def is_line_centered(line, xStart, xEnd, is_relax_check=False):
     
@@ -147,14 +159,32 @@ def is_line_page_num(line: str, line_num_in_page=1, num_line_in_page=20,
     return False
 
 
+IGNORE_LINE_LIST = [r'at&t and customer confidential information',
+                    r'asap!',
+                    r'page\s*\d+\s*of\s*\d+',
+                    # this is the first|last page of
+                    r'this is the \S+\s*page of.*']
+
+ATT_PAGE_NUM_PAT = re.compile(r'^\s*({})\s*$'.format('|'.join(IGNORE_LINE_LIST)),
+                              re.I)
+
+
+def is_line_footer_by_content(line: str) -> bool :
+    return ATT_PAGE_NUM_PAT.match(line)
+
+
 def is_line_footer(line: str,
                    page_line_num: int,
                    num_line_in_page: int,
                    lbk: float,
                    page_num_index: int,
                    is_english: bool,
+                   is_centered: bool,
                    align: str,
                    yStart: float):
+
+    if is_line_footer_by_content(line):
+        return True, 1.0
     if yStart < 700.0:
         return False, -1.0
     score = 0
@@ -169,6 +199,9 @@ def is_line_footer(line: str,
     if lbk >= 2.0:
         score += 0.2
     if page_num_index != -1 and page_line_num >= page_num_index:
+        score += 0.8
+
+    if 'confidential information' in line.lower() and is_centered:
         score += 0.8
 
     # no sechead in footer, if it is obvious sechead
@@ -186,11 +219,19 @@ def is_line_header(line: str,
                    line_num: int,
                    is_english: bool,
                    is_centered: bool,
+                   align: str,
                    # num_line_in_block, int,
-                   num_line_in_page: int):
+                   num_line_in_page: int,
+                   header_set=None):
+    # for domain specific headers
+    if header_set and line.lower().strip() in header_set:
+        return 1.0
+
     score = 0
-    if yStart < 80.0 and not is_english and len(line) < 30:
-        score += 0.9
+    if yStart < 80.0:
+        score += 0.7
+    if not is_english or len(line) < 30:
+        score += 0.2
     elif HEADER_PAT.match(line) and yStart < 140:
         score += 0.9
 
@@ -198,10 +239,12 @@ def is_line_header(line: str,
         # don't use is_line_address(), too costly
         is_line_address_prefix(line) or
         is_line_signature_prefix(line)):
-        score -= 0.9
+        score -= 10.0
 
-    # sometimes, 'exhibit a' can be mistaken for header
-    if is_centered:  # a negative feature
+    if 'RT' in align or 'CN' in align:
+        score += 0.3
+    elif is_centered:   # sometimes, 'exhibit a' can be mistaken for header
+        # a negative feature
         score -= 0.3
 
     #if num_line_in_block == 1:
@@ -212,9 +255,12 @@ def is_line_header(line: str,
     # first or last line
     if line_num == 1 or line_num == num_line_in_page:
         score += 0.3
-    elif line_num == 2 or line_num == num_line_in_page -1:
-        score += 0.1
+    elif line_num == 2 or line_num == num_line_in_page - 1:
+        score += 0.2
+    elif line_num < 4:
+        score += 0.2
 
+    # print("score = {}, is_line_header({})".format(score, line))
     return score >= 1.0
 
 

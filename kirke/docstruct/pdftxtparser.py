@@ -12,7 +12,6 @@ from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, PageInfo3, P
 from kirke.docstruct.pdfoffsets import PDFTextDoc, StrInfo
 from kirke.utils import strutils, txtreader, mathutils
 
-
 def get_nl_fname(base_fname, work_dir):
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
 
@@ -565,6 +564,9 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     #   - header, footer
     content_line_list = []
     toc_block_list = []
+    footer_index = -1
+    # has_found_footer = False   # once found a footer, rest line in page are footer
+
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False
         if docstructutils.is_line_toc(line.line_text):
@@ -583,7 +585,9 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                                            line_num,
                                            line.is_english,
                                            line.is_centered,
-                                           num_line_in_page):
+                                           line.align,
+                                           num_line_in_page,
+                                           header_set=docstructutils.global_page_header_set):
             line.attrs['header'] = True
             pdf_txt_doc.special_blocks_map['header'].append(pdfoffsets.line_to_block_offsets(line, 'header', page_num))
             is_skip = True
@@ -605,6 +609,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                                                          line.linebreak,
                                                          apage.attrs.get('page_num_index', -1),  # 1-based
                                                          line.is_english,
+                                                         line.is_centered,
                                                          line.align,
                                                          line.lineinfo.yStart)
         # if score != -1.0:
@@ -613,11 +618,18 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
             line.attrs['footer'] = True
             is_skip = True
             pdf_txt_doc.special_blocks_map['footer'].append(pdfoffsets.line_to_block_offsets(line, 'footer', page_num))
+            footer_index = line_num - 1
+            break  # found a footer, skip the rest in page
 
         prev_line_text = line.line_text
 
-        if not is_skip:
+        if not is_skip and footer_index == -1:
             content_line_list.append(line)
+
+    # if footer is found, set everything afterward as footer
+    if footer_index != -1:
+        for linex in apage.line_list[footer_index:]:
+            linex.attrs['footer'] = True
 
     apage.content_line_list = content_line_list
 

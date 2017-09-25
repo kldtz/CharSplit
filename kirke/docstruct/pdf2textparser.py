@@ -11,7 +11,7 @@ from kirke.docstruct import docstructutils
 from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
 from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, PageInfo3, PBlockInfo
 from kirke.docstruct.pdfoffsets import PDFTextDoc, StrInfo
-from kirke.utils import mathutils, strutils, txtreader
+from kirke.utils import mathutils, pattrieutils, strutils, txtreader
 
 DEBUG_MODE = True
 
@@ -22,6 +22,7 @@ class PageInfo6:
         self.end = end
         self.page_num = page_num
         self.linex_list = linex_list
+        self.block_list = []    # this is set by add_docstruct_to_page
 
 
 class PDFTextDoc6:
@@ -32,16 +33,21 @@ class PDFTextDoc6:
         self.doc_text = doc_text
         self.page_list = page_list
         self.num_pages = len(page_list)
-        self.pageinfo6_list = []
+        # self.pageinfo6_list = []
         self.special_blocks_map = defaultdict(list)
         self.num_char_per_line = num_char_per_line
 
-    def print_debug_blocks(self):
-        for page_num, paged_linexes in enumerate(self.paged_linexes_list, 1):
-            print("\n===== page #{}".format(page_num))
-            for line_seq, linex in enumerate(paged_linexes, 1):
-                print("linex #{} {} ||\t{}".format(line_seq, linex.tostr(),
-                                                   linex.line_text))
+    def save_debug_pages(self, extension: str, work_dir='dir-work'):
+        base_fname = os.path.basename(self.file_name)
+        paged_debug_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+        with open(paged_debug_fname, 'wt') as fout:
+            for page_num, pageinfo6 in enumerate(self.page_list, 1):
+                print("\n===== page #{}".format(page_num), file= fout)
+
+                for line_seq, linex in enumerate(pageinfo6.linex_list, 1):
+                    print("linex #{} {}".format(line_seq, linex), file=fout)
+        print('wrote {}'.format(paged_debug_fname), file=sys.stderr)
+
 
 class Line6WithAttrs:
 
@@ -239,7 +245,7 @@ def line2str6_list(line:str, line_start: int, num_char_per_line: int) -> (List[S
         attrs['pho'] = True
     if is_email:
         attrs['eml'] = True
-    if is_line_page_num(line):
+    if docstructutils.is_line_footer_by_content(line):
         attrs['pagenum'] = True
 
     attrs['lr_ratio'] = lr_ratio
@@ -297,7 +303,7 @@ def remove_ocr_error_23(line: str) -> str:
         return tmp_str
     return line
 
-def parse_document(file_name, work_dir, debug_mode=True):
+def parse_document(file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
 
     doc_text = strutils.loads(file_name)
@@ -336,14 +342,14 @@ def parse_document(file_name, work_dir, debug_mode=True):
 
             linex = Line6WithAttrs(start, end, line_seq, line, page_num, num_char_per_line)
             linex_list.append(linex)
-            print(linex.str_orig())
+            if debug_mode:
+                print(linex.str_orig())
         pageinfo6_list.append(PageInfo6(page_start, page_end, page_num, linex_list))
 
     pdf_text_doc = PDFTextDoc6(file_name, doc_text, pageinfo6_list, num_char_per_line)
 
     add_doc_structure_to_doc(pdf_text_doc)
 
-    # add_doc_structure_to_doc(pdf_text_doc)
     return pdf_text_doc
 
 NUM_CHAR_PER_LINE = 160
@@ -354,7 +360,7 @@ def add_doc_structure_to_doc(pdftxt_doc):
     # Also add section heads
     # page_attrs_list is to store table information?
     for page in pdftxt_doc.page_list:
-        add_doc_structure_to_page(page, pdftxt_doc)
+        page.block_list = add_doc_structure_to_page(page, pdftxt_doc)
 
     # now we have basic block_group with correct
     # is_english set.  Useful for merging
@@ -654,9 +660,20 @@ def is_column_service(linex: Line6WithAttrs):
 def is_column_pricing_schedule(linex: Line6WithAttrs):
     if (len(linex.str_list) >= 1 and
         # for both 'Pricing Schedule Term' and
-        # 'Pricing Schedule Term Start Date' 
+        # 'Pricing Schedule Term Start Date'
         # linex.str_list[0].text.lower().startswith("pricing schedule term")):
         linex.str_list[0].text.lower().startswith('pricing sched')):
+        return True
+    return False
+
+
+def is_column_att_solution(linex: Line6WithAttrs):
+    if (len(linex.str_list) == 1 and
+        # for both 'Pricing Schedule Term' and
+        # 'Pricing Schedule Term Start Date'
+        # linex.str_list[0].text.lower().startswith("pricing schedule term")):
+        pattrieutils.startswith_approximate('at&t solution provider',
+                                            linex.str_list[0].text.lower(), 2)):
         return True
     return False        
 
@@ -681,6 +698,10 @@ def is_known_table_header(linex: Line6WithAttrs):
 
 def is_known_table_header_to_sep(linex: Line6WithAttrs):
     if is_column_pricing_schedule(linex):
+        # special case, don't want to use it for column divider computation
+        # because it is a 2 column heading for a 3 column table
+        return True
+    elif is_column_att_solution(linex):
         # special case, don't want to use it for column divider computation
         # because it is a 2 column heading for a 3 column table
         return True
@@ -743,10 +764,6 @@ def fix_known_block_errors(block_list):
     block_seq = 0
     while block_seq < len_block_list:
         block = tmp_block_list[block_seq]
-        #if not block:
-        #    print('block_empty..................................................')
-        #    block_seq += 1
-        #    continue
         
         first_line = block[0]
         # print('first_line = {}'.format(first_line))
@@ -822,7 +839,10 @@ def add_doc_structure_to_page(apage: PageInfo6, pdf_txt_doc):
     block_list = merge_adjacent_tables(block_list)
 
     # print("block_list2 = {}".format(len(block_list)))
-    print_blocks("final xxxxxxxxxxxxxxxxxxxxxxx", apage.page_num, block_list)
+    if DEBUG_MODE:
+        print_blocks("final xxxxxxxxxxxxxxxxxxxxxxx", apage.page_num, block_list)
+
+    return block_list
 
 
 def is_next_block_has_number(last_block_line_num, last_block_num_cols, next_block):
@@ -894,6 +914,7 @@ def merge_adjacent_tables(block_list):
         
     return out_block_list
 
+"""
 IGNORE_LINE_LIST = [r'at&t and customer confidential information',
                     r'asap!',
                     r'page\s*\d+\s*of\s*\d+',
@@ -906,6 +927,7 @@ ATT_PAGE_NUM_PAT = re.compile(r'^\s*({})\s*$'.format('|'.join(IGNORE_LINE_LIST))
 
 def is_line_page_num(line: str) -> bool :
     return ATT_PAGE_NUM_PAT.match(line)
+"""
 
 
 # 'By ....', so cannot really require ':;' at the end
@@ -988,6 +1010,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     txt_fname = args.file
 
+    DEBUG_MODE = True
     work_dir = 'dir-work'
     pdf_txt_doc = parse_document(txt_fname, work_dir=work_dir)
     # to_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)

@@ -1,9 +1,13 @@
+from typing import List
 
 def start_end_overlap(stend1, stend2):
     start1, end1 = stend1
     start2, end2 = stend2
     return start1 < end2 and start2 < end1
 
+# 1st includes 2nd
+# [    stend1    ]
+#    [ stend2 ]
 def start_end_subsume(stend1, stend2):
     start1, end1 = stend1
     start2, end2 = stend2
@@ -75,3 +79,27 @@ def pairs_to_sets(pairs):
             else: # both x1 and x2 are not found
                 result.append({x1, x2})
     return result
+
+
+def choose_after(x: int, other_list: List[int]):
+    for y in other_list:
+        if y > x:
+            return y
+    # if not found, just take first one
+    return other_list[0]
+
+
+def choose_before(x: int, other_list: List[int]):
+    for y in other_list:
+        if y < x:
+            return y
+    # if not found, just take first one
+    return other_list[0]
+
+def choose_closest(x: int, other_list: List[int]):
+    diff_list = []  # list of (diff, index)
+    for idx, y in enumerate(other_list):
+        diff_list.append((abs(y - x), idx))
+    sorted_diff_list = sorted(diff_list)
+    _, chosen_idx = sorted_diff_list[0]
+    return other_list[chosen_idx]

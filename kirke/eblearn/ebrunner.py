@@ -270,7 +270,7 @@ class EbRunner:
             empty_result = {}
             for prov in provision_set:
                 empty_result[prov] = []
-            return empty_result, eb_antdoc.text
+            return empty_result, eb_antdoc
 
         # this execute the annotators in parallel
         prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, provision_set)

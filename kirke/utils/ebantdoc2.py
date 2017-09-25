@@ -81,6 +81,7 @@ class EbAnnotatedDoc2:
                  from_list,
                  gap_span_list,
                  nl_text='',
+                 page_offsets_list=None,
                  paraline_text=''):
         self.file_id = file_name
         self.doc_format = doc_format
@@ -100,6 +101,7 @@ class EbAnnotatedDoc2:
 
         self.nl_text = nl_text
         self.paraline_text = paraline_text
+        self.page_offsets_list = page_offsets_list
 
         self.table_list = []
         self.chart_list = []
@@ -463,13 +465,38 @@ def pdf_to_ebantdoc2(txt_file_name,
     #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
     #     docutils.parse_html_document(txt_file_name, linfo_file_name, work_dir=work_dir)
 
+    # we load the NL file so section head might be more correct
     paras_with_attrs, para_doc_text, gap_span_list, _ = \
-        htmltxtparser.parse_document(txt_file_name,
+        htmltxtparser.parse_document(nl_fname,  # txt_file_name,
                                      work_dir=work_dir,
                                      is_combine_line=False)  # this line diff from annotate_htmled_document()
+
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)
+
+    line_header_start_set = set([])
+    line_footer_start_set = set([])
+    for page in pdf_text_doc.page_list:
+        print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+              (page.page_num, page.start, page.end, len(page.line_list)))
+
+        for linex in page.line_list:
+            print('{}\t{}'.format(linex.tostr5(), doc_text[linex.lineinfo.start:linex.lineinfo.end]))
+            if linex.attrs.get('header'):
+                line_header_start_set.add(linex.lineinfo.start)
+            elif linex.attrs.get('footer'):
+                line_footer_start_set.add(linex.lineinfo.start)
+    for para_with_attrs in paras_with_attrs:
+        from_z, to_z, text, attrs = para_with_attrs
+        start, end = from_z
+        if start in line_header_start_set:
+            attrs.append(('header', True))
+        elif start in line_footer_start_set:
+            attrs.append(('footer', True))
+
+
     # paras_with_attrs, para_doc_text, gap_span_list, _ = \
     #    pdf_txt_doc.get_nlp_stuff(txt_file_namne, work_dir=work_dir)
+    # TODO, ???  looks like no longer used
     pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir)
 
     #for i, para_with_attr in enumerate(paras_with_attrs, 1):
@@ -510,8 +537,9 @@ def pdf_to_ebantdoc2(txt_file_name,
                                 to_list,
                                 from_list,
                                 gap_span_list,
-                                nl_text = nl_text,
-                                paraline_text = paraline_text)
+                                nl_text=nl_text,
+                                page_offsets_list=pdf_text_doc.get_page_offsets(),
+                                paraline_text=paraline_text)
 
     update_special_block_info(eb_antdoc, pdf_text_doc)
 

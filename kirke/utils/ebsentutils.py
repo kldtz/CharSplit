@@ -276,6 +276,13 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
     #    print('x234 {}\t{}'.format(i, token))
 
 
+def get_sechead_attr(attrs):
+    for attr in attrs:
+        # print("is_attr_section_head: {} || {}".format(attr, attr[2]))
+        if (len(attr) > 3 and attr[0] == 'sechead'):
+            return attr
+    return ''
+
 def update_ebsents_with_sechead(ebsent_list, paras_with_attrs):
     para_i, len_paras = 0, len(paras_with_attrs)
     ebsent_i, len_ebsents = 0, len(ebsent_list)
@@ -283,13 +290,14 @@ def update_ebsents_with_sechead(ebsent_list, paras_with_attrs):
     ebsent_start, ebsent_end = ebsent.start, ebsent.end
 
     while para_i < len_paras and ebsent_i < len_ebsents:
-        (para_from_start, para_from_end), (para_to_start, para_to_end), line, secheadx = paras_with_attrs[para_i]
+        (para_from_start, para_from_end), (para_to_start, para_to_end), line, attrs = paras_with_attrs[para_i]
         if para_to_start == para_to_end:  # empty line, move on
             para_i += 1
             continue
-        if secheadx:
-            # print("secheadx: {}".format(secheadx[0]))
-            sechead_type, sh_prefix_num, sh_header, sh_idx = secheadx[0]
+        sechead_attr = get_sechead_attr(attrs)
+        if sechead_attr:
+            # print("attrs: {}".format(attrs[0]))
+            sechead_type, sh_prefix_num, sh_header, sh_idx = sechead_attr
         else:
             sh_header = ''
         # print("para #{}: {}".format(para_i, paras_with_attrs[para_i]))

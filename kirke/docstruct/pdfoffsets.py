@@ -25,6 +25,9 @@ class PDFTextDoc:
         self.paged_grouped_block_list = []      # each page is a list of grouped_block
         self.special_blocks_map = defaultdict(list)
 
+    def get_page_offsets(self):
+        return [(page.start, page.end) for page in self.page_list]
+
     def print_debug_blocks(self):
         for page_num, grouped_block_list in enumerate(self.paged_grouped_block_list, 1):
             print('\n===== page #%d, len(block_list)= %d' % (page_num, len(grouped_block_list)))

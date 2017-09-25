@@ -77,6 +77,14 @@ def load_str_list(file_name):
     return st_list
 
 
+def load_lc_str_set(filename):
+    aset = set([])
+    with open(filename, 'rt') as fin:
+        for line in fin:
+            aset.add(line.strip().lower())
+    return aset
+
+
 def save_str_list(str_list: List[str], file_name: str) -> None:
     with open(file_name, 'wt') as fout:
         for line in str_list:
@@ -580,6 +588,13 @@ def space_repl_same_length(mat):
 
 def replace_dot3plus_with_spaces(line: str) -> str:
     return re.sub(r'([\.\-_][\.\-_][\.\-_]+)', space_repl_same_length, line)
+
+
+NEXT_TOKEN_PAT = re.compile(r'\s*\S+')
+
+def find_next_token(line: str):
+    return NEXT_TOKEN_PAT.match(line)
+
 
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3

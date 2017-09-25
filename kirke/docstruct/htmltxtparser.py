@@ -35,6 +35,17 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
                 sechead_type, prefix_num, sec_head, split_idx = \
                         secheadutils.extract_sechead_v4(line, prev_nonempty_line, prev_line_idx, is_combine_line=is_combine_line)
 
+                """
+                print("secheadutils.extract_sechead_v4(ln={}, prv={}, prv_idx={}, iscomb={})".format(line,
+                                                                                                     prev_nonempty_line,
+                                                                                                     prev_line_idx,
+                                                                                                     is_combine_line))
+                print("       sechead_type= {}, prefix_num= {}, sec_head= {}, split_idx= {}".format(sechead_type,
+                                                                                                    prefix_num,
+                                                                                                    sec_head,
+                                                                                                    split_idx))
+                """
+
                 if sechead_type:
                     attr_list.append((sechead_type, prefix_num, sec_head, split_idx))
                 prev_nonempty_line, prev_line_idx = line, split_idx
