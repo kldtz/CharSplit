@@ -142,7 +142,7 @@ class EbTransformer(BaseEstimator, TransformerMixin):
                                                                           label_list,
                                                                           tokenize=bigramutils.eb_doc_to_all_ngrams)
             # replace vocabs with igain.vocab
-            vocab = igain_vocabs
+            vocabs = igain_vocabs
             vocab_id_map = {}
             for vid, vocab in enumerate(vocabs):
                 vocab_id_map[vocab] = vid
