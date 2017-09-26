@@ -350,6 +350,27 @@ class LineWithAttrs:
         adict.update(self.attrs)
         return adict
 
+    def to_para_attrvals(self):
+        """returns a dict()"""
+        adict = {}
+        adict['pnum'] = self.page_num
+        adict['bnum'] = self.block_num
+        # adict.append(('bn', self.lineinfo.block_num))
+        # adict.append(('align', self.align))
+        if self.is_centered:
+            adict['center'] = True
+        if not self.is_english:
+            adict['not_en'] = True
+        adict.update(self.attrs)
+
+        result = []
+        for attr, value in adict.items():
+            if attr == 'sechead':
+                result.append(value)
+            else:
+                result.append((attr, value))
+        return sorted(result)
+
 
 @total_ordering
 class PBlockInfo:

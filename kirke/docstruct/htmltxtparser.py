@@ -3,7 +3,7 @@ import re
 import sys
 from typing import List
 
-from kirke.utils import mathutils, strutils
+from kirke.utils import ebsentutils, mathutils, strutils
 
 from kirke.docstruct import secheadutils
 
@@ -472,8 +472,8 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
             party_line_idx = line_idx
             lc_party_line = line.lower()
 
-        if attr_list:
-            sechead_attr = attr_list[0]
+        sechead_attr = ebsentutils.get_sechead_attr(attr_list)
+        if sechead_attr:
             sechead_type, prefix_num, head, split_idx = sechead_attr
             tmp_outline = '[{}]\t[{}]'.format(prefix_num, head)
             if tmp_outline != prev_out_line:
@@ -580,8 +580,9 @@ def parse_document(file_name, work_dir, is_combine_line=True):
         with open(sechead_fname, 'wt') as fout2:
             prev_out_line = ''
             for _, (to_start, to_end), line, attr_list in lineinfos_paras:
-                if attr_list:
-                    sechead_attr = attr_list[0]
+                sechead_attr = ebsentutils.get_sechead_attr(attr_list)
+                if sechead_attr:
+                    # sechead_attr = attr_list[0]
                     to_sechead_st = paras_doc_text[to_start:to_end]
                     sechead_type, prefix_num, head, split_idx = sechead_attr
                     out_line = '<{}>\t{}\t{}\t{}'.format(to_sechead_st, prefix_num, head, split_idx)

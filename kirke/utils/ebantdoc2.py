@@ -31,11 +31,11 @@ def get_nlp_fname(txt_basename, work_dir):
     base_fn = txt_basename.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
     return '{}/{}'.format(work_dir, base_fn)
 
+
 def get_ebant_fname(txt_basename, work_dir):
     base_fn =  txt_basename.replace('.txt',
                                     '.ebantdoc.v{}.pkl'.format(EBANTDOC_VERSION))
     return '{}/{}'.format(work_dir, base_fn)
-
 
 
 class EbDocFormat(Enum):
@@ -273,7 +273,7 @@ def nlptxt_to_attrvec_list(para_doc_text,
 def html_no_docstruct_to_ebantdoc2(txt_file_name,
                                    work_dir,
                                    is_cache_enabled=True):
-    debug_mode = True
+    debug_mode = False
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
 
@@ -360,7 +360,7 @@ def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode
 def html_to_ebantdoc2(txt_file_name,
                       work_dir,
                       is_cache_enabled=True):
-    debug_mode = True
+    debug_mode = False
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
     print("html_to_ebantdoc2({}, {}, is_cache_eanbled={}", txt_file_name, work_dir, is_cache_enabled)
@@ -402,19 +402,17 @@ def html_to_ebantdoc2(txt_file_name,
                                 from_list,
                                 gap_span_list)
                                 
-    start_time1 = time.time()
-
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
         start_time = time.time()
         joblib.dump(eb_antdoc, eb_antdoc_fn)
         end_time = time.time()
-        logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-                     eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+        #logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+        #             eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
 
-    end_time = time.time()
+    end_time1 = time.time()
     logging.info("html_to_ebantdoc2: %s, took %.0f msec; %d attrvecs",
-                 eb_antdoc_fn, (end_time - start_time0) * 1000, len(attrvec_list))
+                 eb_antdoc_fn, (end_time1 - start_time1) * 1000, len(attrvec_list))
     return eb_antdoc
 
 def update_special_block_info(eb_antdoc, pdf_txt_doc):
@@ -454,74 +452,47 @@ def pdf_to_ebantdoc2(txt_file_name,
 
     doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
         pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
-    # jshaw, This is too much code change.  Keeping the existing code.
-    # pdf_txt_doc = pdftxtparser.parse_document(txt_file_name)
-    # doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
-    #     pdf_txt_doc.get_nl_paraline_texts()
+
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name)
 
-    # gap_span_list is for sentv2.txt or xxx.txt?
-    # the offsets in para_list is for doc_text
-    #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
-    #     docutils.parse_html_document(txt_file_name, linfo_file_name, work_dir=work_dir)
-
-    # we load the NL file so section head might be more correct
-    paras_with_attrs, para_doc_text, gap_span_list, _ = \
-        htmltxtparser.parse_document(nl_fname,  # txt_file_name,
-                                     work_dir=work_dir,
-                                     is_combine_line=False)  # this line diff from annotate_htmled_document()
+    # we no longer use HTML parser inside pdf.  :-)
+    #paras_with_attrs, para_doc_text, gap_span_list, _ = \
+    #    htmltxtparser.parse_document(nl_fname,  # txt_file_name,
+    #                                 work_dir=work_dir,
+    #                                 is_combine_line=False)  # this line diff from annotate_htmled_document()
 
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)
-
-    line_header_start_set = set([])
-    line_footer_start_set = set([])
-    for page in pdf_text_doc.page_list:
-        print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
-              (page.page_num, page.start, page.end, len(page.line_list)))
-
-        for linex in page.line_list:
-            print('{}\t{}'.format(linex.tostr5(), doc_text[linex.lineinfo.start:linex.lineinfo.end]))
-            if linex.attrs.get('header'):
-                line_header_start_set.add(linex.lineinfo.start)
-            elif linex.attrs.get('footer'):
-                line_footer_start_set.add(linex.lineinfo.start)
-    for para_with_attrs in paras_with_attrs:
-        from_z, to_z, text, attrs = para_with_attrs
-        start, end = from_z
-        if start in line_header_start_set:
-            attrs.append(('header', True))
-        elif start in line_footer_start_set:
-            attrs.append(('footer', True))
-
 
     # paras_with_attrs, para_doc_text, gap_span_list, _ = \
     #    pdf_txt_doc.get_nlp_stuff(txt_file_namne, work_dir=work_dir)
     # TODO, ???  looks like no longer used
-    pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir)
+    paras2_with_attrs, para2_doc_text, gap2_span_list = \
+        pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir)
 
-    #for i, para_with_attr in enumerate(paras_with_attrs, 1):
-    #    print('kkkk3333 {}\t{}'.format(i, para_with_attr))
+    # this has no toc, page number
+    # not not yet fully integrated.
+    # Not sure how Jason's title and party line parser handle it
+    # But this paraline2_text violates one key criteria for paraline file
+    # It's offsets is different from the original text file, while
+    # the earlier one kept it.
+    # The code below is not useful for current purposed, though it is a nice feature.
+    # paraline2_text, paraline2_offset_line_list = \
+    #    pdftxtparser.to_paralines(pdf_text_doc, txt_file_name, work_dir=work_dir)
 
     # I am a little messed up on from_to lists
     # not sure exactly what "from" means, original text or nlp text
-    to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
+    to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras2_with_attrs)
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
-    txtreader.dumps(para_doc_text, text4nlp_fn)
+    txtreader.dumps(para2_doc_text, text4nlp_fn)
     if debug_mode:
         print('wrote 235 {}'.format(text4nlp_fn), file=sys.stderr)
 
-
-    txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
-    txtreader.dumps(para_doc_text, txt4nlp_fname)
-    if debug_mode:
-        print("wrote {}".format(txt4nlp_fname), file=sys.stderr)
-
-    attrvec_list, nlp_prov_ant_list = nlptxt_to_attrvec_list(para_doc_text,
+    attrvec_list, nlp_prov_ant_list = nlptxt_to_attrvec_list(para2_doc_text,
                                                              txt_file_name,
                                                              txt_base_fname,
                                                              prov_annotation_list,
-                                                             paras_with_attrs,
+                                                             paras2_with_attrs,
                                                              work_dir,
                                                              is_cache_enabled)
 
@@ -530,32 +501,31 @@ def pdf_to_ebantdoc2(txt_file_name,
                                 doc_text,
                                 prov_annotation_list,
                                 is_test,
-                                para_doc_text,
+                                para2_doc_text,
                                 nlp_prov_ant_list,
                                 attrvec_list,
-                                paras_with_attrs,
+                                paras2_with_attrs,
                                 to_list,
                                 from_list,
-                                gap_span_list,
+                                gap2_span_list,
                                 nl_text=nl_text,
                                 page_offsets_list=pdf_text_doc.get_page_offsets(),
                                 paraline_text=paraline_text)
+                                # paraline_text=paraline2_text)
 
     update_special_block_info(eb_antdoc, pdf_text_doc)
-
-    start_time1 = time.time()
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
         start_time = time.time()
         joblib.dump(eb_antdoc, eb_antdoc_fn)
         end_time = time.time()
-        logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-                     eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+        # logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+        #             eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
 
-    end_time = time.time()
+    end_time1 = time.time()
     logging.info("pdf_to_ebantdoc2: %s, took %.0f msec; %d attrvecs",
-                 eb_antdoc_fn, (end_time - start_time) * 1000, len(attrvec_list))
+                 eb_antdoc_fn, (end_time1 - start_time0) * 1000, len(attrvec_list))
     return eb_antdoc
 
 

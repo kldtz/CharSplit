@@ -15,7 +15,6 @@ from kirke.utils import strutils, txtreader, mathutils
 def get_nl_fname(base_fname, work_dir):
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
 
-
 def get_paraline_fname(base_fname, work_dir):
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paraline.txt'))
 
@@ -169,7 +168,8 @@ def is_block_multi_line(linex_list):
     return num_is_english < num_not_english
 
 
-def to_paras_with_attrs(pdf_text_doc, file_name, work_dir):
+# returns    paras2_with_attrs, para2_doc_text, gap2_span_list
+def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
 
     cur_attr = []
@@ -178,60 +178,144 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir):
     offset = 0
     out_line_list = []
     offsets_line_list = []
-    with open('ashxx.check.offsets.txt', 'wt') as fout1, open('ashxx.with.offsets.txt', 'wt') as fout2:
 
-        for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
-            apage = pdf_text_doc.page_list[page_num - 1]
-            attr_list = sorted(apage.attrs.items())
-            #if attr_list:
-            #    print('  attrs: {}'.format(', '.join(attr_list)))
-            for grouped_block in grouped_block_list:
+    # para_with_attrs, from_z, to_z, line_text, attrs (toc, header, footer, sechead)
+    sechead_context = []
+    not_gapped_line_nums = set([])
+    for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
+        apage = pdf_text_doc.page_list[page_num - 1]
+        # attr_list = sorted(apage.attrs.items())
+        attr_list = sorted(apage.attrs.items())
 
-                is_multi_line = is_block_multi_line(grouped_block.line_list)
+        # if attr_list:
+        #    print('  attrs: {}'.format(', '.join(attr_list)))
+        # because we merge lines across pages, we should do this gap span identification at
+        # global level
+        for grouped_block in grouped_block_list:
 
-                if is_multi_line:
-                    for linex in grouped_block.line_list:
-                        out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                        attr_list = linex.to_attrvals()  # sorted(linex.attrs.items())
+            for linex in grouped_block.line_list:
+                out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                attr_list = linex.to_para_attrvals()  # sorted(linex.attrs.items())
+                if linex.line_text and linex.attrs.get('sechead'):
+                    sechead_context = linex.attrs.get('sechead')
+                elif sechead_context:
+                    attr_list.append(sechead_context)
 
-                        out_line_list.append(out_line)
-                        offsets_line_list.append(((linex.lineinfo.start, linex.lineinfo.end),
-                                                  (offset, offset + len(out_line)),
-                                                  out_line, attr_list))
-                        offset += len(out_line) + 1  # to add eoln
-                else:
-                    block_lines = []
-                    attr_list = grouped_block.line_list[0].to_attrvals()  # sorted(linex.attrs.items())
-                    block_start = offset
-                    for linex in grouped_block.line_list:
-                        out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                        block_lines.append(out_line)
-                        offset += len(out_line) + 1  # to add eoln
+                out_line_list.append(out_line)
+                offsets_line_list.append(((linex.lineinfo.start, linex.lineinfo.end),
+                                          (offset, offset + len(out_line)),
+                                          out_line, attr_list))
+                offset += len(out_line) + 1  # to add eoln
 
-                    block_text = ' '.join(block_lines)
-                    out_line_list.append(block_text)
-                    offsets_line_list.append(((grouped_block.line_list[0].lineinfo.start, grouped_block.line_list[-1].lineinfo.end),
-                                              (block_start, offset - 1),
-                                              block_text, attr_list))
+                # print('linxxxxx num: {}'.format(linex.lineinfo.line_num))
+                not_gapped_line_nums.add(linex.lineinfo.line_num)
 
-                out_line_list.append('')
-                offsets_line_list.append(((linex.lineinfo.end+2, linex.lineinfo.end+2),
-                                          (offset, offset),
-                                          '', {}))
-                offset += 1
+            out_line_list.append('')
+            offsets_line_list.append(((linex.lineinfo.end+2, linex.lineinfo.end+2),
+                                      (offset, offset),
+                                      '', []))
+            offset += 1
 
-        for out_line in out_line_list:
-            print(out_line, file=fout1)
-        for x, y, out_line, attr_list in offsets_line_list:
-            print('{}, {}\t{}\t[{}]'.format(x, y, sorted(attr_list.items()), out_line), file=fout2)
+    # figure out the gap span, this has to be done at document level because
+    # line sometimes are merged into the block in the previous page
+    gap_span_list = []
+    for page in pdf_text_doc.page_list:
+        for linex in page.line_list:
+            if linex.line_text:  # not empty line
+                line_num = linex.lineinfo.line_num
+                if line_num not in not_gapped_line_nums:
+                    gap_span_list.append((linex.lineinfo.start, linex.lineinfo.end))
+                    # print("gap line: ({}, {}), [{}]".format(linex.lineinfo.start, linex.lineinfo.end, linex.line_text))
 
-        print('wrote {}'.format('ashxx.check.offsets.txt'), file=sys.stderr)
-        print('wrote {}'.format('ashxx.with.offsets.txt'), file=sys.stderr)
+    paraline_text = '\n'.join(out_line_list)
 
-    # return lineinfos_paras, paras_doc_text, gap_span_list
+    if debug_mode:
+        pdf_nlp_txt_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.nlp.txt'))
+        txtreader.dumps(paraline_text, pdf_nlp_txt_fn)
+        print('wrote {}'.format(pdf_nlp_txt_fn), file=sys.stderr)
+
+        pdf_nlp_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.nlp.debug.tsv'))
+        with open(pdf_nlp_debug_fn, 'wt') as fout2:
+            for x, y, out_line, attr_list in offsets_line_list:
+                print('{}, {}\t[{}]\t{}'.format(x, y, out_line, attr_list), file=fout2)
+        print('wrote {}'.format(pdf_nlp_debug_fn), file=sys.stderr)
+
+    return offsets_line_list, paraline_text, gap_span_list
 
 
-def parse_document(file_name, work_dir, debug_mode=True):
+# returns paraline_doc_text, paralines_with_attrs
+def to_paralines(pdf_text_doc, file_name, work_dir, debug_mode=False):
+    base_fname = os.path.basename(file_name)
+
+    cur_attr = []
+    gap_span_list = []
+    omit_line_set = []
+    offset = 0
+    out_line_list = []
+    offsets_line_list = []
+
+    for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
+        apage = pdf_text_doc.page_list[page_num - 1]
+        attr_list = sorted(apage.attrs.items())
+        #if attr_list:
+        #    print('  attrs: {}'.format(', '.join(attr_list)))
+        for grouped_block in grouped_block_list:
+
+            is_multi_line = is_block_multi_line(grouped_block.line_list)
+
+            if is_multi_line:
+                for linex in grouped_block.line_list:
+                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    attr_list = linex.to_attrvals()  # sorted(linex.attrs.items())
+
+                    out_line_list.append(out_line)
+                    offsets_line_list.append(((linex.lineinfo.start, linex.lineinfo.end),
+                                              (offset, offset + len(out_line)),
+                                              out_line, attr_list))
+                    offset += len(out_line) + 1  # to add eoln
+            else:
+                block_lines = []
+                attr_list = grouped_block.line_list[0].to_attrvals()  # sorted(linex.attrs.items())
+                block_start = offset
+                for linex in grouped_block.line_list:
+                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    block_lines.append(out_line)
+                    offset += len(out_line) + 1  # to add eoln
+
+                block_text = ' '.join(block_lines)
+                out_line_list.append(block_text)
+                offsets_line_list.append(((grouped_block.line_list[0].lineinfo.start, grouped_block.line_list[-1].lineinfo.end),
+                                          (block_start, offset - 1),
+                                          block_text, attr_list))
+
+            out_line_list.append('')
+            offsets_line_list.append(((linex.lineinfo.end+2, linex.lineinfo.end+2),
+                                      (offset, offset),
+                                      '', {}))
+            offset += 1
+
+    paraline_text = '\n'.join(out_line_list)
+
+    if debug_mode:
+        pdf_paraline_txt_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.paraline.txt'))
+        txtreader.dumps(paraline_text, pdf_paraline_txt_fn)
+        """
+        with open(padf_paraline_txt_fn, 'wt') as fout:
+            for out_line in out_line_list:
+                print(out_line, file=fout)
+        """
+        print('wrote {}'.format(pdf_paraline_txt_fn), file=sys.stderr)
+
+        pdf_paraline_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.paraline.debug.tsv'))
+        with open(pdf_paraline_debug_fn, 'wt') as fout2:
+            for x, y, out_line, attr_list in offsets_line_list:
+                print('{}, {}\t{}\t[{}]'.format(x, y, sorted(attr_list.items()), out_line), file=fout2)
+        print('wrote {}'.format(pdf_paraline_debug_fn), file=sys.stderr)
+
+    return paraline_text, offsets_line_list
+
+
+def parse_document(file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
 
     doc_text = strutils.loads(file_name)
@@ -435,12 +519,12 @@ def add_doc_structure_to_doc(pdftxt_doc):
     # blocks with only 1 lines as table, or signature section
     for apage in pdftxt_doc.page_list:
         merge_adjacent_line_with_special_attr(apage)
-    pdftxt_doc.save_debug_pages(extension='.debug.mergepage.tsv')
+    # pdftxt_doc.save_debug_pages(extension='.debug.mergepage.tsv')
 
     for apage in pdftxt_doc.page_list:
         # TODO, temporary remove this
         add_sections_to_page(apage, pdftxt_doc)
-    pdftxt_doc.save_debug_pages(extension='.debug_after_section.tsv')
+    # pdftxt_doc.save_debug_pages(extension='.debug_after_section.tsv')
 
     # Redo block info because they might be in different
     # pages.
@@ -601,6 +685,12 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                                              # is_sechead=line.attrs.get('sechead'))):
             line.attrs['address'] = True
             # not skipped
+        else:  # none-of-above
+            # check if sechead
+            if secheadutils.is_line_sechead_prefix(line.line_text):
+                sechead_tuple = docstructutils.extract_line_sechead(line.line_text)
+                if sechead_tuple:
+                    line.attrs['sechead'] = sechead_tuple
 
         # 2nd stage of rules
         is_footer, score = docstructutils.is_line_footer(line.line_text,
