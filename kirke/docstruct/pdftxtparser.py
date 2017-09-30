@@ -246,8 +246,9 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
                 first_linex = grouped_block.line_list[0]
                 attr_list = first_linex.to_para_attrvals()  # sorted(linex.attrs.items())
 
-                if (len(grouped_block.line_list) == 1 and first_linex.line_text and
-                    first_linex.attrs.get('sechead')):
+                # don't check for block.line_list length here
+                # There are lines with sechead followed by sentences
+                if first_linex.line_text and first_linex.attrs.get('sechead'):
                     sechead_context = first_linex.attrs.get('sechead')
                 elif sechead_context:
                     attr_list.append(sechead_context)
