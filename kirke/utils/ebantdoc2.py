@@ -361,7 +361,7 @@ def html_to_ebantdoc2(txt_file_name,
                       work_dir,
                       is_cache_enabled=True):
     debug_mode = False
-    start_time0 = time.time()
+    start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
     print("html_to_ebantdoc2({}, {}, is_cache_eanbled={}", txt_file_name, work_dir, is_cache_enabled)
 
@@ -416,12 +416,12 @@ def html_to_ebantdoc2(txt_file_name,
     return eb_antdoc
 
 def update_special_block_info(eb_antdoc, pdf_txt_doc):
-    eb_antdoc.table_list = pdf_txt_doc.special_blocks_map.get('table')
-    eb_antdoc.chart_list = pdf_txt_doc.special_blocks_map.get('chart')
-    eb_antdoc.signature_list = pdf_txt_doc.special_blocks_map.get('signature')
-    eb_antdoc.toc_list = pdf_txt_doc.special_blocks_map.get('toc')
-    eb_antdoc.pagenum_list = pdf_txt_doc.special_blocks_map.get('pagenum')
-    eb_antdoc.footer_list = pdf_txt_doc.special_blocks_map.get('footer')
+    eb_antdoc.table_list = pdf_txt_doc.special_blocks_map.get('table', [])
+    eb_antdoc.chart_list = pdf_txt_doc.special_blocks_map.get('chart', [])
+    eb_antdoc.signature_list = pdf_txt_doc.special_blocks_map.get('signature', [])
+    eb_antdoc.toc_list = pdf_txt_doc.special_blocks_map.get('toc', [])
+    eb_antdoc.pagenum_list = pdf_txt_doc.special_blocks_map.get('pagenum', [])
+    eb_antdoc.footer_list = pdf_txt_doc.special_blocks_map.get('footer', [])
 
 
 # this parses both originally text and html documents
@@ -455,38 +455,21 @@ def pdf_to_ebantdoc2(txt_file_name,
 
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name)
 
-    # we no longer use HTML parser inside pdf.  :-)
-    #paras_with_attrs, para_doc_text, gap_span_list, _ = \
-    #    htmltxtparser.parse_document(nl_fname,  # txt_file_name,
-    #                                 work_dir=work_dir,
-    #                                 is_combine_line=False)  # this line diff from annotate_htmled_document()
-
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)
 
-    # paras_with_attrs, para_doc_text, gap_span_list, _ = \
-    #    pdf_txt_doc.get_nlp_stuff(txt_file_namne, work_dir=work_dir)
-    # TODO, ???  looks like no longer used
     paras2_with_attrs, para2_doc_text, gap2_span_list = \
-        pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir)
-
-    # this has no toc, page number
-    # not not yet fully integrated.
-    # Not sure how Jason's title and party line parser handle it
-    # But this paraline2_text violates one key criteria for paraline file
-    # It's offsets is different from the original text file, while
-    # the earlier one kept it.
-    # The code below is not useful for current purposed, though it is a nice feature.
-    # paraline2_text, paraline2_offset_line_list = \
-    #    pdftxtparser.to_paralines(pdf_text_doc, txt_file_name, work_dir=work_dir)
+        pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir, debug_mode=False)
 
     # I am a little messed up on from_to lists
     # not sure exactly what "from" means, original text or nlp text
-    to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras2_with_attrs)
+    # Different from htmltxtparser.paras_to_fromto_lists(), the from might be
+    # out of order due to docstructuring
+    to_list, from_list = pdftxtparser.paras_to_fromto_lists(paras2_with_attrs)
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para2_doc_text, text4nlp_fn)
     if debug_mode:
-        print('wrote 235 {}'.format(text4nlp_fn), file=sys.stderr)
+        print('wrote {}'.format(text4nlp_fn), file=sys.stderr)
 
     attrvec_list, nlp_prov_ant_list = nlptxt_to_attrvec_list(para2_doc_text,
                                                              txt_file_name,

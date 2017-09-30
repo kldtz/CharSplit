@@ -350,6 +350,9 @@ class LineWithAttrs:
         adict.update(self.attrs)
         return adict
 
+    def __str__(self):
+        return str(self.to_attrvals())
+
     def to_para_attrvals(self):
         """returns a dict()"""
         adict = {}
@@ -366,7 +369,9 @@ class LineWithAttrs:
         result = []
         for attr, value in adict.items():
             if attr == 'sechead':
-                result.append(value)
+                if value:  # value is false sometimes?? TODO, jshaw, fix
+                    result.append(value)
+                # else: pass
             else:
                 result.append((attr, value))
         return sorted(result)

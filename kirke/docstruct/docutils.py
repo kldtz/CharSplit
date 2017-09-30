@@ -3,8 +3,13 @@ from collections import defaultdict
 
 from kirke.utils import mathutils, strutils
 
-# binary search version
 def find_offset_to(fromx: int, from_list, to_list):
+    return find_offset_to_linear(fromx, from_list, to_list)
+
+# binary search version
+## there is some error in binary_search version, result
+## diff from find_offset_to_linear in certain cases???
+def find_offset_to_binary(fromx: int, from_list, to_list):
 
     # find rightmost value less than or equal to fromx
     found_i = bisect.bisect_right(from_list, fromx)
@@ -28,8 +33,9 @@ def find_offset_to_linear(fromx: int, from_list, to_list):
     if found_i != -1:
         if fromx == from_list[found_i]:
             return to_list[found_i]
-        diff = fromx - from_list[found_i]
-        return to_list[found_i] + diff
+        # we must be greater than from_list[found_i] before
+        diff = fromx - from_list[found_i-1]
+        return to_list[found_i-1] + diff
 
     return -1
 
@@ -118,16 +124,20 @@ def update_ants_gap_spans(prov_labels_map, gap_span_list, doc_text):
                 # print("adjusted span {}:{} -> {}:{}".format(gap_span[0], gap_span[1], tmp_start, tmp_end))
             endpoint_list.sort()
 
-            endpoints_st_list = ['{}:{}'.format(endpoint_list[i], endpoint_list[i+1]) for i in range(0, len(endpoint_list), 2)]
+            # endpoints_st_list = ['{}:{}'.format(endpoint_list[i], endpoint_list[i+1]) for i in range(0, len(endpoint_list), 2)]
+            endpoints_dict_list = [{ 'start': endpoint_list[i],
+                                     'end': endpoint_list[i+1]}
+                                   for i in range(0, len(endpoint_list), 2)]
             # spans_st = ','.join(adjusted_spanst_list)
             # spans_st = ','.join([str(endpoint) for endpoint in endpoint_list])
-            spans_st = ','.join(endpoints_st_list)
+            spans_st = endpoints_dict_list
         else:
-            spans_st = '{}:{}'.format(ant_se[0], ant_se[1])
+            spans_st = [{'start': ant_se[0],
+                         'end': ant_se[1]}]
 
         se_ant_list = se_ant_list_map[ant_se]
         for antx in se_ant_list:
-            antx['start_end_span_list'] = spans_st
+            antx['span_list'] = spans_st
 
 
 ### TODO, jshaw, to be removed because upgrade to ebantdoc2

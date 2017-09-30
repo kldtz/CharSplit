@@ -125,12 +125,6 @@ class LineAnnotator:
             # prov_type can be 'date', 'effective-date', 'signature-date'
             date_list = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
 
-
-            # print('title_start, end = ({}, {})'.format(start_offset, end_offset))
-
-            #print("ebannotator({}).threshold = {}".format(self.provision,
-            #self.threshold))
-
             if date_list:
                 for i, date_ox in enumerate(date_list, 1):
                     start_offset, end_offset, prov_type = date_ox
@@ -142,11 +136,6 @@ class LineAnnotator:
         else:
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             start_offset, end_offset = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
-
-            # print('title_start, end = ({}, {})'.format(start_offset, end_offset))
-
-            #print("ebannotator({}).threshold = {}".format(self.provision,
-            #self.threshold))
 
             if start_offset is not None:
                 prov_annotations = [{'end': end_offset,

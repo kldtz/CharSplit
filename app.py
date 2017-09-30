@@ -3,6 +3,7 @@
 # TODO should we be able to train individual provisions separately
 
 import configparser
+import copy
 import json
 import logging
 import os.path
@@ -94,8 +95,6 @@ def annotate_uploaded_document():
             provision_set.remove('rate_table')
 
     # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
-    # TODO, hacked, remove when not debugging
-    provision_set = set(['l_commencement_date'])
 
     prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
                                                      provision_set=provision_set,

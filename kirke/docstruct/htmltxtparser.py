@@ -227,6 +227,9 @@ def paras_to_fromto_lists(para_list):
     for (from_start, from_end), (to_start, to_end), line, attr_list in para_list:
         alist.append((from_start, to_start))
 
+    # in HTML files, the 'from' and 'to' are guaranteed to be in order, so
+    # this code is slightly different from pdftxtparser.paras_to_fromto_lists.
+    # otherwise, should order by 'to_start'
     sorted_alist = sorted(alist)
 
     from_list = [a for a,b in sorted_alist]
@@ -425,7 +428,7 @@ def find_sechead_toc(para_attr_list):
         return toc_start_idx, max_consecutive_start_idx + toc_last_idx
     return -1, -1
 
-
+# this is called by eblearn/lineannotator.py
 def lineinfos_paras_to_attr_list(lineinfos_paras):
     para_attr_list = []
     prev_out_line = ''

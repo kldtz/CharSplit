@@ -187,22 +187,30 @@ def is_line_footer(line: str,
         return True, 1.0
     if yStart < 700.0:
         return False, -1.0
+
     score = 0
     if yStart >= 725.0:
         score += 0.4
+    # print("score = {}, after yStart".format(score))
     if num_line_in_page - page_line_num <= 2:
         score += 0.5
+    # print("score = {}, after num_line_in_page".format(score))
     if not is_english:
         score += 0.2
+    # print("score = {}, after is_english".format(score))
     if len(line) < 30:
         score += 0.2
+    # print("score = {}, after len(line)".format(score))
     if lbk >= 2.0:
         score += 0.2
+    # print("score = {}, after lbk".format(score))
     if page_num_index != -1 and page_line_num >= page_num_index:
         score += 0.8
+    # print("score = {}, after page_num_index = {}, page_line_num = {}".format(score, page_num_index, page_line_num))
 
     if 'confidential information' in line.lower() and is_centered:
         score += 0.8
+    # print("score = {}, confid".format(score))
 
     # no sechead in footer, if it is obvious sechead
     if secheadutils.is_line_sechead_strict_prefix(line):

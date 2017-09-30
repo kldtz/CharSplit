@@ -120,7 +120,16 @@ class ProvisionAnnotator:
                                                                          self.threshold,
                                                                          provision=prov)
 
+        # print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
+        # print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
+        # for from_to in zip(eb_antdoc.from_list, eb_antdoc.to_list):
+        #    print("from: {}, to: {}".format(from_to[0], from_to[1]))
+
         # translate the offsets
+        # TODO, jshaw
+        # sometimes the translation are WRONG, with 'end' before 'start'
+        # Need to fix.  Skip them for now.
+        filtered_prov_annotations = []
         for antx in prov_annotations:
                 # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
                 xstart = antx['start']
@@ -129,5 +138,11 @@ class ProvisionAnnotator:
                 antx['corenlp_end'] = xend
                 antx['start'] = docutils.find_offset_to(xstart, eb_antdoc.from_list, eb_antdoc.to_list)
                 antx['end'] = docutils.find_offset_to(xend, eb_antdoc.from_list, eb_antdoc.to_list)
+                if antx['start'] < antx['end']:
+                    filtered_prov_annotations.append(antx)
+                else:
+                    logging.warning('annotation skipped because of bad offset translation:')
+                    logging.warning('antx: {}'.format(antx))
 
-        return prov_annotations
+        # return prov_annotations
+        return filtered_prov_annotations

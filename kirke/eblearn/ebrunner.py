@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import logging
 import os
+import pprint
 import psutil
 import sys
 import time
@@ -79,12 +80,17 @@ def update_dates_by_domain_rules(ant_result_dict):
 def adjust_offsets_using_from_to_list(ant_list: List, from_list, to_list):
     for antx in ant_list:
         # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-        xstart = antx['start']
-        xend = antx['end']
-        antx['corenlp_start'] = xstart
-        antx['corenlp_end'] = xend
-        antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
-        antx['end'] = docutils.find_offset_to(xend, from_list, to_list)
+        corenlp_start = antx['start']
+        corenlp_end = antx['end']
+        antx['corenlp_start'] = corenlp_start
+        antx['corenlp_end'] = corenlp_end
+
+        tmp_start = docutils.find_offset_to(corenlp_start, from_list, to_list)
+        tmp_end = docutils.find_offset_to(corenlp_end, from_list, to_list)
+        antx['start'] = tmp_start
+        antx['end'] = tmp_end
+        antx['span_list'] = [{'start': tmp_start,
+                              'end': tmp_end}]
     return ant_list
 
 
@@ -278,7 +284,7 @@ class EbRunner:
         # this update the 'start_end_span_list' in each antx in-place
         docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
 
-        # updae prov_labels_map based on rules
+        # update prov_labels_map based on rules
         self.apply_line_annotators(prov_labels_map,
                                    eb_antdoc,
                                    work_dir=work_dir)
@@ -352,7 +358,6 @@ class EbRunner:
         #    htmltxtparser.parse_document(file_name,
         #                                 work_dir=work_dir, is_combine_line=is_combine_line)
         #nl_to_list, nl_from_list = htmltxtparser.paras_to_fromto_lists(nl_paras_with_attrs)
-
         title_ant_list = self.title_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                               eb_antdoc.nlp_text)
 
@@ -363,6 +368,7 @@ class EbRunner:
 
         party_ant_list = self.party_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                               eb_antdoc.nlp_text)
+
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
             prov_labels_map['party'] = adjust_offsets_using_from_to_list(party_ant_list,
@@ -515,11 +521,11 @@ class EbRunner:
             for antx in ant_list:
                 # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
                 xstart = antx['start']
-                xend = antx['end']
+                corenlp_end = antx['end']
                 antx['corenlp_start'] = xstart
-                antx['corenlp_end'] = xend
+                antx['corenlp_end'] = corenlp_end
                 antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
-                antx['end'] = docutils.find_offset_to(xend, from_list, to_list)
+                antx['end'] = docutils.find_offset_to(corenlp_end, from_list, to_list)
 
                 all_prov_ant_list.append(antx)
 
@@ -590,11 +596,11 @@ class EbRunner:
             for antx in ant_list:
                 # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
                 xstart = antx['start']
-                xend = antx['end']
+                corenlp_end = antx['end']
                 antx['corenlp_start'] = xstart
-                antx['corenlp_end'] = xend
+                antx['corenlp_end'] = corenlp_end
                 antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
-                antx['end'] = docutils.find_offset_to(xend, from_list, to_list)
+                antx['end'] = docutils.find_offset_to(corenlp_end, from_list, to_list)
 
                 all_prov_ant_list.append(antx)
 
@@ -655,12 +661,17 @@ class EbRunner:
         for provision, ant_list in prov_labels_map.items():
             for antx in ant_list:
                 # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-                xstart = antx['start']
-                xend = antx['end']
-                antx['corenlp_start'] = xstart
-                antx['corenlp_end'] = xend
-                antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
-                antx['end'] = docutils.find_offset_to(xend, from_list, to_list)
+                corenlp_start = antx['start']
+                corenlp_end = antx['end']
+                antx['corenlp_start'] = corenlp_start
+                antx['corenlp_end'] = corenlp_end
+
+                tmp_start = docutils.find_offset_to(corenlp_start, from_list, to_list)
+                tmp_end = docutils.find_offset_to(corenlp_end, from_list, to_list)
+                antx['start'] = tmp_start
+                antx['end'] = tmp_end
+                antx['span_list'] = [{'start': tmp_start,
+                                      'end': tmp_end}]
 
                 all_prov_ant_list.append(antx)
 

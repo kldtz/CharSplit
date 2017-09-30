@@ -12,6 +12,9 @@ from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, PageInfo3, P
 from kirke.docstruct.pdfoffsets import PDFTextDoc, StrInfo
 from kirke.utils import strutils, txtreader, mathutils
 
+# for setting footer attribute when reading pdf.offsets.json files from PDFBox
+MAX_FOOTER_YSTART = 10000
+
 def get_nl_fname(base_fname, work_dir):
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
 
@@ -32,7 +35,7 @@ def text_offsets_to_nl(base_fname, orig_doc_text, line_breaks, work_dir, debug_m
     return nl_text, nl_fname
 
 
-def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=True):
+def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
 
     if debug_mode:
@@ -45,6 +48,14 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=True
                                            work_dir=work_dir, debug_mode=debug_mode)
 
     lxid_strinfos_map = defaultdict(list)
+    ## WARNING, some strx have no word/char in them, just spaces.
+    ## It seems that some str with empty spaces might be intermixed with
+    ## other strx, such as top of a page, blank_str, mixed with page_num
+    ## toward the end of a page.  They are treated as the SAME line because
+    ## no linebreak is issues in PDFBox.  As a result, removing all blank strx.
+    ## Hopefully, the mix of different strx at vastly different yStart will disappear.
+    ## Not sure how to fix it at the PDFBox side, in NoIndentPDFTextStripper.java, so
+    ## fix it here.
     for str_offset in str_offsets:
         start = str_offset['start']
         end = str_offset['end']
@@ -53,8 +64,15 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=True
         xStart = str_offset['xStart']
         xEnd = str_offset['xEnd']
         yStart = str_offset['yStart']
-        lxid_strinfos_map[line_num].append(StrInfo(start, end,
-                                                   xStart, xEnd, yStart))
+
+        # some times, empty strx might mix with page_num
+        # don't add them
+        str_text = nl_text[start:end]
+        if yStart < 100 and not str_text.strip():
+            pass
+        else:
+            lxid_strinfos_map[line_num].append(StrInfo(start, end,
+                                                       xStart, xEnd, yStart))
 
     bxid_lineinfos_map = defaultdict(list)
     tmp_prev_end = 0
@@ -168,6 +186,20 @@ def is_block_multi_line(linex_list):
     return num_is_english < num_not_english
 
 
+def paras_to_fromto_lists(para_list):
+    alist = []
+    for (from_start, from_end), (to_start, to_end), line, attr_list in para_list:
+        alist.append((to_start, from_start))
+
+    # ordered by to_start, because this is where we will map from,
+    # and it should be ordered
+    sorted_alist = sorted(alist)
+
+    from_list = [b for a,b in sorted_alist]
+    to_list = [a for a,b in sorted_alist]
+    return from_list, to_list
+
+
 # returns    paras2_with_attrs, para2_doc_text, gap2_span_list
 def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
@@ -184,31 +216,55 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
     not_gapped_line_nums = set([])
     for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
         apage = pdf_text_doc.page_list[page_num - 1]
-        # attr_list = sorted(apage.attrs.items())
         attr_list = sorted(apage.attrs.items())
 
-        # if attr_list:
-        #    print('  attrs: {}'.format(', '.join(attr_list)))
         # because we merge lines across pages, we should do this gap span identification at
         # global level
         for grouped_block in grouped_block_list:
 
-            for linex in grouped_block.line_list:
-                out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                attr_list = linex.to_para_attrvals()  # sorted(linex.attrs.items())
-                if linex.line_text and linex.attrs.get('sechead'):
-                    sechead_context = linex.attrs.get('sechead')
+            is_multi_line = is_block_multi_line(grouped_block.line_list)
+
+            if is_multi_line:
+                for linex in grouped_block.line_list:
+                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    attr_list = linex.to_para_attrvals()  # sorted(linex.attrs.items())
+
+                    if linex.line_text and linex.attrs.get('sechead'):
+                        sechead_context = linex.attrs.get('sechead')
+                    elif sechead_context:
+                        attr_list.append(sechead_context)
+
+                    out_line_list.append(out_line)
+                    offsets_line_list.append(((linex.lineinfo.start, linex.lineinfo.end),
+                                              (offset, offset + len(out_line)),
+                                              out_line, attr_list))
+                    offset += len(out_line) + 1  # to add eoln
+
+                    not_gapped_line_nums.add(linex.lineinfo.line_num)
+            else:
+                block_lines = []
+                first_linex = grouped_block.line_list[0]
+                attr_list = first_linex.to_para_attrvals()  # sorted(linex.attrs.items())
+
+                if (len(grouped_block.line_list) == 1 and first_linex.line_text and
+                    first_linex.attrs.get('sechead')):
+                    sechead_context = first_linex.attrs.get('sechead')
                 elif sechead_context:
                     attr_list.append(sechead_context)
 
-                out_line_list.append(out_line)
-                offsets_line_list.append(((linex.lineinfo.start, linex.lineinfo.end),
-                                          (offset, offset + len(out_line)),
-                                          out_line, attr_list))
-                offset += len(out_line) + 1  # to add eoln
+                block_start = offset
+                for linex in grouped_block.line_list:
+                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    block_lines.append(out_line)
+                    offset += len(out_line) + 1  # to add eoln
 
-                # print('linxxxxx num: {}'.format(linex.lineinfo.line_num))
-                not_gapped_line_nums.add(linex.lineinfo.line_num)
+                    not_gapped_line_nums.add(linex.lineinfo.line_num)
+
+                block_text = ' '.join(block_lines)
+                out_line_list.append(block_text)
+                offsets_line_list.append(((grouped_block.line_list[0].lineinfo.start, grouped_block.line_list[-1].lineinfo.end),
+                                          (block_start, offset - 1),
+                                          block_text, attr_list))
 
             out_line_list.append('')
             offsets_line_list.append(((linex.lineinfo.end+2, linex.lineinfo.end+2),
@@ -299,14 +355,10 @@ def to_paralines(pdf_text_doc, file_name, work_dir, debug_mode=False):
     if debug_mode:
         pdf_paraline_txt_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.paraline.txt'))
         txtreader.dumps(paraline_text, pdf_paraline_txt_fn)
-        """
-        with open(padf_paraline_txt_fn, 'wt') as fout:
-            for out_line in out_line_list:
-                print(out_line, file=fout)
-        """
         print('wrote {}'.format(pdf_paraline_txt_fn), file=sys.stderr)
 
-        pdf_paraline_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.paraline.debug.tsv'))
+        pdf_paraline_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt',
+                                                                            '.pdf.paraline.debug.tsv'))
         with open(pdf_paraline_debug_fn, 'wt') as fout2:
             for x, y, out_line, attr_list in offsets_line_list:
                 print('{}, {}\t{}\t[{}]'.format(x, y, sorted(attr_list.items()), out_line), file=fout2)
@@ -340,8 +392,15 @@ def parse_document(file_name, work_dir, debug_mode=False):
         xStart = str_offset['xStart']
         xEnd = str_offset['xEnd']
         yStart = str_offset['yStart']
-        lxid_strinfos_map[line_num].append(StrInfo(start, end,
-                                                   xStart, xEnd, yStart))
+
+        # some times, empty strx might mix with page_num
+        # don't add them
+        str_text = nl_text[start:end]
+        if yStart < 100 and not str_text.strip():
+            pass
+        else:
+            lxid_strinfos_map[line_num].append(StrInfo(start, end,
+                                                       xStart, xEnd, yStart))
 
     bxid_lineinfos_map = defaultdict(list)
     tmp_prev_end = 0
@@ -648,15 +707,25 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     #   - header, footer
     content_line_list = []
     toc_block_list = []
-    footer_index = -1
+    # footer_index = -1  # because lines can be out of order, use yStart instead
+    footer_yStart = MAX_FOOTER_YSTART
     # has_found_footer = False   # once found a footer, rest line in page are footer
+    num_toc_line = 0
+    has_toc_heading = False
 
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False
-        if docstructutils.is_line_toc(line.line_text):
+        if docstructutils.is_line_toc_heading(line.line_text):
             line.attrs['toc'] = True
+            has_toc_heading = True
+            num_toc_line += 10  # I know this is not true yet
             is_skip = True
-            apage.attrs['has_toc'] = True
+            toc_block_list.append(line)
+        elif docstructutils.is_line_toc(line.line_text):
+            line.attrs['toc'] = True
+            num_toc_line += 1
+            if num_toc_line >= 5:
+                is_skip = True
             toc_block_list.append(line)
         elif docstructutils.is_line_page_num(line.line_text, line_num, num_line_in_page, line.linebreak, line.lineinfo.yStart, line.is_centered):
             line.attrs['page_num'] = True
@@ -702,26 +771,54 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                                                          line.is_centered,
                                                          line.align,
                                                          line.lineinfo.yStart)
+        # print("is_footer = {}, score = {}, line_num= {}, [{}]".format(is_footer, score, line_num, line.line_text))
+
         # if score != -1.0:
         #    print("        is_footer = {}\t{}".format(line.tostr2(), line.line_text))
         if is_footer:
             line.attrs['footer'] = True
             is_skip = True
             pdf_txt_doc.special_blocks_map['footer'].append(pdfoffsets.line_to_block_offsets(line, 'footer', page_num))
-            footer_index = line_num - 1
-            break  # found a footer, skip the rest in page
+            # there can be multiple footer, keep the smallest one
+            if line.lineinfo.yStart <= footer_yStart:
+                footer_yStart = line.lineinfo.yStart
+
+            # footer_index = line_num - 1
+            continue  # found a footer, skip the rest in page
+            # don't 'break', because the rest of the file might still be OK.
+            # footer might appear first in the page instead of end, though
+            # in PDF view, it is at the end.
 
         prev_line_text = line.line_text
 
-        if not is_skip and footer_index == -1:
+        if not is_skip and line.lineinfo.yStart < footer_yStart:
             content_line_list.append(line)
 
+    # print('footer lines loop out, page num = {}, footer_yStart = {}, '.format(page_num, footer_yStart))
+
     # if footer is found, set everything afterward as footer
-    if footer_index != -1:
-        for linex in apage.line_list[footer_index:]:
-            linex.attrs['footer'] = True
+    # if footer_index != -1:
+    if footer_yStart != MAX_FOOTER_YSTART:
+        for linex in apage.line_list:
+            if linex.lineinfo.yStart >= footer_yStart:
+                 linex.attrs['footer'] = True
 
     apage.content_line_list = content_line_list
+
+
+    # now decide if this is a toc page, based on
+    # there are more than 4 toc lines
+    if num_toc_line >= 5 or has_toc_heading:
+        apage.attrs['has_toc'] = True
+    else:
+        # this is probably not a toc page
+        # remove all toc from the lines
+        for linex in apage.line_list:
+            if linex.attrs.get('toc'):
+                del linex.attrs['toc']
+        toc_block_list = []
+        if apage.attrs.get('has_toc'):
+            del apage.attrs['has_toc']
 
     # if a whole page is all sechead, a toc
     num_sechead = 0
