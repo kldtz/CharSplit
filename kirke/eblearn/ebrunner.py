@@ -616,12 +616,13 @@ class EbRunner:
     def custom_train_provision_and_evaluate(self, txt_fn_list, provision,
                                             custom_model_dir,
                                             is_doc_structure=False,
-                                            work_dir=None):
+                                            work_dir=None,
+                                            doc_lang="en"):
 
         logging.info("txt_fn_list_fn: %s", txt_fn_list)
-
-        model_file_name = '{}/{}_scutclassifier.pkl'.format(custom_model_dir,
-                                                            provision)
+        
+        model_file_name = '{}/{}-{}_scutclassifier.pkl'.format(custom_model_dir,
+                                                            provision, doc_lang)
         logging.info("custom_mode_file: %s", model_file_name)
         if not work_dir:
             work_dir = self.work_dir
@@ -634,9 +635,11 @@ class EbRunner:
                                                       model_file_name,
                                                       eb_classifier,
                                                       is_doc_structure=is_doc_structure,
-                                                      custom_training_mode=True)
+                                                      custom_training_mode=True,
+                                                      doc_lang=doc_lang)
 
         # update the hashmap of classifier
+        provision = "{}-{}".format(provision, doc_lang)
         old_provision_annotator = self.provision_annotator_map.get(provision)
         if old_provision_annotator:
             logging.info("Updating annotator, '%s', %s.", provision, model_file_name)

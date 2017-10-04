@@ -318,11 +318,9 @@ def load_cached_ebantdoc(txt_file_name,
     """Load from pickled file if file exist, otherwise None"""
     txt_basename = os.path.basename(txt_file_name)
     eb_antdoc_fn = '{}/{}'.format(work_dir, txt_basename.replace('.txt', '.ebantdoc.pkl'))
-
     # make sure we do not have cached ebantdoc if in bespoke_mode
     if is_bespoke_mode and os.path.isfile(eb_antdoc_fn):
         os.remove(eb_antdoc_fn)
-
     # if cache version exists, load that and return
     if is_cache_enabled:
         if not is_bespoke_mode and os.path.exists(eb_antdoc_fn):
@@ -334,7 +332,6 @@ def load_cached_ebantdoc(txt_file_name,
             # TODO, jshaw, remove after debugging
             # save_ebantdoc_sents(eb_antdoc, txt_file_name)
             return eb_antdoc, eb_antdoc_fn
-
     return None, eb_antdoc_fn
 
 
@@ -413,14 +410,12 @@ def parse_to_eb_antdoc(atext,
                       eb_antdoc_fn,
                       (end_time - start_time) * 1000)
         return eb_antdoc
-
     corenlp_json = text_file_name_to_corenlp_json(txt_file_name,
                                                   para_doc_text=atext,
                                                   is_bespoke_mode=is_bespoke_mode,
                                                   work_dir=work_dir,
                                                   is_cache_enabled=is_cache_enabled,
                                                   doc_lang=doc_lang)
-
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
     prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
@@ -437,7 +432,6 @@ def parse_to_eb_antdoc(atext,
     elif os.path.exists(prov_ebdata_fn):
         prov_annotation_list, is_test = (ebantdoc.load_prov_ebdata(prov_ebdata_fn)
                                          if prov_ebdata_file.is_file() else ([], False))
-
     ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, atext)
     # print('number of sentences: {}'.format(len(ebsent_list)))
 
@@ -715,7 +709,6 @@ def doc_to_ebantdoc(txt_file_name,
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
-
     start_time = time.time()
     doc_text = txtreader.loads(txt_file_name)
     if is_doc_structure:
@@ -789,39 +782,35 @@ def doclist_to_ebantdoc_list(doclist_file,
                              is_bespoke_mode=False,
                              is_doc_structure=False,
                              provision=None,
-                             is_combine_line=True):
+                             is_combine_line=True,
+                             doc_lang="en"):
     logging.debug('doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
-
     txt_fn_list = []
     with open(doclist_file, 'rt') as fin:
         for txt_file_name in fin:
             txt_fn_list.append(txt_file_name.strip())
-
     fn_eb_antdoc_map = {}
     with concurrent.futures.ThreadPoolExecutor(4) as executor:
         future_to_antdoc = {executor.submit(doc_to_ebantdoc,
                                             txt_fn,
                                             work_dir,
-                                            is_bespoke_mode,
-                                            is_doc_structure,
-                                            provision,
-                                            is_combine_line):
+                                            is_bespoke_mode=is_bespoke_mode,
+                                            is_doc_structure=is_doc_structure,
+                                            provision=provision,
+                                            is_combine_line=is_combine_line,
+                                            doc_lang=doc_lang):
                             txt_fn for txt_fn in txt_fn_list}
         for future in concurrent.futures.as_completed(future_to_antdoc):
             txt_fn = future_to_antdoc[future]
             data = future.result()
             fn_eb_antdoc_map[txt_fn] = data
-
     eb_antdoc_list = []
     for txt_fn in txt_fn_list:
         eb_antdoc_list.append(fn_eb_antdoc_map[txt_fn])
-
-    logging.debug('Finished doclist_to_ebantdoc_list({}/{}), len= {}'.format(work_dir,
-                                                                             doclist_file,
-                                                                             len(txt_fn_list)))
+    logging.debug('Finished doclist_to_ebantdoc_list({}), len= {}'.format(doclist_file, len(txt_fn_list)))
     return eb_antdoc_list
 
 

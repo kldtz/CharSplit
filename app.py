@@ -173,46 +173,54 @@ def custom_train(cust_id):
 
     ant_fnames = []
     txt_fnames = []
-    full_txt_fnames = []
+    full_txt_fnames = {}
     txt_offsets_fn_map = {}
     for name in [fstorage.filename for fstorage in fn_list]:
         if name.endswith('.ant'):
             ant_fnames.append(name)
         elif name.endswith('.txt'):
             txt_fnames.append(name)
-            full_txt_fnames.append('{}/{}'.format(tmp_dir, name))
+            full_path = '{}/{}'.format(tmp_dir, name)
+            atext = strutils.loads(full_path)
+            doc_lang = eb_langdetect_runner.detect_lang(atext)
+            try:
+                full_txt_fnames[doc_lang].append(full_path)
+            except KeyError:
+                full_txt_fnames[doc_lang] = [full_path]
         elif name.endswith('.offsets.json'):
             # create txt -> offsets.json map in order to do sent4nlp processing
             tmp_txt_fn = name.replace(".offsets.json", ".txt")
             txt_offsets_fn_map[tmp_txt_fn] = name
         else:
             logging.warning('unknown file extension in custom_train(): "{}"'.format(fn))
+    #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
+    all_stats = {}
+    for doc_lang, names_per_lang in full_txt_fnames.items():
+        provision = 'cust_{}'.format(cust_id)
+        txt_fn_list_fn = '{}/{}'.format(tmp_dir, doc_lang+'-txt_fnames.list')
+        strutils.dumps('\n'.join(names_per_lang), txt_fn_list_fn)
 
-    logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames),
-                                                         full_txt_fnames))
-
-    txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames.list')
-    strutils.dumps('\n'.join(full_txt_fnames), txt_fn_list_fn)
-
-    # Following the logic in the original code.
-    eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
-                                                                provision,
-                                                                CUSTOM_MODEL_DIR,
-                                                                is_doc_structure=False,
-                                                                work_dir=work_dir)
-    # copy the result into the expected format for client
-    pred_status = eval_status['pred_status']['pred_status']
-    cf_mtx = pred_status['confusion_matrix']
-    status = {'confusion_matrix': [[cf_mtx['tn'], cf_mtx['fp']], [cf_mtx['fn'], cf_mtx['tp']]],
+        # Following the logic in the original code.
+        eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
+                                                                    provision,
+                                                                    CUSTOM_MODEL_DIR,
+                                                                    is_doc_structure=False,
+                                                                    work_dir=work_dir,
+                                                                    doc_lang=doc_lang)
+        # copy the result into the expected format for client
+        pred_status = eval_status['pred_status']['pred_status']
+        cf_mtx = pred_status['confusion_matrix']
+        status = {'confusion_matrix': [[cf_mtx['tn'], cf_mtx['fp']], [cf_mtx['fn'], cf_mtx['tp']]],
               'fscore': pred_status['f1'],
               'precision': pred_status['prec'],
               'recall': pred_status['recall']}
 
-    logging.info("status: {}".format(status))
+        logging.info("status: {}".format(status))
               
-    # return some json accuracy info
-    return jsonify(status)
+        # return some json accuracy info
+        all_stats[doc_lang] = status
 
+    return jsonify(all_stats)
 
 @app.route('/classify-doc', methods=['POST'])
 def classify_uploaded_document():

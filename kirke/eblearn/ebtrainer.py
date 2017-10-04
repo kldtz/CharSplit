@@ -36,14 +36,14 @@ def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
 def train_eval_annotator(provision, txt_fn_list,
                          work_dir, model_dir, model_file_name, eb_classifier,
                          is_doc_structure=False,
-                         custom_training_mode=False):
+                         custom_training_mode=False,
+                         doc_lang="en"):
     logging.info("training_eval_annotator(%s) called", provision)
     logging.info("    txt_fn_list = %s", txt_fn_list)
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_dir = %s", model_dir)
     logging.info("    model_file_name = %s", model_file_name)
     logging.info("    is_doc_structure= %s", is_doc_structure)
-
     # is_combine_line should be file dependent, PDF than False
     # HTML is True.
     if custom_training_mode:
@@ -52,33 +52,34 @@ def train_eval_annotator(provision, txt_fn_list,
                                                                is_bespoke_mode=True,
                                                                is_doc_structure=is_doc_structure,
                                                                provision=provision,
-                                                               is_combine_line=False)
+                                                               is_combine_line=False,
+                                                               doc_lang=doc_lang)
     else:
         ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list,
                                                                work_dir,
                                                                is_bespoke_mode=False,
                                                                is_doc_structure=is_doc_structure,
-                                                               provision=None)
+                                                               provision=None,
+                                                               doc_lang=doc_lang)
 
     attrvec_list = []
     for eb_antdoc in ebantdoc_list:
         attrvec_list.extend(eb_antdoc.get_attrvec_list())
 
     num_pos_label, num_neg_label = 0, 0
-    for attrvec in attrvec_list:
+    
+    for attrvec in attrvec_list: 
         if provision in attrvec.labels:
             num_pos_label += 1
             # print("\npositive training for {}".format(provision))
             # print("    [[{}]]".format(attrvec.bag_of_words))
         else:
             num_neg_label += 1
-
     # pylint: disable=C0103
 
     X = ebantdoc_list
     y = [provision in ebantdoc.get_provision_set()
          for ebantdoc in ebantdoc_list]
-
     num_doc_pos, num_doc_neg = 0, 0
     for yval in y:
         if yval:
