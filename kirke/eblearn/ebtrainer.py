@@ -130,7 +130,7 @@ def train_eval_annotator(provision, txt_fn_list,
         # make the classifier into an annotator
         prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
 
-        ant_status = {'provisoin' : provision,
+        ant_status = {'provision' : provision,
                       'pred_status' : pred_status}
         prov_annotator.eval_status = ant_status
         pprint(ant_status)
