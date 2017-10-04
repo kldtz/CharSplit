@@ -130,6 +130,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     fvec.set_val_yesno('contains_prep_phrase', False)
 
     # print(sent_ajson)
+    location_tags = ['LOCATION', 'LUG', 'LOCAL']
     has_person, has_location, has_org, has_date = (False, False, False, False)
     for token in tokens:
         ner = token.ner
@@ -137,7 +138,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
         #     print('ner = ' + str(ner))
         if ner == 'PERSON':
             has_person = True
-        elif ner == 'LOCATION':
+        elif ner in location_tags:
             has_location = True
         elif ner == 'ORGANIZATION':
             has_org = True

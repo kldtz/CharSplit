@@ -28,17 +28,24 @@ def annotate(text_as_string, doc_lang):
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
     supported_langs = ["fr", "es"] #ar, de, zh also supported, can add later
     if doc_lang in supported_langs:
-      doc_lang = doc_lang[:2]
-      output = NLP_SERVER.annotate(no_ctrl_chars_text,
-                                 properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
-                                             'outputFormat': 'json',
-                                             'ssplit.newlineIsSentenceBreak': 'two',
-				             'pipelineLanguage': doc_lang})
+        doc_lang = doc_lang[:2]
+        output = NLP_SERVER.annotate(no_ctrl_chars_text,
+                                   properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
+                                               'outputFormat': 'json',
+                                               'ssplit.newlineIsSentenceBreak': 'two',
+				               'pipelineLanguage': doc_lang})
+    
+    elif doc_lang == "pt":
+        output = NLP_SERVER.annotate(no_ctrl_chars_text,
+                                   properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
+                                               'outputFormat': 'json',
+                                               'ssplit.newlineIsSentenceBreak': 'two',
+                                               'ner.model':'cat-tolerance_1e-3.ser.gz'})
     else:
-     output = NLP_SERVER.annotate(no_ctrl_chars_text,
-                                 properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
-                                             'outputFormat': 'json',
-                                             'ssplit.newlineIsSentenceBreak': 'two'}) 
+        output = NLP_SERVER.annotate(no_ctrl_chars_text,
+                                   properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
+                                               'outputFormat': 'json',
+                                               'ssplit.newlineIsSentenceBreak': 'two'}) 
     return output
 
 def annotate_for_enhanced_ner(text_as_string, doc_lang="en"):
