@@ -131,18 +131,21 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
 
     # print(sent_ajson)
     location_tags = ['LOCATION', 'LUG', 'LOCAL']
+    person_tags = ['PERSON', 'PERS', 'PESSOA']
+    organization_tags = ['ORGANIZATION', 'ORG', 'ORGANIZACAO']
+    date_tags = ['DATE', 'TEMPO']
     has_person, has_location, has_org, has_date = (False, False, False, False)
     for token in tokens:
         ner = token.ner
         # if ner != 'O':
         #     print('ner = ' + str(ner))
-        if ner == 'PERSON':
+        if ner in person_tags:
             has_person = True
         elif ner in location_tags:
             has_location = True
-        elif ner == 'ORGANIZATION':
+        elif ner in organization_tags:
             has_org = True
-        elif ner == 'DATE':
+        elif ner in date_tags:
             has_date = True
     fvec.set_val_yesno('has_person', has_person)
     fvec.set_val_yesno('has_location', has_location)
