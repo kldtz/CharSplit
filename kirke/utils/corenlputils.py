@@ -40,7 +40,7 @@ def annotate(text_as_string, doc_lang):
                                    properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
                                                'outputFormat': 'json',
                                                'ssplit.newlineIsSentenceBreak': 'two',
-                                               'ner.model':'cat-tolerance_1e-3.ser.gz'})
+                                               'ner.model':'portuguese-ner.ser.gz'})
     else:
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                    properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
