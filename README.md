@@ -76,7 +76,13 @@ The server is runnig.
 ```
 run_upload_annotate_doc.sh
 ```
+If you are getting an Extraction Error in the UI while running Kirke on OSX, try updating your startup.sh to
+```
+#!/bin/bash
 
+export EB_MODELS='dir-scut-model'
+gunicorn --timeout 1200 app:app
+```
 
 ## How to do custom training?
 
