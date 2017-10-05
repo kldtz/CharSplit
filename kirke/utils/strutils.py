@@ -160,7 +160,8 @@ ALL_DIGITS_PAT = re.compile(r'^\d+$')
 ALL_ALPHAS_PAT = re.compile(r'^[a-zA-Z]+$')
 ALL_ALPHAS_DOT_PAT = re.compile(r'^[a-zA-Z]+\.?$')
 
-ALL_ALPHA_NUM_PAT = re.compile(r'^[a-zA-Z\d]+$')
+# at least 2 char, starts with alpha
+ALL_ALPHA_NUM_PAT = re.compile(r'^[a-zA-Z][a-zA-Z\d]+$')
 ANY_DIGIT_PAT = re.compile(r'\d')
 ANY_ALPHA_PAT = re.compile(r'[a-zA-Z]')
 
@@ -298,7 +299,7 @@ def gen_ngram(word_list: List[str], max_n=2) -> List[str]:
 
 ALPHA_WORD_PAT = re.compile(r'[a-zA-Z]+')
 
-ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z0-9]+')
+ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
 
 ALL_PUNCT_PAT = re.compile(r"^[\(\)\.,\[\]\-/\\\{\}`'\"]+$")
 
@@ -460,7 +461,7 @@ def is_all_title_words(line: str) -> bool:
             has_alpha_word = True
             if not word.isupper():
                 return False
-    return is_alpha_word
+    return has_alpha_word
 
 def is_all_title(words: List[str]) -> bool:
     has_alpha_word = False
@@ -469,7 +470,8 @@ def is_all_title(words: List[str]) -> bool:
             has_alpha_word = True
             if not word.isupper():
                 return False
-    return is_alpha_word
+    return has_alpha_word
+
     
 ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)
 

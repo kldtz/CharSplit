@@ -29,4 +29,6 @@ if __name__ == '__main__':
 
     pdf_text_doc = pdftxtparser.parse_document(txt_fname, work_dir=work_dir)
 
+    pdf_text_doc.save_debug_lines(extension='.paged.lines.txt')
     pdf_text_doc.save_debug_pages(extension='.debug.parsedpage.tsv')
+

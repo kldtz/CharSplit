@@ -72,42 +72,53 @@ class PDFTextDoc:
 
         print('wrote {}'.format(paged_debug_fname), file=sys.stderr)
 
-    def print_debug_lines(self):
-        paged_fname = 'dir-work/paged-line.txt'
-        for page in self.page_list:
-            print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
-                  (page.page_num, page.start, page.end, len(page.line_list)))
 
-            attr_list = []
-            for attr, value in page.attrs.items():
-                attr_list.append('{}={}'.format(attr, value))
-            if attr_list:
-                print('  attrs: {}'.format(', '.join(attr_list)))
+    def save_raw_pages(self, extension: str, work_dir='dir-work'):
+        base_fname = os.path.basename(self.file_name)
+        paged_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+        with open(paged_fname, 'wt') as fout:
+            for page in self.page_list:
+                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
+                if page.attrs:
+                    print('  attrs: {}'.format(', '.join(strutils.dict_to_sorted_list(page.attrs))), file=fout)
 
-            prev_block_num = -1
-            for linex in page.content_line_list:
+                prev_block_num = -1
+                for linex in page.line_list:
+                    if linex.lineinfo.obid != prev_block_num:  # separate blocks
+                        print(file=fout)
+                    print('{}\t{}'.format(linex.tostr2(),
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]), file=fout)
+                    prev_block_num = linex.lineinfo.obid
 
-                if linex.lineinfo.block_num != prev_block_num:
-                    print()
-                print('{}\t{}'.format(linex.tostr2(),
-                                      self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
-                prev_block_num = linex.lineinfo.block_num
+        print('wrote {}'.format(paged_fname), file=sys.stderr)
 
-    def print_debug_noskip_lines(self):
-        paged_fname = 'dir-work/paged-line.txt'
-        for page in self.page_list:
-            print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
-                  (page.page_num, page.start, page.end, len(page.line_list)))
 
-            attr_list = []
-            for attr, value in page.attrs.items():
-                attr_list.append('{}={}'.format(attr, value))
-            if attr_list:
-                print('  attrs: {}'.format(', '.join(attr_list)))
+    def save_debug_lines(self, extension, work_dir='dir-work'):
+        base_fname = os.path.basename(self.file_name)
+        paged_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+        with open(paged_fname, 'wt') as fout:
+            for page in self.page_list:
+                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
 
-            for linex in page.line_list:
-                print('{}\t{}'.format(linex.tostr2(),
-                                      self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
+                attr_list = []
+                for attr, value in page.attrs.items():
+                    attr_list.append('{}={}'.format(attr, value))
+                if attr_list:
+                    print('  attrs: {}'.format(', '.join(attr_list)), file=fout)
+
+                prev_block_num = -1
+                for linex in page.line_list:
+
+                    if linex.block_num != prev_block_num:  # this is not obid
+                        print(file=fout)
+                    print('{}\t{}'.format(linex.tostr2(),
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]), file=fout)
+                    prev_block_num = linex.block_num
+
+        print('wrote {}'.format(paged_fname), file=sys.stderr)
+
 
 def sorted_pblocks_by_yStart(pblockinfo_list):
     if not pblockinfo_list:
@@ -548,7 +559,9 @@ def lines_to_blocknum_map(linex_list):
         result[block_num].append(linex)
     return result
 
-
+# this doesn't work anymore because we added the ability to increase "block_num" by 10000
+# when breaking up a block due to header/english separation
+"""
 def line_list_to_grouped_block_list(linex_list, page_num):
     block_list_map = defaultdict(list)
     for linex in linex_list:
@@ -558,5 +571,15 @@ def line_list_to_grouped_block_list(linex_list, page_num):
     grouped_block_list = []
     for block_num, line_list in sorted(block_list_map.items()):
         grouped_block_list.append(GroupedBlockInfo(page_num, block_num, line_list))
+
+    return grouped_block_list
+"""
+
+def line_list_to_grouped_block_list(linex_list, page_num):
+    tmp_block_list = docstructutils.line_list_to_block_list(linex_list)
+    grouped_block_list = []
+    for linex_list in tmp_block_list:
+        block_num = linex_list[0].block_num
+        grouped_block_list.append(GroupedBlockInfo(page_num, block_num, linex_list))
 
     return grouped_block_list

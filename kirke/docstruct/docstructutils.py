@@ -1,8 +1,8 @@
 import re
 from typing import List
 
-from kirke.utils import engutils, strutils
-from kirke.docstruct import secheadutils
+from kirke.utils import engutils, stopwordutils, strutils
+from kirke.docstruct import pdfoffsets, secheadutils
 from kirke.ebrules import addresses
 
 # TODO, jshaw
@@ -14,6 +14,17 @@ from kirke.ebrules import addresses
 # and
 # other normal section headings, such as "Article" and more obvious centered
 # title.  Even a page title.
+
+
+def is_line_title(line: str) -> bool:
+    words = stopwordutils.get_nonstopwords_nolc_gt_len1(line)
+    has_alpha_word = False
+    for word in words:
+        has_alpha_word = True
+        if not word[0].isupper():
+            return False
+    return has_alpha_word
+
 
 global_page_header_set = strutils.load_lc_str_set('resources/pageheader.txt')
 
@@ -169,8 +180,28 @@ ATT_PAGE_NUM_PAT = re.compile(r'^\s*({})\s*$'.format('|'.join(IGNORE_LINE_LIST))
                               re.I)
 
 
+
+
 def is_line_footer_by_content(line: str) -> bool :
     return ATT_PAGE_NUM_PAT.match(line)
+
+
+NOT_FOOTER_PAT = re.compile(r'^Note:', re.I)
+
+def is_line_not_footer_aux(line: str) -> bool:
+    words = stopwordutils.get_nonstopwords_nolc_gt_len1(line)
+    num_lc_word = 0
+    for word in words:
+        if not word[0].isupper():
+            num_lc_word += 1
+    return num_lc_word >= 5
+
+
+
+def is_line_not_footer_by_content(line: str) -> bool :
+    if NOT_FOOTER_PAT.match(line):
+        return True
+    return is_line_not_footer_aux(line)
 
 
 def is_line_footer(line: str,
@@ -183,10 +214,12 @@ def is_line_footer(line: str,
                    align: str,
                    yStart: float):
 
-    if is_line_footer_by_content(line):
-        return True, 1.0
     if yStart < 700.0:
         return False, -1.0
+    if is_line_not_footer_by_content(line):
+        return False, -1.0
+    if is_line_footer_by_content(line):
+        return True, 1.0
 
     score = 0
     if yStart >= 725.0:
@@ -222,6 +255,11 @@ def is_line_footer(line: str,
 
 HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', re.I)
 
+# no re.I
+# TODO, jshaw, these should really be sechead, not headers.
+# OK for now.
+HEADER_PARTIAL_PAT = re.compile(r'(State and Local Sales and Use Tax|Exempt Use Certificate|State Department of)')
+
 def is_line_header(line: str,
                    yStart: float,
                    line_num: int,
@@ -231,17 +269,31 @@ def is_line_header(line: str,
                    # num_line_in_block, int,
                    num_line_in_page: int,
                    header_set=None):
+
     # for domain specific headers
     if header_set and line.lower().strip() in header_set:
-        return 1.0
+        return True
+
+    # this is a normal sentences
+    if is_english:
+        if is_line_title(line):
+            pass
+        elif 'LF' in align:
+            return False
 
     score = 0
-    if yStart < 80.0:
+    if HEADER_PAT.match(line) and yStart < 140:
+        score += 0.9
+    elif ((HEADER_PAT.match(line) or
+           HEADER_PARTIAL_PAT.search(line)) and
+          yStart < 140):
+        score += 1.0
+    elif yStart < 80.0:
         score += 0.7
+
+
     if not is_english or len(line) < 30:
         score += 0.2
-    elif HEADER_PAT.match(line) and yStart < 140:
-        score += 0.9
 
     if (secheadutils.is_line_sechead_prefix(line) or
         # don't use is_line_address(), too costly
@@ -346,3 +398,30 @@ def is_line_email(line):
 
 def is_line_english(line: str) -> bool:
     return engutils.classify_english_sentence(line)
+
+
+def is_block_all_not_english(linex_list):   # List[LineWithAttrs]):
+    is_all_not_english = False  # in case there is no element
+    for linex in linex_list:
+        if linex.is_english:
+            return False
+        is_all_not_english = True
+    return is_all_not_english
+
+
+def line_list_to_block_list(linex_list):
+    if not linex_list:
+        return []
+    cur_block = [linex_list[0]]
+    prev_block_num = linex_list[0].block_num
+    tmp_block_list = [cur_block]  # list of list of line
+    for linex in linex_list[1:]:
+        block_num = linex.block_num
+        if block_num != prev_block_num:
+            cur_block = [linex]
+            tmp_block_list.append(cur_block)
+        else:
+            cur_block.append(linex)
+        prev_block_num = block_num
+    return tmp_block_list
+

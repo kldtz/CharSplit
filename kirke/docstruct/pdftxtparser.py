@@ -15,6 +15,8 @@ from kirke.utils import strutils, txtreader, mathutils
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
+DEBUG_MODE = False
+
 def get_nl_fname(base_fname, work_dir):
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
 
@@ -204,6 +206,9 @@ def paras_to_fromto_lists(para_list):
 def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
 
+    # TODO, jshaw, remove, xxx
+    debug_mode = True
+
     cur_attr = []
     gap_span_list = []
     omit_line_set = []
@@ -378,11 +383,6 @@ def parse_document(file_name, work_dir, debug_mode=False):
 
     nl_text, nl_fname = text_offsets_to_nl(base_fname, doc_text, line_breaks,
                                            work_dir=work_dir, debug_mode=debug_mode)
-    
-#    if debug_mode:
-#        save_debug_txt_files(work_dir, base_fname, nl_text,
-#                             linebreak_offset_list,
-#                             doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets)
 
     lxid_strinfos_map = defaultdict(list)
     for str_offset in str_offsets:
@@ -460,6 +460,9 @@ def parse_document(file_name, work_dir, debug_mode=False):
         pageinfo_list.append(pinfo)
 
     pdf_text_doc = PDFTextDoc(file_name, doc_text, pageinfo_list)
+
+    if DEBUG_MODE:
+        pdf_text_doc.save_raw_pages(extension='.raw.pages.tsv')
 
     add_doc_structure_to_doc(pdf_text_doc)
 
@@ -559,6 +562,56 @@ def merge_adjacent_line_with_special_attr(apage):
                 prev_has_special_attr = has_special_attr
 
 
+# break blocks if they are in the middle of header, english sents
+def adjust_blocks_in_page(apage, pdftxt_doc):
+    tmp_block_list = docstructutils.line_list_to_block_list(apage.line_list)
+
+    is_adjusted = False
+    for block in tmp_block_list:
+        if block[0].attrs.get('header'):
+            not_header_index = -1
+            for line_seq, linex in enumerate(block[1:], 1):
+                if not linex.attrs.get('header'):
+                    not_header_index = line_seq
+                    break
+
+            # this is for a block with 2 header, but followed by english
+            # sentence.  Basically mixed up because of no space.
+            if not_header_index != -1 and block[not_header_index].is_english:
+                for after_linex in block[not_header_index:]:
+                    after_linex.block_num += 10000  # to separate out line
+                    is_adjusted = True
+            elif docstructutils.is_block_all_not_english(block):
+                # This is in ST-121 Form, NY State Exempt Use Certificate.
+                # https://www.tax.ny.gov/pdf/current_forms/st/st121_fill_in.pdf
+                # Top right header.
+                """
+                (3/10)
+                Pages 1 and 2 must
+                be completed by the
+                purchaser and given
+                to the seller
+                """
+                for linex in block:
+                    linex.attrs['header'] = True
+                    is_adjusted = True
+
+    if not is_adjusted:
+        return
+
+    # now remove potential newly added toc lines
+    tmp_list = []
+    for linex in apage.content_line_list:
+        if not linex.attrs.get('header'):
+            tmp_list.append(linex)
+
+    # TODO, add back the headers
+    # if toc_block_list:
+    #    pdf_txt_doc.special_blocks_map['toc'].append(pdfoffsets.lines_to_block_offsets(toc_block_list, 'toc', page_num))
+
+    apage.content_line_list = tmp_list
+
+
 def add_doc_structure_to_doc(pdftxt_doc):
     # first remove obvious non-content lines, such
     # toc, page-num, header, footer
@@ -566,6 +619,11 @@ def add_doc_structure_to_doc(pdftxt_doc):
     # page_attrs_list is to store table information?
     for page in pdftxt_doc.page_list:
         add_doc_structure_to_page(page, pdftxt_doc)
+        # break blocks if they are in the middle of header, english sents
+        adjust_blocks_in_page(page, pdftxt_doc)
+
+    if DEBUG_MODE:
+        pdftxt_doc.save_debug_lines('.paged.bef.merge.tsv')
 
     # merge paragraphs that are across pages
     prev_page = pdftxt_doc.page_list[0]
@@ -574,17 +632,21 @@ def add_doc_structure_to_doc(pdftxt_doc):
         prev_page = apage
     reset_all_is_english(pdftxt_doc)
 
+    if DEBUG_MODE:
+        pdftxt_doc.save_debug_lines('.paged.after.merge.tsv')
+
     # now we have basic block_group with correct
     # is_english set.  Useful for merging
     # blocks with only 1 lines as table, or signature section
     for apage in pdftxt_doc.page_list:
         merge_adjacent_line_with_special_attr(apage)
-    # pdftxt_doc.save_debug_pages(extension='.debug.mergepage.tsv')
 
     for apage in pdftxt_doc.page_list:
         # TODO, temporary remove this
         add_sections_to_page(apage, pdftxt_doc)
-    # pdftxt_doc.save_debug_pages(extension='.debug_after_section.tsv')
+
+    # if DEBUG_MODE:
+    #    pdftxt_doc.save_debug_pages(extension='.after.section.tsv')
 
     # Redo block info because they might be in different
     # pages.
@@ -613,7 +675,7 @@ def add_sections_to_page(apage, pdf_txt_doc):
     grouped_block_list = pdfoffsets.line_list_to_grouped_block_list(apage.content_line_list, page_num)
 
     # we don't collapse title pages and toc's
-    if page_num > 10:
+    if page_num > 9:
         grouped_block_list = collapse_similar_aligned_block_lines(grouped_block_list, page_num)
 
     apage.grouped_block_list = grouped_block_list
@@ -704,8 +766,8 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     prev_line_text = ''
     # take out lines that are clearly not useful for annotation extractions:
     #   - toc
-    #   - page_num
-    #   - header, footer
+    #   - header
+    #   - footer, include page number
     content_line_list = []
     toc_block_list = []
     # footer_index = -1  # because lines can be out of order, use yStart instead
@@ -805,7 +867,6 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                  linex.attrs['footer'] = True
 
     apage.content_line_list = content_line_list
-
 
     # now decide if this is a toc page, based on
     # there are more than 4 toc lines
@@ -1000,18 +1061,8 @@ def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
         #print('collapse_similar_aligned_block_lines, page = %d, num_table_one_line_block = %d' %
         #      (page_num, num_table_one_line_block))
 
-        # for debug purpose only
-        """
-        print("for debug purpose:  33334")
-        for grouped_block in grouped_block_list:
-            print()
-            for linex in grouped_block.line_list:
-                print("    linex: {}\t[{}...]".format(linex.tostr5(), linex.line_text[:15]))
-        """
-
         # find the longest consecutive one
         longest_consecutive_group = get_longest_consecutive_line_group(blocks_with_one_line)
-
         if len(longest_consecutive_group) < 3:
             return grouped_block_list
 
@@ -1088,7 +1139,7 @@ def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
 
         block_first_linex = merged_linex_list[0]
         # merge blocks as we see fit
-        # print("merge_centered_line_before_table(), collapse_similar...")
+        print("merge_centered_line_before_table(), collapse_similar...")
         merge_centered_lines_before_table(block_first_linex.lineinfo.line_num,
                                           block_first_linex.block_num,
                                           page_linex_list,
