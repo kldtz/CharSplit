@@ -26,9 +26,9 @@ def annotate(text_as_string, doc_lang):
     no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
-    supported_langs = ["fr", "es"] #ar, de, zh also supported, can add later
+    doc_lang = doc_lang[:2]
+    supported_langs = ["fr", "es", "zh"] #ar, de, zh also supported, can add later
     if doc_lang in supported_langs:
-        doc_lang = doc_lang[:2]
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                    properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
                                                'outputFormat': 'json',

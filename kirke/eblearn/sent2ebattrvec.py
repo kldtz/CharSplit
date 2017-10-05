@@ -130,7 +130,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     fvec.set_val_yesno('contains_prep_phrase', False)
 
     # print(sent_ajson)
-    location_tags = ['LOCATION', 'LUG', 'LOCAL']
+    location_tags = ['LOCATION', 'LUG', 'LOCAL', 'GPE']
     person_tags = ['PERSON', 'PERS', 'PESSOA']
     organization_tags = ['ORGANIZATION', 'ORG', 'ORGANIZACAO']
     date_tags = ['DATE', 'TEMPO']
