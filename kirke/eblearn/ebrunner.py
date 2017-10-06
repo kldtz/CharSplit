@@ -77,7 +77,8 @@ def update_dates_by_domain_rules(ant_result_dict):
         ant_result_dict['l_execution_date'] = l_execution_date_annotations
 
 
-def adjust_offsets_using_from_to_list(ant_list: List, from_list, to_list):
+def adjust_offsets_using_from_to_list(ant_list: List, from_list, to_list, max_offset):
+    result = []
     for antx in ant_list:
         # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
         corenlp_start = antx['start']
@@ -91,7 +92,39 @@ def adjust_offsets_using_from_to_list(ant_list: List, from_list, to_list):
         antx['end'] = tmp_end
         antx['span_list'] = [{'start': tmp_start,
                               'end': tmp_end}]
-    return ant_list
+
+        # there are cases where in original document, the line order are different
+        # from the order in NLP document.  For example, "contract amendment_8.pdf"
+        # Following is a table, visually in PDF
+        # ======
+        #                           Contract NO: xxxx
+        #                           Ammendment No: 08
+        # Agreement
+        # between                   And
+        # ======
+        # In original document, we have
+        # =========
+        # AGREEMENT
+        #
+        # Between And
+        #
+        # CONTRACT NO: 4300001661  AMENDMENT NO: 08
+        # ========
+        # but in NLP text, we have
+        # CONTRACT NO: 4300001661
+        # AMENDMENT NO: 08
+        #
+        # AGREEMENT
+        #
+        # Between And
+        # Title selected "Amendment No: 08\n\nAgreement" as title
+        # The offsets are start: 126, end: 84, which is wrong (end < start)
+        # Going to simply ignore those cases for now since PDFBox is not happy
+        if tmp_end > tmp_start and tmp_start <= max_offset and tmp_end <= max_offset:
+            result.append(antx)
+
+    # return ant_list
+    return result
 
 
 class EbRunner:
@@ -364,7 +397,8 @@ class EbRunner:
         # we always replace the title using rules
         prov_labels_map['title'] = adjust_offsets_using_from_to_list(title_ant_list,
                                                                      eb_antdoc.from_list,
-                                                                     eb_antdoc.to_list)
+                                                                     eb_antdoc.to_list,
+                                                                     eb_antdoc.len_text)
 
         party_ant_list = self.party_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                               eb_antdoc.nlp_text)
@@ -373,7 +407,8 @@ class EbRunner:
         if party_ant_list:
             prov_labels_map['party'] = adjust_offsets_using_from_to_list(party_ant_list,
                                                                          eb_antdoc.from_list,
-                                                                         eb_antdoc.to_list)
+                                                                         eb_antdoc.to_list,
+                                                                         eb_antdoc.len_text)
 
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
@@ -383,7 +418,8 @@ class EbRunner:
             xx_date_list = []
             date_ant_list = adjust_offsets_using_from_to_list(date_ant_list,
                                                               eb_antdoc.from_list,
-                                                              eb_antdoc.to_list)
+                                                              eb_antdoc.to_list,
+                                                              eb_antdoc.len_text)
             for antx in date_ant_list:
                 if antx['label'] == 'effectivedate':
                     xx_effective_date_list.append(antx)

@@ -92,17 +92,6 @@ def update_ants_gap_spans(prov_labels_map, gap_span_list, doc_text):
             # if gap_span[0] > ant_end:
             #    break
 
-        overlap_spans2 = []
-        for gap_span in gap_span_list:
-            if mathutils.start_end_overlap(ant_se, gap_span):
-                overlap_spans2.append(gap_span)
-                # print('overlap2 {}, {}'.format(se_ant_list_map[ant_se][0], gap_span))
-
-        #if overlap_spans2 != overlap_spans:
-        #    print("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", file=sys.stderr)
-        #    print("overlap_span = {}".format(overlap_spans), file=sys.stderr)
-        #    print("overlap_span2 = {}".format(overlap_spans2), file=sys.stderr)
-
         if overlap_spans:
             # adjusted_spanst_list = []
             endpoint_list = [ant_se[0], ant_se[1]]
@@ -124,10 +113,15 @@ def update_ants_gap_spans(prov_labels_map, gap_span_list, doc_text):
                 # print("adjusted span {}:{} -> {}:{}".format(gap_span[0], gap_span[1], tmp_start, tmp_end))
             endpoint_list.sort()
 
-            # endpoints_st_list = ['{}:{}'.format(endpoint_list[i], endpoint_list[i+1]) for i in range(0, len(endpoint_list), 2)]
-            endpoints_dict_list = [{ 'start': endpoint_list[i],
-                                     'end': endpoint_list[i+1]}
-                                   for i in range(0, len(endpoint_list), 2)]
+            # add start, end only if not empty
+            endpoints_dict_list = []
+            for i in range(0, len(endpoint_list), 2):
+                aa_start = endpoint_list[i]
+                aa_end = endpoint_list[i+1]
+                if strutils.remove_space_nl(doc_text[aa_start:aa_end]):
+                    endpoints_dict_list.append({ 'start': aa_start,
+                                                 'end': aa_end})
+
             # spans_st = ','.join(adjusted_spanst_list)
             # spans_st = ','.join([str(endpoint) for endpoint in endpoint_list])
             spans_st = endpoints_dict_list
@@ -168,17 +162,6 @@ def update_ant_spans(ant_list, gap_span_list, doc_text):
             # if gap_span[0] > ant_end:
             #    break
 
-        overlap_spans2 = []
-        for gap_span in gap_span_list:
-            if mathutils.start_end_overlap(ant_se, gap_span):
-                overlap_spans2.append(gap_span)
-                # print('overlap2 {}, {}'.format(se_ant_list_map[ant_se][0], gap_span))
-
-        #if overlap_spans2 != overlap_spans:
-        #    print("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", file=sys.stderr)
-        #    print("overlap_span = {}".format(overlap_spans), file=sys.stderr)
-        #    print("overlap_span2 = {}".format(overlap_spans2), file=sys.stderr)
-            
         if overlap_spans:
             # adjusted_spanst_list = []
             endpoint_list = [ant_se[0], ant_se[1]]

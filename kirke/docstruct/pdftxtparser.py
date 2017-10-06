@@ -190,8 +190,9 @@ def is_block_multi_line(linex_list):
 
 def paras_to_fromto_lists(para_list):
     alist = []
-    for (from_start, from_end), (to_start, to_end), line, attr_list in para_list:
-        alist.append((to_start, from_start))
+    for span_se_list, line, attr_list in para_list:
+        for (from_start, from_end), (to_start, to_end) in span_se_list:
+            alist.append((to_start, from_start))
 
     # ordered by to_start, because this is where we will map from,
     # and it should be ordered
@@ -201,13 +202,64 @@ def paras_to_fromto_lists(para_list):
     to_list = [a for a,b in sorted_alist]
     return from_list, to_list
 
+def get_gap_start_end(prev_linex, linex, cur_page, next_page):
+    start_index, end_index = -1, -1
+
+    prev_line_num = prev_linex.lineinfo.line_num
+    for seq, linex in enumerate(cur_page.line_list):
+        if linex.lineinfo.line_num == prev_line_num:
+            if seq + 1 < len(cur_page.line_list):
+                start_index = seq + 1  # next line is the gapped line
+            #else:
+            #    start_index = -1
+            break
+    # start_index can be -1 or other values here
+
+    next_line_num = linex.lineinfo.line_num
+    for seq, linex in enumerate(next_page.line_list):
+        if linex.lineinfo.line_num == next_line_num:
+            if seq - 1 >= 0:
+                end_index = seq - 1  # prev line is the gapped line
+            #else:
+            #    start_index = -1
+            break
+
+    if start_index == -1 and end_index == -1:  # ?? everything is gapped?
+        # logging.warning('get_gap_start_end() returned -1, -1')
+        start_offset, end_offset = -1, -1
+    elif start_index == -1:
+        # nothing from first page, so start from the first line of next page
+        if linex.lineinfo.line_num != next_page.line_list[0].lineinfo.line_num:
+            start_offset = next_page.line_list[0].lineinfo.start
+            # end_offset = next_page.line_list[end_index].lineinfo.end   # + 1  # 1 for eoln
+            end_offset = linex.lineinfo.start
+        else:
+            # start_index == -1 means there is no gap from previous.
+            # if we have no gap in the next page, then there is no gap
+            start_offset, end_offset = -1, -1
+    elif end_index == -1:
+        # nothing from next page, so end from the last line of current page
+        if prev_linex.lineinfo.line_num != cur_page.line_list[-1].lineinfo.line_num:
+            # start_offset = cur_page.line_list[start_index].lineinfo.start
+            start_offset = prev_linex.lineinfo.end + 1  # start from the end the last line
+            # end_offset = cur_page.line_list[-1].lineinfo.end   # + 1  # 1 for eoln
+            end_offset = next_page.line_list[0].lineinfo.start   # start of next page
+        else:
+            # end_index == -1 means there is no gap from next page
+            # if we have no gap in the current page, then there is no gap
+            start_offset, end_offset = -1, -1
+    else:  # start_index and end_index both are not -1
+        # start_offset = cur_page.line_list[start_index].lineinfo.start
+        # end_offset = next_page.line_list[end_index].lineinfo.end   # + 1  # 1 for eoln
+        start_offset = prev_linex.lineinfo.end + 1  # start from the end the last line
+        end_offset = linex.lineinfo.start
+
+    return start_offset, end_offset
+
 
 # returns    paras2_with_attrs, para2_doc_text, gap2_span_list
 def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
-
-    # TODO, jshaw, remove, xxx
-    debug_mode = True
 
     cur_attr = []
     gap_span_list = []
@@ -240,9 +292,9 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
                         attr_list.append(sechead_context)
 
                     out_line_list.append(out_line)
-                    offsets_line_list.append(((linex.lineinfo.start, linex.lineinfo.end),
-                                              (offset, offset + len(out_line)),
-                                              out_line, attr_list))
+                    span_se_list = [((linex.lineinfo.start, linex.lineinfo.end),
+                                     (offset, offset + len(out_line)))]
+                    offsets_line_list.append((span_se_list, out_line, attr_list))
                     offset += len(out_line) + 1  # to add eoln
 
                     not_gapped_line_nums.add(linex.lineinfo.line_num)
@@ -259,23 +311,45 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
                     attr_list.append(sechead_context)
 
                 block_start = offset
+                prev_page_num = -1
+                prev_linex = None
+                start_offset = grouped_block.line_list[0].lineinfo.start
+                span_se_list = []
+                is_to_add_span_se_list = True
                 for linex in grouped_block.line_list:
+
+                    if prev_page_num != -1 and linex.page_num != prev_page_num:
+                        gap_start, gap_end = get_gap_start_end(prev_linex, linex, apage, pdf_text_doc.page_list[page_num])  # page_num is the next page
+                        # print("============================gap_start, gap_end = {}, {}, prev_page = {}, next_page = {}".format(gap_start, gap_end, prev_linex.page_num, linex.page_num))
+                        if gap_start != -1:  # there is a gap between pages
+                            span_se_list.append(((start_offset, gap_start - 1), (block_start, offset - 1)))
+                            block_start = offset
+                            start_offset = gap_end
+                            is_to_add_span_se_list = False
+                    else:
+                        is_to_add_span_se_list = True
+
                     out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
                     block_lines.append(out_line)
                     offset += len(out_line) + 1  # to add eoln
 
                     not_gapped_line_nums.add(linex.lineinfo.line_num)
 
+                    prev_linex = linex
+                    prev_page_num = linex.page_num
+
+
                 block_text = ' '.join(block_lines)
                 out_line_list.append(block_text)
-                offsets_line_list.append(((grouped_block.line_list[0].lineinfo.start, grouped_block.line_list[-1].lineinfo.end),
-                                          (block_start, offset - 1),
-                                          block_text, attr_list))
+                if is_to_add_span_se_list:
+                    span_se_list.append(((start_offset, grouped_block.line_list[-1].lineinfo.end),
+                                         (block_start, offset - 1)))
+                offsets_line_list.append((span_se_list, block_text, attr_list))
 
             out_line_list.append('')
-            offsets_line_list.append(((linex.lineinfo.end+2, linex.lineinfo.end+2),
-                                      (offset, offset),
-                                      '', []))
+            span_se_list = [((linex.lineinfo.end+2, linex.lineinfo.end+2),
+                             (offset, offset))]
+            offsets_line_list.append((span_se_list, '', []))
             offset += 1
 
     # figure out the gap span, this has to be done at document level because
@@ -298,8 +372,8 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
 
         pdf_nlp_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.nlp.debug.tsv'))
         with open(pdf_nlp_debug_fn, 'wt') as fout2:
-            for x, y, out_line, attr_list in offsets_line_list:
-                print('{}, {}\t[{}]\t{}'.format(x, y, out_line, attr_list), file=fout2)
+            for from_to_span_list, out_line, attr_list in offsets_line_list:
+                print('{}\t[{}]\t{}'.format(from_to_span_list, out_line, attr_list), file=fout2)
         print('wrote {}'.format(pdf_nlp_debug_fn), file=sys.stderr)
 
     return offsets_line_list, paraline_text, gap_span_list

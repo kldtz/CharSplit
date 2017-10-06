@@ -425,3 +425,12 @@ def line_list_to_block_list(linex_list):
         prev_block_num = block_num
     return tmp_block_list
 
+def span_se_list_to_fromto(span_se_list):
+    (from_start, from_end), (to_start, to_end) = span_se_list[0]
+    for span_fromto in span_se_list[1:]:
+        (fs2, fe2), (ts2, te2) = span_fromto
+        if fe2 > from_end:
+            from_end = fe2
+        if te2 > to_end:
+            to_end = te2
+    return (from_start, from_end), (to_start, to_end)

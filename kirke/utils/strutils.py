@@ -13,9 +13,17 @@ CAP_SPACE_PAT = re.compile(r'^[A-Z\s\(\).,\[\]\-/\\{\}`\'"]+$')
 
 # pylint: disable=W0703, E1101
 
+# TODO, jshaw, this function need to be rename to
+# defun replace_nltab_with_space(line)
+# Currently, it is confusing.  Called in many places.
 def remove_nltab(line):
     # return re.sub(r'[\s\t\r\n]+', ' ', line)
     return re.sub(r'[\s\t\r\n]', ' ', line)
+
+
+def remove_space_nl(line):
+    return re.sub(r'[\s\n]', '', line)
+
 
 def loads(file_name):
     xst = ''

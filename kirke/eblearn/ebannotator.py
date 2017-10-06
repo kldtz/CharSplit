@@ -138,7 +138,11 @@ class ProvisionAnnotator:
                 antx['corenlp_end'] = xend
                 antx['start'] = docutils.find_offset_to(xstart, eb_antdoc.from_list, eb_antdoc.to_list)
                 antx['end'] = docutils.find_offset_to(xend, eb_antdoc.from_list, eb_antdoc.to_list)
-                if antx['start'] < antx['end']:
+
+                # thing can screw up because of order ot line differ from original text and the nlp text.
+                # two column document also mess things up, so why we have eb_antdoc.len_text check.
+                # Please see comments in adjust_offsets_using_from_to_list() in ebrunner.py
+                if antx['start'] < antx['end'] and xstart <= eb_antdoc.len_text and xend <= eb_antdoc.len_text:
                     filtered_prov_annotations.append(antx)
                 else:
                     logging.warning('annotation skipped because of bad offset translation:')

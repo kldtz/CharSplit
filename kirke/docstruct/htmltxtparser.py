@@ -3,12 +3,8 @@ import re
 import sys
 from typing import List
 
-from kirke.utils import ebsentutils, mathutils, strutils
-
-from kirke.docstruct import secheadutils
-
-from kirke.docstruct import footerutils, partyutils
-from kirke.utils import txtreader, engutils
+from kirke.docstruct import docstructutils, footerutils, partyutils, secheadutils
+from kirke.utils import ebsentutils, engutils, mathutils, strutils, txtreader
                                        
 DEBUG_MODE = False
 
@@ -55,7 +51,10 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
                 if split_idx == -1:
                     # print("\t\tcxx{}\t{}\t{}".format(start, end, attr_list))
                     # print("{}\t{}\t{}".format(start, end, line))
-                    lineinfo_list.append(((start, end), (to_offset, to_offset + len(line)), line, attr_list))
+                    lineinfo_list.append(((start, end),
+                                          (to_offset, to_offset + len(line)),
+                                          line,
+                                          attr_list))
                     to_offset += len(line) + 1
                     prev_output_line = line
                 else:
@@ -65,33 +64,43 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
                     # print("\t\tcxx{}\t{}\t{}".format(start, start+split_idx, attr_list))
                     # print("{}\t{}\t{}".format(start, start+split_idx, first_line))
                     # print("{}\t{}\t{}".format(start+split_idx, end, second_line))
-                    lineinfo_list.append(((start, start+split_idx), (to_offset, to_offset + len(first_line)),
-                                          first_line, attr_list))
+                    lineinfo_list.append(((start, start+split_idx),
+                                          (to_offset, to_offset + len(first_line)),
+                                          first_line,
+                                          attr_list))
                     to_offset += len(first_line) + 1  # for eoln
                     # insert a line break
                     tmp_from_end = start + split_idx
                     tmp_to_end = to_offset + len(first_line)
-                    lineinfo_list.append(((tmp_from_end, tmp_from_end), (tmp_to_end, tmp_to_end),
-                                          '', []))
-                    to_offset += len(first_line) + 1  # for line break eoln                    
-                    
-                    lineinfo_list.append(((start+split_idx, end), (to_offset, to_offset + len(second_line)),
-                                          second_line, []))
+                    lineinfo_list.append(((tmp_from_end, tmp_from_end),
+                                          (tmp_to_end, tmp_to_end),
+                                          '',
+                                          []))
+                    to_offset += len(first_line) + 1  # for line break eoln
+
+                    lineinfo_list.append(((start+split_idx, end),
+                                          (to_offset, to_offset + len(second_line)),
+                                          second_line,
+                                          []))
                     to_offset += len(second_line) + 1
                     prev_output_line = second_line                    
             else:  # no attr_list, but maybe a page number
                 # print("{}\t{}\t[{}]".format(start, end, line))
                 if is_pagenum_line:
-                    attr_list.append('pagenum')          
-                lineinfo_list.append(((start, end), (to_offset, to_offset + len(line)),
-                                      line, attr_list))
+                    attr_list.append('pagenum')
+                lineinfo_list.append(((start, end),
+                                      (to_offset, to_offset + len(line)),
+                                      line,
+                                      attr_list))
                 to_offset += len(line) +1
                 prev_output_line = line
 
         else:  # blank line, though spaces might have been removed
             if prev_output_line != '':
-                lineinfo_list.append(((start, start), (to_offset, to_offset),
-                                      '', []))
+                lineinfo_list.append(((start, start),
+                                      (to_offset, to_offset),
+                                      '',
+                                      []))
                 to_offset += 1
                 prev_output_line = ''
 
@@ -99,7 +108,8 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
     doc_text = '\n'.join(doc_lines)
 
     return lineinfo_list, doc_text
-    
+
+
 def has_sechead_attr(attr_list):
     for attr in attr_list:
         if attr == 'pagenum':
@@ -210,13 +220,15 @@ def lineinfos_to_paras(lineinfos):
         if i not in omit_line_set:
             start, end, line, attr_list = linfo
             sechead_attr = get_sechead_attr(attr_list)
+            span_frto_list = [((start, end), (out_offset, out_offset + len(line)))]
             if sechead_attr:
-                result.append(((start, end), (out_offset, out_offset + len(line)), line, [sechead_attr]))
+                result.append((span_frto_list, line, [sechead_attr]))
             else:
-                result.append(((start, end), (out_offset, out_offset + len(line)), line, []))
+                # result.append(((start, end), (out_offset, out_offset + len(line)), line, []))
+                result.append((span_frto_list, line, []))
             out_offset += len(line) + 1
             
-    doc_lines = [line for _, _, line, _ in result]
+    doc_lines = [line for _, line, _ in result]
     doc_text = '\n'.join(doc_lines)
 
     return result, doc_text, gap_span_list
@@ -224,8 +236,9 @@ def lineinfos_to_paras(lineinfos):
 
 def paras_to_fromto_lists(para_list):
     alist = []
-    for (from_start, from_end), (to_start, to_end), line, attr_list in para_list:
-        alist.append((from_start, to_start))
+    for span_se_list, line, attr_list in para_list:
+        for (from_start, from_end), (to_start, to_end) in span_se_list:
+            alist.append((from_start, to_start))
 
     # in HTML files, the 'from' and 'to' are guaranteed to be in order, so
     # this code is slightly different from pdftxtparser.paras_to_fromto_lists.
@@ -438,7 +451,7 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
     date_line_idx, first_eng_para_idx = -1, -1
     lc_party_line = ''
     num_line = len(lineinfos_paras)
-    for line_idx, (_, _, line, attr_list) in enumerate(lineinfos_paras):
+    for line_idx, (_, line, attr_list) in enumerate(lineinfos_paras):
         attr2_list = []
         is_english = engutils.classify_english_sentence(line)
         if is_english:

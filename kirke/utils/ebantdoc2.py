@@ -86,6 +86,7 @@ class EbAnnotatedDoc2:
         self.file_id = file_name
         self.doc_format = doc_format
         self.text = text
+        self.len_text = len(text)   # used to check out of bound
         self.prov_annotation_list = prov_ant_list
         self.is_test_set = is_test
         self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
