@@ -270,7 +270,7 @@ class EbRunner:
         prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, provision_set)
 
         # this update the 'start_end_span_list' in each antx in-place
-        docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
+        # docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
 
         # update prov_labels_map based on rules
         self.apply_line_annotators(prov_labels_map,
@@ -302,16 +302,12 @@ class EbRunner:
 
     def apply_line_annotators(self, prov_labels_map, eb_antdoc, work_dir):
 
-        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.from_list, eb_antdoc.to_list)        
+        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
 
         # title works on the para_doc_text, not original text. so the
         # offsets needs to be adjusted, just like for text4nlp stuff.
         # The offsets here differs from above because of line break differs.
         # As a result, probably more page numbers are detected correctly and skipped.
-        #nl_paras_with_attrs, nl_para_doc_text, nl_gap_span_list, nl_orig_doc_text = \
-        #    htmltxtparser.parse_document(file_name,
-        #                                 work_dir=work_dir, is_combine_line=is_combine_line)
-        #nl_to_list, nl_from_list = htmltxtparser.paras_to_fromto_lists(nl_paras_with_attrs)
         title_ant_list = self.title_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                               eb_antdoc.nlp_text)
 

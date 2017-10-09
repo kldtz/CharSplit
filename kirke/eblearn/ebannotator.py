@@ -122,32 +122,11 @@ class ProvisionAnnotator:
 
         #print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
         #print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
-        #for from_to in zip(eb_antdoc.from_list, eb_antdoc.to_list):
-        #    print("from: {}, to: {}".format(from_to[0], from_to[1]))
-        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.from_list, eb_antdoc.to_list)
+        #for fr_sxlnpos, to_sxlnpos in zip(eb_antdoc.origin_sx_lnpos_list, eb_antdoc.nlp_sx_lnpos_list):
+        #    print("35234 origin: {}, nlp: {}".format(fr_sxlnpos, to_sxlnpos))
 
+        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
         # this is an in-place modification
         fromto_mapper.adjust_fromto_offsets(prov_annotations)
-
-        """
-        # translate the offsets
-        for antx in prov_annotations:
-                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-                xstart = antx['start']
-                xend = antx['end']
-                antx['corenlp_start'] = xstart
-                antx['corenlp_end'] = xend
-
-                span_list = docutils.find_se_offset_list(xstart,
-                                                         xend,
-                                                         eb_antdoc.from_list,
-                                                         eb_antdoc.to_list)
-                # antx['start'] = docutils.find_offset_to(xstart, eb_antdoc.from_list, eb_antdoc.to_list)
-                antx['start'] = span_list[0]['start']
-                # antx['end'] = docutils.find_offset_to(xend, eb_antdoc.from_list, eb_antdoc.to_list)
-                antx['end'] = span_list[-1]['end']
-                antx['span2_list'] = span_list
-                antx['span3_list'] = fromto_mapper.get_span_list(xstart, xend)
-        """
 
         return prov_annotations
