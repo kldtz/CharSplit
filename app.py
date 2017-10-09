@@ -40,6 +40,10 @@ osutils.mkpath(CUSTOM_MODEL_DIR)
 
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 
+if not eb_runner:
+    logging.error('problem initializing ebrunner')
+    exit(1)
+
 @app.route('/annotate-doc', methods=['POST'])
 def annotate_uploaded_document():
     request_work_dir = request.form.get('workdir')

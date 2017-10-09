@@ -1,7 +1,7 @@
 import logging
 import time
 
-from kirke.docstruct import docutils
+from kirke.docstruct import docutils, fromtomapper
 from kirke.eblearn import ebpostproc
 from kirke.utils import evalutils
 
@@ -120,33 +120,34 @@ class ProvisionAnnotator:
                                                                          self.threshold,
                                                                          provision=prov)
 
-        # print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
-        # print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
-        # for from_to in zip(eb_antdoc.from_list, eb_antdoc.to_list):
+        #print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
+        #print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
+        #for from_to in zip(eb_antdoc.from_list, eb_antdoc.to_list):
         #    print("from: {}, to: {}".format(from_to[0], from_to[1]))
+        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.from_list, eb_antdoc.to_list)
 
+        # this is an in-place modification
+        fromto_mapper.adjust_fromto_offsets(prov_annotations)
+
+        """
         # translate the offsets
-        # TODO, jshaw
-        # sometimes the translation are WRONG, with 'end' before 'start'
-        # Need to fix.  Skip them for now.
-        filtered_prov_annotations = []
         for antx in prov_annotations:
                 # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
                 xstart = antx['start']
                 xend = antx['end']
                 antx['corenlp_start'] = xstart
                 antx['corenlp_end'] = xend
-                antx['start'] = docutils.find_offset_to(xstart, eb_antdoc.from_list, eb_antdoc.to_list)
-                antx['end'] = docutils.find_offset_to(xend, eb_antdoc.from_list, eb_antdoc.to_list)
 
-                # thing can screw up because of order ot line differ from original text and the nlp text.
-                # two column document also mess things up, so why we have eb_antdoc.len_text check.
-                # Please see comments in adjust_offsets_using_from_to_list() in ebrunner.py
-                if antx['start'] < antx['end'] and xstart <= eb_antdoc.len_text and xend <= eb_antdoc.len_text:
-                    filtered_prov_annotations.append(antx)
-                else:
-                    logging.warning('annotation skipped because of bad offset translation:')
-                    logging.warning('antx: {}'.format(antx))
+                span_list = docutils.find_se_offset_list(xstart,
+                                                         xend,
+                                                         eb_antdoc.from_list,
+                                                         eb_antdoc.to_list)
+                # antx['start'] = docutils.find_offset_to(xstart, eb_antdoc.from_list, eb_antdoc.to_list)
+                antx['start'] = span_list[0]['start']
+                # antx['end'] = docutils.find_offset_to(xend, eb_antdoc.from_list, eb_antdoc.to_list)
+                antx['end'] = span_list[-1]['end']
+                antx['span2_list'] = span_list
+                antx['span3_list'] = fromto_mapper.get_span_list(xstart, xend)
+        """
 
-        # return prov_annotations
-        return filtered_prov_annotations
+        return prov_annotations

@@ -12,7 +12,7 @@ from typing import List
 
 from sklearn.externals import joblib
 
-from kirke.docstruct import docutils
+from kirke.docstruct import docutils, fromtomapper
 from kirke.eblearn import ebannotator, ebtrainer, scutclassifier, lineannotator
 from kirke.ebrules import rateclassifier, titles, parties, dates
 from kirke.utils import osutils, strutils, evalutils, ebantdoc2
@@ -75,56 +75,6 @@ def update_dates_by_domain_rules(ant_result_dict):
         for date_ant in l_execution_date_annotations:
             date_ant['label'] = 'l_execution_date'
         ant_result_dict['l_execution_date'] = l_execution_date_annotations
-
-
-def adjust_offsets_using_from_to_list(ant_list: List, from_list, to_list, max_offset):
-    result = []
-    for antx in ant_list:
-        # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-        corenlp_start = antx['start']
-        corenlp_end = antx['end']
-        antx['corenlp_start'] = corenlp_start
-        antx['corenlp_end'] = corenlp_end
-
-        tmp_start = docutils.find_offset_to(corenlp_start, from_list, to_list)
-        tmp_end = docutils.find_offset_to(corenlp_end, from_list, to_list)
-        antx['start'] = tmp_start
-        antx['end'] = tmp_end
-        antx['span_list'] = [{'start': tmp_start,
-                              'end': tmp_end}]
-
-        # there are cases where in original document, the line order are different
-        # from the order in NLP document.  For example, "contract amendment_8.pdf"
-        # Following is a table, visually in PDF
-        # ======
-        #                           Contract NO: xxxx
-        #                           Ammendment No: 08
-        # Agreement
-        # between                   And
-        # ======
-        # In original document, we have
-        # =========
-        # AGREEMENT
-        #
-        # Between And
-        #
-        # CONTRACT NO: 4300001661  AMENDMENT NO: 08
-        # ========
-        # but in NLP text, we have
-        # CONTRACT NO: 4300001661
-        # AMENDMENT NO: 08
-        #
-        # AGREEMENT
-        #
-        # Between And
-        # Title selected "Amendment No: 08\n\nAgreement" as title
-        # The offsets are start: 126, end: 84, which is wrong (end < start)
-        # Going to simply ignore those cases for now since PDFBox is not happy
-        if tmp_end > tmp_start and tmp_start <= max_offset and tmp_end <= max_offset:
-            result.append(antx)
-
-    # return ant_list
-    return result
 
 
 class EbRunner:
@@ -217,6 +167,11 @@ class EbRunner:
         self.title_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
         self.party_annotator = lineannotator.LineAnnotator('party', parties.PartyAnnotator('party'))
         self.date_annotator = lineannotator.LineAnnotator('date', dates.DateAnnotator('date'))
+
+        if num_model == 0:
+            logging.error('No model is loaded from {} and {}.'.format(model_dir, custom_model_dir))
+            logging.error('Please also verify model file names match the filter in osutils.get_model_files()')
+            return None
 
         total_mem_usage = py.memory_info()[0] / 2**20
         avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
@@ -344,44 +299,10 @@ class EbRunner:
         logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
         return prov_labels_map, eb_antdoc
 
-    """
-    def annotate_text_document(self, file_name, provision_set=None, work_dir=None, is_doc_structure=True):
-        time1 = time.time()
-        if not provision_set:
-            provision_set = self.provisions
-        #else:
-        #    logging.info('user specified provision list: %s', provision_set)
 
-        if not work_dir:
-            work_dir = self.work_dir
+    def apply_line_annotators(self, prov_labels_map, eb_antdoc, work_dir):
 
-        # update custom models if necessary by checking dir.
-        # custom models can be update by other workers
-        self.update_custom_models()
-
-        eb_antdoc = ebantdoc2.text_to_ebantdoc2(file_name, work_dir, is_doc_structure=is_doc_structure)
-
-        # if the file contains too few words, don't bother
-        # otherwise, might cause classifier error if only have 1 error because of minmax
-        if len(eb_antdoc.text) < 100:
-            empty_result = {}
-            for prov in provision_set:
-                empty_result[prov] = []
-            return empty_result, eb_antdoc.text
-
-        # this execute the annotators in parallel
-        ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_set)
-
-        time2 = time.time()
-        logging.info('annotate_text_document(%s) took %0.2f sec', file_name, (time2 - time1))
-        return ant_result_dict, eb_antdoc.text
-    """
-
-
-    def apply_line_annotators(self,
-                              prov_labels_map,
-                              eb_antdoc,
-                              work_dir):
+        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.from_list, eb_antdoc.to_list)        
 
         # title works on the para_doc_text, not original text. so the
         # offsets needs to be adjusted, just like for text4nlp stuff.
@@ -395,20 +316,16 @@ class EbRunner:
                                                               eb_antdoc.nlp_text)
 
         # we always replace the title using rules
-        prov_labels_map['title'] = adjust_offsets_using_from_to_list(title_ant_list,
-                                                                     eb_antdoc.from_list,
-                                                                     eb_antdoc.to_list,
-                                                                     eb_antdoc.len_text)
+        fromto_mapper.adjust_fromto_offsets(title_ant_list)
+        prov_labels_map['title'] = title_ant_list
 
         party_ant_list = self.party_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                               eb_antdoc.nlp_text)
 
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
-            prov_labels_map['party'] = adjust_offsets_using_from_to_list(party_ant_list,
-                                                                         eb_antdoc.from_list,
-                                                                         eb_antdoc.to_list,
-                                                                         eb_antdoc.len_text)
+            fromto_mapper.adjust_fromto_offsets(party_ant_list)
+            prov_labels_map['party'] = party_ant_list
 
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
@@ -416,10 +333,9 @@ class EbRunner:
         if date_ant_list:
             xx_effective_date_list = []
             xx_date_list = []
-            date_ant_list = adjust_offsets_using_from_to_list(date_ant_list,
-                                                              eb_antdoc.from_list,
-                                                              eb_antdoc.to_list,
-                                                              eb_antdoc.len_text)
+            fromto_mapper.adjust_fromto_offsets(date_ant_list)
+            date_ant_list = date_ant_list
+
             for antx in date_ant_list:
                 if antx['label'] == 'effectivedate':
                     xx_effective_date_list.append(antx)
@@ -438,302 +354,6 @@ class EbRunner:
                 # prov_labels_map['effectivedate'] = xx_effective_date_list
             if xx_date_list:
                 prov_labels_map['date'] = xx_date_list
-
-                
-    def annotate_text_document_too_new(self,
-                               file_name,
-                               provision_set=None,
-                               work_dir=None,
-                               is_called_by_pdfboxed=False,
-                               is_doc_structure=False):
-        time1 = time.time()
-        if not provision_set:
-            provision_set = self.provisions
-        #else:
-        #    logging.info('user specified provision list: %s', provision_set)
-
-        if not work_dir:
-            work_dir = self.work_dir
-
-        # update custom models if necessary by checking dir.
-        # custom models can be update by other workers
-        self.update_custom_models()
-
-        eb_antdoc = ebantdoc2.text_to_ebantdoc2(file_name,
-                                                work_dir,
-                                                is_doc_structure=is_doc_structure)
-
-        # if the file contains too few words, don't bother
-        # otherwise, might cause classifier error if only have 1 error because of minmax
-        if len(eb_antdoc.text) < 100:
-            empty_result = {}
-            for prov in provision_set:
-                empty_result[prov] = []
-            return empty_result, eb_antdoc.text
-
-        # this execute the annotators in parallel
-        ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_set)
-
-        if not is_called_by_pdfboxed:
-            # now adjust the date using domain specific logic
-            # fix the issue with retired 'effectivedate'
-            # first try to get effectivedate from rule-based approach
-            # if none, then try get from ML approach.  The label is already correct.
-            effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
-            if not effectivedate_annotations:
-                effectivedate_annotations = ant_result_dict.get('effectivedate', [])
-                if effectivedate_annotations:  # make a copy in 'effectivedate_auto'
-                    ant_result_dict['effectivedate_auto'] = effectivedate_annotations
-                    ant_result_dict['effectivedate'] = []
-
-            # special handling for dates, as in PythonDateOfAgreementClassifier.java
-            date_annotations = ant_result_dict.get('date')
-            # print("-------------------------------------aaaaaaaaaaaaaaa")
-            if not date_annotations:
-                # print("-------------------------------------bbbbbbbbbbbbbbbbbb")
-                effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
-                # print("effectivedate_annotation = {}".format(effectivedate_annotations))
-                if effectivedate_annotations:
-                    # make a copy to preserve original list
-                    effectivedate_annotations = copy.deepcopy(effectivedate_annotations)
-                    for eff_ant in effectivedate_annotations:
-                        eff_ant['label'] = 'date'
-                    ant_result_dict['date'] = effectivedate_annotations
-                else:
-                    sigdate_annotations = ant_result_dict.get('sigdate')
-                    if sigdate_annotations:
-                        # make a copy to preserve original list
-                        sigdate_annotations = copy.deepcopy(sigdate_annotations)
-                        for sig_ant in sigdate_annotations:
-                            sig_ant['label'] = 'date'
-                        ant_result_dict['date'] = sigdate_annotations
-            # user never want to see sigdate
-            ant_result_dict['sigdate'] = []
-
-            # save the prov_labels_map
-            prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
-            prov_ants_st = json.dumps(ant_result_dict)
-            strutils.dumps(prov_ants_st, prov_ants_fn)
-
-        time2 = time.time()
-        logging.info('annotate_text_document(%s) took %0.2f sec', file_name, (time2 - time1))
-        return ant_result_dict, eb_antdoc.text
-
-    """
-    # this parses both originally text and html documents
-    # It's main goal is to detect sechead
-    # optionally pagenum, footer, toc, signature
-    def annotate_htmled_document(self, file_name, provision_set=None, work_dir=None):
-        debug_mode = True
-        time1 = time.time()
-
-        base_fname = os.path.basename(file_name)
-
-        # gap_span_list is for sentv2.txt or xxx.txt?
-        # the offsets in para_list is for doc_text
-        #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
-        #     docutils.parse_html_document(file_name, linfo_file_name, work_dir=work_dir)
-
-        paras_with_attrs, para_doc_text, gap_span_list, orig_doc_text = \
-            htmltxtparser.parse_document(file_name,
-                                         work_dir=work_dir)
-        text4nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.txt'))
-        txtreader.dumps(para_doc_text, text4nlp_fn)
-        if debug_mode:
-            print('wrote 234 {}'.format(text4nlp_fn), file=sys.stderr)
-
-        # I am a little messed up on from_to lists
-        # not sure exactly what "from" means, original text or nlp text
-        to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
-
-        prov_labels_map, text4nlp = self.annotate_text_document(text4nlp_fn,
-                                                                provision_set=provision_set,
-                                                                work_dir=work_dir,
-                                                                is_doc_structure=True)
-
-        # translate the offsets
-        all_prov_ant_list = []
-        for provision, ant_list in prov_labels_map.items():
-            for antx in ant_list:
-                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-                xstart = antx['start']
-                corenlp_end = antx['end']
-                antx['corenlp_start'] = xstart
-                antx['corenlp_end'] = corenlp_end
-                antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
-                antx['end'] = docutils.find_offset_to(corenlp_end, from_list, to_list)
-
-                all_prov_ant_list.append(antx)
-
-        # this update the 'start_end_span_list' in each antx in-place
-        docutils.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
-
-        # updae prov_labels_map based on rules
-        self.apply_line_annotators(prov_labels_map,
-                                   eb_antdoc,
-                                   work_dir=work_dir)
-
-
-        # HTML document has no table detection, so 'rate-table' annotation is an empty list
-        prov_labels_map['rate_table'] = []
-
-        # jshaw. evalxxx, composite
-        update_dates_by_domain_rules(prov_labels_map)
-
-        # save the prov_labels_map
-        prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
-        prov_ants_st = json.dumps(prov_labels_map)
-        strutils.dumps(prov_ants_st, prov_ants_fn)
-
-        time2 = time.time()
-        logging.info('annotate_htmled_document(%s) took %0.2f sec', file_name, (time2 - time1))
-        return prov_labels_map, orig_doc_text
-    """
-
-    """
-    # this parses both originally text and html documents
-    # It's main goal is to detect sechead
-    # optionally pagenum, footer, toc, signature
-    def annotate_pdfboxed_document(self, file_name, offsets_file_name, provision_set=None, work_dir=None):
-        debug_mode = True
-        time1 = time.time()
-
-        orig_text, nl_text, paraline_text, nl_fname, paraline_fname = \
-           pdftxtparser.to_nl_paraline_texts(file_name, offsets_file_name, work_dir=work_dir)
-        
-        base_fname = os.path.basename(file_name)
-
-        # gap_span_list is for sentv2.txt or xxx.txt?
-        # the offsets in para_list is for doc_text
-        #doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
-        #     docutils.parse_html_document(file_name, linfo_file_name, work_dir=work_dir)
-
-        paras_with_attrs, para_doc_text, gap_span_list, orig_doc_text = \
-            htmltxtparser.parse_document(file_name,
-                                         work_dir=work_dir,
-                                         is_combine_line=False)  # this line diff from annotate_htmled_document()
-        text4nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.txt'))
-        txtreader.dumps(para_doc_text, text4nlp_fn)
-        if debug_mode:
-            print('wrote 235 {}'.format(text4nlp_fn), file=sys.stderr)
-
-        # I am a little messed up on from_to lists
-        # not sure exactly what "from" means, original text or nlp text
-        to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
-
-        prov_labels_map, text4nlp = self.annotate_text_document(file_name,
-                                                                provision_set=provision_set,
-                                                                work_dir=work_dir,
-                                                                is_doc_structure=True)
-
-        # translate the offsets
-        all_prov_ant_list = []
-        for provision, ant_list in prov_labels_map.items():
-            for antx in ant_list:
-                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-                xstart = antx['start']
-                corenlp_end = antx['end']
-                antx['corenlp_start'] = xstart
-                antx['corenlp_end'] = corenlp_end
-                antx['start'] = docutils.find_offset_to(xstart, from_list, to_list)
-                antx['end'] = docutils.find_offset_to(corenlp_end, from_list, to_list)
-
-                all_prov_ant_list.append(antx)
-
-        # this update the 'start_end_span_list' in each antx in-place
-        docutils.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
-
-
-        # updae prov_labels_map based on rules
-        self.apply_line_annotators(prov_labels_map,
-                                   paraline_fname,
-                                   work_dir=work_dir,
-                                   # for PDF document, we do not combine lines for sechead
-                                   is_combine_line=False)
-
-        # this update the 'start_end_span_list' in each antx in-place
-        # docutils.update_ant_spans(all_prov_ant_list, gap_span_list, orig_doc_text)
-
-        # HTML document has no table detection, so 'rate-table' annotation is an empty list
-        prov_labels_map['rate_table'] = []
-
-        update_dates_by_domain_rules(prov_labels_map)
-
-        # save the prov_labels_map
-        prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
-        prov_ants_st = json.dumps(prov_labels_map)
-        strutils.dumps(prov_ants_st, prov_ants_fn)
-
-        time2 = time.time()
-        logging.info('annotate_pdfboxed_document(%s) took %0.2f sec', file_name, (time2 - time1))
-        return prov_labels_map, orig_doc_text
-    """
-
-    # TODO, this is the same as main.annotate_pdfboxed_document?
-    # this calls annotate_text_document()
-    def annotate_pdfboxed_document_for_table(self, file_name, linfo_file_name, provision_set=None, work_dir=None):
-        time1 = time.time()
-
-        base_fname = os.path.basename(file_name)
-
-        # gap_span_list is for sentv2.txt or xxx.txt?
-        # the offsets in para_list is for doc_text
-        doc_text, gap_span_list, text4nlp_fn, text4nlp_offsets_fn, para_list = \
-             docutils.parse_document(file_name, linfo_file_name, work_dir=work_dir)
-
-        # now file_name.nlp.txt and file_name.nlp.offsets.json are created
-        # text4nlp_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.txt'))
-        # text4nlp_offsets_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nlp.offsets.json'))
-
-        prov_labels_map, text4nlp = self.annotate_text_document(text4nlp_fn,
-                                                                provision_set=provision_set,
-                                                                work_dir=work_dir,
-                                                                is_called_by_pdfboxed=True)
-        # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
-
-        # translate the offsets
-        from_list, to_list = docutils.read_fromto_json(text4nlp_offsets_fn)
-        all_prov_ant_list = []
-        for provision, ant_list in prov_labels_map.items():
-            for antx in ant_list:
-                # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
-                corenlp_start = antx['start']
-                corenlp_end = antx['end']
-                antx['corenlp_start'] = corenlp_start
-                antx['corenlp_end'] = corenlp_end
-
-                tmp_start = docutils.find_offset_to(corenlp_start, from_list, to_list)
-                tmp_end = docutils.find_offset_to(corenlp_end, from_list, to_list)
-                antx['start'] = tmp_start
-                antx['end'] = tmp_end
-                antx['span_list'] = [{'start': tmp_start,
-                                      'end': tmp_end}]
-
-                all_prov_ant_list.append(antx)
-
-        # this update the 'start_end_span_list' in each antx in-place
-        docutils.update_ant_spans(all_prov_ant_list, gap_span_list, doc_text)
-
-        # apply rule-based classification system
-        # the offsets in para_list is for doc_text, so update the annotations after
-        # adjustment were made
-        table_list = docutils.extract_table_list(para_list)
-        #if table_list:
-        #    for i, atable in enumerate(table_list, 1):
-        #        print("table #{}".format(i))
-        #        for sentV4 in atable:
-        #            print("\t{}".format(sentV4.text))
-        prov_labels_map['rate_table'] = rateclassifier.classify_table_list(table_list, doc_text)
-        # print("rate_table = {}".format(rateclassifier.classify_table_list(table_list, doc_text)))
-
-        # save the prov_labels_map
-        prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
-        prov_ants_st = json.dumps(prov_labels_map)
-        strutils.dumps(prov_ants_st, prov_ants_fn)
-
-        time2 = time.time()
-        logging.info('annotate_pdfboxed_document(%s) took %0.2f sec', file_name, (time2 - time1))
-        return prov_labels_map, doc_text
 
 
     def annotate_provision_in_document(self, file_name, provision: str):

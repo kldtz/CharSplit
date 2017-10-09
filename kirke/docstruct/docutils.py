@@ -1,5 +1,6 @@
 import bisect
 from collections import defaultdict
+from operator import itemgetter
 
 from kirke.utils import mathutils, strutils
 
@@ -38,6 +39,70 @@ def find_offset_to_linear(fromx: int, from_list, to_list):
         return to_list[found_i-1] + diff
 
     return -1
+
+
+def lnpos2dict(start, end, lnpos):
+    adict = {'start': start,
+             'end': end,
+             'line_num': lnpos.line_num}
+    if lnpos.is_gap:
+        adict['gap'] = True
+    return adict
+
+
+# startx and endx are related to to_list
+# we want the offset in from_list
+def find_se_offset_list(startx, endx, from_list, to_list):
+
+    # result is an offset list
+    result = []
+
+    start_lnpos = None
+    start_diff = 0
+    start_idx = 0
+    for i, ((fstart, from_lnpos), (tstart, to_lnpos)) in enumerate(zip(from_list, to_list)):
+        if fstart == startx:
+            start_lnpos = to_lnpos
+            start_diff = 0
+            start_idx = i
+            break
+        elif fstart > startx:
+            _, start_lnpos = to_list[i-1]
+            prev_start, _ = from_list[i-1]
+            start_diff = startx - prev_start
+            start_idx = i - 1
+            break
+
+    end_lnpos = None
+    end_diff = 0
+    end_idx = 0  # this is inclusive
+    for i, ((fstart, from_lnpos), (tstart, to_lnpos)) in enumerate(zip(from_list, to_list)):
+        if fstart == endx:
+            end_lnpos = to_lnpos
+            end_diff = 0
+            end_idx = i
+            break
+        elif fstart > endx:
+            _, end_lnpos = to_list[i-1]
+            prev_start, _ = from_list[i-1]
+            end_diff = endx - prev_start
+            end_idx = i - 1
+            break
+
+    # they are in the same line
+    if start_idx == end_idx:
+        result = [{'start': start_lnpos.start + start_diff,
+                   'end': start_lnpos.start + end_diff}]
+    else:
+        # skipping all middle parts for now
+        result = [lnpos2dict(start_lnpos.start + start_diff,
+                             start_lnpos.end,
+                             start_lnpos),
+                  lnpos2dict(end_lnpos.start,
+                             end_lnpos.start + end_diff,
+                             end_lnpos)]
+        result = sorted(result, key=itemgetter('start'))
+    return result
 
 
 def read_fromto_json(file_name: str):
@@ -194,3 +259,59 @@ def update_ant_spans(ant_list, gap_span_list, doc_text):
         for antx in se_ant_list:
             antx['start_end_span_list'] = spans_st
 
+""" from htmltxtparser.py
+def paras_to_fromto_lists(para_list):
+    alist = []
+    for span_frto_list, line, attr_list in para_list:
+        for (from_start, from_end), (to_start, to_end) in span_frto_list:
+            alist.append((from_start, to_start))
+
+    # in HTML files, the 'from' and 'to' are guaranteed to be in order, so
+    # this code is slightly different from pdftxtparser.paras_to_fromto_lists.
+    # otherwise, should order by 'to_start'
+    sorted_alist = sorted(alist)
+
+    from_list = [a for a,b in sorted_alist]
+    to_list = [b for a,b in sorted_alist]
+    return from_list, to_list
+"""
+
+def paras_to_fromto_lists(para_list):
+    alist = []
+    # print("docutils.paras_to_fromto_lists()")
+    for span_se_list, line, attr_list in para_list:
+        # print("  span_se_list: {}".format(span_se_list))
+        # for (from_lnpos, to_lnpos) in span_se_list:
+        #    print("    from_lnpos = {}, to_lnpos = {}".format(from_lnpos, to_lnpos))
+
+        # at this point from_lnpos is for original text
+        # to_lnpos is for nlp text
+        for (from_lnpos, to_lnpos) in span_se_list:
+            # intentionally not use from_lnpos.end
+            # using to_lnpos.end, just in case there is a gap, which migth cause two to_lnpos.start to
+            # be the same
+            alist.append((to_lnpos.start, to_lnpos.end, from_lnpos.start, from_lnpos, to_lnpos))
+
+    # ordered by to_start, because this is where we will map from,
+    # and it need be ordered
+    sorted_alist = sorted(alist)
+
+    from_list = [(b, c) for a, a2, b, c, d in sorted_alist]
+    to_list = [(a, d) for a, a2, b, c, d in sorted_alist]
+    return from_list, to_list
+
+
+def span_frto_list_to_fromto(span_frto_list):
+    from_lnpos, to_lnpos = span_frto_list[0]
+    from_start, from_end = from_lnpos.start, from_lnpos.end
+    to_start, to_end = to_lnpos.start, to_lnpos.end
+
+    for span_fromto in span_frto_list[1:]:
+        from_lnpos2, to_lnpos2 = span_fromto
+        fe2 = from_lnpos2.end
+        te2 = to_lnpos2.end
+        if fe2 > from_end:
+            from_end = fe2
+        if te2 > to_end:
+            to_end = te2
+    return (from_start, from_end), (to_start, to_end)

@@ -15,7 +15,7 @@ from sklearn.externals import joblib
 
 from kirke.eblearn import ebattrvec
 from kirke.eblearn import sent2ebattrvec
-from kirke.docstruct import htmltxtparser, docutils, pdftxtparser
+from kirke.docstruct import docutils, htmltxtparser, docutils, pdftxtparser
 from kirke.utils import corenlputils, mathutils, strutils, osutils, entityutils, txtreader, ebsentutils
 
 CORENLP_JSON_VERSION = '1.2'
@@ -96,7 +96,7 @@ class EbAnnotatedDoc2:
         self.attrvec_list = attrvec_list
         self.paras_with_attrs = paras_with_attrs
         # to map to original offsets
-        self.to_list = to_list
+        self.to_list = to_list     # now it's list of (start, linepos.LnPos)
         self.from_list = from_list
         self.gap_span_list = gap_span_list
 
@@ -197,29 +197,34 @@ def nlptxt_to_attrvec_list(para_doc_text,
                                         work_dir=work_dir,
                                         is_cache_enabled=is_cache_enabled)
 
-    if paras_with_attrs:
-        from_list_xx, to_list_xx = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
-        # At this point, put all document structure information into
-        # ebsent_list
-        # We also adjust all annotations from CoreNlp into the offsets from original
-        # document.  Offsets is no NLP-based.
-        nlp_prov_ant_list = []
-        for prov_annotation in prov_annotation_list:
-            orig_start, orig_end = prov_annotation.start, prov_annotation.end
-            orig_label = prov_annotation.label
 
-            # print("prov_annotation: {}".format(prov_annotation))
-            # print("\torig\t[{}]".format(orig_doc_text[orig_start:orig_end]))
-            # nlp_start = docutils.find_offset_to(orig_start, from_list_xx, to_list_xx)
-            # nlp_end = docutils.find_offset_to(orig_end, from_list_xx, to_list_xx)
-            # print("\tnlp\t[{}]".format(para_doc_text[nlp_start:nlp_end]))
+    # At this point, put all document structure information into
+    # ebsent_list
+    # We also adjust all annotations from CoreNlp into the offsets from original
+    # document.  Offsets is no NLP-based.
+    from_list_xx, to_list_xx = docutils.paras_to_fromto_lists(paras_with_attrs)
+    nlp_prov_ant_list = []
+    for prov_annotation in prov_annotation_list:
+        orig_start, orig_end = prov_annotation.start, prov_annotation.end
+        orig_label = prov_annotation.label
 
-            xstart = docutils.find_offset_to(orig_start, from_list_xx, to_list_xx)
-            xend = docutils.find_offset_to(orig_end, from_list_xx, to_list_xx)
-            nlp_prov_ant_list.append(ebsentutils.ProvisionAnnotation(xstart, xend, orig_label))
         # print("prov_annotation: {}".format(prov_annotation))
-    else:
-        nlp_prov_ant_list = prov_annotation_list
+        # print("\torig\t[{}]".format(orig_doc_text[orig_start:orig_end]))
+        # nlp_start = docutils.find_offset_to(orig_start, from_list_xx, to_list_xx)
+        # nlp_end = docutils.find_offset_to(orig_end, from_list_xx, to_list_xx)
+        # print("\tnlp\t[{}]".format(para_doc_text[nlp_start:nlp_end]))
+
+        # TODO, jshaw
+        # This code needs to be tested.  We don't use docutils.find_offset_to() anymore?
+        xxx = shoudnotrun
+        # The cod here will probably fail on training using pdf documents.
+        # Should fix before going into production
+        # This only is triggered during training.
+
+        xstart = docutils.find_offset_to(orig_start, from_list_xx, to_list_xx)
+        xend = docutils.find_offset_to(orig_end, from_list_xx, to_list_xx)
+        nlp_prov_ant_list.append(ebsentutils.ProvisionAnnotation(xstart, xend, orig_label))
+    # print("prov_annotation: {}".format(prov_annotation))
 
 
     # let's adjust the offsets in prov_annotation to keep things simple and
@@ -267,7 +272,7 @@ def nlptxt_to_attrvec_list(para_doc_text,
         attrvec_list.append(fvec)
         prev_ebsent = ebsent
 
-    return attrvec_list, nlp_prov_ant_list
+    return attrvec_list, nlp_prov_ant_list, from_list_xx, to_list_xx
 
 
 # stop at 'exhibit_appendix' or 'exhibit_appendix_complete'
@@ -282,13 +287,13 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
     paras_with_attrs = []
-    attrvec_list, nlp_prov_ant_list = nlptxt_to_attrvec_list(doc_text,
-                                                             txt_file_name,
-                                                             txt_base_fname,
-                                                             prov_annotation_list,
-                                                             paras_with_attrs,
-                                                             work_dir,
-                                                             is_cache_enabled)
+    attrvec_list, nlp_prov_ant_list, _, _ = nlptxt_to_attrvec_list(doc_text,
+                                                                   txt_file_name,
+                                                                   txt_base_fname,
+                                                                   prov_annotation_list,
+                                                                   paras_with_attrs,
+                                                                   work_dir,
+                                                                   is_cache_enabled)
 
     # there is no nlp.txt
     para_doc_text = doc_text
@@ -373,22 +378,23 @@ def html_to_ebantdoc2(txt_file_name,
             htmltxtparser.parse_document(txt_file_name,
                                          work_dir=work_dir,
                                          is_combine_line=True)
+
     # I am a little messed up on from_to lists
     # not sure exactly what "from" means, original text or nlp text
-    to_list, from_list = htmltxtparser.paras_to_fromto_lists(paras_with_attrs)
+    # to_list, from_list = docutils.paras_to_fromto_lists(paras_with_attrs)
 
     txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para_doc_text, txt4nlp_fname)
     if debug_mode:
         print("wrote {}".format(txt4nlp_fname), file=sys.stderr)
 
-    attrvec_list, nlp_prov_ant_list = nlptxt_to_attrvec_list(para_doc_text,
-                                                             txt_file_name,
-                                                             txt_base_fname,
-                                                             prov_annotation_list,
-                                                             paras_with_attrs,
-                                                             work_dir,
-                                                             is_cache_enabled)
+    attrvec_list, nlp_prov_ant_list, to_list, from_list = nlptxt_to_attrvec_list(para_doc_text,
+                                                                                 txt_file_name,
+                                                                                 txt_base_fname,
+                                                                                 prov_annotation_list,
+                                                                                 paras_with_attrs,
+                                                                                 work_dir,
+                                                                                 is_cache_enabled)
 
     eb_antdoc = EbAnnotatedDoc2(txt_file_name,
                                 EbDocFormat.html,
@@ -432,7 +438,7 @@ def pdf_to_ebantdoc2(txt_file_name,
                      offsets_file_name,
                      work_dir,
                      is_cache_enabled=True):
-    debug_mode = False
+    debug_mode = True
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
 
@@ -465,20 +471,20 @@ def pdf_to_ebantdoc2(txt_file_name,
     # not sure exactly what "from" means, original text or nlp text
     # Different from htmltxtparser.paras_to_fromto_lists(), the from might be
     # out of order due to docstructuring
-    to_list, from_list = pdftxtparser.paras_to_fromto_lists(paras2_with_attrs)
+    # to_list, from_list = pdftxtparser.paras_to_fromto_lists(paras2_with_attrs)
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para2_doc_text, text4nlp_fn)
     if debug_mode:
         print('wrote {}'.format(text4nlp_fn), file=sys.stderr)
 
-    attrvec_list, nlp_prov_ant_list = nlptxt_to_attrvec_list(para2_doc_text,
-                                                             txt_file_name,
-                                                             txt_base_fname,
-                                                             prov_annotation_list,
-                                                             paras2_with_attrs,
-                                                             work_dir,
-                                                             is_cache_enabled)
+    attrvec_list, nlp_prov_ant_list, to_list, from_list = nlptxt_to_attrvec_list(para2_doc_text,
+                                                                                 txt_file_name,
+                                                                                 txt_base_fname,
+                                                                                 prov_annotation_list,
+                                                                                 paras2_with_attrs,
+                                                                                 work_dir,
+                                                                                 is_cache_enabled)
 
     eb_antdoc = EbAnnotatedDoc2(txt_file_name,
                                 EbDocFormat.pdf,
@@ -705,18 +711,21 @@ def print_para_list(eb_antdoc):
     doc_text = eb_antdoc.text
     for i, para_with_attr in enumerate(eb_antdoc.paras_with_attrs, 1):
         # print('{}\t{}'.format(i, para_with_attr))
-        orig_offsets, nlp_offsets, para_text, attr_list = para_with_attr
-        orig_start, orig_end = orig_offsets
+        span_frto_list, para_text, attr_list = para_with_attr
+        (orig_start, orig_end), (to_start, to_end) = docutils.span_frto_list_to_fromto(span_frto_list)
+        #  orig_start, orig_end = orig_offsets
         para_text2 = doc_text[orig_start:orig_end].replace(r'[\n\t]', ' ')[:30]
 
+        """
         tmp_list = []
         for attr in attr_list:
             attr_name, attr_val, attr_text, attr_offset = attr
             tmp_list.append((attr_name, attr_val, attr_text[:20], attr_offset))
         attr_list = tmp_list
+        """
 
-        cols = [str(i), '({}, {})'.format(orig_start, orig_end),
-                str(attr_list), para_text2]
+        cols = [str(i), '{}\t{}'.format(span_frto_list, str(attr_list)),
+                para_text2]
         print('\t'.join(cols))
 
 

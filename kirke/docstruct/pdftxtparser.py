@@ -6,7 +6,7 @@ import re
 import sys
 
 
-from kirke.docstruct import docstructutils
+from kirke.docstruct import docstructutils, linepos
 from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
 from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, PageInfo3, PBlockInfo
 from kirke.docstruct.pdfoffsets import PDFTextDoc, StrInfo
@@ -188,20 +188,6 @@ def is_block_multi_line(linex_list):
     return num_is_english < num_not_english
 
 
-def paras_to_fromto_lists(para_list):
-    alist = []
-    for span_se_list, line, attr_list in para_list:
-        for (from_start, from_end), (to_start, to_end) in span_se_list:
-            alist.append((to_start, from_start))
-
-    # ordered by to_start, because this is where we will map from,
-    # and it should be ordered
-    sorted_alist = sorted(alist)
-
-    from_list = [b for a,b in sorted_alist]
-    to_list = [a for a,b in sorted_alist]
-    return from_list, to_list
-
 def get_gap_start_end(prev_linex, linex, cur_page, next_page):
     start_index, end_index = -1, -1
 
@@ -257,6 +243,69 @@ def get_gap_start_end(prev_linex, linex, cur_page, next_page):
     return start_offset, end_offset
 
 
+def get_gap_frto_list(prev_linex, linex, cur_page, next_page):
+    start_index, end_index = -1, -1
+
+    result = []
+
+    prev_line_num = prev_linex.lineinfo.line_num
+    for seq, linex in enumerate(cur_page.line_list):
+        if linex.lineinfo.line_num == prev_line_num:
+            if seq + 1 < len(cur_page.line_list):
+                start_index = seq + 1  # next line is the gapped line
+            #else:
+            #    start_index = -1
+            break
+    # start_index can be -1 or other values here
+
+    next_line_num = linex.lineinfo.line_num
+    for seq, linex in enumerate(next_page.line_list):
+        if linex.lineinfo.line_num == next_line_num:
+            if seq - 1 >= 0:
+                end_index = seq - 1  # prev line is the gapped line
+            #else:
+            #    start_index = -1
+            break
+
+    if start_index == -1 and end_index == -1:  # ?? everything is gapped?
+        # logging.warning('get_gap_start_end() returned -1, -1')
+        return []
+    elif start_index == -1:
+        # nothing from first page, so start from the first line of next page
+        if linex.lineinfo.line_num != next_page.line_list[0].lineinfo.line_num:
+            for tmp_linex in next_page.line_list:
+                if tmp_linex != linex:
+                    result.append(tmp_linex)
+        else:
+            # start_index == -1 means there is no gap from previous.
+            # if we have no gap in the next page, then there is no gap
+            return []
+    elif end_index == -1:
+        # nothing from next page, so end from the last line of current page
+        if prev_linex.lineinfo.line_num != cur_page.line_list[-1].lineinfo.line_num:
+            for i in range(start_index, len(cur_page.line_list)):
+                result.append(cur_page.line_list[i])
+        else:
+            # end_index == -1 means there is no gap from next page
+            # if we have no gap in the current page, then there is no gap
+            return []
+    else:  # start_index and end_index both are not -1
+        # start_offset = cur_page.line_list[start_index].lineinfo.start
+        # end_offset = next_page.line_list[end_index].lineinfo.end   # + 1  # 1 for eoln
+        if prev_linex.lineinfo.line_num != cur_page.line_list[-1].lineinfo.line_num:
+            for i in range(start_index, len(cur_page.line_list)):
+                result.append(cur_page.line_list[i])
+        if linex.lineinfo.line_num != next_page.line_list[0].lineinfo.line_num:
+            for tmp_linex in next_page.line_list:
+                if tmp_linex != linex:
+                    result.append(tmp_linex)
+
+    #for i, xxx in enumerate(result):
+    #    print("get_gap_frto_list() #{}: {}, {}".format(i, xxx, type(xxx)))
+
+    return result
+
+
 # returns    paras2_with_attrs, para2_doc_text, gap2_span_list
 def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
@@ -271,6 +320,8 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
     # para_with_attrs, from_z, to_z, line_text, attrs (toc, header, footer, sechead)
     sechead_context = []
     not_gapped_line_nums = set([])
+
+    # not_empty_line_num = 0
     for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
         apage = pdf_text_doc.page_list[page_num - 1]
         attr_list = sorted(apage.attrs.items())
@@ -282,6 +333,8 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
             is_multi_line = is_block_multi_line(grouped_block.line_list)
 
             if is_multi_line:
+                # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
+                # It should similar to the code for not is_multi-line
                 for linex in grouped_block.line_list:
                     out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
                     attr_list = linex.to_para_attrvals()  # sorted(linex.attrs.items())
@@ -292,8 +345,8 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
                         attr_list.append(sechead_context)
 
                     out_line_list.append(out_line)
-                    span_se_list = [((linex.lineinfo.start, linex.lineinfo.end),
-                                     (offset, offset + len(out_line)))]
+                    span_se_list = [(linepos.LnPos(linex.lineinfo.start, linex.lineinfo.end),
+                                     linepos.LnPos(offset, offset + len(out_line)))]
                     offsets_line_list.append((span_se_list, out_line, attr_list))
                     offset += len(out_line) + 1  # to add eoln
 
@@ -319,18 +372,19 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
                 for linex in grouped_block.line_list:
 
                     if prev_page_num != -1 and linex.page_num != prev_page_num:
-                        gap_start, gap_end = get_gap_start_end(prev_linex, linex, apage, pdf_text_doc.page_list[page_num])  # page_num is the next page
-                        # print("============================gap_start, gap_end = {}, {}, prev_page = {}, next_page = {}".format(gap_start, gap_end, prev_linex.page_num, linex.page_num))
-                        if gap_start != -1:  # there is a gap between pages
-                            span_se_list.append(((start_offset, gap_start - 1), (block_start, offset - 1)))
-                            block_start = offset
-                            start_offset = gap_end
-                            is_to_add_span_se_list = False
-                    else:
-                        is_to_add_span_se_list = True
+                        gap_frto_list = get_gap_frto_list(prev_linex, linex, apage, pdf_text_doc.page_list[page_num])  # page_num is the next page
+                        if gap_frto_list:
+                            # span_se_list.extend(gap_frto_list)
+                            # simply add a break line, the gap will be done correctly elsewhere
+                            gap_line_x_attrs = gap_frto_list[0]
+                            # use -2, just in case -1 + 1 == 0, and line_num is 0
+                            span_se_list.append((linepos.LnPos(gap_line_x_attrs.lineinfo.start, gap_line_x_attrs.lineinfo.start, is_gap=True),
+                                                 linepos.LnPos(offset, offset, is_gap=True)))  # -100 will be reset later
 
                     out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
                     block_lines.append(out_line)
+                    span_se_list.append((linepos.LnPos(linex.lineinfo.start, linex.lineinfo.end),
+                                         linepos.LnPos(offset, offset + len(out_line))))
                     offset += len(out_line) + 1  # to add eoln
 
                     not_gapped_line_nums.add(linex.lineinfo.line_num)
@@ -338,19 +392,49 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
                     prev_linex = linex
                     prev_page_num = linex.page_num
 
-
                 block_text = ' '.join(block_lines)
                 out_line_list.append(block_text)
-                if is_to_add_span_se_list:
-                    span_se_list.append(((start_offset, grouped_block.line_list[-1].lineinfo.end),
-                                         (block_start, offset - 1)))
                 offsets_line_list.append((span_se_list, block_text, attr_list))
 
             out_line_list.append('')
-            span_se_list = [((linex.lineinfo.end+2, linex.lineinfo.end+2),
-                             (offset, offset))]
+            span_se_list = [(linepos.LnPos(linex.lineinfo.end+2, linex.lineinfo.end+2),
+                             linepos.LnPos(offset, offset))]
             offsets_line_list.append((span_se_list, '', []))
             offset += 1
+
+    # compute the not_empty_line_num for original text and nlp text
+    start_from_lnpos_list = []
+    start_to_lnpos_list = []
+    for offsets_line in offsets_line_list:
+        span_se_list, _, _ = offsets_line
+        for from_lnpos, to_lnpos in span_se_list:
+            # because of "gap lnpos", start can be the same
+            start_from_lnpos_list.append((from_lnpos.start, from_lnpos.end, from_lnpos))
+            start_to_lnpos_list.append((to_lnpos.start, to_lnpos.end, to_lnpos))
+
+    not_empty_line_num = 0
+    for startx, _, from_lnpos in sorted(start_from_lnpos_list):
+        if from_lnpos.is_gap:
+            from_lnpos.line_num = not_empty_line_num
+            not_empty_line_num += 1
+        elif from_lnpos.start != from_lnpos.end:
+            from_lnpos.line_num = not_empty_line_num
+            not_empty_line_num += 1
+        else:
+            from_lnpos.line_num = not_empty_line_num
+
+    # do the same as above for start_to_lnpos_list
+    not_empty_line_num = 0
+    for startx, _, to_lnpos in sorted(start_to_lnpos_list):
+        if to_lnpos.is_gap:
+            to_lnpos.line_num = not_empty_line_num
+            not_empty_line_num += 1
+        elif to_lnpos.start != to_lnpos.end:
+            to_lnpos.line_num = not_empty_line_num
+            not_empty_line_num += 1
+        else:
+            to_lnpos.line_num = not_empty_line_num
+
 
     # figure out the gap span, this has to be done at document level because
     # line sometimes are merged into the block in the previous page

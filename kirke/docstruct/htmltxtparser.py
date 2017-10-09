@@ -5,6 +5,8 @@ from typing import List
 
 from kirke.docstruct import docstructutils, footerutils, partyutils, secheadutils
 from kirke.utils import ebsentutils, engutils, mathutils, strutils, txtreader
+
+from kirke.docstruct import linepos
                                        
 DEBUG_MODE = False
 
@@ -216,13 +218,29 @@ def lineinfos_to_paras(lineinfos):
 
     result = []
     out_offset = 0
+
+    non_empty_line_num = 0
     for i, linfo in enumerate(tmp2_list):
         if i not in omit_line_set:
             start, end, line, attr_list = linfo
             sechead_attr = get_sechead_attr(attr_list)
-            span_frto_list = [((start, end), (out_offset, out_offset + len(line)))]
+            # TODO, jshaw
+            # The logic to handle non-empty_line_num is not exactly
+            # the same as in pdftxtparser.  In pdftxtparser, not_empty_line_num
+            # always increases even for page_num, which is a gap line.
+            # In here, that seems to be not true.  When there is a gap line,
+            # the result should still add it, with (same start, end=start, line_num=prev_line_num+1, gap=True)
+            from_lpos = linepos.LnPos(start, end, non_empty_line_num)
+            to_lpos = linepos.LnPos(out_offset, out_offset + len(line), non_empty_line_num)
+            if line:
+                non_empty_line_num += 1
+
+            span_frto_list = [(from_lpos, to_lpos)]
             if sechead_attr:
-                result.append((span_frto_list, line, [sechead_attr]))
+                if line:
+                    result.append((span_frto_list, line, [sechead_attr]))
+                else:
+                    result.append((span_frto_list, line, []))
             else:
                 # result.append(((start, end), (out_offset, out_offset + len(line)), line, []))
                 result.append((span_frto_list, line, []))
@@ -233,21 +251,6 @@ def lineinfos_to_paras(lineinfos):
 
     return result, doc_text, gap_span_list
 
-
-def paras_to_fromto_lists(para_list):
-    alist = []
-    for span_se_list, line, attr_list in para_list:
-        for (from_start, from_end), (to_start, to_end) in span_se_list:
-            alist.append((from_start, to_start))
-
-    # in HTML files, the 'from' and 'to' are guaranteed to be in order, so
-    # this code is slightly different from pdftxtparser.paras_to_fromto_lists.
-    # otherwise, should order by 'to_start'
-    sorted_alist = sorted(alist)
-
-    from_list = [a for a,b in sorted_alist]
-    to_list = [b for a,b in sorted_alist]
-    return from_list, to_list
 
 witness_pat = re.compile(r'(w i t n e s s e t h|witnesseth|recitals?\:?|r e c i t a l( s)?(\s*\:)?)', re.IGNORECASE)
 # 'background statement'

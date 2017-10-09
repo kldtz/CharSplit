@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 
 from kirke.utils import stopwordutils, mathutils, entityutils
-from kirke.docstruct import docstructutils
+from kirke.docstruct import docutils
 
 class EbEntityType(Enum):
     PERSON = 1
@@ -292,8 +292,7 @@ def update_ebsents_with_sechead(ebsent_list, paras_with_attrs):
 
     while para_i < len_paras and ebsent_i < len_ebsents:
         span_se_list, line, attrs = paras_with_attrs[para_i]
-
-        (para_from_start, para_from_end), (para_to_start, para_to_end) = docstructutils.span_se_list_to_fromto(span_se_list)
+        (para_from_start, para_from_end), (para_to_start, para_to_end) = docutils.span_frto_list_to_fromto(span_se_list)
 
         if para_to_start == para_to_end:  # empty line, move on
             para_i += 1
