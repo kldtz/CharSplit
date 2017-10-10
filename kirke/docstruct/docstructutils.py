@@ -2,7 +2,7 @@ import re
 from typing import List
 
 from kirke.utils import engutils, stopwordutils, strutils
-from kirke.docstruct import pdfoffsets, secheadutils
+from kirke.docstruct import secheadutils
 from kirke.ebrules import addresses
 
 # TODO, jshaw
