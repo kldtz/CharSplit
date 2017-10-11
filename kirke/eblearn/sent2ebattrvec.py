@@ -137,7 +137,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
         #     print('ner = ' + str(ner))
         if ner == 'PERSON':
             has_person = True
-        elif ner == 'LOCATION':
+        elif ner == 'LOCATION' or ner == 'LUG':
             has_location = True
         elif ner == 'ORGANIZATION':
             has_org = True
