@@ -12,7 +12,7 @@ from typing import List
 
 from sklearn.externals import joblib
 
-from kirke.docstruct import docutils, fromtomapper
+from kirke.docstruct import docutils, fromtomapper, htmltxtparser
 from kirke.eblearn import ebannotator, ebtrainer, scutclassifier, lineannotator
 from kirke.ebrules import rateclassifier, titles, parties, dates
 from kirke.utils import osutils, strutils, evalutils, ebantdoc2
@@ -301,6 +301,32 @@ class EbRunner:
 
 
     def apply_line_annotators(self, prov_labels_map, eb_antdoc, work_dir):
+        if eb_antdoc.doc_format == EbDocFormat.pdf:
+            # For PDF files, we use *.paraline.txt as the input to lineannotator.
+            # We simply redo the whole processing to get the input to lineannotator
+            # using htmltxtparser instead of coding the necessary logic again on PDF.
+            txt_base_fname = os.path.basename(eb_antdoc.file_id)
+            paraline_fname = txt_base_fname.replace('.txt', '.paraline.txt')
+            paras_with_attrs, para_doc_text, _, _ = \
+                    htmltxtparser.parse_document('{}/{}'.format(work_dir, paraline_fname),
+                                                 work_dir=work_dir,
+                                                 is_combine_line=False)
+
+            fromto_mapper = fromtomapper.paras_to_fromto_mapper_sorted_by_from(paras_with_attrs)
+            origin_sx_lnpos_list, nlp_sx_lnpos_list = fromtomapper.paras_to_fromto_lists(paras_with_attrs)
+
+            # there is no offset map because paraline is the same
+            self.apply_line_annotators_aux(prov_labels_map, paras_with_attrs, para_doc_text,
+                                           nlp_sx_lnpos_list, origin_sx_lnpos_list)
+        else:
+            self.apply_line_annotators_aux(prov_labels_map, eb_antdoc.paras_with_attrs, eb_antdoc.nlp_text,
+                                           eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
+
+
+    # TODO, remove later, this is for html, original
+    # NLP text doesn't always work for PDF because blanks lines sometime cause
+    # whole page to be the same paragraph
+    def apply_line_annotators_aux_orig(self, prov_labels_map, eb_antdoc, work_dir):
 
         fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
 
@@ -330,7 +356,58 @@ class EbRunner:
             xx_effective_date_list = []
             xx_date_list = []
             fromto_mapper.adjust_fromto_offsets(date_ant_list)
-            date_ant_list = date_ant_list
+
+            for antx in date_ant_list:
+                if antx['label'] == 'effectivedate':
+                    xx_effective_date_list.append(antx)
+                else:
+                    xx_date_list.append(antx)
+            if xx_effective_date_list:
+                prov_labels_map['effectivedate'] = xx_effective_date_list
+                ## replace date IFF classification date is very large
+                ## replace the case wehre "1001" is matched as a date, with prob 0.4
+                ## This modification is anecdotal, not firmly verified.
+                ## this is hacking on the date threshold.
+                # ml_date = prov_labels_map.get('date')
+                # print("ml_date = {}".format(ml_date))
+                # if ml_date and ml_date[0]['prob'] <= 0.5:
+                #    prov_labels_map['date'] = []  # let override later in update_dates_by_domain_rules()
+                # prov_labels_map['effectivedate'] = xx_effective_date_list
+            if xx_date_list:
+                prov_labels_map['date'] = xx_date_list
+
+
+    def apply_line_annotators_aux(self, prov_labels_map, paraline_with_attrs, paraline_text,
+                                      paraline_sx_lnpos_list, origin_sx_lnpos_list):
+
+        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', paraline_sx_lnpos_list, origin_sx_lnpos_list)
+
+        # title works on the para_doc_text, not original text. so the
+        # offsets needs to be adjusted, just like for text4nlp stuff.
+        # The offsets here differs from above because of line break differs.
+        # As a result, probably more page numbers are detected correctly and skipped.
+        title_ant_list = self.title_annotator.annotate_antdoc(paraline_with_attrs,
+                                                              paraline_text)
+
+        # we always replace the title using rules
+        fromto_mapper.adjust_fromto_offsets(title_ant_list)
+        prov_labels_map['title'] = title_ant_list
+
+        party_ant_list = self.party_annotator.annotate_antdoc(paraline_with_attrs,
+                                                              paraline_text)
+
+        # if rule found parties, replace it.  Otherwise, keep the old ones
+        if party_ant_list:
+            fromto_mapper.adjust_fromto_offsets(party_ant_list)
+            prov_labels_map['party'] = party_ant_list
+
+        # comment out all the date code below to disable applying date rule
+        date_ant_list = self.date_annotator.annotate_antdoc(paraline_with_attrs,
+                                                            paraline_text)
+        if date_ant_list:
+            xx_effective_date_list = []
+            xx_date_list = []
+            fromto_mapper.adjust_fromto_offsets(date_ant_list)
 
             for antx in date_ant_list:
                 if antx['label'] == 'effectivedate':
@@ -423,7 +500,8 @@ class EbRunner:
             prev_provision_model_fname = self.provision_custom_model_fn_map[provision]
             if prev_provision_model_fname != full_model_fname:
                 logging.info("removing old customized model file, '%s', %s.", provision, prev_provision_model_fname)
-                os.remove(prev_provision_model_fname)
+                if os.path.isfile(prev_provision_model_fname):
+                    os.remove(prev_provision_model_fname)
                 self.provision_custom_model_fn_map[provision] = full_model_fname
                 # the old timestamp for the removed file doesn't matter.
                 # tmp_base_fname = os.path.basename(prev_provision_model_fname)

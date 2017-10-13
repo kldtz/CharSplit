@@ -450,6 +450,7 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
     paraline_text = '\n'.join(out_line_list)
 
     if debug_mode:
+        # paraline IS NOT the same as nlp, paraline doesn't remove page num
         pdf_nlp_txt_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.nlp.txt'))
         txtreader.dumps(paraline_text, pdf_nlp_txt_fn)
         print('wrote {}'.format(pdf_nlp_txt_fn), file=sys.stderr)

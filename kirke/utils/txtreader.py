@@ -1,7 +1,7 @@
 
 import os
 import re
-from typing import List
+from typing import Iterator, List, Tuple
 
 # change all nbsp to regular spaces
 def loads(file_name):
@@ -15,7 +15,7 @@ def dumps(doc_text, file_name):
         fout.write(doc_text)
 
 
-def load_lines_with_offsets(file_name: str):
+def load_lines_with_offsets(file_name: str) -> Iterator[Tuple[int, int, str]]:
     offset = 0
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
@@ -26,9 +26,17 @@ def load_lines_with_offsets(file_name: str):
             end = offset + orig_length - 1   # remove eoln
 
             yield offset, end, new_line
-                
+
             offset += orig_length
 
+def text_to_lines_with_offsets(text: str) -> Iterator[Tuple[int, int, str]]:
+    offset = 0
+    lines = text.split('\n')
+    for line in lines:
+        line_len = len(line)
+        yield offset, offset + line_len, line
+        
+        offset += line_len + 1
 
 # return list of page offsets, and list of list of line offsets
 def load_page_lines_with_offsets(file_name: str):

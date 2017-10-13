@@ -167,7 +167,9 @@ def lineinfos_to_paras(lineinfos):
                         else:
                             omit_list.append(i-1)
                             if i - 2 >= 0:
-                                _, _, prev_notempty_line, _ = tmp_list[i-2]
+                                _, _, tmp_prev_notempty_line, _ = tmp_list[i-2]
+                                if tmp_prev_notempty_line:
+                                    prev_notempty_line = tmp_prev_notempty_line
                             else:
                                 prev_notempty_line = 'Not Empty Line.'
                     if i + 1 < len_tmp_list:

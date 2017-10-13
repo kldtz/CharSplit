@@ -402,14 +402,18 @@ def pdf_to_ebantdoc2(txt_file_name,
 
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)
 
+    # paras2 here is based on information from pdfbox.
+    # Current pdfbox outputs lines with only spaces, so it sometime put the text
+    # of a whole page as one block, with lines with only spaces as textual lines.
+    # To preserve the original annotation performance, we still use this not-so-great
+    # txt file as input to corenlp.
+    # A better input file could be *.paraline.txt, which is used for lineannotator.
+    # In *.paraline.txt, each line is a paragraph, based on some semi-English heuristics.
+    # Section header for *.praline.txt is much better than trying to identify section for
+    # pages with only 1 block.  Cannot really switch to *.paraline.txt now because double-lined text
+    # might cause more trouble.
     paras2_with_attrs, para2_doc_text, gap2_span_list = \
         pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir, debug_mode=False)
-
-    # I am a little messed up on from_to lists
-    # not sure exactly what "from" means, original text or nlp text
-    # Different from htmltxtparser.paras_to_fromto_lists(), the from might be
-    # out of order due to docstructuring
-    # to_list, from_list = pdftxtparser.paras_to_fromto_lists(paras2_with_attrs)
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para2_doc_text, text4nlp_fn)

@@ -13,12 +13,15 @@ logging.basicConfig(level=logging.INFO,
 
 def upload_train_dir(url_st, upload_dir):
     txt_fnames, ant_fnames = [], []
+    offsets_fnames = []
     for file in os.listdir(upload_dir):
         fname = '{}/{}'.format(args.upload_dir, file)
         if file.endswith(".txt"):
             txt_fnames.append(fname)
         elif file.endswith(".ant"):
             ant_fnames.append(fname)
+        elif file.endswith(".offsets.json"):
+            offsets_fnames.append(fname)
 
     if not txt_fnames:
         print("cannot find any .txt files", file=sys.stderr)
@@ -26,11 +29,18 @@ def upload_train_dir(url_st, upload_dir):
 
     file_tuple_list = []
     ant_fname_set = set(ant_fnames)
+    offsets_fname_set = set(offsets_fnames)
     for txt_fname in txt_fnames:
         ant_fname = txt_fname.replace('.txt', '.ant')
+        offsets_fname = txt_fname.replace('.txt', '.offsets.json')
         if ant_fname in ant_fname_set:
             file_tuple_list.append(('file', open(txt_fname, 'rt', encoding='utf-8')))
+            print("uploading [{}]".format(txt_fname))
             file_tuple_list.append(('file', open(ant_fname, 'rt', encoding='utf-8')))
+            print("uploading [{}]".format(ant_fname))
+            if offsets_fname in offsets_fname_set:
+                print("uploading [{}]".format(offsets_fname))
+                file_tuple_list.append(('file', open(offsets_fname, 'rt', encoding='utf-8')))
         else:
             print("cannot find matching ant file for {}".format(txt_fname), file=sys.stderr)
 
