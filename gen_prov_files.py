@@ -9,7 +9,6 @@ from collections import defaultdict
 
 from sklearn.model_selection import train_test_split
 
-from kirke.eblearn import ebtext2antdoc
 from kirke.utils import splittrte, osutils
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -52,6 +51,7 @@ if __name__ == '__main__':
     provfile_dir = 'dir-provfiles'
     if args.provfiles_dir is not None:
         provfile_dir = args.provfiles
+    osutils.mkpath(provfile_dir)
 
     model_dir_list = 'dir-model,dir-scut-model'.split(',')
     if args.model_dirs is not None:
