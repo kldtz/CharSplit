@@ -30,12 +30,11 @@ class ProvisionAnnotator:
         tp, fn, fp, tn = 0, 0, 0, 0
 
         for ebantdoc in ebantdoc_list:
-            ant_list = self.annotate_antdoc(ebantdoc, threshold)
-            print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
+            #print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
             # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
-
+            ant_list = self.annotate_antdoc(ebantdoc, threshold=self.threshold, prov_human_ant_list=prov_human_ant_list)
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -43,13 +42,15 @@ class ProvisionAnnotator:
                 xtp, xfn, xfp, xtn = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
-                                                                     ebantdoc.get_text(),
+                                                                     ebantdoc,
+                                                                     self.threshold,
                                                                      diagnose_mode=True)
             else:
                 xtp, xfn, xfp, xtn = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
-                                                            ebantdoc.get_text(),
+                                                            ebantdoc,
+                                                            self.threshold,
                                                             diagnose_mode=True)
             tp += xtp
             fn += xfn
@@ -93,7 +94,7 @@ class ProvisionAnnotator:
         return tmp_eval_status
 
 
-    def annotate_antdoc(self, eb_antdoc, threshold=None):
+    def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None):
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
         # print("txt_fn = '{}', vec_size= {}, ant_list = {}".format(txt_fn,
@@ -133,6 +134,7 @@ class ProvisionAnnotator:
         prov_annotations = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.text,
                                                                          prob_attrvec_list,
                                                                          self.threshold,
-                                                                         provision=prov)
+                                                                         provision=prov,
+                                                                         prov_human_ant_list=prov_human_ant_list)
 
         return prov_annotations
