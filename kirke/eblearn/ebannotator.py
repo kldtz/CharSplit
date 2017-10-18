@@ -25,7 +25,8 @@ class ProvisionAnnotator:
     # pylint: disable=R0914
     def test_antdoc_list(self, ebantdoc_list, threshold=None):
         logging.debug('test_document_list')
-
+        if not threshold:
+            threshold = self.threshold
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
 
