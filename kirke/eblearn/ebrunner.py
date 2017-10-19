@@ -28,7 +28,6 @@ def annotate_provision(eb_annotator, eb_antdoc):
 def test_provision(eb_annotator, eb_antdoc_list, threshold):
     return eb_annotator.test_antdoc_list(eb_antdoc_list, threshold)
 
-
 # def annotate_provision(eb_runner, file_name):
 #     return eb_runner.annotate_document(file_name)
 

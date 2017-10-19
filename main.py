@@ -222,7 +222,7 @@ if __name__ == '__main__':
     parser.add_argument('--custom_model_dir', required=True, help='output directory for custom trained models')
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
-    parser.add_argument('--threshold', type=float, help='threshold for annotator')
+    parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
 
     args = parser.parse_args()
     cmd = args.cmd
