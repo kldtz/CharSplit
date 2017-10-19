@@ -34,26 +34,28 @@ def calc_precision_recall_f1(tn, fp, fn, tp, title):
 def calc_pred_status(pred_id_val_list, gold_id_val_map, debug_mode=False):
     tn, fp, fn, tp = 0, 0, 0, 0
 
-    for pred_id, pred_val, pred_score in pred_id_val_list:
+    for pred_tuple in pred_id_val_list:
+        pred_id = pred_tuple[0]
+        pred_val = pred_tuple[1]
         gval = gold_id_val_map[pred_id]
         if gval == 1:
             if pred_val == 1:
                 tp += 1
-                if debug_mode:
-                    print('{}\t{}\t{}\t{}'.format('TP', pred_id, pred_val, pred_score))
+                pred_status = 'TP'
             else:
                 fn += 1
-                if debug_mode:
-                    print('{}\t{}\t{}\t{}'.format('xxFN', pred_id, pred_val, pred_score))
+                pred_status = 'xxFN'
         else:
             if pred_val == 1:
                 fp += 1
-                if debug_mode:
-                    print('{}\t{}\t{}\t{}'.format('xxFP', pred_id, pred_val, pred_score))
+                pred_status = 'xxFP'
             else:
                 tn += 1
-                if debug_mode:
-                    print('{}\t{}\t{}\t{}'.format('TN', pred_id, pred_val, pred_score))
+                pred_status = 'TN'
+        if debug_mode:
+            pred_st_list = [str(x) for x in pred_tuple]
+            print('{}\t{}'.format(pred_status, '\t'.join(pred_st_list)))
+            
     title = 'pred status'
     prec, recall, f1 = calc_precision_recall_f1(tn, fp, fn, tp, title)
     status = {'confusion_matrix': {'tn': tn, 'fp': fp, 'fn': fn, 'tp': tp},
@@ -90,10 +92,12 @@ if __name__ == '__main__':
             line = line.strip()
             cols = line.split('\t')
 
-            doc_id = cols[0]
-            binary_val = int(cols[1])
-            score = float(cols[2])            
-            pred_id_val_list.append((doc_id, binary_val, score))
+            #doc_id = cols[0]
+            #binary_val = int(cols[1])
+            # score = float(cols[2])
+            cols[1] = int(cols[1])
+            # assume (doc_id, binary_val, _...)
+            pred_id_val_list.append(tuple(cols))
 
     result = calc_pred_status(pred_id_val_list, gold_id_val_map, debug_mode=True)
     pprint.pprint(result)
