@@ -146,7 +146,7 @@ def gen_provision_overrides(provision, sent_st_list):
 class EbPostPredictProcessing(ABC):
 
     @abstractmethod
-    def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None):
+    def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None, prov_human_ant_list=None):
         pass
 
 
@@ -187,13 +187,14 @@ class PostPredPartyProc(EbPostPredictProcessing):
         self.provision = 'party'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 for entity in cx_prob_attrvec.entities:
                     if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
 
@@ -747,13 +748,14 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
         self.provision = 'ea_employer'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 employer_matched_span = extract_ea_employer(cx_prob_attrvec.start,
                                                             cx_prob_attrvec.end,
                                                             cx_prob_attrvec.entities,
@@ -778,13 +780,14 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
         self.provision = 'ea_employee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold threshold or len(overlap) > 0:
                 employee_matched_span = extract_ea_employee(cx_prob_attrvec.start,
                                                             cx_prob_attrvec.end,
                                                             cx_prob_attrvec.entities,
@@ -808,13 +811,14 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
         self.provision = 'lic_licensee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 licensee_matched_span = extract_lic_licensee(cx_prob_attrvec.start,
                                                              cx_prob_attrvec.end,
                                                              cx_prob_attrvec.entities,
@@ -839,13 +843,14 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
         self.provision = 'lic_licensor'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 licensor_matched_span = extract_lic_licensor(cx_prob_attrvec.start,
                                                              cx_prob_attrvec.end,
                                                              cx_prob_attrvec.entities,
@@ -870,13 +875,14 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
         self.provision = 'la_borrower'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 borrower_matched_span = extract_la_borrower(cx_prob_attrvec.start,
                                                              cx_prob_attrvec.end,
                                                              cx_prob_attrvec.entities,
@@ -901,13 +907,14 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
         self.provision = 'la_lender'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 lender_matched_span = extract_la_lender(cx_prob_attrvec.start,
                                                              cx_prob_attrvec.end,
                                                              cx_prob_attrvec.entities,
@@ -932,13 +939,14 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
         self.provision = 'la_agent_trustee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 agent_trustee_matched_span = extract_la_agent_trustee(cx_prob_attrvec.start,
                                                                       cx_prob_attrvec.end,
                                                                       cx_prob_attrvec.entities,
@@ -962,13 +970,14 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
         self.provision = 'choiceoflaw'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 anttext = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
                 state_se_tuple_list = entityutils.extract_unique_states(anttext)
                 if state_se_tuple_list:
@@ -1003,13 +1012,14 @@ class PostPredTitleProc(EbPostPredictProcessing):
         self.provision = 'title'
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 anttext = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
                 mat = TITLE_PAT.match(anttext)
                 if mat:
@@ -1046,7 +1056,7 @@ class PostPredBestDateProc(EbPostPredictProcessing):
     # TODO, jshaw, it seems that in the original code PythonClassifier.java
     # the logic is to keep only the first date, not all dates in a doc
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1080,7 +1090,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
         self.threshold = 0.5
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1178,7 +1188,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                          text=text).to_dict()
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
