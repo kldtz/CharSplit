@@ -2,7 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import List
 
-from kirke.utils import strutils, entityutils, stopwordutils, mathutils
+from kirke.utils import evalutils, strutils, entityutils, stopwordutils, mathutils
 from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates
@@ -157,14 +157,15 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
         self.provision = 'default'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            if cx_prob_attrvec.prob >= threshold:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:        
                 tmp_provision = provision if provision else self.provision
                 ant_result.append(AntResult(label=tmp_provision,
                                             prob=cx_prob_attrvec.prob,
