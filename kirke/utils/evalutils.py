@@ -7,6 +7,8 @@ from kirke.utils import mathutils
 # label_start_end_list is of type prov_annotation_list
 def find_annotation_overlap(start, end, label_start_end_list):
     result_list = []
+    if not label_start_end_list:
+      return result_list
     for ant in label_start_end_list:
         if mathutils.start_end_overlap((start, end), (ant.start, ant.end)):
             result_list.append(ant)
