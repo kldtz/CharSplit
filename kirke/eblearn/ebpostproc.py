@@ -787,7 +787,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
             overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold threshold or len(overlap) > 0:
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 employee_matched_span = extract_ea_employee(cx_prob_attrvec.start,
                                                             cx_prob_attrvec.end,
                                                             cx_prob_attrvec.entities,
