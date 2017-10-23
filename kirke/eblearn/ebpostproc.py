@@ -173,7 +173,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                             end=cx_prob_attrvec.end,
                                             # pylint: disable=line-too-long
                                             text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...').to_dict())
-        return ant_result
+        return ant_result, self.threshold
 
 # Note from PythonClassifier.java:
 # The NER seems to pick up the bare word LLC, INC, and CORP as parties sometimes.  This RE
@@ -206,7 +206,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                     end=entity.end,
                                                     # pylint: disable=line-too-long
                                                     text=strutils.remove_nltab(entity.text)).to_dict())
-        return ant_result
+        return ant_result, self.threshold
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
 
@@ -770,7 +770,7 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result
+        return ant_result, self.threshold
 
 
 # pylint: disable=R0903
@@ -802,7 +802,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result
+        return ant_result, self.threshold
 
 # pylint: disable=R0903
 class PostPredLicLicenseeProc(EbPostPredictProcessing):
@@ -833,7 +833,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result
+        return ant_result, self.threshold
 
 
 # pylint: disable=R0903
@@ -865,7 +865,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result
+        return ant_result, self.threshold
 
 
 # pylint: disable=R0903
@@ -897,7 +897,7 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result
+        return ant_result, self.threshold
 
 
 # pylint: disable=R0903
@@ -929,7 +929,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result
+        return ant_result, self.threshold
 
 
 # pylint: disable=R0903
@@ -961,7 +961,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result
+        return ant_result, self.threshold
 
 
 class PostPredChoiceOfLawProc(EbPostPredictProcessing):
@@ -996,7 +996,7 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
                                                 start=cx_prob_attrvec.start,
                                                 end=cx_prob_attrvec.end,
                                                 text=anttext).to_dict())
-        return ant_result
+        return ant_result, self.threshold
 
 
 # Note from PythonClassifier.java:
@@ -1030,20 +1030,26 @@ class PostPredTitleProc(EbPostPredictProcessing):
                                                 start=tmp_start,
                                                 end=tmp_start + len(tmp_title),
                                                 text=tmp_title).to_dict())
-                    return ant_result
-        return ant_result
+                    return ant_result, self.threshold
+        return ant_result, self.threshold
 
 
 # used by both PostPredDateProc, PostPredEffectiveDate
-def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold) -> ConciseProbAttrvec:
+def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold, prov_human_ant_list=None) -> ConciseProbAttrvec:
     best_prob = 0
     best = None
+    not_best = []
+    if not prov_human_ant_list:
+        overlap = []
     for cx_prob_attrvec in prob_attrvec_list:
-        if cx_prob_attrvec.prob >= threshold:   # this is not threshold from top
+        overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+        if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:   # this is not threshold from top
             if cx_prob_attrvec.prob > best_prob:
                 best_prob = cx_prob_attrvec.prob
                 best = cx_prob_attrvec
-    return best
+            else:
+                not_best.append(cx_prob_attrvec)
+    return best, not_best
 
 
 # pylint: disable=R0903
@@ -1062,25 +1068,35 @@ class PostPredBestDateProc(EbPostPredictProcessing):
                                                           threshold)
 
         best_date_sent = get_best_date(merged_prob_attrvec_list,
-                                       self.threshold)
+                                       threshold,
+                                       prov_human_ant_list=prov_human_ant_list)
 
         ant_result = []
         if best_date_sent:
-            for entity in best_date_sent.entities:
-                if entity.ner == EbEntityType.DATE.name:
-                    ant_rx = AntResult(label=self.provision,
-                                       prob=best_date_sent.prob,
-                                       start=entity.start,
-                                       end=entity.end,
-                                       # pylint: disable=line-too-long
-                                       text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
-                    ant_result.append(ant_rx)
+            all_entities = [x.ner for x in best_date_sent.entities]
+            if EbEntityType.DATE.name not in all_entities:
+                ant_result.append(AntResult(label=self.provision,
+                                            prob=0.0,
+                                            start=best_date_sent.start,
+                                            end=best_date_sent.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(doc_text[best_date_sent.start:best_date_sent.end])).to_dict())
+            else:
+                for entity in best_date_sent.entities:
+                    if entity.ner == EbEntityType.DATE.name:
+                        ant_rx = AntResult(label=self.provision,
+                                           prob=best_date_sent.prob,
+                                           start=entity.start,
+                                           end=entity.end,
+                                           # pylint: disable=line-too-long
+                                           text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
+                        ant_result.append(ant_rx)
 
-                    # print("post_process, bestDate({}) = {}".format(self.provision, ant_result))
-                    return ant_result
+                        # print("post_process, bestDate({}) = {}".format(self.provision, ant_result))
+                        #return ant_result
 
         # print("post_process, bestDate2({}) = {}".format(self.provision, ant_result))
-        return ant_result
+        return ant_result, self.threshold
 
 
 class PostPredEffectiveDateProc(EbPostPredictProcessing):
@@ -1095,38 +1111,67 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
-        best_effectivedate_sent = get_best_date(merged_prob_attrvec_list,
-                                                self.threshold)
-
+        best_effectivedate_sent, not_best = get_best_date(merged_prob_attrvec_list,
+                                                threshold,
+                                                prov_human_ant_list=prov_human_ant_list)
         ant_result = []
+        for sent in not_best:
+            ant_result.append(AntResult(label=self.provision,
+                                            prob=0.0,
+                                            start=sent.start,
+                                            end=sent.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(doc_text[sent.start:sent.end])).to_dict())
         if best_effectivedate_sent:
+            #print(">>>", doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])
             first = None
             first_after_effective = None
+            all_entities = [x.ner for x in best_effectivedate_sent.entities]
+            if EbEntityType.DATE.name not in all_entities:
+                #print("NO DATE OR NO ENTITIES", doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])
+                ant_result.append(AntResult(label=self.provision,
+                                            prob=0.0,
+                                            start=best_effectivedate_sent.start,
+                                            end=best_effectivedate_sent.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])).to_dict())
+            else:
+                for entity in best_effectivedate_sent.entities:
+                    if entity.ner == EbEntityType.DATE.name:
+                        #print("ENTITY IS DATE", doc_text[entity.start:entity.end])
+                        prior_text = doc_text[best_effectivedate_sent.start:entity.start]
+                        has_prior_text_effective = 'effective' in prior_text.lower()
+                        ant_rx = AntResult(label=self.provision,
+                                           prob=best_effectivedate_sent.prob,
+                                           start=entity.start,
+                                           end=entity.end,
+                                           # pylint: disable=line-too-long
+                                           text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
+                        if not first:
+                            #print("above is first")
+                            first = ant_rx
+                        if has_prior_text_effective and not first_after_effective:
+                            #print("above is first_after_effective")
+                            first_after_effective = ant_rx
 
-            for entity in best_effectivedate_sent.entities:
-                if entity.ner == EbEntityType.DATE.name:
-                    prior_text = doc_text[best_effectivedate_sent.start:entity.start]
-                    has_prior_text_effective = 'effective' in prior_text.lower()
-
-                    ant_rx = AntResult(label=self.provision,
-                                       prob=best_effectivedate_sent.prob,
-                                       start=entity.start,
-                                       end=entity.end,
-                                       # pylint: disable=line-too-long
-                                       text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
-                    if not first:
-                        first = ant_rx
-                    if has_prior_text_effective and not first_after_effective:
-                        first_after_effective = ant_rx
-
-            if first_after_effective:
-                ant_result.append(first_after_effective)
-            elif first:
-                ant_result.append(first)
+                if first_after_effective:
+                    #print("FIRST AFTER EFFECTIVE", doc_text[first_after_effective["start"]:first_after_effective["end"]], best_effectivedate_sent.prob)
+                    ant_result.append(first_after_effective)
+                elif first:
+                    #print("FIRST", doc_text[first["start"]:first["end"]], best_effectivedate_sent.prob)
+                    ant_result.append(first)
+                else:
+                    #print("NO FIRST", doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])
+                    ant_result.append(AntResult(label=self.provision,
+                                            prob=0.0,
+                                            start=best_effectivedate_sent.start,
+                                            end=best_effectivedate_sent.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])).to_dict())
 
         # print("post_process, effectivedate({}) = {}".format(self.provision, ant_result))
 
-        return ant_result
+        return ant_result, self.threshold
 
 class PostPredLeaseDateProc(EbPostPredictProcessing):
 
@@ -1272,7 +1317,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                                            (0, len(line))))
 
         # Return results list
-        return ant_result
+        return ant_result, self.threshold
     
 
 PROVISION_POSTPROC_MAP = {
