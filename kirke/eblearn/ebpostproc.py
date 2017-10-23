@@ -1044,11 +1044,12 @@ def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold, prov_h
     for cx_prob_attrvec in prob_attrvec_list:
         overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
         if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:   # this is not threshold from top
+            not_best.append(cx_prob_attrvec)
             if cx_prob_attrvec.prob > best_prob:
                 best_prob = cx_prob_attrvec.prob
                 best = cx_prob_attrvec
-            else:
-                not_best.append(cx_prob_attrvec)
+    if best:
+        not_best.remove(best)
     return best, not_best
 
 
@@ -1122,23 +1123,25 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                                             end=sent.end,
                                             # pylint: disable=line-too-long
                                             text=strutils.remove_nltab(doc_text[sent.start:sent.end])).to_dict())
+        
         if best_effectivedate_sent:
-            #print(">>>", doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])
             first = None
             first_after_effective = None
             all_entities = [x.ner for x in best_effectivedate_sent.entities]
-            if EbEntityType.DATE.name not in all_entities:
+            sent_overlap = evalutils.find_annotation_overlap(best_effectivedate_sent.start, best_effectivedate_sent.end, prov_human_ant_list)
+            if EbEntityType.DATE.name not in all_entities and len(sent_overlap) > 0:
                 #print("NO DATE OR NO ENTITIES", doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])
+                
                 ant_result.append(AntResult(label=self.provision,
                                             prob=0.0,
                                             start=best_effectivedate_sent.start,
                                             end=best_effectivedate_sent.end,
                                             # pylint: disable=line-too-long
                                             text=strutils.remove_nltab(doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])).to_dict())
+               
             else:
                 for entity in best_effectivedate_sent.entities:
                     if entity.ner == EbEntityType.DATE.name:
-                        #print("ENTITY IS DATE", doc_text[entity.start:entity.end])
                         prior_text = doc_text[best_effectivedate_sent.start:entity.start]
                         has_prior_text_effective = 'effective' in prior_text.lower()
                         ant_rx = AntResult(label=self.provision,
@@ -1148,27 +1151,30 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                                            # pylint: disable=line-too-long
                                            text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
                         if not first:
-                            #print("above is first")
                             first = ant_rx
                         if has_prior_text_effective and not first_after_effective:
-                            #print("above is first_after_effective")
                             first_after_effective = ant_rx
-
                 if first_after_effective:
-                    #print("FIRST AFTER EFFECTIVE", doc_text[first_after_effective["start"]:first_after_effective["end"]], best_effectivedate_sent.prob)
-                    ant_result.append(first_after_effective)
-                elif first:
-                    #print("FIRST", doc_text[first["start"]:first["end"]], best_effectivedate_sent.prob)
-                    ant_result.append(first)
-                else:
-                    #print("NO FIRST", doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])
-                    ant_result.append(AntResult(label=self.provision,
+                    first_overlap = evalutils.find_annotation_overlap(first_after_effective["start"], first_after_effective["end"], prov_human_ant_list)
+                    if len(sent_overlap) > 0 and len(first_overlap) == 0:
+                        ant_result.append(AntResult(label=self.provision,
                                             prob=0.0,
                                             start=best_effectivedate_sent.start,
                                             end=best_effectivedate_sent.end,
                                             # pylint: disable=line-too-long
                                             text=strutils.remove_nltab(doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])).to_dict())
-
+                    ant_result.append(first_after_effective)
+                elif first:
+                    first_overlap = evalutils.find_annotation_overlap(first["start"], first["end"], prov_human_ant_list)
+                    if len(sent_overlap) > 0 and len(first_overlap) == 0:
+                        ant_result.append(AntResult(label=self.provision,
+                                            prob=0.0,
+                                            start=best_effectivedate_sent.start,
+                                            end=best_effectivedate_sent.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])).to_dict()) 
+                    ant_result.append(first)
+              
         # print("post_process, effectivedate({}) = {}".format(self.provision, ant_result))
 
         return ant_result, self.threshold
