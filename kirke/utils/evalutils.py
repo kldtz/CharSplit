@@ -107,10 +107,10 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
 # for 'title', we want to match any title annotation
 # if any matched, we passed.  Don't care about any other.
 # pylint: disable=R0914
-def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
+def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, ebantdoc, threshold, diagnose_mode=False):
     tp, fp, tn, fn = 0, 0, 0, 0
     # print("calc_doc_ant_confusion_matrix:")
-
+    txt = ebantdoc.get_text()
     pred_ant_list = []
     for adict in ant_list:
         pred_ant_list.append(AnnotationWithProb(adict['label'],
@@ -172,7 +172,7 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, txt, d
             prob = max([x.prob for x in tp_inst_list])
             print("tp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", tp_txt), str(prob)))
 
-        for i, hant in enumerate(fn_inst_list):
+        for i, hant in enumerate(sorted(fn_inst_map.keys())):
             hstart, hend, _ = hant
             fn_inst_list = fn_inst_map[hant]
             fn_txt = " ".join([txt[x.start:x.end] for x in fn_inst_list])

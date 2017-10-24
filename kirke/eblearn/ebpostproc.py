@@ -173,7 +173,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                             end=cx_prob_attrvec.end,
                                             # pylint: disable=line-too-long
                                             text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...').to_dict())
-        return ant_result, self.threshold
+        return ant_result, threshold
 
 # Note from PythonClassifier.java:
 # The NER seems to pick up the bare word LLC, INC, and CORP as parties sometimes.  This RE
@@ -833,7 +833,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result, self.threshold
+        return ant_result, threshold
 
 
 # pylint: disable=R0903
@@ -865,7 +865,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result, self.threshold
+        return ant_result, threshold
 
 
 # pylint: disable=R0903
@@ -929,7 +929,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result, self.threshold
+        return ant_result, threshold
 
 
 # pylint: disable=R0903
@@ -961,7 +961,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
                                                 text=strutils.remove_nltab(prov_st)).to_dict())
                     break
 
-        return ant_result, self.threshold
+        return ant_result, threshold
 
 
 class PostPredChoiceOfLawProc(EbPostPredictProcessing):
@@ -1030,8 +1030,8 @@ class PostPredTitleProc(EbPostPredictProcessing):
                                                 start=tmp_start,
                                                 end=tmp_start + len(tmp_title),
                                                 text=tmp_title).to_dict())
-                    return ant_result, self.threshold
-        return ant_result, self.threshold
+                    return ant_result, threshold
+        return ant_result, threshold
 
 
 # used by both PostPredDateProc, PostPredEffectiveDate
@@ -1068,7 +1068,7 @@ class PostPredBestDateProc(EbPostPredictProcessing):
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
-        best_date_sent = get_best_date(merged_prob_attrvec_list,
+        best_date_sent, not_best = get_best_date(merged_prob_attrvec_list,
                                        threshold,
                                        prov_human_ant_list=prov_human_ant_list)
 
