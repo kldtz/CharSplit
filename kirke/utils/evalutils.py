@@ -62,10 +62,9 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
     fp_inst_list = []
     fn_inst_map = defaultdict(list)
     tp_fn_set = set([])
-
     for hant in prov_human_ant_list:
         pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
-        if len(pred_overlap_list) > 0:
+        if pred_overlap_list:
             prob = max([x.prob for x in pred_overlap_list])
             if prob >= threshold:
                 tp_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
@@ -73,6 +72,11 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
             else:
                 fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
                 fn += 1
+        else:
+            fn_inst_map[(hant.start, hant.end, hant.label)] = [AnnotationWithProb(hant.label,
+                                                                                  hant.start,
+                                                                                  hant.end,
+                                                                                  0.0)]
         tp_fn_set |= set(pred_overlap_list)
     
     for pant in pred_ant_list:
@@ -127,7 +131,7 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, ebantd
 
     for hant in prov_human_ant_list:
         pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
-        if len(pred_overlap_list) > 0:
+        if pred_overlap_list:
             # This handles the case there a predicted annotation overlap with one
             # or more human annotations.
             prob = max([x.prob for x in pred_overlap_list])
@@ -137,6 +141,11 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, ebantd
             else:
               fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
               fn += 1
+        else:
+            fn_inst_map[(hant.start, hant.end, hant.label)] = [AnnotationWithProb(hant.label,
+                                                                                  hant.start,
+                                                                                  hant.end,
+                                                                                  0.0)]
         tp_fn_set |= set(pred_overlap_list)
 
     for pant in pred_ant_list:
@@ -164,7 +173,6 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, ebantd
 
     # there is no tn, because we deal with only annotations
     if diagnose_mode:
-        print("tp = {}".format(tp))
         for i, hant in enumerate(sorted(tp_inst_map.keys())):
             hstart, hend, _ = hant
             tp_inst_list = tp_inst_map[hant]

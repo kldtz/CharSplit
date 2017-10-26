@@ -2,7 +2,7 @@ import logging
 import time
 
 from kirke.eblearn import ebpostproc
-from kirke.utils import evalutils
+from kirke.utils import evalutils, strutils
 
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
@@ -94,6 +94,17 @@ class ProvisionAnnotator:
 
         return tmp_eval_status
 
+    def recover_fns(self, prov_human_ant_list, doc_text, provision, ant_result):
+        for ant in prov_human_ant_list:
+            fn_ant = ebpostproc.AntResult(label=provision,
+                               prob=0.0,
+                               start=ant.start,
+                               end=ant.end,
+                               text=strutils.remove_nltab(doc_text[ant.start:ant.end]))
+
+            if not evalutils.find_annotation_overlap(ant.start, ant.end, ant_result):
+                ant_result.append(fn_ant)
+        return [x.to_dict() for x in ant_result]
 
     def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None):
         # attrvec_list = eb_antdoc.get_attrvec_list()
@@ -135,5 +146,5 @@ class ProvisionAnnotator:
                                                                          threshold,
                                                                          provision=prov,
                                                                          prov_human_ant_list=prov_human_ant_list)
-
+        prov_annotations = self.recover_fns(prov_human_ant_list, eb_antdoc.text, prov, prov_annotations)
         return prov_annotations, threshold

@@ -164,15 +164,15 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:        
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 tmp_provision = provision if provision else self.provision
                 ant_result.append(AntResult(label=tmp_provision,
                                             prob=cx_prob_attrvec.prob,
                                             start=cx_prob_attrvec.start,
                                             end=cx_prob_attrvec.end,
                                             # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...').to_dict())
+                                            text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...'))
         return ant_result, threshold
 
 # Note from PythonClassifier.java:
@@ -185,6 +185,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
 
     def __init__(self):
         self.provision = 'party'
+        self.threshold = 0.5
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
                      provision=None, prov_human_ant_list=None) -> List[AntResult]:
@@ -193,8 +194,8 @@ class PostPredPartyProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 for entity in cx_prob_attrvec.entities:
                     if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
 
@@ -204,8 +205,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                     prob=cx_prob_attrvec.prob,
                                                     start=entity.start,
                                                     end=entity.end,
-                                                    # pylint: disable=line-too-long
-                                                    text=strutils.remove_nltab(entity.text)).to_dict())
+                                                    text=strutils.remove_nltab(entity.text)))
         return ant_result, self.threshold
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
@@ -754,8 +754,8 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 employer_matched_span = extract_ea_employer(cx_prob_attrvec.start,
                                                             cx_prob_attrvec.end,
                                                             cx_prob_attrvec.entities,
@@ -767,10 +767,9 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                                                text=strutils.remove_nltab(prov_st)))
                     break
-
-        return ant_result, self.threshold
+        return ant_result, threshold
 
 
 # pylint: disable=R0903
@@ -786,8 +785,8 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 employee_matched_span = extract_ea_employee(cx_prob_attrvec.start,
                                                             cx_prob_attrvec.end,
                                                             cx_prob_attrvec.entities,
@@ -799,10 +798,9 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                                                text=strutils.remove_nltab(prov_st)))
                     break
-
-        return ant_result, self.threshold
+        return ant_result, threshold
 
 # pylint: disable=R0903
 class PostPredLicLicenseeProc(EbPostPredictProcessing):
@@ -817,8 +815,8 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 licensee_matched_span = extract_lic_licensee(cx_prob_attrvec.start,
                                                              cx_prob_attrvec.end,
                                                              cx_prob_attrvec.entities,
@@ -830,9 +828,8 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                                                text=strutils.remove_nltab(prov_st)))
                     break
-
         return ant_result, threshold
 
 
@@ -849,8 +846,8 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 licensor_matched_span = extract_lic_licensor(cx_prob_attrvec.start,
                                                              cx_prob_attrvec.end,
                                                              cx_prob_attrvec.entities,
@@ -862,9 +859,8 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                                                text=strutils.remove_nltab(prov_st)))
                     break
-
         return ant_result, threshold
 
 
@@ -881,8 +877,8 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 borrower_matched_span = extract_la_borrower(cx_prob_attrvec.start,
                                                              cx_prob_attrvec.end,
                                                              cx_prob_attrvec.entities,
@@ -894,10 +890,9 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                                                text=strutils.remove_nltab(prov_st)))
                     break
-
-        return ant_result, self.threshold
+        return ant_result, threshold
 
 
 # pylint: disable=R0903
@@ -913,8 +908,8 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 lender_matched_span = extract_la_lender(cx_prob_attrvec.start,
                                                              cx_prob_attrvec.end,
                                                              cx_prob_attrvec.entities,
@@ -926,9 +921,8 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                                                text=strutils.remove_nltab(prov_st)))
                     break
-
         return ant_result, threshold
 
 
@@ -945,8 +939,8 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold:
                 agent_trustee_matched_span = extract_la_agent_trustee(cx_prob_attrvec.start,
                                                                       cx_prob_attrvec.end,
                                                                       cx_prob_attrvec.entities,
@@ -958,9 +952,8 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)).to_dict())
+                                                text=strutils.remove_nltab(prov_st)))
                     break
-
         return ant_result, threshold
 
 
@@ -976,8 +969,8 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 anttext = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
                 state_se_tuple_list = entityutils.extract_unique_states(anttext)
                 if state_se_tuple_list:
@@ -989,14 +982,14 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
                                                     prob=cx_prob_attrvec.prob,
                                                     start=tmp_start,
                                                     end=tmp_end,
-                                                    text=tmp_state).to_dict())
+                                                    text=tmp_state))
                 else:
                     ant_result.append(AntResult(label=self.provision,
                                                 prob=cx_prob_attrvec.prob,
                                                 start=cx_prob_attrvec.start,
                                                 end=cx_prob_attrvec.end,
-                                                text=anttext).to_dict())
-        return ant_result, self.threshold
+                                                text=anttext))
+        return ant_result, threshold
 
 
 # Note from PythonClassifier.java:
@@ -1018,8 +1011,8 @@ class PostPredTitleProc(EbPostPredictProcessing):
 
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold:
                 anttext = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
                 mat = TITLE_PAT.match(anttext)
                 if mat:
@@ -1029,7 +1022,7 @@ class PostPredTitleProc(EbPostPredictProcessing):
                                                 prob=cx_prob_attrvec.prob,
                                                 start=tmp_start,
                                                 end=tmp_start + len(tmp_title),
-                                                text=tmp_title).to_dict())
+                                                text=tmp_title))
                     return ant_result, threshold
         return ant_result, threshold
 
@@ -1038,19 +1031,12 @@ class PostPredTitleProc(EbPostPredictProcessing):
 def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold, prov_human_ant_list=None) -> ConciseProbAttrvec:
     best_prob = 0
     best = None
-    not_best = []
-    if not prov_human_ant_list:
-        overlap = []
     for cx_prob_attrvec in prob_attrvec_list:
-        overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-        if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:   # this is not threshold from top
-            not_best.append(cx_prob_attrvec)
+        if cx_prob_attrvec.prob >= threshold:   # this is not threshold from top
             if cx_prob_attrvec.prob > best_prob:
                 best_prob = cx_prob_attrvec.prob
                 best = cx_prob_attrvec
-    if best:
-        not_best.remove(best)
-    return best, not_best
+    return best
 
 
 # pylint: disable=R0903
@@ -1068,35 +1054,20 @@ class PostPredBestDateProc(EbPostPredictProcessing):
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
-        best_date_sent, not_best = get_best_date(merged_prob_attrvec_list,
+        best_date_sent = get_best_date(merged_prob_attrvec_list,
                                        threshold,
                                        prov_human_ant_list=prov_human_ant_list)
-
         ant_result = []
         if best_date_sent:
-            all_entities = [x.ner for x in best_date_sent.entities]
-            if EbEntityType.DATE.name not in all_entities:
-                ant_result.append(AntResult(label=self.provision,
-                                            prob=0.0,
-                                            start=best_date_sent.start,
-                                            end=best_date_sent.end,
-                                            # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(doc_text[best_date_sent.start:best_date_sent.end])).to_dict())
-            else:
-                for entity in best_date_sent.entities:
-                    if entity.ner == EbEntityType.DATE.name:
-                        ant_rx = AntResult(label=self.provision,
-                                           prob=best_date_sent.prob,
-                                           start=entity.start,
-                                           end=entity.end,
-                                           # pylint: disable=line-too-long
-                                           text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
-                        ant_result.append(ant_rx)
-
-                        # print("post_process, bestDate({}) = {}".format(self.provision, ant_result))
-                        #return ant_result
-
-        # print("post_process, bestDate2({}) = {}".format(self.provision, ant_result))
+            for entity in best_date_sent.entities:
+                if entity.ner == EbEntityType.DATE.name:
+                    ant_result.append(AntResult(label=self.provision,
+                                      prob=best_date_sent.prob,
+                                      start=entity.start,
+                                      end=entity.end,
+                                      # pylint: disable=line-too-long
+                                      text=strutils.remove_nltab(doc_text[entity.start:entity.end])))
+                    return ant_result, self.threshold
         return ant_result, self.threshold
 
 
@@ -1116,67 +1087,28 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                                                 threshold,
                                                 prov_human_ant_list=prov_human_ant_list)
         ant_result = []
-        for sent in not_best:
-            ant_result.append(AntResult(label=self.provision,
-                                            prob=0.0,
-                                            start=sent.start,
-                                            end=sent.end,
-                                            # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(doc_text[sent.start:sent.end])).to_dict())
-        
         if best_effectivedate_sent:
             first = None
             first_after_effective = None
-            all_entities = [x.ner for x in best_effectivedate_sent.entities]
-            sent_overlap = evalutils.find_annotation_overlap(best_effectivedate_sent.start, best_effectivedate_sent.end, prov_human_ant_list)
-            if EbEntityType.DATE.name not in all_entities and len(sent_overlap) > 0:
-                #print("NO DATE OR NO ENTITIES", doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])
-                
-                ant_result.append(AntResult(label=self.provision,
-                                            prob=0.0,
-                                            start=best_effectivedate_sent.start,
-                                            end=best_effectivedate_sent.end,
-                                            # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])).to_dict())
-               
-            else:
-                for entity in best_effectivedate_sent.entities:
-                    if entity.ner == EbEntityType.DATE.name:
-                        prior_text = doc_text[best_effectivedate_sent.start:entity.start]
-                        has_prior_text_effective = 'effective' in prior_text.lower()
-                        ant_rx = AntResult(label=self.provision,
-                                           prob=best_effectivedate_sent.prob,
-                                           start=entity.start,
-                                           end=entity.end,
-                                           # pylint: disable=line-too-long
-                                           text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
-                        if not first:
-                            first = ant_rx
-                        if has_prior_text_effective and not first_after_effective:
-                            first_after_effective = ant_rx
-                if first_after_effective:
-                    first_overlap = evalutils.find_annotation_overlap(first_after_effective["start"], first_after_effective["end"], prov_human_ant_list)
-                    if len(sent_overlap) > 0 and len(first_overlap) == 0:
-                        ant_result.append(AntResult(label=self.provision,
-                                            prob=0.0,
-                                            start=best_effectivedate_sent.start,
-                                            end=best_effectivedate_sent.end,
-                                            # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])).to_dict())
-                    ant_result.append(first_after_effective)
-                elif first:
-                    first_overlap = evalutils.find_annotation_overlap(first["start"], first["end"], prov_human_ant_list)
-                    if len(sent_overlap) > 0 and len(first_overlap) == 0:
-                        ant_result.append(AntResult(label=self.provision,
-                                            prob=0.0,
-                                            start=best_effectivedate_sent.start,
-                                            end=best_effectivedate_sent.end,
-                                            # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(doc_text[best_effectivedate_sent.start:best_effectivedate_sent.end])).to_dict()) 
-                    ant_result.append(first)
-              
-        # print("post_process, effectivedate({}) = {}".format(self.provision, ant_result))
-
+            for entity in best_effectivedate_sent.entities:
+                if entity.ner == EbEntityType.DATE.name:
+                    prior_text = doc_text[best_effectivedate_sent.start:entity.start]
+                    has_prior_text_effective = 'effective' in prior_text.lower()
+                    ant_rx = AntResult(label=self.provision,
+                                       prob=best_effectivedate_sent.prob,
+                                       start=entity.start,
+                                       end=entity.end,
+                                       # pylint: disable=line-too-long
+                                       text=strutils.remove_nltab(doc_text[entity.start:entity.end]))
+                    if not first:
+                        first = ant_rx
+                    if has_prior_text_effective and not first_after_effective:
+                        first_after_effective = ant_rx
+ 
+            if first_after_effective:
+                ant_result.append(first_after_effective)
+            elif first:
+                ant_result.append(first)
         return ant_result, self.threshold
 
 class PostPredLeaseDateProc(EbPostPredictProcessing):
@@ -1236,7 +1168,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
         return AntResult(label=self.provision, prob=cx_prob_attrvec.prob,
                          start=cx_prob_attrvec.start + date[0],
                          end=cx_prob_attrvec.start + date[1],
-                         text=text).to_dict()
+                         text=text)
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
                      provision=None, prov_human_ant_list=None) -> List[AntResult]:
@@ -1245,7 +1177,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                                                           threshold)
         ant_result = []
         for i, cx_prob_attrvec in enumerate(merged_prob_attrvec_list):
-            # Disregard if no reason to consider as a commencement date
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
             line = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
             if not (cx_prob_attrvec.prob >= threshold
                     or self.regexes['end'].search(line)):
@@ -1269,7 +1201,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                 if self.stop_at_one_date:
                     return [ant_result[-1]]
                 continue
-
+ 
             # If an l_commencement term is in the line, take previous date
             for mat in self.regexes['terms'].finditer(line):
                 rv_dates = reversed(date_list)
@@ -1284,7 +1216,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                 if self.stop_at_one_date:
                     return [ant_result[-1]]
                 continue
-
+ 
             # If there is an l_commencement non-term noun, take next date
             for mat in self.regexes['nouns'].finditer(line):
                 date = next((d for d in date_list if d[0] > mat.end()), None)
@@ -1298,7 +1230,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                 if self.stop_at_one_date:
                     return [ant_result[-1]]
                 continue
-
+ 
             # If no date found and next line starts with a date, return that
             if i + 1 < len(merged_prob_attrvec_list):
                 next_attrvec = merged_prob_attrvec_list[i + 1]
@@ -1311,18 +1243,17 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                         next_date = sorted(next_date_list)[0]
                         lr = next_line[:next_date[0]] + next_line[next_date[1]:]
                         if not any(c.isalnum() for c in lr):
+                            next_prob = next_attrvec.prob
+                            next_attrvec.prob = 1.0
                             ant_result.append(self.ant(next_line, next_attrvec,
                                                        next_date))
+                            next_attrvec.prob = next_prob
                             if self.stop_at_one_date:
                                 return [ant_result[-1]]
                             continue
-
-            # Fall through with original line (handles just-date lines)
             if cx_prob_attrvec.prob >= threshold:
                 ant_result.append(self.ant(line, cx_prob_attrvec,
                                            (0, len(line))))
-
-        # Return results list
         return ant_result, self.threshold
     
 
