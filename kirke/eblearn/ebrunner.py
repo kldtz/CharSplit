@@ -585,6 +585,7 @@ class EbRunner:
                                                                self.work_dir)
 
         annotations = {}
+        logs = {}
         with concurrent.futures.ThreadPoolExecutor(8) as executor:
             future_to_provision = {executor.submit(test_provision,
                                                    self.provision_annotator_map[provision],
@@ -593,9 +594,10 @@ class EbRunner:
                                    provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                data = future.result()
+                data, log_json = future.result()
+                logs[provision] = log_json
                 annotations[provision] = data
-        return annotations
+        return annotations, logs
 
     #
     # custom_train_provision_and_evaluate

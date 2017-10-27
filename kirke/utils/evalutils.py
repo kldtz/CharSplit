@@ -1,7 +1,7 @@
 from collections import defaultdict, namedtuple
 import re
 from kirke.utils import mathutils
-
+import time
 # pylint: disable=C0103
 
 # label_start_end_list is of type prov_annotation_list
@@ -50,7 +50,7 @@ AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 
 def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, threshold, diagnose_mode=False):
     txt = ebantdoc.get_text()
     tp, fp, tn, fn = 0, 0, 0, 0
-
+    json_return = {'tp': [], 'fn': [], 'fp': []}
     pred_ant_list = []
     for adict in ant_list:
         pred_ant_list.append(AnnotationWithProb(adict['label'],
@@ -95,6 +95,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
             tp_txt = " ".join([txt[x.start:x.end] for x in tp_inst_list])
             prob = max([x.prob for x in tp_inst_list])
             print("tp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", tp_txt), str(prob)))
+            json_return['tp'].append([linebreaks.sub(" ", tp_txt), prob])
 
         for i, hant in enumerate(sorted(fn_inst_map.keys())):
             hstart, hend, _ = hant
@@ -102,11 +103,12 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
             fn_txt = " ".join([txt[x.start:x.end] for x in fn_inst_list])
             prob = max([x.prob for x in fn_inst_list])
             print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
+            json_return['fn'].append([linebreaks.sub(" ", fn_txt), prob])
 
         for i, pred_ant in enumerate(fp_inst_list):
             print("fp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
-
-    return tp, fn, fp, tn
+            json_return['fp'].append([linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), pred_ant.prob])
+    return tp, fn, fp, tn, json_return
 
 # for 'title', we want to match any title annotation
 # if any matched, we passed.  Don't care about any other.

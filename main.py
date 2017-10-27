@@ -7,7 +7,7 @@ import sys
 import warnings
 import re
 import json
-
+import time
 from collections import defaultdict
 import os
 
@@ -46,14 +46,17 @@ def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_
     if is_scut:
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
         model_file_name = model_dir + '/' +  provision + "_scutclassifier.pkl"
+        log_file_name = model_dir + '/' + provision + "_scutclassifier.log"
     else:
         eb_classifier = provclassifier.ProvisionClassifier(provision)
         model_file_name = model_dir + '/' +  provision + "_provclassifier.pkl"
+        log_file_name = model_dir + '/' + provision + "_provclassifier.log"
 
     ebtrainer.train_eval_annotator_with_trte(provision,
                                              work_dir,
                                              model_dir,
                                              model_file_name,
+                                             log_file_name,
                                              eb_classifier,
                                              is_doc_structure=is_doc_structure)
 
@@ -95,10 +98,13 @@ def test_annotators(provisions, txt_fn_list_fn, word_dir, model_dir, custom_mode
         provision_set = set(provisions.split(','))
 
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
-    eval_status = eb_runner.test_annotators(txt_fn_list_fn, provision_set, threshold)
+    eval_status, log_json = eb_runner.test_annotators(txt_fn_list_fn, provision_set, threshold)
 
     # return some json accuracy info
     pprint(eval_status)
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    log_fn = model_dir + '/'+'_'.join(provision_set)+'-' + timestr + ".log"
+    strutils.dumps(json.dumps(log_json), log_fn)
 
 # test only 1 annotator    
 def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
@@ -116,7 +122,7 @@ def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
 
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(ebantdoc_list)
+    ant_status, _ = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
@@ -139,7 +145,7 @@ def test_title_annotator(txt_fn_list_fn, work_dir, model_file_name):
 
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(ebantdoc_list)
+    ant_status, _ = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status

@@ -34,7 +34,7 @@ def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
 def train_eval_annotator(provision, txt_fn_list,
-                         work_dir, model_dir, model_file_name, eb_classifier,
+                         work_dir, model_dir, model_file_name, log_file_name, eb_classifier,
                          is_doc_structure=False,
                          custom_training_mode=False):
     logging.info("training_eval_annotator(%s) called", provision)
@@ -42,6 +42,7 @@ def train_eval_annotator(provision, txt_fn_list,
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_dir = %s", model_dir)
     logging.info("    model_file_name = %s", model_file_name)
+    logging.info("    log_file_name = %s", log_file_name)
     logging.info("    is_doc_structure= %s", is_doc_structure)
 
     # is_combine_line should be file dependent, PDF than False
@@ -158,7 +159,7 @@ def train_eval_annotator(provision, txt_fn_list,
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(X_test)
+    ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
@@ -167,6 +168,9 @@ def train_eval_annotator(provision, txt_fn_list,
 
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
+    strutils.dumps(json.dumps(log_json), log_fn)
 
     with open('provision_model_stat.tsv', 'a') as pmout:
         pstatus = pred_status['pred_status']
@@ -191,12 +195,13 @@ def train_eval_annotator(provision, txt_fn_list,
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
 def train_eval_annotator_with_trte(provision,
-                                   work_dir, model_dir, model_file_name, eb_classifier,
+                                   work_dir, model_dir, model_file_name, log_file_name, eb_classifier,
                                    is_doc_structure=False):
     logging.info("training_eval_annotator_with_trte(%s) called", provision)
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_dir = %s", model_dir)
     logging.info("    model_file_name = %s", model_file_name)
+    logging.info("    log_file_name = %s", log_file_name)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
     X_train = ebtext2antdoc.doclist_to_ebantdoc_list(train_doclist_fn,
@@ -212,7 +217,7 @@ def train_eval_annotator_with_trte(provision,
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(X_test)
+    ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
@@ -221,6 +226,9 @@ def train_eval_annotator_with_trte(provision,
 
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
+    strutils.dumps(json.dumps(log_json), log_fn)
 
     with open('provision_model_stat.tsv', 'a') as pmout:
         pstatus = pred_status['pred_status']
@@ -257,7 +265,7 @@ def eval_annotator(txt_fn_list, work_dir, model_file_name):
 
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
+    provision_status_map['ant_status'], _ = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     pprint(provision_status_map)
 
@@ -277,7 +285,7 @@ def eval_ml_rule_annotator(txt_fn_list, work_dir, model_file_name):
 
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
+    provision_status_map['ant_status'], _ = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     pprint(provision_status_map)
 
@@ -298,7 +306,7 @@ def eval_line_annotator_with_trte(provision,
     # update the hashmap of annotators
     prov_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
     # we need ebantdoc_list because it has the annotations
-    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(paras_with_attrs_list,
+    provision_status_map['ant_status'], _ = prov_annotator.test_antdoc_list(paras_with_attrs_list,
                                                                          paras_text_list,
                                                                          ebantdoc_list)
 
