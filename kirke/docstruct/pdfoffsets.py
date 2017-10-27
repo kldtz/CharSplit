@@ -120,6 +120,33 @@ class PDFTextDoc:
         print('wrote {}'.format(paged_fname), file=sys.stderr)
 
 
+    # we do not do our own block merging in pwc version
+    def save_debug_lines_pwc(self, extension, work_dir='dir-work'):
+        base_fname = os.path.basename(self.file_name)
+        paged_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+        with open(paged_fname, 'wt') as fout:
+            for page in self.page_list:
+                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
+
+                attr_list = []
+                for attr, value in page.attrs.items():
+                    attr_list.append('{}={}'.format(attr, value))
+                if attr_list:
+                    print('  attrs: {}'.format(', '.join(attr_list)), file=fout)
+
+                prev_block_num = -1
+                for linex in page.line_list:
+
+                    if linex.block_num != prev_block_num:  # this is not obid
+                        print(file=fout)
+                    print('{}\t{}'.format(linex.tostr2(),
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]), file=fout)
+                    prev_block_num = linex.block_num
+
+        print('wrote {}'.format(paged_fname), file=sys.stderr)
+
+
 def sorted_pblocks_by_yStart(pblockinfo_list):
     if not pblockinfo_list:
         return pblockinfo_list
@@ -171,7 +198,12 @@ class PageInfo3:
         prev_yStart = 0
         for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
           ydiff = lineinfo.yStart - prev_yStart
-          num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
+          # it possible for self.avg_single_line_break_ydiff to be 0 when
+          # the document has only vertical lines.
+          if self.avg_single_line_break_ydiff == 0:
+              num_linebreak = 1  # hopeless, default to 1 for now
+          else:
+              num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
           align = jenks.classify(lineinfo.xStart)
           line_text = doc_text[lineinfo.start:lineinfo.end]
           is_english = engutils.classify_english_sentence(line_text)
@@ -205,6 +237,21 @@ class PageInfo3:
         # print("\npage #{}, avg_single_line_ydiff = {}".format(self.page_num, result))
         return result
 
+    def get_blocked_lines(self):
+        if not self.line_list:
+            return []
+        prev_block_num = -1
+        cur_block = []
+        block_list = [cur_block]
+        for linex in self.line_list:
+            if linex.lineinfo.obid != prev_block_num:  # separate blocks
+                if cur_block:
+                    cur_block = []
+                    block_list.append(cur_block)
+            cur_block.append(linex)
+            prev_block_num = linex.lineinfo.obid
+        return block_list
+
 
 class LineInfo3:
 
@@ -223,16 +270,30 @@ class LineInfo3:
             sxStart = strinfo.xStart
             sxEnd = strinfo.xEnd
 
-            # whichever is lowest in the y-axis of page, use that
-            # Not sure what to do when y-axis equal, or very close
-            if syStart < min_yStart:
+            ## Incorrect??
+            ## whichever is lowest in the y-axis of page, use that
+            ## Not sure what to do when y-axis equal, or very close
+            #if syStart < min_yStart:
+            #    min_yStart = syStart
+            #    min_xStart = sxStart
+            #if sxEnd > max_xEnd:
+            #    max_xEnd = sxEnd
+
+            # for a line, str_list should be sorted by xStart, not yStart
+            # do we care about min_yStart??
+            if sxStart < min_xStart:
                 min_yStart = syStart
                 min_xStart = sxStart
-            if sxEnd > sxEnd:
+            if sxEnd > max_xEnd:
                 max_xEnd = sxEnd
+
         self.xStart = min_xStart
         self.xEnd = max_xEnd
         self.yStart = min_yStart
+        # jshaw, maybe this is simpler?
+        # self.xStart = self.strinfo_list[0].xStart
+        # self.yStart = self.strinfo_list[0].yStart
+        #self.xEnd = self.strinfo_list[-1].xEnd
 
     def tostr2(self):
         return 'se=(%d, %d), bid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f' % (self.start, self.end,
@@ -413,41 +474,19 @@ class PBlockInfo:
         pb_max_xEnd, pb_max_yEnd = MIN_X_END, MIN_X_END
 
         for lineinfo in self.lineinfo_list:
-            strinfo_list = lineinfo.strinfo_list
-            lx_min_xStart, lx_min_yStart = MAX_Y_DIFF, MAX_Y_DIFF
-            lx_max_xEnd = MIN_X_END
+            lx_min_xStart, lx_min_yStart = lineinfo.xStart, lineinfo.yStart
+            lx_max_xEnd = lineinfo.xEnd
 
-            for strinfo in strinfo_list:
-                sxStart = strinfo.xStart
-                sxEnd = strinfo.xEnd
-                syStart = strinfo.yStart
-
-                # whichever is lowest in the y-axis of page, use that
-                # Not sure what to do when y-axis equal, or very close
-                if syStart < lx_min_yStart:
-                    lx_min_yStart = syStart
-                    lx_min_xStart = sxStart
-                #print("block_id = {}, is_multi_lines = {}, len(lxinfo_list)= {}, sxEnd = {}, lx_max_xEnd = {}".format(
-                #      bid, is_multi_lines, len(lineinfo_list), sxEnd, lx_max_xEnd))
-                if sxEnd > lx_max_xEnd:
-                    lx_max_xEnd = sxEnd
-
-                # whichever is lowest in the y-axis of page, use that
-                # Not sure what to do when y-axis equal, or very close
-                if syStart < pb_min_yStart:
-                    pb_min_yStart = syStart
-                    pb_min_xStart = sxStart
+            if lx_min_yStart < pb_min_yStart:
+                pb_min_yStart = lx_min_yStart
+                pb_min_xStart = lx_min_xStart
                 #print("block_id = {}, is_multi_lines = {}, len(lxinfo_list)= {}, sxEnd = {}, pb_max_xEnd = {}".format(
                 #      bid, is_multi_lines, len(lineinfo_list), sxEnd, pb_max_xEnd))
                 # if (len(lineinfo_list) == 1 or is_multi_lines) and sxEnd > pb_max_xEnd:
-                if sxEnd > pb_max_xEnd:
-                    pb_max_xEnd = sxEnd
-                if syStart > pb_max_yEnd:
-                    pb_max_yEnd = syStart
-
-            lineinfo.xStart = lx_min_xStart
-            lineinfo.xEnd = lx_max_xEnd
-            lineinfo.yStart = lx_min_yStart
+            if lx_max_xEnd > pb_max_xEnd:
+                pb_max_xEnd = lx_max_xEnd
+            if lx_min_yStart > pb_max_yEnd:
+                pb_max_yEnd = lx_min_yStart
 
         self.xStart = pb_min_xStart
         self.xEnd = pb_max_xEnd

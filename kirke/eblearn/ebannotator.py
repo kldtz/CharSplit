@@ -131,5 +131,17 @@ class ProvisionAnnotator:
         fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
         # this is an in-place modification
         fromto_mapper.adjust_fromto_offsets(prov_annotations)
+        update_text_with_span_list(prov_annotations, eb_antdoc.text)
 
         return prov_annotations
+
+# this is destructive
+def update_text_with_span_list(prov_annotations, doc_text):
+    # print("prov_annotations: {}".format(prov_annotations))
+    for ant in prov_annotations:
+        tmp_span_text_list = []
+        for span in ant['span_list']:
+            start = span['start']
+            end = span['end']
+            tmp_span_text_list.append(doc_text[start:end])
+        ant['text'] = ' '.join(tmp_span_text_list)
