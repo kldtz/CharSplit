@@ -194,13 +194,12 @@ def train_eval_annotator(provision, txt_fn_list,
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
 def train_eval_annotator_with_trte(provision,
-                                   work_dir, model_dir, model_file_name, log_file_name, eb_classifier,
+                                   work_dir, model_dir, model_file_name, eb_classifier,
                                    is_doc_structure=False):
     logging.info("training_eval_annotator_with_trte(%s) called", provision)
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_dir = %s", model_dir)
     logging.info("    model_file_name = %s", model_file_name)
-    logging.info("    log_file_name = %s", log_file_name)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
     X_train = ebtext2antdoc.doclist_to_ebantdoc_list(train_doclist_fn,

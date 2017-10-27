@@ -1,7 +1,6 @@
 from collections import defaultdict, namedtuple
 import re
 from kirke.utils import mathutils
-import time
 # pylint: disable=C0103
 
 # label_start_end_list is of type prov_annotation_list

@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 
@@ -74,7 +73,7 @@ class ProvisionAnnotator:
         logging.debug('test_document')
         prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                if hant.label == self.provision]
-        ant_listi, threshold = self.annotate_antdoc(ebantdoc, threshold=threshold, prov_human_ant_list=prov_human_ant_list)
+        ant_list, threshold = self.annotate_antdoc(ebantdoc, threshold=threshold, prov_human_ant_list=prov_human_ant_list)
         # print("ant_list: {}".format(ant_list))
         # print("human_list: {}".format(prov_human_ant_list))
 
@@ -98,13 +97,12 @@ class ProvisionAnnotator:
 
     def recover_fns(self, prov_human_ant_list, doc_text, provision, ant_result):
         for ant in prov_human_ant_list:
-            fn_ant = ebpostproc.AntResult(label=provision,
-                               prob=0.0,
-                               start=ant.start,
-                               end=ant.end,
-                               text=strutils.remove_nltab(doc_text[ant.start:ant.end]))
-
             if not evalutils.find_annotation_overlap(ant.start, ant.end, ant_result):
+                fn_ant = ebpostproc.AntResult(label=provision,
+                                              prob=0.0,
+                                              start=ant.start,
+                                              end=ant.end,
+                                              text=strutils.remove_nltab(doc_text[ant.start:ant.end]))
                 ant_result.append(fn_ant)
         return [x.to_dict() for x in ant_result]
 
