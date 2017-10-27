@@ -34,7 +34,7 @@ def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
 def train_eval_annotator(provision, txt_fn_list,
-                         work_dir, model_dir, model_file_name, log_file_name, eb_classifier,
+                         work_dir, model_dir, model_file_name, eb_classifier,
                          is_doc_structure=False,
                          custom_training_mode=False):
     logging.info("training_eval_annotator(%s) called", provision)
@@ -42,7 +42,6 @@ def train_eval_annotator(provision, txt_fn_list,
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_dir = %s", model_dir)
     logging.info("    model_file_name = %s", model_file_name)
-    logging.info("    log_file_name = %s", log_file_name)
     logging.info("    is_doc_structure= %s", is_doc_structure)
 
     # is_combine_line should be file dependent, PDF than False
