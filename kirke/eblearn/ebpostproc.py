@@ -105,7 +105,7 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
     return result
 
 
-SHORT_PROVISIONS = set(['title', 'date', 'effectivedate', 'sigdate', 'choiceoflaw'])
+SHORT_PROVISIONS = set(['l_tenant_lessee', 'l_landlord_lessor', 'title', 'date', 'effectivedate', 'sigdate', 'choiceoflaw'])
 
 # override some provisions during testing
 def gen_provision_overrides(provision, sent_st_list):
@@ -223,6 +223,9 @@ LENDER_PAT = re.compile(r'[^“"”]+[“"”]?(Lender|LENDER|Noteholder|Issuer|
 LENDER_PAT2 = re.compile(r'[“"”]Banks?[“"”]', re.IGNORECASE)
 
 AGENT_PAT = re.compile(r'[^“"”]+[“"”]?(Agent|AGENT|Arranger)s?[“"”]?\)?')
+
+LESSOR_PAT = re.compile(r'[^“"”]+[“"”]?(Lessor|LESSOR|lessor|Landlord|LANDLORD|landlord)s?[“"”]?\)?')
+LESSEE_PAT = re.compile(r'[^“"”]+[“"”]?(Lessee|LESSEE|lessee|Tenant|TENANT|tenant)s?[“"”]?\)?')
 
 DEBUG_MODE = False
 
@@ -741,6 +744,80 @@ def extract_la_agent_trustee(sent_start, sent_end, attrvec_entities, doc_text):
     return None
 
 
+def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, prov):
+    is_provision_found = False
+    prov_end_start_map = {}
+    found_provision_list = []
+    person_after_list = []
+    person_before_list = []
+    sent_st = doc_text[sent_start:sent_end]
+    print()
+    print(sent_st)
+    if prov == 'l_landlord_lessor':
+        landlord_pat = re.compile(r"landlord:([\.’–\-\/\w\d\s\n&]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?", re.I)
+        agent = ['landlord', 'lessor']
+    else:
+        landlord_pat = re.compile(r'tenant:([\w\d\s\n]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?', re.I)
+        agent = ['tenant', 'lessee']
+    landlord_match = landlord_pat.search(sent_st)
+    if landlord_match:
+        ant_start, ant_end = landlord_match.span(1)
+        print(">", sent_st[ant_start:ant_end].replace("\n", " "))
+        found_provision_list.append((landlord_match.group(1),
+                                     sent_start+ant_start,
+                                     sent_start+ant_end, 'x1'))
+        is_provision_found = True
+    if not is_provision_found and prov == 'l_landlord_lessor':
+        between_pat = re.compile(r"between[,:\n]? ?([’–\.\-\/\w\d\s\n&]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?", re.I)
+        mat = between_pat.search(sent_st)
+        if mat:
+            ant_start, ant_end = mat.span(1)
+            print(">>>", sent_st[ant_start:ant_end].replace("\n"," "))
+            found_provision_list.append((mat.group(1),
+                                         sent_start+ant_start,
+                                         sent_start+ant_end, 'x3'))
+            is_provision_found = True
+    if not is_provision_found:
+        sent_split = re.compile(r'\s+and\s+', re.I)
+        landlord_in_split = [x.lower() for x in sent_split.split(sent_st) if (agent[0] in x.lower() or agent[1] in x.lower())]
+        print(landlord_in_split)
+        for part in landlord_in_split:
+            for entity in attrvec_entities:
+                print("\t>", doc_text[entity.start:entity.end])
+                if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+                     mathutils.start_end_overlap((entity.start, entity.end),
+                                                 (sent_start, sent_end))):
+                    entity_doc_st = doc_text[entity.start:entity.end]
+                    if entity_doc_st.lower() in part: 
+                        found_provision_list.append((entity_doc_st,
+                                                     entity.start,
+                                                     entity.end, 'x2'))
+                        is_provision_found = True
+
+                person_after_list.append(entity.end)
+                prov_end_start_map[entity.end] = entity.start
+                person_before_list.append((entity.start, entity.end))
+    if not is_provision_found and prov == 'l_tenant_lessee':
+        after_landlord_pat = re.compile(r'[‘“"\(]*(landlord|lessor)[”’"\),]*\s+(\-?and\-?)?\s+([’–\.\-\/\w\d\s\n&]*)[,\.(]?', re.I)
+        mat = after_landlord_pat.search(sent_st)
+        if mat:
+            ant_start, ant_end = mat.span(3)
+            print("????", mat.group(3))
+            found_provision_list.append((mat.group(3),
+                                         sent_start+ant_start,
+                                         sent_start+ant_end, 'x3'))
+            is_provision_found = True
+    best_provision = pick_best_provision(found_provision_list, has_x3=True)
+    if best_provision:
+        prov_st, prov_start, prov_end, match_type = best_provision
+        print(">>>BEST:", prov_st)
+        if prov_st and not prov_st.isspace():
+           return best_provision
+    if len(sent_st.split()) > 2:
+        return [sent_st, sent_start, sent_end, None]
+    
+
+
 # pylint: disable=R0903
 class PostPredEaEmployerProc(EbPostPredictProcessing):
 
@@ -1255,7 +1332,39 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                 ant_result.append(self.ant(line, cx_prob_attrvec,
                                            (0, len(line))))
         return ant_result, self.threshold
-    
+  
+class PostPredLandlordTenantProc(EbPostPredictProcessing):
+
+    def __init__(self, prov):
+        self.provision = prov
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            #print("\n", cx_prob_attrvec.text.replace("\n", " "), cx_prob_attrvec.prob)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
+                print("\n", cx_prob_attrvec.text[:200].replace("\n", " "), cx_prob_attrvec.prob)
+                lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
+                                                      cx_prob_attrvec.end,
+                                                      cx_prob_attrvec.entities,
+                                                      doc_text,
+                                                      self.provision)
+                if lease_matched_span:
+                    prov_st, prov_start, prov_end, match_type = lease_matched_span
+                    print(">>ADD TO RESULT: ", prov_st, cx_prob_attrvec.prob, cx_prob_attrvec.start, cx_prob_attrvec.end, prov_start, prov_end)
+                    ant_result.append(AntResult(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=prov_start,
+                                                end=prov_end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(prov_st)))
+                    
+        return ant_result, threshold  
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
@@ -1273,6 +1382,8 @@ PROVISION_POSTPROC_MAP = {
     'lic_licensor': PostPredLicLicensorProc(),
     'l_commencement_date': PostPredLeaseDateProc('l_commencement_date'),
     'l_expiration_date': PostPredLeaseDateProc('l_expiration_date'),
+    'l_landlord_lessor': PostPredLandlordTenantProc('l_landlord_lessor'),
+    'l_tenant_lessee': PostPredLandlordTenantProc('l_tenant_lessee'),
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),
