@@ -96,6 +96,8 @@ class ProvisionAnnotator:
         return tmp_eval_status
 
     def recover_fns(self, prov_human_ant_list, doc_text, provision, ant_result):
+        if not prov_human_ant_list:
+            return [x.to_dict() for x in ant_result]
         for ant in prov_human_ant_list:
             if not evalutils.find_annotation_overlap(ant.start, ant.end, ant_result):
                 fn_ant = ebpostproc.AntResult(label=provision,
@@ -116,6 +118,8 @@ class ProvisionAnnotator:
         # self.provision_classifier.threshold = 0.5
         if threshold != None:
             self.threshold = threshold
+        else:
+            threshold = self.threshold
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
