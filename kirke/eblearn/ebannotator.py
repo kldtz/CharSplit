@@ -95,7 +95,9 @@ class ProvisionAnnotator:
 
         return tmp_eval_status
 
-    def recover_fns(self, prov_human_ant_list, doc_text, provision, ant_result):
+    def recover_fns(self, doc_text, provision, ant_result, prov_human_ant_list=None):
+        if not prov_human_ant_list:
+            return ant_result
         for ant in prov_human_ant_list:
             if not evalutils.find_annotation_overlap(ant.start, ant.end, ant_result):
                 fn_ant = ebpostproc.AntResult(label=provision,
@@ -143,8 +145,8 @@ class ProvisionAnnotator:
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
         prov_annotations, threshold = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.text,
                                                                          prob_attrvec_list,
-                                                                         threshold,
+                                                                         self.threshold,
                                                                          provision=prov,
                                                                          prov_human_ant_list=prov_human_ant_list)
-        prov_annotations = self.recover_fns(prov_human_ant_list, eb_antdoc.text, prov, prov_annotations)
+        prov_annotations = self.recover_fns(eb_antdoc.text, prov, prov_annotations, prov_human_ant_list)
         return prov_annotations, threshold

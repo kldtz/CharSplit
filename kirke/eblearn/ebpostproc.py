@@ -161,7 +161,6 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
-
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
@@ -1105,7 +1104,7 @@ class PostPredTitleProc(EbPostPredictProcessing):
 
 
 # used by both PostPredDateProc, PostPredEffectiveDate
-def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold, prov_human_ant_list=None) -> ConciseProbAttrvec:
+def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold) -> ConciseProbAttrvec:
     best_prob = 0
     best = None
     for cx_prob_attrvec in prob_attrvec_list:
@@ -1131,9 +1130,7 @@ class PostPredBestDateProc(EbPostPredictProcessing):
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
-        best_date_sent = get_best_date(merged_prob_attrvec_list,
-                                       threshold,
-                                       prov_human_ant_list=prov_human_ant_list)
+        best_date_sent = get_best_date(merged_prob_attrvec_list, threshold)
         ant_result = []
         if best_date_sent:
             for entity in best_date_sent.entities:
@@ -1160,9 +1157,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
-        best_effectivedate_sent, not_best = get_best_date(merged_prob_attrvec_list,
-                                                threshold,
-                                                prov_human_ant_list=prov_human_ant_list)
+        best_effectivedate_sent, not_best = get_best_date(merged_prob_attrvec_list, self.threshold)
         ant_result = []
         if best_effectivedate_sent:
             first = None
