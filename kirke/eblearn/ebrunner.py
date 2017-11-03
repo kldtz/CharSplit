@@ -181,7 +181,7 @@ class EbRunner:
                                    provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                data = future.result()
+                data, _ = future.result()
                 annotations[provision] = data
         return annotations
 

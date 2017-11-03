@@ -1157,7 +1157,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
-        best_effectivedate_sent, not_best = get_best_date(merged_prob_attrvec_list, self.threshold)
+        best_effectivedate_sent = get_best_date(merged_prob_attrvec_list, threshold)
         ant_result = []
         if best_effectivedate_sent:
             first = None
