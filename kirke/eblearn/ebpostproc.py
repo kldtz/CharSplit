@@ -1446,8 +1446,8 @@ PROVISION_POSTPROC_MAP = {
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),
-    'l_address': PostAddressProc('l_address'),
-    'l_address_only': PostAddressProc('l_address_only')
+    'l_address_only': PostAddressProc('l_address_only'),
+    'l_tenant_address': PostAddressProc('l_tenant_address')
 }
 
 
