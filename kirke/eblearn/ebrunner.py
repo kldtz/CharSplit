@@ -425,11 +425,9 @@ class EbRunner:
         time1 = time.time()
 
         # base_fname = os.path.basename(file_name)
-
         prov_labels_map, orig_doc_text = self.annotate_text_document(file_name,
                                                                      provision_set=provision_set,
                                                                      work_dir=work_dir)
-
         # because special case of 'effectivdate_auto'
         if not prov_labels_map.get('effectivedate_auto'):
             prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate', [])

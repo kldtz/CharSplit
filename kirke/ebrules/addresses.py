@@ -22,6 +22,14 @@ def pad(s):
     return ' ' + s + ' '
 
 
+def all_constituencies():
+    all_keywords = load_keywords()
+    all_const = []
+    for category in all_keywords.keys():
+        for const in all_keywords[category]:
+            all_const.append(const.strip())
+    return all_const+['Rio', 'RIO', 'New', 'NEW', 'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los', 'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E', 'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST', 'West', 'WEST']
+
 def load_keywords():
     # Create a dictionary object to return
     keywords = {}

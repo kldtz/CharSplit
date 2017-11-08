@@ -6,7 +6,7 @@ from kirke.utils import evalutils, strutils, entityutils, stopwordutils, mathuti
 from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates
-
+from kirke.ebrules import addresses
 
 PROVISION_PAT_MAP = {
     'change_control': (re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL), 1.0),
@@ -750,8 +750,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     person_after_list = []
     person_before_list = []
     sent_st = doc_text[sent_start:sent_end]
-    print()
-    print(sent_st)
     if prov == 'l_landlord_lessor':
         landlord_pat = re.compile(r"landlord:([\.’–\-\/\w\d\s\n&]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?", re.I)
         agent = ['landlord', 'lessor']
@@ -761,7 +759,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     landlord_match = landlord_pat.search(sent_st)
     if landlord_match:
         ant_start, ant_end = landlord_match.span(1)
-        print(">", sent_st[ant_start:ant_end].replace("\n", " "))
         found_provision_list.append((landlord_match.group(1),
                                      sent_start+ant_start,
                                      sent_start+ant_end, 'x1'))
@@ -771,7 +768,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
         mat = between_pat.search(sent_st)
         if mat:
             ant_start, ant_end = mat.span(1)
-            print(">>>", sent_st[ant_start:ant_end].replace("\n"," "))
             found_provision_list.append((mat.group(1),
                                          sent_start+ant_start,
                                          sent_start+ant_end, 'x3'))
@@ -779,10 +775,8 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     if not is_provision_found:
         sent_split = re.compile(r'\s+and\s+', re.I)
         landlord_in_split = [x.lower() for x in sent_split.split(sent_st) if (agent[0] in x.lower() or agent[1] in x.lower())]
-        print(landlord_in_split)
         for part in landlord_in_split:
             for entity in attrvec_entities:
-                print("\t>", doc_text[entity.start:entity.end])
                 if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
                      mathutils.start_end_overlap((entity.start, entity.end),
                                                  (sent_start, sent_end))):
@@ -801,7 +795,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
         mat = after_landlord_pat.search(sent_st)
         if mat:
             ant_start, ant_end = mat.span(3)
-            print("????", mat.group(3))
             found_provision_list.append((mat.group(3),
                                          sent_start+ant_start,
                                          sent_start+ant_end, 'x3'))
@@ -809,7 +802,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     best_provision = pick_best_provision(found_provision_list, has_x3=True)
     if best_provision:
         prov_st, prov_start, prov_end, match_type = best_provision
-        print(">>>BEST:", prov_st)
         if prov_st and not prov_st.isspace():
            return best_provision
     if len(sent_st.split()) > 2:
@@ -1341,9 +1333,7 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            #print("\n", cx_prob_attrvec.text.replace("\n", " "), cx_prob_attrvec.prob)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
-                print("\n", cx_prob_attrvec.text[:200].replace("\n", " "), cx_prob_attrvec.prob)
                 lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
                                                       cx_prob_attrvec.end,
                                                       cx_prob_attrvec.entities,
@@ -1351,7 +1341,6 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                                                       self.provision)
                 if lease_matched_span:
                     prov_st, prov_start, prov_end, match_type = lease_matched_span
-                    print(">>ADD TO RESULT: ", prov_st, cx_prob_attrvec.prob, cx_prob_attrvec.start, cx_prob_attrvec.end, prov_start, prov_end)
                     ant_result.append(AntResult(label=self.provision,
                                                 prob=cx_prob_attrvec.prob,
                                                 start=prov_start,
@@ -1359,7 +1348,82 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)))
                     
-        return ant_result, threshold  
+        return ant_result, threshold 
+
+class PostAddressProc(EbPostPredictProcessing):
+
+    def __init__(self, prov):
+        self.provision = prov
+
+    def find_constituencies(self, start, end, doc_text, constituencies):
+        s = ''
+        text = doc_text[start:end]
+        for word in text.split():
+            word = re.sub(r'[,\.]$|\-', "", word)
+            if word.isdigit() or word in constituencies:
+                s += '1'
+            else:
+                s += '0'
+        matches = re.finditer(r'(1+0?0?(1+0?0?)*1+)', s)
+        all_spans = [match.span(1) for match in matches]
+        max_prob = 0.0
+        best = None
+        for ad_start, ad_end in all_spans:
+            list_address = text.split()[ad_start:ad_end]
+            ad_st = " ".join(list_address)
+            address_prob = addresses.classify(ad_st)
+            if address_prob >= 0.5 and address_prob > max_prob and len(list_address) > 3:
+                max_prob = address_prob
+                pred_start,_ = re.search(list_address[0], text).span()
+                _, pred_end = re.search(list_address[-1], text[pred_start:]).span()
+                best = [" ".join(list_address), start+pred_start, start+pred_start+pred_end]
+        if best:
+            return best, True
+        else:
+            return [text, start, end], False
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+
+        all_keywords = addresses.all_constituencies()
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap: 
+                print(doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob)
+                best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords) 
+                if best:
+                    prov_st, prov_start, prov_end = best
+                    ant_result.append([AntResult(label=self.provision,
+                                                  prob=cx_prob_attrvec.prob,
+                                                  start=prov_start,
+                                                  end=prov_end,
+                                                  # pylint: disable=line-too-long
+                                                  text=strutils.remove_nltab(prov_st)), address])
+        if ant_result:
+            last_end = ant_result[0][0].end    
+        chunk_result = []
+        all_chunks = []
+        refined_result = []
+        for result, address in ant_result:
+            diff = result.start - last_end
+            if diff > 18:
+                all_chunks.append(chunk_result)
+                chunk_result = []
+                chunk_result.append([result, address])
+            else:
+                chunk_result.append([result, address])
+            last_end = result.end
+        all_chunks.append(chunk_result)
+        for chunk in all_chunks:
+            best = [z[0] for z in chunk if z[1]]
+            if not best:
+                refined_result += [z[0] for z in chunk]
+            else:
+                refined_result += best
+        return refined_result, threshold   
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
@@ -1382,6 +1446,8 @@ PROVISION_POSTPROC_MAP = {
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),
+    'l_address': PostAddressProc('l_address'),
+    'l_address_only': PostAddressProc('l_address_only')
 }
 
 
