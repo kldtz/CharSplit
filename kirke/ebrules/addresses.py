@@ -30,7 +30,7 @@ def all_constituencies():
         for const in all_keywords[category]:
             if const.strip() not in stop_keywords:
                 all_const.append(const.strip())
-    return all_const+['Creek', 'CREEK', 'Las', 'LAS', 'Rio', 'RIO', 'New', 'NEW', 'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los', 'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E', 'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST', 'West', 'WEST']
+    return all_const+['P.O', 'BOX', 'Box', 'Creek', 'CREEK', 'Las', 'LAS', 'Rio', 'RIO', 'New', 'NEW', 'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los', 'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E', 'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST', 'West', 'WEST']
 
 def load_keywords():
     # Create a dictionary object to return
