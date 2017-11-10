@@ -1355,15 +1355,35 @@ class PostAddressProc(EbPostPredictProcessing):
     def __init__(self, prov):
         self.provision = prov
 
+    def notice_address(self, prob, start, end, doc_text, constituencies):
+        text = doc_text[start:end]
+        tenant_in_sent = re.search('tenant', text, re.I)
+        print(">>>", text.replace("\n", " "))
+        if tenant_in_sent:
+            _, new_start = tenant_in_sent.span()
+            start += new_start
+        tenant = re.finditer('tenant', doc_text, re.I)
+        best, address = self.find_constituencies(start, end, doc_text, constituencies)
+        prov_st, prov_start, prov_end = best
+        print("<<<", prov_st.replace("\n", " "))
+        lowest = float("inf")
+        for ten_start, ten_end in [match.span() for match in tenant]:
+            #print("\t\t", ten_start, ten_end, "///", start, end, doc_text[start:end].replace("\n", " "), prov_start - ten_end)
+            diff = prov_start - ten_end
+            if diff < lowest and diff > 0:
+                lowest = diff
+        return [best, prob, lowest]
+
     def find_constituencies(self, start, end, doc_text, constituencies):
         s = ''
         text = doc_text[start:end]
         for word in text.split():
-            word = re.sub(r'[,\.]$|\-', "", word)
+            word = re.sub(r'[,\.]+$|\-', "", word)
             if word.isdigit() or word in constituencies:
                 s += '1'
             else:
                 s += '0'
+        print(list(zip(s, text.split())))
         matches = re.finditer(r'(1+0?0?(1+0?0?)*1+)', s)
         all_spans = [match.span(1) for match in matches]
         max_prob = 0.0
@@ -1372,7 +1392,9 @@ class PostAddressProc(EbPostPredictProcessing):
             list_address = text.split()[ad_start:ad_end]
             ad_st = " ".join(list_address)
             address_prob = addresses.classify(ad_st)
+            #print("\t", ad_st, address_prob)
             if address_prob >= 0.5 and address_prob > max_prob and len(list_address) > 3:
+                #print("\t ^^^^")
                 max_prob = address_prob
                 pred_start,_ = re.search(list_address[0], text).span()
                 _, pred_end = re.search(list_address[-1], text[pred_start:]).span()
@@ -1389,40 +1411,65 @@ class PostAddressProc(EbPostPredictProcessing):
 
         all_keywords = addresses.all_constituencies()
         ant_result = []
+        print()
+        all_notice = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            if cx_prob_attrvec.prob >= threshold or sent_overlap: 
-                print(doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob)
-                best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords) 
-                if best:
-                    prov_st, prov_start, prov_end = best
-                    ant_result.append([AntResult(label=self.provision,
-                                                  prob=cx_prob_attrvec.prob,
-                                                  start=prov_start,
-                                                  end=prov_end,
-                                                  # pylint: disable=line-too-long
-                                                  text=strutils.remove_nltab(prov_st)), address])
-        if ant_result:
-            last_end = ant_result[0][0].end    
-        chunk_result = []
-        all_chunks = []
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
+                #print(doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob)    
+                if self.provision == 'l_tenant_notice':
+                    all_notice.append(self.notice_address(cx_prob_attrvec.prob, cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords))
+                else:
+                    best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords) 
+                    if best:
+                        prov_st, prov_start, prov_end = best
+                        #print("ADDING>>>", doc_text[prov_start:prov_end].replace("\n", " "), cx_prob_attrvec.prob)
+                        ant_result.append([AntResult(label=self.provision,
+                                                      prob=cx_prob_attrvec.prob,
+                                                      start=prov_start,
+                                                      end=prov_end,
+                                                      # pylint: disable=line-too-long
+                                                      text=strutils.remove_nltab(prov_st)), address])
         refined_result = []
-        for result, address in ant_result:
-            diff = result.start - last_end
-            if diff > 18:
-                all_chunks.append(chunk_result)
-                chunk_result = []
-                chunk_result.append([result, address])
-            else:
-                chunk_result.append([result, address])
-            last_end = result.end
-        all_chunks.append(chunk_result)
-        for chunk in all_chunks:
-            best = [z[0] for z in chunk if z[1]]
-            if not best:
-                refined_result += [z[0] for z in chunk]
-            else:
-                refined_result += best
+        if self.provision == 'l_tenant_notice':
+            closest = float("inf")
+            best_address = None
+            for result, prob, dist in all_notice:
+                print("\t", result[0].replace("\n", " "), prob, dist)
+                if dist < closest and prob >= threshold:
+                    best_address = [result, prob]
+                    closest = dist
+            if best_address:
+                prov_st, prov_start, prov_end = best_address[0]
+                prov_prob = best_address[1]
+                refined_result.append(AntResult(label=self.provision,
+                                                 prob=prov_prob,
+                                                 start=prov_start,
+                                                 end=prov_end,
+                                                 # pylint: disable=line-too-long
+                                                 text=strutils.remove_nltab(prov_st)))
+        else:
+            if ant_result:
+                last_end = ant_result[0][0].end    
+            chunk_result = []
+            all_chunks = []
+            for result, address in ant_result:
+                diff = result.start - last_end
+                if diff > 18:
+                    all_chunks.append(chunk_result)
+                    chunk_result = []
+                    chunk_result.append([result, address])
+                else:
+                    chunk_result.append([result, address])
+                last_end = result.end
+            all_chunks.append(chunk_result)
+            for chunk in all_chunks:
+                best = [z[0] for z in chunk if z[1]]
+                if not best:
+                    refined_result += [z[0] for z in chunk]
+                else:
+                    refined_result += best
+        #print([x.to_dict() for x in refined_result])
         return refined_result, threshold   
 
 PROVISION_POSTPROC_MAP = {
@@ -1447,7 +1494,7 @@ PROVISION_POSTPROC_MAP = {
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),
     'l_address_only': PostAddressProc('l_address_only'),
-    'l_tenant_address': PostAddressProc('l_tenant_address')
+    'l_tenant_notice': PostAddressProc('l_tenant_notice')
 }
 
 
