@@ -284,7 +284,12 @@ def get_sechead_attr(attrs):
             return attr
     return ''
 
+
+# this is in-place
 def update_ebsents_with_sechead(ebsent_list, paras_with_attrs):
+    if not ebsent_list:  # if there is no data
+        return
+
     para_i, len_paras = 0, len(paras_with_attrs)
     ebsent_i, len_ebsents = 0, len(ebsent_list)
     ebsent = ebsent_list[ebsent_i]

@@ -176,8 +176,7 @@ class PageInfo3:
         # this impact the line list also.
         # Fixes header and footer issues due to out of order lines.
         # Also out of order blocks due to tables and header.  p76 carousel.txt
-        pblockinfo_list = sorted_pblocks_by_yStart(pblockinfo_list)
-        self.pblockinfo_list = pblockinfo_list
+        self.pblockinfo_list = sorted_pblocks_by_yStart(pblockinfo_list)
         self.avg_single_line_break_ydiff = self.compute_avg_single_line_break_ydiff()
 
         # self.line_list = init_line_with_attr_list()

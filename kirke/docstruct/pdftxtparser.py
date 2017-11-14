@@ -306,7 +306,7 @@ def get_gap_frto_list(prev_linex, linex, cur_page, next_page):
     return result
 
 
-# returns    paras2_with_attrs, para2_doc_text, gap2_span_list
+# returns (paras2_with_attrs, para2_doc_text, gap2_span_list)
 def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
 
@@ -561,7 +561,6 @@ def parse_document(file_name, work_dir, debug_mode=False):
         else:
             lxid_strinfos_map[line_num].append(StrInfo(start, end,
                                                        xStart, xEnd, yStart))
-
     bxid_lineinfos_map = defaultdict(list)
     tmp_prev_end = 0
     for i, break_offset in enumerate(line_breaks):

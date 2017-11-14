@@ -4,6 +4,7 @@ import configparser
 import logging
 import pprint
 from time import time
+from typing import List
 
 import numpy as np
 from sklearn.linear_model import SGDClassifier
@@ -140,11 +141,13 @@ class ShortcutClassifier(EbClassifier):
         return grid_search
 
 
-    def predict_antdoc(self, eb_antdoc, work_dir):
+    def predict_antdoc(self, eb_antdoc, work_dir) -> List[float]:
         # logging.info('predict_antdoc()...')
 
         attrvec_list = eb_antdoc.get_attrvec_list()
-        # print("attrvec_list.size = ", len(attrvec_list))
+        # there is no sentence to classify
+        if not attrvec_list:
+            return []
 
         doc_text = eb_antdoc.nlp_text
         sent_st_list = [doc_text[attrvec.start:attrvec.end]

@@ -123,3 +123,13 @@ class EbAttrVec:
     def set_val_yesno(self, attr, val):
         """Convert val to boolean before set it"""
         setattr(self, attr, bool(val))
+
+    def __str__(self):
+        attr_val_list = []
+        attr_val_list.append(('file_id', self.file_id))
+        attr_val_list.append(('start', self.start))
+        attr_val_list.append(('end', self.end))
+        attr_val_list.append(('labels', self.labels))
+        attr_val_list.append(('sechead', self.sechead))
+        attr_val_list.append(('words', self.bag_of_words))
+        return '(attrvec ' + ', '.join(['{}={}'.format(attrval[0], attrval[1]) for attrval in attr_val_list]) + ')'

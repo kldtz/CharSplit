@@ -39,7 +39,6 @@ class EbDocFormat(Enum):
     pdf = 3
     other = 4
 
-
 class EbAnnotatedDoc2:
 
     # pylint: disable=R0913
@@ -379,6 +378,7 @@ def pdf_to_ebantdoc2(txt_file_name,
     debug_mode = True
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
+    offsets_base_fname = os.path.basename(offsets_file_name)
 
     # PDF files are mostly used by our users, not for training and test.
     # Chopping text at exhibit_complete messes up all the offsets info from offsets.json.
@@ -394,6 +394,7 @@ def pdf_to_ebantdoc2(txt_file_name,
     # copy txt file to work/txt_base_name, to be consistent with html_to_ebantdoc2()
     if txt_file_name != '{}/{}'.format(work_dir, txt_base_fname):
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
+        shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
     doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
         pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
@@ -701,4 +702,9 @@ def print_line_list(eb_antdoc):
         cols = [str(i), '({}, {})'.format(tmp_start, tmp_end),
                 labels_st, para_text]
         print('\t'.join(cols))
-"""
+        """
+
+def dump_ebantdoc_attrvec_with_secheads(eb_antdoc: EbAnnotatedDoc2):
+    print("dump_ebantdoc_attrvec_with_secheads: len(attrevec_list) = {}".format(len(eb_antdoc.attrvec_list)))
+    for attrvec in eb_antdoc.attrvec_list:
+        print("attrvec = {}".format(attrvec))
