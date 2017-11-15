@@ -95,7 +95,7 @@ class ProvisionAnnotator:
 
         return tmp_eval_status
 
-    def recover_fns(self, prov_human_ant_list, doc_text, provision, ant_result):
+    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
         if not prov_human_ant_list:
             return [x.to_dict() for x in ant_result]
         for ant in prov_human_ant_list:
@@ -150,5 +150,5 @@ class ProvisionAnnotator:
                                                                          threshold,
                                                                          provision=prov,
                                                                          prov_human_ant_list=prov_human_ant_list)
-        prov_annotations = self.recover_fns(prov_human_ant_list, eb_antdoc.text, prov, prov_annotations)
+        prov_annotations = self.recover_false_negatives(prov_human_ant_list, eb_antdoc.text, prov, prov_annotations)
         return prov_annotations, threshold
