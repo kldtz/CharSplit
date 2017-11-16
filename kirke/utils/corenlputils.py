@@ -45,7 +45,8 @@ def annotate(text_as_string, doc_lang):
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                    properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
                                                'outputFormat': 'json',
-                                               'ssplit.newlineIsSentenceBreak': 'two'}) 
+                                               'ssplit.newlineIsSentenceBreak': 'two',
+                                               'pipelineLanguage': 'en'}) 
     return output
 
 def annotate_for_enhanced_ner(text_as_string, doc_lang="en"):
