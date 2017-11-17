@@ -22,6 +22,7 @@ DEFAULT_CV = 5
 # MIN_FULL_TRAINING_SIZE = 400
 MIN_FULL_TRAINING_SIZE = 150
 
+
 # Take all the data for training.
 # Unless you know what you are doing, don't use this function, use
 # train_eval_annotator() instead.
@@ -46,14 +47,14 @@ def train_eval_annotator(provision, txt_fn_list,
 
     # is_combine_line should be file dependent, PDF than False
     # HTML is True.
-    ebantdoc_list = ebantdoc2.doclist_to_traindoc_list(txt_fn_list,
+    eb_traindoc_list = ebantdoc2.doclist_to_traindoc_list(txt_fn_list,
                                                        work_dir,
                                                        is_bespoke_mode=custom_training_mode,
                                                        is_doc_structure=is_doc_structure)
 
     attrvec_list = []
-    for eb_antdoc in ebantdoc_list:
-        attrvec_list.extend(eb_antdoc.get_attrvec_list())
+    for eb_traindoc in eb_traindoc_list:
+        attrvec_list.extend(eb_traindoc.get_attrvec_list())
 
     num_pos_label, num_neg_label = 0, 0
     for attrvec in attrvec_list:
@@ -65,9 +66,9 @@ def train_eval_annotator(provision, txt_fn_list,
             num_neg_label += 1
 
     # pylint: disable=C0103
-    X = ebantdoc_list
-    y = [provision in ebantdoc.get_provision_set()
-         for ebantdoc in ebantdoc_list]
+    X = eb_traindoc_list
+    y = [provision in eb_traindoc.get_provision_set()
+         for eb_traindoc in eb_traindoc_list]
 
     num_doc_pos, num_doc_neg = 0, 0
     for yval in y:
@@ -149,7 +150,11 @@ def train_eval_annotator(provision, txt_fn_list,
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(X_test)
+
+    # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
+    # using generator, instead of all loaded at once.
+    X_test_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_test, work_dir)
+    ant_status = prov_annotator.test_antdoc_list(X_test_antdoc_list)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status

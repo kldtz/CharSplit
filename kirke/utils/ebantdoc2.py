@@ -111,6 +111,9 @@ class EbAnnotatedDoc2:
     def get_doc_format(self):
         return self.doc_format
 
+    def get_nlp_text(self):
+        return self.nlp_text
+
 
 def remove_prov_greater_offset(prov_annotation_list, max_offset):
     return [prov_ant for prov_ant in prov_annotation_list
@@ -569,6 +572,7 @@ def doclist_to_ebantdoc_list_linear(doclist_file,
                                           is_doc_structure=is_doc_structure)
             eb_antdoc_list.append(eb_antdoc)
     logging.debug('Finished ebantdoc2.doclist_to_ebantdoc_list_linear()')
+    return eb_antdoc_list
 
 
 def doclist_to_ebantdoc_list(doclist_file,
@@ -734,7 +738,8 @@ class TrainDoc2:
                  doc_format: EbDocFormat,
                  text,
                  prov_ant_list,
-                 attrvec_list):
+                 attrvec_list,
+                 nlp_text):
 
         self.file_id = file_name
         self.doc_format = doc_format
@@ -743,6 +748,7 @@ class TrainDoc2:
         self.prov_annotation_list = prov_ant_list
         self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
         self.attrvec_list = attrvec_list
+        self.nlp_text = nlp_text
 
     def get_file_id(self):
         return self.file_id
@@ -762,6 +768,9 @@ class TrainDoc2:
     def get_doc_format(self):
         return self.doc_format
 
+    def get_nlp_text(self):
+        return self.nlp_text
+
 
 def text_to_traindoc2(txt_fname,
                       work_dir=None,
@@ -778,7 +787,8 @@ def text_to_traindoc2(txt_fname,
                          eb_antdoc.get_doc_format(),
                          eb_antdoc.get_text(),
                          eb_antdoc.get_provision_annotations(),
-                         eb_antdoc.get_attrvec_list())
+                         eb_antdoc.get_attrvec_list(),
+                         eb_antdoc.get_nlp_text())
     return None
 
 
@@ -819,3 +829,11 @@ def doclist_to_traindoc_list(doclist_file,
                                                                              len(txt_fn_list)))
 
     return eb_traindoc_list
+
+
+def traindoc_list_to_antdoc_list(traindoc_list, work_dir):
+    for traindoc in traindoc_list:
+        # print("fn = {}".format(traindoc.file_id))
+        yield text_to_ebantdoc2(traindoc.file_id,
+                                work_dir=work_dir,
+                                is_cache_enabled=True)

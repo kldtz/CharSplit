@@ -149,7 +149,7 @@ class ShortcutClassifier(EbClassifier):
         if not attrvec_list:
             return []
 
-        doc_text = eb_antdoc.nlp_text
+        doc_text = eb_antdoc.get_nlp_text()
         sent_st_list = [doc_text[attrvec.start:attrvec.end]
                         for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
