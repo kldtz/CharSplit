@@ -45,12 +45,13 @@ class AntResult:
 class ConciseProbAttrvec:
 
     # pylint: disable=too-many-arguments
-    def __init__(self, prob, start, end, entities, text):
+    def __init__(self, prob, start, end, entities, sechead, text):
         self.prob = prob
         self.start = start
         self.end = end
         self.entities = entities
         self.text = text
+        self.sechead = sechead.lower()
 
 
 def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
@@ -58,6 +59,7 @@ def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
                                attrvec.start,
                                attrvec.end,
                                attrvec.entities,
+                               attrvec.sechead,
                                attrvec.bag_of_words)
             for prob, attrvec in prob_attrvec_list]
 
@@ -72,6 +74,7 @@ def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list):
     min_start = cx_prob_attrvec_list[0].start
     max_end = cx_prob_attrvec_list[0].end
     merged_entities = list(cx_prob_attrvec_list[0].entities)
+    only_first_sechead = cx_prob_attrvec_list[0].sechead
     only_first_text = cx_prob_attrvec_list[0].text
     for cx_prob_attrvec in cx_prob_attrvec_list[1:]:
         if cx_prob_attrvec.prob > max_prob:
@@ -86,7 +89,7 @@ def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list):
     #    print("jjj: {}".format((prob, start, end)))
     #print("result jjj: {}".format((max_prob, min_start, max_end)))
 
-    return ConciseProbAttrvec(max_prob, min_start, max_end, merged_entities, only_first_text)
+    return ConciseProbAttrvec(max_prob, min_start, max_end, merged_entities, only_first_sechead, only_first_text)
 
 
 def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
@@ -172,7 +175,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                             start=cx_prob_attrvec.start,
                                             end=cx_prob_attrvec.end,
                                             # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...').to_dict())
+                                            text=strutils.remove_nltab(cx_prob_attrvec.text)).to_dict())
         return ant_result
 
 # Note from PythonClassifier.java:
@@ -999,6 +1002,70 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
         return ant_result
 
 
+# pylint: disable=R0903
+class PostPredPrintProbProc(EbPostPredictProcessing):
+
+    def __init__(self, prov):
+        self.provision = prov
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            #print("{}\t{}\t{}\tsechead=[{}]\t[{}]".format(self.provision, cx_prob_attrvec.prob, threshold,
+            #                                              cx_prob_attrvec.sechead,
+            #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+                tmp_provision = provision if provision else self.provision
+                ant_result.append(AntResult(label=tmp_provision,
+                                            prob=cx_prob_attrvec.prob,
+                                            start=cx_prob_attrvec.start,
+                                            end=cx_prob_attrvec.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(cx_prob_attrvec.text)).to_dict())
+        return ant_result
+
+
+# pylint: disable=R0903
+# this is not used
+"""
+class PostPredConfidentialityProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'confidentiality'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            #print("{}\t{}\t{}\tsechead=[{}]\t[{}]".format(self.provision, cx_prob_attrvec.prob, threshold,
+            #                                              cx_prob_attrvec.sechead,
+            #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
+            boost = 0
+            if 'confidentiality' in cx_prob_attrvec.sechead:
+                boost = 0.20
+            if cx_prob_attrvec.prob + boost >= threshold or len(overlap) > 0:
+                tmp_provision = provision if provision else self.provision
+                ant_result.append(AntResult(label=tmp_provision,
+                                            prob=cx_prob_attrvec.prob,
+                                            start=cx_prob_attrvec.start,
+                                            end=cx_prob_attrvec.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(cx_prob_attrvec.text)).to_dict())
+        return ant_result
+"""    
+
+
 # Note from PythonClassifier.java:
 # A title might optionally start with an Exhibit X.X number (for SEC contracts) or optionally
 # start with "this XXXX Agreement".  It may end (optionally) with the word agreement, and
@@ -1181,7 +1248,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
 
     def ant(self, line, cx_prob_attrvec, date):
         """Compiles an ant_result."""
-        text = strutils.remove_nltab(line[date[0]:date[1]][:50]) + '...'
+        text = strutils.remove_nltab(line[date[0]:date[1]])
         return AntResult(label=self.provision, prob=cx_prob_attrvec.prob,
                          start=cx_prob_attrvec.start + date[0],
                          end=cx_prob_attrvec.start + date[1],
@@ -1278,6 +1345,8 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'choiceoflaw': PostPredChoiceOfLawProc(),
+    # 'confidentiality': PostPredPrintProbProc('confidentiality'),
+    # 'confidentiality': PostPredConfidentialityProc(),
     'date': PostPredBestDateProc('date'),
     'ea_employee': PostPredEaEmployeeProc(),
     'ea_employer': PostPredEaEmployerProc(),

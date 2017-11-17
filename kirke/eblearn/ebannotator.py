@@ -9,10 +9,13 @@ PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 class ProvisionAnnotator:
 
-    def __init__(self, prov_classifier, work_dir):
+    def __init__(self, prov_classifier, work_dir, threshold=None):
         self.provision_classifier = prov_classifier
         self.provision = prov_classifier.provision
-        self.threshold = prov_classifier.threshold
+        if threshold is not None:  # allow overrides from provclassifier.py
+            self.threshold = threshold
+        else:
+            self.threshold = prov_classifier.threshold
         self.work_dir = work_dir
         self.eval_status = {}  # this is set after training
 

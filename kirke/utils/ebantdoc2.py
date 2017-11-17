@@ -105,6 +105,9 @@ class EbAnnotatedDoc2:
     def get_text(self):
         return self.text
 
+    def has_same_prov_ant_list(self, prov_ant_list2):
+        return self.prov_annotation_list == prov_ant_list2
+
 
 def remove_prov_greater_offset(prov_annotation_list, max_offset):
     return [prov_ant for prov_ant in prov_annotation_list
@@ -117,7 +120,9 @@ def load_cached_ebantdoc2(eb_antdoc_fn: str):
     # if cache version exists, load that and return
     if os.path.exists(eb_antdoc_fn):
         start_time = time.time()
+        # print("before loading\t{}".format(eb_antdoc_fn))
         eb_antdoc = joblib.load(eb_antdoc_fn)
+        # print("done loading\t{}".format(eb_antdoc_fn))
         end_time = time.time()
         logging.info("loading from cache: %s, took %.0f msec",
                      eb_antdoc_fn, (end_time - start_time) * 1000)
@@ -510,15 +515,21 @@ def text_to_ebantdoc2(txt_fname,
     txt_base_fname = os.path.basename(txt_fname)
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     # never want to save in bespoke_mode because annotation can change
-    if is_bespoke_mode:
-        if os.path.exists(eb_antdoc_fn):
-            os.remove(eb_antdoc_fn)
-        is_cache_enabled = False
+        #if os.path.exists(eb_antdoc_fn):
+        #    os.remove(eb_antdoc_fn)
+        # corenlp should be cache so that we don't run it again for same
+        # files.
+        # is_cache_enabled = False
         
     if is_cache_enabled:
         # check if file exist, if it is, load it and return
         # regarless of the existing PDF or HtML or is_doc_structure
         eb_antdoc = load_cached_ebantdoc2(eb_antdoc_fn)
+        if is_bespoke_mode and eb_antdoc:
+            tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname)
+            if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
+                return eb_antdoc
+            eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
         if eb_antdoc:
             return eb_antdoc
 

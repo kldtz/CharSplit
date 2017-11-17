@@ -53,7 +53,7 @@ def upload_train_dir(url_st, upload_dir):
     print("Number of file uploaded: {}".format(len(file_tuple_list)))
     # print("file_tuple_list = {}".format(file_tuple_list))
     # payload = {'custom_id': 'custom_id2'}
-    req = requests.post(url_st, files=file_tuple_list, timeout=600)
+    req = requests.post(url_st, files=file_tuple_list, timeout=6000)
     print(req.text)
 
 

@@ -46,6 +46,10 @@ def get_transformer_attr_list_by_provision(provision: str):
     return PROVISION_ATTRLISTS_MAP.get('default')
 
 
+def get_provision_threshold(provision: str):
+    return PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
+
+
 class ProvisionClassifier(EbClassifier):
 
     def __init__(self, provision):

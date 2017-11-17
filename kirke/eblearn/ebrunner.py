@@ -13,7 +13,7 @@ from typing import List
 from sklearn.externals import joblib
 
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser
-from kirke.eblearn import ebannotator, ebtrainer, scutclassifier, lineannotator
+from kirke.eblearn import ebannotator, ebtrainer, lineannotator, provclassifier, scutclassifier
 from kirke.ebrules import rateclassifier, titles, parties, dates
 from kirke.utils import osutils, strutils, evalutils, ebantdoc2
 
@@ -160,8 +160,10 @@ class EbRunner:
 
         for provision in self.provisions:
             pclassifier = provision_classifier_map[provision]
+            prov_threshold = provclassifier.get_provision_threshold(provision)  # in case we want to override
             self.provision_annotator_map[provision] = ebannotator.ProvisionAnnotator(pclassifier,
-                                                                                     self.work_dir)
+                                                                                     self.work_dir,
+                                                                                     threshold=prov_threshold)
 
         self.title_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
         self.party_annotator = lineannotator.LineAnnotator('party', parties.PartyAnnotator('party'))

@@ -363,10 +363,16 @@ class ProvisionAnnotation:
         self.label = label
 
     def __repr__(self):
-        return "ProvisionAnnotation('{}', {}, {})".format(self.start, self.end, self.label)
+        return "ProvisionAnnotation({}, {}, '{}')".format(self.start, self.end, self.label)
 
     def __lt__(self, other):
         return (self.start, self.end) < (other.start, other.end)
+
+    def __eq__(self, other):
+        return self.to_tuple() == other.to_tuple()
+
+    def to_tuple(self):
+        return (self.start, self.end, self.label)
 
               
 #    def to_tuple(self):
@@ -424,6 +430,7 @@ def load_prov_annotation_list(txt_file_name, provision=None):
     elif os.path.exists(prov_ebdata_fn):
         prov_annotation_list, is_test = (load_prov_ebdata(prov_ebdata_fn, provision)
                                          if prov_ebdata_file.is_file() else ([], False))
+
     return prov_annotation_list, is_test
 
 
