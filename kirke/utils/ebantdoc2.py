@@ -108,6 +108,9 @@ class EbAnnotatedDoc2:
     def has_same_prov_ant_list(self, prov_ant_list2):
         return self.prov_annotation_list == prov_ant_list2
 
+    def get_doc_format(self):
+        return self.doc_format
+
 
 def remove_prov_greater_offset(prov_annotation_list, max_offset):
     return [prov_ant for prov_ant in prov_annotation_list
@@ -719,3 +722,100 @@ def dump_ebantdoc_attrvec_with_secheads(eb_antdoc: EbAnnotatedDoc2):
     print("dump_ebantdoc_attrvec_with_secheads: len(attrevec_list) = {}".format(len(eb_antdoc.attrvec_list)))
     for attrvec in eb_antdoc.attrvec_list:
         print("attrvec = {}".format(attrvec))
+
+
+# The purpose of this class is to reduce the memory
+# size of the ebantdoc2 when training.
+class TrainDoc2:
+
+    # pylint: disable=R0913
+    def __init__(self,
+                 file_name,
+                 doc_format: EbDocFormat,
+                 text,
+                 prov_ant_list,
+                 attrvec_list):
+
+        self.file_id = file_name
+        self.doc_format = doc_format
+        self.text = text
+        self.len_text = len(text)   # used to check out of bound
+        self.prov_annotation_list = prov_ant_list
+        self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
+        self.attrvec_list = attrvec_list
+
+    def get_file_id(self):
+        return self.file_id
+
+    def get_provision_annotations(self):
+        return self.prov_annotation_list
+
+    def get_provision_set(self):
+        return self.provision_set
+
+    def get_attrvec_list(self):
+        return self.attrvec_list
+
+    def get_text(self):
+        return self.text
+
+    def get_doc_format(self):
+        return self.doc_format
+
+
+def text_to_traindoc2(txt_fname,
+                      work_dir=None,
+                      is_cache_enabled=True,
+                      is_bespoke_mode=False,
+                      is_doc_structure=True):
+    eb_antdoc = text_to_ebantdoc2(txt_fname,
+                                  work_dir,
+                                  is_cache_enabled=is_cache_enabled,
+                                  is_bespoke_mode=is_bespoke_mode,
+                                  is_doc_structure=is_doc_structure)
+    if eb_antdoc:
+        return TrainDoc2(eb_antdoc.get_file_id(),
+                         eb_antdoc.get_doc_format(),
+                         eb_antdoc.get_text(),
+                         eb_antdoc.get_provision_annotations(),
+                         eb_antdoc.get_attrvec_list())
+    return None
+
+
+def doclist_to_traindoc_list(doclist_file,
+                             work_dir,
+                             is_bespoke_mode=False,
+                             is_doc_structure=False):
+    logging.debug('ebantdoc2.doclist_to_traindoc_list(%s, %s)', doclist_file, work_dir)
+    if work_dir is not None and not os.path.isdir(work_dir):
+        logging.debug("mkdir %s", work_dir)
+        osutils.mkpath(work_dir)
+
+    txt_fn_list = []
+    with open(doclist_file, 'rt') as fin:
+        for txt_file_name in fin:
+            txt_fn_list.append(txt_file_name.strip())
+
+    fn_eb_traindoc_map = {}
+    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+        future_to_antdoc = {executor.submit(text_to_traindoc2,
+                                            txt_fn,
+                                            work_dir,
+                                            is_bespoke_mode=is_bespoke_mode,
+                                            is_doc_structure=is_doc_structure):
+                            txt_fn for txt_fn in txt_fn_list}
+        for count, future in enumerate(concurrent.futures.as_completed(future_to_antdoc)):
+            txt_fn = future_to_antdoc[future]
+            data = future.result()
+            fn_eb_traindoc_map[txt_fn] = data
+            if count % 25 == 0:
+                logging.info('doclist_to_traindoc_list(), count = {}'.format(count))
+
+    eb_traindoc_list = [fn_eb_traindoc_map[txt_fn]
+                        for txt_fn in txt_fn_list]
+
+    logging.debug('Finished doclist_to_traindoc_list({}/{}), len= {}'.format(work_dir,
+                                                                             doclist_file,
+                                                                             len(txt_fn_list)))
+
+    return eb_traindoc_list

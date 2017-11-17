@@ -46,7 +46,7 @@ def train_eval_annotator(provision, txt_fn_list,
 
     # is_combine_line should be file dependent, PDF than False
     # HTML is True.
-    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list,
+    ebantdoc_list = ebantdoc2.doclist_to_traindoc_list(txt_fn_list,
                                                        work_dir,
                                                        is_bespoke_mode=custom_training_mode,
                                                        is_doc_structure=is_doc_structure)
