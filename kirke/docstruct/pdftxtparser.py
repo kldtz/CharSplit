@@ -1297,7 +1297,7 @@ def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
 
         block_first_linex = merged_linex_list[0]
         # merge blocks as we see fit
-        print("merge_centered_line_before_table(), collapse_similar...")
+        # print("merge_centered_line_before_table(), collapse_similar...")
         merge_centered_lines_before_table(block_first_linex.lineinfo.line_num,
                                           block_first_linex.block_num,
                                           page_linex_list,
@@ -1375,7 +1375,7 @@ def markup_table_block_by_columns(grouped_block_list, page_num):
                 # only if one is a long line, the other is short
                 if ((len(merged_linex_list[0].line_text) < 20 and len(merged_linex_list[1].line_text) > 40) or
                     (len(merged_linex_list[1].line_text) < 20 and len(merged_linex_list[0].line_text) > 40)):
-                    print("only 2 lines are in 2 columns, reject as a table")
+                    # print("only 2 lines are in 2 columns, reject as a table")
                     return
 
     if debug_mode:

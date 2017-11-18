@@ -133,7 +133,7 @@ def train_eval_annotator(provision, txt_fn_list,
                  len(attrvec_list), num_pos_label, num_neg_label)
 
     if custom_training_mode:
-        test_size = 0.4
+        test_size = 0.25
     else:
         test_size = 0.2
 

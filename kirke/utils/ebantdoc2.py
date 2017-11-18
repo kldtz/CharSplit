@@ -386,7 +386,7 @@ def pdf_to_ebantdoc2(txt_file_name,
                      offsets_file_name,
                      work_dir,
                      is_cache_enabled=True):
-    debug_mode = True
+    debug_mode = False
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
     offsets_base_fname = os.path.basename(offsets_file_name)
@@ -590,7 +590,7 @@ def doclist_to_ebantdoc_list(doclist_file,
             txt_fn_list.append(txt_file_name.strip())
 
     fn_eb_antdoc_map = {}
-    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+    with concurrent.futures.ThreadPoolExecutor(8) as executor:
         future_to_antdoc = {executor.submit(text_to_ebantdoc2,
                                             txt_fn,
                                             work_dir,
@@ -807,7 +807,7 @@ def doclist_to_traindoc_list(doclist_file,
             txt_fn_list.append(txt_file_name.strip())
 
     fn_eb_traindoc_map = {}
-    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+    with concurrent.futures.ThreadPoolExecutor(8) as executor:
         future_to_antdoc = {executor.submit(text_to_traindoc2,
                                             txt_fn,
                                             work_dir,
