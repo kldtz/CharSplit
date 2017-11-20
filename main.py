@@ -1,26 +1,36 @@
 #!/usr/bin/env python
 
 import argparse
+import configparser
+import copy
+import json
 import logging
-from pprint import pprint
+import pprint
+import re
 import sys
 import warnings
 import re
 import json
 import time
+
+
 from collections import defaultdict
 import os
 
 from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
 
-from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
-from kirke.eblearn import ebtext2antdoc, ebannotator
+from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier, ebtransformerv1_2
+from kirke.eblearn import ebannotator
 from kirke.utils import osutils, splittrte, strutils
 
-from kirke.docstruct import docreader
-
 from kirke.ebrules import rateclassifier
+
+config = configparser.ConfigParser()
+config.read('kirke.ini')
+
+SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
+PROV_CLF_VERSION = config['ebrevia.com']['PROV_CLF_VERSION']
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -30,10 +40,14 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
     if is_scut:
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        model_file_name = model_dir + '/' + provision + "_scutclassifier.pkl"
+        model_file_name = '{}/{}_scutclassifier.v{}.pkl'.format(model_dir,
+                                                                provision,
+                                                                SCUT_CLF_VERSION)
     else:
         eb_classifier = provclassifier.ProvisionClassifier(provision)
-        model_file_name = model_dir + '/' + provision + "_provclassifier.pkl"
+        model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
+                                                                provision,
+                                                                PROV_CLF_VERSION)
 
     ebtrainer._train_classifier(txt_fn_list_fn,
                                 work_dir,
@@ -42,20 +56,24 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
 
 
 # This separates out training and testing data, trains only on training data.
-def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_doc_structure=False):
+def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_doc_structure=True):
     if is_scut:
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        model_file_name = model_dir + '/' +  provision + "_scutclassifier.pkl"
+        model_file_name = '{}/{}_scutclassifier.v{}.pkl'.format(model_dir,
+                                                                provision,
+                                                                SCUT_CLF_VERSION)
     else:
         eb_classifier = provclassifier.ProvisionClassifier(provision)
-        model_file_name = model_dir + '/' +  provision + "_provclassifier.pkl"
-
+        model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
+                                                                provision,
+                                                                PROV_CLF_VERSION)
     ebtrainer.train_eval_annotator_with_trte(provision,
                                              work_dir,
                                              model_dir,
                                              model_file_name,
                                              eb_classifier,
                                              is_doc_structure=is_doc_structure)
+
 
 def eval_line_annotator_with_trte(provision,
                                   work_dir,
@@ -66,6 +84,7 @@ def eval_line_annotator_with_trte(provision,
                                             model_dir=model_dir,
                                             is_doc_structure=is_doc_structure)
 
+
 def eval_ml_rule_annotator_with_trte(provision,
                                      work_dir,
                                      model_dir):
@@ -75,18 +94,23 @@ def eval_ml_rule_annotator_with_trte(provision,
                                                model_dir=model_dir)
 
 
-def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=False):
+def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir,
+                           custom_model_dir, is_doc_structure=True):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
     # cust_id = '12345'
     provision = 'cust_12345'
 
-    # model_file_name = custom_model_dir + '/' +  provision + "_scutclassifier.pkl"
+    base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision,
+                                                          SCUT_CLF_VERSION)
+
     eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                                 provision,
                                                                 custom_model_dir,
+                                                                base_model_fname,
                                                                 is_doc_structure=is_doc_structure,
-                                                                is_combine_line=False)
+                                                                work_dir=work_dir)
+
 
 # test multiple annotators    
 def test_annotators(provisions, txt_fn_list_fn, word_dir, model_dir, custom_model_dir, threshold=None):
@@ -103,13 +127,14 @@ def test_annotators(provisions, txt_fn_list_fn, word_dir, model_dir, custom_mode
     log_fn = '_'.join(provision_set)+'-test-' + timestr + ".log"
     strutils.dumps(json.dumps(log_json), log_fn)
 
+
 # test only 1 annotator    
 def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
     eb_classifier = joblib.load(model_file_name)
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -135,7 +160,7 @@ def test_title_annotator(txt_fn_list_fn, work_dir, model_file_name):
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -150,43 +175,33 @@ def test_title_annotator(txt_fn_list_fn, work_dir, model_file_name):
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
 
-    pprint(ant_status)
+    pprint.pprint(ant_status)
 
 
-def annotate_document(file_name, work_dir, model_dir, custom_model_dir):
+def annotate_document(file_name,
+                      work_dir,
+                      model_dir,
+                      custom_model_dir,
+                      provision_set=None,
+                      is_doc_structure=True):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
-    pdf_offsets_filename = file_name.replace('.txt', '.offsets.json')
+    # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
+    #                      'party', 'warranty', 'termination', 'term']))
+    prov_labels_map, _ = eb_runner.annotate_document(file_name,
+                                                     provision_set=provision_set,
+                                                     work_dir=work_dir,
+                                                     is_doc_structure=is_doc_structure)
 
-    #prov_labels_map, doc_text = eb_runner.annotate_document(file_name,
-    #                                                        work_dir=work_dir)
+    # because special case of 'effectivdate_auto'
+    if prov_labels_map.get('effectivedate'):
+        effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
+        for eff_ant in effectivedate_annotations:
+            eff_ant['label'] = 'effectivedate_auto'
+        prov_labels_map['effectivedate_auto'] = effectivedate_annotations
+        del prov_labels_map['effectivedate']
 
-    if os.path.exists(pdf_offsets_filename):
-        prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(file_name,
-                                                                         pdf_offsets_filename,
-                                                                         work_dir=work_dir)
-    else:
-        prov_labels_map, doc_text = eb_runner.annotate_htmled_document(file_name,
-                                                                       work_dir=work_dir)
-
-    # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
-    pprint(prov_labels_map)
-
-def annotate_htmled_document(file_name, work_dir, model_dir, custom_model_dir):
-    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
-
-    prov_labels_map, doc_text = eb_runner.annotate_htmled_document(file_name, work_dir=work_dir)
-    # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
-    pprint(prov_labels_map)
-
-
-# TODO, this is the same as ebrunner.annotate_pdfboxed_document?
-def annotate_pdfboxed_document(file_name, linfo_file_name, work_dir, model_dir, custom_model_dir):
-    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
-
-    prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(file_name, linfo_file_name, work_dir=work_dir)
-
-    pprint(prov_labels_map)    
+    pprint.pprint(prov_labels_map)
 
 
 def annotate_doc_party(fn_list_fn, work_dir, model_dir, custom_model_dir, threshold=None):
@@ -235,9 +250,14 @@ if __name__ == '__main__':
                         work_dir,
                         model_dir,
                         args.scut,
-                        is_doc_structure=False)
+                        is_doc_structure=True)
     elif cmd == 'custom_train_annotator':
-        custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, custom_model_dir, is_doc_structure=False)
+        custom_train_annotator(provision,
+                               txt_fn_list_fn,
+                               work_dir,
+                               model_dir,
+                               custom_model_dir,
+                               is_doc_structure=True)
     elif cmd == 'test_annotators':
         # if no --provisions is specified, all annotators are tested
         test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir, custom_model_dir,
@@ -251,18 +271,7 @@ if __name__ == '__main__':
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        annotate_document(args.doc, work_dir, model_dir, custom_model_dir)
-    elif cmd == 'annotate_htmled_document':
-        if not args.doc:
-            print('please specify --doc', file=sys.stderr)
-            sys.exit(1)
-        annotate_htmled_document(args.doc, work_dir, model_dir, custom_model_dir)
-    elif cmd == 'annotate_pdfboxed_document':
-        if not args.doc:
-            print('please specify --doc', file=sys.stderr)
-            sys.exit(1)
-        linfo_fn = args.doc.replace('.txt', '.lineinfo.json')
-        annotate_pdfboxed_document(args.doc, linfo_fn, work_dir, model_dir, custom_model_dir)
+        annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
     elif cmd == 'annotate_doc_party':
         if not args.docs:
             print('please specify --docs', file=sys.stderr)
@@ -297,7 +306,7 @@ if __name__ == '__main__':
         splittrte.split_provision_trte(args.provfiles_dir,
                                        work_dir,
                                        model_dir_list,
-                                       is_doc_structure=False)
+                                       is_doc_structure=True)
     else:
         print("unknown command: '{}'".format(cmd))
 

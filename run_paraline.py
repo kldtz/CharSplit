@@ -1,16 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
-from pprint import pprint
-import sys
-import warnings
-import re
-
-import nltk
-
-from kirke.utils import strutils
-from kirke.docstruct import doc_pdf_reader
+from kirke.docstruct import pdftxtparser
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
@@ -24,7 +15,7 @@ if __name__ == '__main__':
 
     offsets_fname = fname.replace('.txt', '.offsets.json')
     
-    doc_pdf_reader.to_nl_paraline_texts(fname, offsets_fname,
-                                        'dir-work')
+    orig_doc_text, nl_text, paraline_text, nl_fn, paraline_fn = \
+        pdftxtparser.to_nl_paraline_texts(fname, offsets_fname, 'dir-work')
     print("done.")
     

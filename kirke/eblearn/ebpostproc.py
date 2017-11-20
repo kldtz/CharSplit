@@ -2,10 +2,10 @@ import re
 from abc import ABC, abstractmethod
 from typing import List
 
-from kirke.utils import evalutils, strutils, entityutils, stopwordutils, mathutils
-from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates
+from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
+from kirke.utils.ebsentutils import EbEntityType
 
 
 PROVISION_PAT_MAP = {
@@ -45,12 +45,13 @@ class AntResult:
 class ConciseProbAttrvec:
 
     # pylint: disable=too-many-arguments
-    def __init__(self, prob, start, end, entities, text):
+    def __init__(self, prob, start, end, entities, sechead, text):
         self.prob = prob
         self.start = start
         self.end = end
         self.entities = entities
         self.text = text
+        self.sechead = sechead.lower()
 
 
 def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
@@ -58,6 +59,7 @@ def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
                                attrvec.start,
                                attrvec.end,
                                attrvec.entities,
+                               attrvec.sechead,
                                attrvec.bag_of_words)
             for prob, attrvec in prob_attrvec_list]
 
@@ -72,6 +74,7 @@ def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list):
     min_start = cx_prob_attrvec_list[0].start
     max_end = cx_prob_attrvec_list[0].end
     merged_entities = list(cx_prob_attrvec_list[0].entities)
+    only_first_sechead = cx_prob_attrvec_list[0].sechead
     only_first_text = cx_prob_attrvec_list[0].text
     for cx_prob_attrvec in cx_prob_attrvec_list[1:]:
         if cx_prob_attrvec.prob > max_prob:
@@ -86,7 +89,7 @@ def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list):
     #    print("jjj: {}".format((prob, start, end)))
     #print("result jjj: {}".format((max_prob, min_start, max_end)))
 
-    return ConciseProbAttrvec(max_prob, min_start, max_end, merged_entities, only_first_text)
+    return ConciseProbAttrvec(max_prob, min_start, max_end, merged_entities, only_first_sechead, only_first_text)
 
 
 def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
@@ -172,8 +175,9 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                             start=cx_prob_attrvec.start,
                                             end=cx_prob_attrvec.end,
                                             # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...'))
+                                            text=strutils.remove_nltab(cx_prob_attrvec.text)).to_dict())
         return ant_result, threshold
+
 
 # Note from PythonClassifier.java:
 # The NER seems to pick up the bare word LLC, INC, and CORP as parties sometimes.  This RE
@@ -205,7 +209,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                     prob=cx_prob_attrvec.prob,
                                                     start=entity.start,
                                                     end=entity.end,
-                                                    text=strutils.remove_nltab(entity.text)))
+                                                    text=strutils.remove_nltab(entity.text)).to_dict())
         return ant_result, self.threshold
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
@@ -767,7 +771,7 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)))
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
                     break
         return ant_result, threshold
 
@@ -798,7 +802,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)))
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
                     break
         return ant_result, threshold
 
@@ -828,7 +832,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)))
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
                     break
         return ant_result, threshold
 
@@ -859,7 +863,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)))
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
                     break
         return ant_result, threshold
 
@@ -890,7 +894,7 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)))
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
                     break
         return ant_result, threshold
 
@@ -921,7 +925,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)))
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
                     break
         return ant_result, threshold
 
@@ -952,7 +956,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(prov_st)))
+                                                text=strutils.remove_nltab(prov_st)).to_dict())
                     break
         return ant_result, threshold
 
@@ -982,14 +986,78 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
                                                     prob=cx_prob_attrvec.prob,
                                                     start=tmp_start,
                                                     end=tmp_end,
-                                                    text=tmp_state))
+                                                    text=tmp_state).to_dict())
                 else:
                     ant_result.append(AntResult(label=self.provision,
                                                 prob=cx_prob_attrvec.prob,
                                                 start=cx_prob_attrvec.start,
                                                 end=cx_prob_attrvec.end,
-                                                text=anttext))
+                                                text=anttext).to_dict())
         return ant_result, threshold
+
+
+# pylint: disable=R0903
+class PostPredPrintProbProc(EbPostPredictProcessing):
+
+    def __init__(self, prov):
+        self.provision = prov
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            #print("{}\t{}\t{}\tsechead=[{}]\t[{}]".format(self.provision, cx_prob_attrvec.prob, threshold,
+            #                                              cx_prob_attrvec.sechead,
+            #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+                tmp_provision = provision if provision else self.provision
+                ant_result.append(AntResult(label=tmp_provision,
+                                            prob=cx_prob_attrvec.prob,
+                                            start=cx_prob_attrvec.start,
+                                            end=cx_prob_attrvec.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(cx_prob_attrvec.text)).to_dict())
+        return ant_result
+
+
+# pylint: disable=R0903
+# this is not used
+"""
+class PostPredConfidentialityProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'confidentiality'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            #print("{}\t{}\t{}\tsechead=[{}]\t[{}]".format(self.provision, cx_prob_attrvec.prob, threshold,
+            #                                              cx_prob_attrvec.sechead,
+            #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
+            boost = 0
+            if 'confidentiality' in cx_prob_attrvec.sechead:
+                boost = 0.20
+            if cx_prob_attrvec.prob + boost >= threshold or len(overlap) > 0:
+                tmp_provision = provision if provision else self.provision
+                ant_result.append(AntResult(label=tmp_provision,
+                                            prob=cx_prob_attrvec.prob,
+                                            start=cx_prob_attrvec.start,
+                                            end=cx_prob_attrvec.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(cx_prob_attrvec.text)).to_dict())
+        return ant_result
+"""    
 
 
 # Note from PythonClassifier.java:
@@ -1022,7 +1090,7 @@ class PostPredTitleProc(EbPostPredictProcessing):
                                                 prob=cx_prob_attrvec.prob,
                                                 start=tmp_start,
                                                 end=tmp_start + len(tmp_title),
-                                                text=tmp_title))
+                                                text=tmp_title).to_dict())
                     return ant_result, threshold
         return ant_result, threshold
 
@@ -1060,11 +1128,11 @@ class PostPredBestDateProc(EbPostPredictProcessing):
             for entity in best_date_sent.entities:
                 if entity.ner == EbEntityType.DATE.name:
                     ant_result.append(AntResult(label=self.provision,
-                                      prob=best_date_sent.prob,
-                                      start=entity.start,
-                                      end=entity.end,
-                                      # pylint: disable=line-too-long
-                                      text=strutils.remove_nltab(doc_text[entity.start:entity.end])))
+                                                prob=best_date_sent.prob,
+                                                start=entity.start,
+                                                end=entity.end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict())
                     return ant_result, self.threshold
         return ant_result, self.threshold
 
@@ -1094,7 +1162,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                                        start=entity.start,
                                        end=entity.end,
                                        # pylint: disable=line-too-long
-                                       text=strutils.remove_nltab(doc_text[entity.start:entity.end]))
+                                       text=strutils.remove_nltab(doc_text[entity.start:entity.end])).to_dict()
                     if not first:
                         first = ant_rx
                     if has_prior_text_effective and not first_after_effective:
@@ -1159,11 +1227,11 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
 
     def ant(self, line, cx_prob_attrvec, date):
         """Compiles an ant_result."""
-        text = strutils.remove_nltab(line[date[0]:date[1]][:50]) + '...'
+        text = strutils.remove_nltab(line[date[0]:date[1]])
         return AntResult(label=self.provision, prob=cx_prob_attrvec.prob,
                          start=cx_prob_attrvec.start + date[0],
                          end=cx_prob_attrvec.start + date[1],
-                         text=text)
+                         text=text).to_dict()
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
                      provision=None, prov_human_ant_list=None) -> List[AntResult]:
@@ -1255,12 +1323,12 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'choiceoflaw': PostPredChoiceOfLawProc(),
+    # 'confidentiality': PostPredPrintProbProc('confidentiality'),
+    # 'confidentiality': PostPredConfidentialityProc(),
     'date': PostPredBestDateProc('date'),
     'ea_employee': PostPredEaEmployeeProc(),
     'ea_employer': PostPredEaEmployerProc(),
-    # The classifier label is "effectivedate", but 'extractor' is expecting
-    # 'effectivedate_auto'
-    'effectivedate': PostPredEffectiveDateProc('effectivedate_auto'),
+    'effectivedate': PostPredEffectiveDateProc('effectivedate'),
     'la_borrower': PostPredLaBorrowerProc(),
     'la_lender': PostPredLaLenderProc(),
     'la_agent_trustee': PostPredLaAgentTrusteeProc(),

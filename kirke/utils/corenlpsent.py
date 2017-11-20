@@ -28,7 +28,7 @@ class EbToken:
 # 1.8 Mb in an ebantdoc
 
 # cannot use namedtuple because _fix_incorrect_tokens resets internal
-# in ebtext2antdoc
+# in ebsentutils
 # EbToken = namedtuple('EbToken', ['start', 'end', 'word',
 #                                 'lemma', 'pos', 'index', 'ner'])
 # 9,927 bytes avg per ebsent

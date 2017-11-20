@@ -13,6 +13,16 @@ def find_annotation_overlap(start, end, label_start_end_list):
             result_list.append(ant)
     return result_list
 
+# label_start_end are dict
+def find_annotation_overlap_x2(start, end, label_start_end_list):
+    result_list = []
+    if not label_start_end_list:
+      return result_list
+    for ant in label_start_end_list:
+        if mathutils.start_end_overlap((start, end), (ant['start'], ant['end'])):
+            result_list.append(ant)
+    return result_list
+
 
 def calc_precision_recall_f1(tn, fp, fn, tp, title):
     print("\n" + title)

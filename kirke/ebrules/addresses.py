@@ -2,8 +2,10 @@ import pandas as pd
 import pickle
 import re
 import string
-from unidecode import unidecode
+import time
+# from unidecode import unidecode
 
+from kirke.utils import strutils
 
 """Config. RETRAIN retrains the classifier."""
 
@@ -55,10 +57,12 @@ def load_keywords():
 
 # Regex and string constants
 DIGIT = re.compile(r'\d')
-UK_STD = '[A-Z]{1,2}[0-9R][0-9A-Z]? (?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
-ZIP_CODE_FORMATS = [re.compile('\b\d{5}[-\s]+\d{4}\b'), re.compile('\b\d{5}\b'),
-                    re.compile('\b\d{4}\b'), re.compile('\b\d{6}\b'),
-                    re.compile('\b' + UK_STD + '\b')]
+UK_STD = r'[A-Z]{1,2}[0-9R][0-9A-Z]? (?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
+ZIP_CODE_FORMATS = [re.compile(r'\b\d{5}[-\s]+\d{4}\b'),
+                    re.compile(r'\b\d{5}\b'),
+                    re.compile(r'\b\d{4}\b'),
+                    re.compile(r'\b\d{6}\b'),
+                    re.compile(r'\b' + UK_STD + r'\b')]
 ALNUM_SET = set(string.ascii_letters).union(string.digits)
 NON_ALNUM = re.compile(r'[^A-Za-z\d]')
 
@@ -124,13 +128,22 @@ def find_features(s, num_chunks, keywords):
 with open(DATA_DIR + 'address_classifier.pickle', 'rb') as f:
     classifier = pickle.load(f)
 
+keywords = load_keywords()
 
+
+# it takes around 7 ms per call
 def classify(s):
     """Returns probability (range 0-1) s is an addresses (accept if >= 0.5)."""
-    if (len(s) not in range(MIN_ADDRESS_LEN, MAX_ADDRESS_LEN + 1)
-        or not any(c.isalpha() for c in s)):
+
+    # if (len(s) not in range(MIN_ADDRESS_LEN, MAX_ADDRESS_LEN + 1)
+    #    or not any(c.isalpha() for c in s)):
+    #    return 0
+    len_s = len(s)
+    if (len_s < MIN_ADDRESS_LEN or len_s >= MAX_ADDRESS_LEN + 1) or not strutils.has_alpha(s):
         return 0
-    s = unidecode(s)
-    features = find_features(s, NUM_DIGIT_CHUNKS, load_keywords())
-    return classifier.prob_classify(features).prob(1)
+    # s = unidecode(s)
+    features = find_features(s, NUM_DIGIT_CHUNKS, keywords)
+    result = classifier.prob_classify(features).prob(1)
+
+    return result
 
