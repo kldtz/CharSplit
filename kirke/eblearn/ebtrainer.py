@@ -20,7 +20,8 @@ DEFAULT_CV = 5
 ## this is the original val
 # MIN_FULL_TRAINING_SIZE = 50
 # MIN_FULL_TRAINING_SIZE = 400
-MIN_FULL_TRAINING_SIZE = 150
+
+MIN_FULL_TRAINING_SIZE = 100
 
 
 # Take all the data for training.
@@ -122,11 +123,27 @@ def train_eval_annotator(provision, txt_fn_list,
 
         ant_status = {'provision' : provision,
                       'pred_status' : pred_status}
+        
+        ## X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
+        ## using generator, instead of all loaded at once.
+        # X_train_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_train, work_dir)
+        # ant_status, log_json = prov_annotator.test_antdoc_list(X_train_antdoc_list)
+        
         prov_annotator.eval_status = ant_status
         pprint(ant_status)
 
         model_status_fn = model_dir + '/' +  provision + ".status"
         strutils.dumps(json.dumps(ant_status), model_status_fn)
+
+        # NOTE: jshaw
+        # we should output a log file, based on the pred_status.
+        # Need to look into tmp_preds and do a customize log generation for this?
+        
+        # timestr = time.strftime("%Y%m%d-%H%M%S")
+        # log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
+        # logging.info('wrote logging file at: {}'.format(log_fn))
+        # strutils.dumps(json.dumps(log_json), log_fn)
+    
         return prov_annotator
 
     logging.info("training with %d instances, num_pos= %d, num_neg= %d",
@@ -165,6 +182,7 @@ def train_eval_annotator(provision, txt_fn_list,
     strutils.dumps(json.dumps(ant_status), model_status_fn)
     timestr = time.strftime("%Y%m%d-%H%M%S")
     log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
+    logging.info('wrote logging file at: {}'.format(log_fn))
     strutils.dumps(json.dumps(log_json), log_fn)
 
     with open('provision_model_stat.tsv', 'a') as pmout:

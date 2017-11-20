@@ -105,11 +105,11 @@ class ProvisionAnnotator:
             return ant_result
         for ant in prov_human_ant_list:
             if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
-                fn_ant = ebpostproc.AntResult(label=provision,
-                                              prob=0.0,
-                                              start=ant.start,
-                                              end=ant.end,
-                                              text=strutils.remove_nltab(doc_text[ant.start:ant.end])).to_dict()
+                fn_ant = ebpostproc.to_ant_result_dict(label=provision,
+                                                       prob=0.0,
+                                                       start=ant.start,
+                                                       end=ant.end,
+                                                       text=strutils.remove_nltab(doc_text[ant.start:ant.end]))
                 ant_result.append(fn_ant)
         return ant_result
 
