@@ -20,7 +20,10 @@ DEFAULT_CV = 5
 ## this is the original val
 # MIN_FULL_TRAINING_SIZE = 50
 # MIN_FULL_TRAINING_SIZE = 400
-MIN_FULL_TRAINING_SIZE = 150
+
+# MIN_FULL_TRAINING_SIZE = 150
+MIN_FULL_TRAINING_SIZE = 100
+
 
 
 # Take all the data for training.
