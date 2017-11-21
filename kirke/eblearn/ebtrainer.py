@@ -172,7 +172,7 @@ def train_eval_annotator(provision, txt_fn_list,
     # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
     # using generator, instead of all loaded at once.
     X_test_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_test, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(X_test_antdoc_list)
+    ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
