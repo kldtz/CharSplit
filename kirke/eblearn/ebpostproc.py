@@ -30,27 +30,6 @@ def to_ant_result_dict(label, prob, start, end, text):
             'text': text}
 
 # pylint: disable=too-few-public-methods
-"""
-class AntResult:
-
-    # pylint: disable=too-many-arguments
-    def __init__(self, label, prob, start, end, text):
-        self.label = label
-        self.prob = prob
-        self.start = start
-        self.end = end
-        self.text = text
-
-    def to_dict(self):
-        return {'label': self.label,
-                'prob': self.prob,
-                'start': self.start,
-                'end': self.end,
-                'text': self.text}
-"""
-
-
-# pylint: disable=too-few-public-methods
 class ConciseProbAttrvec:
 
     # pylint: disable=too-many-arguments
