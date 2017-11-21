@@ -92,6 +92,25 @@ PARTY_CATEGORICAL_ATTR_LIST = [attr_type[0] for attr_type
 # print("party_numeric_attr_list: {}".format(PARTY_NUMERIC_ATTR_LIST))
 # print("party_categorical_attr_list: {}".format(PARTY_CATEGORICAL_ATTR_LIST))
 
+v1name_to_v1_2name_map = {
+    'le-3-word': 'le_3_word',
+    'le-5-word': 'le_5_word',
+    'le-10-word': 'le_10_word',
+    'ge-05-lt-10-word': 'ge_05_lt_10_word',
+    'ge-10-lt-20-word': 'ge_10_lt_20_word',
+    'ge-20-lt-30-word': 'ge_20_lt_30_word',
+    'ge-30-lt-40-word': 'ge_30_lt_40_word',
+    'ge-40-word': 'ge_40_word',
+    'is-1-num-define-party': 'is_1_num_define_party',
+    'is-2-num-define-party': 'is_2_num_define_party',
+    'is-ge2-num-define-party': 'is_ge2_num_define_party',
+    'has-define-party': 'has_define_party',
+    'has-define-agreement': 'has_define_agreement',
+    'has-word-between': 'has_word_between'
+}
+
+def v1name_to_v1_2name(feat_name: str):
+    return v1name_to_v1_2name_map.get(feat_name, feat_name)
 
 # replacing sent2attrs
 class EbAttrVec:
@@ -136,25 +155,31 @@ class EbAttrVec:
 
 
     # pylint: disable=too-many-arguments
-    def __init__(self, file_id, start, end, sent_text, labels, entities, sechead):
+    def __init__(self, file_id, start, end, sent_text, labels, entities, sechead=None):
         self.file_id = file_id
         self.start = start  # this differs from ent_start, which can be chopped
         self.end = end      # similar to above, ent_end
         self.bag_of_words = sent_text
         self.labels = labels
         self.entities = entities
-        self.sechead = sechead
+        if sechead is None:
+            self.sechead = ''
+        else:
+            self.sechead = sechead
 
     def get_val(self, attr_name):
         """Return value of the attribute"""
+        attr_name = v1name_to_v1_2name(attr_name)
         return getattr(self, attr_name)
 
     def set_val(self, attr, val):
         """Set value of the attribute"""
+        attr = v1name_to_v1_2name(attr)
         setattr(self, attr, val)
 
     def set_val_yesno(self, attr, val):
         """Convert val to boolean before set it"""
+        attr = v1name_to_v1_2name(attr)
         setattr(self, attr, bool(val))
 
     def __str__(self):

@@ -188,7 +188,7 @@ class EbRunner:
         #    logging.info("user specified provision list: %s", provision_set)
 
         annotations = {}
-        with concurrent.futures.ThreadPoolExecutor(8) as executor:
+        with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
                                                    self.provision_annotator_map[provision],
                                                    eb_antdoc):
@@ -452,7 +452,7 @@ class EbRunner:
 
         annotations = {}
         logs = {}
-        with concurrent.futures.ThreadPoolExecutor(8) as executor:
+        with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(test_provision,
                                                    self.provision_annotator_map[provision],
                                                    ebantdoc_list,

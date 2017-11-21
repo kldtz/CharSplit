@@ -1,6 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Dict
+from typing import List, Dict
 
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates
@@ -28,25 +28,6 @@ def to_ant_result_dict(label, prob, start, end, text):
             'start': start,
             'end':  end,
             'text': text}
-"""    
-# pylint: disable=too-few-public-methods
-class AntResult:
-
-    # pylint: disable=too-many-arguments
-    def __init__(self, label, prob, start, end, text):
-        self.label = label
-        self.prob = prob
-        self.start = start
-        self.end = end
-        self.text = text
-
-    def to_dict(self):
-        return {'label': self.label,
-                'prob': self.prob,
-                'start': self.start,
-                'end': self.end,
-                'text': self.text}
-"""
 
 
 # pylint: disable=too-few-public-methods
@@ -219,6 +200,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                              end=entity.end,
                                                              text=strutils.remove_nltab(entity.text)))
         return ant_result, self.threshold
+
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
 
@@ -1030,7 +1012,7 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
                                                      end=cx_prob_attrvec.end,
                                                      # pylint: disable=line-too-long
                                                      text=strutils.remove_nltab(cx_prob_attrvec.text)))
-        return ant_result
+        return ant_result, threshold
 
 
 # pylint: disable=R0903
@@ -1040,7 +1022,7 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
         self.provision = prov
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1053,17 +1035,16 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
             #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
             if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
                 tmp_provision = provision if provision else self.provision
-                ant_result.append(AntResult(label=tmp_provision,
-                                            prob=cx_prob_attrvec.prob,
-                                            start=cx_prob_attrvec.start,
-                                            end=cx_prob_attrvec.end,
-                                            # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(cx_prob_attrvec.text)).to_dict())
-        return ant_result
+                ant_result.append(to_ant_result_dict(label=tmp_provision,
+                                                     prob=cx_prob_attrvec.prob,
+                                                     start=cx_prob_attrvec.start,
+                                                     end=cx_prob_attrvec.end,
+                                                     # pylint: disable=line-too-long
+                                                     text=strutils.remove_nltab(cx_prob_attrvec.text)))
+        return ant_result, threshold
 
 
 # pylint: disable=R0903
->>>>>>> jshaw/add-back-sechead
 # this is not used
 """
 class PostPredConfidentialityProc(EbPostPredictProcessing):
@@ -1089,11 +1070,11 @@ class PostPredConfidentialityProc(EbPostPredictProcessing):
             if cx_prob_attrvec.prob + boost >= threshold or len(overlap) > 0:
                 tmp_provision = provision if provision else self.provision
                 ant_result.append(to_ant_result_dict(label=tmp_provision,
-                                            prob=cx_prob_attrvec.prob,
-                                            start=cx_prob_attrvec.start,
-                                            end=cx_prob_attrvec.end,
-                                            # pylint: disable=line-too-long
-                                            text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                                                     prob=cx_prob_attrvec.prob,
+                                                     start=cx_prob_attrvec.start,
+                                                     end=cx_prob_attrvec.end,
+                                                     # pylint: disable=line-too-long
+                                                     text=strutils.remove_nltab(cx_prob_attrvec.text)))
         return ant_result
 """    
 
@@ -1195,6 +1176,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                 if entity.ner == EbEntityType.DATE.name:
                     prior_text = doc_text[best_effectivedate_sent.start:entity.start]
                     has_prior_text_effective = 'effective' in prior_text.lower()
+
                     ant_rx = to_ant_result_dict(label=self.provision,
                                                 prob=best_effectivedate_sent.prob,
                                                 start=entity.start,
