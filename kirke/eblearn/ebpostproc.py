@@ -1282,7 +1282,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
             if date_found:
                 # If stopping when we find a date, return only this date
                 if self.stop_at_one_date:
-                    return [ant_result[-1]]
+                    return [ant_result[-1]], self.threshold
                 continue
  
             # If an l_commencement term is in the line, take previous date
@@ -1297,7 +1297,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                         break
             if date_found:
                 if self.stop_at_one_date:
-                    return [ant_result[-1]]
+                    return [ant_result[-1]], self.threshold
                 continue
  
             # If there is an l_commencement non-term noun, take next date
@@ -1311,7 +1311,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                         break
             if date_found:
                 if self.stop_at_one_date:
-                    return [ant_result[-1]]
+                    return [ant_result[-1]], self.threshold
                 continue
  
             # If no date found and next line starts with a date, return that
@@ -1332,7 +1332,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                                                        next_date))
                             next_attrvec.prob = next_prob
                             if self.stop_at_one_date:
-                                return [ant_result[-1]]
+                                return [ant_result[-1]], self.threshold
                             continue
             if cx_prob_attrvec.prob >= threshold:
                 ant_result.append(self.ant(line, cx_prob_attrvec,
