@@ -1034,6 +1034,36 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
 
 
 # pylint: disable=R0903
+class PostPredPrintProbProc(EbPostPredictProcessing):
+
+    def __init__(self, prov):
+        self.provision = prov
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            #print("{}\t{}\t{}\tsechead=[{}]\t[{}]".format(self.provision, cx_prob_attrvec.prob, threshold,
+            #                                              cx_prob_attrvec.sechead,
+            #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
+            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+                tmp_provision = provision if provision else self.provision
+                ant_result.append(AntResult(label=tmp_provision,
+                                            prob=cx_prob_attrvec.prob,
+                                            start=cx_prob_attrvec.start,
+                                            end=cx_prob_attrvec.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.remove_nltab(cx_prob_attrvec.text)).to_dict())
+        return ant_result
+
+
+# pylint: disable=R0903
+>>>>>>> jshaw/add-back-sechead
 # this is not used
 """
 class PostPredConfidentialityProc(EbPostPredictProcessing):
