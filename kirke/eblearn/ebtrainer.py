@@ -44,7 +44,7 @@ def log_model_eval_status(ant_status):
                  str(timestamp),
                  provision,
                  pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
-                 pred_status['best_params_']['alpha'],
+                 ant_status['pred_status']['best_params_']['alpha'],
                  pstatus['prec'], pstatus['recall'], pstatus['f1'],
                  acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
                  astatus['threshold'],
