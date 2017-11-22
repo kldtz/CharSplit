@@ -32,9 +32,9 @@ def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
     return eb_classifier
 
 
-def log_model_eval_status(pred_status):
+def log_model_eval_status(ant_status):
     with open('provision_model_stat.tsv', 'a') as pmout:
-        pstatus = pred_status['pred_status']
+        pstatus = ant_status['pred_status']['pred_status']
         pcfmtx = pstatus['confusion_matrix']
         astatus = ant_status['ant_status']
         acfmtx = astatus['confusion_matrix']
@@ -319,7 +319,7 @@ def train_eval_annotator(provision, txt_fn_list,
     logging.info('wrote logging file at: {}'.format(log_fn))
     strutils.dumps(json.dumps(log_json), log_fn)
 
-    log_model_eval_status(pred_status)
+    log_model_eval_status(ant_status)
     return prov_annotator, log_json
 
 
@@ -361,7 +361,7 @@ def train_eval_annotator_with_trte(provision,
     log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
     strutils.dumps(json.dumps(log_json), log_fn)
 
-    log_model_eval_status(pred_status)    
+    log_model_eval_status(ant_status)
     return prov_annotator, log_json
 
 
