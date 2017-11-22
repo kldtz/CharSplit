@@ -7,7 +7,7 @@ import copy
 import json
 import logging
 import os.path
-
+import pprint
 
 from flask import Flask, request, jsonify
 
@@ -113,8 +113,8 @@ def annotate_uploaded_document():
         del prov_labels_map['effectivedate']
 
     ebannotations = {'ebannotations': prov_labels_map}
-    # pprint(prov_labels_map)
-    # pprint(ebannotations)
+    # pprint.pprint(prov_labels_map)
+    # pprint.pprint(ebannotations)
 
     return json.dumps(ebannotations)
 
@@ -183,7 +183,7 @@ def custom_train(cust_id):
               'recall': ant_status['recall']}
 
     logging.info("status:")
-    pprint(status)
+    pprint.pprint(status)
               
     # return some json accuracy info
     status_and_antana = {"stats": status,
