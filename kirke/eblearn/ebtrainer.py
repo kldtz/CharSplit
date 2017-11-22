@@ -39,6 +39,7 @@ def log_model_eval_status(ant_status):
         astatus = ant_status['ant_status']
         acfmtx = astatus['confusion_matrix']
         timestamp = int(time.time())
+        provision = ant_status['provision']        
         aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
                  str(timestamp),
                  provision,
