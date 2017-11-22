@@ -278,7 +278,7 @@ def train_eval_annotator(provision, txt_fn_list,
                                          model_dir,
                                          work_dir)
         # return prov_annotator
-        return prov_annotator2
+        return prov_annotator2, combined_log_json
 
     logging.info("training with %d instances, num_pos= %d, num_neg= %d",
                  len(attrvec_list), num_pos_label, num_neg_label)
@@ -320,7 +320,7 @@ def train_eval_annotator(provision, txt_fn_list,
     strutils.dumps(json.dumps(log_json), log_fn)
 
     log_model_eval_status(pred_status)
-    return prov_annotator
+    return prov_annotator, log_json
 
 
 # Take 1/5 of the data out for testing
@@ -362,7 +362,7 @@ def train_eval_annotator_with_trte(provision,
     strutils.dumps(json.dumps(log_json), log_fn)
 
     log_model_eval_status(pred_status)    
-    return prov_annotator
+    return prov_annotator, log_json
 
 
 def eval_annotator(txt_fn_list, work_dir, model_file_name):

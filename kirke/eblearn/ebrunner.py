@@ -487,14 +487,14 @@ class EbRunner:
 
         # eb_classifier = scutclassifier.ShortcutClassifier(provision)
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        eb_annotator = ebtrainer.train_eval_annotator(provision,
-                                                      txt_fn_list,
-                                                      work_dir,
-                                                      custom_model_dir,
-                                                      full_model_fname,
-                                                      eb_classifier,
-                                                      is_doc_structure=is_doc_structure,
-                                                      custom_training_mode=True)
+        eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
+                                                                txt_fn_list,
+                                                                work_dir,
+                                                                custom_model_dir,
+                                                                full_model_fname,
+                                                                eb_classifier,
+                                                                is_doc_structure=is_doc_structure,
+                                                                custom_training_mode=True)
 
         # update the hashmap of classifier
         old_provision_annotator = self.provision_annotator_map.get(provision)
@@ -519,7 +519,7 @@ class EbRunner:
         last_modified_date = datetime.fromtimestamp(mtime)
         self.custom_model_timestamp_map[base_model_fname] = last_modified_date
 
-        return eb_annotator.get_eval_status()
+        return eb_annotator.get_eval_status(), log_json
 
 
     def eval_ml_rule_annotator_with_trte(self,

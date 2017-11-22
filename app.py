@@ -168,22 +168,25 @@ def custom_train(cust_id):
     base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
 
     # Following the logic in the original code.
-    eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
-                                                                provision,
-                                                                CUSTOM_MODEL_DIR,
-                                                                base_model_fname,
-                                                                is_doc_structure=True,
-                                                                work_dir=work_dir)
+    eval_status, log_json = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
+                                                                          provision,
+                                                                          CUSTOM_MODEL_DIR,
+                                                                          base_model_fname,
+                                                                          is_doc_structure=True,
+                                                                          work_dir=work_dir)
     # copy the result into the expected format for client
-    pred_status = eval_status['pred_status']['pred_status']
-    cf = pred_status['confusion_matrix']
+    ant_status = eval_status['ant_status']
+    cf = ant_status['confusion_matrix']
     status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
-              'fscore': pred_status['f1'],
-              'precision': pred_status['prec'],
-              'recall': pred_status['recall']}
+              'fscore': ant_status['f1'],
+              'precision': ant_status['prec'],
+              'recall': ant_status['recall']}
 
     logging.info("status:")
-    # pprint(status)
+    pprint(status)
               
     # return some json accuracy info
-    return jsonify(status)
+    status_and_antana = {"stats": status,
+                         "antana": log_json}
+    # return jsonify(status)
+    return jsonify(status_and_antana)
