@@ -1,18 +1,17 @@
+from collections import defaultdict
+from datetime import datetime
 import json
 import logging
 from pprint import pprint
+import time
 
 from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import cross_val_predict, train_test_split
 
-from kirke.eblearn import ebannotator, ebpostproc, lineannotator
-from kirke.utils import evalutils, splittrte, strutils, ebantdoc2
-from kirke.eblearn import ebattrvec
+from kirke.eblearn import ebannotator, ebattrvec, ebpostproc, lineannotator
 from kirke.ebrules import titles
-
-from datetime import datetime
-import time
+from kirke.utils import ebantdoc2, evalutils, splittrte, strutils
 
 DEFAULT_CV = 5
 
@@ -33,6 +32,130 @@ def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
     return eb_classifier
 
 
+def log_model_eval_status(pred_status):
+    with open('provision_model_stat.tsv', 'a') as pmout:
+        pstatus = pred_status['pred_status']
+        pcfmtx = pstatus['confusion_matrix']
+        astatus = ant_status['ant_status']
+        acfmtx = astatus['confusion_matrix']
+        timestamp = int(time.time())
+        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                 str(timestamp),
+                 provision,
+                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
+                 pred_status['best_params_']['alpha'],
+                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
+                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
+                 astatus['threshold'],
+                 astatus['prec'], astatus['recall'], astatus['f1']]
+        print('\t'.join([str(x) for x in aline]), file=pmout)
+
+
+def log_custom_model_eval_status(ant_status):
+    with open('provision_model_stat.tsv', 'a') as pmout:
+        pstatus = ant_status['ant_status']  # only ant status is available for custom training
+        pcfmtx = pstatus['confusion_matrix']
+        astatus = ant_status['ant_status']
+        acfmtx = astatus['confusion_matrix']
+        timestamp = int(time.time())
+        provision = ant_status['provision']
+        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                 str(timestamp),
+                 provision,
+                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
+                 # pred_status['best_params_']['alpha'],
+                 -9999.99,
+                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
+                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
+                 astatus['threshold'],
+                 astatus['prec'], astatus['recall'], astatus['f1']]
+        print('\t'.join([str(x) for x in aline]), file=pmout)
+
+
+def cv_train_at_annotation_level(provision, x_traindoc_list, bool_list,
+                                 eb_classifier_orig,
+                                 model_file_name,
+                                 model_dir,
+                                 work_dir):
+    # we do 4-fold cross validation, as the big set for custom training
+    # test_size = 0.25
+    # this will be looped mutliple times, so a list, not a generator
+    x_antdoc_list = list(ebantdoc2.traindoc_list_to_antdoc_list(x_traindoc_list, work_dir))
+
+    num_fold = 4
+    # distribute positives to all buckets
+    pos_list, neg_list = [], []
+    for x_antdoc, label in zip(x_antdoc_list, bool_list):
+        if label:
+            pos_list.append((x_antdoc, label))
+        else:
+            neg_list.append((x_antdoc, label))
+    pos_list.extend(neg_list)
+    bucket_x_map = defaultdict(list)
+    for count, (x_antdoc, label) in enumerate(pos_list):
+        # bucket_x_map[count % num_fold].append((x_antdoc, label))
+        bucket_x_map[count % num_fold].append(x_antdoc)
+
+    #for bnum, alist in bucket_x_map.items():
+    #    print("-----")
+    #    for ebantdoc, y in alist:
+    #        print("{}\t{}\t{}".format(bnum, ebantdoc.file_id, y))
+
+    log_list = []
+    cv_ant_status_list = []
+    for bucket_num in range(num_fold):  # cross train each bucket
+
+        train_buckets = []
+        test_bucket = None
+        for bnum, bucket_x in bucket_x_map.items():
+            if bnum != bucket_num:
+                train_buckets.extend(bucket_x)
+            else:  # bnum == bucket_num
+                test_bucket = bucket_x
+
+        cv_eb_classifier = eb_classifier_orig.make_bare_copy()
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        cv_eb_classifier_fn = '/tmp/{}-{}-{}'.format(provision, timestr, bucket_num)
+        cv_eb_classifier.train_antdoc_list(train_buckets,
+                                           work_dir,
+                                           cv_eb_classifier_fn)
+        cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir)
+
+        cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket)
+        # print("cv ant_status, bucket_num = {}:".format(bucket_num))
+        # print(cv_ant_status)
+
+        log_list.extend(cv_log_json)
+        cv_ant_status_list.append(cv_ant_status)
+
+    # now build the annotator using ALL training data
+    eb_classifier = eb_classifier_orig.make_bare_copy()
+    eb_classifier.train_antdoc_list(x_antdoc_list,
+                                    work_dir,
+                                    model_file_name)
+    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
+    log_json = log_list
+    merged_ant_status = evalutils.aggregate_ant_status_list(cv_ant_status_list)['ant_status']
+
+    ant_status= {'provision': provision}
+    ant_status['ant_status'] = merged_ant_status
+    ant_status['pred_status'] = {'pred_status': merged_ant_status}  # we are going to fake it for now
+    prov_annotator.eval_status = ant_status
+    pprint(ant_status)
+
+    model_status_fn = model_dir + '/' +  provision + ".status"
+    strutils.dumps(json.dumps(ant_status), model_status_fn)
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
+    logging.info('wrote logging file at: {}'.format(log_fn))
+    strutils.dumps(json.dumps(log_json), log_fn)
+
+    log_custom_model_eval_status({'provision': provision,
+                                  'ant_status': merged_ant_status})
+
+    return prov_annotator, log_list
+
+
 # Take 1/5 of the data out for testing
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
@@ -50,9 +173,9 @@ def train_eval_annotator(provision, txt_fn_list,
     # is_combine_line should be file dependent, PDF than False
     # HTML is True.
     eb_traindoc_list = ebantdoc2.doclist_to_traindoc_list(txt_fn_list,
-                                                       work_dir,
-                                                       is_bespoke_mode=custom_training_mode,
-                                                       is_doc_structure=is_doc_structure)
+                                                          work_dir,
+                                                          is_bespoke_mode=custom_training_mode,
+                                                          is_doc_structure=is_doc_structure)
 
     attrvec_list = []
     for eb_traindoc in eb_traindoc_list:
@@ -131,6 +254,7 @@ def train_eval_annotator(provision, txt_fn_list,
         # ant_status, log_json = prov_annotator.test_antdoc_list(X_train_antdoc_list)
         
         prov_annotator.eval_status = ant_status
+        print("original status:")
         pprint(ant_status)
 
         model_status_fn = model_dir + '/' +  provision + ".status"
@@ -144,8 +268,17 @@ def train_eval_annotator(provision, txt_fn_list,
         # log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
         # logging.info('wrote logging file at: {}'.format(log_fn))
         # strutils.dumps(json.dumps(log_json), log_fn)
-    
-        return prov_annotator
+
+        prov_annotator2, combined_log_json = \
+            cv_train_at_annotation_level(provision,
+                                         X_train,
+                                         y,
+                                         eb_classifier,
+                                         model_file_name,
+                                         model_dir,
+                                         work_dir)
+        # return prov_annotator
+        return prov_annotator2
 
     logging.info("training with %d instances, num_pos= %d, num_neg= %d",
                  len(attrvec_list), num_pos_label, num_neg_label)
@@ -186,22 +319,7 @@ def train_eval_annotator(provision, txt_fn_list,
     logging.info('wrote logging file at: {}'.format(log_fn))
     strutils.dumps(json.dumps(log_json), log_fn)
 
-    with open('provision_model_stat.tsv', 'a') as pmout:
-        pstatus = pred_status['pred_status']
-        pcfmtx = pstatus['confusion_matrix']
-        astatus = ant_status['ant_status']
-        acfmtx = astatus['confusion_matrix']
-        timestamp = int(time.time())
-        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
-                 str(timestamp),        
-                 provision,
-                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
-                 pred_status['best_params_']['alpha'],
-                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
-                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
-                 astatus['threshold'],
-                 astatus['prec'], astatus['recall'], astatus['f1']]
-        print('\t'.join([str(x) for x in aline]), file=pmout)        
+    log_model_eval_status(pred_status)
     return prov_annotator
 
 
@@ -243,23 +361,7 @@ def train_eval_annotator_with_trte(provision,
     log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
     strutils.dumps(json.dumps(log_json), log_fn)
 
-    with open('provision_model_stat.tsv', 'a') as pmout:
-        pstatus = pred_status['pred_status']
-        pcfmtx = pstatus['confusion_matrix']
-        astatus = ant_status['ant_status']
-        acfmtx = astatus['confusion_matrix']
-        timestamp = int(time.time())
-        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
-                 str(timestamp),
-                 provision,
-                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
-                 pred_status['best_params_']['alpha'],
-                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
-                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
-                 astatus['threshold'],
-                 astatus['prec'], astatus['recall'], astatus['f1']]
-        print('\t'.join([str(x) for x in aline]), file=pmout)
-
+    log_model_eval_status(pred_status)    
     return prov_annotator
 
 

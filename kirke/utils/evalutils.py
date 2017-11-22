@@ -24,16 +24,18 @@ def find_annotation_overlap_x2(start, end, label_start_end_list):
     return result_list
 
 
-def calc_precision_recall_f1(tn, fp, fn, tp, title):
-    print("\n" + title)
+def calc_precision_recall_f1(tn, fp, fn, tp, title=None):
+    if title:
+        print("\n" + title)
     actual_true = fn + tp
     actual_false = tn + fp
     pred_true = tp + fp
     pred_false = tn + fn
 
-    print("actual_true= {}, actual_false= {}".format(actual_true, actual_false))
-    print("  pred_true= {},   pred_false= {}".format(pred_true, pred_false))
-    print("[[tn={}, fp={}], [fn={}, tp={}]]".format(tn, fp, fn, tp))
+    if title:
+        print("actual_true= {}, actual_false= {}".format(actual_true, actual_false))
+        print("  pred_true= {},   pred_false= {}".format(pred_true, pred_false))
+        print("[[tn={}, fp={}], [fn={}, tp={}]]".format(tn, fp, fn, tp))
 
     if tp + fp == 0:
         prec = 0
@@ -47,9 +49,34 @@ def calc_precision_recall_f1(tn, fp, fn, tp, title):
         f1 = 0
     else:
         f1 = 2 * prec * recall / (prec + recall)
-    print("prec= {}, recall= {}, f1= {}".format(prec, recall, f1))
+
+    if title:
+        print("prec= {}, recall= {}, f1= {}".format(prec, recall, f1))
 
     return prec, recall, f1
+
+
+def aggregate_ant_status_list(alist):
+    result_map = defaultdict(int)
+    for ant_status in alist:
+        conf_mtx = ant_status['ant_status']['confusion_matrix']
+        for pred_type, count in conf_mtx.items():
+            result_map[pred_type] += count
+        threshold = ant_status['ant_status']['threshold']  # we just take the last one
+
+    prec, recall, f1 = calc_precision_recall_f1(result_map['tn'],
+                                                result_map['fp'],
+                                                result_map['fn'],
+                                                result_map['tp'])
+
+    return {'ant_status': {'recall': recall,
+                           'prec': prec,
+                           'f1': f1,
+                           'threshold': threshold,
+                           'confusion_matrix': {'tp': result_map['tp'],
+                                                'tn': result_map['tn'],
+                                                'fp': result_map['fp'],
+                                                'fn': result_map['fn']}}}
 
 
 AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
