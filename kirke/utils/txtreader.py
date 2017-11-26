@@ -69,7 +69,7 @@ def load_page_lines_with_offsets(file_name: str):
     return page_offsets, page_list
 
 
-BE_SPACE_PAT = re.compile('^(\s*)(.*)$')
+BE_SPACE_PAT = re.compile(r'^(\s*)(.*)$')
 
 # remove all begin and end spaces for lines
 # 'be' = begin_end
@@ -85,9 +85,10 @@ def load_normalized_lines_with_offsets(file_name: str):
             if new_line.strip():
                 mat = BE_SPACE_PAT.match(new_line)
                 no_be_space_line = mat.group(2).strip()
-                len_no_be_space_line = len(no_be_space_line)
-                from_start = from_offset + len(mat.group(1))
-                from_end = from_offset + len_no_be_space_line
+
+                from_start = from_offset + mat.start(2)
+                from_end = from_start + len(no_be_space_line)
+
                 yield from_start, from_end, no_be_space_line
             else:
                 yield from_offset, from_offset, ''
@@ -110,11 +111,13 @@ def load_lines_with_fromto_offsets(file_name: str):
             if new_line.strip():
                 mat = BE_SPACE_PAT.match(new_line)
                 no_be_space_line = mat.group(2).strip()
-                len_no_be_space_line = len(no_be_space_line)
-                from_start = from_offset + len(mat.group(1))
-                from_end = from_offset + len_no_be_space_line
+                len_nospace_line = len(no_be_space_line)
+
+                from_start = from_offset + mat.start(2)
+                from_end = from_start + len_no_be_space_line
                 to_end = to_offset + len_no_be_space_line
                 yield (from_start, from_end), (to_offset, to_end), no_be_space_line
+
                 to_offset += len_no_be_space_line
             else:
                 yield (from_offset, from_offset), (to_offset, to_offset), ''
@@ -210,8 +213,9 @@ def de_separate_lines(atext: str):
             mat = BE_SPACE_PAT.match(new_line)
             no_be_space_line = mat.group(2).strip()
             len_no_be_space_line = len(no_be_space_line)
+
             from_start = from_offset + len(mat.group(1))
-            from_end = from_offset + len_no_be_space_line
+            from_end = from_start + len_no_be_space_line
             all_lines.append((from_start, from_end, no_be_space_line))
         else:
             all_lines.append((from_offset, from_offset, ''))

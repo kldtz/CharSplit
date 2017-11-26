@@ -174,6 +174,9 @@ class FromToMapper:
             self.from_start_lnpos_list.append(from_sxlnpos)
             self.to_start_lnpos_list.append(to_sxlnpos)
 
+            # print("from_sxlnpos: {}".format(from_sxlnpos))
+            # print("to_sxlnpos: {}".format(to_sxlnpos))
+
 
     def get_lnpos_list_se_offsets(self, from_start:int, from_end:int):
         start_idx, start_diff = find_index_diff(from_start, self.frstart_list)
@@ -204,6 +207,7 @@ class FromToMapper:
                 to_start_lnpos_ediff_list.append([self.to_start_lnpos_list[i], potential_end_diff])  # use a list instead of tuple for assign
 
         # if there is only 1 line, no chance of diff being different, skip
+        # print("len(to_start_lnpos_ediff_list) = {}".format(len(to_start_lnpos_ediff_list)))
         if len(to_start_lnpos_ediff_list) != 1:
             # there is some chance if the from and to line got reordered
             # to_start_lnpos_ediff_list[0][1] = start_diff
@@ -232,10 +236,9 @@ class FromToMapper:
     def get_span_list(self, from_start:int, from_end:int):
 
         # TODO, jshaw, del
-        #if from_start == 99:
-        #    print("==in fromtomapper.get_span_list({}, {}) ======================================================================".format(from_start, from_end))
-        #    for (fstart, flnpos), (tstart, tlnpos) in zip(self.from_start_lnpos_list, self.to_start_lnpos_list):
-        #        print("23 from({}, {})\tto({}, {})".format(fstart, flnpos, tstart, tlnpos))
+        # print("==in fromtomapper.get_span_list({}, {}) ======================================================================".format(from_start, from_end))
+        # for (fstart, flnpos), (tstart, tlnpos) in zip(self.from_start_lnpos_list, self.to_start_lnpos_list):
+        #    print("23 from({}, {})\tto({}, {})".format(fstart, flnpos, tstart, tlnpos))
 
         lnpos_list, start_diff, end_diff = \
             self.get_lnpos_list_se_offsets(from_start, from_end)

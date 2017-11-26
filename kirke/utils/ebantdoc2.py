@@ -326,10 +326,6 @@ def html_to_ebantdoc2(txt_file_name,
                                          work_dir=work_dir,
                                          is_combine_line=True)
 
-    # I am a little messed up on from_to lists
-    # not sure exactly what "from" means, original text or nlp text
-    # to_list, from_list = docutils.paras_to_fromto_lists(paras_with_attrs)
-
     txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para_doc_text, txt4nlp_fname)
     if debug_mode:

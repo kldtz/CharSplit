@@ -107,7 +107,10 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
 # for 'title', we want to match any title annotation
 # if any matched, we passed.  Don't care about any other.
 # pylint: disable=R0914
-def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
+def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, ebantdoc,
+                                           # threshold,
+                                           diagnose_mode=False):
+    txt = ebantdoc.get_text()
     tp, fp, tn, fn = 0, 0, 0, 0
     # print("calc_doc_ant_confusion_matrix:")
 
@@ -190,7 +193,7 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, txt, d
     return tp, fn, fp, tn
 
 
-
+"""
 # pylint: disable=R0914
 def calc_doc_ant_confusion_matrix_precx2(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
     tp, fp, tn, fn = 0, 0, 0, 0
@@ -259,7 +262,7 @@ def calc_doc_ant_confusion_matrix_precx2(prov_human_ant_list, ant_list, txt, dia
             print(txt[pred_ant.start:pred_ant.end])
 
     return tp, fn, fp, tn
-
+"""
 
 #
 # utilities

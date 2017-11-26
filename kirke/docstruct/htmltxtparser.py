@@ -20,7 +20,6 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
     # But handling this issue causes a lot of complications in extraction section head
     prev_nonempty_line, prev_line_idx = '', -1
     for start, end, line in txtreader.load_normalized_lines_with_offsets(file_name):
-
         attr_list = []
         is_pagenum_line = False
         if start != end:
@@ -70,15 +69,16 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
                                           (to_offset, to_offset + len(first_line)),
                                           first_line,
                                           attr_list))
-                    to_offset += len(first_line) + 1  # for eoln
+
                     # insert a line break
                     tmp_from_end = start + split_idx
-                    tmp_to_end = to_offset + len(first_line)
+                    tmp_to_end = to_offset + len(first_line) + 1   # line break
                     lineinfo_list.append(((tmp_from_end, tmp_from_end),
                                           (tmp_to_end, tmp_to_end),
                                           '',
                                           []))
-                    to_offset += len(first_line) + 1  # for line break eoln
+
+                    to_offset += len(first_line) + 2  # for 2 eolns
 
                     lineinfo_list.append(((start+split_idx, end),
                                           (to_offset, to_offset + len(second_line)),
@@ -139,8 +139,8 @@ def get_sechead_attr(attr_list):
 def lineinfos_to_paras(lineinfos):
     # make a list of iterators,
     # will be easier to remove pagenum
-    tmp_list = list(lineinfos)  
-        
+    tmp_list = list(lineinfos)
+
     len_tmp_list = len(tmp_list)
     omit_line_set = set([])
     cur_attr = []
@@ -223,6 +223,7 @@ def lineinfos_to_paras(lineinfos):
 
     non_empty_line_num = 0
     for i, linfo in enumerate(tmp2_list):
+
         if i not in omit_line_set:
             start, end, line, attr_list = linfo
             sechead_attr = get_sechead_attr(attr_list)
@@ -238,6 +239,7 @@ def lineinfos_to_paras(lineinfos):
                 non_empty_line_num += 1
 
             span_frto_list = [(from_lpos, to_lpos)]
+            # print("span_frto_list: {}".format(span_frto_list))
             if sechead_attr:
                 if line:
                     result.append((span_frto_list, line, [sechead_attr]))
@@ -564,8 +566,8 @@ def parse_document(file_name, work_dir, is_combine_line=True):
     if debug_mode:
         lineinfo_fname = '{}/{}.lineinfo.v1'.format(work_dir, base_fname).replace('.txt', '')
         with open(lineinfo_fname, 'wt') as fout:
-            for _, _, line, attr_list in lineinfos_with_attrs:
-                print("{}\t{}".format(attr_list, line[:50]), file=fout)
+            for i, (from_se, to_se, line, attr_list) in enumerate(lineinfos_with_attrs):
+                print("line #{}\t{}\t{}\t{}\t[{}]".format(i, from_se, to_se, attr_list, line), file=fout)
             # txtreader.dumps(lineinfo_doc_text, lineinfo_fname)
         print('wrote {}'.format(lineinfo_fname), file=sys.stderr)
 
@@ -588,7 +590,13 @@ def parse_document(file_name, work_dir, is_combine_line=True):
         txtreader.dumps(paras_doc_text, paras_fname)
         print('wrote {}'.format(paras_fname), file=sys.stderr)
 
-        # TODO, remove this after debugging
+        se_para_debug_fname = paras_fname.replace('.paras', '.se.paras.debug')
+        with open(se_para_debug_fname, 'wt') as fout10:
+            for span_lnpos_list, line, para_attrs in lineinfos_paras:
+                attrs_st = '|'.join([str(attr) for attr in para_attrs])
+                print('\t'.join([str(span_lnpos_list), '[{}]'.format(line), attrs_st]), file=fout10)
+        print('wrote {}'.format(se_para_debug_fname), file=sys.stderr)
+
         para_debug_fname = paras_fname.replace('.paras', '.paras.debug')
         with open(para_debug_fname, 'wt') as fout1:
             paras_attr_list = lineinfos_paras_to_attr_list(lineinfos_paras)
@@ -599,9 +607,15 @@ def parse_document(file_name, work_dir, is_combine_line=True):
 
         sechead_fname = paras_fname.replace('.paras', '.secheads')
         with open(sechead_fname, 'wt') as fout2:
+
             prev_out_line = ''
-            for _, (to_start, to_end), line, attr_list in lineinfos_paras:
+            for span_frto_list, line, attr_list in lineinfos_paras:
                 sechead_attr = ebsentutils.get_sechead_attr(attr_list)
+
+                to_se_list = [span_frto[1] for span_frto in span_frto_list]
+                to_start = to_se_list[0].start    # to_se_list[0] = to_lpos
+                to_end = to_se_list[-1].end
+
                 if sechead_attr:
                     # sechead_attr = attr_list[0]
                     to_sechead_st = paras_doc_text[to_start:to_end]
