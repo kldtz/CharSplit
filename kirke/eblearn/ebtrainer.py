@@ -102,7 +102,7 @@ def cv_train_at_annotation_level(provision, x_traindoc_list, bool_list,
     #    for ebantdoc, y in alist:
     #        print("{}\t{}\t{}".format(bnum, ebantdoc.file_id, y))
 
-    log_list = []
+    log_list = {}
     cv_ant_status_list = []
     for bucket_num in range(num_fold):  # cross train each bucket
 
@@ -126,7 +126,7 @@ def cv_train_at_annotation_level(provision, x_traindoc_list, bool_list,
         # print("cv ant_status, bucket_num = {}:".format(bucket_num))
         # print(cv_ant_status)
 
-        log_list.extend(cv_log_json)
+        log_list.update(cv_log_json)
         cv_ant_status_list.append(cv_ant_status)
 
     # now build the annotator using ALL training data
@@ -147,9 +147,9 @@ def cv_train_at_annotation_level(provision, x_traindoc_list, bool_list,
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
-    logging.info('wrote logging file at: {}'.format(log_fn))
-    strutils.dumps(json.dumps(log_json), log_fn)
+    result_fn = model_dir + '/' + provision + "-ant_result-" + timestr + ".json"
+    logging.info('wrote result file at: {}'.format(result_fn))
+    strutils.dumps(json.dumps(log_json), result_fn)
 
     log_custom_model_eval_status({'provision': provision,
                                   'ant_status': merged_ant_status})
@@ -316,9 +316,9 @@ def train_eval_annotator(provision, txt_fn_list,
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
-    logging.info('wrote logging file at: {}'.format(log_fn))
-    strutils.dumps(json.dumps(log_json), log_fn)
+    result_fn = model_dir + '/' + provision + "-ant_result-" + timestr + ".json"
+    logging.info('wrote result file at: {}'.format(result_fn))
+    strutils.dumps(json.dumps(log_json), result_fn)
 
     log_model_eval_status(ant_status)
     return prov_annotator, log_json
@@ -359,8 +359,8 @@ def train_eval_annotator_with_trte(provision,
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
-    strutils.dumps(json.dumps(log_json), log_fn)
+    result_fn = model_dir + '/' + provision + "-ant_result-" + timestr + ".json"
+    strutils.dumps(json.dumps(log_json), result_fn)
 
     log_model_eval_status(ant_status)
     return prov_annotator, log_json
