@@ -1358,17 +1358,14 @@ class PostAddressProc(EbPostPredictProcessing):
     def notice_address(self, prob, start, end, doc_text, constituencies):
         text = doc_text[start:end]
         tenant_in_sent = re.search('tenant', text, re.I)
-        print(">>>", text.replace("\n", " "))
         if tenant_in_sent:
             _, new_start = tenant_in_sent.span()
             start += new_start
         tenant = re.finditer('tenant', doc_text, re.I)
         best, address = self.find_constituencies(start, end, doc_text, constituencies)
         prov_st, prov_start, prov_end = best
-        print("<<<", prov_st.replace("\n", " "))
         lowest = float("inf")
         for ten_start, ten_end in [match.span() for match in tenant]:
-            #print("\t\t", ten_start, ten_end, "///", start, end, doc_text[start:end].replace("\n", " "), prov_start - ten_end)
             diff = prov_start - ten_end
             if diff < lowest and diff > 0:
                 lowest = diff
@@ -1383,7 +1380,6 @@ class PostAddressProc(EbPostPredictProcessing):
                 s += '1'
             else:
                 s += '0'
-        print(list(zip(s, text.split())))
         matches = re.finditer(r'(1+0?0?(1+0?0?)*1+)', s)
         all_spans = [match.span(1) for match in matches]
         max_prob = 0.0
@@ -1435,7 +1431,6 @@ class PostAddressProc(EbPostPredictProcessing):
             closest = float("inf")
             best_address = None
             for result, prob, dist in all_notice:
-                print("\t", result[0].replace("\n", " "), prob, dist)
                 if dist < closest and prob >= threshold:
                     best_address = [result, prob]
                     closest = dist
