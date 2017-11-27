@@ -2,14 +2,20 @@
 
 # TODO should we be able to train individual provisions separately
 
+import configparser
+import copy
 import json
 import logging
 import os.path
+
 
 from flask import Flask, request, jsonify
 
 from kirke.eblearn import ebrunner
 from kirke.utils import osutils, strutils
+
+config = configparser.ConfigParser()
+config.read('kirke.ini')
 
 # NOTE: Remove the following line to get rid of all logging messages
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -22,6 +28,7 @@ eb_models = os.environ['EB_MODELS']
 print("eb files is: ", eb_files)
 print("eb models is: ", eb_models)
 
+SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 
 # classifiers
 WORK_DIR = 'data-from-web'
@@ -32,6 +39,10 @@ osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
 
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
+
+if not eb_runner:
+    logging.error('problem initializing ebrunner')
+    exit(1)
 
 @app.route('/annotate-doc', methods=['POST'])
 def annotate_uploaded_document():
@@ -87,19 +98,19 @@ def annotate_uploaded_document():
         if "rate_table" in provision_set:
             provision_set.remove('rate_table')
 
-    # TODO, hacked, remove when not debugging
     # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
 
-    if pdf_offsets_file_name:  # original file is pdf or word file
-        prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(txt_file_name,
-                                                                         pdf_offsets_file_name,
-                                                                         provision_set=provision_set,
-                                                                         work_dir=work_dir)
-    else:
-        # only text file, no offsets.  Original file is .html or .txt
-        prov_labels_map, doc_text = eb_runner.annotate_htmled_document(txt_file_name,
-                                                                       provision_set=provision_set,
-                                                                       work_dir=work_dir)
+    prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
+                                                     provision_set=provision_set,
+                                                     work_dir=work_dir)
+
+    # because special case of 'effectivdate_auto'
+    if prov_labels_map.get('effectivedate'):
+        effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
+        for eff_ant in effectivedate_annotations:
+            eff_ant['label'] = 'effectivedate_auto'
+        prov_labels_map['effectivedate_auto'] = effectivedate_annotations
+        del prov_labels_map['effectivedate']
 
     ebannotations = {'ebannotations': prov_labels_map}
     # pprint(prov_labels_map)
@@ -154,11 +165,14 @@ def custom_train(cust_id):
     txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames.list')
     strutils.dumps('\n'.join(full_txt_fnames), txt_fn_list_fn)
 
+    base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
+
     # Following the logic in the original code.
     eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                                 provision,
                                                                 CUSTOM_MODEL_DIR,
-                                                                is_doc_structure=False,
+                                                                base_model_fname,
+                                                                is_doc_structure=True,
                                                                 work_dir=work_dir)
     # copy the result into the expected format for client
     pred_status = eval_status['pred_status']['pred_status']

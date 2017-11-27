@@ -16,8 +16,8 @@ from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
 
 from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
-from kirke.eblearn import ebtext2antdoc, ebannotator
-from kirke.utils import osutils, splittrte, ebantdoc
+from kirke.eblearn import ebannotator
+from kirke.utils import ebantdoc2
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -43,10 +43,8 @@ if __name__ == '__main__':
             txt_file_set.add(line)
 
     text_file_list = sorted(txt_file_set)
-    fn_ebantdoc_map = ebtext2antdoc.fnlist_to_fn_ebantdoc_map(text_file_list,
-                                                              work_dir=work_dir)
-
-    
+    fn_ebantdoc_map = ebantdoc2.fnlist_to_fn_ebantdoc_map(text_file_list,
+                                                          work_dir=work_dir)
 
     for fn in text_file_list:
         tmp_ebantdoc = fn_ebantdoc_map[fn]

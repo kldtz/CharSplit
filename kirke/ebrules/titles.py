@@ -97,7 +97,8 @@ def extract_lines_v2(paras_attr_list):
     start_end_list = []
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
         # attrs_st = '|'.join([str(attr) for attr in para_attrs])
-        # print('\t'.join([attrs_st, '[{}]'.format(line_st)]), file=fout1)
+        # print("titles.extract_line_v2()" + '\t'.join([attrs_st, '[{}]'.format(line_st)]))
+
         line_st_len = len(line_st)
 
         if 'party_line' in para_attrs:

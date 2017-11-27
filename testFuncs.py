@@ -2,24 +2,9 @@
 
 import argparse
 import logging
-from pprint import pprint
-import sys
-import warnings
 import re
 
-from pathlib import Path
-
-from collections import defaultdict
-import os
-
-from sklearn.externals import joblib
-from sklearn.model_selection import train_test_split
-
-from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
-from kirke.eblearn import ebtext2antdoc, ebannotator
-from kirke.utils import osutils, splittrte, ebantdoc, mathutils
-
-from kirke.utils import entityutils
+from kirke.utils import mathutils
 
 
 CORPPAT = r'(company|borrowers?|tenant|landlords?|tenent|parent|holders?|licensee|licensor|buyers?|holdings|issuers?|corporation|banks?|lenders?|administrative agents?|merger sub|operating partnership|advisor|advisers?|purchasers?|trustees?|agents?|executive|seller|consultant|employee|partnership|general partner|partner|partnership|contractor|service provider|marketing agent|supplier|lessee|subordination agent|escrow agent|transaction entities|guarantors?|producers?|assignee|swingline lender|liquidity provider|assignor|maker|investors?|lessor|manager|collateral agent|distributors?|servicer|payee|independent director|tenant|sub|op general partner|operating partnership general partner|paying agent|reit|employer|syndication agent|operator|owner|mutual holding company|mid-tier holding company|depositors?|manufacturers?|subsidiaries|loan parties|debtors?|customer|original lender|clients?|sales manager|transferor|originator|collateral custodian|backup servicer|undersigned|subsidiary|affiliates?|credit parties|credit party|representative|indenture trustee|management investors|grantee|sponsor|secured party|director|publisher|payor|class a pass through trustee|arrangers?|documentation agents?|hospital?|grantor|obligors?|noteholders?|master servicer|co-documentation agents?|designated borrower|buyer parent|party b|party a|pledgor|user|selling stockholders?|participants?|you|mortgagee|initial purchaser|syndication agent|subsidiary guarantors?|\S+ borrowers?|escrow issuers?|companies|\S+ resolver borrowers?|subscribers?|promissor|parties|holding company|shareholders?|note issuers?|guarantor company|guarantor companies|stockholders?|sub-advisers?|sub-advisors?)'

@@ -46,6 +46,10 @@ def get_transformer_attr_list_by_provision(provision: str):
     return PROVISION_ATTRLISTS_MAP.get('default')
 
 
+def get_provision_threshold(provision: str):
+    return PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
+
+
 class ProvisionClassifier(EbClassifier):
 
     def __init__(self, provision):
@@ -124,7 +128,7 @@ class ProvisionClassifier(EbClassifier):
         attrvec_list = eb_antdoc.get_attrvec_list()
         # print("attrvec_list.size = ", len(attrvec_list))
 
-        doc_text = eb_antdoc.text
+        doc_text = eb_antdoc.nlp_text
         sent_st_list = [doc_text[attrvec.start:attrvec.end]
                         for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision,

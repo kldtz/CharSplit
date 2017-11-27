@@ -1,7 +1,7 @@
 
 import os
 import re
-from typing import List
+from typing import Iterator, List, Tuple
 
 # change all nbsp to regular spaces
 def loads(file_name):
@@ -15,7 +15,7 @@ def dumps(doc_text, file_name):
         fout.write(doc_text)
 
 
-def load_lines_with_offsets(file_name: str):
+def load_lines_with_offsets(file_name: str) -> Iterator[Tuple[int, int, str]]:
     offset = 0
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
@@ -26,10 +26,50 @@ def load_lines_with_offsets(file_name: str):
             end = offset + orig_length - 1   # remove eoln
 
             yield offset, end, new_line
-                
+
             offset += orig_length
 
-BE_SPACE_PAT = re.compile('^(\s*)(.*)$')
+def text_to_lines_with_offsets(text: str) -> Iterator[Tuple[int, int, str]]:
+    offset = 0
+    lines = text.split('\n')
+    for line in lines:
+        line_len = len(line)
+        yield offset, offset + line_len, line
+        
+        offset += line_len + 1
+
+# return list of page offsets, and list of list of line offsets
+def load_page_lines_with_offsets(file_name: str):
+    doc_text = loads(file_name)
+    paged_text_list = doc_text.split(chr(12))  # pdftotext use ^L as page marker
+
+    # if the last one is empty, remove it
+    if len(paged_text_list[-1]) == 0:
+        paged_text_list = paged_text_list[:-1]
+
+    page_offsets = []
+    offset = 0
+    for paged_text in paged_text_list:
+        page_len = len(paged_text)
+        end = offset + page_len
+        page_offsets.append((offset, end))
+        offset = end + 1  # for ^L
+
+    page_list = []
+    for (page_start, page_end), paged_text in zip(page_offsets, paged_text_list):
+        offset = page_start
+        paged_line_list = []
+        for line in paged_text.split('\n'):
+            line_len = len(line)
+            end = offset + line_len
+            paged_line_list.append((offset, end, line))
+
+            offset = end + 1  # for eoln
+        page_list.append(paged_line_list)
+    return page_offsets, page_list
+
+
+BE_SPACE_PAT = re.compile(r'^(\s*)(.*)$')
 
 # remove all begin and end spaces for lines
 # 'be' = begin_end
@@ -45,9 +85,10 @@ def load_normalized_lines_with_offsets(file_name: str):
             if new_line.strip():
                 mat = BE_SPACE_PAT.match(new_line)
                 no_be_space_line = mat.group(2).strip()
-                len_no_be_space_line = len(no_be_space_line)
-                from_start = from_offset + len(mat.group(1))
-                from_end = from_offset + len_no_be_space_line
+
+                from_start = from_offset + mat.start(2)
+                from_end = from_start + len(no_be_space_line)
+
                 yield from_start, from_end, no_be_space_line
             else:
                 yield from_offset, from_offset, ''
@@ -70,11 +111,13 @@ def load_lines_with_fromto_offsets(file_name: str):
             if new_line.strip():
                 mat = BE_SPACE_PAT.match(new_line)
                 no_be_space_line = mat.group(2).strip()
-                len_no_be_space_line = len(no_be_space_line)
-                from_start = from_offset + len(mat.group(1))
-                from_end = from_offset + len_no_be_space_line
+                len_nospace_line = len(no_be_space_line)
+
+                from_start = from_offset + mat.start(2)
+                from_end = from_start + len_no_be_space_line
                 to_end = to_offset + len_no_be_space_line
                 yield (from_start, from_end), (to_offset, to_end), no_be_space_line
+
                 to_offset += len_no_be_space_line
             else:
                 yield (from_offset, from_offset), (to_offset, to_offset), ''
@@ -170,8 +213,9 @@ def de_separate_lines(atext: str):
             mat = BE_SPACE_PAT.match(new_line)
             no_be_space_line = mat.group(2).strip()
             len_no_be_space_line = len(no_be_space_line)
+
             from_start = from_offset + len(mat.group(1))
-            from_end = from_offset + len_no_be_space_line
+            from_end = from_start + len_no_be_space_line
             all_lines.append((from_start, from_end, no_be_space_line))
         else:
             all_lines.append((from_offset, from_offset, ''))
