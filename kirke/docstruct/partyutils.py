@@ -9,8 +9,7 @@ import re
 import pprint
 
 from kirke.utils import strutils
-from kirke.utils import ebantdoc, txtreader, engutils
-# from kirke.eblearn.ebtext2antdoc import doc_to_ebantdoc
+from kirke.utils import txtreader, engutils
 
 
 DEBUG_MODE = False

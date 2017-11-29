@@ -2,24 +2,9 @@
 
 import argparse
 import logging
-from pprint import pprint
-import sys
-import warnings
 import re
 
-from pathlib import Path
-
-from collections import defaultdict
-import os
-
-from sklearn.externals import joblib
-from sklearn.model_selection import train_test_split
-
-from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
-from kirke.eblearn import ebtext2antdoc, ebannotator
-from kirke.utils import osutils, splittrte, ebantdoc, mathutils
-
-from kirke.utils import entityutils
+from kirke.utils import mathutils
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
 

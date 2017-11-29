@@ -104,11 +104,37 @@ def classify(value, breaks):
 
 NUM_DEFAULT_CLUSTER = 5
 
+# Merge breaks that are really adjacent.  Keep the
+# largest one among the adjacent ones.
+def collapse_close_bks(break_list):
+    prev_break = break_list[0]
+    cur_group = [prev_break]
+    group_list = [cur_group]
+    for bk in break_list[1:]:
+        if bk - prev_break <= 2.5:  # 2.5 is empirical
+            cur_group.append(bk)
+        else:
+            cur_group = [bk]
+            group_list.append(cur_group)
+        prev_break = bk
+    # now take the max out of each group
+    result = []
+    for agroup in group_list:
+        result.append(max(agroup))
+    return result
+
+
 class Jenks:
 
     def __init__(self, values):
         self.vals = values
+        # print("values: {}".format(values))
         bks = getJenksBreaks(values, NUM_DEFAULT_CLUSTER)
+        # print("bks: {}".format(bks))
+        # Merge breaks that are really adjacent.  Keep the
+        # largest one among the adjacent ones.
+        bks = collapse_close_bks(bks)
+        # print("collapsed bks: {}".format(bks))
         
         left_count, center_count, right_count = 1, 1, 1
         aligned_list = ['LF0']  # LF0 will never be used
@@ -127,9 +153,15 @@ class Jenks:
 
     def classify(self, value):
         breaks = self.bks
+        # print("classify, val = {}, breaks = {}".format(value, self.bks))
         for i in range(1, len(breaks)):
-            if value < breaks[i]:
+            if value <= breaks[i]:
                 return self.aligned_list[i]
+            # This is no longer needed because change '<' above to '<='.
+            # So far, <= seems to be more appropriate for us.
+            # check for value = 72.2, [i-1] = 72.2 and [i] = 72.2
+            #if i > 1 and value == breaks[i-1] and value == breaks[i]:
+            #    return self.aligned_list[i-1]
         return self.aligned_list[len(breaks) - 1]        
         
         

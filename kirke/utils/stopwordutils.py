@@ -32,6 +32,11 @@ def get_nonstopwords_gt_len1(line: str) -> List[str]:
     return [word for word in words_gt_len1 if word not in STOPWORDS]
 
 
+def get_nonstopwords_nolc_gt_len1(line: str) -> List[str]:
+    words_gt_len1 = strutils.get_alphanum_words_gt_len1(line, is_lower=False)
+    return [word for word in words_gt_len1 if word.lower() not in STOPWORDS]
+
+
 def is_stopword(word):
     return word in STOPWORDS
 

@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
+import configparser
 import logging
-from pprint import pprint
+import pprint
 from time import time
+from typing import List
 
 import numpy as np
 from sklearn.linear_model import SGDClassifier
@@ -14,8 +16,17 @@ from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformer import EbTransformer
 from kirke.utils import evalutils
 
+from kirke.eblearn.ebtransformer import EbTransformer
+from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
+from kirke.eblearn.ebtransformerv1_3 import EbTransformerV1_3
+
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
+
+config = configparser.ConfigParser()
+config.read('kirke.ini')
+
+SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 
 GLOBAL_THRESHOLD = 0.24
 
@@ -36,27 +47,21 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'termination': 0.36}
 
 
-PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
-                                     ebattrvec.PARTY_NUMERIC_ATTR_LIST,
-                                     ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
-                           'default': (ebattrvec.DEFAULT_BINARY_ATTR_LIST,
-                                       ebattrvec.DEFAULT_NUMERIC_ATTR_LIST,
-                                       ebattrvec.DEFAULT_CATEGORICAL_ATTR_LIST)}
-
-def get_transformer_attr_list_by_provision(provision: str):
-    if PROVISION_ATTRLISTS_MAP.get(provision):
-        return PROVISION_ATTRLISTS_MAP.get(provision)
-    return PROVISION_ATTRLISTS_MAP.get('default')
-
-
 class ShortcutClassifier(EbClassifier):
 
     def __init__(self, provision):
         EbClassifier.__init__(self, provision)
+        self.version = SCUT_CLF_VERSION
         self.eb_grid_search = None
         self.best_parameters = None
 
-        self.transformer = None
+        # EbTransformer(self.provision, binary_attr_list, numeric_attr_list, categorical_attr_list)
+        if not self.version or self.version == '1.1':
+            self.transformer = EbTransformer(provision)
+        if self.version == '1.2':
+            self.transformer = EbTransformerV1_2(provision)
+        elif self.version == '1.3':
+            self.transformer = EbTransformerV1_3(provision)
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
@@ -76,8 +81,6 @@ class ShortcutClassifier(EbClassifier):
         # NOTE: jshaw
         # this is where there is leakable of information from test set
         # infogain might get some information from test set
-        (binary_attr_list, numeric_attr_list, categorical_attr_list) = get_transformer_attr_list_by_provision(self.provision)
-        self.transformer = EbTransformer(self.provision, binary_attr_list, numeric_attr_list, categorical_attr_list)
         self.transformer.fit(attrvec_list, label_list)
 
         # pylint: disable=C0103
@@ -119,7 +122,7 @@ class ShortcutClassifier(EbClassifier):
 
         print("Performing grid search...")
         print("parameters:")
-        pprint(parameters)
+        pprint.pprint(parameters)
         time_0 = time()
         grid_search.fit(X_train, y_train)
         print("done in %0.3fs" % (time() - time_0))
@@ -138,13 +141,15 @@ class ShortcutClassifier(EbClassifier):
         return grid_search
 
 
-    def predict_antdoc(self, eb_antdoc, work_dir):
+    def predict_antdoc(self, eb_antdoc, work_dir) -> List[float]:
         # logging.info('predict_antdoc()...')
 
         attrvec_list = eb_antdoc.get_attrvec_list()
-        # print("attrvec_list.size = ", len(attrvec_list))
+        # there is no sentence to classify
+        if not attrvec_list:
+            return []
 
-        doc_text = eb_antdoc.text
+        doc_text = eb_antdoc.get_nlp_text()
         sent_st_list = [doc_text[attrvec.start:attrvec.end]
                         for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)

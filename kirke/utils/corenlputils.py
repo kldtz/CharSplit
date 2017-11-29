@@ -29,6 +29,7 @@ def annotate(text_as_string, doc_lang):
     doc_lang = doc_lang[:2]
     supported_langs = ["fr", "es", "zh"] #ar and de also supported, can add later
     if doc_lang in supported_langs:
+        logging.info("corenlp running on {}".format(doc_lang))
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                    properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
                                                'outputFormat': 'json',
@@ -36,12 +37,14 @@ def annotate(text_as_string, doc_lang):
 				               'pipelineLanguage': doc_lang})
     
     elif doc_lang == "pt":
+        logging.info("corenlp running on {}".format(doc_lang))
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                    properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
                                                'outputFormat': 'json',
                                                'ssplit.newlineIsSentenceBreak': 'two',
                                                'ner.model':'portuguese-ner.ser.gz'})
     else:
+        logging.info("{} not supported, corenlp running on en".format(doc_lang))
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                    properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
                                                'outputFormat': 'json',
