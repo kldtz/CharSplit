@@ -695,7 +695,6 @@ class EbRunner:
         # update the hashmap of classifier
         provision = "{}-{}".format(provision, doc_lang)
         old_provision_annotator = self.provision_annotator_map.get(provision)
-        print("#########", provision, self.provision_annotator_map.get(provision))
         if old_provision_annotator:
             logging.info("Updating annotator, '%s', %s.", provision, full_model_fname)
             prev_provision_model_fname = self.provision_custom_model_fn_map[provision]
