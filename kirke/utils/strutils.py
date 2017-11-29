@@ -13,9 +13,17 @@ CAP_SPACE_PAT = re.compile(r'^[A-Z\s\(\).,\[\]\-/\\{\}`\'"]+$')
 
 # pylint: disable=W0703, E1101
 
+# TODO, jshaw, this function need to be rename to
+# defun replace_nltab_with_space(line)
+# Currently, it is confusing.  Called in many places.
 def remove_nltab(line):
     # return re.sub(r'[\s\t\r\n]+', ' ', line)
     return re.sub(r'[\s\t\r\n]', ' ', line)
+
+
+def remove_space_nl(line):
+    return re.sub(r'[\s\n]', '', line)
+
 
 def loads(file_name):
     xst = ''
@@ -75,6 +83,14 @@ def load_str_list(file_name):
         for line in fin:
             st_list.append(line.strip())
     return st_list
+
+
+def load_lc_str_set(filename):
+    aset = set([])
+    with open(filename, 'rt') as fin:
+        for line in fin:
+            aset.add(line.strip().lower())
+    return aset
 
 
 def save_str_list(str_list: List[str], file_name: str) -> None:
@@ -152,7 +168,8 @@ ALL_DIGITS_PAT = re.compile(r'^\d+$')
 ALL_ALPHAS_PAT = re.compile(r'^[a-zA-Z]+$')
 ALL_ALPHAS_DOT_PAT = re.compile(r'^[a-zA-Z]+\.?$')
 
-ALL_ALPHA_NUM_PAT = re.compile(r'^[a-zA-Z\d]+$')
+# at least 2 char, starts with alpha
+ALL_ALPHA_NUM_PAT = re.compile(r'^[a-zA-Z][a-zA-Z\d]+$')
 ANY_DIGIT_PAT = re.compile(r'\d')
 ANY_ALPHA_PAT = re.compile(r'[a-zA-Z]')
 
@@ -182,6 +199,12 @@ def is_all_length_1_words(words):
         if len(word) != 1:
             return False
     return True
+
+WORD_LC_PAT = re.compile('^[a-z]+$')
+
+def is_word_all_lc(word):
+    mat = WORD_LC_PAT.match(word)
+    return mat
 
 # has more than 2 digits that's more than 3 width
 TWO_GT_3_NUM_SEQ_PAT = re.compile(r'\d{3}.*\d{3}')
@@ -234,6 +257,15 @@ def is_all_dash_underline(line: str) -> bool:
 def is_all_caps_space(line: str) -> bool:
     return CAP_SPACE_PAT.match(line)
 
+def is_all_lower(line: str) -> bool:
+    words = line.split()
+    if not words:
+        return False
+    for word in words:
+        if not word[0].islower():
+            return False
+    return True
+
 
 def bool_to_int(bxx: bool) -> int:
     if bxx:
@@ -275,7 +307,7 @@ def gen_ngram(word_list: List[str], max_n=2) -> List[str]:
 
 ALPHA_WORD_PAT = re.compile(r'[a-zA-Z]+')
 
-ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z0-9]+')
+ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
 
 ALL_PUNCT_PAT = re.compile(r"^[\(\)\.,\[\]\-/\\\{\}`'\"]+$")
 
@@ -343,9 +375,15 @@ def tokens_to_all_ngrams(word_list: List[str], max_n=1) -> Set[str]:
 
 def is_punct(line: str) -> bool:
     if line:
-        return line[0] in r"().,[]-/\\{}`'\":;\?<>"
+        return line[0] in r"().,[]-/\\{}`'\":;\?<>!"
     else:
         return False
+
+def is_sent_punct(line: str) -> bool:
+    return line and len(line) == 1 and line in r'.?!'
+
+def is_not_sent_punct(line: str) -> bool:
+    return line and is_punct(line) and not is_sent_punct(line)
 
 def is_punct_not_period(line: str) -> bool:
     if line:
@@ -431,7 +469,7 @@ def is_all_title_words(line: str) -> bool:
             has_alpha_word = True
             if not word.isupper():
                 return False
-    return is_alpha_word
+    return has_alpha_word
 
 def is_all_title(words: List[str]) -> bool:
     has_alpha_word = False
@@ -440,8 +478,14 @@ def is_all_title(words: List[str]) -> bool:
             has_alpha_word = True
             if not word.isupper():
                 return False
-    return is_alpha_word
+    return has_alpha_word
+
     
+ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)
+
+def has_alpha(line: str):
+    return ANY_ALPHA_PAT.search(line)
+
 
 DIGIT_PAT = re.compile(r'^\d+$')
 def is_digit_st(line: str) -> bool:
@@ -456,8 +500,15 @@ def is_dashed_big_number_st(line: str) -> bool:
             return True
     return False
 
+def extract_numbers(line: str):
+    return re.findall(r'(\d*\.\d+|\d+\.\d*|\d+)', line)
+
 def count_numbers(line: str):
-    return len(re.findall(r'\d+', line))
+    return len(extract_numbers(line))
+
+NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
+def find_number(line: str):
+    return NUM_10_PAT.search(line)
 
     
 def is_digit_core(line: str) -> bool:
@@ -489,6 +540,7 @@ def count_date(line):
 
 def count_number(line):
     return len(find_substr_indices(r'(\d+)', line))
+    # return len(find_substr_indices(r'(\d*\.\d+|\d+\.\d*|\d+)', line))
 
 
 # We encountered characters, 1, 2, 16, 31 in input to corenlp before.
@@ -532,8 +584,27 @@ def is_space_or_nl(xch):
 def is_nl(xch):
     return xch == '\n' or xch == '\r'
 
+
 def is_double_quote(xch):
     return xch in '“"”'
+
+
+def dict_to_sorted_list(adict):
+    return ['{}={}'.format(attr, value) for attr, value in sorted(adict.items())]
+
+
+def space_repl_same_length(mat):
+    return ' ' * len(mat.group())
+
+def replace_dot3plus_with_spaces(line: str) -> str:
+    return re.sub(r'([\.\-_][\.\-_][\.\-_]+)', space_repl_same_length, line)
+
+
+NEXT_TOKEN_PAT = re.compile(r'\s*\S+')
+
+def find_next_token(line: str):
+    return NEXT_TOKEN_PAT.match(line)
+
 
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3

@@ -14,13 +14,61 @@ git clone git@github.com:eBrevia/kirke.git Kirke
 cd Kirke
 ```
 
-2. Setup the virtual environment
+2. Install the dependencies
+
+This is for Ubuntu 14.04
+```
+sudo apt-get install libmysqlclient-dev
+sudo apt-get install python3.4-dev python3-pip libxml2-dev libxslt1-dev python3-numpy python3-scipy 
+sudo apt-get install libblas-dev liblapack-dev libatlas-base-dev gfortran libatlas-dev libatlas3gf-base
+
+```
+
+On Ubuntu 16.04, libatlas3gf-base can be skipped.  In general, we want the *optimized* libblas and liblapack.  Otherwise, scipy will be mucher slower than expected.
+
+In order to verify which version of liblapack is activated, please do
+```
+sudo update-alternatives --config libblas.so.3
+sudo update-alternatives --config liblapack.so.3
+```
+
+It's also possible to set the versions of liblapack directly
+```
+sudo update-alternatives --set libblas.so.3 /usr/lib/atlas-base/atlas/libblas.so.3
+sudo update-alternatives --set liblapack.so.3 /usr/lib/atlas-base/atlas/liblapack.so.3
+```
+
+3. Setup the virtual environment
 
 ```
 virtualenv -p python3 env
 source env/bin/activate
+pip install numpy
+pip install scipy
 pip install -r requirements.txt
+python download_nltk.py
 ```
+
+The need to install numpy and scip earlier than requirements.txt is because we haven't merged https://github.com/eBrevia/kirke/pull/18 .
+
+4. running CoreNLP server
+
+You can follow the instruction on xxx.
+
+Here is another way to get thing up and running faster.
+
+```
+# go to a directory at the same level as kirke
+cd ..
+mkdir corenlp
+wget https://s3.amazonaws.com/repo.ebrevia.com/repository/stanford-corenlp-3.7.0-models.jar
+wget https://s3.amazonaws.com/repo.ebrevia.com/repository/stanford-corenlp-3.7.0.jar
+cp ../extractor/docker/service/corenlp/run .
+# remove "> /dev/null 2>&1" from the end of 'run' command file
+./run
+```
+
+That terminal will be used for corenlp.
 
 ## How to annotate a document using Kirke?
 

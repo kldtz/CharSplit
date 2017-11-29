@@ -1,12 +1,12 @@
 import re
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Dict
 
-from kirke.utils import evalutils, strutils, entityutils, stopwordutils, mathutils
-from kirke.utils.ebantdoc import EbEntityType
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates
 from kirke.ebrules import addresses
+from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
+from kirke.utils.ebsentutils import EbEntityType
 
 PROVISION_PAT_MAP = {
     'change_control': (re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL), 1.0),
@@ -21,8 +21,6 @@ PROVISION_PAT_MAP = {
     'term': (re.compile(r'[“"]Termination\s+Date[”"]', re.IGNORECASE | re.DOTALL), 1.0)
 }
 
-
-# pylint: disable=too-few-public-methods
 class AntResult:
 
     # pylint: disable=too-many-arguments
@@ -40,17 +38,17 @@ class AntResult:
                 'end': self.end,
                 'text': self.text}
 
-
 # pylint: disable=too-few-public-methods
 class ConciseProbAttrvec:
 
     # pylint: disable=too-many-arguments
-    def __init__(self, prob, start, end, entities, text):
+    def __init__(self, prob, start, end, entities, sechead, text):
         self.prob = prob
         self.start = start
         self.end = end
         self.entities = entities
         self.text = text
+        self.sechead = sechead.lower()
 
 
 def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
@@ -58,6 +56,7 @@ def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
                                attrvec.start,
                                attrvec.end,
                                attrvec.entities,
+                               attrvec.sechead,
                                attrvec.bag_of_words)
             for prob, attrvec in prob_attrvec_list]
 
@@ -72,6 +71,7 @@ def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list):
     min_start = cx_prob_attrvec_list[0].start
     max_end = cx_prob_attrvec_list[0].end
     merged_entities = list(cx_prob_attrvec_list[0].entities)
+    only_first_sechead = cx_prob_attrvec_list[0].sechead
     only_first_text = cx_prob_attrvec_list[0].text
     for cx_prob_attrvec in cx_prob_attrvec_list[1:]:
         if cx_prob_attrvec.prob > max_prob:
@@ -86,7 +86,7 @@ def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list):
     #    print("jjj: {}".format((prob, start, end)))
     #print("result jjj: {}".format((max_prob, min_start, max_end)))
 
-    return ConciseProbAttrvec(max_prob, min_start, max_end, merged_entities, only_first_text)
+    return ConciseProbAttrvec(max_prob, min_start, max_end, merged_entities, only_first_sechead, only_first_text)
 
 
 def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
@@ -157,7 +157,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
         self.provision = 'default'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -172,7 +172,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                             end=cx_prob_attrvec.end,
                                             # pylint: disable=line-too-long
                                             text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...'))
-        return ant_result, threshold
+        return ant_result
 
 # Note from PythonClassifier.java:
 # The NER seems to pick up the bare word LLC, INC, and CORP as parties sometimes.  This RE
@@ -187,7 +187,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
         self.threshold = 0.5
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -816,7 +816,7 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
         self.provision = 'ea_employer'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -847,7 +847,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
         self.provision = 'ea_employee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -877,7 +877,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
         self.provision = 'lic_licensee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -908,7 +908,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
         self.provision = 'lic_licensor'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -939,7 +939,7 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
         self.provision = 'la_borrower'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -970,7 +970,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
         self.provision = 'la_lender'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1001,7 +1001,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
         self.provision = 'la_agent_trustee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1031,7 +1031,7 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
         self.provision = 'choiceoflaw'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1059,6 +1059,40 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
                                                 text=anttext))
         return ant_result, threshold
 
+# pylint: disable=R0903
+# this is not used
+"""
+class PostPredConfidentialityProc(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.provision = 'confidentiality'
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            #print("{}\t{}\t{}\tsechead=[{}]\t[{}]".format(self.provision, cx_prob_attrvec.prob, threshold,
+            #                                              cx_prob_attrvec.sechead,
+            #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
+            boost = 0
+            if 'confidentiality' in cx_prob_attrvec.sechead:
+                boost = 0.20
+            if cx_prob_attrvec.prob + boost >= threshold or len(overlap) > 0:
+                tmp_provision = provision if provision else self.provision
+                ant_result.append(AntResult(label=tmp_provision,
+                                                     prob=cx_prob_attrvec.prob,
+                                                     start=cx_prob_attrvec.start,
+                                                     end=cx_prob_attrvec.end,
+                                                     # pylint: disable=line-too-long
+                                                     text=strutils.remove_nltab(cx_prob_attrvec.text)))
+        return ant_result
+"""    
+
 
 # Note from PythonClassifier.java:
 # A title might optionally start with an Exhibit X.X number (for SEC contracts) or optionally
@@ -1073,7 +1107,7 @@ class PostPredTitleProc(EbPostPredictProcessing):
         self.provision = 'title'
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1117,7 +1151,7 @@ class PostPredBestDateProc(EbPostPredictProcessing):
     # TODO, jshaw, it seems that in the original code PythonClassifier.java
     # the logic is to keep only the first date, not all dates in a doc
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1144,7 +1178,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
         self.threshold = 0.5
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1235,7 +1269,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                          text=text)
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1326,7 +1360,7 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
         self.provision = prov
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1401,7 +1435,7 @@ class PostAddressProc(EbPostPredictProcessing):
             return [text, start, end], False
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> List[AntResult]:
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float): 
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1470,12 +1504,12 @@ class PostAddressProc(EbPostPredictProcessing):
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'choiceoflaw': PostPredChoiceOfLawProc(),
+    # 'confidentiality': PostPredPrintProbProc('confidentiality'),
+    # 'confidentiality': PostPredConfidentialityProc(),
     'date': PostPredBestDateProc('date'),
     'ea_employee': PostPredEaEmployeeProc(),
     'ea_employer': PostPredEaEmployerProc(),
-    # The classifier label is "effectivedate", but 'extractor' is expecting
-    # 'effectivedate_auto'
-    'effectivedate': PostPredEffectiveDateProc('effectivedate_auto'),
+    'effectivedate': PostPredEffectiveDateProc('effectivedate'),
     'la_borrower': PostPredLaBorrowerProc(),
     'la_lender': PostPredLaLenderProc(),
     'la_agent_trustee': PostPredLaAgentTrusteeProc(),

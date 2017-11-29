@@ -9,18 +9,35 @@ from scipy import sparse
 from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 
+from kirke.eblearn import ebattrvec
 from kirke.eblearn import igain, bigramutils
+from kirke.eblearn.ebtransformerbase import EbTransformerBase
 from kirke.utils import stopwordutils, strutils
 
 
 DEBUG_MODE = False
+
+
+PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
+                                     ebattrvec.PARTY_NUMERIC_ATTR_LIST,
+                                     ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
+                           'default': (ebattrvec.DEFAULT_BINARY_ATTR_LIST,
+                                       ebattrvec.DEFAULT_NUMERIC_ATTR_LIST,
+                                       ebattrvec.DEFAULT_CATEGORICAL_ATTR_LIST)}
+
+def get_transformer_attr_list_by_provision(provision: str):
+    if PROVISION_ATTRLISTS_MAP.get(provision):
+        return PROVISION_ATTRLISTS_MAP.get(provision)
+    return PROVISION_ATTRLISTS_MAP.get('default')
+
 
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
 # this is a class specific transformer because of information gain and
 # class-specific cols_to_keep array.
-class EbTransformer(BaseEstimator, TransformerMixin):
+# class EbTransformer(BaseEstimator, TransformerMixin):
+class EbTransformer(EbTransformerBase):
 
     # MAX_NUM_TOP_WORDS_IN_BAG = 25000
     # MAX_NUM_TOP_WORDS_IN_BAG = 1500000
@@ -30,9 +47,13 @@ class EbTransformer(BaseEstimator, TransformerMixin):
     transform_count = 0
 
     """Transform a list ebantdoc to matrix."""
-    def __init__(self, provision, binary_attr_list, numeric_attr_list, categorical_attr_list):
+    def __init__(self, provision):
         # provision is needed because of infogain computation need to know the classes
         self.provision = provision
+
+        (binary_attr_list, numeric_attr_list, categorical_attr_list) = \
+            get_transformer_attr_list_by_provision(self.provision)
+
         self.binary_attr_list = binary_attr_list
         self.numeric_attr_list = numeric_attr_list
         self.categorical_attr_list = categorical_attr_list
@@ -48,35 +69,6 @@ class EbTransformer(BaseEstimator, TransformerMixin):
 
         self.vocabulary = {}  # used for bi_topgram_matrix generation
 
-
-    def fit(self, attrvec_list, label_list=None):
-        EbTransformer.fit_count += 1
-        num_pos_inst = 0
-        for label in label_list:
-            if label:
-                num_pos_inst += 1
-        logging.info("fitting #%s called, len(attrvec_list) = %d, len(label_list) = %d, num_pos = %d",
-                     EbTransformer.fit_count, len(attrvec_list), len(label_list), num_pos_inst)
-        
-
-        # ignore the result X.  The goal here is to set up the vars.
-        self.ebantdoc_list_to_csr_matrix(attrvec_list,
-                                         label_list,
-                                         fit_mode=True)
-        return self
-
-    def transform(self, attrvec_list):
-        # pylint: disable=C0103
-        start_time = time.time()
-        X = self.ebantdoc_list_to_csr_matrix(attrvec_list,
-                                             [],
-                                             fit_mode=False)
-        end_time = time.time()
-        EbTransformer.transform_count += 1
-        logging.debug("%s transform called #%d, len(attrvec_list) = %d, took %.0f msec",
-                      self.provision, EbTransformer.transform_count, len(attrvec_list), (end_time - start_time) * 1000)
-
-        return X
 
     # label_list is a list of booleans
     # pylint: disable=R0912, R0914
@@ -293,22 +285,3 @@ class EbTransformer(BaseEstimator, TransformerMixin):
                                                 shape=(len(sent_st_list), len(self.vocab_id_map)),
                                                 dtype=int)
         return top_ig_ngram_matrix, perc_positive_ngram_list
-
-
-    # pylint: disable=C0103
-    def remove_zero_column(self, X, fit_mode=False):
-        # print("remove_zero_column(), shape of matrix X = ", X.shape)
-
-        if fit_mode:
-            col_sum = X.sum(axis=0)
-            col_sum = np.squeeze(np.asarray(col_sum))
-            zerofind = list(np.where(col_sum == 0))
-            all_cols = np.arange(X.shape[1])
-            # print("zerofind= ", zerofind)
-
-            # pylint: disable=E1101
-            self.cols_to_keep = np.where(np.logical_not(np.in1d(all_cols, zerofind)))[0]
-
-        X = X[:, self.cols_to_keep] #  remove cols where sum is zero
-        # print("after remove_zero_column(), shape of matrix X = ", X.shape)
-        return X

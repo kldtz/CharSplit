@@ -62,20 +62,17 @@ def is_stopword(st):
                           'to', 'in', 'on', 'with', 'without', 'or', 'and', 'a', 'the',
                           'this', 'that', 'from', 'up']
 
-def load_word_set(filename):
-    aset = set([])
-    with open(filename, 'rt') as fin:
-        for line in fin:
-            aset.add(line.strip().lower())
-    return aset
 
-subsec_prefix_word_set = load_word_set('dict/subsec.prefix.dict')
-subsec_xxx_word_set = load_word_set('dict/subsec.xxx.dict')
+subsec_prefix_word_set = strutils.load_lc_str_set('dict/subsec.prefix.dict')
+subsec_xxx_word_set = strutils.load_lc_str_set('dict/subsec.xxx.dict')
 
-sechead_prefix_word_set = load_word_set('dict/sechead.prefix.dict')
-sechead_xxx_word_set = load_word_set('dict/sechead.xxx.dict')
+sechead_prefix_word_set = strutils.load_lc_str_set('dict/sechead.prefix.dict')
+sechead_xxx_word_set = strutils.load_lc_str_set('dict/sechead.xxx.dict')
 
-sechead_invalid_words = load_word_set('dict/sechead.invalid.dict')
+sechead_invalid_words = strutils.load_lc_str_set('dict/sechead.invalid.dict')
+
+sechead_invalid_heading_set = strutils.load_lc_str_set('dict/sechead.invalid.line')
+
 
 ALPHA_ONLY_PAT = re.compile(r'^[a-zA-Z]+$')
 def is_alpha_word(xst):
@@ -195,9 +192,18 @@ def normalize_sechead_words(line):
     return ' '.join(words)
 """
 
+def is_invalid_heading(line: str) -> bool:
+    words = line.split()
+    if len(words) >= 2:  # may contain the prefix 6.2
+        result = ' '.join(words[1:]).lower() in sechead_invalid_heading_set
+        return result
+    result = line.lower() in sechead_invalid_heading_set
+    return result
+
 def is_maybe_sechead_title(line):
     norm_line_words = norm_lcword(line)  # to catch "523 East Weddel" as an address
     if (is_word_overlap(norm_line_words, sechead_xxx_word_set) and
+        not is_invalid_heading(line) and
         not contains_invalid_sechead_word(norm_line_words)):
         return True
     return False
@@ -250,7 +256,7 @@ def split_subsection_head3(line) -> int:
     # TODO, jshaw, is_relaxed_number() should handle '1.14b' and other valid sechead numbers
     if mat and (strutils.is_header_number(mat.group()) or strutils.is_digit_core(mat.group()[0])) and mat.start() < 30:
         matched_line = line[mat.end():]
-        if '.' not in matched_line and stopwordutils.is_title_non_stopwords(matched_line):
+        if '.' not in matched_line and ':' not in matched_line and stopwordutils.is_title_non_stopwords(matched_line):
             return -1
         mat2 = re.search(word_with_period_pat, line[mat.end():])
         if mat2:
@@ -364,15 +370,21 @@ def extract_sechead_v4(line: str,
                        prev_line_idx=-1,
                        debug_mode=False,
                        is_combine_line=True):
-
     if not line:
         return '', '', '', -1
 
     if not is_combine_line:
+
+        # 3 Months
+        if is_invalid_heading(line):
+            return '', '', '', -1
+
         split_idx = split_subsection_head3(line)
         if split_idx != -1:
             # print("split2: [{}]".format(line[:split_idx]))
             line = line[:split_idx]
+
+        # print("exxx line= [{}]".format(line))
 
         # print("\txxx\tline\t[{}...]".format(line[:40]))
         prefix, num, head, end_idx = parse_sechead_remove_lastnum(line)
@@ -594,7 +606,9 @@ def parse_sec_head(line, debug_mode=False):
                     print("matching mat, NOT subhead_suffix_pat, subhead_prefix_pat")
                 norm_words = norm_lcword(mat.group(7))
                 norm_line_words = norm_lcword(line)  # to catch "523 East Weddel" as an address
+
                 if (is_word_overlap(norm_words, sechead_xxx_word_set) and
+                    not ' '.join(norm_words).lower() in sechead_invalid_heading_set and
                     not contains_invalid_sechead_word(norm_line_words)):
                     return ("sechead", mat.group(1), mat.group(7))
                 else:   # 12000 Westheimer Rd, address
@@ -1543,8 +1557,45 @@ def st_sechead_str(xst):
 
     return ' '.join(words)
 
-line_sechead_prefix_pat = re.compile('^\s*\(?([\d\.]+|[a-zA-Z])\)?\s*$')
+
+line_sechead_prefix_pat_only = re.compile(r'^\s*\(?([\d\.]+|[a-zA-Z])\)?\s*$')
+
 
 def is_line_sechead_prefix_only(line: str):
+    return line_sechead_prefix_pat_only.match(line)
+
+
+# a) xxx
+# 1.2) xxx
+SECHEAD_PREFIX_PAT1 = r'(\(?([\d\.]+|[a-zA-Z])\))\s*\w'
+
+# exhibit xxx
+# exmlxxx xxx
+# article xxx
+# exhibitc    # because of ocr error
+# SECHEAD_PREFIX_PAT2 = r'(exhibit|exmllit|exml|section|article)\s*\w'
+SECHEAD_PREFIX_PAT2 = r'(exhibit|exmllit|exml|section|article)'
+
+# 1.2 xxx
+# a. xxx
+# 1. xxx
+SECHEAD_PREFIX_PAT3 = r'((\d+\.|\d+\.\d+|\d+\.\d+\.\d+|\d+\.\d+\.\d+\.\d+)\.?|[a-zA-Z]\. )\s*\w'
+
+SECHEAD_PREFIX_LIST = (SECHEAD_PREFIX_PAT1,
+                       SECHEAD_PREFIX_PAT2,
+                       SECHEAD_PREFIX_PAT3)
+
+line_sechead_prefix_pat = re.compile(r'^\s*({})'.format('|'.join(SECHEAD_PREFIX_LIST)), re.I)
+
+def is_line_sechead_prefix(line: str):
     return line_sechead_prefix_pat.match(line)
 
+
+# cannot have 1. xxx, must have at least 2 digit sequences
+# 1.2 xx
+SECHEAD_PREFIX_STRICT_PAT3 = r'((\d+\.\d+|\d+\.\d+\.\d+|\d+\.\d+\.\d+\.\d+)\.?|[a-zA-Z]\. )\s*\w'
+
+line_sechead_strict_prefix_pat = re.compile(r'^\s*{}'.format(SECHEAD_PREFIX_STRICT_PAT3), re.I)
+
+def is_line_sechead_strict_prefix(line: str):
+    return line_sechead_strict_prefix_pat.match(line)

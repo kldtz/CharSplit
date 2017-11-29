@@ -194,7 +194,7 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, ebantd
     return tp, fn, fp, tn
 
 
-
+"""
 # pylint: disable=R0914
 def calc_doc_ant_confusion_matrix_precx2(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
     tp, fp, tn, fn = 0, 0, 0, 0
@@ -263,7 +263,7 @@ def calc_doc_ant_confusion_matrix_precx2(prov_human_ant_list, ant_list, txt, dia
             print(txt[pred_ant.start:pred_ant.end])
 
     return tp, fn, fp, tn
-
+"""
 
 #
 # utilities
