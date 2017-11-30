@@ -134,7 +134,7 @@ class ProvisionAnnotator:
 
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations, threshold = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.text,
+        prov_annotations, threshold = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
                                                                          prob_attrvec_list,
                                                                          self.threshold,
                                                                          provision=prov,

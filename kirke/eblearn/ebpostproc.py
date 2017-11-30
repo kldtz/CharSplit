@@ -172,7 +172,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                             end=cx_prob_attrvec.end,
                                             # pylint: disable=line-too-long
                                             text=strutils.remove_nltab(cx_prob_attrvec.text[:50]) + '...'))
-        return ant_result
+        return ant_result, threshold
 
 # Note from PythonClassifier.java:
 # The NER seems to pick up the bare word LLC, INC, and CORP as parties sometimes.  This RE
