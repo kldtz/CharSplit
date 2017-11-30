@@ -557,13 +557,16 @@ class EbRunner:
                     xtp, xfn, xfp, xtn = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
-                                                                         ebantdoc.get_text(),
+                                                                         ebantdoc,
+                                                                         # threshold,
                                                                          diagnose_mode=True)
                 else:
+                    threshold = self.provision_annotator_map[provision].threshold
                     xtp, xfn, xfp, xtn = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                 ant_list,
-                                                                ebantdoc.get_text(),
+                                                                ebantdoc,
+                                                                threshold,
                                                                 diagnose_mode=True)
                 tp += xtp
                 fn += xfn

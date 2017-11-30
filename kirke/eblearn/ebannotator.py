@@ -49,7 +49,7 @@ class ProvisionAnnotator:
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc,
-                                                                     threshold,
+                                                                     # threshold,
                                                                      diagnose_mode=True)
             else:
                 xtp, xfn, xfp, xtn, json_return = \
@@ -116,8 +116,9 @@ class ProvisionAnnotator:
     def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None):
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
-        # print("txt_fn = '{}', vec_size= {}, ant_list = {}".format(txt_fn,
-        # len(instance_list), ant_list))
+        # print("txt_fn = '{}', vec_size= {}".format(eb_antdoc.file_id,
+        # len(eb_antdoc.get_attrvec_list())))
+
         attrvec_list = eb_antdoc.get_attrvec_list()
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
