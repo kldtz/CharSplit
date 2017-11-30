@@ -139,7 +139,6 @@ class ProvisionAnnotator:
                                                                          self.threshold,
                                                                          provision=prov,
                                                                          prov_human_ant_list=prov_human_ant_list)
-        print(type(prov_annotations))
         prov_annotations = self.recover_fns(eb_antdoc.text, prov, prov_annotations, prov_human_ant_list)
 
         #print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))

@@ -120,7 +120,7 @@ def test_annotators(provisions, txt_fn_list_fn, word_dir, model_dir, custom_mode
     eval_status, log_json = eb_runner.test_annotators(txt_fn_list_fn, provision_set, threshold)
 
     # return some json accuracy info
-    pprint(eval_status)
+    pprint.pprint(eval_status)
     timestr = time.strftime("%Y%m%d-%H%M%S")
     log_fn = '_'.join(provision_set)+'-test-' + timestr + ".log"
     strutils.dumps(json.dumps(log_json), log_fn)
