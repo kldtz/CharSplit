@@ -784,7 +784,8 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
                      mathutils.start_end_overlap((entity.start, entity.end),
                                                  (sent_start, sent_end))):
                     entity_doc_st = doc_text[entity.start:entity.end]
-                    if entity_doc_st.lower() in part: 
+                    if entity_doc_st.lower() in part:
+                        print("\t3:", doc_text[entity.start:entity.end]) 
                         found_provision_list.append((entity_doc_st,
                                                      entity.start,
                                                      entity.end, 'x2'))
@@ -806,6 +807,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     if best_provision:
         prov_st, prov_start, prov_end, match_type = best_provision
         if prov_st and not prov_st.isspace():
+           print("\t\tRETURNED:", prov_st)
            return best_provision
     if len(sent_st.split()) > 2:
         return [sent_st, sent_start, sent_end, None]
