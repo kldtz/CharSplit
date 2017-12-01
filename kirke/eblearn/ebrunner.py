@@ -597,6 +597,7 @@ class EbRunner:
 
         annotations = {}
         logs = {}
+        print("<<<<<<", threshold)
         with concurrent.futures.ThreadPoolExecutor(8) as executor:
             future_to_provision = {executor.submit(test_provision,
                                                    self.provision_annotator_map[provision],

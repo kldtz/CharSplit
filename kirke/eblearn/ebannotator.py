@@ -118,7 +118,7 @@ class ProvisionAnnotator:
         # ebsent_list = eb_antdoc.get_ebsent_list()
         # print("txt_fn = '{}', vec_size= {}".format(eb_antdoc.file_id,
         # len(eb_antdoc.get_attrvec_list())))
-
+        print(">", self.threshold, threshold)
         attrvec_list = eb_antdoc.get_attrvec_list()
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
@@ -126,6 +126,7 @@ class ProvisionAnnotator:
             self.threshold = threshold
         else:
             threshold = self.threshold
+        print(">>", self.threshold, threshold)
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
@@ -140,7 +141,7 @@ class ProvisionAnnotator:
                                                                          provision=prov,
                                                                          prov_human_ant_list=prov_human_ant_list)
         prov_annotations = self.recover_fns(eb_antdoc.text, prov, prov_annotations, prov_human_ant_list)
-
+        print(">>>", self.threshold, threshold)
         #print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
         #print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
         #for fr_sxlnpos, to_sxlnpos in zip(eb_antdoc.origin_sx_lnpos_list, eb_antdoc.nlp_sx_lnpos_list):
