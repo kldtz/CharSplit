@@ -35,15 +35,9 @@ class ProvisionAnnotator:
         tp, fn, fp, tn = 0, 0, 0, 0
         log_json = {}
         for ebantdoc in ebantdoc_list:
-            #print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
-            # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-            # prov_human_ant_list = [hant for hant in ebantdoc.para_prov_ant_list
                                    if hant.label == self.provision]
-            ant_list, threshold = self.annotate_antdoc(ebantdoc, threshold=threshold, prov_human_ant_list=prov_human_ant_list)
-            # print("\nfn: {}".format(ebantdoc.file_id))
-            # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
-            # pred_prob_start_end_list, txt)
+            ant_list, threshold = self.annotate_antdoc(ebantdoc, threshold=self.threshold, prov_human_ant_list=prov_human_ant_list)
             if self.provision in PROVISION_EVAL_ANYMATCH_SET:
                 xtp, xfn, xfp, xtn, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
@@ -118,7 +112,6 @@ class ProvisionAnnotator:
         # ebsent_list = eb_antdoc.get_ebsent_list()
         # print("txt_fn = '{}', vec_size= {}".format(eb_antdoc.file_id,
         # len(eb_antdoc.get_attrvec_list())))
-        print(">", self.threshold, threshold)
         attrvec_list = eb_antdoc.get_attrvec_list()
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
@@ -126,7 +119,6 @@ class ProvisionAnnotator:
             self.threshold = threshold
         else:
             threshold = self.threshold
-        print(">>", self.threshold, threshold)
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
@@ -141,7 +133,6 @@ class ProvisionAnnotator:
                                                                          provision=prov,
                                                                          prov_human_ant_list=prov_human_ant_list)
         prov_annotations = self.recover_fns(eb_antdoc.text, prov, prov_annotations, prov_human_ant_list)
-        print(">>>", self.threshold, threshold)
         #print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
         #print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
         #for fr_sxlnpos, to_sxlnpos in zip(eb_antdoc.origin_sx_lnpos_list, eb_antdoc.nlp_sx_lnpos_list):
