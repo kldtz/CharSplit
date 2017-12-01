@@ -750,7 +750,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     person_after_list = []
     person_before_list = []
     sent_st = doc_text[sent_start:sent_end]
-    print(">>>",sent_st)
+    print(">>>",sent_st.replace("\n", " "))
     if prov == 'l_landlord_lessor':
         landlord_pat = re.compile(r"landlord:([\.’–\-\/\w\d\s\n&]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?", re.I)
         agent = ['landlord', 'lessor']
@@ -760,7 +760,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     landlord_match = landlord_pat.search(sent_st)
     if landlord_match:
         ant_start, ant_end = landlord_match.span(1)
-        print("\t1:", doc_text[sent_start+ant_start:sent_start+ant_end])
+        print("\t1:", doc_text[sent_start+ant_start:sent_start+ant_end].replace("\n", " "))
         found_provision_list.append((landlord_match.group(1),
                                      sent_start+ant_start,
                                      sent_start+ant_end, 'x1'))
@@ -770,7 +770,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
         mat = between_pat.search(sent_st)
         if mat:
             ant_start, ant_end = mat.span(1)
-            print("\t2:", doc_text[sent_start+ant_start:sent_start+ant_end])
+            print("\t2:", doc_text[sent_start+ant_start:sent_start+ant_end].replace("\n", " "))
             found_provision_list.append((mat.group(1),
                                          sent_start+ant_start,
                                          sent_start+ant_end, 'x3'))
@@ -785,7 +785,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
                                                  (sent_start, sent_end))):
                     entity_doc_st = doc_text[entity.start:entity.end]
                     if entity_doc_st.lower() in part:
-                        print("\t3:", doc_text[entity.start:entity.end]) 
+                        print("\t3:", doc_text[entity.start:entity.end].replace("\n", " ")) 
                         found_provision_list.append((entity_doc_st,
                                                      entity.start,
                                                      entity.end, 'x2'))
@@ -807,7 +807,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     if best_provision:
         prov_st, prov_start, prov_end, match_type = best_provision
         if prov_st and not prov_st.isspace():
-           print("\t\tRETURNED:", prov_st)
+           print("\t\tRETURNED:", prov_st.replace("\n", " "))
            return best_provision
     if len(sent_st.split()) > 2:
         return [sent_st, sent_start, sent_end, None]
