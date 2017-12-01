@@ -750,6 +750,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     person_after_list = []
     person_before_list = []
     sent_st = doc_text[sent_start:sent_end]
+    print(">>>",sent_st)
     if prov == 'l_landlord_lessor':
         landlord_pat = re.compile(r"landlord:([\.’–\-\/\w\d\s\n&]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?", re.I)
         agent = ['landlord', 'lessor']
@@ -759,6 +760,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     landlord_match = landlord_pat.search(sent_st)
     if landlord_match:
         ant_start, ant_end = landlord_match.span(1)
+        print("\t1:", doc_text[sent_start+ant_start:sent_start+ant_end])
         found_provision_list.append((landlord_match.group(1),
                                      sent_start+ant_start,
                                      sent_start+ant_end, 'x1'))
@@ -768,6 +770,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
         mat = between_pat.search(sent_st)
         if mat:
             ant_start, ant_end = mat.span(1)
+            print("\t2:", doc_text[sent_start+ant_start:sent_start+ant_end])
             found_provision_list.append((mat.group(1),
                                          sent_start+ant_start,
                                          sent_start+ant_end, 'x3'))
