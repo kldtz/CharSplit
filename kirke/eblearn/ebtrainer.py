@@ -97,7 +97,7 @@ def train_eval_annotator(provision,
                      len(attrvec_list), MIN_FULL_TRAINING_SIZE, num_pos_label, num_neg_label)
         X_train = X
         # y_train = y
-        train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
+        train_doclist_fn = "{}/{}-{}_train_doclist.txt".format(model_dir, provision, doc_lang)
         splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
         eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
 
