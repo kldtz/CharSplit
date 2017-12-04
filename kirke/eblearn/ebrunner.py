@@ -11,6 +11,7 @@ import pprint
 import psutil
 import sys
 import time
+import re
 from typing import List
 
 from sklearn.externals import joblib
@@ -141,7 +142,11 @@ class EbRunner:
 
             full_custom_model_fn = '{}/{}'.format(custom_model_dir, custom_model_fn)
             prov_classifier = joblib.load(full_custom_model_fn)
-            clf_provision = prov_classifier.provision
+            cust_id = re.match('cust_\d+\-\w\w', custom_model_fn)
+            if cust_id:
+                clf_provision = cust_id.group()
+            else:
+                clf_provision = prov_classifier.provision
             if hasattr(prov_classifier, 'version'):
                 prov_classifier_version = prov_classifier.version
             else:
@@ -202,6 +207,8 @@ class EbRunner:
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
                 data = future.result()
+                if 'cust_' in provision and data:
+                    provision = data[0]['label']
                 annotations[provision] = data
         return annotations
 
@@ -278,7 +285,6 @@ class EbRunner:
             for prov in provision_set:
                 empty_result[prov] = []
             return empty_result, eb_antdoc
-
         # this execute the annotators in parallel
         prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, provision_set)
 
@@ -678,6 +684,7 @@ class EbRunner:
             work_dir = self.work_dir
 
         full_model_fname = '{}/{}'.format(custom_model_dir, base_model_fname)
+
         logging.info("custom_mode_file: %s", full_model_fname)
 
         # eb_classifier = scutclassifier.ShortcutClassifier(provision)
@@ -693,7 +700,8 @@ class EbRunner:
                                                       doc_lang=doc_lang)
 
         # update the hashmap of classifier
-        provision = "{}-{}".format(provision, doc_lang)
+        if doc_lang != "en":
+            provision = "{}-{}".format(provision, doc_lang)
         old_provision_annotator = self.provision_annotator_map.get(provision)
         if old_provision_annotator:
             logging.info("Updating annotator, '%s', %s.", provision, full_model_fname)

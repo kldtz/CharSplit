@@ -13,8 +13,8 @@ from kirke.eblearn import sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
 from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
 
-CORENLP_JSON_VERSION = '1.2'
-EBANTDOC_VERSION = '1.2'
+CORENLP_JSON_VERSION = '1.3'
+EBANTDOC_VERSION = '1.3'
 
 def get_corenlp_json_fname(txt_basename, work_dir):
     base_fn = txt_basename.replace('.txt',

@@ -126,8 +126,8 @@ def annotate_uploaded_document():
         if "rate_table" in provision_set:
             provision_set.remove('rate_table')
 
+    provision_set = [x + "-" + doc_lang if ("cust_" in x and doc_lang != "en") else x for x in provision_set]
     # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
-
     prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
                                                      provision_set=provision_set,
                                                      work_dir=work_dir,
@@ -203,8 +203,9 @@ def custom_train(cust_id):
             txt_fn_list_fn = '{}/{}'.format(tmp_dir, doc_lang+'-txt_fnames.list')
             fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
             strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-
             base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
+            if doc_lang != "en":
+                base_model_fname = '{}-{}_scutclassifier.v{}.pkl'.format(provision, doc_lang, SCUT_CLF_VERSION)
 
             # Following the logic in the original code.
             eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
