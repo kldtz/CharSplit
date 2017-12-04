@@ -44,7 +44,7 @@ def annotate(text_as_string, doc_lang):
                                                'ssplit.newlineIsSentenceBreak': 'two',
                                                'ner.model':'portuguese-ner.ser.gz'})
     else:
-        logging.info("{} not supported, corenlp running on en".format(doc_lang))
+        logging.info("corenlp running on en")
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                    properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
                                                'outputFormat': 'json',
