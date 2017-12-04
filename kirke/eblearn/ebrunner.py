@@ -203,7 +203,7 @@ class EbRunner:
             future_to_provision = {executor.submit(annotate_provision,
                                                    self.provision_annotator_map[provision],
                                                    eb_antdoc):
-                                   provision for provision in provision_set}
+                                   provision for provision in provision_set if provision in self.provision_custom_model_fn_map}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
                 data = future.result()
