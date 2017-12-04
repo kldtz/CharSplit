@@ -207,9 +207,14 @@ class EbRunner:
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
                 data = future.result()
+                # want to collapse language-specific cust models to one provision
                 if 'cust_' in provision and data:
                     provision = data[0]['label']
-                annotations[provision] = data
+                # aggregates all annotations across languages for cust models
+                try:
+                    annotations[provision].append(data)
+                except KeyError:
+                    annotations[provision] = data
         return annotations
 
     def update_custom_models(self):
