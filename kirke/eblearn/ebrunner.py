@@ -142,7 +142,7 @@ class EbRunner:
 
             full_custom_model_fn = '{}/{}'.format(custom_model_dir, custom_model_fn)
             prov_classifier = joblib.load(full_custom_model_fn)
-            cust_id = re.match('cust_\d+\-\w\w', custom_model_fn)
+            cust_id = re.match('cust_\d+_\w\w', custom_model_fn)
             if cust_id:
                 clf_provision = cust_id.group()
             else:
@@ -198,7 +198,7 @@ class EbRunner:
         #else:
         #    logging.info("user specified provision list: %s", provision_set)
 
-        annotations = {}
+        annotations = defaultdict(list)
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
                                                    self.provision_annotator_map[provision],
@@ -211,10 +211,7 @@ class EbRunner:
                 if 'cust_' in provision and data:
                     provision = data[0]['label']
                 # aggregates all annotations across languages for cust models
-                try:
-                    annotations[provision].append(data)
-                except KeyError:
-                    annotations[provision] = data
+                annotations[provision].extend(data)
         return annotations
 
     def update_custom_models(self):

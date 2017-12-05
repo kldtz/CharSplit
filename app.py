@@ -169,9 +169,9 @@ def custom_train(cust_id):
         # print("saving file '{}'".format(fn))
         fstorage.save(fn)
 
-    ant_fnames = {}
+    fname_provtypes_map = {}
     txt_fnames = []
-    full_txt_fnames = {}
+    full_txt_fnames = defaultdict(list)
     txt_offsets_fn_map = {}
     for name in [fstorage.filename for fstorage in fn_list]:
         file_id = name.split('.')[0]
@@ -179,15 +179,12 @@ def custom_train(cust_id):
         if name.endswith('.ant'):
             ants_map = json.loads(strutils.loads(full_path))
             ants = [x['type'] for x in ants_map]
-            ant_fnames[file_id] = ants
+            fname_provtypes_map[file_id] = ants
         elif name.endswith('.txt'):
             txt_fnames.append(name)
             atext = strutils.loads(full_path)
             doc_lang = eb_langdetect_runner.detect_lang(atext)
-            try:
-                full_txt_fnames[doc_lang].append(file_id)
-            except KeyError:
-                full_txt_fnames[doc_lang] = [file_id]
+            full_txt_fnames[doc_lang].extend(file_id)
         elif name.endswith('.offsets.json'):
             # create txt -> offsets.json map in order to do sent4nlp processing
             tmp_txt_fn = name.replace(".offsets.json", ".txt")
@@ -197,15 +194,15 @@ def custom_train(cust_id):
     #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
     all_stats = {}
     for doc_lang, names_per_lang in full_txt_fnames.items():
-        ant_count = sum([ant_fnames[x].count(provision) for x in names_per_lang])
+        ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
         logging.info('Number of annotations for {}: {}'.format(doc_lang, ant_count))
         if ant_count >= 6:
-            txt_fn_list_fn = '{}/{}'.format(tmp_dir, doc_lang+'-txt_fnames.list')
+            txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
             fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
             strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
             base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
             if doc_lang != "en":
-                base_model_fname = '{}-{}_scutclassifier.v{}.pkl'.format(provision, doc_lang, SCUT_CLF_VERSION)
+                base_model_fname = '{}_{}_scutclassifier_{}.v{}.pkl'.format(provision, doc_lang, SCUT_CLF_VERSION)
 
             # Following the logic in the original code.
             eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
