@@ -2,6 +2,7 @@
 
 # TODO should we be able to train individual provisions separately
 
+from collections import defaultdict
 import configparser
 import copy
 import json
@@ -81,8 +82,8 @@ def annotate_uploaded_document():
             # save the file name
             meta_fn = '{}/{}'.format(work_dir,
                                      fstorage.filename.replace('.txt', '.meta'))
-            print("wrote meta_fn: '{}'".format(meta_fn))
-            print("doc title: '{}'".format(file_title))
+            # print("wrote meta_fn: '{}'".format(meta_fn))
+            # print("doc title: '{}'".format(file_title))
             with open(meta_fn, 'wt') as meta_out:
                 print('pdf_file\t{}'.format(file_title), file=meta_out)
                 print('txt_file\t{}'.format(fstorage.filename), file=meta_out)
@@ -184,7 +185,7 @@ def custom_train(cust_id):
             txt_fnames.append(name)
             atext = strutils.loads(full_path)
             doc_lang = eb_langdetect_runner.detect_lang(atext)
-            full_txt_fnames[doc_lang].extend(file_id)
+            full_txt_fnames[doc_lang].append(file_id)
         elif name.endswith('.offsets.json'):
             # create txt -> offsets.json map in order to do sent4nlp processing
             tmp_txt_fn = name.replace(".offsets.json", ".txt")

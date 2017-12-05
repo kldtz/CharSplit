@@ -1,17 +1,16 @@
-import concurrent.futures
+from collections import defaultdict
 import copy
+import concurrent.futures
 from datetime import datetime
 import json
+import langdetect
 import logging
 import os
-from datetime import datetime
 import psutil
-import langdetect
 import pprint
-import psutil
+import re
 import sys
 import time
-import re
 from typing import List
 
 from sklearn.externals import joblib
@@ -93,6 +92,8 @@ class EbRunner:
         self.custom_model_timestamp_map = {}
         # Kirke can have different custom model versions for the same provision right
         # after training new ones. Need to keep them unique by remove the old one.
+        # Must syncrhonize the update of self.provision_annotator_map and
+        # self.provision_custom_model_fn_map.
         self.provision_custom_model_fn_map = {}
 
         # load the available classifiers from dir_model
@@ -142,7 +143,7 @@ class EbRunner:
 
             full_custom_model_fn = '{}/{}'.format(custom_model_dir, custom_model_fn)
             prov_classifier = joblib.load(full_custom_model_fn)
-            cust_id = re.match('cust_\d+_\w\w', custom_model_fn)
+            cust_id = re.match(r'cust_\d+_\w\w', custom_model_fn)
             if cust_id:
                 clf_provision = cust_id.group()
             else:
@@ -229,12 +230,18 @@ class EbRunner:
             if old_timestamp and old_timestamp == last_modified_date:
                 pass
             else:
+                # for both out-of-date models and new models
                 # prev_mem_usage = py.memory_info()[0] / 2**20
                 # logging.info('current memory use: {} Mbytes'.format(prev_mem_usage))
 
-                full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fn)
+                full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
-                clf_provision = prov_classifier.provision
+                cust_id = re.match(r'cust_\d+_\w\w', fname)
+                if cust_id:
+                    clf_provision = cust_id.group()
+                else:
+                    clf_provision = prov_classifier.provision
+
                 #if clf_provision in self.provisions:
                 #    logging.warning("*** WARNING ***  Replacing an existing provision: %s",
                 #                    clf_provision)
@@ -242,6 +249,14 @@ class EbRunner:
                 self.custom_model_timestamp_map[fname] = last_modified_date
                 self.provisions.add(clf_provision)
                 num_model += 1
+
+                prev_custom_model_fn = self.provision_custom_model_fn_map.get(clf_provision)
+                if not prev_custom_model_fn:  # doesnt exist before
+                    self.provision_custom_model_fn_map[clf_provision] = full_custom_model_fn
+                elif prev_custom_model_fn != full_custom_model_fn:  # must exist before
+                    # check for any file name change due to version change
+                    self.update_existing_provision_fn_map_aux(clf_provision, full_custom_model_fname)
+                # if the same, don't do anything
 
         if provision_classifier_map:
             for provision in provision_classifier_map:
@@ -703,23 +718,16 @@ class EbRunner:
 
         # update the hashmap of classifier
         if doc_lang != "en":
-            provision = "{}-{}".format(provision, doc_lang)
+            provision = "{}_{}".format(provision, doc_lang)
         old_provision_annotator = self.provision_annotator_map.get(provision)
         if old_provision_annotator:
             logging.info("Updating annotator, '%s', %s.", provision, full_model_fname)
-            prev_provision_model_fname = self.provision_custom_model_fn_map[provision]
-            if prev_provision_model_fname != full_model_fname:
-                logging.info("removing old customized model file, '%s', %s.", provision, prev_provision_model_fname)
-                if os.path.isfile(prev_provision_model_fname):
-                    os.remove(prev_provision_model_fname)
-                self.provision_custom_model_fn_map[provision] = full_model_fname
-                # the old timestamp for the removed file doesn't matter.
-                # tmp_base_fname = os.path.basename(prev_provision_model_fname)
-                # del self.custom_model_timestamp_map[tmp_base_fname]
+            self.update_existing_provision_fn_map_aux(provision, full_model_fname)
         else:
             logging.info("Adding annotator, '%s', %s.", provision, full_model_fname)
             self.provisions.add(provision)
         self.provision_annotator_map[provision] = eb_annotator
+        self.provision_custom_model_fn_map[provision] = full_model_fname
 
         # updating the model timestamp, for update purpose
         mtime = os.path.getmtime(os.path.join(self.custom_model_dir, base_model_fname))
@@ -728,6 +736,18 @@ class EbRunner:
 
         return eb_annotator.get_eval_status()
 
+    def update_existing_provision_fn_map_aux(self, provision: str, full_model_fname: str) -> None:
+        # intentioanlly not using .get(), because the previous model file must exist.
+        prev_provision_model_fname = self.provision_custom_model_fn_map[provision]
+        # in case the model version is different
+        if prev_provision_model_fname != full_model_fname:
+            logging.info("removing old customized model file, '%s', %s.", provision, prev_provision_model_fname)
+            if os.path.isfile(prev_provision_model_fname):
+                os.remove(prev_provision_model_fname)
+                # the old timestamp for the removed file doesn't matter.
+                # tmp_base_fname = os.path.basename(prev_provision_model_fname)
+                # del self.custom_model_timestamp_map[tmp_base_fname]
+                self.provision_custom_model_fn_map[provision] = full_model_fname
 
     def eval_ml_rule_annotator_with_trte(self,
                                          provision,
