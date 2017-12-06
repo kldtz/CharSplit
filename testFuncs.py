@@ -6,6 +6,8 @@ import re
 
 from kirke.utils import mathutils
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
+
 
 CORPPAT = r'(company|borrowers?|tenant|landlords?|tenent|parent|holders?|licensee|licensor|buyers?|holdings|issuers?|corporation|banks?|lenders?|administrative agents?|merger sub|operating partnership|advisor|advisers?|purchasers?|trustees?|agents?|executive|seller|consultant|employee|partnership|general partner|partner|partnership|contractor|service provider|marketing agent|supplier|lessee|subordination agent|escrow agent|transaction entities|guarantors?|producers?|assignee|swingline lender|liquidity provider|assignor|maker|investors?|lessor|manager|collateral agent|distributors?|servicer|payee|independent director|tenant|sub|op general partner|operating partnership general partner|paying agent|reit|employer|syndication agent|operator|owner|mutual holding company|mid-tier holding company|depositors?|manufacturers?|subsidiaries|loan parties|debtors?|customer|original lender|clients?|sales manager|transferor|originator|collateral custodian|backup servicer|undersigned|subsidiary|affiliates?|credit parties|credit party|representative|indenture trustee|management investors|grantee|sponsor|secured party|director|publisher|payor|class a pass through trustee|arrangers?|documentation agents?|hospital?|grantor|obligors?|noteholders?|master servicer|co-documentation agents?|designated borrower|buyer parent|party b|party a|pledgor|user|selling stockholders?|participants?|you|mortgagee|initial purchaser|syndication agent|subsidiary guarantors?|\S+ borrowers?|escrow issuers?|companies|\S+ resolver borrowers?|subscribers?|promissor|parties|holding company|shareholders?|note issuers?|guarantor company|guarantor companies|stockholders?|sub-advisers?|sub-advisors?)'
 
@@ -55,8 +57,6 @@ def extract_define_party(line: str, start_offset=0):
 
     return result
 
-
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 st = 'AGREEMENT, made as of August , 1998, between CEDAR BROOK 11 CORPORATE CENTER, L.P., 1000 Eastpark Blvd., Cranbury, New Jersey 08512 “Landlord”; and CHRYSALIS DNX TRANSGENIC SCIENCE CORP., 301 College Road East, Princeton, New Jersey 08540, “Tenant”.' 
 

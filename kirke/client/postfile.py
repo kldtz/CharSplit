@@ -13,6 +13,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='identify the language')
     parser.add_argument("-v", "--verbosity", help="increase output verbosity")
     parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
+    parser.add_argument("-u", "--url", help="url to post the file")    
     parser.add_argument("filename")
 
     args = parser.parse_args()
@@ -20,8 +21,12 @@ if __name__ == '__main__':
         print("verbosity turned on")
     if args.debug:
         isDebug = True
+
+    url = 'http://127.0.0.1:8000/detect-lang'
+    if args.url:
+        url = args.url
+        
     if args.filename:
-        url = 'http://127.0.0.1:8000/detect-lang'
-        files = {'file': open(args.filename, 'rt', encoding='utf-8')}
+        files = {'file': open(args.filename, 'rt')}
         req = requests.post(url, files=files)
         print(req.text)

@@ -13,7 +13,8 @@ from kirke.utils import ebantdoc2
 from kirke.eblearn import ebattrvec
 from kirke.utils import osutils
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
+
 
 
 if __name__ == '__main__':

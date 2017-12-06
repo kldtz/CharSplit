@@ -1,8 +1,8 @@
+from collections import Mapping, Container
 import os
 import sys
-
-from collections import Mapping, Container
 from sys import getsizeof
+
 
 # Create a directory and any missing ancestor directories.
 # If the directory already exists, do nothing.
