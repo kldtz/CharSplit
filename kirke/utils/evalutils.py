@@ -1,5 +1,6 @@
 from collections import defaultdict, namedtuple
 import re
+import time
 from kirke.utils import mathutils
 # pylint: disable=C0103
 
@@ -13,17 +14,29 @@ def find_annotation_overlap(start, end, label_start_end_list):
             result_list.append(ant)
     return result_list
 
+# label_start_end are dict
+def find_annotation_overlap_x2(start, end, label_start_end_list):
+    result_list = []
+    if not label_start_end_list:
+      return result_list
+    for ant in label_start_end_list:
+        if mathutils.start_end_overlap((start, end), (ant['start'], ant['end'])):
+            result_list.append(ant)
+    return result_list
 
-def calc_precision_recall_f1(tn, fp, fn, tp, title):
-    print("\n" + title)
+
+def calc_precision_recall_f1(tn, fp, fn, tp, title=None):
+    if title:
+        print("\n" + title)
     actual_true = fn + tp
     actual_false = tn + fp
     pred_true = tp + fp
     pred_false = tn + fn
 
-    print("actual_true= {}, actual_false= {}".format(actual_true, actual_false))
-    print("  pred_true= {},   pred_false= {}".format(pred_true, pred_false))
-    print("[[tn={}, fp={}], [fn={}, tp={}]]".format(tn, fp, fn, tp))
+    if title:
+        print("actual_true= {}, actual_false= {}".format(actual_true, actual_false))
+        print("  pred_true= {},   pred_false= {}".format(pred_true, pred_false))
+        print("[[tn={}, fp={}], [fn={}, tp={}]]".format(tn, fp, fn, tp))
 
     if tp + fp == 0:
         prec = 0
@@ -37,9 +50,34 @@ def calc_precision_recall_f1(tn, fp, fn, tp, title):
         f1 = 0
     else:
         f1 = 2 * prec * recall / (prec + recall)
-    print("prec= {}, recall= {}, f1= {}".format(prec, recall, f1))
+
+    if title:
+        print("prec= {}, recall= {}, f1= {}".format(prec, recall, f1))
 
     return prec, recall, f1
+
+
+def aggregate_ant_status_list(alist):
+    result_map = defaultdict(int)
+    for ant_status in alist:
+        conf_mtx = ant_status['ant_status']['confusion_matrix']
+        for pred_type, count in conf_mtx.items():
+            result_map[pred_type] += count
+        threshold = ant_status['ant_status']['threshold']  # we just take the last one
+
+    prec, recall, f1 = calc_precision_recall_f1(result_map['tn'],
+                                                result_map['fp'],
+                                                result_map['fn'],
+                                                result_map['tp'])
+
+    return {'ant_status': {'recall': recall,
+                           'prec': prec,
+                           'f1': f1,
+                           'threshold': threshold,
+                           'confusion_matrix': {'tp': result_map['tp'],
+                                                'tn': result_map['tn'],
+                                                'fp': result_map['fp'],
+                                                'fn': result_map['fn']}}}
 
 
 AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
@@ -66,13 +104,13 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
         if pred_overlap_list:
             prob = max([x.prob for x in pred_overlap_list])
             if prob >= threshold:
-                tp_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+                tp_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                 tp += 1
             else:
-                fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+                fn_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                 fn += 1
         else:
-            fn_inst_map[(hant.start, hant.end, hant.label)] = [AnnotationWithProb(hant.label,
+            fn_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = [AnnotationWithProb(hant.label,
                                                                                   hant.start,
                                                                                   hant.end,
                                                                                   0.0)]
@@ -84,29 +122,33 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
         if pant.prob >= threshold:
           fp_inst_list.append(pant)
           fp += 1 
-    
+
 
     # there is no tn, because we deal with only annotations
     if diagnose_mode:
         for i, hant in enumerate(sorted(tp_inst_map.keys())):
-            hstart, hend, _ = hant
+            _, hstart, hend, label = hant
             tp_inst_list = tp_inst_map[hant]
             tp_txt = " ".join([txt[x.start:x.end] for x in tp_inst_list])
+            min_start = min([x.start for x in tp_inst_list])
+            max_end = max([x.end for x in tp_inst_list])
             prob = max([x.prob for x in tp_inst_list])
             print("tp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", tp_txt), str(prob)))
-            json_return['tp'].append([linebreaks.sub(" ", tp_txt), prob])
+            json_return['tp'].append([min_start, max_end, label, prob, linebreaks.sub(" ", tp_txt)])
 
         for i, hant in enumerate(sorted(fn_inst_map.keys())):
-            hstart, hend, _ = hant
+            _, hstart, hend, label = hant
             fn_inst_list = fn_inst_map[hant]
             fn_txt = " ".join([txt[x.start:x.end] for x in fn_inst_list])
+            min_start = min([x.start for x in fn_inst_list])
+            max_end = max([x.end for x in fn_inst_list])
             prob = max([x.prob for x in fn_inst_list])
             print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
-            json_return['fn'].append([linebreaks.sub(" ", fn_txt), prob])
+            json_return['fn'].append([min_start, max_end, label, prob, linebreaks.sub(" ", fn_txt)])
 
         for i, pred_ant in enumerate(fp_inst_list):
             print("fp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
-            json_return['fp'].append([linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), pred_ant.prob])
+            json_return['fp'].append([pred_ant.start, pred_ant.end, pred_ant.label, pred_ant.prob, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])])
     return tp, fn, fp, tn, json_return
 
 # for 'title', we want to match any title annotation
@@ -129,7 +171,6 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, ebantd
     fp_inst_list = []
     fn_inst_map = defaultdict(list)
     tp_fn_set = set([])
-
     for hant in prov_human_ant_list:
         pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
         if pred_overlap_list:

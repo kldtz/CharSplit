@@ -8,7 +8,7 @@ import copy
 import json
 import logging
 import os.path
-
+import pprint
 from flask import Flask, request, jsonify
 
 from kirke.eblearn import ebrunner
@@ -267,4 +267,3 @@ def detect_langs():
     detect_langs = eb_langdetect_runner.detect_langs(atext)
     logging.info("detected languages '{}'".format(detect_langs))
     return json.dumps({'lang-probs': detect_langs })
-

@@ -90,12 +90,12 @@ def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_
         model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
                                                                 provision,
                                                                 PROV_CLF_VERSION)
-    ebtrainer.train_eval_annotator_with_trte(provision,
-                                             work_dir,
-                                             model_dir,
-                                             model_file_name,
-                                             eb_classifier,
-                                             is_doc_structure=is_doc_structure)
+    eval_stats, log_json = ebtrainer.train_eval_annotator_with_trte(provision,
+                                                                    work_dir,
+                                                                    model_dir,
+                                                                    model_file_name,
+                                                                    eb_classifier,
+                                                                    is_doc_structure=is_doc_structure)
 
 
 def eval_line_annotator_with_trte(provision,

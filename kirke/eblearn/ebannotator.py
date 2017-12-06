@@ -94,18 +94,18 @@ class ProvisionAnnotator:
 
         return tmp_eval_status
 
-    def recover_fns(self, doc_text, provision, ant_result, prov_human_ant_list=None):
+    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
         if not prov_human_ant_list:
-            return [x.to_dict() for x in ant_result]
+            return ant_result
         for ant in prov_human_ant_list:
-            if not evalutils.find_annotation_overlap(ant.start, ant.end, ant_result):
-                fn_ant = ebpostproc.AntResult(label=provision,
-                                              prob=0.0,
-                                              start=ant.start,
-                                              end=ant.end,
-                                              text=strutils.remove_nltab(doc_text[ant.start:ant.end]))
+            if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
+                fn_ant = ebpostproc.to_ant_result_dict(label=provision,
+                                                       prob=0.0,
+                                                       start=ant.start,
+                                                       end=ant.end,
+                                                       text=strutils.remove_nltab(doc_text[ant.start:ant.end]))
                 ant_result.append(fn_ant)
-        return [x.to_dict() for x in ant_result]
+        return ant_result
 
     def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None):
         # attrvec_list = eb_antdoc.get_attrvec_list()
@@ -132,17 +132,14 @@ class ProvisionAnnotator:
                                                                          self.threshold,
                                                                          provision=prov,
                                                                          prov_human_ant_list=prov_human_ant_list)
-        prov_annotations = self.recover_fns(eb_antdoc.text, prov, prov_annotations, prov_human_ant_list)
-        #print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
-        #print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
-        #for fr_sxlnpos, to_sxlnpos in zip(eb_antdoc.origin_sx_lnpos_list, eb_antdoc.nlp_sx_lnpos_list):
-        #    print("35234 origin: {}, nlp: {}".format(fr_sxlnpos, to_sxlnpos))
+
 
         fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
         # this is an in-place modification
         fromto_mapper.adjust_fromto_offsets(prov_annotations)
         update_text_with_span_list(prov_annotations, eb_antdoc.text)
 
+        prov_annotations = self.recover_false_negatives(prov_human_ant_list, eb_antdoc.text, prov, prov_annotations)
         return prov_annotations, threshold
 
 # this is destructive
