@@ -143,9 +143,9 @@ class EbRunner:
 
             full_custom_model_fn = '{}/{}'.format(custom_model_dir, custom_model_fn)
             prov_classifier = joblib.load(full_custom_model_fn)
-            cust_id = re.match(r'cust_\d+_\w\w', custom_model_fn)
+            cust_id = re.match(r'(cust_\d+_\w\w)_scutclassifier', custom_model_fn)
             if cust_id:
-                clf_provision = cust_id.group()
+                clf_provision = cust_id.group(1)
             else:
                 clf_provision = prov_classifier.provision
             if hasattr(prov_classifier, 'version'):
@@ -236,9 +236,9 @@ class EbRunner:
 
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
-                cust_id = re.match(r'cust_\d+_\w\w', fname)
+                cust_id = re.match(r'(cust_\d+_\w\w)_scutclassifier', fname)
                 if cust_id:
-                    clf_provision = cust_id.group()
+                    clf_provision = cust_id.group(1)
                 else:
                     clf_provision = prov_classifier.provision
 
