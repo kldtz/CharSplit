@@ -43,7 +43,10 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=Fals
     if debug_mode:
         print('reading text doc: [{}]'.format(file_name), file=sys.stderr)
     orig_doc_text = strutils.loads(file_name)
-    doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = pdfutils.load_pdf_offsets(offsets_file_name)
+
+    cpt_cunit_mapper = TextCptCunitMapper(orig_doc_text)
+    doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = \
+        pdfutils.load_pdf_offsets(offsets_file_name, cpt_cunit_mapper)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
     nl_text, nl_fname = text_offsets_to_nl(base_fname, orig_doc_text, line_breaks,
@@ -168,7 +171,8 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=Fals
     if debug_mode:
         print('wrote {}, size= {}'.format(paraline_fn, len(paraline_text)), file=sys.stderr)
 
-    return orig_doc_text, nl_text, paraline_text, nl_fname, paraline_fn
+    return orig_doc_text, nl_text, paraline_text, nl_fname, paraline_fn, cpt_cunit_mapper
+
 
 def is_block_multi_line(linex_list):
 
@@ -536,8 +540,10 @@ def parse_document(file_name, work_dir, debug_mode=False):
     base_fname = os.path.basename(file_name)
 
     doc_text = strutils.loads(file_name)
+
+    cpt_cunit_mapper = TextCptCunitMapper(orig_doc_text)
     doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = \
-        pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name))
+        pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name, cpt_cunit_mapper))
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
     nl_text, nl_fname = text_offsets_to_nl(base_fname, doc_text, line_breaks,

@@ -13,8 +13,8 @@ from kirke.eblearn import sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
 from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
 
-CORENLP_JSON_VERSION = '1.2'
-EBANTDOC_VERSION = '1.2'
+CORENLP_JSON_VERSION = '1.4'
+EBANTDOC_VERSION = '1.4'
 
 def get_corenlp_json_fname(txt_basename, work_dir):
     base_fn = txt_basename.replace('.txt',
@@ -45,7 +45,8 @@ class EbAnnotatedDoc2:
     def __init__(self,
                  file_name,
                  doc_format: EbDocFormat,
-                 text, 
+                 text,
+                 cpt_cunit_mapper,
                  prov_ant_list,
                  is_test,
                  para_doc_text,        # adjusted
@@ -62,6 +63,9 @@ class EbAnnotatedDoc2:
         self.doc_format = doc_format
         self.text = text
         self.len_text = len(text)   # used to check out of bound
+
+        self.codepoint_to_cunit_mapper = cpt_cunit_mapper
+
         self.prov_annotation_list = prov_ant_list
         self.is_test_set = is_test
         self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
@@ -277,7 +281,8 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
 
 def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode=False):
     doc_text = txtreader.loads(txt_file_name)
-    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name)
+    cpt_cunit_mapper = TextCptCunitMapper(text)
+    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpt_cunit_mapper)
     max_txt_size = len(doc_text)
     is_chopped = False
     for prov_ant in prov_annotation_list:
@@ -403,10 +408,10 @@ def pdf_to_ebantdoc2(txt_file_name,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
-    doc_text, nl_text, paraline_text, nl_fname, paraline_fname = \
+    doc_text, nl_text, paraline_text, nl_fname, paraline_fname, cpt_cunit_mapper = \
         pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
 
-    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name)
+    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpt_cunit_mapper)
 
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)
 
@@ -528,7 +533,8 @@ def text_to_ebantdoc2(txt_fname,
         # regarless of the existing PDF or HtML or is_doc_structure
         eb_antdoc = load_cached_ebantdoc2(eb_antdoc_fn)
         if is_bespoke_mode and eb_antdoc:
-            tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname)
+            tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
+                                                                               eb_antdoc.cpt_cunit_mapper)
             if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
                 return eb_antdoc
             eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
