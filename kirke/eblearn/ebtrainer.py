@@ -37,37 +37,42 @@ def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
 # Take 1/5 of the data out for testing
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
-def train_eval_annotator(provision, txt_fn_list,
-                         work_dir, model_dir, model_file_name, eb_classifier,
+def train_eval_annotator(provision, 
+                         txt_fn_list,
+                         work_dir, 
+                         model_dir, 
+                         model_file_name, 
+                         eb_classifier,
                          is_doc_structure=False,
-                         custom_training_mode=False):
+                         custom_training_mode=False,
+                         doc_lang="en"):
     logging.info("training_eval_annotator(%s) called", provision)
     logging.info("    txt_fn_list = %s", txt_fn_list)
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_dir = %s", model_dir)
     logging.info("    model_file_name = %s", model_file_name)
     logging.info("    is_doc_structure= %s", is_doc_structure)
-
     # is_combine_line should be file dependent, PDF than False
     # HTML is True.
     eb_traindoc_list = ebantdoc2.doclist_to_traindoc_list(txt_fn_list,
-                                                       work_dir,
-                                                       is_bespoke_mode=custom_training_mode,
-                                                       is_doc_structure=is_doc_structure)
+                                                          work_dir,
+                                                          is_bespoke_mode=custom_training_mode,
+                                                          is_doc_structure=is_doc_structure,
+                                                          doc_lang=doc_lang)
 
     attrvec_list = []
     for eb_traindoc in eb_traindoc_list:
         attrvec_list.extend(eb_traindoc.get_attrvec_list())
 
     num_pos_label, num_neg_label = 0, 0
-    for attrvec in attrvec_list:
+    
+    for attrvec in attrvec_list: 
         if provision in attrvec.labels:
             num_pos_label += 1
             # print("\npositive training for {}".format(provision))
             # print("    [[{}]]".format(attrvec.bag_of_words))
         else:
             num_neg_label += 1
-
     # pylint: disable=C0103
     X = eb_traindoc_list
     y = [provision in eb_traindoc.get_provision_set()
@@ -92,7 +97,7 @@ def train_eval_annotator(provision, txt_fn_list,
                      len(attrvec_list), MIN_FULL_TRAINING_SIZE, num_pos_label, num_neg_label)
         X_train = X
         # y_train = y
-        train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
+        train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir, provision, doc_lang)
         splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
         eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
 

@@ -15,12 +15,12 @@ from collections import defaultdict
 import os
 
 from sklearn.externals import joblib
-from sklearn.model_selection import train_test_split
 
-from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier, ebtransformerv1_2
+from kirke.docclassifier.unigramclassifier import UnigramDocClassifier
+from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
 from kirke.eblearn import ebannotator
+from kirke.ebrules import rateclassifier
 from kirke.utils import osutils, splittrte, strutils
-
 from kirke.ebrules import rateclassifier
 
 config = configparser.ConfigParser()
@@ -32,6 +32,8 @@ PROV_CLF_VERSION = config['ebrevia.com']['PROV_CLF_VERSION']
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+
+IS_SUPPORT_DOC_CLASSIFICATION = True
 
 # This trains on ALL data, no separate testing
 def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
@@ -46,10 +48,33 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
                                                                 provision,
                                                                 PROV_CLF_VERSION)
 
+    # pylint: disable=protected-access
     ebtrainer._train_classifier(txt_fn_list_fn,
                                 work_dir,
                                 model_file_name,
                                 eb_classifier)
+
+
+# PATH = "/home/jshaw/proj/KirkeDocCat/sample_data2"
+def train_doc_classifier(txt_fn_list_fn, model_dir):
+    doc_classifier = UnigramDocClassifier()
+    model_file_name = model_dir + "/ebrevia_docclassifier.pkl"
+
+    doc_classifier.train(txt_fn_list_fn, model_file_name)
+
+
+def train_eval_doc_classifier(txt_fn_list_fn, is_step1=False):
+    doc_classifier = UnigramDocClassifier()
+
+    doc_classifier.train_and_evaluate(txt_fn_list_fn, is_step1)
+
+
+def classify_document(file_name, model_dir):
+    eb_runner = ebrunner.EbDocCatRunner(model_dir)
+
+    preds = eb_runner.classify_document(file_name)
+
+    pprint(preds)
 
 
 # This separates out training and testing data, trains only on training data.
@@ -109,8 +134,10 @@ def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir,
                                                                 work_dir=work_dir)
 
 
-# test multiple annotators    
-def test_annotators(provisions, txt_fn_list_fn, word_dir, model_dir, custom_model_dir, threshold=None):
+# test multiple annotators
+# pylint: disable=too-many-arguments
+def test_annotators(provisions, txt_fn_list_fn, work_dir, model_dir, custom_model_dir,
+                    threshold=None):
     provision_set = set([])
     if provisions:
         provision_set = set(provisions.split(','))
@@ -121,7 +148,7 @@ def test_annotators(provisions, txt_fn_list_fn, word_dir, model_dir, custom_mode
     # return some json accuracy info
     pprint.pprint(eval_status)
 
-# test only 1 annotator    
+# test only 1 annotator
 def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
     eb_classifier = joblib.load(model_file_name)
     provision = eb_classifier.provision
@@ -175,12 +202,19 @@ def annotate_document(file_name,
                       provision_set=None,
                       is_doc_structure=True):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
+    eb_langdetect_runner = ebrunner.EbLangDetectRunner()
+   
+    atext = strutils.loads(file_name)
+    doc_lang = eb_langdetect_runner.detect_lang(atext)
+    logging.info("detected language '{}'".format(doc_lang))
+    
 
     # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
     #                      'party', 'warranty', 'termination', 'term']))
     prov_labels_map, _ = eb_runner.annotate_document(file_name,
                                                      provision_set=provision_set,
                                                      work_dir=work_dir,
+                                                     doc_lang=doc_lang,
                                                      is_doc_structure=is_doc_structure)
 
     # because special case of 'effectivdate_auto'
@@ -191,7 +225,54 @@ def annotate_document(file_name,
         prov_labels_map['effectivedate_auto'] = effectivedate_annotations
         del prov_labels_map['effectivedate']
 
+
+    # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
     pprint.pprint(prov_labels_map)
+
+    eb_doccat_runner = None
+    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
+    if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
+        eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
+
+    print("eb_doccat_runner = {}".format(eb_doccat_runner))
+    if eb_doccat_runner != None:
+        doc_catnames = eb_doccat_runner.classify_document(file_name)
+        pprint.pprint({'tags': doc_catnames})
+
+
+def annotate_htmled_document(file_name, work_dir, model_dir, custom_model_dir):
+    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
+
+    prov_labels_map, doc_text = eb_runner.annotate_htmled_document(file_name, work_dir=work_dir)
+    # prov_labels_map, doc_text = eb_runner.annotate_document(file_name, set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction', 'party', 'warranty', 'termination', 'term']))
+    pprint(prov_labels_map)
+
+    eb_doccat_runner = None
+    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
+    if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
+        eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
+
+    if eb_doccat_runner != None:
+        doc_catnames = eb_doccat_runner.classify_document(file_name)
+        pprint({'tags': doc_catnames})
+
+
+# TODO, this is the same as ebrunner.annotate_pdfboxed_document?
+def annotate_pdfboxed_document(file_name, linfo_file_name, work_dir, model_dir, custom_model_dir):
+    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
+
+    prov_labels_map, doc_text = eb_runner.annotate_pdfboxed_document(file_name, linfo_file_name, work_dir=work_dir)
+
+    pprint(prov_labels_map)
+
+    eb_doccat_runner = None
+    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
+    if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
+        eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
+
+    if eb_doccat_runner != None:
+        doc_catnames = eb_doccat_runner.classify_document(file_name)
+        pprint({'tags': doc_catnames})
 
 
 def annotate_doc_party(fn_list_fn, work_dir, model_dir, custom_model_dir, threshold=None):
@@ -204,7 +285,7 @@ def annotate_doc_party(fn_list_fn, work_dir, model_dir, custom_model_dir, thresh
             txt_fn = line.strip()
             eb_runner.annotate_provision_in_document(txt_fn, provision='party')
 
-            
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Training models.')
@@ -219,7 +300,8 @@ if __name__ == '__main__':
     parser.add_argument('--work_dir', required=True, help='output directory for .corenlp.json')
     parser.add_argument('--model_dir', help='output directory for trained models')
     parser.add_argument('--model_dirs', help='output directory for trained models')
-    parser.add_argument('--custom_model_dir', required=True, help='output directory for custom trained models')
+    parser.add_argument('--custom_model_dir', required=True,
+                        help='output directory for custom trained models')
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
@@ -250,8 +332,8 @@ if __name__ == '__main__':
                                is_doc_structure=True)
     elif cmd == 'test_annotators':
         # if no --provisions is specified, all annotators are tested
-        test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir, custom_model_dir,
-                        threshold=args.threshold)
+        test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir,
+                        custom_model_dir, threshold=args.threshold)
     elif cmd == 'test_one_annotator':
         if not args.model_file:
             print('please specify --model_file', file=sys.stderr)
@@ -286,38 +368,29 @@ if __name__ == '__main__':
     elif cmd == 'split_provision_trte':
         if not args.provfiles_dir:
             print('please specify --provfiles_dir', file=sys.stderr)
-            sys.exit(1)        
+            sys.exit(1)
         if not args.model_dirs:
             print('please specify --model_dirs', file=sys.stderr)
-            sys.exit(1)        
+            sys.exit(1)
         model_dir_list = args.model_dirs.split(',')
         # for HTML document, without doc structure
         # is_doc_structure has to be false.
         splittrte.split_provision_trte(args.provfiles_dir,
                                        work_dir,
                                        model_dir_list,
-                                       is_doc_structure=True)
+                                       is_doc_structure=False)
+    elif cmd == 'train_doc_classifier':
+        # doccatutils.train_doc_classifier(txt_fn_list_fn, model_dir)
+        train_doc_classifier(txt_fn_list_fn, model_dir)
+    elif cmd == 'train_eval_doc_classifier':
+        # doccatutils.train_eval_doc_classifier(txt_fn_list_fn)
+        train_eval_doc_classifier(txt_fn_list_fn)
+    elif cmd == 'train_eval_doc_step1_classifier':
+        # doccatutils.train_eval_doc_classifier(txt_fn_list_fn)
+        train_eval_doc_classifier(txt_fn_list_fn, is_step1=True)
+    elif cmd == 'classify_doc':
+        classify_document(args.doc, model_dir)
     else:
         print("unknown command: '{}'".format(cmd))
 
     logging.info('Done.')
-
-
-"""
-    elif cmd == 'split_provisions_from_posdocs':
-        if not args.provisions:
-            print('please specify --provisions', file=sys.stderr)
-            sys.exit(1)
-        split_provisions_from_posdocs(args.provisions, txt_fn_list_fn, work_dir, model_dir)
-    elif cmd == 'split_provision_trte':
-        if not args.provisions:
-            print('please specify --provisions', file=sys.stderr)
-            sys.exit(1)
-        if not args.model_dirs:
-            print('please specify --model_dirs', file=sys.stderr)
-            sys.exit(1)        
-        provision_list = args.provisions.split(',')
-        model_dir_list = args.model_dirs.split(',')
-        split_provision_trte(provision_list, txt_fn_list_fn, work_dir, model_dir_list)
-"""
-    
