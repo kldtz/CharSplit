@@ -68,6 +68,8 @@ def annotate_uploaded_document():
     else:
         work_dir = WORK_DIR
 
+    ebannotation = {}
+
     request_file_name, pdf_offsets_file_name = '', ''
     fn_list = request.files.getlist('file')
     for fstorage in fn_list:
@@ -96,7 +98,8 @@ def annotate_uploaded_document():
     
     atext = strutils.loads(txt_file_name)
     doc_lang = eb_langdetect_runner.detect_lang(atext)
-    ebannotations['lang'] = doc_lang
+    if is_detect_lang:
+        ebannotations['lang'] = doc_lang
     logging.info("detected language '{}'".format(doc_lang))
     # if no other classification is specified, return early
     if not provision_set and not is_classify_doc:
@@ -143,7 +146,7 @@ def annotate_uploaded_document():
         prov_labels_map['effectivedate_auto'] = effectivedate_annotations
         del prov_labels_map['effectivedate']
 
-    ebannotations = {'ebannotations': prov_labels_map}
+    ebannotations['ebannotations'] = prov_labels_map
     return json.dumps(ebannotations)
 
 

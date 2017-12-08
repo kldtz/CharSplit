@@ -1,0 +1,21 @@
+ln -s ../ebcorpus4/export-train exporot-train
+ls export-train/*.txt > export-train.filelist
+
+run_split_doccat_trte.sh
+run_train_eval_doc_classifier.sh
+run_train_doc_classifier.sh
+
+# now the doccat model is in dir-scut-model
+
+In a terminal:
+startup.sh
+
+In another terminal
+run_upload_doccat_file.sh export-train/35431.txt
+
+Look for the following tags:
+"lang": "en",
+"tags": ["Consulting Services Agmt."]
+
+                    
+
