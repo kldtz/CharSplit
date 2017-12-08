@@ -21,23 +21,12 @@ PROVISION_PAT_MAP = {
     'term': (re.compile(r'[“"]Termination\s+Date[”"]', re.IGNORECASE | re.DOTALL), 1.0)
 }
 
-class AntResult:
-
-    # pylint: disable=too-many-arguments
-    def __init__(self, label, prob, start, end, text):
-        self.label = label
-        self.prob = prob
-        self.start = start
-        self.end = end
-        self.text = text
-
-    def to_dict(self):
-        return {'label': self.label,
-                'prob': self.prob,
-                'start': self.start,
-                'end': self.end,
-                'text': self.text}
-
+def to_ant_result_dict(label, prob, start, end, text):
+    return {'label': label,
+            'prob': prob,
+            'start': start,
+            'end':  end,
+            'text': text}
 
 # pylint: disable=too-few-public-methods
 class ConciseProbAttrvec:
@@ -751,7 +740,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     person_after_list = []
     person_before_list = []
     sent_st = doc_text[sent_start:sent_end]
-    print(">>>",sent_st.replace("\n", " "))
     if prov == 'l_landlord_lessor':
         landlord_pat = re.compile(r"landlord:([\.’–\-\/\w\d\s\n&]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?", re.I)
         agent = ['landlord', 'lessor']
@@ -761,7 +749,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     landlord_match = landlord_pat.search(sent_st)
     if landlord_match:
         ant_start, ant_end = landlord_match.span(1)
-        print("\t1:", doc_text[sent_start+ant_start:sent_start+ant_end].replace("\n", " "))
         found_provision_list.append((landlord_match.group(1),
                                      sent_start+ant_start,
                                      sent_start+ant_end, 'x1'))
@@ -771,7 +758,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
         mat = between_pat.search(sent_st)
         if mat:
             ant_start, ant_end = mat.span(1)
-            print("\t2:", doc_text[sent_start+ant_start:sent_start+ant_end].replace("\n", " "))
             found_provision_list.append((mat.group(1),
                                          sent_start+ant_start,
                                          sent_start+ant_end, 'x3'))
@@ -786,7 +772,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
                                                  (sent_start, sent_end))):
                     entity_doc_st = doc_text[entity.start:entity.end]
                     if entity_doc_st.lower() in part:
-                        print("\t3:", doc_text[entity.start:entity.end].replace("\n", " ")) 
                         found_provision_list.append((entity_doc_st,
                                                      entity.start,
                                                      entity.end, 'x2'))
@@ -808,7 +793,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     if best_provision:
         prov_st, prov_start, prov_end, match_type = best_provision
         if prov_st and not prov_st.isspace():
-           print("\t\tRETURNED:", prov_st.replace("\n", " "))
            return best_provision
     if len(sent_st.split()) > 2:
         return [sent_st, sent_start, sent_end, None]
@@ -1127,7 +1111,7 @@ class PostPredConfidentialityProc(EbPostPredictProcessing):
                                                      # pylint: disable=line-too-long
                                                      text=strutils.remove_nltab(cx_prob_attrvec.text)))
         return ant_result
-'''    
+'''
 
 
 # Note from PythonClassifier.java:
