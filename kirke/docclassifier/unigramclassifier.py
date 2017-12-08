@@ -12,7 +12,7 @@ from sklearn.model_selection import KFold
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn import preprocessing
 
-from kirke.docclassifier import doccategory, doccatutils
+from kirke.docclassifier import doccatutils
 
 
 class DocClassifier(ABC):
@@ -46,18 +46,23 @@ class UnigramDocClassifier(DocClassifier):
         DocClassifier.__init__(self)
         self.classifier = None
         self.transformer = None
+
         self.catname_list = []
+        self.catname_catid_map = {}
+        # self.catid_catname_map = {}
+        self.valid_tags = set([])
 
     def train(self, txt_fn_list_fn, model_file_name):
 
         logging.info('start training unigram document classifier: [%s]', txt_fn_list_fn)
 
+        self.catname_list, self.catname_catid_map = \
+           doccatutils.load_doccat_maps('dict/doccat.valid.count.tsv')
+        self.valid_tags = set(self.catname_list)
+
         # each y is a list of catid
         # pylint: disable=invalid-name
-        X_both, y_both, catname_list = doccatutils.load_data(txt_fn_list_fn, is_step1=False)
-
-        # TODO, in future, this should be influnced by catnames
-        self.catname_list = catname_list
+        X_both, y_both = doccatutils.load_data(txt_fn_list_fn, self.catname_catid_map, self.valid_tags)
 
         X_both = np.asarray(X_both)
         y_both = np.asarray(y_both)
@@ -84,15 +89,20 @@ class UnigramDocClassifier(DocClassifier):
         return sgd
 
     # pylint: disable=too-many-locals
-    def train_and_evaluate(self, txt_fn_list_fn, is_step1=False):
+    def train_and_evaluate(self, txt_fn_list_fn):
         logging.info('start training and evaluate unigram document classifier: [%s]',
                      txt_fn_list_fn)
 
         # pylint: disable=invalid-name
-        EB_DOC_KFOLD = 5
+        EB_DOC_KFOLD = 3
+
+        self.catname_list, self.catname_catid_map = \
+           doccatutils.load_doccat_maps('dict/doccat.valid.count.tsv')
+        self.valid_tags = set(self.catname_list)
 
         # each y is a list of catid
-        X_both, y_both, catname_list = doccatutils.load_data(txt_fn_list_fn, is_step1)
+        # pylint: disable=invalid-name
+        X_both, y_both = doccatutils.load_data(txt_fn_list_fn, self.catname_catid_map, self.valid_tags)
 
         X_both = np.asarray(X_both)
         y_both = np.asarray(y_both)
@@ -103,6 +113,7 @@ class UnigramDocClassifier(DocClassifier):
         kfolds = KFold(n_splits=EB_DOC_KFOLD, shuffle=True)
 
         prec_list, recall_list, f1_list = [], [], []
+        report_list = []  # to be combined
         for train_index, test_index in kfolds.split(X_both, bin_y_both):
 
             X_train = X_both[train_index]
@@ -124,8 +135,10 @@ class UnigramDocClassifier(DocClassifier):
 
             #for pred, yval in zip(preds, y_test):
             #    print("pred= {}, yval= {}".format(pred, yval))
-            result = classification_report(y_test, preds, target_names=catname_list)
+            result = classification_report(y_test, preds, target_names=self.catname_list)
+            # print('result = [{}]'.format(result))
             print(result)
+            report_list.append(result)
 
             prec, recall, f1 = doccatutils.report_to_eval_scores(result)
             prec_list.append(prec)
@@ -136,9 +149,14 @@ class UnigramDocClassifier(DocClassifier):
         sum_recall = sum(recall_list)
         sum_f1 = sum(f1_list)
         sum_count = len(f1_list)
-        print("avg precision= {:.2f}, recall= {:.2f}, f1= {:.2f}".format(sum_prec / sum_count,
-                                                                         sum_recall / sum_count,
-                                                                         sum_f1 / sum_count))
+
+        doccatutils.print_combined_reports(report_list, self.valid_tags)
+        print("\nreported avg precision= {:.2f}, recall= {:.2f}, f1= {:.2f}".format(sum_prec / sum_count,
+                                                                                    sum_recall / sum_count,
+                                                                                    sum_f1 / sum_count))
+
+        print("\nwith filtering of threshold 0.75")
+        doccatutils.print_combined_reports(report_list, self.valid_tags, threshold=0.75)
 
 
     def predict(self, doc_text, catnames=None):
