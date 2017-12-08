@@ -12,6 +12,8 @@ from sklearn.externals import joblib
 from kirke.eblearn import sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
 from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
+from kirke.utils.textcptcunit import TextCptCunitMapper
+
 
 CORENLP_JSON_VERSION = '1.4'
 EBANTDOC_VERSION = '1.4'
@@ -43,6 +45,7 @@ class EbAnnotatedDoc2:
 
     # pylint: disable=R0913
     def __init__(self,
+                 *,   # force specify all parameters by keyword
                  file_name,
                  doc_format: EbDocFormat,
                  text,
@@ -239,7 +242,7 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
 
-    txt_file_name, doc_text, prov_annotation_list, is_test = \
+    txt_file_name, doc_text, prov_annotation_list, is_test, cpt_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
     paras_with_attrs = []
@@ -258,18 +261,22 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
     origin_sx_lnpos_list = []
     nlp_sx_lnpos_list = []
     gap_span_list = []
-    eb_antdoc = EbAnnotatedDoc2(txt_file_name,
-                                EbDocFormat.html_nodocstruct,
-                                doc_text,
-                                prov_annotation_list,
-                                is_test,
-                                para_doc_text,
-                                nlp_prov_ant_list,
-                                attrvec_list,
-                                paras_with_attrs,
-                                origin_sx_lnpos_list,
-                                nlp_sx_lnpos_list,
-                                gap_span_list,
+    eb_antdoc = EbAnnotatedDoc2(file_name=txt_file_name,
+                                doc_format=EbDocFormat.html_nodocstruct,
+                                text=doc_text,
+                                cpt_cunit_mapper=cpt_cunit_mapper,
+                                prov_ant_list=prov_annotation_list,
+                                is_test=is_test,
+                                para_doc_text=para_doc_text,
+                                para_prov_ant_list=nlp_prov_ant_list,
+                                attrvec_list=attrvec_list,
+                                paras_with_attrs=paras_with_attrs,
+                                origin_sx_lnpos_list=origin_sx_lnpos_list,
+                                nlp_sx_lnpos_list=nlp_sx_lnpos_list,
+                                gap_span_list=gap_span_list,
+                                # there is no nl_text
+                                # page_offsets_list
+                                # paraline_text
                                 doc_lang=doc_lang)
                                 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
@@ -288,7 +295,7 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
 
 def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode=False):
     doc_text = txtreader.loads(txt_file_name)
-    cpt_cunit_mapper = TextCptCunitMapper(text)
+    cpt_cunit_mapper = TextCptCunitMapper(doc_text)
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpt_cunit_mapper)
     max_txt_size = len(doc_text)
     is_chopped = False
@@ -318,7 +325,7 @@ def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode
     if debug_mode:
         print('wrote {}'.format(txt_file_name, file=sys.stderr))
 
-    return txt_file_name, doc_text, prov_annotation_list, is_test
+    return txt_file_name, doc_text, prov_annotation_list, is_test, cpt_cunit_mapper
 
 
 # stop at 'exhibit_appendix' or 'exhibit_appendix_complete'
@@ -331,7 +338,7 @@ def html_to_ebantdoc2(txt_file_name,
     txt_base_fname = os.path.basename(txt_file_name)
     # print("html_to_ebantdoc2({}, {}, is_cache_eanbled={}".format(txt_file_name, work_dir, is_cache_enabled))
 
-    txt_file_name, doc_text, prov_annotation_list, is_test = \
+    txt_file_name, doc_text, prov_annotation_list, is_test, cpt_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
     paras_with_attrs, para_doc_text, gap_span_list, _ = \
@@ -354,18 +361,22 @@ def html_to_ebantdoc2(txt_file_name,
                                is_cache_enabled,
                                doc_lang=doc_lang)
 
-    eb_antdoc = EbAnnotatedDoc2(txt_file_name,
-                                EbDocFormat.html,
-                                doc_text,
-                                prov_annotation_list,
-                                is_test,
-                                para_doc_text,
-                                nlp_prov_ant_list,
-                                attrvec_list,
-                                paras_with_attrs,
-                                origin_sx_lnpos_list,
-                                nlp_sx_lnpos_list,
-                                gap_span_list,
+    eb_antdoc = EbAnnotatedDoc2(file_name=txt_file_name,
+                                doc_format=EbDocFormat.html,
+                                text=doc_text,
+                                cpt_cunit_mapper=cpt_cunit_mapper,
+                                prov_ant_list=prov_annotation_list,
+                                is_test=is_test,
+                                para_doc_text=para_doc_text,
+                                para_prov_ant_list=nlp_prov_ant_list,
+                                attrvec_list=attrvec_list,
+                                paras_with_attrs=paras_with_attrs,
+                                origin_sx_lnpos_list=origin_sx_lnpos_list,
+                                nlp_sx_lnpos_list=nlp_sx_lnpos_list,
+                                gap_span_list=gap_span_list,
+                                # there is no nl_text
+                                # page_offsets_list
+                                # paraline_text
                                 doc_lang=doc_lang)
                                 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
@@ -454,18 +465,19 @@ def pdf_to_ebantdoc2(txt_file_name,
                                is_cache_enabled,
                                doc_lang=doc_lang)
 
-    eb_antdoc = EbAnnotatedDoc2(txt_file_name,
-                                EbDocFormat.pdf,
-                                doc_text,
-                                prov_annotation_list,
-                                is_test,
-                                para2_doc_text,
-                                nlp_prov_ant_list,
-                                attrvec_list,
-                                paras2_with_attrs,
-                                origin_sx_lnpos_list,
-                                nlp_sx_lnpos_list,
-                                gap2_span_list,
+    eb_antdoc = EbAnnotatedDoc2(file_name=txt_file_name,
+                                doc_format=EbDocFormat.pdf,
+                                text=doc_text,
+                                cpt_cunit_mapper=cpt_cunit_mapper,
+                                prov_ant_list=prov_annotation_list,
+                                is_test=is_test,
+                                para_doc_text=para2_doc_text,
+                                para_prov_ant_list=nlp_prov_ant_list,
+                                attrvec_list=attrvec_list,
+                                paras_with_attrs=paras2_with_attrs,
+                                origin_sx_lnpos_list=origin_sx_lnpos_list,
+                                nlp_sx_lnpos_list=nlp_sx_lnpos_list,
+                                gap_span_list=gap2_span_list,
                                 nl_text=nl_text,
                                 page_offsets_list=pdf_text_doc.get_page_offsets(),
                                 paraline_text=paraline_text,
@@ -549,7 +561,7 @@ def text_to_ebantdoc2(txt_fname,
         eb_antdoc = load_cached_ebantdoc2(eb_antdoc_fn)
         if is_bespoke_mode and eb_antdoc:
             tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
-                                                                               eb_antdoc.cpt_cunit_mapper)
+                                                                               eb_antdoc.codepoint_to_cunit_mapper)
             if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
                 return eb_antdoc
             eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
@@ -858,3 +870,16 @@ def traindoc_list_to_antdoc_list(traindoc_list, work_dir):
         yield text_to_ebantdoc2(traindoc.file_id,
                                 work_dir=work_dir,
                                 is_cache_enabled=True)
+
+# this is in-place operations
+def prov_ants_cpt_to_cunit(prov_ants_map, cpt_to_cunit_mapper):
+    for prov, ant_list in prov_ants_map.items():
+        for ant_json in ant_list:
+            ant_json['cpt_start'], ant_json['cpt_end'] = ant_json['start'], ant_json['end']
+            ant_json['start'], ant_json['end'] = cpt_to_cunit_mapper.to_cunit_offsets(ant_json['start'],
+                                                                                      ant_json['end'])
+
+            for span_json in ant_json['span_list']:
+                span_json['cpt_start'], span_json['cpt_end'] = span_json['start'], span_json['end']
+                span_json['start'], span_json['end'] = cpt_to_cunit_mapper.to_cunit_offsets(span_json['start'],
+                                                                                            span_json['end'])

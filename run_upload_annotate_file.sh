@@ -2,11 +2,11 @@
 
 # $1 = tmp/fail1.txt
 
-# python kirke/client/postfile2.py --url http://localhost:8000/annotate-doc $1
+python kirke/client/postfile2.py --url http://localhost:8000/annotate-doc $1
 
 # python kirke/client/postfile2.py --url http://localhost:8000/annotate-doc --lang $1
 
-python kirke/client/postfileDocCatLang.py --url http://localhost:8000/annotate-doc --lang --doccat $1
+# python kirke/client/postfileDocCatLang.py --url http://localhost:8000/annotate-doc --lang --doccat $1
 
 
 # python kirke/client/postfile2.py --url http://localhost:8000/classify-doc $1

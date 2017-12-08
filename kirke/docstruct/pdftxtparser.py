@@ -11,6 +11,7 @@ from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
 from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, PageInfo3, PBlockInfo
 from kirke.docstruct.pdfoffsets import PDFTextDoc, StrInfo
 from kirke.utils import strutils, txtreader, mathutils
+from kirke.utils.textcptcunit import TextCptCunitMapper
 
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
@@ -541,9 +542,9 @@ def parse_document(file_name, work_dir, debug_mode=False):
 
     doc_text = strutils.loads(file_name)
 
-    cpt_cunit_mapper = TextCptCunitMapper(orig_doc_text)
+    cpt_cunit_mapper = TextCptCunitMapper(doc_text)
     doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = \
-        pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name, cpt_cunit_mapper))
+        pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name), cpt_cunit_mapper)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
     nl_text, nl_fname = text_offsets_to_nl(base_fname, doc_text, line_breaks,

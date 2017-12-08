@@ -4,6 +4,10 @@ import argparse
 import time
 from collections import defaultdict 
 
+# usage: writeUTF16Offset.py 16 22 short2.txt
+
+# to reduce the size, can make it
+# if the same, do nothing, don't insert
 class TextCptCunitMapper:
 
     def __init__(self, text:str):
@@ -22,59 +26,58 @@ class TextCptCunitMapper:
         cunit_to_cpt_map = {}
         cpt_offset = 0
         cunit_offset = 0
-        cpt_to_cunit_map[0] = 0
-        cunit_to_cpt_map[0] = 0
         for cpt_offset, ch in enumerate(text, 1):
             cunit = cpt_bytesize_map[ch]
             cunit_offset += cunit
 
-            cpt_to_cunit_map[cpt_offset] = cunit_offset
-            cunit_to_cpt_map[cunit_offset] = cpt_offset
+            if cpt_offset != cunit_offset:
+                cpt_to_cunit_map[cpt_offset] = cunit_offset
+                cunit_to_cpt_map[cunit_offset] = cpt_offset
 
-        for cpt_offset, cunit_offset in cpt_to_cunit_map.items():
-            print("cpt = {}\tcunit = {}".format(cpt_offset, cunit_offset))
+        # for cpt_offset, cunit_offset in cpt_to_cunit_map.items():
+        #    print("cpt = {}\tcunit = {}".format(cpt_offset, cunit_offset))
 
         self.cpt_to_cunit_map = cpt_to_cunit_map
         self.cunit_to_cpt_map = cunit_to_cpt_map
-        self.cunit_max = cunit_offset
-        self.cpt_max = cpt_offset
+        self.max_cunit = cunit_offset
+        self.max_cpt = cpt_offset
         
     def to_codepoint_offsets(self, start, end):
-        if start > self.cunit_max:
-            out_start = self.cunit_max
+        if start > self.max_cunit:
+            out_start = self.max_cunit
         else:
-            out_start = self.cunit_to_cpt_map[start]
+            out_start = self.cunit_to_cpt_map.get(start, start)
             
-        if end > self.cunit_max:
-            out_end = self.cunit_max
+        if end > self.max_cunit:
+            out_end = self.max_cunit
         else:
-            out_end = self.cunit_to_cpt_map[end]            
+            out_end = self.cunit_to_cpt_map.get(end, end)
         return out_start, out_end
 
     def to_codepoint_offset(self, start):
-        if start > self.cunit_max:
-            out_start = self.cunit_max
+        if start > self.max_cunit:
+            out_start = self.max_cunit
         else:
-            out_start = self.cunit_to_cpt_map[start]
+            out_start = self.cunit_to_cpt_map.get(start, start)
         return out_start
 
     def to_cunit_offsets(self, start, end):
-        if start > self.cpt_max:
-            out_start = self.cpt_max
+        if start > self.max_cpt:
+            out_start = self.max_cpt
         else:
-            out_start = self.cpt_to_cunit_map[start]
+            out_start = self.cpt_to_cunit_map.get(start, start)
             
-        if end > self.cpt_max:
-            out_end = self.cpt_max
+        if end > self.max_cpt:
+            out_end = self.max_cpt
         else:
-            out_end = self.cpt_to_cunit_map[end]            
+            out_end = self.cpt_to_cunit_map.get(end, end)
         return out_start, out_end
 
     def to_cunit_offset(self, start):
-        if start > self.cpt_max:
-            out_start = self.cpt_max
+        if start > self.max_cpt:
+            out_start = self.max_cpt
         else:
-            out_start = self.cpt_to_cunit_map[start]
+            out_start = self.cpt_to_cunit_map.get(start, start)
         return out_start
     
             

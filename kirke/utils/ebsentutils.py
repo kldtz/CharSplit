@@ -434,8 +434,8 @@ def load_prov_annotation_list(txt_file_name, cpt_cunit_mapper, provision=None):
     # in-place update offsets
     result = []
     for eb_prov_ant in prov_annotation_list:
-        eb_prov_ant.start, eb_prov_ant.end = cpt_cunit_mapper.to_codepoint_offset(eb_prov_ant.start,
-                                                                                  eb_prov_ant.end)
+        eb_prov_ant.start, eb_prov_ant.end = cpt_cunit_mapper.to_codepoint_offsets(eb_prov_ant.start,
+                                                                                   eb_prov_ant.end)
         result.append(eb_prov_ant.to_tuple())
 
     return result, is_test

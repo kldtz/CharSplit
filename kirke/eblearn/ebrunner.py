@@ -15,12 +15,12 @@ from typing import List
 
 from sklearn.externals import joblib
 
-from kirke.docstruct import docutils, fromtomapper, htmltxtparser
+from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
 from kirke.eblearn import ebannotator, ebtrainer, lineannotator, provclassifier, scutclassifier
 from kirke.ebrules import rateclassifier, titles, parties, dates
 from kirke.utils import osutils, strutils, evalutils, ebantdoc2
 
-from kirke.utils.ebantdoc2 import EbDocFormat
+from kirke.utils.ebantdoc2 import EbDocFormat, prov_ants_cpt_to_cunit
 
 DEBUG_MODE = False
 
@@ -255,7 +255,7 @@ class EbRunner:
                     self.provision_custom_model_fn_map[clf_provision] = full_custom_model_fn
                 elif prev_custom_model_fn != full_custom_model_fn:  # must exist before
                     # check for any file name change due to version change
-                    self.update_existing_provision_fn_map_aux(clf_provision, full_custom_model_fname)
+                    self.update_existing_provision_fn_map_aux(clf_provision, full_custom_model_fn)
                 # if the same, don't do anything
 
         if provision_classifier_map:
@@ -325,6 +325,11 @@ class EbRunner:
 
         # jshaw. evalxxx, composite
         update_dates_by_domain_rules(prov_labels_map)
+
+        # Up to this point, all annotation's offsets are based on codepoints.
+        # Map all offsets to Java's UTF-16 code units.
+        # This is a in-place update
+        prov_ants_cpt_to_cunit(prov_labels_map, eb_antdoc.codepoint_to_cunit_mapper)
 
         # save the prov_labels_map
         prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
@@ -413,86 +418,6 @@ class EbRunner:
                 prov_labels_map['date'] = xx_date_list
 
                 
-    def annotate_text_document_too_new(self,
-                               file_name,
-                               provision_set=None,
-                               work_dir=None,
-                               is_called_by_pdfboxed=False,
-                               is_doc_structure=False):
-        time1 = time.time()
-        if not provision_set:
-            provision_set = self.provisions
-        #else:
-        #    logging.info('user specified provision list: %s', provision_set)
-
-        if not work_dir:
-            work_dir = self.work_dir
-
-        # update custom models if necessary by checking dir.
-        # custom models can be update by other workers
-        self.update_custom_models()
-
-        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name,
-                                                  work_dir,
-                                                  is_doc_structure=is_doc_structure)
-
-        # if the file contains too few words, don't bother
-        # otherwise, might cause classifier error if only have 1 error because of minmax
-        if len(eb_antdoc.text) < 100:
-            empty_result = {}
-            for prov in provision_set:
-                empty_result[prov] = []
-            return empty_result, eb_antdoc.text
-
-        # this execute the annotators in parallel
-        ant_result_dict = self.run_annotators_in_parallel(eb_antdoc, provision_set)
-
-        if not is_called_by_pdfboxed:
-            # now adjust the date using domain specific logic
-            # fix the issue with retired 'effectivedate'
-            # first try to get effectivedate from rule-based approach
-            # if none, then try get from ML approach.  The label is already correct.
-            effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
-            if not effectivedate_annotations:
-                effectivedate_annotations = ant_result_dict.get('effectivedate', [])
-                if effectivedate_annotations:  # make a copy in 'effectivedate_auto'
-                    ant_result_dict['effectivedate_auto'] = effectivedate_annotations
-                    ant_result_dict['effectivedate'] = []
-
-            # special handling for dates, as in PythonDateOfAgreementClassifier.java
-            date_annotations = ant_result_dict.get('date')
-            # print("-------------------------------------aaaaaaaaaaaaaaa")
-            if not date_annotations:
-                # print("-------------------------------------bbbbbbbbbbbbbbbbbb")
-                effectivedate_annotations = ant_result_dict.get('effectivedate_auto', [])
-                # print("effectivedate_annotation = {}".format(effectivedate_annotations))
-                if effectivedate_annotations:
-                    # make a copy to preserve original list
-                    effectivedate_annotations = copy.deepcopy(effectivedate_annotations)
-                    for eff_ant in effectivedate_annotations:
-                        eff_ant['label'] = 'date'
-                    ant_result_dict['date'] = effectivedate_annotations
-                else:
-                    sigdate_annotations = ant_result_dict.get('sigdate')
-                    if sigdate_annotations:
-                        # make a copy to preserve original list
-                        sigdate_annotations = copy.deepcopy(sigdate_annotations)
-                        for sig_ant in sigdate_annotations:
-                            sig_ant['label'] = 'date'
-                        ant_result_dict['date'] = sigdate_annotations
-            # user never want to see sigdate
-            ant_result_dict['sigdate'] = []
-
-            # save the prov_labels_map
-            prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')
-            prov_ants_st = json.dumps(ant_result_dict)
-            strutils.dumps(prov_ants_st, prov_ants_fn)
-
-        time2 = time.time()
-        logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
-        return ant_result_dict, eb_antdoc.text
-
-
     # this parses both originally text and html documents
     # It's main goal is to detect sechead
     # optionally pagenum, footer, toc, signature
@@ -564,7 +489,7 @@ class EbRunner:
         time1 = time.time()
 
         orig_text, nl_text, paraline_text, nl_fname, paraline_fname = \
-           doc_pdf_reader.to_nl_paraline_texts(file_name, offsets_file_name, work_dir=work_dir)
+            pdftxtparser.to_nl_paraline_texts(file_name, offsets_file_name, work_dir=work_dir)
         
         # base_fname = os.path.basename(file_name)
 

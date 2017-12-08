@@ -6,6 +6,7 @@ from pycorenlp import StanfordCoreNLP
 from kirke.utils.corenlpsent import EbSentence, eb_tokens_to_st
 
 from kirke.utils.strutils import corenlp_normalize_text
+from kirke.utils.textcptcunit import TextCptCunitMapper
 
 
 NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
@@ -53,7 +54,24 @@ def annotate(text_as_string, doc_lang):
     return output
 
 def annotate_for_enhanced_ner(text_as_string, doc_lang="en"):
-    return annotate(transform_corp_in_text(text_as_string), doc_lang)
+    acopy_text = transform_corp_in_text(text_as_string)
+
+    cpt_cunit_mapper = TextCptCunitMapper(acopy_text)
+    out_json = annotate(acopy_text, doc_lang)
+
+    # this is in-place update
+    corenlp_offset_cunit_to_cpt(out_json, cpt_cunit_mapper)
+
+    return out_json
+
+def corenlp_offset_cunit_to_cpt(ajson, cpt_cunit_mapper):
+    # this is in-place modification
+    for sent_json in ajson['sentences']:
+        for token_json in sent_json['tokens']:
+            token_json["characterOffsetBegin"], token_json["characterOffsetEnd"] = \
+                cpt_cunit_mapper.to_codepoint_offsets(token_json["characterOffsetBegin"],
+                                                      token_json["characterOffsetEnd"])
+
 
 CORP_EXPR = r"(,\s*|\b)(inc|corp|llc|ltd)\b"
 NOSTRIP_SET = set(["ltd"])

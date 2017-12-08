@@ -18,15 +18,15 @@ def load_pdf_offsets(file_name: str, cpt_cunit_mapper: TextCptCunitMapper):
     ajson = json.loads(atext)
 
     # in-place update the offsets
-    print("cpt_cunit_mapper.max_cunit = {}, docLen = {}".format(cpt_cunit_mapper.max_cunit, ajson['docLen']))
-    ajson['docLen'] = cpt_cunit_mapper.to_codepoint_offset(adict['docLen'])
-    for adict in ajson.get('blockOffsets')
+    # print("cpt_cunit_mapper.max_cunit = {}, docLen = {}".format(cpt_cunit_mapper.max_cunit, ajson['docLen']))
+    ajson['docLen'] = cpt_cunit_mapper.to_codepoint_offset(ajson['docLen'])
+    for adict in ajson.get('blockOffsets'):
         adict['start'], adict['end'] = cpt_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
-    for adict in ajson.get('lineOffsets')
+    for adict in ajson.get('lineOffsets'):
         adict['offset'] = cpt_cunit_mapper.to_codepoint_offset(adict['offset'])
-    for adict in ajson.get('pageOffsets')
+    for adict in ajson.get('pageOffsets'):
         adict['start'], adict['end'] = cpt_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
-    for adict in ajson.get('strOffsets')
+    for adict in ajson.get('strOffsets'):
         adict['start'], adict['end'] = cpt_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
 
     return (ajson.get('docLen'), ajson.get('strOffsets'), ajson.get('lineOffsets'),
