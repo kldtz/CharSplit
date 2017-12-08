@@ -210,7 +210,8 @@ class EbRunner:
                 data = future.result()
                 # want to collapse language-specific cust models to one provision
                 if 'cust_' in provision and data:
-                    provision = data[0]['label']
+                    if data[0]:
+                        provision = data[0]['label']
                 # aggregates all annotations across languages for cust models
                 annotations[provision].extend(data)
         return annotations
@@ -507,15 +508,15 @@ class EbRunner:
 								     doc_lang=doc_lang)
 
     def apply_line_annotators_aux(self, prov_labels_map, paraline_with_attrs, paraline_text,
-                                      paraline_sx_lnpos_list, origin_sx_lnpos_list):
-
+                                      paraline_sx_lnpos_list, origin_sx_lnpos_list): 
+ 
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
         self.update_custom_models()
 
-        eb_antdoc = ebtext2antdoc.doc_to_ebantdoc(file_name,
-                                                  work_dir,
-                                                  is_doc_structure=is_doc_structure)
+        eb_antdoc = ebantdoc2.text_to_ebantdoc2(file_name,
+                                                work_dir,
+                                                is_doc_structure=is_doc_structure)
 
         # if the file contains too few words, don't bother
         # otherwise, might cause classifier error if only have 1 error because of minmax

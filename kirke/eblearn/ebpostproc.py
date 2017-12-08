@@ -1104,7 +1104,7 @@ class PostPredConfidentialityProc(EbPostPredictProcessing):
                 boost = 0.20
             if cx_prob_attrvec.prob + boost >= threshold or len(overlap) > 0:
                 tmp_provision = provision if provision else self.provision
-                ant_result.append(AntResult(label=tmp_provision,
+                ant_result.append(to_ant_result_dict(label=tmp_provision,
                                                      prob=cx_prob_attrvec.prob,
                                                      start=cx_prob_attrvec.start,
                                                      end=cx_prob_attrvec.end,
@@ -1396,7 +1396,7 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                                                       self.provision)
                 if lease_matched_span:
                     prov_st, prov_start, prov_end, match_type = lease_matched_span
-                    ant_result.append(AntResult(label=self.provision,
+                    ant_result.append(to_ant_result_dict(label=self.provision,
                                                 prob=cx_prob_attrvec.prob,
                                                 start=prov_start,
                                                 end=prov_end,
