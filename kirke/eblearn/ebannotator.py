@@ -128,10 +128,10 @@ class ProvisionAnnotator:
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
         prov_annotations, threshold = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
-                                                                         prob_attrvec_list,
-                                                                         self.threshold,
-                                                                         provision=prov,
-                                                                         prov_human_ant_list=prov_human_ant_list)
+                                                                                    prob_attrvec_list,
+                                                                                    self.threshold,
+                                                                                    provision=prov,
+                                                                                    prov_human_ant_list=prov_human_ant_list)
 
 
         fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)

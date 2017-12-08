@@ -1403,6 +1403,7 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)))
                     
+                    return ant_result, threshold
         return ant_result, threshold 
 
 PROVISION_POSTPROC_MAP = {
