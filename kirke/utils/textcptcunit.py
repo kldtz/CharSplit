@@ -13,12 +13,13 @@ class TextCptCunitMapper:
     def __init__(self, text:str):
         cpt_bytesize_map = {}
         for ch in text:
-            utf16_bytes = ch.encode('utf-16')
+            utf16_bytes = ch.encode('utf-16-le')
         
-            if len(utf16_bytes) == 4:
+            if len(utf16_bytes) == 2:
                 if not cpt_bytesize_map.get(ch):
                     cpt_bytesize_map[ch] = 1
-            elif len(utf16_bytes) == 6:
+
+            elif len(utf16_bytes) == 4:
                 if not cpt_bytesize_map.get(ch):
                     cpt_bytesize_map[ch] = 2
 
