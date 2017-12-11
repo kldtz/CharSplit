@@ -66,9 +66,6 @@ class ShortcutClassifier(EbClassifier):
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
 
-    def make_bare_copy(self):
-        return ShortcutClassifier(self.provision)
-
     # pylint: disable=R0914
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):
         logging.info('train_antdoc_list()...')

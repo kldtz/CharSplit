@@ -124,14 +124,17 @@ def remove_prov_greater_offset(prov_annotation_list, max_offset):
 
 def load_cached_ebantdoc2(eb_antdoc_fn: str):
     """Load from pickled file if file exist, otherwise None"""
+
     # if cache version exists, load that and return
     if os.path.exists(eb_antdoc_fn):
         start_time = time.time()
         # print("before loading\t{}".format(eb_antdoc_fn))
         eb_antdoc = joblib.load(eb_antdoc_fn)
+        # print("done loading\t{}".format(eb_antdoc_fn))
         end_time = time.time()
         logging.info("loading from cache: %s, took %.0f msec",
                      eb_antdoc_fn, (end_time - start_time) * 1000)
+
         return eb_antdoc
 
     return None
@@ -546,6 +549,7 @@ def text_to_ebantdoc2(txt_fname,
             eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
         if eb_antdoc:
             return eb_antdoc
+
     pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
     # if no doc_structure, simply do the simplest
     if not is_doc_structure:
