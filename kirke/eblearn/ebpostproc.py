@@ -95,7 +95,7 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
     return result
 
 
-SHORT_PROVISIONS = set(['l_tenant_lessee', 'l_landlord_lessor', 'title', 'date', 'effectivedate', 'sigdate', 'choiceoflaw'])
+SHORT_PROVISIONS = set(['title', 'date', 'effectivedate', 'sigdate', 'choiceoflaw'])
 
 # override some provisions during testing
 def gen_provision_overrides(provision, sent_st_list):
