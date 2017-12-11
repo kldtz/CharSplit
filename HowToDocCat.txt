@@ -1,4 +1,4 @@
-ln -s ../ebcorpus4/export-train exporot-train
+ln -s ../ebcorpus4/export-train export-train
 ls export-train/*.txt > export-train.filelist
 
 run_split_doccat_trte.sh

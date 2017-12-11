@@ -26,7 +26,7 @@ config.read('kirke.ini')
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 PROV_CLF_VERSION = config['ebrevia.com']['PROV_CLF_VERSION']
 
-DOCCAT_MODEL_FILE_NAME = 'ebrevia_docclassifier.v1.pkl'
+DOCCAT_MODEL_FILE_NAME = ebrunner.DOCCAT_MODEL_FILE_NAME
 
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -59,6 +59,7 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
 def train_doc_classifier(txt_fn_list_fn, model_dir):
     doc_classifier = UnigramDocClassifier()
     model_file_name = '{}/{}'.format(model_dir, DOCCAT_MODEL_FILE_NAME)
+    osutils.mkpath(model_dir)
     doc_classifier.train(txt_fn_list_fn, model_file_name)
 
 
@@ -246,7 +247,7 @@ def annotate_htmled_document(file_name, work_dir, model_dir, custom_model_dir):
     pprint(prov_labels_map)
 
     eb_doccat_runner = None
-    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
+    doccat_model_fn = "{}/{}".format(model_dir, DOCCAT_MODEL_FILE_NAME)
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
         eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
 
@@ -264,7 +265,7 @@ def annotate_pdfboxed_document(file_name, linfo_file_name, work_dir, model_dir, 
     pprint(prov_labels_map)
 
     eb_doccat_runner = None
-    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
+    doccat_model_fn = "{}/{}".format(model_dir, DOCCAT_MODEL_FILE_NAME)    
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
         eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
 
