@@ -169,17 +169,21 @@ def nlptxt_to_attrvec_list(para_doc_text,
     # document.  Offsets is no NLP-based.
     # from_list_xx, to_list_xx = fromtomapper.paras_to_fromto_lists(paras_with_attrs)
 
-    fromto_mapper = fromtomapper.paras_to_fromto_mapper_sorted_by_from(paras_with_attrs)
+    if paras_with_attrs:
+        fromto_mapper = fromtomapper.paras_to_fromto_mapper_sorted_by_from(paras_with_attrs)
 
-    nlp_prov_ant_list = []
-    for prov_annotation in prov_annotation_list:
-        orig_start, orig_end = prov_annotation.start, prov_annotation.end
-        orig_label = prov_annotation.label
+        nlp_prov_ant_list = []
+        for prov_annotation in prov_annotation_list:
+            orig_start, orig_end = prov_annotation.start, prov_annotation.end
+            orig_label = prov_annotation.label
 
-        xstart, xend = fromto_mapper.get_se_offsets(orig_start, orig_end)
-        # print("starts ({}, {}), ends = ({}, {})".format(xstart, xstart2, xend, xend2))
+            xstart, xend = fromto_mapper.get_se_offsets(orig_start, orig_end)
 
-        nlp_prov_ant_list.append(ebsentutils.ProvisionAnnotation(xstart, xend, orig_label))
+            nlp_prov_ant_list.append(ebsentutils.ProvisionAnnotation(xstart, xend, orig_label))
+    else:
+        fromto_mapper = None
+        nlp_prov_ant_list = prov_annotation_list
+
     # print("prov_annotation: {}".format(prov_annotation))
 
     # let's adjust the offsets in prov_annotation to keep things simple and
@@ -207,8 +211,10 @@ def nlptxt_to_attrvec_list(para_doc_text,
                                                                           ebsent.end,
                                                                           nlp_prov_ant_list)
                               if nlp_prov_ant_list else [])
-        # logging.info("overlap_provisions: {}".format(overlap_provisions))
-
+        # logging.info("overlap_provisions ({}, {}): {} [{}]".format(ebsent.start,
+        #                                                           ebsent.end,
+        #                                                           overlap_provisions,
+        #                                                           para_doc_text[ebsent.start:ebsent.end]))
         ebsent.set_labels(overlap_provisions)
 
     attrvec_list = []
@@ -635,9 +641,9 @@ def doclist_to_ebantdoc_list(doclist_file,
     for txt_fn in txt_fn_list:
         eb_antdoc_list.append(fn_eb_antdoc_map[txt_fn])
 
-    logging.debug('Finished doclist_to_ebantdoc_list({}/{}), len= {}'.format(work_dir,
-                                                                             doclist_file,
-                                                                             len(txt_fn_list)))
+    logging.debug('Finished doclist_to_ebantdoc_list({}, {}), len= {}'.format(doclist_file,
+                                                                              work_dir,
+                                                                              len(txt_fn_list)))
 
     return eb_antdoc_list
 
@@ -763,6 +769,7 @@ class TrainDoc2:
 
     # pylint: disable=R0913
     def __init__(self,
+                 *,  # force access by key
                  file_name,
                  doc_format: EbDocFormat,
                  text,
@@ -814,12 +821,12 @@ def text_to_traindoc2(txt_fname,
                                   is_doc_structure=is_doc_structure,
                                   doc_lang=doc_lang)
     if eb_antdoc:
-        return TrainDoc2(eb_antdoc.get_file_id(),
-                         eb_antdoc.get_doc_format(),
-                         eb_antdoc.get_text(),
-                         eb_antdoc.get_provision_annotations(),
-                         eb_antdoc.get_attrvec_list(),
-                         eb_antdoc.get_nlp_text())
+        return TrainDoc2(file_name=eb_antdoc.get_file_id(),
+                         doc_format=eb_antdoc.get_doc_format(),
+                         text=eb_antdoc.get_text(),
+                         prov_ant_list=eb_antdoc.get_provision_annotations(),
+                         attrvec_list=eb_antdoc.get_attrvec_list(),
+                         nlp_text=eb_antdoc.get_nlp_text())
     return None
 
 
@@ -857,9 +864,9 @@ def doclist_to_traindoc_list(doclist_file,
     eb_traindoc_list = [fn_eb_traindoc_map[txt_fn]
                         for txt_fn in txt_fn_list]
 
-    logging.debug('Finished doclist_to_traindoc_list({}/{}), len= {}'.format(work_dir,
-                                                                             doclist_file,
-                                                                             len(txt_fn_list)))
+    logging.debug('Finished doclist_to_traindoc_list({}, {}), len= {}'.format(doclist_file,
+                                                                              work_dir,
+                                                                              len(txt_fn_list)))
 
     return eb_traindoc_list
 

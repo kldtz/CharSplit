@@ -3,7 +3,7 @@ from typing import List
 
 from kirke.utils import engutils, stopwordutils, strutils
 from kirke.docstruct import secheadutils
-from kirke.ebrules import addresses
+# from kirke.ebrules import addresses
 
 # TODO, jshaw
 # The header strings in here definitely is somewhat cheating, for AT&T
