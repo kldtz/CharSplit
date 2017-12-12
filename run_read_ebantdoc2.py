@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 
-from collections import defaultdict
-
 import argparse
+from collections import defaultdict
 import os
 
 from kirke.utils import ebantdoc2
-    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
@@ -33,5 +31,3 @@ if __name__ == '__main__':
 
     for attrvec in ebdoc.attrvec_list:
         print("attrvec: {}".format(attrvec))
-        
-    
