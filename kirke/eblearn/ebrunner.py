@@ -20,7 +20,7 @@ from kirke.eblearn import ebannotator, ebtrainer, lineannotator, provclassifier,
 from kirke.ebrules import rateclassifier, titles, parties, dates
 from kirke.utils import osutils, strutils, evalutils, ebantdoc2
 
-from kirke.utils.ebantdoc2 import EbDocFormat, prov_ants_cpt_to_cunit
+from kirke.utils.ebantdoc2 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 DEBUG_MODE = False
 
@@ -329,7 +329,7 @@ class EbRunner:
         # Up to this point, all annotation's offsets are based on codepoints.
         # Map all offsets to Java's UTF-16 code units.
         # This is a in-place update
-        prov_ants_cpt_to_cunit(prov_labels_map, eb_antdoc.codepoint_to_cunit_mapper)
+        prov_ants_cpoint_to_cunit(prov_labels_map, eb_antdoc.codepoint_to_cunit_mapper)
 
         # save the prov_labels_map
         prov_ants_fn = file_name.replace('.txt', '.prov.ants.json')

@@ -12,7 +12,7 @@ from sklearn.externals import joblib
 from kirke.eblearn import sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
 from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
-from kirke.utils.textcptcunit import TextCptCunitMapper
+from kirke.utils.textoffset import TextCpointCunitMapper
 
 
 CORENLP_JSON_VERSION = '1.4'
@@ -49,7 +49,7 @@ class EbAnnotatedDoc2:
                  file_name,
                  doc_format: EbDocFormat,
                  text,
-                 cpt_cunit_mapper,
+                 cpoint_cunit_mapper,
                  prov_ant_list,
                  is_test,
                  para_doc_text,        # adjusted
@@ -68,7 +68,7 @@ class EbAnnotatedDoc2:
         self.text = text
         self.len_text = len(text)   # used to check out of bound
 
-        self.codepoint_to_cunit_mapper = cpt_cunit_mapper
+        self.codepoint_to_cunit_mapper = cpoint_cunit_mapper
 
         self.prov_annotation_list = prov_ant_list
         self.is_test_set = is_test
@@ -242,7 +242,7 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
 
-    txt_file_name, doc_text, prov_annotation_list, is_test, cpt_cunit_mapper = \
+    txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
     paras_with_attrs = []
@@ -264,7 +264,7 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
     eb_antdoc = EbAnnotatedDoc2(file_name=txt_file_name,
                                 doc_format=EbDocFormat.html_nodocstruct,
                                 text=doc_text,
-                                cpt_cunit_mapper=cpt_cunit_mapper,
+                                cpoint_cunit_mapper=cpoint_cunit_mapper,
                                 prov_ant_list=prov_annotation_list,
                                 is_test=is_test,
                                 para_doc_text=para_doc_text,
@@ -295,8 +295,8 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
 
 def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode=False):
     doc_text = txtreader.loads(txt_file_name)
-    cpt_cunit_mapper = TextCptCunitMapper(doc_text)
-    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpt_cunit_mapper)
+    cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
+    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper)
     max_txt_size = len(doc_text)
     is_chopped = False
     for prov_ant in prov_annotation_list:
@@ -325,7 +325,7 @@ def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode
     if debug_mode:
         print('wrote {}'.format(txt_file_name, file=sys.stderr))
 
-    return txt_file_name, doc_text, prov_annotation_list, is_test, cpt_cunit_mapper
+    return txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper
 
 
 # stop at 'exhibit_appendix' or 'exhibit_appendix_complete'
@@ -338,7 +338,7 @@ def html_to_ebantdoc2(txt_file_name,
     txt_base_fname = os.path.basename(txt_file_name)
     # print("html_to_ebantdoc2({}, {}, is_cache_eanbled={}".format(txt_file_name, work_dir, is_cache_enabled))
 
-    txt_file_name, doc_text, prov_annotation_list, is_test, cpt_cunit_mapper = \
+    txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
     paras_with_attrs, para_doc_text, gap_span_list, _ = \
@@ -364,7 +364,7 @@ def html_to_ebantdoc2(txt_file_name,
     eb_antdoc = EbAnnotatedDoc2(file_name=txt_file_name,
                                 doc_format=EbDocFormat.html,
                                 text=doc_text,
-                                cpt_cunit_mapper=cpt_cunit_mapper,
+                                cpoint_cunit_mapper=cpoint_cunit_mapper,
                                 prov_ant_list=prov_annotation_list,
                                 is_test=is_test,
                                 para_doc_text=para_doc_text,
@@ -430,10 +430,10 @@ def pdf_to_ebantdoc2(txt_file_name,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
-    doc_text, nl_text, paraline_text, nl_fname, paraline_fname, cpt_cunit_mapper = \
+    doc_text, nl_text, paraline_text, nl_fname, paraline_fname, cpoint_cunit_mapper = \
         pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
 
-    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpt_cunit_mapper)
+    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper)
 
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)
 
@@ -468,7 +468,7 @@ def pdf_to_ebantdoc2(txt_file_name,
     eb_antdoc = EbAnnotatedDoc2(file_name=txt_file_name,
                                 doc_format=EbDocFormat.pdf,
                                 text=doc_text,
-                                cpt_cunit_mapper=cpt_cunit_mapper,
+                                cpoint_cunit_mapper=cpoint_cunit_mapper,
                                 prov_ant_list=prov_annotation_list,
                                 is_test=is_test,
                                 para_doc_text=para2_doc_text,
@@ -872,14 +872,14 @@ def traindoc_list_to_antdoc_list(traindoc_list, work_dir):
                                 is_cache_enabled=True)
 
 # this is in-place operations
-def prov_ants_cpt_to_cunit(prov_ants_map, cpt_to_cunit_mapper):
+def prov_ants_cpoint_to_cunit(prov_ants_map, cpoint_to_cunit_mapper):
     for prov, ant_list in prov_ants_map.items():
         for ant_json in ant_list:
-            ant_json['cpt_start'], ant_json['cpt_end'] = ant_json['start'], ant_json['end']
-            ant_json['start'], ant_json['end'] = cpt_to_cunit_mapper.to_cunit_offsets(ant_json['start'],
+            ant_json['cpoint_start'], ant_json['cpoint_end'] = ant_json['start'], ant_json['end']
+            ant_json['start'], ant_json['end'] = cpoint_to_cunit_mapper.to_cunit_offsets(ant_json['start'],
                                                                                       ant_json['end'])
 
             for span_json in ant_json['span_list']:
-                span_json['cpt_start'], span_json['cpt_end'] = span_json['start'], span_json['end']
-                span_json['start'], span_json['end'] = cpt_to_cunit_mapper.to_cunit_offsets(span_json['start'],
+                span_json['cpoint_start'], span_json['cpoint_end'] = span_json['start'], span_json['end']
+                span_json['start'], span_json['end'] = cpoint_to_cunit_mapper.to_cunit_offsets(span_json['start'],
                                                                                             span_json['end'])

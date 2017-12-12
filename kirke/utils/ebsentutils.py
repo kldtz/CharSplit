@@ -413,7 +413,7 @@ class EbProvisionAnnotation:
 
 # the result is a list of
 # (start, end, ant_name)
-def load_prov_annotation_list(txt_file_name, cpt_cunit_mapper, provision=None):
+def load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper, provision=None):
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
     prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
@@ -434,8 +434,9 @@ def load_prov_annotation_list(txt_file_name, cpt_cunit_mapper, provision=None):
     # in-place update offsets
     result = []
     for eb_prov_ant in prov_annotation_list:
-        eb_prov_ant.start, eb_prov_ant.end = cpt_cunit_mapper.to_codepoint_offsets(eb_prov_ant.start,
-                                                                                   eb_prov_ant.end)
+        eb_prov_ant.start, eb_prov_ant.end = \
+            cpoint_cunit_mapper.to_codepoint_offsets(eb_prov_ant.start,
+                                                     eb_prov_ant.end)
         result.append(eb_prov_ant.to_tuple())
 
     return result, is_test
