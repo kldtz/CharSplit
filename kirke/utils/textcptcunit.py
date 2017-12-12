@@ -105,8 +105,3 @@ if __name__ == "__main__":
     cpt_start, cpt_end = txt_cpt_cunit_mapper.to_codepoint_offsets(args.start, args.end)
     print("cpt_start, cpt_end = {}, {}".format(cpt_start, cpt_end))
     print("[{}]".format(text[cpt_start:cpt_end]))
-
-
-"""
-𝑃𝑃𝑃𝑃𝑃 𝑡𝑡 𝐶𝑆𝐶
-"""
