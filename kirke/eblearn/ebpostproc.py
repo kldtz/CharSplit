@@ -162,7 +162,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                                      end=cx_prob_attrvec.end,
                                                      # pylint: disable=line-too-long
                                                      text=strutils.remove_nltab(cx_prob_attrvec.text)))
-        return ant_result, threshold
+        return ant_result
 
 # Note from PythonClassifier.java:
 # The NER seems to pick up the bare word LLC, INC, and CORP as parties sometimes.  This RE
@@ -195,7 +195,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                              start=entity.start,
                                                              end=entity.end,
                                                              text=strutils.remove_nltab(entity.text)))
-        return ant_result, self.threshold
+        return ant_result
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
 
@@ -741,10 +741,10 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     person_before_list = []
     sent_st = doc_text[sent_start:sent_end]
     if prov == 'l_landlord_lessor':
-        landlord_pat = re.compile(r"landlord:([\.’–\-\/\w\d\s\n&]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?", re.I)
+        landlord_pat = re.compile(r"landlord: ?([\.’–\-\/\w\d\s\n&]*(,? ?(ltd|llc|l.l.c.|l.p.|lp|inc|inc.|incorporated)?\.?)?) ?[,\.\(]?", re.I)
         agent = ['landlord', 'lessor']
     else:
-        landlord_pat = re.compile(r'tenant:([\w\d\s\n]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?', re.I)
+        landlord_pat = re.compile(r"tenant: ?([\.’–\-\/\w\d\s\n&]*(,? ?(ltd|llc|l.l.c.|l.p.|lp|inc|inc.|incorporated)?\.?)?) ?[,\.\(]?", re.I)
         agent = ['tenant', 'lessee']
     landlord_match = landlord_pat.search(sent_st)
     if landlord_match:
@@ -754,7 +754,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
                                      sent_start+ant_end, 'x1'))
         is_provision_found = True
     if not is_provision_found and prov == 'l_landlord_lessor':
-        between_pat = re.compile(r"between[,:\n]? ?([’–\.\-\/\w\d\s\n&]*(,? ?ltd\.?)?(,? ?l\.?l?\.?c?\.?p?\.?)?(,? ?inc\.?)?)[,\.]?", re.I)
+        between_pat = re.compile(r"between[,:\n]? ?([’–\.\-\/\w\d\s\n&]*(,? ?(ltd|llc|l.l.c.|l.p.|lp|inc|inc.|incorporated)?\.?)?) ?[,\.\(]?", re.I)
         mat = between_pat.search(sent_st)
         if mat:
             ant_start, ant_end = mat.span(1)
@@ -827,7 +827,7 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -858,7 +858,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 # pylint: disable=R0903
 class PostPredLicLicenseeProc(EbPostPredictProcessing):
@@ -888,7 +888,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -919,7 +919,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -950,7 +950,7 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -981,7 +981,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -1012,7 +1012,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 class PostPredChoiceOfLawProc(EbPostPredictProcessing):
@@ -1047,7 +1047,7 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
                                                          start=cx_prob_attrvec.start,
                                                          end=cx_prob_attrvec.end,
                                                          text=anttext))
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -1076,7 +1076,7 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
                                                      end=cx_prob_attrvec.end,
                                                      # pylint: disable=line-too-long
                                                      text=strutils.remove_nltab(cx_prob_attrvec.text)))
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -1145,8 +1145,8 @@ class PostPredTitleProc(EbPostPredictProcessing):
                                                          start=tmp_start,
                                                          end=tmp_start + len(tmp_title),
                                                          text=tmp_title))
-                    return ant_result, threshold
-        return ant_result, threshold
+                    return ant_result
+        return ant_result
 
 
 # used by both PostPredDateProc, PostPredEffectiveDate
@@ -1187,8 +1187,8 @@ class PostPredBestDateProc(EbPostPredictProcessing):
                                                          end=entity.end,
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(doc_text[entity.start:entity.end])))
-                    return ant_result, self.threshold
-        return ant_result, self.threshold
+                    return ant_result
+        return ant_result
 
 
 class PostPredEffectiveDateProc(EbPostPredictProcessing):
@@ -1228,7 +1228,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                 ant_result.append(first_after_effective)
             elif first:
                 ant_result.append(first)
-        return ant_result, self.threshold
+        return ant_result
 
 class PostPredLeaseDateProc(EbPostPredictProcessing):
 
@@ -1318,7 +1318,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
             if date_found:
                 # If stopping when we find a date, return only this date
                 if self.stop_at_one_date:
-                    return [ant_result[-1]], self.threshold
+                    return [ant_result[-1]]
                 continue
  
             # If an l_commencement term is in the line, take previous date
@@ -1333,7 +1333,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                         break
             if date_found:
                 if self.stop_at_one_date:
-                    return [ant_result[-1]], self.threshold
+                    return [ant_result[-1]]
                 continue
  
             # If there is an l_commencement non-term noun, take next date
@@ -1347,7 +1347,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                         break
             if date_found:
                 if self.stop_at_one_date:
-                    return [ant_result[-1]], self.threshold
+                    return [ant_result[-1]]
                 continue
  
             # If no date found and next line starts with a date, return that
@@ -1368,12 +1368,12 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                                                        next_date))
                             next_attrvec.prob = next_prob
                             if self.stop_at_one_date:
-                                return [ant_result[-1]], self.threshold
+                                return [ant_result[-1]]
                             continue
             if cx_prob_attrvec.prob >= threshold:
                 ant_result.append(self.ant(line, cx_prob_attrvec,
                                            (0, len(line))))
-        return ant_result, self.threshold
+        return ant_result
   
 class PostPredLandlordTenantProc(EbPostPredictProcessing):
 
@@ -1403,8 +1403,8 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)))
                     
-                    return ant_result, threshold
-        return ant_result, threshold 
+                    return ant_result
+        return ant_result 
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
