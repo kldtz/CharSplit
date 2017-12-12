@@ -154,11 +154,14 @@ def nlptxt_to_attrvec_list(para_doc_text,
                                         work_dir=work_dir,
                                         is_cache_enabled=is_cache_enabled,
                                         doc_lang=doc_lang)
+
+
     # At this point, put all document structure information into
     # ebsent_list
     # We also adjust all annotations from CoreNlp into the offsets from original
     # document.  Offsets is no NLP-based.
     # from_list_xx, to_list_xx = fromtomapper.paras_to_fromto_lists(paras_with_attrs)
+
     fromto_mapper = fromtomapper.paras_to_fromto_mapper_sorted_by_from(paras_with_attrs)
 
     nlp_prov_ant_list = []
@@ -488,6 +491,7 @@ def text_to_corenlp_json(doc_text,  # this is what is really processed by corenl
 
     # if cache version exists, load that and return
     start_time = time.time()
+    
     if is_cache_enabled:
         json_fn = get_corenlp_json_fname(txt_base_fname, work_dir)
         if os.path.exists(json_fn):
@@ -533,6 +537,7 @@ def text_to_ebantdoc2(txt_fname,
         # corenlp should be cache so that we don't run it again for same
         # files.
         # is_cache_enabled = False
+        
     if is_cache_enabled:
         # check if file exist, if it is, load it and return
         # regarless of the existing PDF or HtML or is_doc_structure

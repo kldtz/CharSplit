@@ -4,7 +4,6 @@ from typing import List, Dict
 
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates
-from kirke.ebrules import addresses
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
 from kirke.utils.ebsentutils import EbEntityType
 
@@ -1358,11 +1357,8 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                         next_date = sorted(next_date_list)[0]
                         lr = next_line[:next_date[0]] + next_line[next_date[1]:]
                         if not any(c.isalnum() for c in lr):
-                            next_prob = next_attrvec.prob
-                            next_attrvec.prob = 1.0
                             ant_result.append(self.ant(next_line, next_attrvec,
                                                        next_date))
-                            next_attrvec.prob = next_prob
                             if self.stop_at_one_date:
                                 return [ant_result[-1]]
                             continue
