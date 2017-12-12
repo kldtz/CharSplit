@@ -40,6 +40,7 @@ osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
 
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
+eb_doccat_runner = None
 
 eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 

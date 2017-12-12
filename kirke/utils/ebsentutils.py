@@ -413,7 +413,7 @@ class EbProvisionAnnotation:
 
 # the result is a list of
 # (start, end, ant_name)
-def load_prov_annotation_list(txt_file_name, provision=None):
+def load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper, provision=None):
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
     prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
@@ -431,18 +431,24 @@ def load_prov_annotation_list(txt_file_name, provision=None):
         prov_annotation_list, is_test = (load_prov_ebdata(prov_ebdata_fn, provision)
                                          if prov_ebdata_file.is_file() else ([], False))
 
-    return prov_annotation_list, is_test
+    # in-place update offsets
+    result = []
+    for eb_prov_ant in prov_annotation_list:
+        eb_prov_ant.start, eb_prov_ant.end = \
+            cpoint_cunit_mapper.to_codepoint_offsets(eb_prov_ant.start,
+                                                     eb_prov_ant.end)
+        result.append(eb_prov_ant.to_tuple())
+
+    return result, is_test
 
 
 def load_prov_ant(filename, provision_name=None):
-    result = []
+
     # logging.info('load provision %s annotation: [%s]', provision_name, filename)
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
-        for ajson in parsed:
-            eb_ant = EbProvisionAnnotation(ajson)
 
-            result.append(eb_ant.to_tuple())
+    result = [EbProvisionAnnotation(ajson) for ajson in parsed]
 
     # if provision_name is specified, only return that specific provision
     if provision_name:
@@ -456,13 +462,13 @@ def load_prov_ebdata(filename, provision_name=None):
     is_test_set = False
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
-        for _, ajson_list in parsed['ants'].items():
-            # print("ajson_map: {}".format(ajson_map))
-            for ajson in ajson_list:
-                eb_ant = EbProvisionAnnotation(ajson)
-                # print("eb_ant= {}".format(eb_ant))
-                result.append(eb_ant.to_tuple())
-        is_test_set = parsed.get('isTestSet', False)
+
+    for _, ajson_list in parsed['ants'].items():
+        # print("ajson_map: {}".format(ajson_map))
+        for ajson in ajson_list:
+            result.append(EbProvisionAnnotation(ajson))
+
+    is_test_set = parsed.get('isTestSet', False)
 
     # if provision_name is specified, only return that specific provision
     if provision_name:
