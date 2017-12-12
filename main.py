@@ -378,7 +378,7 @@ if __name__ == '__main__':
         splittrte.split_provision_trte(args.provfiles_dir,
                                        work_dir,
                                        model_dir_list,
-                                       is_doc_structure=False)
+                                       is_doc_structure=True)
     elif cmd == 'train_doc_classifier':
         # doccatutils.train_doc_classifier(txt_fn_list_fn, model_dir)
         train_doc_classifier(txt_fn_list_fn, model_dir)
