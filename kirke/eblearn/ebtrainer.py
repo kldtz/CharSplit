@@ -267,9 +267,7 @@ def train_eval_annotator(provision,
         strutils.dumps(json.dumps(ant_status), model_status_fn)
 
         # NOTE: jshaw
-        # we should output a log file, based on the pred_status.
-        # Need to look into tmp_preds and do a customize log generation for this?
-        
+        # we can output a log file, based on the pred_status.
         # timestr = time.strftime("%Y%m%d-%H%M%S")
         # log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
         # logging.info('wrote logging file at: {}'.format(log_fn))
