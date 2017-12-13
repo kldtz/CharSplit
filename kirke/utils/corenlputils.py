@@ -6,6 +6,7 @@ from pycorenlp import StanfordCoreNLP
 from kirke.utils.corenlpsent import EbSentence, eb_tokens_to_st
 
 from kirke.utils.strutils import corenlp_normalize_text
+from kirke.utils.textoffset import TextCpointCunitMapper
 
 
 NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
@@ -22,18 +23,56 @@ NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
 # WARNING: all the spaces before the first non-space character will be removed in the output.
 # In other words, the offsets will be incorrect if there are prefix spaces in the text.
 # We will fix those issues in the later modules, not here.
-def annotate(text_as_string):
+def annotate(text_as_string, doc_lang):
     no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
-    output = NLP_SERVER.annotate(no_ctrl_chars_text,
-                                 properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
-                                             'outputFormat': 'json',
-                                             'ssplit.newlineIsSentenceBreak': 'two'})
+    doc_lang = doc_lang[:2]
+    supported_langs = ["fr", "es", "zh"] #ar and de also supported, can add later
+    if doc_lang in supported_langs:
+        logging.info("corenlp running on {}".format(doc_lang))
+        output = NLP_SERVER.annotate(no_ctrl_chars_text,
+                                   properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
+                                               'outputFormat': 'json',
+                                               'ssplit.newlineIsSentenceBreak': 'two',
+				               'pipelineLanguage': doc_lang})
+    
+    elif doc_lang == "pt":
+        logging.info("corenlp running on {}".format(doc_lang))
+        output = NLP_SERVER.annotate(no_ctrl_chars_text,
+                                   properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
+                                               'outputFormat': 'json',
+                                               'ssplit.newlineIsSentenceBreak': 'two',
+                                               'ner.model':'portuguese-ner.ser.gz'})
+    else:
+        logging.info("corenlp running on en")
+        output = NLP_SERVER.annotate(no_ctrl_chars_text,
+                                   properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
+                                               'outputFormat': 'json',
+                                               'ssplit.newlineIsSentenceBreak': 'two',
+                                               'pipelineLanguage': 'en'}) 
     return output
 
-def annotate_for_enhanced_ner(text_as_string):
-    return annotate(transform_corp_in_text(text_as_string))
+def annotate_for_enhanced_ner(text_as_string, doc_lang="en"):
+    acopy_text = transform_corp_in_text(text_as_string)
+
+    cpoint_cunit_mapper = TextCpointCunitMapper(acopy_text)
+    out_json = annotate(acopy_text, doc_lang)
+
+    # this is in-place update
+    corenlp_offset_cunit_to_cpoint(out_json, cpoint_cunit_mapper)
+
+    return out_json
+
+def corenlp_offset_cunit_to_cpoint(ajson, cpoint_cunit_mapper):
+    """This is in-place modification of ajson, translating from
+       code unit to code point offsets"""
+    for sent_json in ajson['sentences']:
+        for token_json in sent_json['tokens']:
+            token_json["characterOffsetBegin"], token_json["characterOffsetEnd"] = \
+                cpoint_cunit_mapper.to_codepoint_offsets(token_json["characterOffsetBegin"],
+                                                         token_json["characterOffsetEnd"])
+
 
 CORP_EXPR = r"(,\s*|\b)(inc|corp|llc|ltd)\b"
 NOSTRIP_SET = set(["ltd"])

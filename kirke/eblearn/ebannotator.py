@@ -62,7 +62,7 @@ class ProvisionAnnotator:
             fn += xfn
             fp += xfp
             tn += xtn
-            log_json[ebantdoc.file_id] = json_return
+            log_json[ebantdoc.get_document_id()] = json_return
 
         title = "annotate_status, threshold = {}".format(threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
