@@ -157,7 +157,24 @@ zip_code_year = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
 """Extract parties from party line"""
 
 
-def extract_between_among(s):
+def zipcode_replace(p, new_parts):
+    # If zip code or year in part and not already deleting ('^'), mark '+'
+    if zip_code_year.search(p):
+        new_parts.append('+')
+    return new_parts
+
+def zipcode_remove(grps):
+    # Going backwards, when see a zip code/ year, remove up to prev removed line
+    for i in range(len(grps)):
+        zip_code_inds = [j for j, part in enumerate(grps[i]) if part == '+']
+        if zip_code_inds:
+            new_start = max(zip_code_inds) + 1
+            terms_before = [part for part in grps[i][:new_start] if part == '=']
+            new_parts = grps[i][new_start:]
+            grps[i] = terms_before + new_parts
+    return grps
+
+def extract_between_among(s, is_party=True):
     """Return parties for party lines containing either 'between' or 'among'."""
 
     # Consider after between. If line ends in between (no 'and'), return None.
@@ -210,11 +227,9 @@ def extract_between_among(s):
         if not any(c.isupper() or c.isdigit() for c in first_word):
             new_parts.append('^')
             continue
-
-        # If zip code or year in part and not already deleting ('^'), mark '+'
-        if zip_code_year.search(p):
-            new_parts.append('+')
-            continue
+       
+        if is_party: 
+            new_parts = zipcode_replace(p, new_parts)
 
         # Process then keep the part if not a title, etc.
         processed_part = process_part(p)
@@ -225,14 +240,9 @@ def extract_between_among(s):
     parts = new_parts if new_parts[0] else new_parts[1:]
     grps = [list(g) for k, g in groupby(parts, lambda p: '^' in p) if not k]
 
-    # Going backwards, when see a zip code/ year, remove up to prev removed line
-    for i in range(len(grps)):
-        zip_code_inds = [j for j, part in enumerate(grps[i]) if part == '+']
-        if zip_code_inds:
-            new_start = max(zip_code_inds) + 1
-            terms_before = [part for part in grps[i][:new_start] if part == '=']
-            new_parts = grps[i][new_start:]
-            grps[i] = terms_before + new_parts
+    if is_party:
+        grps = zipcode_remove(grps)
+    
     parts = [part for g in grps for part in g]
 
     # Add terms back in
@@ -275,13 +285,13 @@ def extract_between_among(s):
     return parties
 
 
-def extract_parties_from_party_line(s):
+def extract_parties_from_party_line(s, is_party=True):
     """Return list of parties (which are lists of strings) of s (party line)."""
     s = first_sentence(s)
 
     # Try (eventually several) possible rules
     if 'between' in s or 'among' in s:
-        return extract_between_among(s)
+        return extract_between_among(s, is_party)
 
     # Fall back to NER (not implemented) if none of the above criteria were met
     return None

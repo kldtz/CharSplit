@@ -739,14 +739,14 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     person_after_list = []
     person_before_list = []
     sent_st = doc_text[sent_start:sent_end]
-    #checks for simple statement of landlord/tenant with company name
     
     if prov == 'l_landlord_lessor':
         agent = ['landlord', 'lessor']
     else:
         agent = ['tenant', 'lessee']
     
-    extr_parties = parties.extract_parties_from_party_line(sent_st)
+    #uses party extraction to extract the tenant and landlord
+    extr_parties = parties.extract_parties_from_party_line(sent_st, is_party=False)
     try:
         for party, ref in extr_parties:
             for ag in agent:
@@ -757,7 +757,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
                         found_provision_list.append((party, sent_start+ant_start, sent_start+ant_end, 'x1'))
                         is_provision_found = True
     except:
-        #splits on "and" and matches entities from the attrvec to the part with the agent
+        #splits on "and" and matches entities from the attrvec as a fallback 
         sent_split = re.compile(r'\s+and\s+', re.I)
         agent_in_split = [x.lower() for x in sent_split.split(sent_st) if (agent[0] in x.lower() or agent[1] in x.lower())]
         for part in agent_in_split:
@@ -772,25 +772,14 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
                                                      entity.end, 'x2'))
                         is_provision_found = True
 
-                person_after_list.append(entity.end)
-                prov_end_start_map[entity.end] = entity.start
-                person_before_list.append((entity.start, entity.end))
-    #finally, for tenant, looks for company mentioned after landlord
-    if not is_provision_found and prov == 'l_tenant_lessee':
-        after_landlord_pat = re.compile(r'[‘“"\(]*(landlord|lessor)[”’"\),]*\s+(\-?and\-?)?\s+([’–\.\-\/\w\d\s\n&]*)[,\.(]?', re.I)
-        mat = after_landlord_pat.search(sent_st)
-        if mat:
-            ant_start, ant_end = mat.span(3)
-            found_provision_list.append((mat.group(3),
-                                         sent_start+ant_start,
-                                         sent_start+ant_end, 'x3'))
-            is_provision_found = True
+    
     #picks best from these possibilities
     best_provision = pick_best_provision(found_provision_list, has_x3=True)
     if best_provision:
         prov_st, prov_start, prov_end, match_type = best_provision
         if prov_st and not prov_st.isspace():
            return best_provision
+    
     #otherwise returns the sentence
     if len(sent_st.split()) > 2:
         return [sent_st, sent_start, sent_end, None]
