@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict
 
 from kirke.eblearn import ebattrvec
-from kirke.ebrules import dates
+from kirke.ebrules import dates, parties
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
 from kirke.utils.ebsentutils import EbEntityType
 
@@ -740,21 +740,24 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
     person_before_list = []
     sent_st = doc_text[sent_start:sent_end]
     #checks for simple statement of landlord/tenant with company name
+    
     if prov == 'l_landlord_lessor':
-        lease_pat = re.compile(r"(landlord|between)[,\n:]? ?([\.’–\-\/\w\d\s\n&]*(,? ?(ltd|llc|l.l.c.|l.p.|lp|inc|inc.|incorporated)?\.?)?) ?[,\.\(]?", re.I)
         agent = ['landlord', 'lessor']
     else:
-        lease_pat = re.compile(r"(tenant:) ?([\.’–\-\/\w\d\s\n&]*(,? ?(ltd|llc|l.l.c.|l.p.|lp|inc|inc.|incorporated)?\.?)?) ?[,\.\(]?", re.I)
         agent = ['tenant', 'lessee']
-    lease_match = lease_pat.search(sent_st)
-    if lease_match:
-        ant_start, ant_end = lease_match.span(2)
-        found_provision_list.append((lease_match.group(2),
-                                     sent_start+ant_start,
-                                     sent_start+ant_end, 'x1'))
-        is_provision_found = True
-    #splits on "and" and matches entities from the attrvec to the part with the agent
-    if not is_provision_found:
+    
+    extr_parties = parties.extract_parties_from_party_line(sent_st)
+    try:
+        for party, ref in extr_parties:
+            for ag in agent:
+                if ag in ref.lower():
+                    mat = re.search(re.escape(party), sent_st, re.I)
+                    if mat:
+                        ant_start, ant_end = mat.span()
+                        found_provision_list.append((party, sent_start+ant_start, sent_start+ant_end, 'x1'))
+                        is_provision_found = True
+    except:
+        #splits on "and" and matches entities from the attrvec to the part with the agent
         sent_split = re.compile(r'\s+and\s+', re.I)
         agent_in_split = [x.lower() for x in sent_split.split(sent_st) if (agent[0] in x.lower() or agent[1] in x.lower())]
         for part in agent_in_split:
