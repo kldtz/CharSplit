@@ -82,6 +82,13 @@ def aggregate_ant_status_list(alist):
 
 AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
 
+def ant_to_dict(start: int, end: int, label: str, prob: float, text: str):
+    """Return a dictionary for annotation result."""
+    return {'start': start,
+            'end': end,
+            'label': label,
+            'prob': prob,
+            'text': text}
 
 # pylint: disable=R0914
 def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, threshold, diagnose_mode=False):
@@ -134,7 +141,11 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
             max_end = max([x.end for x in tp_inst_list])
             prob = max([x.prob for x in tp_inst_list])
             print("tp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", tp_txt), str(prob)))
-            json_return['tp'].append([min_start, max_end, label, prob, linebreaks.sub(" ", tp_txt)])
+            json_return['tp'].append(ant_to_dict(min_start,
+                                                 max_end,
+                                                 label,
+                                                 prob,
+                                                 linebreaks.sub(" ", tp_txt)))
 
         for i, hant in enumerate(sorted(fn_inst_map.keys())):
             _, hstart, hend, label = hant
@@ -144,11 +155,19 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
             max_end = max([x.end for x in fn_inst_list])
             prob = max([x.prob for x in fn_inst_list])
             print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
-            json_return['fn'].append([min_start, max_end, label, prob, linebreaks.sub(" ", fn_txt)])
+            json_return['fn'].append(ant_to_dict(min_start,
+                                                 max_end,
+                                                 label,
+                                                 prob,
+                                                 linebreaks.sub(" ", fn_txt)))
 
         for i, pred_ant in enumerate(fp_inst_list):
             print("fp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
-            json_return['fp'].append([pred_ant.start, pred_ant.end, pred_ant.label, pred_ant.prob, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])])
+            json_return['fp'].append(ant_to_dict(pred_ant.start,
+                                                 pred_ant.end,
+                                                 pred_ant.label,
+                                                 pred_ant.prob,
+                                                 linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])))
     return tp, fn, fp, tn, json_return
 
 # for 'title', we want to match any title annotation
