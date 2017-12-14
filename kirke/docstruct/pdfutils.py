@@ -2,6 +2,7 @@ import json
 import re
 
 from kirke.utils import strutils
+from kirke.utils.textoffset import TextCpointCunitMapper
 
 
 def get_offsets_file_name(file_name: str):
@@ -12,9 +13,22 @@ def get_offsets_file_name(file_name: str):
 # lineOffsets are just integers
 # blockOffsets has 'start' and 'end' attribute
 # pageOffsets has 'start' and 'end' attribute
-def load_pdf_offsets(file_name: str):
+def load_pdf_offsets(file_name: str, cpoint_cunit_mapper: TextCpointCunitMapper):
     atext = strutils.loads(file_name)
     ajson = json.loads(atext)
+
+    # in-place update the offsets
+    # print("cpoint_cunit_mapper.max_cunit = {}, docLen = {}".format(cpoint_cunit_mapper.max_cunit, ajson['docLen']))
+    ajson['docLen'] = cpoint_cunit_mapper.to_codepoint_offset(ajson['docLen'])
+    for adict in ajson.get('blockOffsets'):
+        adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
+    for adict in ajson.get('lineOffsets'):
+        adict['offset'] = cpoint_cunit_mapper.to_codepoint_offset(adict['offset'])
+    for adict in ajson.get('pageOffsets'):
+        adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
+    for adict in ajson.get('strOffsets'):
+        adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
+
     return (ajson.get('docLen'), ajson.get('strOffsets'), ajson.get('lineOffsets'),
             ajson.get('blockOffsets'), ajson.get('pageOffsets'))
 

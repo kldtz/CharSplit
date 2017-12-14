@@ -36,8 +36,8 @@ if __name__ == '__main__':
 
     # payload = {}
     # payload = {'types': 'party'}
-    # payload = {'types': 'change_control'}
     # payload = {'types': 'party,change_control'}
+    # payload = {'types': 'termination,term,confidentiality,cust_3566'}
     payload = {'types': 'term'}
     if args.lang:
         payload['detect-lang'] = True
@@ -45,8 +45,7 @@ if __name__ == '__main__':
         payload['classify-doc'] = True
 
     txt_file = Path(args.filename)
-    if txt_file.is_file():
-        if args.filename.endswith('.txt'):
+    if txt_file.is_file() and args.filename.endswith('.txt'):
             offset_filename = args.filename.replace('.txt', '.offsets.json')
             if os.path.exists(offset_filename):
                 files = [('file', open(args.filename, 'rt', encoding='utf-8')),
@@ -54,8 +53,7 @@ if __name__ == '__main__':
             else:
                 files = {'file': open(args.filename, 'rt', encoding='utf-8')}
 
-        files = {'file': open(args.filename, 'rt', encoding='utf-8')}
-        req = requests.post(url, files=files, data=payload)
-        print(req.text)
+            req = requests.post(url, files=files, data=payload)
+            print(req.text)
     else:
         print("file '{}' is not a valid file".format(args.filename), file=sys.stderr)
