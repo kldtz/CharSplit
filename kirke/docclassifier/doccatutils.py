@@ -116,7 +116,8 @@ def avg_list(alist):
 
 # TAG_NUMS_PAT = re.compile(r'^\s+(.+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+(\d+)(.*)')
 # TAG_NUMS_PAT = re.compile(r'^\s+(.+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+(.+)')
-def print_combined_reports(report_list, valid_tags, threshold=None):
+def print_combined_reports(report_list, valid_tags, threshold=None,
+                           prod_status_fname=None):
 
     prod_tag_list = []
     print("combined report for cross validation")
@@ -154,6 +155,7 @@ def print_combined_reports(report_list, valid_tags, threshold=None):
                                                        'f1-score', 'support'))
 
     avg_prec_list, avg_recall_list, avg_f1_list, sum_support_list = [], [], [], []
+    status_line_list = []
     for tag in found_tags:
         prec_list = []
         recall_list = []
@@ -183,11 +185,14 @@ def print_combined_reports(report_list, valid_tags, threshold=None):
             avg_f1_list.append(avg_f1)
             sum_support_list.append(sum_support)
 
-            print("{:>36s}{:11.2f}{:10.2f}{:10.2f}{:10d}".format(tag,
-                                                                avg_list(prec_list),
-                                                                avg_list(recall_list),
-                                                                avg_list(f1_list),
-                                                                sum(support_list)))
+            status_line = "{:>36s}{:11.2f}{:10.2f}{:10.2f}{:10d}".format(tag,
+                                                                         avg_list(prec_list),
+                                                                         avg_list(recall_list),
+                                                                         avg_list(f1_list),
+                                                                         sum(support_list))
+            print(status_line)
+            status_line_list.append(status_line)
+
             prod_tag_list.append(tag)  # remember them for final training
             st_list = [str(prec_list),
                        str(recall_list),
@@ -203,5 +208,11 @@ def print_combined_reports(report_list, valid_tags, threshold=None):
                                                          avg_list(avg_recall_list),
                                                          avg_list(avg_f1_list),
                                                          sum(sum_support_list)))
+
+    if prod_status_fname:
+        with open(prod_status_fname, 'wt') as fout:
+            for status_line in status_line_list:
+                print(status_line, file=fout)
+            print('wrote {}'.format(prod_status_fname))
 
     return prod_tag_list

@@ -92,7 +92,7 @@ class UnigramDocClassifier(DocClassifier):
         return sgd
 
     # pylint: disable=too-many-locals
-    def train_and_evaluate(self, txt_fn_list_fn):
+    def train_and_evaluate(self, txt_fn_list_fn, prod_status_fname=None):
         logging.info('start training and evaluate unigram document classifier: [%s]',
                      txt_fn_list_fn)
 
@@ -159,7 +159,8 @@ class UnigramDocClassifier(DocClassifier):
                                                                                     sum_f1 / sum_count))
 
         print("\nwith filtering of threshold 0.75")
-        prod_tag_list = doccatutils.print_combined_reports(report_list, self.valid_tags, threshold=0.75)
+        prod_tag_list = doccatutils.print_combined_reports(report_list, self.valid_tags, threshold=0.75,
+                                                           prod_status_fname=prod_status_fname)
 
         # save the valid tags to limit the production document categories
         prod_tags_fname = 'dict/doccat.prod.tsv'

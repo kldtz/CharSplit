@@ -65,8 +65,12 @@ def train_doc_classifier(txt_fn_list_fn, model_dir):
 
 def train_eval_doc_classifier(txt_fn_list_fn):
     doc_classifier = UnigramDocClassifier()
-    # this does not save model, only train and eval
-    doc_classifier.train_and_evaluate(txt_fn_list_fn)
+    # This does not save model, only train and eval.
+    # We are passing in the model file name to save the status of the production models
+    # for future references.
+    model_file_name = '{}/{}'.format(model_dir, DOCCAT_MODEL_FILE_NAME)
+    doc_classifier.train_and_evaluate(txt_fn_list_fn,
+                                      prod_status_fname=model_file_name.replace('.pkl', '.status'))
 
 
 def classify_document(file_name, model_dir):
