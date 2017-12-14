@@ -56,8 +56,11 @@ class UnigramDocClassifier(DocClassifier):
 
         logging.info('start training unigram document classifier: [%s]', txt_fn_list_fn)
 
+        # instead of using all valid tags, we just want tags with f1 >= 0.75
+        # doccatutils.load_doccat_maps('dict/doccat.valid.count.tsv')
         self.catname_list, self.catname_catid_map = \
-           doccatutils.load_doccat_maps('dict/doccat.valid.count.tsv')
+            doccatutils.load_doccat_prod_maps('dict/doccat.prod.tsv')
+
         self.valid_tags = set(self.catname_list)
 
         # each y is a list of catid
@@ -156,7 +159,14 @@ class UnigramDocClassifier(DocClassifier):
                                                                                     sum_f1 / sum_count))
 
         print("\nwith filtering of threshold 0.75")
-        doccatutils.print_combined_reports(report_list, self.valid_tags, threshold=0.75)
+        prod_tag_list = doccatutils.print_combined_reports(report_list, self.valid_tags, threshold=0.75)
+
+        # save the valid tags to limit the production document categories
+        prod_tags_fname = 'dict/doccat.prod.tsv'
+        with open(prod_tags_fname, 'wt') as fout:
+            for tag_id, tag in enumerate(prod_tag_list):
+                print("{}\t{}".format(tag, tag_id), file=fout)
+        print("wrote {}".format(prod_tags_fname))
 
 
     def predict(self, doc_text, catnames=None):

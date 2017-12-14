@@ -37,6 +37,19 @@ def load_doccat_maps(file_name: str):
     # print("YYYYYY")
     return catname_list, catname_catid_map
 
+# expected file format is
+# category, cat_id
+def load_doccat_prod_maps(file_name: str):
+    catname_list = []
+    catname_catid_map = {}
+    with open(file_name, 'rt') as fin:
+        for line in fin:
+            tag, catid = line.strip().split('\t')
+            catid = int(catid)
+            catname_list.append(tag)
+            catname_catid_map[tag] = catid
+    return catname_list, catname_catid_map
+
 
 # Only load files with valid tags, otherwise we will be training on them
 def load_data(txt_fn_list_fn, catname_catid_map, valid_tags):
@@ -104,6 +117,8 @@ def avg_list(alist):
 # TAG_NUMS_PAT = re.compile(r'^\s+(.+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+(\d+)(.*)')
 # TAG_NUMS_PAT = re.compile(r'^\s+(.+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+(.+)')
 def print_combined_reports(report_list, valid_tags, threshold=None):
+
+    prod_tag_list = []
     print("combined report for cross validation")
     found_tags = []
     tag_result_map = defaultdict(list)
@@ -173,6 +188,7 @@ def print_combined_reports(report_list, valid_tags, threshold=None):
                                                                 avg_list(recall_list),
                                                                 avg_list(f1_list),
                                                                 sum(support_list)))
+            prod_tag_list.append(tag)  # remember them for final training
             st_list = [str(prec_list),
                        str(recall_list),
                        str(f1_list),
@@ -187,3 +203,5 @@ def print_combined_reports(report_list, valid_tags, threshold=None):
                                                          avg_list(avg_recall_list),
                                                          avg_list(avg_f1_list),
                                                          sum(sum_support_list)))
+
+    return prod_tag_list
