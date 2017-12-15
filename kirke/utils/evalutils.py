@@ -1,5 +1,5 @@
 from collections import defaultdict, namedtuple
-
+import re
 from kirke.utils import mathutils
 
 # pylint: disable=C0103
@@ -7,6 +7,8 @@ from kirke.utils import mathutils
 # label_start_end_list is of type prov_annotation_list
 def find_annotation_overlap(start, end, label_start_end_list):
     result_list = []
+    if not label_start_end_list:
+      return result_list
     for ant in label_start_end_list:
         if mathutils.start_end_overlap((start, end), (ant.start, ant.end)):
             result_list.append(ant)
@@ -45,7 +47,70 @@ AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 
 
 
 # pylint: disable=R0914
-def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
+def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, threshold, diagnose_mode=False):
+    txt = ebantdoc.get_text()
+    tp, fp, tn, fn = 0, 0, 0, 0
+
+    pred_ant_list = []
+    for adict in ant_list:
+        pred_ant_list.append(AnnotationWithProb(adict['label'],
+                                                adict['start'],
+                                                adict['end'],
+                                                adict['prob']))
+    linebreaks = re.compile("[\n\r]")
+    tp_inst_map = defaultdict(list)
+    fp_inst_list = []
+    fn_inst_map = defaultdict(list)
+    tp_fn_set = set([])
+
+    for hant in prov_human_ant_list:
+        pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
+        if len(pred_overlap_list) > 0:
+            prob = max([x.prob for x in pred_overlap_list])
+            if prob >= threshold:
+                tp_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+                tp += 1
+            else:
+                fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+                fn += 1
+        tp_fn_set |= set(pred_overlap_list)
+    
+    for pant in pred_ant_list:
+        if pant in tp_fn_set:
+            continue
+        if pant.prob > threshold:
+          fp_inst_list.append(pant)
+          fp += 1 
+    
+
+    # there is no tn, because we deal with only annotations
+    if diagnose_mode:
+        for i, hant in enumerate(sorted(tp_inst_map.keys())):
+            hstart, hend, _ = hant
+            tp_inst_list = tp_inst_map[hant]
+            tp_txt = " ".join([txt[x.start:x.end] for x in tp_inst_list])
+            prob = max([x.prob for x in tp_inst_list])
+            print("tp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", tp_txt), str(prob)))
+
+        for i, hant in enumerate(sorted(fn_inst_map.keys())):
+            hstart, hend, _ = hant
+            fn_inst_list = fn_inst_map[hant]
+            fn_txt = " ".join([txt[x.start:x.end] for x in fn_inst_list])
+            prob = max([x.prob for x in fn_inst_list])
+            print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
+
+        for i, pred_ant in enumerate(fp_inst_list):
+            print("fp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
+
+    return tp, fn, fp, tn
+
+# for 'title', we want to match any title annotation
+# if any matched, we passed.  Don't care about any other.
+# pylint: disable=R0914
+def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, ebantdoc,
+                                           # threshold,
+                                           diagnose_mode=False):
+    txt = ebantdoc.get_text()
     tp, fp, tn, fn = 0, 0, 0, 0
     # print("calc_doc_ant_confusion_matrix:")
 
@@ -84,6 +149,18 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
         fp_inst_list.append(pant)
         fp += 1
 
+    # we only care about any match
+    if tp:
+        fn = 0
+        fp = 0
+        return tp, fn, fp, tn
+
+    if fp:
+        fp = 1
+
+    if fn:
+        fn = 1
+
     # print("tp= {}, fn= {}, fp = {}, tn = {}".format(tp, fn, fp, tn))
 
     # there is no tn, because we deal with only annotations
@@ -116,6 +193,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, txt, diagnose_m
     return tp, fn, fp, tn
 
 
+"""
 # pylint: disable=R0914
 def calc_doc_ant_confusion_matrix_precx2(prov_human_ant_list, ant_list, txt, diagnose_mode=False):
     tp, fp, tn, fn = 0, 0, 0, 0
@@ -184,7 +262,7 @@ def calc_doc_ant_confusion_matrix_precx2(prov_human_ant_list, ant_list, txt, dia
             print(txt[pred_ant.start:pred_ant.end])
 
     return tp, fn, fp, tn
-
+"""
 
 #
 # utilities
