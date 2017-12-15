@@ -47,7 +47,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     # will do chunking in the future also
     fvec = ebattrvec.EbAttrVec(file_id,
                                ebsent.start, ebsent.end,
-                               ebsent.get_tokens_text(), ebsent.labels, ebsent.entities)
+                               ebsent.get_tokens_text(), ebsent.labels, ebsent.entities, ebsent.sechead)
 
     tmp_start = min(ENT_START_MAX, ebsent.start)
     tmp_end = min(ENT_END_MAX, ebsent.end)
@@ -94,27 +94,27 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     fvec.set_val('length', min(NUM_WORDS_MAX, num_sent_tokens))
     fvec.set_val('lengthChar', min(NUM_CHARS_MAX, ebsent.get_number_chars()))
 
-    fvec.set_val_yesno('le-3-word', num_sent_tokens <= 3)
-    fvec.set_val_yesno('le-5-word', num_sent_tokens <= 5)
-    fvec.set_val_yesno('le-10-word', num_sent_tokens <= 10)
-    fvec.set_val_yesno('ge-05-lt-10-word',
+    fvec.set_val_yesno('le_3_word', num_sent_tokens <= 3)
+    fvec.set_val_yesno('le_5_word', num_sent_tokens <= 5)
+    fvec.set_val_yesno('le_10_word', num_sent_tokens <= 10)
+    fvec.set_val_yesno('ge_05_lt_10_word',
                        num_sent_tokens >= 5 and num_sent_tokens < 10)
-    fvec.set_val_yesno('ge-10-lt-20-word',
+    fvec.set_val_yesno('ge_10_lt_20_word',
                        num_sent_tokens >= 10 and num_sent_tokens < 20)
-    fvec.set_val_yesno('ge-20-lt-30-word',
+    fvec.set_val_yesno('ge_20_lt_30_word',
                        num_sent_tokens >= 20 and num_sent_tokens < 30)
-    fvec.set_val_yesno('ge-30-lt-40-word',
+    fvec.set_val_yesno('ge_30_lt_40_word',
                        num_sent_tokens >= 30 and num_sent_tokens < 40)
-    fvec.set_val_yesno('ge-40-word', num_sent_tokens >= 40)
+    fvec.set_val_yesno('ge_40_word', num_sent_tokens >= 40)
 
     # for 'party'
     num_define_party = count_define_party(raw_sent_text)
-    fvec.set_val_yesno('is-1-num-define-party', num_define_party == 1)
-    fvec.set_val_yesno('is-2-num-define-party', num_define_party == 2)
-    fvec.set_val_yesno('is-ge2-num-define-party', num_define_party >= 2)
-    fvec.set_val_yesno('has-define-party', num_define_party > 0)
-    fvec.set_val_yesno('has-define-agreement', has_word_agreement(raw_sent_text))
-    fvec.set_val_yesno('has-word-between', has_word_between(raw_sent_text))
+    fvec.set_val_yesno('is_1_num_define_party', num_define_party == 1)
+    fvec.set_val_yesno('is_2_num_define_party', num_define_party == 2)
+    fvec.set_val_yesno('is_ge2_num_define_party', num_define_party >= 2)
+    fvec.set_val_yesno('has_define_party', num_define_party > 0)
+    fvec.set_val_yesno('has_define_agreement', has_word_agreement(raw_sent_text))
+    fvec.set_val_yesno('has_word_between', has_word_between(raw_sent_text))
 
     start_char = raw_sent_text[0]
     end_char = raw_sent_text[-1]
@@ -130,18 +130,22 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     fvec.set_val_yesno('contains_prep_phrase', False)
 
     # print(sent_ajson)
+    location_tags = ['LOCATION', 'LUG', 'LOCAL', 'GPE']
+    person_tags = ['PERSON', 'PERS', 'PESSOA']
+    organization_tags = ['ORGANIZATION', 'ORG', 'ORGANIZACAO']
+    date_tags = ['DATE', 'TEMPO']
     has_person, has_location, has_org, has_date = (False, False, False, False)
     for token in tokens:
         ner = token.ner
         # if ner != 'O':
         #     print('ner = ' + str(ner))
-        if ner == 'PERSON':
+        if ner in person_tags:
             has_person = True
-        elif ner == 'LOCATION':
+        elif ner in location_tags:
             has_location = True
-        elif ner == 'ORGANIZATION':
+        elif ner in organization_tags:
             has_org = True
-        elif ner == 'DATE':
+        elif ner in date_tags:
             has_date = True
     fvec.set_val_yesno('has_person', has_person)
     fvec.set_val_yesno('has_location', has_location)

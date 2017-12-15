@@ -1,0 +1,127 @@
+eBrevia's Document
+
+We analyze PDF and HTML documents.  Other formats, such as Word and
+RTF, they are transformed to PDF for later processing.
+
+HTML documents are sent as .txt files.  The format of the .txt file is
+basically .paraline.txt.  During the transformation from .html to
+.txt, block and paragraph markers are translated new lines.  In
+general, the line break generation is somewhat aggressive and the
+resulting .txt file often have more linebreaks than expected.  One
+particular noticeable effect of such heuristics is that segment
+heading are sometimes separated into multiple lines, "12.2" and
+"Introduction".
+
+HTML .txt is missing several useful information that we usually can
+expect from a paper-based document:
+  - no page number (though we can inferring this)
+  - harder to detect header and footer
+  - no x and y position indicator for a line
+It's possible to simply translate a .html document directory into a
+somewhat more "viewable" or page-like format and we process a document
+based on such a new .txt.  This way, the section heading should line
+up better for analysis.
+
+
+Most of the uploaded documents are in PDF format.  As a result, we put
+a lot of effort in extract as much formatting information before
+runnign through our analyzers.
+
+PDF documents are sent as .txt and .offsets.json files.  Different
+from the .txt from HTML documents, the linebreak generation is not
+aggressive.  The block decision is made by PDFBox, so there is not
+much we can do here.  We implemented an English sentence-like detector
+to decide if we want to preserve the linebreaks inside a block.  The
+output of such detection is .paraline.txt, which is intentionally
+similar to the HTML .txt format.  The main difference is that the
+lines inside a block is often separated just by one linebreak, while
+in HTML .txt file, there are likely to be more linebreaks.
+
+PDFBox might group cells or columns in 
+
+Every document has two views for analyzers:
+  - paraline view
+  - line view
+
+In paraline view, a block has following attributes:
+  - start, end offset
+  - is multi-line
+  - is_english
+  - list of lines
+  - block_num (line_num)
+  - other attributes (inferred)
+    - toc
+    - page_num
+    - number of linebreaks from prev_line
+  - in PDF mode, we have following extra attribute
+    - xStart, yStart
+    - yEnd
+
+In line view,
+  - there are blank lines
+  - there will be number of linebreaks between each line (from prev_line)
+  - block_num
+  - page_num
+  - line_num
+  - start, end offsets
+  - xSstart
+  - yStart
+  - other attribute (inferred)
+     - toc
+     - header
+     - footer
+     - sechead
+     - table
+     - images (graph)
+     - is_sentence (is_english?)
+
+Different intermediate file types:
+
+.txt
+
+Raw text format from HTML or PDF documents.  Same size of the input
+file.  Because of the potential to clean up hard-space characters,
+soemtimes the dir-work/*.txt file will have different size from the
+original .txt.  Please be assured that the number of characters in the
+.txt files are the same.
+
+
+.paraline.txt
+
+This is the file used by paraline annotators.  Jason's title, party,
+and date annotator use this format.
+
+.nl.txt
+
+This file has the 
+
+.nl.debug.txt
+
+
+==============================
+Description of document structuring
+
+This is a high level description of add_doc_structure_to_doc():
+
+add_doc_structure_to_page():
+  add doc structure to each page
+    - categorize lines
+      - toc
+      - pagenum
+      - header
+      - footer
+      - section head
+    - work only on content line
+
+    - categorize blocks into
+      - address
+      - signature
+      - table
+      - chart
+
+merge paragraph across adjacent pages
+  - based on is_english and yStart
+
+output the result in
+  - a list of page
+  - a page is a list of block (GroupedBlockInfo)

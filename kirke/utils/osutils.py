@@ -1,8 +1,8 @@
+from collections import Mapping, Container
 import os
 import sys
-
-from collections import Mapping, Container
 from sys import getsizeof
+
 
 # Create a directory and any missing ancestor directories.
 # If the directory already exists, do nothing.
@@ -24,7 +24,7 @@ def get_last_cmd_line_arg():
 def get_model_files(dir_name):
     return [f for f in os.listdir(dir_name)
             if (os.path.isfile(os.path.join(dir_name, f))
-                and f.endswith('classifier.pkl'))]
+                and 'classifier' in f and f.endswith('.pkl'))]
 
 def get_size(obj, seen=None):
     """Recursively finds size of objects"""

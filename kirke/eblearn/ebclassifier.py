@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 from sklearn.externals import joblib
 
-from kirke.eblearn import ebtext2antdoc
+from kirke.utils import ebantdoc2
 
 GLOBAL_THRESHOLD = 0.12
 
@@ -29,7 +29,7 @@ class EbClassifier(ABC):
         joblib.dump(self, model_file_name)
 
     def train(self, txt_fn_list, work_dir, model_file_name, provision=None):
-        ebantdoc_list = ebtext2antdoc.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir, provision=provision)
+        ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
         return self.train_antdoc_list(ebantdoc_list, work_dir, model_file_name)
 
     @abstractmethod

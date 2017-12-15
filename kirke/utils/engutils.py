@@ -3,31 +3,33 @@ import nltk
 import re
 import math
 
-from nltk.tokenize import word_tokenize
-
 from collections import namedtuple
 
 from kirke.utils import strutils, stopwordutils
 
-POSS_PAT = re.compile(r'(\'|’)s\b')
+POSS_PAT = re.compile(r"['’]s\b")
 
-PUNCT_PAT = re.compile(r'[\.,\?;:\{\}\(\)\[\]\/\\\'’"`”“\*#@_ ]')
+PUNCT_PAT = re.compile(r'[\.,\?;:\{\}\(\)\[\]/\\\'’"`”“\*#@_ ]')
 
 ALPHAS_PAT = re.compile(r'^[a-zA-Z]+$')
 
 ANY_DIGIT_PAT = re.compile('.*\d+.*')
 
+
 def remove_punct(line):
     return re.sub(PUNCT_PAT, ' ', line)
+
 
 def is_alphas(line):
     mat = re.match(ALPHAS_PAT, line)
     return mat
 
+
 def line2bigrams(line):
     tokens = line2words(line)
     bigrams = nltk.bigrams(tokens)
     return bigrams
+
 
 def line2words(line):
     raw = re.sub(POSS_PAT, ' ', line)
@@ -38,20 +40,22 @@ def line2words(line):
     tokens = [word.lower() for word in tokens]
     return tokens
 
+
 def line2char_trigram(line):
-    line = line.lower().replace('\t',' ')
+    line = line.lower().replace('\t', ' ')
 
     trigrams = []
     # print("line: {}".format(line))
     for i in range(len(line)-2):
         trigram = line[i:i+3]
         if trigram.strip():  # not all spaces
-            digit_mat = ANY_DIGIT_PAT.match(trigram)
+            # digit_mat = ANY_DIGIT_PAT.match(trigram)
             if not ('  ' in trigram or
                     '__' in trigram or
                     '██' in trigram):
                 trigrams.append(trigram)
     return trigrams
+
 
 def files2ngram(adir, suffix='.txt', n=2):
     corpus_freq = nltk.FreqDist()
@@ -71,7 +75,7 @@ def files2ngram(adir, suffix='.txt', n=2):
 
                 bigrams = nltk.bigrams(tokens)
 
-                #compute frequency distribution for all the bigrams in the text
+                # compute frequency distribution for all the bigrams in the text
                 fdist = nltk.FreqDist(bigrams)
 
                 corpus_freq |= fdist
@@ -104,7 +108,7 @@ def files2unigram(adir, suffix='.txt'):
 
                 tokens = line2words(raw)
 
-                #compute frequency distribution for all the bigrams in the text
+                # compute frequency distribution for all the bigrams in the text
                 fdist = nltk.FreqDist(tokens)
 
                 corpus_freq |= fdist
@@ -140,9 +144,7 @@ def files2char_ngram(adir, suffix='.txt', n=3):
 
                     line_trigrams = line2char_trigram(line)
                     trigrams.extend(line_trigrams)
-
-                        
-                #compute frequency distribution for all the bigrams in the text
+                # compute frequency distribution for all the bigrams in the text
                 fdist = nltk.FreqDist(trigrams)
 
                 corpus_freq |= fdist
@@ -180,6 +182,7 @@ char_trigram_score_map = load_ngram_score('dict/trigram300.char.tsv')
 
 def bi2st(bigram):
     return '{} {}'.format(bigram[0], bigram[1])
+
 
 def check_english(filename):
     with open(filename, 'rt') as fin:
@@ -277,24 +280,14 @@ def classify_english_sentence_v1(line, debug_mode=False):
 
     return result
 
+
 # MINNKOTA PPA PROJECT TURBINES OTHER'S  PROJECT  TURBINES,  IF ANY PURCHASER'S  CHECK METER
 def is_double_space_3_times(line):
     # most likely a table row
     if len(line) < 120 and line.count('  ') >= 3:
         return True
-        """
-        start_end_indices = strutils.find_substr_indices('  ', line)
-        prev_start = start_end_indices[0][0]
-        count_diff_small = 0
-        for start_end in start_end_indices[1:]:
-            start = start_end[0]
-            if start - prev_start < 25:
-                count_diff_small += 1
-            prev_start = start
-        if count_diff_small >= 2:
-            return True
-        """
     return False
+
 
 def is_math_equation(line):
     operator_count = len(strutils.find_substr_indices(r' [\+\-\*/%x] ', line))
@@ -310,6 +303,7 @@ def is_math_equation(line):
 
 # handle (a), a), 1), (1), 1., iii. ix.  ix)
 ITEM_PREFIX_PAT = re.compile(r'^\(?([a-z]|\d{1,2}|[ixv]+)[\)\.]\s.+')
+
 
 def is_itemize_prefix(line):
     return ITEM_PREFIX_PAT.match(line)
@@ -354,6 +348,10 @@ def classify_english_sentence(line: str, debug_mode=False) -> bool:
     stopword_count = stopwordutils.count_stopword(words)
     cht_count = count_char_type(line)
 
+    # check for division by zeros
+    if cht_count.num_consonant == 0 or cht_count.length == 0:
+        return False
+
     if debug_mode:
         print("charcount\t{}".format(cht_count))
         print("eng diff, vowel/cons = {}, alph/len = {}, other/len = {}, digit/len = {}".format(
@@ -384,49 +382,13 @@ def classify_english_sentence(line: str, debug_mode=False) -> bool:
         return False
 
     return True
-    
-    
-def classify_english_line(filename, debug_mode=False):
-
-    with open(filename, 'rt') as fin:
-        for line in fin:
-            line = line.strip()
-
-            if not line:
-                print()
-                continue
-
-            is_english_sentence = classify_english_sentence(line)
-            is_english_sent2 = classify_english_sent2(line)
-
-            if is_english_sentence != is_english_sent2:
-                print("eng diff")
-                print("eng diff")
-                print("eng diff!!!!!!!!!!!!!!!! eng= {}, eng2={}".format(is_english_sentence,
-                                                                         is_english_sent2))
-                # to print out debug info
-                classify_english_sentence(line, debug_mode=True)
-                classify_english_sent2(line, debug_mode=True)
-                print("eng diff [{}]".format(line))
-            
-            print('{}\t{}'.format(is_english_sentence, line))
 
 
-def classify_english_lines(adir):
-    #check_english('data-test-tmp/test1.txt', unigram_scores, bigram_scores,
-    #              char_trigram_scores)
-    
+CharTypeCount = namedtuple('CharTypeCount', ['num_space', 'num_uc', 'num_lc',
+                                             'num_alpha', 'num_digit', 'num_punct',
+                                             'num_other', 'num_consonant',
+                                             'num_vowel', 'length'])
 
-    suffix = '.txt'
-    filenames = [filename for filename in os.listdir(adir)]
-
-    for filename in sorted(filenames):
-        if filename.endswith(suffix) and len(filename) <= 10:
-            # print('filename = {}'.format(filename))
-            # with open('{}/{}'.format(adir, filename), 'rt') as fin:
-            classify_english_line('{}/{}'.format(adir,filename))
-
-CharTypeCount = namedtuple('CharTypeCount', ['num_space', 'num_uc', 'num_lc', 'num_alpha', 'num_digit', 'num_punct', 'num_other', 'num_consonant', 'num_vowel', 'length'])
 
 def count_char_type(line):
     # we don't count beginning and end spaces
@@ -479,15 +441,16 @@ date2_pat = re.compile(r'\bday of\b.*\d\d\d\d\b', re.IGNORECASE)
 
 date3_pat = re.compile(r'\b(dated|\d{4})\b', re.IGNORECASE)
 
+
 def is_date_line(line):
     if len(line) > 50:  # don't want to match line "BY AND BETWEEN" in title page
         return False
     mat = date_pat.search(line) or date2_pat.search(line)
     return mat
 
+
 def has_date(line):
-    if (date_pat.search(line) or
-        date2_pat.search(line) or
+    if (date_pat.search(line) or date2_pat.search(line) or
         date3_pat.search(line)):
         return True
     return False
@@ -510,9 +473,8 @@ herein shall have the meanings ascribed to them in the Securities
 Purchase Agreement.]
 """
 
+
 def is_skip_template_line(line):
     if skip_template_pat.search(line) and not has_date(line):
         return True
     return False
-
-
