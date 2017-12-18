@@ -16,13 +16,19 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 def load_provisions_istest_in_ebdata(filename):
     result = []
     is_test_set = False
+    positive_provs = set([])
+    negative_provs = set([])
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
         for provision, ajson_list in parsed['ants'].items():
             result.append(provision)
+            if ajson_list:
+                positive_provs.add(provision)
+            else:
+                negative_provs.add(provision)
         is_test_set = parsed.get('isTestSet', False)
 
-    return result, is_test_set
+    return result, is_test_set, list(positive_provs), list(negative_provs)
 
 
 if __name__ == '__main__':
@@ -59,7 +65,7 @@ if __name__ == '__main__':
     for moddir in model_dir_list:
         osutils.mkpath(moddir)
 
-    data_dir = 'dir-data'
+    data_dir = 'export-train'
     if args.data_dir is not None:
         dir_data = args.data_dir
 
@@ -97,8 +103,11 @@ if __name__ == '__main__':
 
     prov_fnlist_map = defaultdict(list)
     prov_train_fnlist_map = defaultdict(list)
-    prov_test_fnlist_map = defaultdict(list)        
-    
+    prov_test_fnlist_map = defaultdict(list)
+
+    prov_pos_fnlist_map = defaultdict(list)
+    prov_neg_fnlist_map = defaultdict(list)
+
     for fileid, fnlist in fileid_fnlist_map.items():
         ebdata_fn = ''
         fname = ''
@@ -116,7 +125,7 @@ if __name__ == '__main__':
             elif ftype == 'txt':
                 fname = fn         
             
-        prov_list, is_test = load_provisions_istest_in_ebdata(ebdata_fn)
+        prov_list, is_test, pos_list, neg_list = load_provisions_istest_in_ebdata(ebdata_fn)
 
         # print('is_test = {}'.format(is_test))
         
@@ -128,6 +137,12 @@ if __name__ == '__main__':
                 prov_test_fnlist_map[label].append(fname)
             else:
                 prov_train_fnlist_map[label].append(fname)
+
+        # remember the positive and negative docs for each provision
+        for label in pos_list:
+            prov_pos_fnlist_map[label].append(fname)
+        for label in neg_list:
+            prov_neg_fnlist_map[label].append(fname)
 
     for prov, fnlist in prov_fnlist_map.items():
         out_fn = '{}/{}.doclist.txt'.format(provfile_dir, prov)
@@ -148,5 +163,18 @@ if __name__ == '__main__':
         with open(out_fn, 'wt') as fout:
             for fn in fnlist:
                 print(fn, file=fout)
-        print('wrote {}'.format(out_fn))                
+        print('wrote {}'.format(out_fn))
 
+
+    for prov, fnlist in prov_pos_fnlist_map.items():
+        out_fn = '{}/{}_pos_doclist.txt'.format(provfile_dir, prov)
+        with open(out_fn, 'wt') as fout:
+            for fn in fnlist:
+                print(fn, file=fout)
+        print('wrote {}'.format(out_fn))
+    for prov, fnlist in prov_neg_fnlist_map.items():
+        out_fn = '{}/{}_neg_doclist.txt'.format(provfile_dir, prov)
+        with open(out_fn, 'wt') as fout:
+            for fn in fnlist:
+                print(fn, file=fout)
+        print('wrote {}'.format(out_fn))

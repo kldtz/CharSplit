@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import copy
 import logging
 from pprint import pprint
 from time import time
@@ -12,7 +13,8 @@ from sklearn.pipeline import Pipeline
 
 from kirke.eblearn import ebpostproc, ebattrvec
 from kirke.eblearn.ebclassifier import EbClassifier
-from kirke.eblearn.ebtransformer import EbTransformer
+# from kirke.eblearn.ebtransformer import EbTransformer
+from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.utils import evalutils
 
 # pylint: disable=C0301
@@ -49,6 +51,21 @@ def get_transformer_attr_list_by_provision(provision: str):
 def get_provision_threshold(provision: str):
     return PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
 
+def adapt_pipeline_params(best_params):
+    # params = copy.deepcopy(best_params)
+    # # del the key because it has object (not-json)
+    # params.pop('steps', None)
+    # params.pop('clf', None)
+    # params.pop('eb_transformer', None)
+
+    result = {}
+    for param_name, param_val in best_params.items():
+        if param_name.startswith('clf__'):
+            result[param_name[5:]] = param_val
+        else:
+            pass  # skip eb_transformer_* and others
+    return result
+
 
 class ProvisionClassifier(EbClassifier):
 
@@ -77,15 +94,18 @@ class ProvisionClassifier(EbClassifier):
         # iterations = 50  (for 10 iteration, f1=0.91; for 50 iterations, f1=0.90,
         #                   for 5 iterations, f1=0,89),  So 10 iterations wins for now.
         # This shows that the "iteration" parameter probably needs tuning.
-        iterations = 10
+        # iterations = 10
+        iterations = 50
 
-        (binary_attr_list, numeric_attr_list, categorical_attr_list) = get_transformer_attr_list_by_provision(self.provision)
-        axx_transformer = EbTransformer(self.provision, binary_attr_list, numeric_attr_list, categorical_attr_list)
+        # (binary_attr_list, numeric_attr_list, categorical_attr_list) = get_transformer_attr_list_by_provision(self.provision)
+        # binary_attr_list, numeric_attr_list, categorical_attr_list)
+        axx_transformer = EbTransformerV1_2(self.provision)
         pipeline = Pipeline([
             ('eb_transformer', axx_transformer),
             ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=iterations,
                                   shuffle=True, random_state=42,
-                                  class_weight={True: 10, False: 1}))])
+                                  # class_weight={True: 10, False: 1}))])
+                                  class_weight={True: 3, False: 1}))])
 
         # pylint: disable=fixme
         # TODO, jshaw, uncomment in real code
@@ -97,6 +117,7 @@ class ProvisionClassifier(EbClassifier):
         group_kfold = list(GroupKFold().split(attrvec_list, label_list,
                                               groups=group_id_list))
         grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
+        # grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
                                    verbose=1, cv=group_kfold)
 
         print("Performing grid search...")
@@ -110,9 +131,10 @@ class ProvisionClassifier(EbClassifier):
         print("Best score: %0.3f" % grid_search.best_score_)
         print("Best parameters set:")
         self.best_parameters = grid_search.best_estimator_.get_params()
+        self.best_parameters = adapt_pipeline_params(grid_search.best_estimator_.get_params())
 
         # pylint: disable=C0201
-        for param_name in sorted(parameters.keys()):
+        for param_name in sorted(self.best_parameters.keys()):
             print("\t%s: %r" % (param_name, self.best_parameters[param_name]))
         print()
 
