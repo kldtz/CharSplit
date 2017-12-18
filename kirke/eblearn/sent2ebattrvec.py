@@ -1,7 +1,7 @@
 import re
 import time
 import logging
-
+from kirke.ebrules import addresses
 from kirke.utils import unicodeutils, entityutils
 from kirke.eblearn import ebattrvec
 
@@ -37,6 +37,28 @@ def has_word_between(line: str) -> bool:
     return BTW_PAT.search(line)
 
 
+def find_constituencies(text, constituencies):		
+    s = ''
+    #num_ads = False
+    text = text.replace ("\n", " ")		
+    for word in text.split():		
+        word = re.sub(r'[,\.]+$|\-', "", word)		
+        if word.isdigit() or word in constituencies:		
+            s += '1'		
+        else:		
+            s += '0'		
+    matches = re.finditer(r'(1+0?0?(1+0?0?)*1+)', s)
+    #print(list(zip(s, text.split())))
+    all_spans = [match.span(1) for match in matches]
+    ads = []
+    for ad_start, ad_end in all_spans:
+        #print("\t", " ".join(text.split()[ad_start:ad_end]))
+        ad_st = " ".join(text.split()[ad_start:ad_end])
+        address_prob = addresses.classify(ad_st)
+        if address_prob >= 0.5 and len(text.split()[ad_start:ad_end]) > 3:
+            ads.append(ad_st)
+    return ads
+
 # pylint: disable=R0912,R0913,R0914,R0915
 def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     tokens = ebsent.get_tokens()
@@ -49,6 +71,36 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
                                ebsent.start, ebsent.end,
                                ebsent.get_tokens_text(), ebsent.labels, ebsent.entities, ebsent.sechead)
 
+    if prev_ebsent:
+        fvec.bag_of_words += " " + prev_ebsent.get_tokens_text()
+    if next_ebsent:
+        fvec.bag_of_words += " " + next_ebsent.get_tokens_text()
+ 
+    all_keywords = addresses.all_constituencies()
+    split_text = atext.split()
+    #print(">", raw_sent_text)
+    for x in find_constituencies(raw_sent_text, all_keywords):
+        if x:
+            #print("\t>>", x)
+            mat = re.search(re.escape(x), raw_sent_text, re.I)
+            #print("\t", mat)
+            if mat:
+                ad_start, ad_end = mat.span()
+                ad_start += ebsent.start
+                ad_end += ebsent.start
+                #print("\t", atext[ad_start:ad_end])
+                first = " ".join(atext[:ad_start].split()[-20:])
+                second = " ".join(atext[ad_end:].split()[:20])
+                #print("\t", first, second)
+                new_bow = "{} {} {}".format(first, x, second)
+                mat2 = re.search(re.escape(new_bow), atext, re.I)
+                if mat2:
+                    fvec.bag_of_words = new_bow
+                    new_start, new_end = mat2.span()
+                    fvec.start = new_start
+                    fvec.end = new_end
+
+                    print("\t\t>>>", fvec.bag_of_words)
     tmp_start = min(ENT_START_MAX, ebsent.start)
     tmp_end = min(ENT_END_MAX, ebsent.end)
     fvec.set_val('ent_start', tmp_start)

@@ -13,8 +13,8 @@ from kirke.eblearn import sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
 from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
 
-CORENLP_JSON_VERSION = '1.2'
-EBANTDOC_VERSION = '1.2'
+CORENLP_JSON_VERSION = '1.3'
+EBANTDOC_VERSION = '1.3'
 
 def get_corenlp_json_fname(txt_basename, work_dir):
     base_fn = txt_basename.replace('.txt',
@@ -146,11 +146,12 @@ def nlptxt_to_attrvec_list(para_doc_text,
                            work_dir,
                            is_cache_enabled):
     # para_doc_text is what is sent, not txt_base_fname
+    is_cache_enabled = True
     corenlp_json = text_to_corenlp_json(para_doc_text,
                                         txt_base_fname,
                                         work_dir=work_dir,
                                         is_cache_enabled=is_cache_enabled)
-
+    is_cache_enabled = False
 
     # At this point, put all document structure information into
     # ebsent_list
@@ -522,7 +523,7 @@ def text_to_ebantdoc2(txt_fname,
         # corenlp should be cache so that we don't run it again for same
         # files.
         # is_cache_enabled = False
-        
+    is_cache_enabled = False        
     if is_cache_enabled:
         # check if file exist, if it is, load it and return
         # regarless of the existing PDF or HtML or is_doc_structure
