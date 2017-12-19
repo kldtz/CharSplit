@@ -110,14 +110,14 @@ class ProvisionClassifier(EbClassifier):
         # pylint: disable=fixme
         # TODO, jshaw, uncomment in real code
         # parameters = {'clf__alpha': 10.0 ** -np.arange(1, 5)}
-        parameters = {'clf__alpha': 10.0 ** -np.arange(3, 4)}
+        parameters = {'clf__alpha': 10.0 ** -np.arange(3, 8)}
         #    parameters = {'C': [.01,.1,1,10,100]}
         #    sgd_clf = LogisticRegression()
 
         group_kfold = list(GroupKFold().split(attrvec_list, label_list,
                                               groups=group_id_list))
-        grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
-        # grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
+        # grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
+        grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
                                    verbose=1, cv=group_kfold)
 
         print("Performing grid search...")

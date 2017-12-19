@@ -78,7 +78,7 @@ def classify_document(file_name, model_dir):
 
 
 # This separates out training and testing data, trains only on training data.
-def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_doc_structure=True):
+def train_annotator(provision, work_dir, model_dir, is_scut, is_doc_structure=True):
     if is_scut:
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
         model_file_name = '{}/{}_scutclassifier.v{}.pkl'.format(model_dir,
@@ -300,8 +300,7 @@ if __name__ == '__main__':
     parser.add_argument('--work_dir', required=True, help='output directory for .corenlp.json')
     parser.add_argument('--model_dir', help='output directory for trained models')
     parser.add_argument('--model_dirs', help='output directory for trained models')
-    parser.add_argument('--custom_model_dir', required=True,
-                        help='output directory for custom trained models')
+    parser.add_argument('--custom_model_dir', help='output directory for custom trained models')
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
@@ -314,11 +313,10 @@ if __name__ == '__main__':
     model_dir = args.model_dir
     custom_model_dir = args.custom_model_dir
 
-    if cmd == 'train_classifier':
+    if cmd == 'train_classifier':  # jshaw, nobody should be using this?
         train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, args.scut)
     elif cmd == 'train_annotator':
         train_annotator(provision,
-                        txt_fn_list_fn,
                         work_dir,
                         model_dir,
                         args.scut,
