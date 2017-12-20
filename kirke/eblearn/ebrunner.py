@@ -313,6 +313,9 @@ class EbRunner:
                                    eb_antdoc,
                                    work_dir=work_dir)
 
+        # since nobody is using rate-table classifier yet
+        # we are disabling it for now.
+        """
         if eb_antdoc.doc_format == EbDocFormat.pdf:
             # print("classify_table_list......................................")
             rate_tables = rateclassifier.classify_table_list(eb_antdoc.table_list, eb_antdoc.nl_text)
@@ -322,6 +325,7 @@ class EbRunner:
         else:
             # HTML document has no table detection, so 'rate-table' annotation is an empty list
             prov_labels_map['rate_table'] = []
+        """
 
         # jshaw. evalxxx, composite
         update_dates_by_domain_rules(prov_labels_map)
