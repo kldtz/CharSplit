@@ -31,6 +31,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def __init__(self,
                  label,
                  *,
+                 doclist_to_antdoc_list,
                  docs_to_samples,
                  pipeline,
                  gridsearch_parameters,
@@ -38,6 +39,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.label = label
         
         # used for training
+        self.doclist_to_antdoc_list = doclist_to_antdoc_list
         self.docs_to_samples = docs_to_samples
         self.pipeline = pipeline
         self.gridsearch_parameters = gridsearch_parameters

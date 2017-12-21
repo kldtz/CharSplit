@@ -6,7 +6,8 @@ from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import cross_val_predict, train_test_split
 
-from kirke.eblearn import annotatorconfig, ebannotator, ebpostproc, lineannotator, spanannotator
+from kirke.eblearn import ebannotator, ebpostproc
+from kirke.eblearn import annotatorconfig, lineannotator, ruleannotator, spanannotator
 from kirke.utils import evalutils, splittrte, strutils, ebantdoc2, ebantdoc3
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import titles
@@ -97,11 +98,14 @@ def train_eval_annotator_with_trte(provision,
 # pylint: disable=R0915, R0913, R0914
 def train_eval_span_annotator_with_trte(label,
                                         work_dir,
-                                        model_dir,
-                                        model_file_name):
+                                        model_dir):
+    config = annotatorconfig.get_ml_annotator_config(label)
+    model_file_name = '{}/{}_annotator.v{}.pkl'.format(model_dir,
+                                                       label,
+                                                       config['version'])
 
-    config = annotatorconfig.get_annotator_config(label)
     span_annotator = spanannotator.SpanAnnotator(label,
+                                                 doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                                  docs_to_samples=config['docs_to_samples'],
                                                  pipeline=config['pipeline'],
                                                  gridsearch_parameters=config['gridsearch_parameters'])
@@ -111,9 +115,9 @@ def train_eval_span_annotator_with_trte(label,
     logging.info("    model_file_name = %s", model_file_name)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, label)
-    train_antdoc_list = ebantdoc3.doclist_to_ebantdoc_list(train_doclist_fn,
-                                                           work_dir,
-                                                           is_doc_structure=False)
+    train_antdoc_list = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
+                                                              work_dir,
+                                                              is_doc_structure=False)
 
     samples, label_list, group_id_list = span_annotator.documents_to_samples(train_antdoc_list, label)
 
@@ -139,6 +143,40 @@ def train_eval_span_annotator_with_trte(label,
     span_annotator.print_eval_status(model_dir)
 
     return span_annotator
+
+
+def eval_rule_annotator_with_trte(label,
+                                  model_dir='dir-model',
+                                  work_dir='dir-work',
+                                  is_doc_structure=False,
+                                  is_train_mode=False):
+    config = annotatorconfig.get_rule_annotator_config(label)
+
+    rule_annotator = ruleannotator.RuleAnnotator(label,
+                                                 doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
+                                                 docs_to_samples=config['docs_to_samples'],
+                                                 rule_engine=config['rule_engine'])
+
+    logging.info("eval_rule_annotator_with_trte(%s) called", label)
+
+    # Normally, we compare the test results
+    # During development, use is_train_mode to peek at the data for improvements
+    if is_train_mode:
+        test_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, label)
+    else:
+        test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, label)
+
+    test_antdoc_list = rule_annotator.doclist_to_antdoc_list(test_doclist_fn,
+                                                             work_dir,
+                                                             is_doc_structure=False)
+
+    rule_annotator.ant_status = rule_annotator.test_antdoc_list(test_antdoc_list)
+    print("ant_status x24: {}".format(rule_annotator.ant_status))
+
+    # rule_annotator.save(model_file_name)
+    rule_annotator.print_eval_status(model_dir)
+
+    return rule_annotator
 
 
 def eval_annotator(txt_fn_list, work_dir, model_file_name):

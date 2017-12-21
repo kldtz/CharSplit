@@ -101,13 +101,14 @@ def train_annotator(provision, work_dir, model_dir, is_scut, is_doc_structure=Tr
 def train_span_annotator(label,
                          work_dir,
                          model_dir):
-    model_file_name = '{}/{}_annotator.v{}.pkl'.format(model_dir,
-                                                       label,
-                                                       ANNOTATOR_CLF_VERSION)
     ebtrainer.train_eval_span_annotator_with_trte(label,
                                                   work_dir,
-                                                  model_dir,
-                                                  model_file_name)
+                                                  model_dir)
+
+def eval_rule_annotator(label,
+                        is_train_mode=False):
+    # ebtrainer.eval_rule_annotator_with_trte(label, is_train_mode=True)
+    ebtrainer.eval_rule_annotator_with_trte(label, is_train_mode=is_train_mode)
 
 
 def eval_line_annotator_with_trte(provision,
@@ -317,6 +318,8 @@ if __name__ == '__main__':
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
+    # only for eval_rule_annotator
+    parser.add_argument('--is_train_mode', action="store_true", help="training mode for eval_rule_annotator")
 
     args = parser.parse_args()
     cmd = args.cmd
@@ -338,6 +341,9 @@ if __name__ == '__main__':
         train_span_annotator(provision,
                              work_dir,
                              model_dir)
+    elif cmd == 'eval_rule_annotator':
+        eval_rule_annotator(provision,
+                            is_train_mode=args.is_train_mode)
     elif cmd == 'custom_train_annotator':
         custom_train_annotator(provision,
                                txt_fn_list_fn,

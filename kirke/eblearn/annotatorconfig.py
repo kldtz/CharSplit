@@ -2,19 +2,34 @@
 import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline
-from kirke.sampleutils import dategen
-from kirke.sampleutils import transformerutils
 
-annotator_config_map = \
-    {'effectivedate': {'docs_to_samples': dategen.DateSpanGenerator(20, 20),
+from kirke.ebrules import dummyannotator
+from kirke.sampleutils import dategen, transformerutils
+from kirke.utils import ebantdoc2, ebantdoc3
+
+ml_annotator_config_map = \
+    {'effectivedate': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+                       'docs_to_samples': dategen.DateSpanGenerator(20, 20),
+                       'version': 1.0,
                        'pipeline': Pipeline([
                            ('surround_transformer', transformerutils.SurroundWordTransformer()),
                            ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                  shuffle=True, random_state=42,
                                                  class_weight={True: 3, False: 1}))]),
-                       'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}}}
+                       'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}}
+    }
 
-def get_annotator_config(label: str):
-    return annotator_config_map.get(label)
-    
+rule_annotator_config_map = \
+    {'effectivedate': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+                       'docs_to_samples': dategen.DateSpanGenerator(20, 20),
+                       'version': 1.0,
+                       'rule_engine': dummyannotator.DummyAnnotator()}
 
+    }
+
+
+def get_ml_annotator_config(label: str):
+    return ml_annotator_config_map.get(label)
+
+def get_rule_annotator_config(label: str):
+    return rule_annotator_config_map.get(label)
