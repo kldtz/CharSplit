@@ -95,6 +95,53 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
         result.append(merge_cx_prob_attrvecs_with_entities(prev_list))
     return result
 
+# pylint: disable=invalid-name
+def merge_sample_probs_aux(sample_prob_list):
+    # don't bother with len 1
+    if len(sample_prob_list) == 1:
+        sample, prob = sample_prob_list[0]
+        sample['prob'] = prob
+        return sample
+
+    sample, prob = sample_prob_list[0]
+    label = sample['label']
+    max_prob = prob
+    min_start = sample['start']
+    max_end = sample['end']
+    line_list = [sample['text']]
+    for sample, prob in sample_prob_list[1:]:
+        if prob > max_prob:
+            max_prob = prob
+        if sample['start'] < min_start:
+            min_start = sample['start']
+        if sample['end'] > max_end:
+            max_end = sample['end']
+        line_list.append(sample['text'])
+
+    out = {'label': label,
+           'prob': max_prob,
+           'start': min_start,
+           'end': max_end,
+           'text': ' '.join(line_list)}
+
+    return out
+
+
+def merge_sample_prob_list(sample_prob_list, threshold):
+    result = []
+    prev_list = []
+    for sample, prob in sample_prob_list:
+        if prob >= threshold:
+            prev_list.append((sample, prob))
+        else:
+            if prev_list:
+                result.append(merge_sample_probs_aux(prev_list))
+                prev_list = []
+            sample['prob'] = prob
+            result.append(sample)
+    if prev_list:
+        result.append(merge_sample_probs_aux(prev_list))
+    return result
 
 SHORT_PROVISIONS = set(['title', 'date', 'effectivedate', 'sigdate', 'choiceoflaw'])
 
@@ -1330,6 +1377,35 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
         return ant_result
     
 
+class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
+
+    def __init__(self):
+        self.label = 'span_default'
+
+    def post_process(self,
+                     doc_text,
+                     sample_prob_list,
+                     threshold,
+                     label,
+                     prov_human_ant_list=None) -> (List[Dict], float):
+        merged_sample_prob_list = merge_sample_prob_list(sample_prob_list,
+                                                         threshold)
+
+        ant_result = []
+        for merged_sample_prob in merged_sample_prob_list:
+            overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'],
+                                                        merged_sample_prob['end'],
+                                                        prov_human_ant_list)
+            # jshaw, len(overlap) > 0  ??
+            # to include false negatives?
+            # TODO, this has the issue if the "sample" doesn't overlap with prov_human_ant_list
+            # at all.  Now we generate the samples, so it not totally miss the human annotation.
+            if merged_sample_prob['prob'] >= threshold or len(overlap) > 0:
+                # tmp_label = label if label else self.label
+                ant_result.append(merged_sample_prob)
+        return ant_result
+
+
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'choiceoflaw': PostPredChoiceOfLawProc(),
@@ -1349,6 +1425,7 @@ PROVISION_POSTPROC_MAP = {
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),
+    'span_default': SpanDefaultPostPredictProcessing(),
 }
 
 

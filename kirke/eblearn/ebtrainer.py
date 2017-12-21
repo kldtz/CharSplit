@@ -6,8 +6,8 @@ from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import cross_val_predict, train_test_split
 
-from kirke.eblearn import ebannotator, ebpostproc, lineannotator
-from kirke.utils import evalutils, splittrte, strutils, ebantdoc2
+from kirke.eblearn import annotatorconfig, ebannotator, ebpostproc, lineannotator, spanannotator
+from kirke.utils import evalutils, splittrte, strutils, ebantdoc2, ebantdoc3
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import titles
 
@@ -37,165 +37,11 @@ def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
 # Take 1/5 of the data out for testing
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
-def train_eval_annotator(provision, 
-                         txt_fn_list,
-                         work_dir, 
-                         model_dir, 
-                         model_file_name, 
-                         eb_classifier,
-                         is_doc_structure=False,
-                         custom_training_mode=False,
-                         doc_lang="en"):
-    logging.info("training_eval_annotator(%s) called", provision)
-    logging.info("    txt_fn_list = %s", txt_fn_list)
-    logging.info("    work_dir = %s", work_dir)
-    logging.info("    model_dir = %s", model_dir)
-    logging.info("    model_file_name = %s", model_file_name)
-    logging.info("    is_doc_structure= %s", is_doc_structure)
-    # is_combine_line should be file dependent, PDF than False
-    # HTML is True.
-    eb_traindoc_list = ebantdoc2.doclist_to_traindoc_list(txt_fn_list,
-                                                          work_dir,
-                                                          is_bespoke_mode=custom_training_mode,
-                                                          is_doc_structure=is_doc_structure,
-                                                          doc_lang=doc_lang)
-
-    attrvec_list = []
-    for eb_traindoc in eb_traindoc_list:
-        attrvec_list.extend(eb_traindoc.get_attrvec_list())
-
-    num_pos_label, num_neg_label = 0, 0
-    
-    for attrvec in attrvec_list: 
-        if provision in attrvec.labels:
-            num_pos_label += 1
-            # print("\npositive training for {}".format(provision))
-            # print("    [[{}]]".format(attrvec.bag_of_words))
-        else:
-            num_neg_label += 1
-    # pylint: disable=C0103
-    X = eb_traindoc_list
-    y = [provision in eb_traindoc.get_provision_set()
-         for eb_traindoc in eb_traindoc_list]
-
-    num_doc_pos, num_doc_neg = 0, 0
-    for yval in y:
-        if yval:
-            num_doc_pos += 1
-        else:
-            num_doc_neg += 1
-    print("provision: {}, pos= {}, neg= {}".format(provision, num_doc_pos, num_doc_neg))
-    # TODO, jshaw, hack, such as for sechead
-    if num_doc_neg < 2:
-        y[0] = 0
-        y[1] = 0
-
-    # only in custom training mode and the positive training instances are too few
-    # only train, no independent testing
-    if custom_training_mode and num_pos_label < MIN_FULL_TRAINING_SIZE:
-        logging.info("training with %d instances, no test (<%d) .  num_pos= %d, num_neg= %d",
-                     len(attrvec_list), MIN_FULL_TRAINING_SIZE, num_pos_label, num_neg_label)
-        X_train = X
-        # y_train = y
-        train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir, provision, doc_lang)
-        splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
-        eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
-
-        # set up the status of the classifier, based on the best parameter
-        print("eb_classifier.best_parameters")
-        best_parameters = eb_classifier.best_parameters
-        pprint(best_parameters)
-        # for param_name in sorted(parameters.keys()):
-        #    print("\t%s: %r" % (param_name, best_parameters[param_name]))
-        alpha = best_parameters['alpha']
-        print("alpha xxx = {}".format(alpha))
-
-        iterations = 10
-        # now X and y are different
-        X_sent = eb_classifier.transformer.transform(attrvec_list)
-        y_label_list = [provision in attrvec.labels for attrvec in attrvec_list]
-
-        # the goal here is to provide some status information
-        # no guarantee that it is consistent with eb_classifier status yet
-        tmp_sgd_clf = SGDClassifier(loss='log', penalty='l2', alpha=alpha, n_iter=iterations,
-                                    shuffle=True, random_state=42,
-                                    class_weight={True: 10, False: 1})
-        tmp_preds = cross_val_predict(tmp_sgd_clf, X_sent, y_label_list, cv=DEFAULT_CV)
-        # this setup eb_classifier.status
-        pred_status = calc_scut_predict_evaluate(eb_classifier,
-                                                 attrvec_list, tmp_preds, y_label_list)
-
-        # make the classifier into an annotator
-        prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-
-        ant_status = {'provision' : provision,
-                      'pred_status' : pred_status}
-        prov_annotator.eval_status = ant_status
-        pprint(ant_status)
-
-        model_status_fn = model_dir + '/' +  provision + ".status"
-        strutils.dumps(json.dumps(ant_status), model_status_fn)
-        return prov_annotator
-
-    logging.info("training with %d instances, num_pos= %d, num_neg= %d",
-                 len(attrvec_list), num_pos_label, num_neg_label)
-
-    if custom_training_mode:
-        test_size = 0.25
-    else:
-        test_size = 0.2
-
-    # we have enough positive training instances, so we do testing
-    X_train, X_test, _, _ = train_test_split(X, y, test_size=test_size,
-                                             random_state=42, stratify=y)
-
-    train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
-    splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
-    test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
-    splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
-
-    eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
-    pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
-
-    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-
-    # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
-    # using generator, instead of all loaded at once.
-    X_test_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_test, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(X_test_antdoc_list)
-
-    ant_status['provision'] = provision
-    ant_status['pred_status'] = pred_status
-    prov_annotator.eval_status = ant_status
-    pprint(ant_status)
-
-    model_status_fn = model_dir + '/' +  provision + ".status"
-    strutils.dumps(json.dumps(ant_status), model_status_fn)
-
-    with open('provision_model_stat.tsv', 'a') as pmout:
-        pstatus = pred_status['pred_status']
-        pcfmtx = pstatus['confusion_matrix']
-        astatus = ant_status['ant_status']
-        acfmtx = astatus['confusion_matrix']
-        timestamp = int(time.time())
-        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
-                 str(timestamp),        
-                 provision,
-                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
-                 pred_status['best_params_']['alpha'],
-                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
-                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
-                 astatus['threshold'],
-                 astatus['prec'], astatus['recall'], astatus['f1']]
-        print('\t'.join([str(x) for x in aline]), file=pmout)        
-    return prov_annotator
-
-
-# Take 1/5 of the data out for testing
-# Train on 4/5 of the data
-# pylint: disable=R0915, R0913, R0914
 def train_eval_annotator_with_trte(provision,
-                                   work_dir, model_dir, model_file_name, eb_classifier,
+                                   work_dir,
+                                   model_dir,
+                                   model_file_name,
+                                   eb_classifier,
                                    is_doc_structure=False):
     logging.info("training_eval_annotator_with_trte(%s) called", provision)
     logging.info("    work_dir = %s", work_dir)
@@ -244,6 +90,55 @@ def train_eval_annotator_with_trte(provision,
         print('\t'.join([str(x) for x in aline]), file=pmout)
 
     return prov_annotator
+
+
+# Take 1/5 of the data out for testing
+# Train on 4/5 of the data
+# pylint: disable=R0915, R0913, R0914
+def train_eval_span_annotator_with_trte(label,
+                                        work_dir,
+                                        model_dir,
+                                        model_file_name):
+
+    config = annotatorconfig.get_annotator_config(label)
+    span_annotator = spanannotator.SpanAnnotator(label,
+                                                 docs_to_samples=config['docs_to_samples'],
+                                                 pipeline=config['pipeline'],
+                                                 gridsearch_parameters=config['gridsearch_parameters'])
+
+    logging.info("training_eval_span_annotator_with_trte(%s) called", label)
+    logging.info("    work_dir = %s", work_dir)
+    logging.info("    model_file_name = %s", model_file_name)
+
+    train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, label)
+    train_antdoc_list = ebantdoc3.doclist_to_ebantdoc_list(train_doclist_fn,
+                                                           work_dir,
+                                                           is_doc_structure=False)
+
+    samples, label_list, group_id_list = span_annotator.documents_to_samples(train_antdoc_list, label)
+
+    # span_annotator.estimator
+    span_annotator.train_antdoc_list(samples,
+                                     label_list,
+                                     group_id_list,
+                                     span_annotator.pipeline,
+                                     span_annotator.gridsearch_parameters,
+                                     work_dir)
+
+    test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, label)
+    test_antdoc_list = ebantdoc3.doclist_to_ebantdoc_list(test_doclist_fn,
+                                                          work_dir,
+                                                          is_doc_structure=False)
+
+    span_annotator.pred_status = span_annotator.predict_and_evaluate(test_antdoc_list, work_dir)
+    print("pred_status x24: {}".format(span_annotator.pred_status))
+    span_annotator.ant_status = span_annotator.test_antdoc_list(test_antdoc_list)
+    print("ant_status x24: {}".format(span_annotator.ant_status))
+
+    span_annotator.save(model_file_name)
+    span_annotator.print_eval_status(model_dir)
+
+    return span_annotator
 
 
 def eval_annotator(txt_fn_list, work_dir, model_file_name):

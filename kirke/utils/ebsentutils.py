@@ -349,6 +349,14 @@ def get_labels_if_start_end_overlap(sent_start, sent_end, ant_start_end_list):
             result_label_list.append(ant.label)
     return result_label_list
 
+def check_start_end_overlap(sent_start, sent_end, ant_start_end_list):
+    result_label_list = []
+    for ant in ant_start_end_list:
+        if mathutils.start_end_overlap((sent_start, sent_end), (ant.start, ant.end)):
+            return True
+    return False
+
+
 
 # cannot use this because in line 600 prov_annotation.start = xxx in ebtext2antdoc.py
 # maybe fix in future.

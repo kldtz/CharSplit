@@ -606,8 +606,43 @@ def find_next_token(line: str):
     return NEXT_TOKEN_PAT.match(line)
 
 
+# primitive version of getting words using regex
+
+SIMPLE_WORD_PAT = re.compile('\w+')
+
+def get_simple_words(text):
+    return SIMPLE_WORD_PAT.findall(text)
+
+
+def get_prev_n_words(text, start, num_words):
+    num_chars = num_words * 20  # avg word len is 7
+    first_offset = start - num_chars
+    if first_offset < 0:
+        first_offset = 0
+    prev_text = text[first_offset:start]
+    words = get_simple_words(prev_text)[-num_words:]
+    return words
+
+def get_post_n_words(text, end, num_words):
+    num_chars = num_words * 20  # avg word len is 7
+    last_offset = end + num_chars
+    if last_offset > len(text):
+        last_offset = len(text)
+    post_text = text[end:last_offset]
+    words = get_simple_words(post_text)[:num_words]
+    return words
+
+def get_lc_prev_n_words(text, start, num_words):
+    return [word.lower() for word in get_prev_n_words(text, start, num_words)]
+
+
+def get_lc_post_n_words(text, end, num_words):
+    return [word.lower() for word in get_post_n_words(text, end, num_words)]
+
+
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
     print(str(_get_num_prefix_space("abc")))      # 0
     print(str(_get_num_prefix_space(" abc")))     # 1
     print(str(_get_num_prefix_space("\n\nabc")))  # 2
+

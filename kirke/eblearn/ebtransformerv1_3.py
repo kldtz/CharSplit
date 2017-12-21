@@ -39,7 +39,7 @@ def get_transformer_attr_list_by_provision(provision: str):
 
 # this is a class specific transformer because of information gain and
 # class-specific cols_to_keep array.
-class EbTransformerV1_3(EbTransformerBase):
+class EbTransformerv1_3(EbTransformerBase):
 
     # MAX_NUM_TOP_WORDS_IN_BAG = 25000
     # MAX_NUM_TOP_WORDS_IN_BAG = 1500000
@@ -48,10 +48,10 @@ class EbTransformerV1_3(EbTransformerBase):
     """Transform a list ebantdoc to matrix."""
     def __init__(self, provision):
         # provision is needed because of infogain computation need to know the classes
-        super(EbTransformerV1_3, self).__init__(provision)
-        self.version = '1.3'
+        super(EbTransformerv1_3, self).__init__(provision)
+        self.version = '1.2'
 
-        logging.info('EbTransformerV1_3({})'.format(self.provision))
+        logging.info('EbTransformerv1_3({})'.format(self.provision))
         (binary_attr_list, numeric_attr_list, categorical_attr_list) = \
                 get_transformer_attr_list_by_provision(self.provision)
 
@@ -170,7 +170,7 @@ class EbTransformerV1_3(EbTransformerBase):
                         filtered_list.append(tmp_w)
             fdistribution = FreqDist(filtered_list)
             self.n_top_positive_words = [item[0] for item in
-                                         fdistribution.most_common(EbTransformerV1_3.MAX_NUM_BI_TOPGRAM_WORDS)]
+                                         fdistribution.most_common(EbTransformerv1_3.MAX_NUM_BI_TOPGRAM_WORDS)]
 
             # replace this top positive word with top most informative words
             # self.n_top_positive_words = top_igain_unigrams

@@ -28,6 +28,7 @@ config.read('kirke.ini')
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 PROV_CLF_VERSION = config['ebrevia.com']['PROV_CLF_VERSION']
+ANNOTATOR_CLF_VERSION = config['ebrevia.com']['ANNOTATOR_CLF_VERSION']
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -95,6 +96,18 @@ def train_annotator(provision, work_dir, model_dir, is_scut, is_doc_structure=Tr
                                              model_file_name,
                                              eb_classifier,
                                              is_doc_structure=is_doc_structure)
+
+    # This separates out training and testing data, trains only on training data.
+def train_span_annotator(label,
+                         work_dir,
+                         model_dir):
+    model_file_name = '{}/{}_annotator.v{}.pkl'.format(model_dir,
+                                                       label,
+                                                       ANNOTATOR_CLF_VERSION)
+    ebtrainer.train_eval_span_annotator_with_trte(label,
+                                                  work_dir,
+                                                  model_dir,
+                                                  model_file_name)
 
 
 def eval_line_annotator_with_trte(provision,
@@ -321,6 +334,10 @@ if __name__ == '__main__':
                         model_dir,
                         args.scut,
                         is_doc_structure=True)
+    elif cmd == 'train_span_annotator':
+        train_span_annotator(provision,
+                             work_dir,
+                             model_dir)
     elif cmd == 'custom_train_annotator':
         custom_train_annotator(provision,
                                txt_fn_list_fn,

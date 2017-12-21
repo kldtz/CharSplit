@@ -1,66 +1,78 @@
 #!/usr/bin/env python
 
-import configparser
+import copy
 import logging
-import pprint
+from pprint import pprint
 from time import time
-from typing import List
 
 import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import GroupKFold
+from sklearn.pipeline import Pipeline
 
 from kirke.eblearn import ebpostproc, ebattrvec
 from kirke.eblearn.ebclassifier import EbClassifier
-from kirke.eblearn.ebtransformer import EbTransformer
+# from kirke.eblearn.ebtransformer import EbTransformer
+from kirke.eblearn.ebtransformerv1_3 import EbTransformerV1_3
 from kirke.utils import evalutils
-
-from kirke.eblearn.ebtransformer import EbTransformer
-from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
-config = configparser.ConfigParser()
-config.read('kirke.ini')
 
-SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
-
-GLOBAL_THRESHOLD = 0.24
+GLOBAL_THRESHOLD = 0.12
 
 # The value in this provision_threshold_map is manually
 # set by inspecting the result.  Using 0.06 in general
 # produces too many false positives.
-PROVISION_THRESHOLD_MAP = {'assign': 0.24,
-                           'change_control': 0.36,
+PROVISION_THRESHOLD_MAP = {'change_control': 0.42,
                            'confidentiality': 0.24,
-                           'date': 0.10,
                            'equitable_relief': 0.24,
                            'events_default': 0.18,
-                           'indemnify': 0.24,
-                           'party': 0.5,
-                           'pricing_salary': 0.36,
                            'sublicense': 0.24,
                            'survival': 0.24,
-                           'termination': 0.36}
+                           'termination': 0.36,
+                           'l_alterations': 0.3}
+
+PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
+                                     ebattrvec.PARTY_NUMERIC_ATTR_LIST,
+                                     ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
+                           'default': (ebattrvec.DEFAULT_BINARY_ATTR_LIST,
+                                       ebattrvec.DEFAULT_NUMERIC_ATTR_LIST,
+                                       ebattrvec.DEFAULT_CATEGORICAL_ATTR_LIST)}
+
+def get_transformer_attr_list_by_provision(provision: str):
+    if PROVISION_ATTRLISTS_MAP.get(provision):
+        return PROVISION_ATTRLISTS_MAP.get(provision)
+    return PROVISION_ATTRLISTS_MAP.get('default')
 
 
-class ShortcutClassifier(EbClassifier):
+def get_provision_threshold(provision: str):
+    return PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
+
+def adapt_pipeline_params(best_params):
+    # params = copy.deepcopy(best_params)
+    # # del the key because it has object (not-json)
+    # params.pop('steps', None)
+    # params.pop('clf', None)
+    # params.pop('eb_transformer', None)
+
+    result = {}
+    for param_name, param_val in best_params.items():
+        if param_name.startswith('clf__'):
+            result[param_name[5:]] = param_val
+        else:
+            pass  # skip eb_transformer_* and others
+    return result
+
+
+class ProvisionClassifier(EbClassifier):
 
     def __init__(self, provision):
         EbClassifier.__init__(self, provision)
-        self.version = SCUT_CLF_VERSION
         self.eb_grid_search = None
         self.best_parameters = None
-
-        # EbTransformer(self.provision, binary_attr_list, numeric_attr_list, categorical_attr_list)
-        if not self.version or self.version == '1.1':
-            self.transformer = EbTransformer(provision)
-        if self.version == '1.2':
-            self.transformer = EbTransformerV1_2(provision)
-        elif self.version == '1.3':
-            self.transformer = EbTransformerV1_3(provision)
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
@@ -77,60 +89,52 @@ class ShortcutClassifier(EbClassifier):
 
         label_list = [self.provision in attrvec.labels for attrvec in attrvec_list]
 
-        # NOTE: jshaw
-        # this is where there is leakable of information from test set
-        # infogain might get some information from test set
-        self.transformer.fit(attrvec_list, label_list)
-
-        # pylint: disable=C0103
-        X_train = self.transformer.transform(attrvec_list)
-        y_train = label_list
-
         # pylint: disable=fixme
         # TODO, jshaw, explore this more in future.
         # iterations = 50  (for 10 iteration, f1=0.91; for 50 iterations, f1=0.90,
         #                   for 5 iterations, f1=0,89),  So 10 iterations wins for now.
         # This shows that the "iteration" parameter probably needs tuning.
-        iterations = 50  # 10 was jshaw
+        # iterations = 10
+        iterations = 50
+
+        # (binary_attr_list, numeric_attr_list, categorical_attr_list) = get_transformer_attr_list_by_provision(self.provision)
+        # binary_attr_list, numeric_attr_list, categorical_attr_list)
+        axx_transformer = EbTransformerV1_3(self.provision)
+        pipeline = Pipeline([
+            ('eb_transformer', axx_transformer),
+            ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=iterations,
+                                  shuffle=True, random_state=42,
+                                  # class_weight={True: 10, False: 1}))])
+                                  class_weight={True: 3, False: 1}))])
+
         # pylint: disable=fixme
         # TODO, jshaw, uncomment in real code
-        # parameters = {'alpha': 10.0 ** -np.arange(1, 5)}
-        # parameters = {'alpha': 10.0 ** -np.arange(3, 4)}
-        # parameters = {'alpha': 10.0 ** -np.arange(-2, 7)}
-        # parameters = {'alpha': 10.0 ** -np.arange(2, 7)} was jshaw
-        parameters = {'alpha': 10.0 ** -np.arange(3, 8)}
-
-
-        #    parameters = {'C': [.01, .1, 1, 10, 100]}
+        # parameters = {'clf__alpha': 10.0 ** -np.arange(1, 5)}
+        parameters = {'clf__alpha': 10.0 ** -np.arange(3, 8)}
+        #    parameters = {'C': [.01,.1,1,10,100]}
         #    sgd_clf = LogisticRegression()
-        group_kfold = list(GroupKFold().split(X_train, y_train, groups=group_id_list))
 
-        sgd_clf = SGDClassifier(loss='log', penalty='l2', n_iter=iterations, shuffle=True,
-                                random_state=42, class_weight={True: 3, False: 1})
-        # for class_weight=1, fp is 250
-        # for class_weight=2, fp is 320
-        # for class_weight=5, fp is 463
-        # for class_weight=10, fp in 600 range
-        # NOTE: using class_weight='auto' produced very bad result for precision, in 10000 range
-        # using class_weight=100, bad result in 3000 range
-
-        #grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=2,
-        #                           scoring='roc_auc', verbose=1, cv=group_kfold)
-        grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=-1,
-                                   scoring='f1', verbose=1, cv=group_kfold)
+        group_kfold = list(GroupKFold().split(attrvec_list, label_list,
+                                              groups=group_id_list))
+        # grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
+        grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
+                                   verbose=1, cv=group_kfold)
 
         print("Performing grid search...")
+        print("pipeline:", [name for name, _ in pipeline.steps])
         print("parameters:")
-        pprint.pprint(parameters)
+        pprint(parameters)
         time_0 = time()
-        grid_search.fit(X_train, y_train)
+        grid_search.fit(attrvec_list, label_list)
         print("done in %0.3fs" % (time() - time_0))
 
         print("Best score: %0.3f" % grid_search.best_score_)
         print("Best parameters set:")
         self.best_parameters = grid_search.best_estimator_.get_params()
+        self.best_parameters = adapt_pipeline_params(grid_search.best_estimator_.get_params())
+
         # pylint: disable=C0201
-        for param_name in sorted(parameters.keys()):
+        for param_name in sorted(self.best_parameters.keys()):
             print("\t%s: %r" % (param_name, self.best_parameters[param_name]))
         print()
 
@@ -140,29 +144,25 @@ class ShortcutClassifier(EbClassifier):
         return grid_search
 
 
-    def predict_antdoc(self, eb_antdoc, work_dir) -> List[float]:
+    def predict_antdoc(self, eb_antdoc, work_dir):
         # logging.info('predict_antdoc()...')
 
         attrvec_list = eb_antdoc.get_attrvec_list()
-        # there is no sentence to classify
-        if not attrvec_list:
-            return []
+        # print("attrvec_list.size = ", len(attrvec_list))
 
-        doc_text = eb_antdoc.get_nlp_text()
+        doc_text = eb_antdoc.nlp_text
         sent_st_list = [doc_text[attrvec.start:attrvec.end]
                         for attrvec in attrvec_list]
-        overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
-
-        # pylint: disable=C0103
-        X_test = self.transformer.transform(attrvec_list)
-        probs = self.eb_grid_search.predict_proba(X_test)[:, 1]
+        overrides = ebpostproc.gen_provision_overrides(self.provision,
+                                                       sent_st_list)
+        
+        probs = self.eb_grid_search.predict_proba(attrvec_list)[:, 1]
 
         # do the override
         for i, override in enumerate(overrides):
             if override != 0.0:
-                probs[i] += override  # this is boosting, not override
+                probs[i] += override
                 probs[i] = min(probs[i], 1.0)
-                probs[i] = max(probs[i], 0.0)
 
         return probs
 
@@ -177,11 +177,11 @@ class ShortcutClassifier(EbClassifier):
 
 
     # this is mainly used for the outer testing (real hold out)
+    # pylint: disable=R0914
     def predict_and_evaluate(self, ebantdoc_list, work_dir, diagnose_mode=False):
         logging.info('predict_and_evaluate()...')
 
-        attrvec_list = []
-        full_txt_fn_list = []
+        attrvec_list, full_txt_fn_list = [], []
         for eb_antdoc in ebantdoc_list:
             tmp_attrvec_list = eb_antdoc.get_attrvec_list()
             num_sent = len(tmp_attrvec_list)
@@ -196,8 +196,6 @@ class ShortcutClassifier(EbClassifier):
         # print("label_list.size = ", len(label_list))
         # print("full_txt_fn_list.size = ", len(full_txt_fn_list))
 
-        # pylint: disable=C0103
-        X_test = self.transformer.transform(attrvec_list)
         y_te = label_list
         # num_positive = np.count_nonzero(y_te)
         # logging.debug('num true positives in testing = {}'.format(num_positive))
@@ -208,7 +206,7 @@ class ShortcutClassifier(EbClassifier):
         # TODO, jshaw
         # can remove sgd_preds and use 0.5 as the filter
         # sgd_preds = self.eb_grid_search.predict(attrvec_list)
-        probs = self.eb_grid_search.predict_proba(X_test)[:, 1]
+        probs = self.eb_grid_search.predict_proba(attrvec_list)[:, 1]
 
         #print("Grid scores on development set:")
         #print()
@@ -261,7 +259,7 @@ class ShortcutClassifier(EbClassifier):
 
         # print("probs: {}".format(sorted(probs, reverse=True)))
 
-        self.pred_status['classifer_type'] = 'scutclassifier'
+        self.pred_status['classifer_type'] = 'provclassifier'
         self.pred_status['pred_status'] = evalutils.calc_pred_status_with_prob(probs, y_te)
         self.pred_status['pos_threshold_status'] = (
             evalutils.calc_pos_threshold_prob_status(probs, y_te, self.pos_threshold))
