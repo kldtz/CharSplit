@@ -62,7 +62,7 @@ class EbAnnotatedDoc2:
                  nl_text='',
                  page_offsets_list=None,
                  paraline_text='',
-                 doc_lang='en'):
+                 doc_lang='en') -> None:
         self.file_id = file_name
         self.doc_format = doc_format
         self.text = text
@@ -670,7 +670,7 @@ def fnlist_to_fn_ebantdoc_map(fn_list, work_dir, is_doc_structure=False):
 
 class EbAntdocProvSet:
 
-    def __init__(self, ebantdoc):
+    def __init__(self, ebantdoc: EbAnnotatedDoc2) -> None:
         self.file_id = ebantdoc.get_file_id()
         self.provset = ebantdoc.get_provision_set()
         self.is_test_set = ebantdoc.is_test_set
@@ -703,11 +703,25 @@ def fnlist_to_fn_ebantdoc_provset_map(fn_list, work_dir, is_doc_structure=False)
     return fn_ebantdoc_map
 
 
+# para_list has the following format
+# ([((2206, 2344, 11), (2183, 2321, 11))], '(a)           The definition of "Applicable Committed Loan Margin" in Article 1 is hereby amended and restated to read in full as follows:', [('sechead', '2.', 'Amendments  to  Credit  Agreement.     ', 52)]),
+# the type is
+# List, a tuple of
+#    span_se_list: List[Tuple[linepos.LnPos, linepos.LnPos]]
+#    line: str
+#    attr_list: List[Tuple]
+# this is sorted_by_from
+
+# List[Tuple[List[Tuple[linepos.LnPos,
+#           linepos.LnPos]],
+#  str,
+# List[Tuple[Any]]]]
+
 # this is not tested
 def print_para_list(eb_antdoc):
     doc_text = eb_antdoc.text
     for i, para_with_attr in enumerate(eb_antdoc.paras_with_attrs, 1):
-        # print('{}\t{}'.format(i, para_with_attr))
+        # print('xxxx\t{}\t{}'.format(i, para_with_attr))
         span_frto_list, para_text, attr_list = para_with_attr
         (orig_start, orig_end), (to_start, to_end) = docutils.span_frto_list_to_fromto(span_frto_list)
         #  orig_start, orig_end = orig_offsets
@@ -775,7 +789,7 @@ class TrainDoc2:
                  text,
                  prov_ant_list,
                  attrvec_list,
-                 nlp_text):
+                 nlp_text) -> None:
 
         self.file_id = file_name
         self.doc_format = doc_format

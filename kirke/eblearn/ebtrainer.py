@@ -38,12 +38,12 @@ def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
 # Take 1/5 of the data out for testing
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
-def train_eval_annotator_with_trte(provision,
-                                   work_dir,
-                                   model_dir,
-                                   model_file_name,
+def train_eval_annotator_with_trte(provision: str,
+                                   work_dir: str,
+                                   model_dir: str,
+                                   model_file_name: str,
                                    eb_classifier,
-                                   is_doc_structure=False):
+                                   is_doc_structure=False) -> ebannotator.ProvisionAnnotator:
     logging.info("training_eval_annotator_with_trte(%s) called", provision)
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_dir = %s", model_dir)

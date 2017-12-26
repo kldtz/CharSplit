@@ -1,12 +1,13 @@
 
 import nltk
+from typing import List
 
 from nltk.data import load
 
 # Copied tom nltk.tokenizer.__init__.py to access span
 # Standard sentence tokenizer.
 # not tested
-def sent_span_tokenize(text, language='english'):
+def sent_span_tokenize(text: str, language='english'):
     """
     Return a sentence-tokenized copy of *text*,
     using NLTK's recommended sentence tokenizer
@@ -19,8 +20,7 @@ def sent_span_tokenize(text, language='english'):
     tokenizer = load('tokenizers/punkt/{0}.pickle'.format(language))
     return tokenizer.span_tokenize(text)
 
-def word_tokenize(text):
-
+def word_tokenize(text: str) -> List[str]:
     """
         tok_list = word_tokenize(text)
         print("token_list:")

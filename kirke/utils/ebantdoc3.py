@@ -6,6 +6,7 @@ import os
 import shutil
 import sys
 import time
+from typing import Any, DefaultDict, Dict, List, Tuple
 
 from sklearn.externals import joblib
 
@@ -54,7 +55,7 @@ class EbAnnotatedDoc3:
                  nl_text='',
                  page_offsets_list=None,
                  paraline_text='',
-                 doc_lang='en'):
+                 doc_lang='en') -> None:
         self.file_id = file_name
         self.doc_format = doc_format
         self.text = text
@@ -82,7 +83,7 @@ class EbAnnotatedDoc3:
         self.table_list = []
         self.chart_list = []
         self.toc_list = []
-        self.pagenum_list = []
+        self.pagenum_list = []  # type: List[int]
         self.footer_list = []
         self.signature_list = []
 
@@ -565,7 +566,7 @@ def fnlist_to_fn_ebantdoc_map(fn_list, work_dir, is_doc_structure=False):
 
 class EbAntdocProvSet:
 
-    def __init__(self, ebantdoc):
+    def __init__(self, ebantdoc) -> None:
         self.file_id = ebantdoc.get_file_id()
         self.provset = ebantdoc.get_provision_set()
         self.is_test_set = ebantdoc.is_test_set

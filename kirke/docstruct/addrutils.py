@@ -105,23 +105,23 @@ ADDR_WORD_PAT = re.compile(ADDR_WORD_PAT_ST, re.IGNORECASE)
 # print("ADDR_WORD_PAT_ST = '{}'".format(ADDR_WORD_PAT_ST))
 
 
-def has_state_or_capital(line):
+def has_state_or_capital(line) -> bool:
     mat = state_capital_pat.search(line)
-    return mat
+    return bool(mat)
 
 
 def has_state_abbrev_or_zipcode(line) -> bool:
     mat = state_abbrev_pat.search(line)
     if mat:
-        return mat
+        return bool(mat)
     mat = ZIP_PAT.search(line)
     if mat:
-        return mat
+        return bool(mat)
     return False
 
 
 def is_address_line(line: str) -> bool:
     return (has_state_or_capital(line) or
             has_state_abbrev_or_zipcode(line) or
-            ADDR_WORD_PAT.search(line))
+            bool(ADDR_WORD_PAT.search(line)))
 

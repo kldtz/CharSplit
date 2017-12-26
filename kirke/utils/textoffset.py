@@ -2,15 +2,16 @@
 
 import argparse
 import time
-from collections import defaultdict 
+from collections import defaultdict
+from typing import Dict, Tuple
 
 # If the offset doesn't change between code point and
 # code unit, we don't add them to the mapping table.
 # This saves memory.
 class TextCpointCunitMapper:
 
-    def __init__(self, text:str):
-        cpoint_bytesize_map = {}
+    def __init__(self, text:str) -> None:
+        cpoint_bytesize_map = {}  # type: Dict[str, int]
         for ch in text:
             utf16_bytes = ch.encode('utf-16-le')
         
@@ -42,7 +43,7 @@ class TextCpointCunitMapper:
         self.max_cunit = cunit_offset
         self.max_cpoint = cpoint_offset
         
-    def to_codepoint_offsets(self, start, end):
+    def to_codepoint_offsets(self, start: int, end: int) -> Tuple[int, int]:
         if start > self.max_cunit:
             out_start = self.max_cunit
         else:
@@ -54,14 +55,14 @@ class TextCpointCunitMapper:
             out_end = self.cunit_to_cpoint_map.get(end, end)
         return out_start, out_end
 
-    def to_codepoint_offset(self, start):
+    def to_codepoint_offset(self, start: int) -> int:
         if start > self.max_cunit:
             out_start = self.max_cunit
         else:
             out_start = self.cunit_to_cpoint_map.get(start, start)
         return out_start
 
-    def to_cunit_offsets(self, start, end):
+    def to_cunit_offsets(self, start: int, end: int) -> Tuple[int, int]:
         if start > self.max_cpoint:
             out_start = self.max_cpoint
         else:
@@ -73,7 +74,7 @@ class TextCpointCunitMapper:
             out_end = self.cpoint_to_cunit_map.get(end, end)
         return out_start, out_end
 
-    def to_cunit_offset(self, start):
+    def to_cunit_offset(self, start: int) -> int:
         if start > self.max_cpoint:
             out_start = self.max_cpoint
         else:

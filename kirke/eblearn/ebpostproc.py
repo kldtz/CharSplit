@@ -1,6 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates
@@ -96,7 +96,7 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
     return result
 
 # pylint: disable=invalid-name
-def merge_sample_probs_aux(sample_prob_list):
+def merge_sample_probs_aux(sample_prob_list: List[Tuple[Dict, float]]) -> Dict[str, Any]:
     # don't bother with len 1
     if len(sample_prob_list) == 1:
         sample, prob = sample_prob_list[0]
@@ -127,8 +127,8 @@ def merge_sample_probs_aux(sample_prob_list):
     return out
 
 
-def merge_sample_prob_list(sample_prob_list, threshold):
-    result = []
+def merge_sample_prob_list(sample_prob_list: List[Tuple[Dict, float]], threshold: float) -> List[Dict[str, Any]]:
+    result = []  # type: List[Dict[str, Any]]
     prev_list = []
     for sample, prob in sample_prob_list:
         if prob >= threshold:
@@ -184,7 +184,12 @@ def gen_provision_overrides(provision, sent_st_list):
 class EbPostPredictProcessing(ABC):
 
     @abstractmethod
-    def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None, prov_human_ant_list=None):
+    def post_process(self,
+                     doc_text: str,
+                     prob_attrvec_list: List,
+                     threshold: float,
+                     provision: Optional[str]=None,
+                     prov_human_ant_list: Optional[List]=None) -> List[Dict]:
         pass
 
 
@@ -195,7 +200,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
         self.provision = 'default'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -225,7 +230,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
         self.provision = 'party'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -786,7 +791,7 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
         self.provision = 'ea_employer'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -818,7 +823,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
         self.provision = 'ea_employee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -849,7 +854,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
         self.provision = 'lic_licensee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -881,7 +886,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
         self.provision = 'lic_licensor'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -913,7 +918,7 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
         self.provision = 'la_borrower'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -945,7 +950,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
         self.provision = 'la_lender'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -977,7 +982,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
         self.provision = 'la_agent_trustee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1008,7 +1013,7 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
         self.provision = 'choiceoflaw'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1044,7 +1049,7 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
         self.provision = prov
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1075,7 +1080,7 @@ class PostPredConfidentialityProc(EbPostPredictProcessing):
         self.provision = 'confidentiality'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1114,7 +1119,7 @@ class PostPredTitleProc(EbPostPredictProcessing):
         self.provision = 'title'
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1137,7 +1142,7 @@ class PostPredTitleProc(EbPostPredictProcessing):
 
 
 # used by both PostPredDateProc, PostPredEffectiveDate
-def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold) -> ConciseProbAttrvec:
+def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold) -> Optional[ConciseProbAttrvec]:
     best_prob = 0
     best = None
     for cx_prob_attrvec in prob_attrvec_list:
@@ -1158,7 +1163,7 @@ class PostPredBestDateProc(EbPostPredictProcessing):
     # TODO, jshaw, it seems that in the original code PythonClassifier.java
     # the logic is to keep only the first date, not all dates in a doc
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1192,7 +1197,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
         self.threshold = 0.5
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1290,7 +1295,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                                   text=text)
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1379,16 +1384,16 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
 
 class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.label = 'span_default'
 
     def post_process(self,
-                     doc_text,
-                     sample_prob_list,
-                     threshold,
-                     label,
-                     prov_human_ant_list=None) -> (List[Dict], float):
-        merged_sample_prob_list = merge_sample_prob_list(sample_prob_list,
+                     doc_text: str,
+                     prob_attrvec_list: List,
+                     threshold: float,
+                     provision: Optional[str]=None,
+                     prov_human_ant_list: Optional[List]=None) -> List[Dict]:
+        merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list,
                                                          threshold)
 
         ant_result = []
