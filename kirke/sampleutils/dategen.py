@@ -1,17 +1,19 @@
 
+from typing import List
+
 from kirke.ebrules import dates
 from kirke.utils import ebantdoc3, ebsentutils, strutils
 
     
 class DateSpanGenerator:
     
-    def __init__(self, num_prev_words, num_post_words):
+    def __init__(self, num_prev_words: int, num_post_words: int) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
 
     def documents_to_samples(self,
-                             antdoc_list,
-                             label=None):
+                             antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
+                             label: str=None):
         samples = []  # dict
         group_id_list = []  # int
         label_list = []   # booleans

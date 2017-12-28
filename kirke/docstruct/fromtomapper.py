@@ -137,6 +137,9 @@ class StartLnPosDiff:
         self.start_lnpos = start_lnpos
         self.diff = diff
 
+    def __lt__(self, other):
+        return self.start_lnpos < other.start_lnpos
+
 
 # from_start_lnpos_list
 # type example

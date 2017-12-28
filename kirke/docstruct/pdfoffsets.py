@@ -24,7 +24,7 @@ class PDFTextDoc:
         self.num_pages = len(page_list)
         # each page is a list of grouped_block
         self.paged_grouped_block_list = []  # type: List[Tuple[int, List[GroupedBlockInfo]]]
-        self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict]]]
+        self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]
@@ -573,7 +573,9 @@ class GroupedBlockInfo:
         self.attrs = {}  # type: Dict[str, Any]
 
 
-def lines_to_block_offsets(linex_list: List[LineWithAttrs], block_type: str, pagenum: int):
+def lines_to_block_offsets(linex_list: List[LineWithAttrs],
+                           block_type: str,
+                           pagenum: int) -> Tuple[int, int, Dict[str, Any]]:
     if linex_list:
         min_start, max_end = linex_list[0].lineinfo.start, linex_list[-1].lineinfo.end
         # in case the original line order are not correct from pdfbox, we

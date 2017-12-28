@@ -1,5 +1,5 @@
 
-from typing import Dict, Union
+from typing import Any, Dict, Union
 
 
 class LnPos:
@@ -29,6 +29,12 @@ class LnPos:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    # jshaw, not verified
+    def __lt__(self, other) -> Any:
+        if self.start == other.start:
+            return self.end < other.end
+        return self.start < other.start
 
     def to_dict(self) -> Dict[str, Union[int, bool]]:
         adict = {'start': self.start,

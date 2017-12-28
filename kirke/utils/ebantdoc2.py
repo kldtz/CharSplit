@@ -6,6 +6,7 @@ import os
 import shutil
 import sys
 import time
+from typing import Any, DefaultDict, Dict, List, Tuple
 
 from sklearn.externals import joblib
 
@@ -88,12 +89,12 @@ class EbAnnotatedDoc2:
         self.paraline_text = paraline_text
         self.page_offsets_list = page_offsets_list
 
-        self.table_list = []
-        self.chart_list = []
-        self.toc_list = []
-        self.pagenum_list = []
-        self.footer_list = []
-        self.signature_list = []
+        self.table_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.chart_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.toc_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.pagenum_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.footer_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.signature_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
 
 
     def get_file_id(self):

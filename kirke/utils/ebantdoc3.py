@@ -6,24 +6,23 @@ import os
 import shutil
 import sys
 import time
-from typing import Any, DefaultDict, Dict, List, Tuple
+from typing import Any, DefaultDict, Dict, List, Set, Tuple
 
 from sklearn.externals import joblib
 
-from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
-from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
-from kirke.utils.textoffset import TextCpointCunitMapper
+from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdfoffsets, pdftxtparser
+from kirke.utils import corenlputils, strutils, osutils, textoffset, txtreader, ebsentutils
 
 
 CORENLP_JSON_VERSION = '1.5'
 EBANTDOC_VERSION = '1.5'
 
-def get_nlp_fname(txt_basename, work_dir):
+def get_nlp_fname(txt_basename: str, work_dir: str) -> str:
     base_fn = txt_basename.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
     return '{}/{}'.format(work_dir, base_fn)
 
 
-def get_ebant_fname(txt_basename, work_dir):
+def get_ebant_fname(txt_basename: str, work_dir: str) -> str:
     base_fn =  txt_basename.replace('.txt',
                                     '.ebantdoc.v{}.pkl'.format(EBANTDOC_VERSION))
     return '{}/{}'.format(work_dir, base_fn)
@@ -65,7 +64,7 @@ class EbAnnotatedDoc3:
 
         self.prov_annotation_list = prov_ant_list
         self.is_test_set = is_test
-        self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
+        self.provision_set = set([prov_ant.label for prov_ant in prov_ant_list])
         self.doc_lang = doc_lang
 
         self.nlp_text = para_doc_text
@@ -80,40 +79,40 @@ class EbAnnotatedDoc3:
         self.paraline_text = paraline_text
         self.page_offsets_list = page_offsets_list
 
-        self.table_list = []
-        self.chart_list = []
-        self.toc_list = []
-        self.pagenum_list = []  # type: List[int]
-        self.footer_list = []
-        self.signature_list = []
+        self.table_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.chart_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.toc_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.pagenum_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.footer_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+        self.signature_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
 
 
-    def get_file_id(self):
+    def get_file_id(self) -> str:
         return self.file_id
 
-    def set_provision_annotations(self, ant_list):
+    def set_provision_annotations(self, ant_list: List[Dict[str, Any]]) -> None:
         self.prov_annotation_list = ant_list
 
-    def get_provision_annotations(self):
+    def get_provision_annotations(self) -> List[Dict[str, Any]]:
         return self.prov_annotation_list
 
-    def get_provision_set(self):
+    def get_provision_set(self) -> Set[str]:
         return self.provision_set
 
-    def get_text(self):
+    def get_text(self) -> str:
         return self.text
 
-    def has_same_prov_ant_list(self, prov_ant_list2):
+    def has_same_prov_ant_list(self, prov_ant_list2) -> bool:
         return self.prov_annotation_list == prov_ant_list2
 
-    def get_doc_format(self):
+    def get_doc_format(self) -> EbDocFormat:
         return self.doc_format
 
-    def get_nlp_text(self):
+    def get_nlp_text(self) -> str:
         return self.nlp_text
 
 
-def remove_prov_greater_offset(prov_annotation_list, max_offset):
+def remove_prov_greater_offset(prov_annotation_list, max_offset: int):
     return [prov_ant for prov_ant in prov_annotation_list
             if prov_ant.start < max_offset]
 
@@ -235,9 +234,13 @@ def html_no_docstruct_to_ebantdoc3(txt_file_name,
     return eb_antdoc
 
 
-def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode=False):
+def chop_at_exhibit_complete(txt_file_name: str,
+                             txt_base_fname: str,
+                             work_dir: str,
+                             debug_mode: bool=False) -> Tuple[str, str, List[ebsentutils.ProvisionAnnotation],
+                                                              bool, textoffset.TextCpointCunitMapper]:
     doc_text = txtreader.loads(txt_file_name)
-    cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
+    cpoint_cunit_mapper = textoffset.TextCpointCunitMapper(doc_text)
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper)
     max_txt_size = len(doc_text)
     is_chopped = False
@@ -333,7 +336,8 @@ def html_to_ebantdoc3(txt_file_name,
                  eb_antdoc_fn, (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
-def update_special_block_info(eb_antdoc, pdf_txt_doc):
+def update_special_block_info(eb_antdoc: EbAnnotatedDoc3,
+                              pdf_txt_doc: pdfoffsets.PDFTextDoc) -> None:
     eb_antdoc.table_list = pdf_txt_doc.special_blocks_map.get('table', [])
     eb_antdoc.chart_list = pdf_txt_doc.special_blocks_map.get('chart', [])
     eb_antdoc.signature_list = pdf_txt_doc.special_blocks_map.get('signature', [])
