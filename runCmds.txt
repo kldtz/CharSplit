@@ -1,0 +1,9 @@
+run_eval_rule_annotator.sh effectivedate
+run_eval_rule_annotator.sh l_tenant_notice
+
+run_train_annotator.sh effectivedate
+run_train_annotator.sh l_tenant_notice
+
+ 
+
+  

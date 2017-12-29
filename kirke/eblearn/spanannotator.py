@@ -202,7 +202,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         prov_annotations = post_processor.post_process(eb_antdoc.text,
                                                        list(zip(samples, prob_list)),
                                                        threshold,
-                                                       label=self.label,
+                                                       provision=self.label,
                                                        prov_human_ant_list=prov_human_ant_list)
 
         """

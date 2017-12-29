@@ -155,7 +155,8 @@ def eval_rule_annotator_with_trte(label,
     rule_annotator = ruleannotator.RuleAnnotator(label,
                                                  doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                                  docs_to_samples=config['docs_to_samples'],
-                                                 rule_engine=config['rule_engine'])
+                                                 rule_engine=config['rule_engine'],
+                                                 post_process=config.get('post_process', []))
 
     logging.info("eval_rule_annotator_with_trte(%s) called", label)
 

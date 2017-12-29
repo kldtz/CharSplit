@@ -132,7 +132,7 @@ keywords = load_keywords()
 
 
 # it takes around 7 ms per call
-def classify(s):
+def classify(s: str) -> float:
     """Returns probability (range 0-1) s is an addresses (accept if >= 0.5)."""
 
     # if (len(s) not in range(MIN_ADDRESS_LEN, MAX_ADDRESS_LEN + 1)

@@ -1,5 +1,5 @@
 
-from typing import List
+from typing import Dict, List, Tuple
 
 from kirke.ebrules import dates
 from kirke.utils import ebantdoc3, ebsentutils, strutils
@@ -13,10 +13,10 @@ class DateSpanGenerator:
 
     def documents_to_samples(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: str=None):
-        samples = []  # dict
-        group_id_list = []  # int
-        label_list = []   # booleans
+                             label: str=None) -> Tuple[List[Dict], List[bool], List[int]]:
+        samples = []  # type: List[Dict]
+        label_list = []   # type: List[bool]
+        group_id_list = []  # type: List[int]
 
         # each sample is the date regex +
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3

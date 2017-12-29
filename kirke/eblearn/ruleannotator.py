@@ -5,6 +5,8 @@ import logging
 import pprint
 import time
 
+from typing import Dict, List, Tuple
+
 from sklearn.model_selection import GroupKFold
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
@@ -34,7 +36,8 @@ class RuleAnnotator:
                  *,
                  doclist_to_antdoc_list,
                  docs_to_samples,
-                 rule_engine):
+                 rule_engine,
+                 post_process):
         self.label = label
         self.threshold = 0.5
         
@@ -42,6 +45,7 @@ class RuleAnnotator:
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
         self.docs_to_samples = docs_to_samples
         self.rule_engine = rule_engine
+        self.post_process_list = post_process
 
         self.annotator_status = {'label': label}
 
@@ -127,7 +131,7 @@ class RuleAnnotator:
     def annotate_antdoc(self,
                         antdoc,
                         *,
-                        prov_human_ant_list=None):
+                        prov_human_ant_list=None) -> List[Dict]:
         logging.info('annotate_antdoc({})...'.format(antdoc.file_id))
         
         start_time = time.time()
@@ -137,26 +141,25 @@ class RuleAnnotator:
         if not samples:
             return []
         
-        # to indicate which type of annotation this is
-        for sample in samples:
-            sample['label'] = self.label
+        prob_samples = self.rule_engine.apply_rules(samples)
 
-        label_list = self.rule_engine.apply_rules(samples)
+        # perform merging operations, such as adjacent positive lines
+        # this can also filter out negative samples
+        for post_process_x in self.post_process_list:
+            prob_samples = post_process_x.apply_post_process(prob_samples)
 
         prov_annotations = []
-        for sample, label in zip(samples, label_list):
-            start = sample['start']
-            end = sample['end']
-            prob = 0.0
-            if label:
-                prob = 1.0
-            prov_annotations.append({'label': sample['label'],
-                                     'start': start,
-                                     'end': end,
-                                     'span_list': [{'start': start,
-                                                    'end': end}],
-                                     'prob': prob,
-                                     'text': sample['text']})
+        for prob, sample in prob_samples:
+            if prob >= self.threshold:
+                start = sample['start']
+                end = sample['end']
+                prov_annotations.append({'label': self.label,
+                                         'start': start,
+                                         'end': end,
+                                         'span_list': [{'start': start,
+                                                        'end': end}],
+                                         'prob': prob,
+                                         'text': sample['text']})
 
         end_time = time.time()
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
@@ -168,7 +171,9 @@ class RuleAnnotator:
     def print_eval_status(self, model_dir):
         
         eval_status = {'label': self.label}
-        eval_status['classifier_status'] = self.classifier_status['eval_status']
+        # eval_status['classifier_status'] = self.classifier_status['eval_status']
+        # there is no classifier_status for ruleannotator
+        eval_status['classifier_status'] = self.annotator_status['eval_status']
         eval_status['annotator_status'] = self.annotator_status['eval_status']
         pprint.pprint(eval_status)
 
@@ -176,7 +181,9 @@ class RuleAnnotator:
         strutils.dumps(json.dumps(eval_status), model_status_fn)
 
         with open('label_model_stat.tsv', 'a') as pmout:
-            cls_status = self.classifier_status['eval_status']
+            # cls_status = self.classifier_status['eval_status']
+            # there is no classifier_status for ruleannotator
+            cls_status = self.annotator_status['eval_status']
             cls_cfmtx = cls_status['confusion_matrix']
             ant_status = self.annotator_status['eval_status']
             ant_cfmtx = ant_status['confusion_matrix']
