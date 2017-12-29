@@ -1,7 +1,7 @@
 import re
 from abc import ABC, abstractmethod
 from typing import List, Dict
-
+from kirke.ebrules import addresses
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
@@ -1338,7 +1338,64 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                 ant_result.append(self.ant(line, cx_prob_attrvec,
                                            (0, len(line))))
         return ant_result, self.threshold
-    
+
+class PostAddressProc(EbPostPredictProcessing):
+
+    def __init__(self, prov):		
+        self.provision = prov		
+		
+    def find_constituencies(self, start, end, doc_text, constituencies):		
+        s = ''		
+        text = doc_text[start:end]		
+        for word in text.split():		
+            word = re.sub(r'[,\.]+$|\-', "", word)		
+            if word.isdigit() or word in constituencies:		
+                s += '1'		
+            else:		
+                s += '0'		
+        matches = re.finditer(r'(1+0?0?(1+0?0?)*1+)', s)		
+        all_spans = [match.span(1) for match in matches]		
+        max_prob = 0.0		
+        best = None		
+        for ad_start, ad_end in all_spans:		
+            list_address = text.split()[ad_start:ad_end]		
+            ad_st = " ".join(list_address)		
+            address_prob = addresses.classify(ad_st)		
+            if address_prob >= 0.5 and address_prob > max_prob and len(list_address) > 3:		
+                max_prob = address_prob		
+                pred_start,_ = re.search(list_address[0], text).span()		
+                _, pred_end = re.search(list_address[-1], text[pred_start:]).span()		
+                best = [" ".join(list_address), start+pred_start, start+pred_start+pred_end]		
+        if best:		
+            return best, True		
+        else:		
+            return [text, start, end], False		
+		
+    def post_process(self, doc_text, prob_attrvec_list, threshold,		
+                     provision=None, prov_human_ant_list=None) -> (List[Dict], float): 		
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)		
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)		
+		
+        all_keywords = addresses.all_constituencies()		
+        ant_result = []		
+        all_notice = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:		
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)		
+            #print(">>>", doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob)
+            #print("<<<", sent_overlap)
+            best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords)
+            #print("\t", best, evalutils.find_annotation_overlap(best[1], best[2], prov_human_ant_list))
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:		
+                best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords) 		
+                if best:		
+                    prov_st, prov_start, prov_end = best		
+                    ant_result.append(to_ant_result_dict(label=self.provision,		
+                                                  prob=cx_prob_attrvec.prob,		
+                                                  start=prov_start,		
+                                                  end=prov_end,		
+                                                  # pylint: disable=line-too-long    
+                                                  text=strutils.remove_nltab(prov_st)))
+        return ant_result, threshold
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
@@ -1359,6 +1416,7 @@ PROVISION_POSTPROC_MAP = {
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),
+    'l_tenant_notice': PostAddressProc('l_tenant_notice') 
 }
 
 

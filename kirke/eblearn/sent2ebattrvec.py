@@ -40,7 +40,7 @@ def has_word_between(line: str) -> bool:
 def find_constituencies(text, constituencies):		
     s = ''
     #num_ads = False
-    text = text.replace ("\n", " ")		
+    text = text.replace ("\n", " ")
     for word in text.split():		
         word = re.sub(r'[,\.]+$|\-', "", word)		
         if word.isdigit() or word in constituencies:		
@@ -56,14 +56,15 @@ def find_constituencies(text, constituencies):
         ad_st = " ".join(text.split()[ad_start:ad_end])
         address_prob = addresses.classify(ad_st)
         if address_prob >= 0.5 and len(text.split()[ad_start:ad_end]) > 3:
-            ads.append(ad_st)
+            mat = re.search(re.escape(ad_st), text, re.I)  
+            if mat:
+                ads.append(mat)
     return ads
 
 # pylint: disable=R0912,R0913,R0914,R0915
 def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
     tokens = ebsent.get_tokens()
     text_len = len(atext)
-    raw_sent_text = atext[ebsent.start:ebsent.end]
 
     # TODO, pass in the token list, with lemma
     # will do chunking in the future also
@@ -73,39 +74,38 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
 
     if prev_ebsent:
         fvec.bag_of_words += " " + prev_ebsent.get_tokens_text()
+        fvec.start = prev_ebsent.start
     if next_ebsent:
         fvec.bag_of_words += " " + next_ebsent.get_tokens_text()
- 
+        fvec.end = next_ebsent.end
+    raw_sent_text = atext[fvec.start:fvec.end]
     all_keywords = addresses.all_constituencies()
     split_text = atext.split()
-    #print(">", raw_sent_text)
     for x in find_constituencies(raw_sent_text, all_keywords):
         if x:
-            #print("\t>>", x)
-            mat = re.search(re.escape(x), raw_sent_text, re.I)
-            #print("\t", mat)
-            if mat:
-                ad_start, ad_end = mat.span()
-                ad_start += ebsent.start
-                ad_end += ebsent.start
-                #print("\t", atext[ad_start:ad_end])
-                first = " ".join(atext[:ad_start].split()[-20:])
-                second = " ".join(atext[ad_end:].split()[:20])
-                #print("\t", first, second)
-                new_bow = "{} {} {}".format(first, x, second)
-                mat2 = re.search(re.escape(new_bow), atext, re.I)
-                if mat2:
-                    fvec.bag_of_words = new_bow
-                    new_start, new_end = mat2.span()
-                    fvec.start = new_start
-                    fvec.end = new_end
+            if 'l_tenant_notice' in ebsent.labels:
+                print(">", raw_sent_text.replace("\n", " "))
+            ad_start, ad_end = x.span()
+            ad_start += fvec.start
+            ad_end += fvec.start
+            #print("\t>>>", atext[ad_start:ad_end])
+            first = " ".join(atext[:ad_start].split(" ")[-20:])
+            first_start, _  = re.search(re.escape(first), atext, re.I).span()
+            second = " ".join(atext[ad_end:].split(" ")[:20])
+            _, second_end = re.search(re.escape(second), atext, re.I).span()
+            new_bow = atext[first_start:second_end] 
+            #print("\t>>>>", new_bow.replace("\n", " "))
+            fvec.bag_of_words = new_bow
+            fvec.start = first_start
+            fvec.end = second_end
+            if 'l_tenant_notice' in ebsent.labels:
+                print("\t<<", atext[fvec.start:fvec.end].replace("\n", " "))
 
-                    print("\t\t>>>", fvec.bag_of_words)
-    tmp_start = min(ENT_START_MAX, ebsent.start)
-    tmp_end = min(ENT_END_MAX, ebsent.end)
+    tmp_start = min(ENT_START_MAX, fvec.start)
+    tmp_end = min(ENT_END_MAX, fvec.end)
     fvec.set_val('ent_start', tmp_start)
     fvec.set_val('ent_end', tmp_end)
-    fvec.set_val('ent_percent_start', 1.0 * ebsent.start / text_len)
+    fvec.set_val('ent_percent_start', 1.0 * fvec.start / text_len)
     # fvec.set_val('nth_candidate', sent_seq)
     fvec.set_val('nth_candidate', min(NTH_CANDIDATE_MAX, sent_seq - 1))  # prod version starts with 0
     if prev_ebsent is None:   # the first sentence
@@ -123,7 +123,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
         fvec.set_val('nextLengthChar', min(NUM_CHARS_MAX, next_ebsent.get_number_chars()))
 
     if ebsent.start > 0:
-        prev_char = atext[ebsent.start - 1]
+        prev_char = atext[fvec.start - 1]
         fvec.set_val('prevChar', ord(prev_char))
         fvec.set_val('prevCharClass',
                      unicodeutils.unicode_char_to_category_id(prev_char))
@@ -133,7 +133,10 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
         fvec.set_val('prevCharClass', 0)  # Cn: Other, not assigned
 
     if ebsent.end < text_len - 1:
-        next_char = atext[ebsent.end]
+        try:
+            next_char = atext[fvec.end]
+        except:
+            next_char = atext[-1]
         fvec.set_val('nextChar', ord(next_char))
         fvec.set_val('nextCharClass',
                      unicodeutils.unicode_char_to_category_id(next_char))

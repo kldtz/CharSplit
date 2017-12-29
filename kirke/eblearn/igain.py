@@ -197,6 +197,8 @@ def eb_doc_to_all_ngrams(sent_st):
 def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, provision='default'):
 
     word_freq_map = defaultdict(int)
+
+    #creates a map of tokens to counts
     for doc_st, label_val in zip(doc_list, label_list):
         doc_tokens = tokenize(doc_st)
         for word in doc_tokens:
@@ -206,6 +208,8 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
     vocabs = set([])
     word_count = 0
     vocab_size_times_10 = DEFAULT_INFOGAIN_VOCAB_SIZE * 15
+
+    #sorts freq map descending by values, stops after vocab * 10
     for word, freq in sorted(word_freq_map.items(), key=operator.itemgetter(1), reverse=True):
         word_count += 1
         if word_count > vocab_size_times_10:
@@ -215,11 +219,11 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
         vocabs.add(word)
     word_freq_map = None  # free that memory
 
-    # sent_wordset_list = []
     word_true_count_map = defaultdict(int)
     word_false_count_map = defaultdict(int)
     cond_dist = defaultdict(int)
 
+    #makes map of word counts in true and not
     for doc_st, label_val in zip(doc_list, label_list):
         doc_tokens = tokenize(doc_st)
         cond_dist[label_val] += 1
@@ -234,29 +238,8 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
                 word_false_count_map[word] += 1
             # word_freq_map[word] += 1
 
-    # count number of freq
-    #print("cond_dist = {}".format(cond_dist))  # False, True
-    #wf_count_map = defaultdict(int)
-    #for word, freq in word_freq_map.items():
-    #    wf_count_map[freq] += 1
-
-    #for freq, count in sorted(wf_count_map.items(), key=operator.itemgetter(1)):
-    #    print("wf_count_map[{}] = {}".format(freq, count))
-
-    # print("word_docids_map[Change] = {}".format(word_docids_map['Change']))
     logging.debug("igain.vocab size = %d", len(vocabs))
-
-    # vocab, cond_dist, word_label_count_map
-
     entropy_of_class = entropy_by_freq_list(cond_dist)
-    # logging.info('cond dist = {}'.format(cond_dist))
-    # logging.info('class entropy = {:.3f}'.format(entropy_of_class))
-
-    # print('vocabs = ' + str(vocabs))
-    #for col_name in vocabs:
-    #    cond_freq_dist = to_cond_freq_dist(col_name, word_docids_map[col_name], label_list)
-    #    ent = igain.column_entropy(col_name, cond_freq_dist)
-    #    # print('entropy(%s) = %.3f' % (col_name, ent))
 
     result = []
     start_time = time.time()

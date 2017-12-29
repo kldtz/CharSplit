@@ -134,7 +134,7 @@ class ProvisionAnnotator:
 
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations, threshold = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.text,
+        prov_annotations, threshold = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
                                                                                     prob_attrvec_list,
                                                                                     threshold,
                                                                                     provision=prov,
@@ -144,7 +144,6 @@ class ProvisionAnnotator:
         #print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
         #for fr_sxlnpos, to_sxlnpos in zip(eb_antdoc.origin_sx_lnpos_list, eb_antdoc.nlp_sx_lnpos_list):
         #    print("35234 origin: {}, nlp: {}".format(fr_sxlnpos, to_sxlnpos))
-
         fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
         # this is an in-place modification
         fromto_mapper.adjust_fromto_offsets(prov_annotations)
