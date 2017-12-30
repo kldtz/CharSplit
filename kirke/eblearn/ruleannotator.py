@@ -140,7 +140,7 @@ class RuleAnnotator:
 
         if not samples:
             return []
-        
+
         prob_samples = self.rule_engine.apply_rules(samples)
 
         # perform merging operations, such as adjacent positive lines

@@ -43,7 +43,6 @@ if __name__ == '__main__':
     parser.add_argument('--provfiles-dir', help='directory that will have all the prov.doclist.txt')
     parser.add_argument('--work_dir', help='output directory for cached documents')
     parser.add_argument('--model_dirs', help='output directory for trained models')
-    
 
     args = parser.parse_args()
     # print("args.docs = [{}]".format(args.docs))
@@ -108,6 +107,8 @@ if __name__ == '__main__':
     prov_pos_fnlist_map = defaultdict(list)
     prov_neg_fnlist_map = defaultdict(list)
 
+    prov_train_pos_fnlist_map = defaultdict(list)
+
     for fileid, fnlist in fileid_fnlist_map.items():
         ebdata_fn = ''
         fname = ''
@@ -137,6 +138,8 @@ if __name__ == '__main__':
                 prov_test_fnlist_map[label].append(fname)
             else:
                 prov_train_fnlist_map[label].append(fname)
+                if label in pos_list:
+                    prov_train_pos_fnlist_map[label].append(fname)
 
         # remember the positive and negative docs for each provision
         for label in pos_list:
@@ -174,6 +177,13 @@ if __name__ == '__main__':
         print('wrote {}'.format(out_fn))
     for prov, fnlist in prov_neg_fnlist_map.items():
         out_fn = '{}/{}_neg_doclist.txt'.format(provfile_dir, prov)
+        with open(out_fn, 'wt') as fout:
+            for fn in fnlist:
+                print(fn, file=fout)
+        print('wrote {}'.format(out_fn))
+
+    for prov, fnlist in prov_train_pos_fnlist_map.items():
+        out_fn = '{}/{}_train_pos_doclist.txt'.format(provfile_dir, prov)
         with open(out_fn, 'wt') as fout:
             for fn in fnlist:
                 print(fn, file=fout)

@@ -9,16 +9,62 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 from sklearn.feature_extraction.text import CountVectorizer
 
+from kirke.ebrules import addresses
+
+class AddrLineTransformer(BaseEstimator, TransformerMixin):
+
+    fit_count = 0
+    transform_count = 0
+
+    def __init__(self) -> None:
+        self.name = 'AddrLineTransformer'
+        self.version = '1.0'
+        self.min_max_scaler = preprocessing.MinMaxScaler()
+
+    def samples_to_matrix(self, span_sample_list, y, fit_mode=False):
+        numeric_matrix = np.zeros(shape=(len(span_sample_list),
+                                         1))
+        for i, span_sample in enumerate(span_sample_list):
+            prob = span_sample['addr_line_prob']
+            numeric_matrix[i] = prob
+        if fit_mode:
+            numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
+        else:
+            numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
+
+        return numeric_matrix
+
+    # return self
+    def fit(self, span_sample_list, y=None):
+        start_time = time.time()
+        self.samples_to_matrix(span_sample_list, y, fit_mode=True)
+        end_time = time.time()
+        AddrLineTransformer.fit_count += 1
+        logging.debug("%s fit called #%d, len(span_sample_list) = %d, took %.0f msec",
+                      self.name, AddrLineTransformer.fit_count, len(span_sample_list),
+                      (end_time - start_time) * 1000)
+        return self
+
+    # return X_out
+    def transform(self, span_sample_list):
+        start_time = time.time()
+        X_out = self.samples_to_matrix(span_sample_list, [], fit_mode=False)
+        end_time = time.time()
+        AddrLineTransformer.transform_count += 1
+        logging.debug("%s transform called #%d, len(span_sample_list) = %d, took %.0f msec",
+                      self.name, AddrLineTransformer.transform_count, len(span_sample_list),
+                      (end_time - start_time) * 1000)
+        return X_out
+
 
 class SurroundWordTransformer(BaseEstimator, TransformerMixin):
 
     fit_count = 0
     transform_count = 0
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.name = 'SurroundWordTransformer'
         self.version = '1.0'
-        self.combined = None
 
     # span_sample_list should be a list of dictionaries
     def samples_to_matrix(self, span_sample_list, y, fit_mode=False):

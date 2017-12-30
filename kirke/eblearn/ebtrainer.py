@@ -1,6 +1,8 @@
+import datetime
 import json
 import logging
-from pprint import pprint
+import pprint
+import time
 
 from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
@@ -11,9 +13,6 @@ from kirke.eblearn import annotatorconfig, lineannotator, ruleannotator, spanann
 from kirke.utils import evalutils, splittrte, strutils, ebantdoc2, ebantdoc3
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import titles
-
-from datetime import datetime
-import time
 
 DEFAULT_CV = 5
 
@@ -68,7 +67,7 @@ def train_eval_annotator_with_trte(provision: str,
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
     prov_annotator.eval_status = ant_status
-    pprint(ant_status)
+    pprint.pprint(ant_status)
 
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
@@ -79,7 +78,7 @@ def train_eval_annotator_with_trte(provision: str,
         astatus = ant_status['ant_status']
         acfmtx = astatus['confusion_matrix']
         timestamp = int(time.time())
-        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+        aline = [datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
                  str(timestamp),
                  provision,
                  pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
@@ -96,9 +95,9 @@ def train_eval_annotator_with_trte(provision: str,
 # Take 1/5 of the data out for testing
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
-def train_eval_span_annotator_with_trte(label,
-                                        work_dir,
-                                        model_dir):
+def train_eval_span_annotator_with_trte(label: str,
+                                        work_dir: str,
+                                        model_dir: str) -> spanannotator.SpanAnnotator:
     config = annotatorconfig.get_ml_annotator_config(label)
     model_file_name = '{}/{}_annotator.v{}.pkl'.format(model_dir,
                                                        label,
@@ -107,8 +106,11 @@ def train_eval_span_annotator_with_trte(label,
     span_annotator = spanannotator.SpanAnnotator(label,
                                                  doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                                  docs_to_samples=config['docs_to_samples'],
+                                                 sample_transformers=config.get('sample_transformers', []),
                                                  pipeline=config['pipeline'],
-                                                 gridsearch_parameters=config['gridsearch_parameters'])
+                                                 gridsearch_parameters=config['gridsearch_parameters'],
+                                                 threshold=config.get('threshold', 0.5),
+                                                 kfold=config.get('kfold', 3))
 
     logging.info("training_eval_span_annotator_with_trte(%s) called", label)
     logging.info("    work_dir = %s", work_dir)
@@ -120,6 +122,8 @@ def train_eval_span_annotator_with_trte(label,
                                                               is_doc_structure=False)
 
     samples, label_list, group_id_list = span_annotator.documents_to_samples(train_antdoc_list, label)
+
+    logging.info("after span_annotator.documents_to_samples(), {}".format(strutils.to_pos_neg_count(label_list)))
 
     # span_annotator.estimator
     span_annotator.train_antdoc_list(samples,
@@ -197,7 +201,7 @@ def eval_annotator(txt_fn_list, work_dir, model_file_name):
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
     provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
 
-    pprint(provision_status_map)
+    pprint.pprint(provision_status_map)
 
 
 def eval_ml_rule_annotator(txt_fn_list, work_dir, model_file_name):
@@ -217,7 +221,7 @@ def eval_ml_rule_annotator(txt_fn_list, work_dir, model_file_name):
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
     provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
 
-    pprint(provision_status_map)
+    pprint.pprint(provision_status_map)
 
 
 def eval_line_annotator_with_trte(provision,
@@ -237,7 +241,7 @@ def eval_line_annotator_with_trte(provision,
     # we need ebantdoc_list because it has the annotations
     provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
 
-    pprint(provision_status_map)
+    pprint.pprint(provision_status_map)
 
 
 def eval_classifier(txt_fn_list, work_dir, model_file_name):
@@ -253,7 +257,7 @@ def eval_classifier(txt_fn_list, work_dir, model_file_name):
     provision_status_map = {'provision': provision,
                             'pred_status': pred_status}
 
-    pprint(provision_status_map)
+    pprint.pprint(provision_status_map)
 
 
 # utility function

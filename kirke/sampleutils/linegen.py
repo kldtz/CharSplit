@@ -76,6 +76,5 @@ class LineSpanGenerator:
                 group_id_list.append(group_id)                            
                             
                 offset += len(line) + 1  # for eoln
-        
-        # the data is fake right now
+
         return samples, label_list, group_id_list

@@ -5,6 +5,8 @@ import logging
 import pprint
 import time
 
+from typing import Dict, List, Tuple
+
 from sklearn.model_selection import GroupKFold
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
@@ -33,17 +35,21 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  *,
                  doclist_to_antdoc_list,
                  docs_to_samples,
+                 sample_transformers,
                  pipeline,
                  gridsearch_parameters,
-                 threshold=0.5):
+                 threshold: float=0.5,
+                 kfold: int=3):
         self.label = label
         
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
         self.docs_to_samples = docs_to_samples
+        self.sample_transformers = sample_transformers
         self.pipeline = pipeline
         self.gridsearch_parameters = gridsearch_parameters
         self.threshold = threshold
+        self.kfold = kfold
 
         self.best_parameters = {}
         self.estimator = None
@@ -70,11 +76,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for label in label_list:
             pos_neg_map[label] += 1
         for label, count in pos_neg_map.items():
-            print("train_antdoc_list(), pos_neg_map[{}] = {}".format(label, count))
+            logging.info("train_antdoc_list(), pos_neg_map[{}] = {}".format(label, count))
 
-        group_kfold = list(GroupKFold().split(samples,
-                                              label_list,
-                                              groups=group_id_list))
+        group_kfold = list(GroupKFold(n_splits=self.kfold).split(samples,
+                                                                 label_list,
+                                                                 groups=group_id_list))
         # grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
         grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
                                    verbose=1, cv=group_kfold)
@@ -176,9 +182,14 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         return tmp_eval_status
 
     # returns samples, label_list, group_id_list
-    def documents_to_samples(self, antdoc_list, label: str):
-        return self.docs_to_samples.documents_to_samples(antdoc_list, label)
-
+    # this also enriches samples using additional self.sample_transformers
+    def documents_to_samples(self, antdoc_list, label: str=None) -> Tuple[List[Dict],
+                                                                          List[bool],
+                                                                          List[int]]:
+        samples, label_list, group_id_list = self.docs_to_samples.documents_to_samples(antdoc_list, label)
+        for sample_transformer in self.sample_transformers:
+            samples = sample_transformer.enrich(samples)
+        return samples, label_list, group_id_list
 
     def annotate_antdoc(self,
                         eb_antdoc,
@@ -249,11 +260,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logging.info('predict_antdoc({})...'.format(antdoc.file_id))
 
         # label_list, group_id_list are ignored
-        samples, _, _ = self.docs_to_samples.documents_to_samples([antdoc])
+        samples, _, _ = self.documents_to_samples([antdoc])
 
         if not samples:
             return [], []
-        
+
         # to indicate which type of annotation this is
         for sample in samples:
             sample['label'] = self.label
@@ -282,7 +293,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logging.info('predict_and_evaluate()...')
         
         # label_list, group_id_list are ignored
-        samples, label_list, group_id = self.docs_to_samples.documents_to_samples(antdoc_list, self.label)
+        samples, label_list, group_id_list = self.documents_to_samples(antdoc_list, self.label)
 
         pos_neg_map = defaultdict(int)
         for label in label_list:

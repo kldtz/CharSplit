@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import collections
 import json
 import logging
 import os
@@ -642,6 +643,12 @@ def get_lc_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
 def get_lc_post_n_words(text: str, end: int, num_words: int) -> List[str]:
     return [word.lower() for word in get_post_n_words(text, end, num_words)]
 
+
+def to_pos_neg_count(bool_list: List[bool]) -> str:
+    pos_neg_counter = collections.Counter()
+    pos_neg_counter.update(bool_list)
+    return "num_pos = {}, num_neg = {}".format(pos_neg_counter.get(True, 0),
+                                               pos_neg_counter.get(False, 0))
 
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
