@@ -1,27 +1,61 @@
 #!/usr/bin/env python
 
+from collections import defaultdict
 import json
 import re
 
 from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
 
-from kirke.docclassifier import doccategory
+from kirke.utils import txtreader
 
 # based on eval set, 250 seems to work best
 # TEXT_SIZE = 1000
 TEXT_SIZE = 250
 
 
-def load_data(txt_fn_list_fn, is_step1=False):
-    doc_text_list, catids_list = [], []
-
-    catnames = []
+def load_doccat_maps(file_name: str):
+    catname_list = []
     catname_catid_map = {}
-    if is_step1:
-        catnames, catname_catid_map, catid_catname_map = doccategory.init_doccats_step1()
-    else:
-        catnames, catname_catid_map, catid_catname_map = doccategory.load_doccats_prod()
+    # catid_catname_map = {}
+    # valid_tags = set([])
+    with open(file_name, 'rt') as fin:
+        for line in fin:
+            tag, freq, catid, is_valid = line.strip().split('\t')
+            catid = int(catid)
+            # print("tag [{}], freq[{}], catid=[{}]".format(tag, freq, catid))
+            catname_list.append(tag)
+            catname_catid_map[tag] = catid
+            # catid_catname_map[catid] = tag
+            # if is_valid == 'valid':
+            #     valid_tags.add(tag)
+    # double check on the catid and order in catname_list
+    #for i, catname in enumerate(catname_list):
+    #    tmp_catid = catname_catid_map[catname]
+    #    if i != tmp_catid:
+    #        print("WRONG tag [{}], catid {}, {}".format(catname, i, tmp_catid))
+    # print("YYYYYY")
+    return catname_list, catname_catid_map
+
+# expected file format is
+# category, cat_id
+def load_doccat_prod_maps(file_name: str):
+    catname_list = []
+    catname_catid_map = {}
+    with open(file_name, 'rt') as fin:
+        for line in fin:
+            tag, catid = line.strip().split('\t')
+            catid = int(catid)
+            catname_list.append(tag)
+            catname_catid_map[tag] = catid
+    return catname_list, catname_catid_map
+
+
+# Only load files with valid tags, otherwise we will be training on them
+def load_data(txt_fn_list_fn, catname_catid_map, valid_tags):
+
+    doc_text_list = []
+    catids_list = []
 
     with open(txt_fn_list_fn, 'rt') as fin:
         for line in fin:
@@ -29,22 +63,24 @@ def load_data(txt_fn_list_fn, is_step1=False):
             ebdata_fn = txt_fn.replace('.txt', '.ebdata')
 
             with open(ebdata_fn, 'rt') as ebdata_fin:
-                tags = json.loads(ebdata_fin.read())['tags']
-                tags = [tag.strip() for tag in tags]
-                catids = doccategory.tags_to_catids(tags, catname_catid_map)
-                # print('catids: [{}]'.format(catids))
-                # if not catids:  # skip all document with no coretags
-                #    continue
+                parsed = json.load(ebdata_fin)
+                tags = parsed.get('tags')
+
+                tag_set = set(tags)
+                overlap = valid_tags.intersection(tag_set)
+                if not overlap:
+                    print("skipping file [{}] because of invalid tags: {}".format(txt_fn, tags))
+                    continue
+                # we only output valid tagid here because we don't want to train on invalid ones
+                catids = [catname_catid_map[tag] for tag in tags if tag in valid_tags]
                 catids_list.append(catids)
 
-            with open(txt_fn, 'rt') as txt_fin:
-                doc_text = txt_fin.read()
+                doc_text = txtreader.loads(txt_fn)
                 doc_text_list.append(doc_text_to_docfeats(doc_text))
 
-    # print('len(doc_text_list) = {}'.format(len(doc_text_list)))
     # print('len(catid_list) = {}'.format(len(catids_list)))
 
-    return doc_text_list, catids_list, catnames
+    return doc_text_list, catids_list
 
 
 _STEMMER = SnowballStemmer("english")
@@ -70,3 +106,113 @@ def report_to_eval_scores(lines):
         if mat:
             return float(mat.group(1)), float(mat.group(2)), float(mat.group(3))
     return -1, -1, -1
+
+
+def avg_list(alist):
+    sum = 0.0
+    for x in alist:
+        sum += x
+    return sum / len(alist)
+
+# TAG_NUMS_PAT = re.compile(r'^\s+(.+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+(\d+)(.*)')
+# TAG_NUMS_PAT = re.compile(r'^\s+(.+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+(.+)')
+def print_combined_reports(report_list, valid_tags, threshold=None,
+                           prod_status_fname=None):
+
+    prod_tag_list = []
+    print("combined report for cross validation")
+    found_tags = []
+    tag_result_map = defaultdict(list)
+    for report in report_list:
+        for line in report.split('\n'):
+            # print("line: [{}]".format(line))
+            cols = re.split(r"\s\s+", line)
+
+            # mat = TAG_NUMS_PAT.match(line)
+            if len(cols) > 4 and cols[0] in valid_tags:  # confidentiality is really long
+                tag = cols[0]
+                others = (float(cols[1]),
+                          float(cols[2]),
+                          float(cols[3]),
+                          int(cols[4]))
+                if tag not in tag_result_map:
+                    found_tags.append(tag)
+                tag_result_map[tag].append(others)
+                # print("col2\t{}\t{}\t{}\t{}".format(cols[0], cols[1], cols[2], cols[3]))
+            elif len(cols) > 5 and cols[1] in valid_tags:
+                tag = cols[1]
+                others = (float(cols[2]),
+                          float(cols[3]),
+                          float(cols[4]),
+                          int(cols[5]))
+                if tag not in tag_result_map:
+                    found_tags.append(tag)
+                tag_result_map[tag].append(others)
+
+                # print("col2\t{}\t{}\t{}\t{}".format(cols[1], cols[2], cols[3], cols[4]))
+
+    print("{:>36s}{:>11s}{:>10s}{:>10s}{:>10s}".format('', 'precison', 'recall',
+                                                       'f1-score', 'support'))
+
+    avg_prec_list, avg_recall_list, avg_f1_list, sum_support_list = [], [], [], []
+    status_line_list = []
+    for tag in found_tags:
+        prec_list = []
+        recall_list = []
+        f1_list = []
+        support_list = []
+        for arun in tag_result_map[tag]:
+            prec, recall, f1, support = arun
+
+            if f1 != 0.0:
+                prec_list.append(prec)
+                recall_list.append(recall)
+                f1_list.append(f1)
+                support_list.append(support)
+
+        tmp_avg_f1 = 0.0
+        if f1_list:
+            tmp_avg_f1 = avg_list(f1_list)
+        if (len(f1_list) == 3 and ((threshold is None) or
+                                   (threshold is not None and tmp_avg_f1 >= threshold))):
+            avg_prec = avg_list(prec_list)
+            avg_recall = avg_list(recall_list)
+            avg_f1 = avg_list(f1_list)
+            sum_support = sum(support_list)
+
+            avg_prec_list.append(avg_prec)
+            avg_recall_list.append(avg_recall)
+            avg_f1_list.append(avg_f1)
+            sum_support_list.append(sum_support)
+
+            status_line = "{:>36s}{:11.2f}{:10.2f}{:10.2f}{:10d}".format(tag,
+                                                                         avg_list(prec_list),
+                                                                         avg_list(recall_list),
+                                                                         avg_list(f1_list),
+                                                                         sum(support_list))
+            print(status_line)
+            status_line_list.append(status_line)
+
+            prod_tag_list.append(tag)  # remember them for final training
+            st_list = [str(prec_list),
+                       str(recall_list),
+                       str(f1_list),
+                       str(support_list)]
+            # print("\n{}\t{}".format(tag, "\t".join(st_list)))
+        else:
+            st_list = [str(arun) for arun in tag_result_map[tag]]
+            # print("skip {}\t{}".format(tag, "\t".join(st_list)))
+    print()
+    print("{:>36s}{:11.2f}{:10.2f}{:10.2f}{:10d}".format('avg / total',
+                                                         avg_list(avg_prec_list),
+                                                         avg_list(avg_recall_list),
+                                                         avg_list(avg_f1_list),
+                                                         sum(sum_support_list)))
+
+    if prod_status_fname:
+        with open(prod_status_fname, 'wt') as fout:
+            for status_line in status_line_list:
+                print(status_line, file=fout)
+            print('wrote {}'.format(prod_status_fname))
+
+    return prod_tag_list

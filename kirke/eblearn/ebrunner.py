@@ -24,6 +24,9 @@ from kirke.utils.ebantdoc2 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 DEBUG_MODE = False
 
+DOCCAT_MODEL_FILE_NAME = 'ebrevia_docclassifier.v1.pkl'
+
+
 def annotate_provision(eb_annotator, eb_antdoc):
     return eb_annotator.annotate_antdoc(eb_antdoc)
 
@@ -744,7 +747,7 @@ class EbDocCatRunner:
         self.model_dir = model_dir
 
         # load the available classifiers from dir_model
-        full_model_fn = self.model_dir + '/ebrevia_docclassifier.pkl'
+        full_model_fn = '{}/{}'.format(self.model_dir, DOCCAT_MODEL_FILE_NAME)
         print("model_fn = [{}]".format(full_model_fn))
 
         self.doc_classifier = joblib.load(full_model_fn)
