@@ -1383,9 +1383,10 @@ class PostAddressProc(EbPostPredictProcessing):
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)		
             #print(">>>", doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob)
             #print("<<<", sent_overlap)
-            best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords)
+            #best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords)
             #print("\t", best, evalutils.find_annotation_overlap(best[1], best[2], prov_human_ant_list))
             if cx_prob_attrvec.prob >= threshold or sent_overlap:		
+                print(">>>", doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob, sent_overlap)
                 best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords) 		
                 if best:		
                     prov_st, prov_start, prov_end = best		

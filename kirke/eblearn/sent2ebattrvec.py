@@ -93,7 +93,7 @@ def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
             first_start, _  = re.search(re.escape(first), atext, re.I).span()
             second = " ".join(atext[ad_end:].split(" ")[:20])
             _, second_end = re.search(re.escape(second), atext, re.I).span()
-            new_bow = atext[first_start:second_end] 
+            new_bow = first + "[ADDRESS]" + second 
             #print("\t>>>>", new_bow.replace("\n", " "))
             fvec.bag_of_words = new_bow
             fvec.start = first_start
