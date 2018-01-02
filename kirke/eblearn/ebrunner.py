@@ -24,6 +24,9 @@ from kirke.utils.ebantdoc2 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 DEBUG_MODE = False
 
+DOCCAT_MODEL_FILE_NAME = 'ebrevia_docclassifier.v1.pkl'
+
+
 def annotate_provision(eb_annotator, eb_antdoc):
     return eb_annotator.annotate_antdoc(eb_antdoc)
 
@@ -313,6 +316,9 @@ class EbRunner:
                                    eb_antdoc,
                                    work_dir=work_dir)
 
+        # since nobody is using rate-table classifier yet
+        # we are disabling it for now.
+        """
         if eb_antdoc.doc_format == EbDocFormat.pdf:
             # print("classify_table_list......................................")
             rate_tables = rateclassifier.classify_table_list(eb_antdoc.table_list, eb_antdoc.nl_text)
@@ -322,6 +328,7 @@ class EbRunner:
         else:
             # HTML document has no table detection, so 'rate-table' annotation is an empty list
             prov_labels_map['rate_table'] = []
+        """
 
         # jshaw. evalxxx, composite
         update_dates_by_domain_rules(prov_labels_map)
@@ -744,7 +751,7 @@ class EbDocCatRunner:
         self.model_dir = model_dir
 
         # load the available classifiers from dir_model
-        full_model_fn = self.model_dir + '/ebrevia_docclassifier.pkl'
+        full_model_fn = '{}/{}'.format(self.model_dir, DOCCAT_MODEL_FILE_NAME)
         print("model_fn = [{}]".format(full_model_fn))
 
         self.doc_classifier = joblib.load(full_model_fn)

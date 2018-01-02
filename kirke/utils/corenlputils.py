@@ -1,7 +1,8 @@
 import re
+import json
 import logging
 
-from pycorenlp import StanfordCoreNLP
+from stanfordcorenlp import StanfordCoreNLP
 
 from kirke.utils.corenlpsent import EbSentence, eb_tokens_to_st
 
@@ -9,7 +10,7 @@ from kirke.utils.strutils import corenlp_normalize_text
 from kirke.utils.textoffset import TextCpointCunitMapper
 
 
-NLP_SERVER = StanfordCoreNLP('http://localhost:9500')
+NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
 
 
 # http://stanfordnlp.github.io/CoreNLP/ner.html#sutime
@@ -50,8 +51,9 @@ def annotate(text_as_string, doc_lang):
                                    properties={'annotators': 'tokenize,ssplit,pos,lemma,ner',
                                                'outputFormat': 'json',
                                                'ssplit.newlineIsSentenceBreak': 'two',
-                                               'pipelineLanguage': 'en'}) 
-    return output
+                                               'pipelineLanguage': 'en'})
+    return json.loads(output)
+
 
 def annotate_for_enhanced_ner(text_as_string, doc_lang="en"):
     acopy_text = transform_corp_in_text(text_as_string)
