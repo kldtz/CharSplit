@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 from pathlib import Path
 import sys
 import requests
@@ -32,11 +33,19 @@ if __name__ == '__main__':
 
     txt_file = Path(args.filename)
     if txt_file.is_file():
-        files = {'file': open(args.filename, 'rt', encoding='utf-8')}
+        if args.filename.endswith('.txt'):
+            offset_filename = args.filename.replace('.txt', '.offsets.json')
+            if os.path.exists(offset_filename):
+                files = [('file', open(args.filename, 'rt', encoding='utf-8')),
+                         ('file', open(offset_filename, 'rt', encoding='utf-8'))]
+            else:
+                files = {'file': open(args.filename, 'rt', encoding='utf-8')}
+
         # payload = {'types': 'party'}
         # payload = {'types': 'change_control'}
-        # payload = {'types': 'party,change_control'}
-        payload = {}
+        # payload = {'types': 'termination,term,confidentiality,cust_3566'}
+        payload = {'types': 'term'}
+        # payload = {}
         req = requests.post(url, files=files, data=payload)
         print(req.text)
     else:

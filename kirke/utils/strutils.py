@@ -1,44 +1,49 @@
 #!/usr/bin/env python
 
+import collections
 import json
 import logging
 import os
 import re
-from typing import List, Set, Dict, Tuple
+from typing import Any, Dict, Generator, List, Match, Optional, Pattern, Set, Tuple, Union
 import unicodedata
-import urllib
+import urllib.parse
+
+# https://github.com/python/typing/issues/182
+# JSONType = Union[Dict[str, Any], List[Any]]
+JSONType = Union[Dict, List[Any]]
 
 # this include punctuations
-CAP_SPACE_PAT = re.compile(r'^[A-Z\s\(\).,\[\]\-/\\{\}`\'"]+$')
+CAP_SPACE_PAT = re.compile(r'^[A-Z\s\(\).,\[\]\-/\\{\}`\'"]+$')  # type: Pattern[str]
 
 # pylint: disable=W0703, E1101
 
 # TODO, jshaw, this function need to be rename to
 # defun replace_nltab_with_space(line)
 # Currently, it is confusing.  Called in many places.
-def remove_nltab(line):
+def remove_nltab(line: str) -> str:
     # return re.sub(r'[\s\t\r\n]+', ' ', line)
     return re.sub(r'[\s\t\r\n]', ' ', line)
 
 
-def remove_space_nl(line):
+def remove_space_nl(line: str) -> str:
     return re.sub(r'[\s\n]', '', line)
 
 
-def loads(file_name):
+def loads(file_name: str) -> str:
     xst = ''
     try:
         with open(file_name, 'rt', newline='') as myfile:
             xst = myfile.read()
     except IOError as exc:
-        logging.error("I/O error(%s) in strutils.loads(%s): %s",
-                      file_name, str(exc.errno), str(exc.strerror))
+        logging.error("I/O error: %s in strutils.loads(%s)",
+                      exc, file_name)
     except Exception as exc:  # handle other exceptions such as attribute errors
         # handle any other exception
-        logging.error("Error '%s' occured. Arguments %s.", exc.message, str(exc.args))
+        logging.error("Error %s", exc)
     return xst
 
-def load_lines_with_offsets(file_name: str) -> List[str]:
+def load_lines_with_offsets(file_name: str) -> Generator[Tuple[int, int, str], None, None]:
     offset = 0
     prev_line = None
     is_printed_empty_line = False
@@ -63,21 +68,21 @@ def load_lines_with_offsets(file_name: str) -> List[str]:
             prev_line = new_line
 
 
-def dumps(xst, file_name):
+def dumps(xst: str, file_name: str) -> None:
     try:
         with open(file_name, 'wt') as myfile:
             myfile.write(xst)
             myfile.write(os.linesep)
     except IOError as exc:
-        logging.error("I/O error(%s) in strutils.loads(%s): %s",
-                      file_name, str(exc.errno), str(exc.strerror))
+        logging.error("I/O error(%s) in strutils.loads(%s)",
+                      exc, file_name)
     # pylint: disable=W0703
     except Exception as exc:  # handle other exceptions such as attribute errors
         # handle any other exception
-        logging.error("Error '%s' occured. Arguments %s.", exc.message, str(exc.args))
+        logging.error("Error %s", exc)
 
 
-def load_str_list(file_name):
+def load_str_list(file_name: str) -> List[str]:
     st_list = []
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
@@ -85,7 +90,7 @@ def load_str_list(file_name):
     return st_list
 
 
-def load_lc_str_set(filename):
+def load_lc_str_set(filename: str) -> Set[str]:
     aset = set([])
     with open(filename, 'rt') as fin:
         for line in fin:
@@ -99,7 +104,7 @@ def save_str_list(str_list: List[str], file_name: str) -> None:
             fout.write(line)
             fout.write(os.linesep)
 
-def load_json_list(file_name: str) -> List:
+def load_json_list(file_name: str) -> JSONType:
     atext = loads(file_name)
     return json.loads(atext)
 
@@ -138,14 +143,14 @@ def is_relaxed_number(line: str) -> bool:
 
 NUM_ROMAN_PAT = re.compile(r'(([\(\“\”]?([\.\d]+|[ivx\d\.]+\b)[\)\“\”]?|[\(\“\”\.]?[a-z][\s\.\)\“\”])+)')
 
-def is_header_number(line: str) -> bool:
+def is_header_number(line: str) -> Match[str]:
     return NUM_ROMAN_PAT.match(line)
 # return SECHEAD_NUMBER_PAT.match(line)
 
 
 ROMAN_NUM_PAT = re.compile(r'^[ixv]+$', re.IGNORECASE)
 
-def is_roman_number(line: str) -> bool:
+def is_roman_number(line: str) -> Match[str]:
     return ROMAN_NUM_PAT.match(line)
 
 
@@ -176,13 +181,11 @@ ANY_ALPHA_PAT = re.compile(r'[a-zA-Z]')
 
 PARENS_ALL_DIGITS_PAT = re.compile(r'^\(\d+\)$')
 
-def is_all_digits(line: str) -> bool:
-    mat = ALL_DIGITS_PAT.match(line)
-    return mat
+def is_all_digits(line: str) -> Match[str]:
+    return ALL_DIGITS_PAT.match(line)
 
-def is_parens_all_digits(line: str) -> bool:
-    mat = PARENS_ALL_DIGITS_PAT.match(line)
-    return mat
+def is_parens_all_digits(line: str) -> Match[str]:
+    return PARENS_ALL_DIGITS_PAT.match(line)
 
 def is_all_digit_dot(line: str) -> bool:
     if not line:
@@ -192,7 +195,7 @@ def is_all_digit_dot(line: str) -> bool:
             return False
     return True
 
-def is_all_length_1_words(words):
+def is_all_length_1_words(words: List[str]) -> bool:
     if not words:
         return False
     for word in words:
@@ -202,26 +205,25 @@ def is_all_length_1_words(words):
 
 WORD_LC_PAT = re.compile('^[a-z]+$')
 
-def is_word_all_lc(word):
+def is_word_all_lc(word: str) -> Match[str]:
     mat = WORD_LC_PAT.match(word)
     return mat
 
 # has more than 2 digits that's more than 3 width
 TWO_GT_3_NUM_SEQ_PAT = re.compile(r'\d{3}.*\d{3}')
-def has_likely_phone_number(line):
+def has_likely_phone_number(line: str) -> Match[str]:
     return TWO_GT_3_NUM_SEQ_PAT.search(line)
     
-def is_all_alphas(line: str) -> bool:
+def is_all_alphas(line: str) -> Match[str]:
     return is_alpha_word(line)
 
-def is_all_alphas_dot(line: str) -> bool:
+def is_all_alphas_dot(line: str) -> Match[str]:
     return ALL_ALPHAS_DOT_PAT.match(line)
 
-def is_alpha_word(line: str) -> bool:
-    mat = ALL_ALPHAS_PAT.match(line)
-    return mat
+def is_alpha_word(line: str) -> Match[str]:
+    return ALL_ALPHAS_PAT.match(line)
 
-def has_digit(line: str) -> bool:
+def has_digit(line: str) -> Match[str]:
     return ANY_DIGIT_PAT.search(line)
 
 def is_both_alpha_and_num(line: str) -> bool:
@@ -254,7 +256,7 @@ def is_all_dash_underline(line: str) -> bool:
             return False
     return True
 
-def is_all_caps_space(line: str) -> bool:
+def is_all_caps_space(line: str) -> Match[str]:
     return CAP_SPACE_PAT.match(line)
 
 def is_all_lower(line: str) -> bool:
@@ -296,7 +298,7 @@ def str_to_boolint_not_used(st):
 """
 
 
-def gen_ngram(word_list: List[str], max_n=2) -> List[str]:
+def gen_ngram(word_list: List[str], max_n: int=2) -> List[str]:
     result = []
     for i in range(len(word_list) - max_n + 1):
         ngram_words = [word_list[i + j] for j in range(max_n)]
@@ -317,35 +319,35 @@ NUM_PERC_PAT = re.compile(r'^\s*\d+%\s*$')
 NUM_PERIOD_PAT = re.compile(r'^\s*\d+\.\s*$')
 DOLLAR_NUM_PAT = re.compile(r'^\s*\$\s*\d[\.\d]*\s*$')
 
-def has_punct(line: str) -> bool:
+def has_punct(line: str) -> Match[str]:
     return ANY_PUNCT_PAT.search(line)
 
-def is_all_punct(line: str) -> bool:
+def is_all_punct(line: str) -> Match[str]:
     return ALL_PUNCT_PAT.match(line)
 
-def is_num_perc(line: str) -> bool:
+def is_num_perc(line: str) -> Match[str]:
     return NUM_PERC_PAT.match(line)
 
-def is_num_period(line: str) -> bool:
+def is_num_period(line: str) -> Match[str]:
     return NUM_PERIOD_PAT.match(line)
 
-def is_dollar_num(line: str) -> bool:
+def is_dollar_num(line: str) -> Match[str]:
     return DOLLAR_NUM_PAT.match(line)
 
 
-def get_alpha_words_gt_len1(line: str, is_lower=True) -> List[str]:
+def get_alpha_words_gt_len1(line: str, is_lower: bool=True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHA_WORD_PAT.findall(line) if len(word) > 1]
 
 
-def get_alpha_words(line: str, is_lower=True) -> List[str]:
+def get_alpha_words(line: str, is_lower: bool=True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHA_WORD_PAT.findall(line)]
 
 
-def get_alphanum_words_gt_len1(line: str, is_lower=True) -> List[str]:
+def get_alphanum_words_gt_len1(line: str, is_lower: bool=True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHANUM_WORD_PAT.findall(line) if len(word) > 1]
@@ -357,7 +359,7 @@ def get_alphanum_words(line: str, is_lower=True) -> List[str]:
     return [word for word in ALPHANUM_WORD_PAT.findall(line)]
 
 
-def tokens_to_all_ngrams(word_list: List[str], max_n=1) -> Set[str]:
+def tokens_to_all_ngrams(word_list: List[str], max_n: int=1) -> Set[str]:
     # unigram
     sent_wordset = set(word_list)
     # bigram and up
@@ -380,10 +382,10 @@ def is_punct(line: str) -> bool:
         return False
 
 def is_sent_punct(line: str) -> bool:
-    return line and len(line) == 1 and line in r'.?!'
+    return bool(line) and len(line) == 1 and line in r'.?!'
 
 def is_not_sent_punct(line: str) -> bool:
-    return line and is_punct(line) and not is_sent_punct(line)
+    return bool(line) and is_punct(line) and not is_sent_punct(line)
 
 def is_punct_not_period(line: str) -> bool:
     if line:
@@ -483,12 +485,12 @@ def is_all_title(words: List[str]) -> bool:
     
 ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)
 
-def has_alpha(line: str):
+def has_alpha(line: str) -> Match[str]:
     return ANY_ALPHA_PAT.search(line)
 
 
 DIGIT_PAT = re.compile(r'^\d+$')
-def is_digit_st(line: str) -> bool:
+def is_digit_st(line: str) -> Match[str]:
     return DIGIT_PAT.match(line)
 
 # to detect telephone or SSN
@@ -500,14 +502,14 @@ def is_dashed_big_number_st(line: str) -> bool:
             return True
     return False
 
-def extract_numbers(line: str):
+def extract_numbers(line: str) -> List[str]:
     return re.findall(r'(\d*\.\d+|\d+\.\d*|\d+)', line)
 
-def count_numbers(line: str):
+def count_numbers(line: str) -> int:
     return len(extract_numbers(line))
 
 NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
-def find_number(line: str):
+def find_number(line: str) -> Match[str]:
     return NUM_10_PAT.search(line)
 
     
@@ -516,7 +518,7 @@ def is_digit_core(line: str) -> bool:
 
 DASH_ONLY_LINE = re.compile(r'^\s*-+\s*$')
 
-def is_dashed_line(line: str) -> bool:
+def is_dashed_line(line: str) -> Match[str]:
     return DASH_ONLY_LINE.match(line)
 
 
@@ -529,16 +531,16 @@ def is_english_vowel(unich: str) -> bool:
     return unich in 'aeiouAEIOU'
 
 
-def find_substr_indices(sub_strx, text):
+def find_substr_indices(sub_strx: str, text: str) -> List[Tuple[int, int]]:
     result = []
     for m in re.finditer(sub_strx, text):
         result.append((m.start(), m.end()))
     return result
 
-def count_date(line):
+def count_date(line: str) -> int:
     return len(find_substr_indices(r'(\d{1,2}/\d{1,2}/(20|19)\d\d)', line))
 
-def count_number(line):
+def count_number(line: str) -> int:
     return len(find_substr_indices(r'(\d+)', line))
     # return len(find_substr_indices(r'(\d*\.\d+|\d+\.\d*|\d+)', line))
 
@@ -571,43 +573,86 @@ def replace_ignorable_json_ctrl_chars(line: str) -> str:
     return line
 
 
-def corenlp_normalize_text(doc_text):
+def corenlp_normalize_text(doc_text: str) -> str:
     line = replace_ignorable_json_ctrl_chars(doc_text)
     line = urllib.parse.quote(line)
     return line
 
-def is_space_or_nl(xch):
+def is_space_or_nl(xch: str) -> bool:
     return (xch == ' ' or
             xch == '\n' or
             xch == '\r')
 
-def is_nl(xch):
+def is_nl(xch: str) -> bool:
     return xch == '\n' or xch == '\r'
 
 
-def is_double_quote(xch):
+def is_double_quote(xch: str) -> bool:
     return xch in '“"”'
 
 
-def dict_to_sorted_list(adict):
+def dict_to_sorted_list(adict: Dict[Any, Any]) -> List[str]:
     return ['{}={}'.format(attr, value) for attr, value in sorted(adict.items())]
 
 
-def space_repl_same_length(mat):
+def space_repl_same_length(mat: Match[str]) -> str:
     return ' ' * len(mat.group())
 
 def replace_dot3plus_with_spaces(line: str) -> str:
     return re.sub(r'([\.\-_][\.\-_][\.\-_]+)', space_repl_same_length, line)
 
 
-NEXT_TOKEN_PAT = re.compile(r'\s*\S+')
+NEXT_TOKEN_PAT = re.compile(r'\s*\S+')  # type: Pattern[str]
 
-def find_next_token(line: str):
+def find_next_token(line: str) -> Match[str]:
     return NEXT_TOKEN_PAT.match(line)
 
+
+# primitive version of getting words using regex
+
+SIMPLE_WORD_PAT = re.compile('\w+')
+
+def get_simple_words(text: str) -> List[str]:
+    return SIMPLE_WORD_PAT.findall(text)
+
+
+def get_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
+    num_chars = num_words * 20  # avg word len is 7
+    first_offset = start - num_chars
+    if first_offset < 0:
+        first_offset = 0
+    prev_text = text[first_offset:start]
+    words = get_simple_words(prev_text)[-num_words:]
+    return words
+
+
+def get_post_n_words(text: str, end: int, num_words: int) -> List[str]:
+    num_chars = num_words * 20  # avg word len is 7
+    last_offset = end + num_chars
+    if last_offset > len(text):
+        last_offset = len(text)
+    post_text = text[end:last_offset]
+    words = get_simple_words(post_text)[:num_words]
+    return words
+
+
+def get_lc_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
+    return [word.lower() for word in get_prev_n_words(text, start, num_words)]
+
+
+def get_lc_post_n_words(text: str, end: int, num_words: int) -> List[str]:
+    return [word.lower() for word in get_post_n_words(text, end, num_words)]
+
+
+def to_pos_neg_count(bool_list: List[bool]) -> str:
+    pos_neg_counter = collections.Counter()
+    pos_neg_counter.update(bool_list)
+    return "num_pos = {}, num_neg = {}".format(pos_neg_counter.get(True, 0),
+                                               pos_neg_counter.get(False, 0))
 
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
     print(str(_get_num_prefix_space("abc")))      # 0
     print(str(_get_num_prefix_space(" abc")))     # 1
     print(str(_get_num_prefix_space("\n\nabc")))  # 2
+

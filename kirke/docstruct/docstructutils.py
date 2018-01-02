@@ -1,9 +1,9 @@
 import re
-from typing import List
+from typing import Dict, List, Match, Tuple
 
 from kirke.utils import engutils, stopwordutils, strutils
 from kirke.docstruct import secheadutils
-from kirke.ebrules import addresses
+# from kirke.ebrules import addresses
 
 # TODO, jshaw
 # The header strings in here definitely is somewhat cheating, for AT&T
@@ -182,7 +182,7 @@ ATT_PAGE_NUM_PAT = re.compile(r'^\s*({})\s*$'.format('|'.join(IGNORE_LINE_LIST))
 
 
 
-def is_line_footer_by_content(line: str) -> bool :
+def is_line_footer_by_content(line: str) -> Match[str]:
     return ATT_PAGE_NUM_PAT.match(line)
 
 
@@ -221,7 +221,7 @@ def is_line_footer(line: str,
     if is_line_footer_by_content(line):
         return True, 1.0
 
-    score = 0
+    score = 0.0
     if yStart >= 725.0:
         score += 0.4
     # print("score = {}, after yStart".format(score))
@@ -281,7 +281,7 @@ def is_line_header(line: str,
         elif 'LF' in align:
             return False
 
-    score = 0
+    score = 0.0
     if HEADER_PAT.match(line) and yStart < 140:
         score += 0.9
     elif ((HEADER_PAT.match(line) or

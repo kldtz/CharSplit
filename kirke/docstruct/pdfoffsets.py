@@ -2,7 +2,7 @@ from collections import namedtuple, Counter, defaultdict
 from functools import total_ordering
 import os
 import sys
-from typing import List
+from typing import Any, DefaultDict, Dict, List, Tuple
 
 from kirke.docstruct import jenksutils, docstructutils
 from kirke.utils import engutils, strutils
@@ -17,15 +17,16 @@ MIN_X_END = -1
 
 class PDFTextDoc:
 
-    def __init__(self, file_name: str, doc_text: str, page_list):
+    def __init__(self, file_name: str, doc_text: str, page_list) -> None:
         self.file_name = file_name
         self.doc_text = doc_text
         self.page_list = page_list
         self.num_pages = len(page_list)
-        self.paged_grouped_block_list = []      # each page is a list of grouped_block
-        self.special_blocks_map = defaultdict(list)
+        # each page is a list of grouped_block
+        self.paged_grouped_block_list = []  # type: List[Tuple[int, List[GroupedBlockInfo]]]
+        self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
 
-    def get_page_offsets(self):
+    def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]
 
     def print_debug_blocks(self):
@@ -167,7 +168,7 @@ def sorted_pblocks_by_yStart(pblockinfo_list):
 
 class PageInfo3:
 
-    def __init__(self, doc_text, start, end, page_num, pblockinfo_list):
+    def __init__(self, doc_text, start, end, page_num, pblockinfo_list) -> None:
         self.start = start
         self.end = end
         self.page_num = page_num
@@ -213,13 +214,13 @@ class PageInfo3:
           prev_yStart = lineinfo.yStart
         self.line_list = line_attrs
         # attrs of page, such as 'page_num_index'
-        self.attrs = {}
+        self.attrs = {}  # type: Dict[str, Any]
 
         # conent_line_list is for lines that are not
         #   - toc
         #   - page_num
         #   - header, footer
-        self.content_line_list = []
+        self.content_line_list = []  # type: List[LineWithAttrs]
 
 
     def compute_avg_single_line_break_ydiff(self):
@@ -254,7 +255,7 @@ class PageInfo3:
 
 class LineInfo3:
 
-    def __init__(self, start, end, line_num, block_num, strinfo_list):
+    def __init__(self, start, end, line_num, block_num, strinfo_list) -> None:
         self.start = start
         self.end = end
         self.line_num = line_num
@@ -313,7 +314,7 @@ class LineInfo3:
 class LineWithAttrs:
 
     def __init__(self, page_line_num, lineinfo, line_text, page_num,
-                 ydiff, linebreak, align, is_centered, is_english):
+                 ydiff, linebreak, align, is_centered, is_english) -> None:
         self.page_line_num = page_line_num  # start from 1, not 0
         self.lineinfo = lineinfo
         self.block_num = lineinfo.bid
@@ -325,14 +326,14 @@ class LineWithAttrs:
         self.align = align  # inferred
         self.is_centered = is_centered
         self.is_english = is_english
-        self.attrs = {}
+        self.attrs = {}  # type: Dict[str, Any]
 
     def __lt__(self, other):
 
         return (self.block_num, self.lineinfo.start).__lt__((other.block_num, other.lineinfo.start))
 
 
-    def tostr2(self):
+    def tostr2(self) -> str:
         alist = []
         alist.append('plno=%d' % self.page_line_num)
         alist.append('bnum=%d' % self.block_num)
@@ -348,7 +349,7 @@ class LineWithAttrs:
         alist.append('  ||')
         return ', '.join(alist)
 
-    def tostr3(self):
+    def tostr3(self) -> str:
         alist = []
         alist.append('pn=%d' % self.page_num)
         alist.append('bnum=%d' % self.block_num)
@@ -370,7 +371,7 @@ class LineWithAttrs:
         alist.append('  ||')
         return ', '.join(alist)
 
-    def tostr4(self):
+    def tostr4(self) -> str:
         alist = []
         alist.append('pn=%d' % self.page_num)
         alist.append('bnum=%d' % self.block_num)
@@ -387,7 +388,7 @@ class LineWithAttrs:
         return ', '.join(alist)
 
     # mainly for detailed debugging purpose
-    def tostr5(self):
+    def tostr5(self) -> str:
         alist = []
         alist.append('pn=%d' % self.page_num)
         alist.append('bnum=%d' % self.block_num)
@@ -407,7 +408,7 @@ class LineWithAttrs:
             alist.append('{}={}'.format(attr, value))
         return ', '.join(alist)
 
-    def to_attrvals(self):
+    def to_attrvals(self) -> Dict[str, Any]:
         """returns a dict()"""
         adict = {}
         adict['pnum'] = self.page_num
@@ -424,7 +425,7 @@ class LineWithAttrs:
     def __str__(self):
         return str(self.to_attrvals())
 
-    def to_para_attrvals(self):
+    def to_para_attrvals(self) -> List[Any]:
         """returns a dict()"""
         adict = {}
         adict['pnum'] = self.page_num
@@ -458,7 +459,7 @@ class PBlockInfo:
                  pagenum,
                  text,
                  lineinfo_list,
-                 is_multi_lines):
+                 is_multi_lines) -> None:
         self.start = start
         self.end = end
         self.obid = bid     # original block id
@@ -495,7 +496,7 @@ class PBlockInfo:
         self.is_english = engutils.classify_english_sentence(text)
         self.ydiff = MAX_Y_DIFF  # will compute this across PBlockInfo
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         #if hasattr(other, 'start') and hasattr(other, 'end'):
         return (self.start, self.end).__eq__((other.start, other.end))
 
@@ -506,7 +507,7 @@ class PBlockInfo:
     def __hash__(self):
         return hash((self.start, self.end))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         # self.words is not printed, intentionally
         return str(('start={}'.format(self.start),
                     'end={}'.format(self.end),
@@ -516,8 +517,8 @@ class PBlockInfo:
                     'pagenum={}'.format(self.pagenum),
                     'english={}'.format(self.is_english)))
 
-
-    def tostr2(self, text):
+    """
+    def tostr2(self, text) -> str:
         not_en_mark = ''
         if self.is_english:
             tags = ['EN']
@@ -539,22 +540,25 @@ class PBlockInfo:
 
         # self.words is not printed, intentionally
         return '%-25s\t%s\t%s' % (tags_st, not_en_mark, text[self.start:self.end])
+"""
+    # there is no self.align_label??
 
-
-    def is_center(self):
+    """
+    def is_center(self) -> bool:
         return self.align_label == 'CN'
 
-    def is_LF(self):
-        return self.align_label and self.algign_label.startswith('LF')
+    def is_LF(self) -> bool:
+        return self.align_label and self.align_label.startswith('LF')
 
-    def is_LF1(self):
+    def is_LF1(self) -> bool:
         return self.align_label == 'LF1'
 
-    def is_LF2(self):
+    def is_LF2(self) -> bool:
         return self.align_label == 'LF2'
 
-    def is_LF3(self):
+    def is_LF3(self) -> bool:
         return self.align_label == 'LF3'
+"""
 
 
 class GroupedBlockInfo:
@@ -562,14 +566,16 @@ class GroupedBlockInfo:
     def __init__(self,
                  pagenum,
                  bid,
-                 line_list):
+                 line_list) -> None:
         self.bid = bid
         self.pagenum = pagenum
         self.line_list = line_list
-        self.attrs = {}
+        self.attrs = {}  # type: Dict[str, Any]
 
 
-def lines_to_block_offsets(linex_list: List[LineWithAttrs], block_type: str, pagenum: int):
+def lines_to_block_offsets(linex_list: List[LineWithAttrs],
+                           block_type: str,
+                           pagenum: int) -> Tuple[int, int, Dict[str, Any]]:
     if linex_list:
         min_start, max_end = linex_list[0].lineinfo.start, linex_list[-1].lineinfo.end
         # in case the original line order are not correct from pdfbox, we
@@ -590,8 +596,8 @@ def line_to_block_offsets(linex, block_type: str, pagenum: int):
     return (start, end, {'block-type': block_type, 'pagenum': pagenum})
 
 
-def lines_to_blocknum_map(linex_list):
-    result = defaultdict(list)
+def lines_to_blocknum_map(linex_list: List[LineWithAttrs]) -> DefaultDict[str, List[LineWithAttrs]]:
+    result = defaultdict(list)  # type: DefaultDict[str, List[LineWithAttrs]]
     for linex in linex_list:
         block_num = linex.block_num
         result[block_num].append(linex)

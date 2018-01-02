@@ -1,7 +1,7 @@
 from collections import Counter
 import itertools
 import re
-from typing import List
+from typing import List, Match, Set
 
 from kirke.docstruct import lxlineinfo
 from kirke.utils import strutils
@@ -34,7 +34,7 @@ SECHEAD_PREFIX_PAT = re.compile(r'(article|appendix|section|exhibit|recital)\s*\
 def get_first_last_n_elements(alist: List, n=1) -> List:
     # only add new lineinfo, sometimes a page can have less than 3 lines
     result = []
-    seen_set = set([])
+    seen_set = set([])  # type: Set
     for elmt in itertools.chain(alist[:n],
                                 alist[-n:]):
         if elmt not in seen_set:
@@ -97,7 +97,7 @@ def classify_line_page_number(line: str):
     
     return False
 
-def is_sechead(line: str) -> bool:
+def is_sechead(line: str) -> Match[str]:
     return SECHEAD_PREFIX_PAT.match(line)
 
 """

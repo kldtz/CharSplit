@@ -18,7 +18,6 @@ from kirke.utils import evalutils
 
 from kirke.eblearn.ebtransformer import EbTransformer
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
-from kirke.eblearn.ebtransformerv1_3 import EbTransformerV1_3
 
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py

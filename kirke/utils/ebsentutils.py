@@ -4,8 +4,9 @@ import json
 import os
 from pathlib import Path
 import re
+from typing import Any, Dict, List, Optional, Tuple
 
-from kirke.utils import stopwordutils, mathutils, entityutils
+from kirke.utils import textoffset, mathutils, entityutils, stopwordutils
 from kirke.docstruct import docutils
 
 class EbEntityType(Enum):
@@ -349,6 +350,13 @@ def get_labels_if_start_end_overlap(sent_start, sent_end, ant_start_end_list):
             result_label_list.append(ant.label)
     return result_label_list
 
+def check_start_end_overlap(sent_start: int, sent_end: int, ant_start_end_list) -> bool:
+    for ant in ant_start_end_list:
+        if mathutils.start_end_overlap((sent_start, sent_end), (ant.start, ant.end)):
+            return True
+    return False
+
+
 
 # cannot use this because in line 600 prov_annotation.start = xxx in ebtext2antdoc.py
 # maybe fix in future.
@@ -362,16 +370,16 @@ class ProvisionAnnotation:
         self.end = end
         self.label = label
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "ProvisionAnnotation({}, {}, '{}')".format(self.start, self.end, self.label)
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> Any:
         return (self.start, self.end) < (other.start, other.end)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self.to_tuple() == other.to_tuple()
 
-    def to_tuple(self):
+    def to_tuple(self) -> Tuple[int, int, str]:
         return (self.start, self.end, self.label)
 
               
@@ -382,19 +390,19 @@ class ProvisionAnnotation:
 # pylint: disable=R0902
 class EbProvisionAnnotation:
     __slots__ = ['confidence', 'correctness', 'start', 'end',
-                 'ptype', 'text', 'pid', 'custom_text']
+                 'label', 'text', 'pid', 'custom_text']
 
-    def __init__(self, ajson):
+    def __init__(self, ajson) -> None:
         self.confidence = ajson['confidence']
         self.correctness = ajson.get('correctness')
         self.start = ajson.get('start')
         self.end = ajson.get('end')
-        self.ptype = ajson.get('type')  # not 'type' but 'ptype'
+        self.label = ajson.get('type')
         self.text = ajson.get('text')
         self.pid = ajson.get('id')    # string, not 'id' but 'pid'
         self.custom_text = ajson.get('customText')  # boolean
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {'confidence': self.confidence,
                 'correctness': self.correctness,
                 'customText': self.custom_text,
@@ -402,24 +410,26 @@ class EbProvisionAnnotation:
                 'end': self.end,
                 'id': self.pid,
                 'text': self.text,
-                'type': self.ptype}
+                'type': self.label}
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.to_dict())
 
-    def to_tuple(self):
-        return ProvisionAnnotation(self.start, self.end, self.ptype)
+    def to_tuple(self) -> ProvisionAnnotation:
+        return ProvisionAnnotation(self.start, self.end, self.label)
 
 
 # the result is a list of
 # (start, end, ant_name)
-def load_prov_annotation_list(txt_file_name, provision=None):
+def load_prov_annotation_list(txt_file_name: str,
+                              cpoint_cunit_mapper: textoffset.TextCpointCunitMapper,
+                              provision: Optional[str]=None) -> Tuple[List[ProvisionAnnotation], bool]:
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
     prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
     prov_ebdata_file = Path(prov_ebdata_fn)
 
-    prov_annotation_list = []
+    prov_annotation_list = []  # type:  List[EbProvisionAnnotation]
     is_test = False
     if os.path.exists(prov_ant_fn):
         # in is_bespoke_mode, only the annotation for a particular provision
@@ -431,18 +441,24 @@ def load_prov_annotation_list(txt_file_name, provision=None):
         prov_annotation_list, is_test = (load_prov_ebdata(prov_ebdata_fn, provision)
                                          if prov_ebdata_file.is_file() else ([], False))
 
-    return prov_annotation_list, is_test
+    # in-place update offsets
+    result = []  # type: List[ProvisionAnnotation]
+    for eb_prov_ant in prov_annotation_list:
+        eb_prov_ant.start, eb_prov_ant.end = \
+            cpoint_cunit_mapper.to_codepoint_offsets(eb_prov_ant.start,
+                                                     eb_prov_ant.end)
+        result.append(eb_prov_ant.to_tuple())
+
+    return result, is_test
 
 
-def load_prov_ant(filename, provision_name=None):
-    result = []
+def load_prov_ant(filename, provision_name=None) -> List[EbProvisionAnnotation]:
+
     # logging.info('load provision %s annotation: [%s]', provision_name, filename)
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
-        for ajson in parsed:
-            eb_ant = EbProvisionAnnotation(ajson)
 
-            result.append(eb_ant.to_tuple())
+    result = [EbProvisionAnnotation(ajson) for ajson in parsed]
 
     # if provision_name is specified, only return that specific provision
     if provision_name:
@@ -456,13 +472,13 @@ def load_prov_ebdata(filename, provision_name=None):
     is_test_set = False
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
-        for _, ajson_list in parsed['ants'].items():
-            # print("ajson_map: {}".format(ajson_map))
-            for ajson in ajson_list:
-                eb_ant = EbProvisionAnnotation(ajson)
-                # print("eb_ant= {}".format(eb_ant))
-                result.append(eb_ant.to_tuple())
-        is_test_set = parsed.get('isTestSet', False)
+
+    for _, ajson_list in parsed['ants'].items():
+        # print("ajson_map: {}".format(ajson_map))
+        for ajson in ajson_list:
+            result.append(EbProvisionAnnotation(ajson))
+
+    is_test_set = parsed.get('isTestSet', False)
 
     # if provision_name is specified, only return that specific provision
     if provision_name:

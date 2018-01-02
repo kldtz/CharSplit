@@ -82,7 +82,6 @@ def aggregate_ant_status_list(alist):
 
 AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
 
-
 # pylint: disable=R0914
 def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, threshold, diagnose_mode=False):
     txt = ebantdoc.get_text()
@@ -155,7 +154,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
 # if any matched, we passed.  Don't care about any other.
 # pylint: disable=R0914
 def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list, ant_list, ebantdoc,
-                                           # threshold,
+                                           threshold,
                                            diagnose_mode=False):
     tp, fp, tn, fn = 0, 0, 0, 0
     # print("calc_doc_ant_confusion_matrix:")
