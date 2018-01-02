@@ -105,6 +105,12 @@ class EbAnnotatedDoc2:
     def get_provision_annotations(self):
         return self.prov_annotation_list
 
+    def has_provision_ant(self, provision):
+        for prov_annotation in self.prov_annotation_list:
+            if prov_annotation.label == provision:
+                return True
+        return False
+
     def get_provision_set(self):
         return self.provision_set
 
@@ -675,6 +681,7 @@ class EbAntdocProvSet:
         self.file_id = ebantdoc.get_file_id()
         self.provset = ebantdoc.get_provision_set()
         self.is_test_set = ebantdoc.is_test_set
+        self.prov_annotation_list = ebantdoc.prov_annotation_list
 
     def get_file_id(self):
         return self.file_id
@@ -683,7 +690,9 @@ class EbAntdocProvSet:
         return self.provset
 
 
-def fnlist_to_fn_ebantdoc_provset_map(fn_list, work_dir, is_doc_structure=False):
+def fnlist_to_fn_ebantdoc_provset_map(fn_list: List[str],
+                                      work_dir: str,
+                                      is_doc_structure: bool=False) -> Dict[str, EbAntdocProvSet]:
     logging.debug('fnlist_to_fn_ebantdoc_map(len(list)=%d, work_dir=%s)', len(fn_list), work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
