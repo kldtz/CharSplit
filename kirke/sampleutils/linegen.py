@@ -21,11 +21,8 @@ class LineSpanGenerator:
         # each sample is the date regex +
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
 
-            ant_list = antdoc.prov_annotation_list
-            label_ant_list = []
-            for ant in ant_list:
-                if ant.label == label:
-                    label_ant_list.append(ant)
+            # get only ant for this particular label
+            label_ant_list = antdoc.get_provision_annotations(label)
 
             if antdoc.doc_format in set([ebantdoc3.EbDocFormat.html,
                                          ebantdoc3.EbDocFormat.html_nodocstruct,

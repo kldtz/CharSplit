@@ -112,10 +112,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         tp, fn, fp, tn = 0, 0, 0, 0
 
         for ebantdoc in ebantdoc_list:
-            #print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
-            # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-            # prov_human_ant_list = [hant for hant in ebantdoc.para_prov_ant_list
                                    if hant.label == self.label]
 
             ant_list = self.annotate_antdoc(ebantdoc,

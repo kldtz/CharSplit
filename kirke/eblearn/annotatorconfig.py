@@ -30,7 +30,7 @@ ml_annotator_config_map = \
                              ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                    shuffle=True, random_state=42,
                                                    class_weight={True: 3, False: 1}))]),
-                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)},
+                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                          'threshold': 0.2,
                          'kfold': 2}
     }
