@@ -79,14 +79,14 @@ def sent2ebattrvec(file_id: str,
     fvec = ebattrvec.EbAttrVec(file_id,
                                ebsent.start, ebsent.end,
                                ebsent.get_tokens_text(), ebsent.labels, ebsent.entities, ebsent.sechead)
-
+    raw_sent_text = atext[fvec.start:fvec.end]
+    '''
     if prev_ebsent:
         fvec.bag_of_words += " " + prev_ebsent.get_tokens_text()
         fvec.start = prev_ebsent.start
     if next_ebsent:
         fvec.bag_of_words += " " + next_ebsent.get_tokens_text()
         fvec.end = next_ebsent.end
-    raw_sent_text = atext[fvec.start:fvec.end]
     all_keywords = addresses.all_constituencies()
     split_text = atext.split()
     for x in find_constituencies(raw_sent_text, all_keywords):
@@ -108,7 +108,7 @@ def sent2ebattrvec(file_id: str,
             fvec.end = second_end
             if 'l_tenant_notice' in ebsent.labels:
                 print("\t<<", atext[fvec.start:fvec.end].replace("\n", " "))
-
+    '''
     tmp_start = min(ENT_START_MAX, fvec.start)
     tmp_end = min(ENT_END_MAX, fvec.end)
     fvec.set_val('ent_start', tmp_start)

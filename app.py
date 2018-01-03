@@ -41,6 +41,7 @@ osutils.mkpath(CUSTOM_MODEL_DIR)
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 eb_doccat_runner = None
 
+eb_doccat_runner = ebrunner.EbDocCatRunner(MODEL_DIR)
 eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
 if not eb_runner:
@@ -66,6 +67,8 @@ def annotate_uploaded_document():
         osutils.mkpath(work_dir)
     else:
         work_dir = WORK_DIR
+
+    ebannotation = {}
 
     request_file_name, pdf_offsets_file_name = '', ''
     fn_list = request.files.getlist('file')
@@ -95,7 +98,8 @@ def annotate_uploaded_document():
     
     atext = strutils.loads(txt_file_name)
     doc_lang = eb_langdetect_runner.detect_lang(atext)
-    ebannotations['lang'] = doc_lang
+    if is_detect_lang:
+        ebannotations['lang'] = doc_lang
     logging.info("detected language '{}'".format(doc_lang))
     # if no other classification is specified, return early
     if not provision_set and not is_classify_doc:
@@ -142,7 +146,7 @@ def annotate_uploaded_document():
         prov_labels_map['effectivedate_auto'] = effectivedate_annotations
         del prov_labels_map['effectivedate']
 
-    ebannotations = {'ebannotations': prov_labels_map}
+    ebannotations['ebannotations'] = prov_labels_map
     return json.dumps(ebannotations)
 
 

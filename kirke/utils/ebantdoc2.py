@@ -558,7 +558,7 @@ def text_to_ebantdoc2(txt_fname,
                       is_cache_enabled=True,
                       is_bespoke_mode=False,
                       is_doc_structure=True,
-                      doc_lang="en"):
+                      doc_lang="en") -> EbAnnotatedDoc2:
     txt_base_fname = os.path.basename(txt_fname)
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     # never want to save in bespoke_mode because annotation can change
@@ -576,9 +576,11 @@ def text_to_ebantdoc2(txt_fname,
             tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
                                                                                eb_antdoc.codepoint_to_cunit_mapper)
             if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
+                eb_antdoc.file_id = txt_fname
                 return eb_antdoc
             eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
         if eb_antdoc:
+            eb_antdoc.file_id = txt_fname
             return eb_antdoc
 
     pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
@@ -592,6 +594,9 @@ def text_to_ebantdoc2(txt_fname,
         eb_antdoc = html_to_ebantdoc2(txt_fname, work_dir=work_dir,
                                       is_cache_enabled=is_cache_enabled, doc_lang=doc_lang)
 
+    ## in doclist, we only want "export-train" dir, not "work_dir"
+    # We need to keep .txt with .ebdata together
+    eb_antdoc.file_id = txt_fname
     return eb_antdoc
 
 
