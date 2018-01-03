@@ -1372,6 +1372,7 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            print(doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
                                                       cx_prob_attrvec.end,
