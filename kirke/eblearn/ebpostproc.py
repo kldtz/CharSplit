@@ -1368,27 +1368,47 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                      provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
-
+        flags = {'l_tenant_lessee': ['tenant', '(2)'], 'l_landlord_lessor': ['landlord', '(1)']}
+        flag = flags[self.provision][0]
+        bullet = flags[self.provision][1]
         ant_result = []
+        prev_text = ''
         for cx_prob_attrvec in merged_prob_attrvec_list:
+            prev_flag = False
+            lease_matched_span = []
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            print(doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob)
+            if flag in prev_text.lower():
+                prev_flag = True
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
                                                       cx_prob_attrvec.end,
                                                       cx_prob_attrvec.entities,
                                                       doc_text,
                                                       self.provision)
-                if lease_matched_span:
-                    prov_st, prov_start, prov_end, match_type = lease_matched_span
-                    ant_result.append(to_ant_result_dict(label=self.provision,
+
+            elif (re.findall(re.escape(flag)+'\s|'+re.escape(bullet), doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].lower()[:50]) and cx_prob_attrvec.prob > 0):
+                lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
+                                                      cx_prob_attrvec.end,
+                                                      cx_prob_attrvec.entities,
+                                                      doc_text,
+                                                      self.provision)
+            elif (prev_flag and cx_prob_attrvec.prob > 0):
+                lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
+                                                      cx_prob_attrvec.end,
+                                                      cx_prob_attrvec.entities,
+                                                      doc_text,
+                                                      self.provision)
+            if lease_matched_span:
+                prov_st, prov_start, prov_end, match_type = lease_matched_span
+                ant_result.append(to_ant_result_dict(label=self.provision,
                                                 prob=cx_prob_attrvec.prob,
                                                 start=prov_start,
                                                 end=prov_end,
                                                 # pylint: disable=line-too-long
                                                 text=strutils.remove_nltab(prov_st)))
                     
-                    return ant_result
+                return ant_result
+            prev_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
         return ant_result 
 
 PROVISION_POSTPROC_MAP = {
