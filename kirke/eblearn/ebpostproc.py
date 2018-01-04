@@ -772,7 +772,13 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
                                                      entity.end, 'x2'))
                         is_provision_found = True
 
-    
+    if not is_provision_found:
+        mat = re.match(r'((\(\d\))? ?[\w\s&\-]+ (limited|l\.?l\.?c\.?|l\.?p\.?|l\.?l\.?p\.?|p\.?l\.?c\.?))', sent_st, re.I)
+        if mat:
+            name_start, name_end = mat.span()
+            found_provision_list.append((mat.group(),
+                                         sent_start+name_start,
+                                         sent_start+name_end, 'x3'))
     #picks best from these possibilities
     best_provision = pick_best_provision(found_provision_list, has_x3=True)
     if best_provision:

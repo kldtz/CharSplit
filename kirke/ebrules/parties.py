@@ -176,21 +176,18 @@ def zipcode_remove(grps):
 
 def extract_between_among(s, is_party=True):
     """Return parties for party lines containing either 'between' or 'among'."""
-
-    # Consider after between. If line ends in between (no 'and'), return None.
-    s = s.split('between')[-1].split('among')[-1]
-    if 'and' not in s:
-        return None
-
+    if not is_party:
+        # Consider after between. If line ends in between (no 'and'), return None.
+        s = s.split('between')[-1].split('among')[-1]
+        if 'and' not in s:
+            return None
     # Temporarily sub defined terms with '=' to avoid splitting on their commas
     terms = parens.findall(s)
     s = non_comma_separators.sub(',', parens.sub('=', s))
-
     # Split the string into parts, applying party_strip between each step
     parts = [party_strip(part) for part in party_strip(s).split(', ')]
     parts = [party_strip(q) for p in parts for q in paren_symbol.split(p) if q]
     parts = [q for q in parts if q]
-
     # Process parts and decide which parts to keep
     new_parts = ['']
     for p in parts:
@@ -215,7 +212,6 @@ def extract_between_among(s, is_party=True):
         if seen_suffixes:
             # Append suffixes
             new_parts[-1] += ',' + seen_suffixes
-
         # Take out 'the ' from beginning of string; bail if remaining is empty
         while p.startswith('the '):
             p = p[4:]
@@ -227,7 +223,6 @@ def extract_between_among(s, is_party=True):
         if not any(c.isupper() or c.isdigit() for c in first_word):
             new_parts.append('^')
             continue
-       
         if is_party: 
             new_parts = zipcode_replace(p, new_parts)
 
@@ -235,7 +230,6 @@ def extract_between_among(s, is_party=True):
         processed_part = process_part(p)
         if processed_part:
             new_parts.append(processed_part)
-
     # Remove lines marked for deletion (^)
     parts = new_parts if new_parts[0] else new_parts[1:]
     grps = [list(g) for k, g in groupby(parts, lambda p: '^' in p) if not k]
@@ -290,7 +284,7 @@ def extract_parties_from_party_line(s, is_party=True):
     s = first_sentence(s)
 
     # Try (eventually several) possible rules
-    if 'between' in s or 'among' in s:
+    if ('between' in s or 'among' in s) or not is_party:
         return extract_between_among(s, is_party)
 
     # Fall back to NER (not implemented) if none of the above criteria were met
