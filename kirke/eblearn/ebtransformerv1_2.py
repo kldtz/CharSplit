@@ -158,20 +158,12 @@ class EbTransformerV1_2(EbTransformerBase):
             # handling sechead, with min appearance in sentence = 5
             # now changed to 2 because custom training corpus might have only 6 docs
             self.sechead_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
-            # To make sure there are some data when doing the training instead
-            # of cause problems for self.sechead_vectorizer.fit() because of no vocab.
-            # first check for the min number of words for sechead.  If it looks like not enough,
-            # add some ignorable words.
-            sechead_num_words = 0
-            for sechead_st in sechead_st_list:
-                sechead_words = sechead_st.split()
-                sechead_num_words += len(sechead_words)
-            if sechead_num_words < 100:
-                if len(sechead_st_list) >= 3:  # this should always be true if valid document, satisfy min_df=2
-                    sechead_st_list[0] = sechead_st_list[0] + " Ignore_Employment Ignore_Contract"
-                    sechead_st_list[1] = sechead_st_list[1] + " Ignore_Employment Ignore_Contract"
-                    sechead_st_list[2] = sechead_st_list[2] + " Ignore_Employment Ignore_Contract"
-            self.sechead_vectorizer.fit(sechead_st_list)
+            # If there is no section head vocab due to some reason, such as very custom
+            # training set, simply add a dummpy vocab
+            try:
+                self.sechead_vectorizer.fit(sechead_st_list)
+            except ValueError:
+                self.sechead_vectorizer = CountVectorizer(vocabulary=['dummy'])
 
             # handling bi-topgram
             # only lower case, mode=0, label_list must not be empty
