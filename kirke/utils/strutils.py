@@ -309,6 +309,8 @@ ALPHA_WORD_PAT = re.compile(r'[a-zA-Z]+')
 
 ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
 
+ALPHA_OR_NUM_WORD_PAT = re.compile(r'[a-zA-Z0-9]+')
+
 ALL_PUNCT_PAT = re.compile(r"^[\(\)\.,\[\]\-/\\\{\}`'\"]+$")
 
 ANY_PUNCT_PAT = re.compile(r"[\(\)\.,\[\]\-/\\\{\}`'\"]")
@@ -356,6 +358,10 @@ def get_alphanum_words(line: str, is_lower=True) -> List[str]:
         line = line.lower()
     return [word for word in ALPHANUM_WORD_PAT.findall(line)]
 
+def get_alpha_or_num_words(line: str, is_lower=True) -> List[str]:
+    if is_lower:
+        line = line.lower()
+    return [word for word in ALPHA_OR_NUM_WORD_PAT.findall(line)]
 
 def tokens_to_all_ngrams(word_list: List[str], max_n=1) -> Set[str]:
     # unigram
