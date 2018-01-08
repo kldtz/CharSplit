@@ -3,7 +3,7 @@ import re
 # pylint: disable=unused-import
 from typing import DefaultDict, Dict, List, Set, Tuple
 
-from kirke.utils import mathutils
+from kirke.utils import mathutils, wordutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
 
@@ -75,11 +75,17 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                                   ebantdoc,
                                   threshold: float,
                                   diagnose_mode: bool = False) -> Tuple[float, float, float, float]:
-    """Calculate the confusion matrix.
+    """Calculate the confusion matrix for one document only, based only on offsets.
 
     Args:
-        ebantdoc: kirke.utils.ebantdoc2 right now.
+        prov_human_ant_list: human annotation list, only for 1 provision
+        ant_list: annotation predicted by machine
+        ebantdoc: document; kirke.utils.ebantdoc2 right now.
+        threshold: the threshold to decide if a provision is positive
+        diagnose_mode: whether to print debug info
 
+    Returns:
+        tp, fn, fp, tn
     """
 
     txt = ebantdoc.get_text()
@@ -144,21 +150,41 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
 # if any matched, we passed.  Don't care about any other.
 # pylint: disable=too-many-branches
 def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAnnotation],
-                                           ant_list: List[Dict],
+                                           ant_list: List[Dict],  # this is machine annotation
                                            ebantdoc,
                                            # threshold,
                                            diagnose_mode: bool = False) \
                                            -> Tuple[float, float, float, float]:
+    """Calculate the confusion matrix for one document, if there is any match by offset or string.
+
+    This differs from calc_doc_ant_confusion_matrix() because if there is any annotation match,
+    either by offsets or surface form, TP will be max 1.  FP and FN can also maximally be 1.
+
+    There is no threshold in the Args because there is no prob.
+
+    Args:
+        prov_human_ant_list: human annotation list, only for 1 provision
+        ant_list: annotation predicted by machine
+        ebantdoc: document
+        diagnose_mode: whether to print debug info
+
+    Returns:
+        tp, fn, fp, tn
+    """
     txt = ebantdoc.get_text()
     tp, fp, tn, fn = 0, 0, 0, 0
     # print("calc_doc_ant_confusion_matrix:")
 
-    pred_ant_list = []
+    pred_ant_list = []  # this is machine annotations
+    # For doing matching with all human annotation by surface form,
+    # not by offsets.
+    pred_ant_st_list = []  # type: List[str]
     for adict in ant_list:
         pred_ant_list.append(AnnotationWithProb(adict['label'],
                                                 adict['start'],
                                                 adict['end'],
                                                 adict['prob']))
+        pred_ant_st_list.append(txt[adict['start']:adict['end']])
     # print("prov_human_ant_list: {}".format(prov_human_ant_list))
     # print("pred_ant_list: {}".format(pred_ant_list))
 
@@ -167,8 +193,11 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
     fp_inst_list = []  # type: List[AnnotationWithProb]
     fn_inst_list = []  # type: List[ProvisionAnnotation]
     tp_fn_set = set([])  # type: Set[AnnotationWithProb]
-    for hant in prov_human_ant_list:
 
+    # this is to using string to test overlap, in case human annotation is not exhaustic for a doc
+    human_ant_st_list = []  # type: List[str]
+    for hant in prov_human_ant_list:
+        human_ant_st_list.append(txt[hant.start:hant.end])
         pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
         if pred_overlap_list:
             # This handles the case there a predicted annotation overlap with one
@@ -181,23 +210,40 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
 
         tp_fn_set |= set(pred_overlap_list)
 
-    for pant in pred_ant_list:
-        # skip if in TP or FP before
+    for pant in pred_ant_list:  # looping through machine annotations
+        # skip if in TP or FN before
         if pant in tp_fn_set:
             continue
-        # if pred:
+        # if reach here, the pant must be false positive
         fp_inst_list.append(pant)
         fp += 1
 
+    # If no tp, maybe human annotation is not exhaustic.
+    # Try to match any machine annotation with any human annotation with >= 0.66 word overlap
+    if tp == 0:
+        for pred_ant_st in pred_ant_st_list:
+            for human_ant_st in human_ant_st_list:
+                if wordutils.is_word_overlap_ge_66p(pred_ant_st, human_ant_st):
+                    tp = 1
+                    break
+            if tp > 0:
+                break
+
     # we only care about any match
+    # This also assume that all the titles in the document are human annotated.
+    # This evaluation is only for one particular provision in the doc, so max
+    # tp is 1.
     if tp:
+        tp = 1
         fn = 0
         fp = 0
         return tp, fn, fp, tn
 
+    # Since this is "anymatch", only max 1
     if fp:
         fp = 1
 
+    # Since this is "anymatch", only max 1
     if fn:
         fn = 1
 
