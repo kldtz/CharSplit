@@ -175,10 +175,11 @@ def zipcode_remove(grps):
     return grps
 
 def extract_between_among(s, is_party=True):
+
     """Return parties for party lines containing either 'between' or 'among'."""
-    if not is_party:
+    s = s.split('between')[-1].split('among')[-1]
+    if is_party:
         # Consider after between. If line ends in between (no 'and'), return None.
-        s = s.split('between')[-1].split('among')[-1]
         if 'and' not in s:
             return None
     # Temporarily sub defined terms with '=' to avoid splitting on their commas
@@ -282,7 +283,6 @@ def extract_between_among(s, is_party=True):
 def extract_parties_from_party_line(s, is_party=True):
     """Return list of parties (which are lists of strings) of s (party line)."""
     s = first_sentence(s)
-
     # Try (eventually several) possible rules
     if ('between' in s or 'among' in s) or not is_party:
         return extract_between_among(s, is_party)
@@ -327,7 +327,7 @@ def extract_parties(filepath):
         return None
 
     # Extract parties and return their offsets
-    parties = extract_parties_from_party_line(party_line)
+    parties = extract_parties_from_party_line(party_line, is_party=True)
     return parties_to_offsets(parties, party_line)
 
 
