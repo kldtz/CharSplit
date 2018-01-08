@@ -112,7 +112,7 @@ def extract_lines_v2(paras_attr_list):
     offset = 0
     is_found_party_line, is_found_first_eng_para = False, False
     is_found_toc = False
-    max_maybe_title_lines = 100
+    max_maybe_title_lines = 75
     # num_maybe_title_lines = -1
     num_lines_before_first_eng_para = 0
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
