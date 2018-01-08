@@ -773,17 +773,19 @@ class EbLangDetectRunner:
 
     def detect_lang(self, atext):
         try:
-            detect_lang = langdetect.detect(atext) or 'unknown'
+            detect_lang = langdetect.detect(atext)
         except:
-            detect_lang = 'unknown'
+            detect_lang = None
         # logging.info("detected language '{}'".format(detect_lang))
         return detect_lang
 
     def detect_langs(self, atext):
         try:
             lang_probs = langdetect.detect_langs(atext)
+            if lang_probs is None:
+                return ''
             detect_langs = ','.join(['{}={}'.format(lang.lang, lang.prob) for lang in lang_probs])
         except:
-            detect_langs = 'unknown=0.00001'
+            detect_langs = ''
         # logging.info("detected languages '{}'".format(detect_langs))
         return detect_langs
