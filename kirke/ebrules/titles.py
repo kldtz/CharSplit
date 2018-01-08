@@ -43,9 +43,9 @@ def remove_label_regexes(s):
 
 def process_as_line(astr: str):
     if astr:
-        print("process_as_line({})".format(astr))
+        # print("process_as_line({})".format(astr))
         x = alnum_strip(remove_label_regexes(alnum_strip(astr.lower())))
-        print("   return: {}".format(x))
+        # print("   return: {}".format(x))
         return x
     return astr
 
@@ -291,8 +291,18 @@ num_titles_to_match = ceil(TITLES_MATCH_PCT / 100 * len(titles))
 def title_ratio(s):
     s = process_as_title(s)
     if s:
+        # To handle some UK documents, the score of those special cases
+        # are not high enough (50's).  Set artificial high scores.
+        if (s == "ownersconsent" or \
+            s == "occupiersconsent"):
+            return 88
+        if s.startswith("leaseofland"):
+            return 88
+        # end of special cases
+
         ratios = process.extract(s, titles, scorer=fuzz.ratio,
                                  limit = num_titles_to_match)
+        # print("titlxxx: ratios = {}".format(ratios))
         ratios = [ratio[1] for ratio in ratios]
         if 0 not in ratios:
             return stats.hmean(ratios)
@@ -384,7 +394,20 @@ def extract_offsets(paras_attr_list, paras_text):
 
             # Update title if higher score
             if score > title['score']:
-                title = {'offsets': (start, end, lines[j]['end_char']),
+                # special cases for UK, remove certain ending if there is only 1 line
+                if start == end:
+                    tmp_chopped_offset = lines[j]['end_char']
+                    if tmp_chopped_offset == -1:
+                        tmp_end_offset = start_end_list[end][1]
+                    else:
+                        tmp_end_offset = start_end_list[end][0] + tmp_chopped_offset
+                    thx_text = paras_text[start_end_list[start][0]:tmp_end_offset]
+                    # print("thx_text = [{}]".format(thx_text))
+                    if thx_text.lower().startswith("lease of land at"):
+                        tmp_chopped_offset = len("lease of land")
+                # special cases for UK
+
+                title = {'offsets': (start, end, tmp_chopped_offset),
                          'score': score, 'ratio': ratio_score}
 
     # Return the title's start and end lines
