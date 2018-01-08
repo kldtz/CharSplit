@@ -7,6 +7,8 @@ from kirke.utils import mathutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
 
+AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
+
 # pylint: disable=C0103
 # label_start_end_list is of type prov_annotation_list
 def find_annotation_overlap(start: int,
@@ -65,9 +67,6 @@ def calc_precision_recall_f1(tn: int,
         print("prec= {}, recall= {}, f1= {}".format(prec, recall, f1))
 
     return prec, recall, f1
-
-
-AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
 
 
 # pylint: disable=R0914

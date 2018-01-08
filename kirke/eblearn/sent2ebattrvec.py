@@ -1,8 +1,10 @@
 import re
 import time
 import logging
+from typing import Match, List, Tuple
 
 from kirke.utils import unicodeutils, entityutils
+from kirke.utils.corenlpsent import EbSentence
 from kirke.eblearn import ebattrvec
 
 # truncate the following features to avoid outlier issues
@@ -21,7 +23,7 @@ def count_define_party(line: str) -> int:
 
 AGREEMENT_PAT = re.compile(r'\bagreements?\b', re.IGNORECASE)
 
-def has_word_agreement(line: str) -> bool:
+def has_word_agreement(line: str) -> Match[str]:
     return AGREEMENT_PAT.search(line)
 
 #    patlist = AGREEMENT_PAT.finditer(line)
@@ -33,12 +35,17 @@ def has_word_agreement(line: str) -> bool:
 
 BTW_PAT = re.compile(r'\b(between|among)\b', re.IGNORECASE)
 
-def has_word_between(line: str) -> bool:
+def has_word_between(line: str) -> Match[str]:
     return BTW_PAT.search(line)
 
 
 # pylint: disable=R0912,R0913,R0914,R0915
-def sent2ebattrvec(file_id, ebsent, sent_seq, prev_ebsent, next_ebsent, atext):
+def sent2ebattrvec(file_id: str,
+                   ebsent: EbSentence,
+                   sent_seq: int,
+                   prev_ebsent: EbSentence,
+                   next_ebsent: EbSentence,
+                   atext: str) -> ebattrvec.EbAttrVec:
     tokens = ebsent.get_tokens()
     text_len = len(atext)
     raw_sent_text = atext[ebsent.start:ebsent.end]
