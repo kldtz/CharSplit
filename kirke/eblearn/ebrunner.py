@@ -310,12 +310,10 @@ class EbRunner:
 
         # this update the 'start_end_span_list' in each antx in-place
         # docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
-
         # update prov_labels_map based on rules
         self.apply_line_annotators(prov_labels_map,
                                    eb_antdoc,
                                    work_dir=work_dir)
-
         # since nobody is using rate-table classifier yet
         # we are disabling it for now.
         """
@@ -345,6 +343,7 @@ class EbRunner:
 
         time2 = time.time()
         logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
+        #print("@@@@@@", prov_labels_map['party'])
         return prov_labels_map, eb_antdoc
 
 
@@ -391,12 +390,10 @@ class EbRunner:
 
         party_ant_list = self.party_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                               eb_antdoc.nlp_text)
-
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
             fromto_mapper.adjust_fromto_offsets(party_ant_list)
             prov_labels_map['party'] = party_ant_list
-
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                             eb_antdoc.nlp_text)
@@ -456,12 +453,11 @@ class EbRunner:
 
         party_ant_list = self.party_annotator.annotate_antdoc(paraline_with_attrs,
                                                               paraline_text)
-
+        #print("???", party_ant_list)
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
             fromto_mapper.adjust_fromto_offsets(party_ant_list)
             prov_labels_map['party'] = party_ant_list
-
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(paraline_with_attrs,
                                                             paraline_text)

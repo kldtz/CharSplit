@@ -25,7 +25,7 @@ zip_code_year = re.compile(r'\b\d{5}(?:\-\d{4})?\b|\b(?:19|20)\d{2}\b')
 quote = re.compile(r'“|"|”')
 
 # Supports US (5 or 5-4), UK, Australia (4), Switzerland (4), Shanghai (6)
-UK_STD = '[A-Z]{1,2}[0-9R][0-9A-Z]? (?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
+UK_STD = '[A-Z]{1,2}[0-9R][0-9A-Z]? +(?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
 zip_code_year = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
 dot_space = re.compile(r'[\.\s]+')
 
@@ -174,15 +174,16 @@ def zipcode_remove(grps):
     return grps
 
 def extract_between_among(s, is_party=True):
+
     """Return parties for party lines containing either 'between' or 'among'."""
-    if not is_party:
+    s = s.split('between')[-1].split('among')[-1]
+    #if is_party:
         # Consider after between. If line ends in between (no 'and'), return None.
-        s = s.split('between')[-1].split('among')[-1]
-        if 'and' not in s:
-            return None
+        #if 'and' not in s:
+            #return None
     # Temporarily sub defined terms with '=' to avoid splitting on their commas
     terms = parens.findall(s)
-    s = re.sub('between', 'between,', s)
+    s = re.sub('(between)|(being)|(\n)|\(?[\div]+\)', ', ', s)
     s = non_comma_separators.sub(',', parens.sub('=', s))
     # Split the string into parts, applying party_strip between each step
     parts = [party_strip(part) for part in party_strip(s).split(', ')]
@@ -197,7 +198,6 @@ def extract_between_among(s, is_party=True):
         if p == '=':
             new_parts.append(p)
             continue
-
         # If first word is a suffix (MD MBA), add to previous and remove from p
         seen_suffixes = ''
         check_again = True
@@ -284,10 +284,13 @@ def extract_between_among(s, is_party=True):
     return parties
 
 
-def extract_parties_from_party_line(s, is_party=False):
+def extract_parties_from_party_line(s, is_party=True):
     """Return list of parties (which are lists of strings) of s (party line)."""
     s = first_sentence(s)
     print("<<<<", s)
+    print(re.match(r'\(?[\div]\)', s))
+    if re.match(r'\(?[\div]\)', s):
+       return extract_between_among(s, is_party)
     # Try (eventually several) possible rules
     if ('between' in s or 'among' in s) or not is_party:
         return extract_between_among(s, is_party)
@@ -332,7 +335,7 @@ def extract_parties(filepath):
         return None
 
     # Extract parties and return their offsets
-    parties = extract_parties_from_party_line(party_line)
+    parties = extract_parties_from_party_line(party_line, is_party=True)
     return parties_to_offsets(parties, party_line)
 
 
@@ -341,13 +344,27 @@ def extract_party_line(paras_attr_list):
     offset = 0
     start_end_list = []
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
-        print("@@@", line_st, para_attrs)
+        #print("@@@", i, line_st, para_attrs)
         # attrs_st = '|'.join([str(attr) for attr in para_attrs])
         # print('\t'.join([attrs_st, '[{}]'.format(line_st)]), file=fout1)
         line_st_len = len(line_st)
-
+        whitespace_line = '\n'
         if 'party_line' in para_attrs:
-            return offset, offset + line_st_len, line_st
+            next_line, next_attrs = paras_attr_list[i+1]
+            if next_line:
+                offset_add = len(next_line)
+            else:
+                whitespace_line = next_line
+                next_line, _ = paras_attr_list[i+2]
+                offset_add = len(whitespace_line) + len(next_line)
+                if re.match('\s?and\s?', next_line, re.I):
+                    whitespace_line += next_line + paras_attr_list[i+3][0]
+                    next_line, _ = paras_attr_list[i+4]
+                    offset_add += len(whitespace_line) + len(next_line) 
+            if re.match(r'\(?[\div]+\)', next_line, re.I): 
+                return offset, offset + line_st_len + offset_add, "{}\n{}\n{}".format(line_st, whitespace_line, next_line)
+            else:
+                return offset, offset + line_st_len, line_st
         offset += line_st_len + 1
 
         # don't bother if party_line is too far from start of the doc
@@ -390,8 +407,7 @@ def extract_offsets(paras_attr_list, para_text):
     for start, end in non_partyline_parties:
         out_list.append(((start, end), None))
     """
-        
-    # logging.info("out_list: {}".format(out_list))
+    #logging.info("out_list: {}".format(out_list))
     return out_list
 
 
