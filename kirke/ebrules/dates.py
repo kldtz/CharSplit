@@ -266,7 +266,10 @@ def extract_dates_v2(line, line_start, doc_text=''):
         else:
             result.append((mat.start(), mat.end(), mat.group(),  'date'))
 
-    return result
+    # remove duplicates
+    out_list2 = mathutils.remove_subsumed(result)
+
+    return out_list2
 
 
 def extract_dates(filepath):

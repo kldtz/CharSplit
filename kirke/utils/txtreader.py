@@ -4,13 +4,13 @@ import re
 from typing import Iterator, List, Tuple
 
 # change all nbsp to regular spaces
-def loads(file_name):
+def loads(file_name: str) -> str:
     with open(file_name, 'rt', newline='') as fin:
         doc = fin.read().replace('\xa0', ' ')
     return doc
 
 
-def dumps(doc_text, file_name):
+def dumps(doc_text: str, file_name: str) -> None:
     with open(file_name, 'wt') as fout:
         fout.write(doc_text)
 
@@ -39,7 +39,8 @@ def text_to_lines_with_offsets(text: str) -> Iterator[Tuple[int, int, str]]:
         offset += line_len + 1
 
 # return list of page offsets, and list of list of line offsets
-def load_page_lines_with_offsets(file_name: str):
+def load_page_lines_with_offsets(file_name: str) -> Tuple[List[Tuple[int, int]],
+                                                          List[List[Tuple[int, int, str]]]]:
     doc_text = loads(file_name)
     paged_text_list = doc_text.split(chr(12))  # pdftotext use ^L as page marker
 
@@ -73,7 +74,7 @@ BE_SPACE_PAT = re.compile(r'^(\s*)(.*)$')
 
 # remove all begin and end spaces for lines
 # 'be' = begin_end
-def load_normalized_lines_with_offsets(file_name: str):
+def load_normalized_lines_with_offsets(file_name: str) -> Iterator[Tuple[int, int, str]]:
     from_offset = 0
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
@@ -98,7 +99,9 @@ def load_normalized_lines_with_offsets(file_name: str):
 
 # remove all begin and end spaces for lines
 # 'be' = begin_end
-def load_lines_with_fromto_offsets(file_name: str):
+def load_lines_with_fromto_offsets(file_name: str) -> Iterator[Tuple[Tuple[int, int],
+                                                                     Tuple[int, int],
+                                                                     str]]:
     from_offset = 0
     to_offset = 0
     with open(file_name, 'rt', newline='') as fin:
@@ -111,7 +114,7 @@ def load_lines_with_fromto_offsets(file_name: str):
             if new_line.strip():
                 mat = BE_SPACE_PAT.match(new_line)
                 no_be_space_line = mat.group(2).strip()
-                len_nospace_line = len(no_be_space_line)
+                len_no_be_space_line = len(no_be_space_line)
 
                 from_start = from_offset + mat.start(2)
                 from_end = from_start + len_no_be_space_line
@@ -126,7 +129,7 @@ def load_lines_with_fromto_offsets(file_name: str):
             to_offset += 1  # eoln
             
 
-def load_str_list(file_name):
+def load_str_list(file_name: str) -> List[str]:
     st_list = []
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
@@ -173,7 +176,7 @@ def is_separate_line_text(doc_text: str) -> bool:
     if num_empty_line / num_lines > 0.4:
         return True
 
-    if num_le_120 == 0:
+    if num_le_110 == 0:
         return True
 
     if num_start_lc / num_not_empty_line >= 0.5:
@@ -198,7 +201,10 @@ for xline in blines:
     else:
         print()
 """
-def de_separate_lines(atext: str):
+def de_separate_lines(atext: str) -> Tuple[List[Tuple[Tuple[int, int],
+                                                      Tuple[int, int],
+                                                      str]],
+                                           str]:
     from_offset = 0
     to_offset = 0
     lines = atext.split('\n')

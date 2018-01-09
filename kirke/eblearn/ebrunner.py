@@ -712,6 +712,7 @@ class EbRunner:
                 # print("\nfn: {}".format(ebantdoc.file_id))
                 # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
                 # pred_prob_start_end_list, txt)
+                # currently, PROVISION_EVAL_ANYMATCH_SET only has 'title', not 'party' or 'date'
                 if provision in ebannotator.PROVISION_EVAL_ANYMATCH_SET:
                     xtp, xfn, xfp, xtn = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
@@ -772,17 +773,19 @@ class EbLangDetectRunner:
 
     def detect_lang(self, atext):
         try:
-            detect_lang = langdetect.detect(atext) or 'unknown'
+            detect_lang = langdetect.detect(atext)
         except:
-            detect_lang = 'unknown'
+            detect_lang = None
         # logging.info("detected language '{}'".format(detect_lang))
         return detect_lang
 
     def detect_langs(self, atext):
         try:
             lang_probs = langdetect.detect_langs(atext)
+            if lang_probs is None:
+                return ''
             detect_langs = ','.join(['{}={}'.format(lang.lang, lang.prob) for lang in lang_probs])
         except:
-            detect_langs = 'unknown=0.00001'
+            detect_langs = ''
         # logging.info("detected languages '{}'".format(detect_langs))
         return detect_langs

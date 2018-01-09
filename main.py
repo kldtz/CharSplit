@@ -18,7 +18,7 @@ from kirke.docclassifier.unigramclassifier import UnigramDocClassifier
 from kirke.docclassifier import doccatsplittrte
 from kirke.eblearn import ebannotator, ebrunner, ebtrainer, provclassifier, scutclassifier
 from kirke.ebrules import rateclassifier
-from kirke.utils import osutils, splittrte, strutils
+from kirke.utils import ebantdoc2, osutils, splittrte, strutils
 
 config = configparser.ConfigParser()
 config.read('kirke.ini')
