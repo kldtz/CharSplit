@@ -744,7 +744,6 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
         agent = ['landlord', 'lessor']
     else:
         agent = ['tenant', 'lessee']
-    
     #uses party extraction to extract the tenant and landlord
     extr_parties = parties.extract_parties_from_party_line(sent_st, is_party=False)
     try:
@@ -752,10 +751,9 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
             for ag in agent:
                 if ag in ref.lower():
                     mat = re.search(re.escape(party), sent_st, re.I)
-                    if mat:
-                        ant_start, ant_end = mat.span()
-                        found_provision_list.append((party, sent_start+ant_start, sent_start+ant_end, 'x1'))
-                        is_provision_found = True
+                    ant_start, ant_end = mat.span()
+                    found_provision_list.append((party, sent_start+ant_start, sent_start+ant_end, 'x1'))
+                    is_provision_found = True
     except:
         #splits on "and" and matches entities from the attrvec as a fallback 
         sent_split = re.compile(r'\s+and\s+', re.I)
@@ -1391,7 +1389,6 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                                                       cx_prob_attrvec.entities,
                                                       doc_text,
                                                       self.provision)
-
             elif (re.findall(re.escape(flag)+'\s|'+re.escape(bullet), doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].lower()[:50]) and cx_prob_attrvec.prob > 0):
                 lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
                                                       cx_prob_attrvec.end,
