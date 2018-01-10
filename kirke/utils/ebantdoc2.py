@@ -560,7 +560,6 @@ def text_to_ebantdoc2(txt_fname,
         # corenlp should be cache so that we don't run it again for same
         # files.
         # is_cache_enabled = False
-    is_cache_enabled = False
     if is_cache_enabled:
         # check if file exist, if it is, load it and return
         # regarless of the existing PDF or HtML or is_doc_structure
@@ -618,7 +617,6 @@ def doclist_to_ebantdoc_list(doclist_file,
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
-    is_cache_anabled = False
     txt_fn_list = []
     with open(doclist_file, 'rt') as fin:
         for txt_file_name in fin:

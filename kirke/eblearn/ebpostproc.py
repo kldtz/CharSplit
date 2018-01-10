@@ -184,11 +184,13 @@ class PostPredPartyProc(EbPostPredictProcessing):
         for cx_prob_attrvec in merged_prob_attrvec_list:
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
+                print(">", doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "))
                 for entity in cx_prob_attrvec.entities:
+                    print("##", entity)
                     if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
-
                         if 'agreement' in entity.text.lower() or NOT_PARTY_PAT.match(entity.text):
                             continue
+                        print("\tadded")
                         ant_result.append(to_ant_result_dict(label=self.provision,
                                                              prob=cx_prob_attrvec.prob,
                                                              start=entity.start,
