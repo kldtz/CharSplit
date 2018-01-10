@@ -184,18 +184,39 @@ class PostPredPartyProc(EbPostPredictProcessing):
         for cx_prob_attrvec in merged_prob_attrvec_list:
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
-                print(">", doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "))
-                for entity in cx_prob_attrvec.entities:
-                    print("##", entity)
-                    if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
-                        if 'agreement' in entity.text.lower() or NOT_PARTY_PAT.match(entity.text):
-                            continue
-                        print("\tadded")
-                        ant_result.append(to_ant_result_dict(label=self.provision,
-                                                             prob=cx_prob_attrvec.prob,
-                                                             start=entity.start,
-                                                             end=entity.end,
-                                                             text=strutils.remove_nltab(entity.text)))
+                print("#", doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "))
+                sent_st = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
+                extr_parties = parties.extract_parties_from_party_line('(1) ' + sent_st, is_party=True)
+                if extr_parties:
+                    print("\t##", extr_parties)
+                    for extr in extr_parties:
+                      print("\t", extr[0])
+                      if parties.is_invalid_party(extr[0]) == True:
+                          continue
+                      if len(extr[0].split()) == 1 and parties.is_valid_1word_party(extr[0]) == None:
+                          continue
+                      else:
+                          for part in extr:
+                              mat = re.search(re.escape(part), sent_st, re.I)
+                              ant_start, ant_end = mat.span()
+                              print("\t", part, "added")
+                              ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                   prob=cx_prob_attrvec.prob,
+                                                                   start=cx_prob_attrvec.start+ant_start,
+                                                                   end=cx_prob_attrvec.start+ant_end,
+                                                                   text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                else:   
+                    for entity in cx_prob_attrvec.entities:
+                        print("$$", entity)
+                        if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
+                            if 'agreement' in entity.text.lower() or NOT_PARTY_PAT.match(entity.text):
+                                continue
+                            print("\tadded")
+                            ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                 prob=cx_prob_attrvec.prob,
+                                                                 start=entity.start,
+                                                                 end=entity.end,
+                                                                 text=strutils.remove_nltab(entity.text)))
         return ant_result
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')

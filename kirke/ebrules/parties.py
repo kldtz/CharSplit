@@ -204,7 +204,7 @@ def extract_between_among(s, is_party=True):
     parts = [party_strip(part) for part in party_strip(s).split(', ')]
     parts = [party_strip(q) for p in parts for q in paren_symbol.split(p) if q]
     parts = [q for q in parts if q]
-
+    print(">", parts)
     # Process parts and decide which parts to keep
     new_parts = ['']
     #print("\t", parts)
@@ -253,11 +253,11 @@ def extract_between_among(s, is_party=True):
     # Remove lines marked for deletion (^)
     parts = new_parts if new_parts[0] else new_parts[1:]
     grps = [list(g) for k, g in groupby(parts, lambda p: '^' in p) if not k]
-    print("\t<<", grps)
+    #print("\t<<", grps)
     if is_party:
         grps = zipcode_remove(grps)
     parts = [part for g in grps for part in g]
-    print("\t>>", parts)
+    #print("\t>>", parts)
     # Add terms back in
     terms = [process_term(t) for t in terms]
     current_term = 0
@@ -265,7 +265,7 @@ def extract_between_among(s, is_party=True):
     part_types = []
     part_type_bools = []
     for p in parts:
-        print("\t\t", p)
+        #print("\t\t", p)
         # Record term type {0: party, 1: (), 2: ("")} and substitute term
         part_type_bool = p == '='
         part_type = int(part_type_bool)
@@ -277,7 +277,7 @@ def extract_between_among(s, is_party=True):
         if not p:
             # Occurs e.g. if term was a title or a date
             continue
-        print("\t\t>", p)
+        #print("\t\t>", p)
         # Append if first party/term or term follows term (if 2, no other 2)
         if part_types:
             if (part_type_bool not in part_type_bools
@@ -288,7 +288,7 @@ def extract_between_among(s, is_party=True):
                 part_types.append(part_type)
                 part_type_bools.append(part_type_bool)
                 continue
-        print("\t\t>>", p)
+        #print("\t\t>>", p)
         # Otherwise start a new party
         parties.append([p])
         part_types = [part_type]
@@ -296,7 +296,7 @@ def extract_between_among(s, is_party=True):
 
     # Remove parties that only contain defined terms, then return
     parties = [p for p in parties if not all(parens.search(w) for w in p)]
-    print("\t>>", parties)
+    #print("\t>>", parties)
     return parties
 
 
@@ -308,7 +308,6 @@ def extract_parties_from_party_line(s, is_party=True):
     """
     s = first_sentence(s)
     print("<<<<", s)
-
     #bullet type parties won't contain between / among, extract anyway
     if re.match(r'\(?[\div]\)', s):
        return extract_between_among(s, is_party)
