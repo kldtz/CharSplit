@@ -198,13 +198,16 @@ class PostPredPartyProc(EbPostPredictProcessing):
                       else:
                           for part in extr:
                               mat = re.search(re.escape(part), sent_st, re.I)
-                              ant_start, ant_end = mat.span()
-                              print("\t", part, "added")
-                              ant_result.append(to_ant_result_dict(label=self.provision,
-                                                                   prob=cx_prob_attrvec.prob,
-                                                                   start=cx_prob_attrvec.start+ant_start,
-                                                                   end=cx_prob_attrvec.start+ant_end,
-                                                                   text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                              if mat:
+                                  ant_start, ant_end = mat.span()
+                                  print("\t", part, "added")
+                                  ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                       prob=cx_prob_attrvec.prob,
+                                                                       start=cx_prob_attrvec.start+ant_start,
+                                                                       end=cx_prob_attrvec.start+ant_end,
+                                                                       text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                              else:
+                                  continue
                 else:   
                     for entity in cx_prob_attrvec.entities:
                         print("$$", entity)
