@@ -343,7 +343,6 @@ class EbRunner:
 
         time2 = time.time()
         logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
-        #print("@@@@@@", prov_labels_map['party'])
         return prov_labels_map, eb_antdoc
 
 
@@ -453,7 +452,6 @@ class EbRunner:
 
         party_ant_list = self.party_annotator.annotate_antdoc(paraline_with_attrs,
                                                               paraline_text)
-        #print("???", party_ant_list)
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
             fromto_mapper.adjust_fromto_offsets(party_ant_list)

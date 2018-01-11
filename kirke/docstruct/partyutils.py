@@ -46,6 +46,7 @@ this_agreement_pat = re.compile(r'this.*agreement\b', re.IGNORECASE)
 
 
 def is_party_line(line):
+    #returns true if bullet type
     if re.match(r'\(?[\div]+\)', line):
         return True
     if len(line) < 40:  # don't want to match line "BY AND BETWEEN" in title page
