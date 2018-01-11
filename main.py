@@ -125,7 +125,7 @@ def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir,
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
     # cust_id = '12345'
-    provision = 'cust_12345'
+    # provision = 'cust_12345'
 
     base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision,
                                                           SCUT_CLF_VERSION)
