@@ -4,7 +4,7 @@ import re
 import string
 import logging
 
-from kirke.ebrules import titles
+from kirke.ebrules import titles, addresses
 from kirke.utils import strutils
 
 
@@ -73,6 +73,8 @@ def is_invalid_party(line, is_party=True):
         for part in ADDRESS_PARTS:
             if part in lc_line:
                 return True
+        if addresses.classify(line) > 0.5:
+            return True
 
     #catches other likely fps
     if ' this ' in lc_line:
@@ -100,6 +102,7 @@ def invalid_lower(word):
 
 
 def keep(s):
+    #print("\t", parts)
     """Eliminate titles (the "Agreement") as potential parties and terms."""
     alphanum_chars = ''.join([c for c in s if c.isalnum()])
     return titles.title_ratio(alphanum_chars) < 73 if alphanum_chars else False
@@ -112,17 +115,21 @@ def process_part(p):
     # Reject if just a state or state abbreviations (only 2 characters)
     if len(p) < 3 or cap_rm_dot_space(p) in states:
         return ''
+
     # Terminate at a single-word business suffix or business suffix abbreviation
     for word in p.split():
         if cap_rm_dot_space(word) in business_suffixes or invalid_lower(word):
             p = p[:p.index(word) + len(word)]
             break
+
     # Remove certain phrases like 'on the one hand'
     for r in party_regexes:
         p = r.sub('', p)
+ 
     # Take away any lowercase words from end e.g. 'organized'
     while p.strip() and p.split()[-1].islower():
         p = p[:len(p) - len(p.split()[-1]) - 1]
+
     # Return the processed part if not a title
     return p if keep(p) else ''
 
@@ -175,13 +182,13 @@ def zipcode_remove(grps):
     # Going backwards, when see a zip code/ year, remove up to prev removed line
     for i in range(len(grps)):
         zip_code_inds = [j for j, part in enumerate(grps[i]) if part == '+']
-        #print("\t\t\t", grps[i], zip_code_inds)
+        print("\t\t\t", grps[i])
         if zip_code_inds:
             new_start = max(zip_code_inds) + 1
             terms_before = [part for part in grps[i][:new_start] if part == '=']
-            #print("\t\t\t>", terms_before)
+            print("\t\t\t>", terms_before)
             new_parts = grps[i][new_start:]
-            #print("\t\t\t>>", new_parts)
+            print("\t\t\t>>", new_parts)
             grps[i] = terms_before + new_parts
     return grps
 
@@ -189,10 +196,7 @@ def extract_between_among(s, is_party=True):
 
     """Return parties for party lines containing either 'between' or 'among'."""
     s = s.split('between')[-1].split('among')[-1]
-    #if is_party:
-        # Consider after between. If line ends in between (no 'and'), return None.
-        #if 'and' not in s:
-            #return None
+    
     # Temporarily sub defined terms with '=' to avoid splitting on their commas
     terms = parens.findall(s)
 
@@ -205,15 +209,16 @@ def extract_between_among(s, is_party=True):
     parts = [party_strip(q) for p in parts for q in paren_symbol.split(p) if q]
     parts = [q for q in parts if q]
     print(">", parts)
+    
     # Process parts and decide which parts to keep
     new_parts = ['']
-    #print("\t", parts)
     for p in parts:
         #print("\t\t", p)
         # If p is a term, keep the term and continue
         if p == '=':
             new_parts.append(p)
             continue
+        
         # If first word is a suffix (MD MBA), add to previous and remove from p
         seen_suffixes = ''
         check_again = True
@@ -223,27 +228,31 @@ def extract_between_among(s, is_party=True):
             for i in range(max_suffix_words):
                 words_considered = cap_rm_dot_space(''.join(words[:i]))
                 if any(words_considered == s for s in suffixes):
-                    seen_suffixes += ' ' + ' '.join(words[:i])
+                    seen_suffixes += ', ' + ' '.join(words[:i])
                     p = ' '.join(words[i:])
                     check_again = True
                     break
         #print("\t\t>", new_parts)
         if seen_suffixes:
             # Append suffixes
-            new_parts[-1] += ',' + seen_suffixes
+            new_parts[-1] += ' ' + seen_suffixes
+
         # Take out 'the ' from beginning of string; bail if remaining is empty
         while p.startswith('the '):
             p = p[4:]
         if not p.strip():
             continue
+
         #print("\t\t>>", new_parts)
         # Mark for deletion if first word has no uppercase letters or digits
         first_word = p.split()[0]
         if not any(c.isupper() or c.isdigit() for c in first_word):
             new_parts.append('^')
             continue
+        
         if is_party: 
             new_parts = zipcode_replace(p, new_parts)
+        
         # Process then keep the part if not a title, etc.
         processed_part = process_part(p)
         if processed_part:
@@ -254,9 +263,10 @@ def extract_between_among(s, is_party=True):
     parts = new_parts if new_parts[0] else new_parts[1:]
     grps = [list(g) for k, g in groupby(parts, lambda p: '^' in p) if not k]
     #print("\t<<", grps)
-    if is_party:
-        grps = zipcode_remove(grps)
+    #if is_party:
+        #grps = zipcode_remove(grps)
     parts = [part for g in grps for part in g]
+
     #print("\t>>", parts)
     # Add terms back in
     terms = [process_term(t) for t in terms]
@@ -277,6 +287,7 @@ def extract_between_among(s, is_party=True):
         if not p:
             # Occurs e.g. if term was a title or a date
             continue
+
         #print("\t\t>", p)
         # Append if first party/term or term follows term (if 2, no other 2)
         if part_types:
@@ -288,6 +299,7 @@ def extract_between_among(s, is_party=True):
                 part_types.append(part_type)
                 part_type_bools.append(part_type_bool)
                 continue
+
         #print("\t\t>>", p)
         # Otherwise start a new party
         parties.append([p])
