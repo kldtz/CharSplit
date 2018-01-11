@@ -179,9 +179,11 @@ class PostPredPartyProc(EbPostPredictProcessing):
                      provision=None, prov_human_ant_list=None) -> (List[Dict], float):
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
-
+        last_result = None
+        count = 0
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
+            count += 1
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 print("#", doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "))
@@ -201,11 +203,13 @@ class PostPredPartyProc(EbPostPredictProcessing):
                               if mat:
                                   ant_start, ant_end = mat.span()
                                   print("\t", part, "added")
-                                  ant_result.append(to_ant_result_dict(label=self.provision,
-                                                                       prob=cx_prob_attrvec.prob,
-                                                                       start=cx_prob_attrvec.start+ant_start,
-                                                                       end=cx_prob_attrvec.start+ant_end,
-                                                                       text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                                  if not last_result or count - last_result < 10:
+                                      last_result = count
+                                      ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                           prob=cx_prob_attrvec.prob,
+                                                                           start=cx_prob_attrvec.start+ant_start,
+                                                                           end=cx_prob_attrvec.start+ant_end,
+                                                                           text=strutils.remove_nltab(cx_prob_attrvec.text)))
                               else:
                                   continue
                 else:   
@@ -215,13 +219,13 @@ class PostPredPartyProc(EbPostPredictProcessing):
                             if 'agreement' in entity.text.lower() or NOT_PARTY_PAT.match(entity.text):
                                 continue
                             print("\tadded")
-                            ant_result.append(to_ant_result_dict(label=self.provision,
-                                                                 prob=cx_prob_attrvec.prob,
-                                                                 start=entity.start,
-                                                                 end=entity.end,
-                                                                 text=strutils.remove_nltab(entity.text)))
-                if not re.match(r'\(?[\div]+\)', sent_st) and len(ant_result) > 0:
-                    return ant_result
+                            if not last_result or count - last_result < 5:
+                                last_result = count
+                                ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                     prob=cx_prob_attrvec.prob,
+                                                                     start=entity.start,
+                                                                     end=entity.end,
+                                                                     text=strutils.remove_nltab(entity.text)))
         return ant_result
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')

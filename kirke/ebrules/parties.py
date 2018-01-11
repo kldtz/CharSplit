@@ -25,7 +25,7 @@ zip_code_year = re.compile(r'\b\d{5}(?:\-\d{4})?\b|\b(?:19|20)\d{2}\b')
 quote = re.compile(r'“|"|”')
 
 # Supports US (5 or 5-4), UK, Australia (4), Switzerland (4), Shanghai (6)
-UK_STD = '[A-Z]{1,2}[0-9R][0-9A-Z]? +(?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
+UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? +(?:(?![CIKMOV])[0-9O][a-zA-Z]{2})'
 zip_code_year = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
 dot_space = re.compile(r'[\.\s]+')
 
@@ -56,7 +56,7 @@ def is_valid_1word_party(line):
     if line.lower() in VALID_1WORD_PARTY_SET or line.isupper():
         return True 
 
-ADDRESS_PARTS = ['floor', 'road', 'court', 'street']
+ADDRESS_PARTS = ['floor', 'road', 'court', 'street', 'drive']
 ZIP_PAT = re.compile(r'[loO\d]{5,6}')
 def is_invalid_party(line, is_party=True):
     #checks for some punctuation
