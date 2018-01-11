@@ -220,6 +220,8 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                                  start=entity.start,
                                                                  end=entity.end,
                                                                  text=strutils.remove_nltab(entity.text)))
+                if not re.match(r'\(?[\div]+\)', sent_st) and len(ant_result) > 0:
+                    return ant_result
         return ant_result
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
