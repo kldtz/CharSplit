@@ -59,7 +59,7 @@ if __name__ == '__main__':
     for moddir in model_dir_list:
         osutils.mkpath(moddir)
 
-    data_dir = 'dir-data'
+    data_dir = 'export-train'
     if args.data_dir is not None:
         dir_data = args.data_dir
 
