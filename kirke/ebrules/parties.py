@@ -228,7 +228,7 @@ def extract_between_among(s, is_party=True):
                     break
         if seen_suffixes:
             # Append suffixes
-            new_parts[-1] += ', ' + seen_suffixes
+            new_parts[-1] += ',' + seen_suffixes
 
         # Take out 'the ' from beginning of string; bail if remaining is empty
         while p.startswith('the '):
