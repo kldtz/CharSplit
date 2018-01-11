@@ -99,9 +99,15 @@ def annotate_uploaded_document():
     
     atext = strutils.loads(txt_file_name)
     doc_lang = eb_langdetect_runner.detect_lang(atext)
+    logging.info("detected language '{}'".format(doc_lang))
+    if doc_lang is None:
+        ebannotations['lang'] = doc_lang
+        ebannotations['ebannotations'] = {}
+        ebannotations['tags'] = []
+        return json.dumps(ebannotations)
     if is_detect_lang:
         ebannotations['lang'] = doc_lang
-    logging.info("detected language '{}'".format(doc_lang))
+
     # if no other classification is specified, return early
     if not provision_set and not is_classify_doc:
         return json.dumps(ebannotations)

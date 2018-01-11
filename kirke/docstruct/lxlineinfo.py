@@ -3,7 +3,7 @@ import copy
 from functools import total_ordering
 import re
 import json
-from typing import List
+from typing import Any, Dict, List, Optional, Tuple
 
 from kirke.docstruct import tokenizer
 from kirke.utils import strutils, engutils, stopwordutils
@@ -22,11 +22,11 @@ SHORT_SENT_WORD_THRESHOLD = 40
 # LineInfo = namedtuple('LineInfo', ['start', 'end', 'sid', 'xStart', 'xEnd', 'yStart',
 #                                   'para', 'page', 'text', 'length', 'words'])
 
-def is_short_sent_by_length(xlen):
+def is_short_sent_by_length(xlen: int) -> bool:
     return xlen < SHORT_SENT_WORD_THRESHOLD
 
     # is_relax_check is only True when on first page
-def is_line_centered(line, xStart, xEnd, is_relax_check=False):
+def is_line_centered(line: str, xStart: float, xEnd: float, is_relax_check: bool=False) -> bool:
     
     if len(line) > 65:
         return False
@@ -60,7 +60,7 @@ def is_line_centered(line, xStart, xEnd, is_relax_check=False):
 
 
 # currently is_relax_check is not used
-def calc_align_label(line, xStart, xEnd, is_relax_check=False):
+def calc_align_label(line: str, xStart: float, xEnd: float, is_relax_check: bool=False) -> str:
     if is_line_centered(line, xStart, xEnd):
         return "CN"
     if xStart < 90:
@@ -76,9 +76,9 @@ def calc_align_label(line, xStart, xEnd, is_relax_check=False):
 @total_ordering
 class LineInfo:
 
-    def __init__(self, start, end, sid, xStart, xEnd, yStart,
-                 para, page, text, length, words, non_punct_words):
-
+    def __init__(self, start: int, end: int, sid: int, xStart: float, xEnd: float, yStart: float,
+                 para: int, page: int, text: str, length: int,
+                 words: List[str], non_punct_words: List[str]) -> None:
         self.start = start
         self.end = end
         self.sid = sid
@@ -91,24 +91,24 @@ class LineInfo:
         self.length = length
         self.words = words
         self.non_punct_words = non_punct_words
-        self.category = None
+        self.category = None  # type: Optional[str]
         self.align_label = calc_align_label(text, xStart, xEnd)
         # False means it is EITHER unknown or is not True
         self.is_close_prev_line = False
         self.is_english = engutils.classify_english_sentence(text)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         #if hasattr(other, 'start') and hasattr(other, 'end'):
         return (self.start, self.end).__eq__((other.start, other.end))
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> Any:
         #if hasattr(other, 'start') and hasattr(other, 'end'):
         return (self.start, self.end).__lt__((other.start, other.end))
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.start, self.end))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         # self.words is not printed, intentionally
         return str(('start={}'.format(self.start),
                     'end={}'.format(self.end),
@@ -126,7 +126,7 @@ class LineInfo:
                     'category={}'.format(self.category),
                     'align_label={}'.format(self.align_label)))
 
-    def tostr2(self, text):
+    def tostr2(self, text: str) -> str:
         not_en_mark = ''
         if self.is_english:
             tags = ['EN']
@@ -150,22 +150,22 @@ class LineInfo:
         return '%-25s\t%s\t%s' % (tags_st, not_en_mark, text[self.start:self.end])
 
     
-    def is_center(self):
+    def is_center(self) -> bool:
         return self.align_label == 'CN'
 
-    def is_LF(self):
-        return self.align_label and self.algign_label.startswith('LF')
+    def is_LF(self) -> bool:
+        return bool(self.align_label) and self.align_label.startswith('LF')
 
-    def is_LF1(self):
+    def is_LF1(self) -> bool:
         return self.align_label == 'LF1'
 
-    def is_LF2(self):
+    def is_LF2(self) -> bool:
         return self.align_label == 'LF2'
 
-    def is_LF3(self):
+    def is_LF3(self) -> bool:
         return self.align_label == 'LF3'
 
-    def update_text(self, text):
+    def update_text(self, text: str) -> None:
         self.text = text
         self.length = len(text)
         self.words = tokenizer.word_tokenize(self.text)
@@ -209,7 +209,7 @@ def toTypedLineInfo(lineinfo, category):
                          False)
 """
 
-def mark_close_adjacent_lines(lineinfo_list: List[LineInfo]) -> List[LineInfo]:
+def mark_close_adjacent_lines(lineinfo_list: List[LineInfo]) -> None:
     """Set lineinfo.is_close_prev_line if their Y are less than 22 points apart.
     
     Args:
@@ -221,10 +221,10 @@ def mark_close_adjacent_lines(lineinfo_list: List[LineInfo]) -> List[LineInfo]:
 
     # first figure what's the average yStart difference
     prev_ystart = lineinfo_list[0].yStart
-    ydiff_counter = Counter()
+    ydiff_counter = Counter()  # type: Counter
     for lineinfo in lineinfo_list[1:]:
-        ydiff = int(lineinfo.yStart - prev_ystart)
-        ydiff_counter[ydiff] += 1
+        ydiff_int = int(lineinfo.yStart - prev_ystart)
+        ydiff_counter[ydiff_int] += 1
         prev_ystart = lineinfo.yStart
 
     if not ydiff_counter.most_common(1):
@@ -243,8 +243,8 @@ def mark_close_adjacent_lines(lineinfo_list: List[LineInfo]) -> List[LineInfo]:
             lineinfo.is_close_prev_line = True
         prev_ystart = lineinfo.yStart
 
-
-def text2page_lineinfos_list(text: str, line_offsets: List[dict]) -> List[LineInfo]:
+"""
+def text2page_lineinfos_list(text: str, line_offsets: List[Dict]) -> List[LineInfo]:
     lineinfo_list = []
     # line_st_list = []
     for i, line_offset in enumerate(line_offsets):
@@ -272,8 +272,8 @@ def text2page_lineinfos_list(text: str, line_offsets: List[dict]) -> List[LineIn
                             line_offset['para'], line_offset['page'],
                             line,
                             len(line),
-                            tuple(words),
-                            tuple(non_punct_words))
+                            words,
+                            non_punct_words)
         lineinfo_list.append(lineinfo)
 
         # line_st_list.append(text[lineinfo.start:lineinfo.end])
@@ -322,7 +322,7 @@ def text2page_lineinfos_list(text: str, line_offsets: List[dict]) -> List[LineIn
         #                                                  text[start:end]))
 
     return merged_lineinfo_list, page_lineinfos_list
-
+"""
 
 # SEC_HEAD_PAT = re.compile(r"^(\d+\.)\s+(([\w\-]+;?\s*)+[\.:])\s*(.*)$")
 # SEC_HEAD_CHECK_PAT = re.compile(r"^(\d+\.)\s+((\w[\w\-]+;?\s*)+[\.:])(.*)$")
@@ -419,8 +419,9 @@ def split_sechead_lineinfos(lineinfo_list: List[LineInfo]) -> List[LineInfo]:
     return result
                 
 
+"""
 def merge_samey_adjacent_lineinfos(lineinfo_list: List[LineInfo], text: str) -> List[LineInfo]:
-    """Merge adjacent lineinfos if their Y are very similar, and their
+    " ""Merge adjacent lineinfos if their Y are very similar, and their
        X are less than 5.
 
     Args:
@@ -429,11 +430,11 @@ def merge_samey_adjacent_lineinfos(lineinfo_list: List[LineInfo], text: str) -> 
 
     Returns:
        List[LineInfo]: list of merged lineinfos.
-    """
+    " ""
     debug_mode = False
     prev_end, prev_y_start, prev_paragraph_num, prev_page_num = -1, -1, -1, -1
     prev_x_end = -1.0
-    prev_line_info = None
+    prev_line_info = None  # type: Optional[LineInfo]
     result = []
 
     merged_sid = 0
@@ -450,7 +451,7 @@ def merge_samey_adjacent_lineinfos(lineinfo_list: List[LineInfo], text: str) -> 
         if (linfo.page == prev_page_num and linfo.para == prev_paragraph_num and
                 y_diff < MAX_Y_DIFF_AS_SAME and linfo.start == prev_end + 1 and
             linfo.xStart - prev_x_end <= MAX_X_DIFF_AS_SAME_LINE):
-            """
+            " ""
             if debug_mode:
                 prev_line_st = ''
                 if i > 0:
@@ -462,7 +463,7 @@ def merge_samey_adjacent_lineinfos(lineinfo_list: List[LineInfo], text: str) -> 
                 print('  i =', i)
                 print('  prevLine : [{}]'.format(prev_line_st))
                 print('   curLine : [{}]'.format(line_st))
-            """
+            " ""
             prev_line_info.end = linfo.end
             prev_line_info.xEnd = linfo.xEnd
             prev_line_info.update_text(text[prev_line_info.start:prev_line_info.end])
@@ -479,7 +480,7 @@ def merge_samey_adjacent_lineinfos(lineinfo_list: List[LineInfo], text: str) -> 
         prev_page_num = linfo.page
         prev_paragraph_num = linfo.para
     return result
-
+"""
 
 def find_list_start_end(lineinfo_list):
     min_start = lineinfo_list[0].start

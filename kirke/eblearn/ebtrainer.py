@@ -9,7 +9,7 @@ from sklearn.model_selection import cross_val_predict, train_test_split
 from kirke.eblearn import ebannotator, ebpostproc, lineannotator
 from kirke.utils import evalutils, splittrte, strutils, ebantdoc2
 from kirke.eblearn import ebattrvec
-from kirke.ebrules import titles
+from kirke.ebrules import titles, parties, dates
 
 from datetime import datetime
 import time
@@ -299,7 +299,12 @@ def eval_line_annotator_with_trte(provision,
 
     provision_status_map = {'provision': provision}
     # update the hashmap of annotators
-    prov_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
+    if provision == 'title':
+        prov_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
+    elif provision == 'party':
+        prov_annotator = lineannotator.LineAnnotator('party', parties.PartyAnnotator('party'))
+    elif provision == 'date':
+        prov_annotator = lineannotator.LineAnnotator('date', dates.DateAnnotator('date'))
     # we need ebantdoc_list because it has the annotations
     provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
 
