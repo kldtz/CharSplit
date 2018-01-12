@@ -198,21 +198,50 @@ class PostPredPartyProc(EbPostPredictProcessing):
                      provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
-
+        last_result = None
+        count = 0
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
+            count += 1
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
-                for entity in cx_prob_attrvec.entities:
-                    if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
-
-                        if 'agreement' in entity.text.lower() or NOT_PARTY_PAT.match(entity.text):
-                            continue
-                        ant_result.append(to_ant_result_dict(label=self.provision,
-                                                             prob=cx_prob_attrvec.prob,
-                                                             start=entity.start,
-                                                             end=entity.end,
-                                                             text=strutils.remove_nltab(entity.text)))
+                sent_st = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
+                #first tries to extract parties with regex
+                extr_parties = parties.extract_parties_from_party_line('(1) ' + sent_st, is_party=True)
+                if extr_parties:
+                    for extr in extr_parties:
+                      if parties.is_invalid_party(extr[0]) == True:
+                          continue
+                      if len(extr[0].split()) == 1 and parties.is_valid_1word_party(extr[0]) == None:
+                          continue
+                      else:
+                          for part in extr:
+                              mat = re.search(re.escape(part), sent_st, re.I)
+                              if mat:
+                                  ant_start, ant_end = mat.span()
+                                  #adds only if it's in close proximity to the last party line
+                                  if not last_result or count - last_result < 10:
+                                      last_result = count
+                                      ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                           prob=cx_prob_attrvec.prob,
+                                                                           start=cx_prob_attrvec.start+ant_start,
+                                                                           end=cx_prob_attrvec.start+ant_end,
+                                                                           text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                              else:
+                                  continue
+                #uses entities if party extraction fails
+                else: 
+                    for entity in cx_prob_attrvec.entities:
+                        if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
+                            if 'agreement' in entity.text.lower() or NOT_PARTY_PAT.match(entity.text):
+                                continue
+                            if not last_result or count - last_result < 5:
+                                last_result = count
+                                ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                     prob=cx_prob_attrvec.prob,
+                                                                     start=entity.start,
+                                                                     end=entity.end,
+                                                                     text=strutils.remove_nltab(entity.text)))
         return ant_result
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
