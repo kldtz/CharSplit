@@ -122,7 +122,7 @@ def process_term(t):
 """Helper functions and regexes for extracting parties from party line"""
 
 
-party_chars = set(string.ascii_letters).union(string.digits).union('=.')
+party_chars = set(string.ascii_letters).union(string.digits).union('⭐️.')
 
 
 def party_strip(s):
@@ -145,7 +145,7 @@ def first_sentence(s):
 
 parens = re.compile(r'\([^\)]*?(?:“|")[^\)]*?(?:"|”)[^\)]*?\)')
 non_comma_separators = re.compile(r',\sand|\sand|;')
-paren_symbol = re.compile(r'(=)')
+paren_symbol = re.compile(r'(⭐️)')
 zip_code_year = re.compile(r'\b\d{5}(?:\-\d{4})?\b|\b(?:19|20)\d{2}\b')
 quote = re.compile(r'“|"|”')
 
@@ -158,18 +158,18 @@ zip_code_year = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
 
 
 def zipcode_replace(p, new_parts):
-    # If zip code or year in part and not already deleting ('^'), mark '+'
+    # If zip code or year in part and not already deleting ('❌'), mark '🏡'
     if zip_code_year.search(p):
-        new_parts.append('+')
+        new_parts.append('🏡')
     return new_parts
 
 def zipcode_remove(grps):
     # Going backwards, when see a zip code/ year, remove up to prev removed line
     for i in range(len(grps)):
-        zip_code_inds = [j for j, part in enumerate(grps[i]) if part == '+']
+        zip_code_inds = [j for j, part in enumerate(grps[i]) if part == '🏡']
         if zip_code_inds:
             new_start = max(zip_code_inds) + 1
-            terms_before = [part for part in grps[i][:new_start] if part == '=']
+            terms_before = [part for part in grps[i][:new_start] if part == '⭐️']
             new_parts = grps[i][new_start:]
             grps[i] = terms_before + new_parts
     return grps
@@ -182,9 +182,9 @@ def extract_between_among(s, is_party=True):
         # Consider after between. If line ends in between (no 'and'), return None.
         if 'and' not in s:
             return None
-    # Temporarily sub defined terms with '=' to avoid splitting on their commas
+    # Temporarily sub defined terms with '⭐️' to avoid splitting on their commas
     terms = parens.findall(s)
-    s = non_comma_separators.sub(',', parens.sub('=', s))
+    s = non_comma_separators.sub(',', parens.sub('⭐️', s))
     # Split the string into parts, applying party_strip between each step
     parts = [party_strip(part) for part in party_strip(s).split(', ')]
     parts = [party_strip(q) for p in parts for q in paren_symbol.split(p) if q]
@@ -193,7 +193,7 @@ def extract_between_among(s, is_party=True):
     new_parts = ['']
     for p in parts:
         # If p is a term, keep the term and continue
-        if p == '=':
+        if p == '⭐️':
             new_parts.append(p)
             continue
 
@@ -222,7 +222,7 @@ def extract_between_among(s, is_party=True):
         # Mark for deletion if first word has no uppercase letters or digits
         first_word = p.split()[0]
         if not any(c.isupper() or c.isdigit() for c in first_word):
-            new_parts.append('^')
+            new_parts.append('❌')
             continue
         if is_party: 
             new_parts = zipcode_replace(p, new_parts)
@@ -231,10 +231,9 @@ def extract_between_among(s, is_party=True):
         processed_part = process_part(p)
         if processed_part:
             new_parts.append(processed_part)
-    # Remove lines marked for deletion (^)
+    # Remove lines marked for deletion (❌)
     parts = new_parts if new_parts[0] else new_parts[1:]
-    grps = [list(g) for k, g in groupby(parts, lambda p: '^' in p) if not k]
-
+    grps = [list(g) for k, g in groupby(parts, lambda p: '❌' in p) if not k]
     if is_party:
         grps = zipcode_remove(grps)
     
@@ -248,7 +247,7 @@ def extract_between_among(s, is_party=True):
     part_type_bools = []
     for p in parts:
         # Record term type {0: party, 1: (), 2: ("")} and substitute term
-        part_type_bool = p == '='
+        part_type_bool = p == '⭐️'
         part_type = int(part_type_bool)
         if part_type_bool:
             p = terms[current_term]
@@ -269,12 +268,10 @@ def extract_between_among(s, is_party=True):
                 part_types.append(part_type)
                 part_type_bools.append(part_type_bool)
                 continue
-
         # Otherwise start a new party
         parties.append([p])
         part_types = [part_type]
         part_type_bools = [part_type_bool]
-
     # Remove parties that only contain defined terms, then return
     parties = [p for p in parties if not all(parens.search(w) for w in p)]
     return parties
