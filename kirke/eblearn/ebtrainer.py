@@ -5,6 +5,7 @@ from pprint import pprint
 from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import cross_val_predict, train_test_split
+from sklearn.model_selection import GroupKFold
 
 from kirke.eblearn import ebannotator, ebpostproc, lineannotator
 from kirke.utils import evalutils, splittrte, strutils, ebantdoc2
@@ -61,8 +62,11 @@ def train_eval_annotator(provision,
                                                           doc_lang=doc_lang)
 
     attrvec_list = []
-    for eb_traindoc in eb_traindoc_list:
-        attrvec_list.extend(eb_traindoc.get_attrvec_list())
+    group_id_list = []
+    for group_id, eb_traindoc in enumerate(eb_traindoc_list):
+        tmp_attrvec_list = eb_traindoc.get_attrvec_list()
+        attrvec_list.extend(tmp_attrvec_list)
+        group_id_list.extend([group_id] * len(tmp_attrvec_list))
 
     num_pos_label, num_neg_label = 0, 0
     
@@ -99,31 +103,21 @@ def train_eval_annotator(provision,
         # y_train = y
         train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir, provision, doc_lang)
         splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
-        eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
+        # We use cv_scores to generate a more detailed status resport
+        # than just a score number for cross-validation folds.
+        _, cv_scores = eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
 
-        # set up the status of the classifier, based on the best parameter
         print("eb_classifier.best_parameters")
         best_parameters = eb_classifier.best_parameters
         pprint(best_parameters)
-        # for param_name in sorted(parameters.keys()):
-        #    print("\t%s: %r" % (param_name, best_parameters[param_name]))
-        alpha = best_parameters['alpha']
-        print("alpha xxx = {}".format(alpha))
 
-        iterations = 10
-        # now X and y are different
-        X_sent = eb_classifier.transformer.transform(attrvec_list)
         y_label_list = [provision in attrvec.labels for attrvec in attrvec_list]
 
-        # the goal here is to provide some status information
-        # no guarantee that it is consistent with eb_classifier status yet
-        tmp_sgd_clf = SGDClassifier(loss='log', penalty='l2', alpha=alpha, n_iter=iterations,
-                                    shuffle=True, random_state=42,
-                                    class_weight={True: 10, False: 1})
-        tmp_preds = cross_val_predict(tmp_sgd_clf, X_sent, y_label_list, cv=DEFAULT_CV)
         # this setup eb_classifier.status
         pred_status = calc_scut_predict_evaluate(eb_classifier,
-                                                 attrvec_list, tmp_preds, y_label_list)
+                                                 attrvec_list,
+                                                 cv_scores,
+                                                 y_label_list)
 
         # make the classifier into an annotator
         prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
