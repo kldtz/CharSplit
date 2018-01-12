@@ -96,7 +96,6 @@ class LineAnnotator:
         if self.provision == 'party':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             party_offset_pair_list = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
-            
             if party_offset_pair_list:
                 for i, party_offset_pair in enumerate(party_offset_pair_list, 1):
                     (party_start, party_end), term_ox = party_offset_pair
