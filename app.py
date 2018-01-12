@@ -206,6 +206,8 @@ def custom_train(cust_id):
     #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
     all_stats = {}
     for doc_lang, names_per_lang in full_txt_fnames.items():
+        if not doc_lang:  # if a document has no text, its langid can be None
+            continue
         ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
         logging.info('Number of annotations for {}: {}'.format(doc_lang, ant_count))
         if ant_count >= 6:
