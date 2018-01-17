@@ -236,6 +236,7 @@ def train_eval_span_annotator_with_trte(label: str,
                                                  sample_transformers=config.get('sample_transformers', []),
                                                  pipeline=config['pipeline'],
                                                  gridsearch_parameters=config['gridsearch_parameters'],
+                                                 postproc=config['post_process_list'],
                                                  threshold=config.get('threshold', 0.5),
                                                  kfold=config.get('kfold', 3))
 
@@ -249,7 +250,6 @@ def train_eval_span_annotator_with_trte(label: str,
                                                               is_doc_structure=False)
 
     samples, label_list, group_id_list = span_annotator.documents_to_samples(train_antdoc_list, label)
-
     logging.info("after span_annotator.documents_to_samples(), {}".format(strutils.to_pos_neg_count(label_list)))
 
     # span_annotator.estimator

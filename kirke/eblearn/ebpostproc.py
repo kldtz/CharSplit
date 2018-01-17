@@ -2,7 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 from kirke.eblearn import ebattrvec
-from kirke.ebrules import dates
+from kirke.ebrules import dates, addresses
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
 from kirke.utils.ebsentutils import EbEntityType
 
@@ -1424,30 +1424,23 @@ class PostAddressProc(EbPostPredictProcessing):
 		
     def post_process(self, doc_text, prob_attrvec_list, threshold,		
                      provision=None, prov_human_ant_list=None) -> (List[Dict], float): 		
-        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)		
-        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)		
-		
+        merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, threshold)
         all_keywords = addresses.all_constituencies()		
         ant_result = []		
         all_notice = []
-        for cx_prob_attrvec in merged_prob_attrvec_list:		
-            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)		
-            #print(">>>", doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob)
-            #print("<<<", sent_overlap)
-            #best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords)
-            #print("\t", best, evalutils.find_annotation_overlap(best[1], best[2], prov_human_ant_list))
-            if cx_prob_attrvec.prob >= threshold or sent_overlap:		
-                print(">>>", doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].replace("\n", " "), cx_prob_attrvec.prob, sent_overlap)
-                best, address = self.find_constituencies(cx_prob_attrvec.start, cx_prob_attrvec.end, doc_text, all_keywords) 		
+        for merged_sample_prob in merged_sample_prob_list: 
+            sent_overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'], merged_sample_prob['end'], prov_human_ant_list)
+            #print("@@@", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
+            if merged_sample_prob['prob'] >= threshold or sent_overlap:		
+                print(">>>", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
+                best, address = self.find_constituencies(merged_sample_prob['start'], merged_sample_prob['end'], doc_text, all_keywords) 		
                 if best:		
-                    prov_st, prov_start, prov_end = best		
-                    ant_result.append(to_ant_result_dict(label=self.provision,		
-                                                  prob=cx_prob_attrvec.prob,		
-                                                  start=prov_start,		
-                                                  end=prov_end,		
-                                                  # pylint: disable=line-too-long    
-                                                  text=strutils.remove_nltab(prov_st)))
-        return ant_result, threshold
+                    prov_st, prov_start, prov_end = best
+                    merged_sample_prob['start'] = prov_start
+                    merged_sample_prob['end'] = prov_end
+                    merged_sample_prob['text'] = strutils.remove_nltab(prov_st)		
+                    ant_result.append(merged_sample_prob)
+        return ant_result
 
 class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
 
@@ -1497,6 +1490,7 @@ PROVISION_POSTPROC_MAP = {
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),
+    'l_tenant_notice': PostAddressProc('l_tenant_notice'),
     'span_default': SpanDefaultPostPredictProcessing(),
 }
 

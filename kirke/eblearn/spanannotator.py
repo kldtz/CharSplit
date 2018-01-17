@@ -38,6 +38,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  sample_transformers,
                  pipeline,
                  gridsearch_parameters,
+                 postproc,
                  threshold: float=0.5,
                  kfold: int=3):
         self.label = label
@@ -50,6 +51,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.gridsearch_parameters = gridsearch_parameters
         self.threshold = threshold
         self.kfold = kfold
+        self.postproc = postproc
 
         self.best_parameters = {}
         self.estimator = None
@@ -203,7 +205,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
                       self.label, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
-        post_processor = ebpostproc.obtain_postproc('span_default')
+        post_processor = ebpostproc.obtain_postproc(self.postproc)
         prov_annotations = post_processor.post_process(eb_antdoc.text,
                                                        list(zip(samples, prob_list)),
                                                        threshold,

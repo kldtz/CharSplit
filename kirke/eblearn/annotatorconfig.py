@@ -18,7 +18,8 @@ ml_annotator_config_map = \
                                                  class_weight={True: 3, False: 1}))]),
                        'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}},
      'l_tenant_notice': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                         'docs_to_samples': addrgen.AddrContextGenerator(5, 5),
+                         'docs_to_samples': addrgen.AddrContextGenerator(10, 2),
+                         'post_process_list': 'l_tenant_notice',
                          'sample_transformers': [addrannotator.SampleAddAddrLineProb()],
                          'version': 1.0,
                          'pipeline': Pipeline([
@@ -31,7 +32,7 @@ ml_annotator_config_map = \
                                                    shuffle=True, random_state=42,
                                                    class_weight={True: 3, False: 1}))]),
                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                         'threshold': 0.2,
+                         'threshold': 0.25,
                          'kfold': 2}
     }
 

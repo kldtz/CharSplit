@@ -610,10 +610,12 @@ def find_next_token(line: str) -> Match[str]:
 
 # primitive version of getting words using regex
 
-SIMPLE_WORD_PAT = re.compile('\w+')
+SIMPLE_WORD_PAT = re.compile('(\w+)')
 
 def get_simple_words(text: str) -> List[str]:
-    return SIMPLE_WORD_PAT.findall(text)
+    matches = SIMPLE_WORD_PAT.finditer(text)
+    spans = [[m.start(), m.end(), m.group()] for m in matches]
+    return spans
 
 
 def get_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
@@ -622,8 +624,10 @@ def get_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
     if first_offset < 0:
         first_offset = 0
     prev_text = text[first_offset:start]
-    words = get_simple_words(prev_text)[-num_words:]
-    return words
+    spans = get_simple_words(prev_text)[-num_words:]
+    words = [x[-1] for x in spans]
+    spans = [[x+first_offset,y+first_offset] for [x,y,z] in spans]
+    return words[-num_words:], spans[-num_words:]
 
 
 def get_post_n_words(text: str, end: int, num_words: int) -> List[str]:
@@ -632,16 +636,20 @@ def get_post_n_words(text: str, end: int, num_words: int) -> List[str]:
     if last_offset > len(text):
         last_offset = len(text)
     post_text = text[end:last_offset]
-    words = get_simple_words(post_text)[:num_words]
-    return words
+    spans = get_simple_words(post_text)
+    words = [x[-1] for x in spans]
+    spans = [[x+end, y+end] for [x,y,z] in spans]
+    return words[:num_words], spans[:num_words]
 
 
 def get_lc_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
-    return [word.lower() for word in get_prev_n_words(text, start, num_words)]
+    words, spans = get_prev_n_words(text, start, num_words)
+    return [word.lower() for word in words], spans 
 
 
 def get_lc_post_n_words(text: str, end: int, num_words: int) -> List[str]:
-    return [word.lower() for word in get_post_n_words(text, end, num_words)]
+    words, spans = get_post_n_words(text, end, num_words)
+    return [word.lower() for word in words], spans 
 
 
 def to_pos_neg_count(bool_list: List[bool]) -> str:
