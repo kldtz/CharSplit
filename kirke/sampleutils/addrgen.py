@@ -22,12 +22,13 @@ class AddrContextGenerator:
         all_spans = [match.span(1) for match in matches]
         ads = []
         for ad_start, ad_end in all_spans:
-            ad_st = " ".join(text.split()[ad_start:ad_end])
+            list_address = text.split()[ad_start:ad_end]
+            ad_st = " ".join(list_address) 
             address_prob = addresses.classify(ad_st)
             if address_prob >= 0.5 and len(text.split()[ad_start:ad_end]) > 3:
-                mat = re.search(re.escape(ad_st), text, re.I)
-                if mat:
-                    ads.append(mat)
+                pred_start,_ = re.search(list_address[0], text).span()
+                _, pred_end = re.search(list_address[-1], text[pred_start:]).span()
+                ads.append([pred_start, pred_end, text[pred_start:pred_end]])
         return ads
 
     def documents_to_samples(self,
@@ -101,13 +102,14 @@ class AddrContextGenerator:
                         label_list.append(False)
                 else:
                     for x in found_adresses: 
-                        ad_start, ad_end = x.span()
+                        ad_start = x[0]
+                        ad_end = x[1]
                         new_start = ad_start + start
                         new_end = ad_end + start
                         prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, new_start, self.num_prev_words)
                         post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, new_end, self.num_post_words)
-                        #new_bow = '{} {} {}'.format(' '.join(prev_n_words), x.group(), ' '.join(post_n_words))
-                        new_bow = '{} {}'.format(' '.join(prev_n_words), ' '.join(post_n_words))
+                        new_bow = '{} {} {}'.format(' '.join(prev_n_words), x[2], ' '.join(post_n_words))
+                        #new_bow = '{} {}'.format(' '.join(prev_n_words), ' '.join(post_n_words))
                         if prev_spans:
                             new_start = prev_spans[0][0]
                         else:
