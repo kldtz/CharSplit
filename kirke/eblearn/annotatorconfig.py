@@ -18,7 +18,7 @@ ml_annotator_config_map = \
                                                  class_weight={True: 3, False: 1}))]),
                        'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}},
      'l_tenant_notice': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                         'docs_to_samples': addrgen.AddrContextGenerator(15,25),
+                         'docs_to_samples': addrgen.AddrContextGenerator(5,10),
                          'post_process_list': 'l_tenant_notice',
                          'sample_transformers': [addrannotator.SampleAddAddrLineProb()],
                          'version': 1.0,

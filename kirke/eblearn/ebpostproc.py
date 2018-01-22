@@ -100,23 +100,23 @@ def merge_sample_probs_aux(sample_prob_list: List[Tuple[Dict, float]]) -> Dict[s
     # don't bother with len 1
     if len(sample_prob_list) == 1:
         sample, prob = sample_prob_list[0]
-        sample['prob'] = prob
+        sample.prob = prob
         return sample
 
     sample, prob = sample_prob_list[0]
-    label = sample['label']
+    label = sample.label
     max_prob = prob
-    min_start = sample['start']
-    max_end = sample['end']
-    line_list = [sample['text']]
+    min_start = sample.start
+    max_end = sample.end
+    line_list = [sample.text]
     for sample, prob in sample_prob_list[1:]:
         if prob > max_prob:
             max_prob = prob
-        if sample['start'] < min_start:
-            min_start = sample['start']
-        if sample['end'] > max_end:
-            max_end = sample['end']
-        line_list.append(sample['text'])
+        if sample.start < min_start:
+            min_start = sample.start
+        if sample.end > max_end:
+            max_end = sample.end
+        line_list.append(sample.text)
 
     out = {'label': label,
            'prob': max_prob,
@@ -130,14 +130,14 @@ def merge_sample_probs_aux(sample_prob_list: List[Tuple[Dict, float]]) -> Dict[s
 def merge_sample_prob_list(sample_prob_list: List[Tuple[Dict, float]], threshold: float) -> List[Dict[str, Any]]:
     result = []  # type: List[Dict[str, Any]]
     prev_list = []
-    for sample, prob in sample_prob_list:
+    for prob, sample in sample_prob_list:
         if prob >= threshold:
             prev_list.append((sample, prob))
         else:
             if prev_list:
                 result.append(merge_sample_probs_aux(prev_list))
                 prev_list = []
-            sample['prob'] = prob
+            sample.prob = prob
             result.append(sample)
     if prev_list:
         result.append(merge_sample_probs_aux(prev_list))
@@ -1429,18 +1429,23 @@ class PostAddressProc(EbPostPredictProcessing):
         ant_result = []		
         all_notice = []
         for merged_sample_prob in merged_sample_prob_list: 
-            sent_overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'], merged_sample_prob['end'], prov_human_ant_list)
-            #print("@@@", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
-            if merged_sample_prob['prob'] >= threshold or sent_overlap:		
-                print(">>>", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
-                best, address = self.find_constituencies(merged_sample_prob['start'], merged_sample_prob['end'], doc_text, all_keywords) 		
-                if best:		
+            sent_overlap = evalutils.find_annotation_overlap(merged_sample_prob.start, merged_sample_prob.end, prov_human_ant_list)
+            if merged_sample_prob.prob >= threshold or sent_overlap:		
+                print(">>>", doc_text[merged_sample_prob.start:merged_sample_prob.end].replace("\n", " "), merged_sample_prob.prob)
+                best, address = self.find_constituencies(merged_sample_prob.start, merged_sample_prob.end, doc_text, all_keywords) 		
+                if best:
+                    print("\t<<", best[0].replace("\n", " "))		
                     prov_st, prov_start, prov_end = best
-                    merged_sample_prob['start'] = prov_start
-                    merged_sample_prob['end'] = prov_end
-                    merged_sample_prob['text'] = strutils.remove_nltab(prov_st)		
-                    ant_result.append(merged_sample_prob)
-        return ant_result
+                    merged_sample_prob.start = prov_start
+                    merged_sample_prob.end = prov_end
+                    merged_sample_prob.text = strutils.remove_nltab(prov_st)		
+                    #ant_result.append(merged_sample_prob)
+                    ant_result.append(to_ant_result_dict(label=self.provision,
+                                                         prob=merged_sample_prob.prob,
+                                                         start=prov_start,
+                                                         end=prov_end,
+                                                         text=strutils.remove_nltab(prov_st)))
+        return ant_result, threshold
 
 class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
 
@@ -1467,8 +1472,13 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
             # at all.  Now we generate the samples, so it not totally miss the human annotation.
             if merged_sample_prob['prob'] >= threshold or len(overlap) > 0:
                 # tmp_label = label if label else self.label
-                ant_result.append(merged_sample_prob)
-        return ant_result
+                #ant_result.append(merged_sample_prob)
+                ant_result.append(to_ant_result_dict(label=self.provision,
+                                  prob=merged_sample_prob.prob,
+                                  start=merged_sample_prob.start,
+                                  end=merged_sample_prob.end,
+                                  text=strutils.remove_nltab(merged_sample_prob.text)))
+        return ant_result, threshold
 
 
 PROVISION_POSTPROC_MAP = {
