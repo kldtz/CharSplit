@@ -24,6 +24,9 @@ from kirke.utils.ebantdoc2 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 DEBUG_MODE = False
 
+DOCCAT_MODEL_FILE_NAME = 'ebrevia_docclassifier.v1.pkl'
+
+
 def annotate_provision(eb_annotator, eb_antdoc):
     return eb_annotator.annotate_antdoc(eb_antdoc)
 
@@ -208,13 +211,11 @@ class EbRunner:
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
                 data, _ = future.result()
-                annotations[provision] = data
                 # want to collapse language-specific cust models to one provision
                 if 'cust_' in provision and data:
                     provision = data[0]['label']
                 # aggregates all annotations across languages for cust models
                 annotations[provision].extend(data)
-
         return annotations
 
     def update_custom_models(self):
@@ -309,12 +310,13 @@ class EbRunner:
 
         # this update the 'start_end_span_list' in each antx in-place
         # docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
-
         # update prov_labels_map based on rules
         self.apply_line_annotators(prov_labels_map,
                                    eb_antdoc,
                                    work_dir=work_dir)
-
+        # since nobody is using rate-table classifier yet
+        # we are disabling it for now.
+        """
         if eb_antdoc.doc_format == EbDocFormat.pdf:
             # print("classify_table_list......................................")
             rate_tables = rateclassifier.classify_table_list(eb_antdoc.table_list, eb_antdoc.nl_text)
@@ -324,6 +326,7 @@ class EbRunner:
         else:
             # HTML document has no table detection, so 'rate-table' annotation is an empty list
             prov_labels_map['rate_table'] = []
+        """
 
         # jshaw. evalxxx, composite
         update_dates_by_domain_rules(prov_labels_map)
@@ -386,12 +389,10 @@ class EbRunner:
 
         party_ant_list = self.party_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                               eb_antdoc.nlp_text)
-
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
             fromto_mapper.adjust_fromto_offsets(party_ant_list)
             prov_labels_map['party'] = party_ant_list
-
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                             eb_antdoc.nlp_text)
@@ -451,12 +452,10 @@ class EbRunner:
 
         party_ant_list = self.party_annotator.annotate_antdoc(paraline_with_attrs,
                                                               paraline_text)
-
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
             fromto_mapper.adjust_fromto_offsets(party_ant_list)
             prov_labels_map['party'] = party_ant_list
-
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(paraline_with_attrs,
                                                             paraline_text)
@@ -597,7 +596,6 @@ class EbRunner:
                                                            self.work_dir)
 
         annotations = {}
-        logs = {}
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(test_provision,
                                                    self.provision_annotator_map[provision],
@@ -606,10 +604,9 @@ class EbRunner:
                                    provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                data, log_json = future.result()
-                logs[provision] = log_json
+                data = future.result()
                 annotations[provision] = data
-        return annotations, logs
+        return annotations
 
     #
     # custom_train_provision_and_evaluate
@@ -635,6 +632,7 @@ class EbRunner:
 
         # eb_classifier = scutclassifier.ShortcutClassifier(provision)
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
+<<<<<<< HEAD
 
         eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
                                                                 txt_fn_list,
@@ -645,6 +643,47 @@ class EbRunner:
                                                                 is_doc_structure=is_doc_structure,
                                                                 custom_training_mode=True,
                                                                 doc_lang=doc_lang)
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+        eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
+                                                                txt_fn_list,
+                                                                work_dir,
+                                                                custom_model_dir,
+                                                                full_model_fname,
+                                                                eb_classifier,
+                                                                is_doc_structure=is_doc_structure,
+                                                                custom_training_mode=True)
+||||||||| merged common ancestors
+        eb_annotator = ebtrainer.train_eval_annotator(provision,
+                                                      txt_fn_list,
+                                                      work_dir,
+                                                      custom_model_dir,
+                                                      full_model_fname,
+                                                      eb_classifier,
+                                                      is_doc_structure=is_doc_structure,
+                                                      custom_training_mode=True)
+=========
+        eb_annotator = ebtrainer.train_eval_annotator(provision,
+                                                      txt_fn_list,
+                                                      work_dir,
+                                                      custom_model_dir,
+                                                      full_model_fname,
+                                                      eb_classifier,
+                                                      is_doc_structure=is_doc_structure,
+                                                      custom_training_mode=True,
+                                                      doc_lang=doc_lang)
+>>>>>>>>> Temporary merge branch 2
+=======
+        eb_annotator = ebtrainer.train_eval_annotator(provision,
+                                                      txt_fn_list,
+                                                      work_dir,
+                                                      custom_model_dir,
+                                                      full_model_fname,
+                                                      eb_classifier,
+                                                      is_doc_structure=is_doc_structure,
+                                                      custom_training_mode=True,
+                                                      doc_lang=doc_lang)
+>>>>>>> c7ff530a49e4db13e57eae900ba7e3de8389be8f
 
         # update the hashmap of classifier
         if doc_lang != "en":
@@ -664,7 +703,7 @@ class EbRunner:
         last_modified_date = datetime.fromtimestamp(mtime)
         self.custom_model_timestamp_map[base_model_fname] = last_modified_date
 
-        return eb_annotator.get_eval_status(), log_json
+        return eb_annotator.get_eval_status()
 
     def update_existing_provision_fn_map_aux(self, provision: str, full_model_fname: str) -> None:
         # intentioanlly not using .get(), because the previous model file must exist.
@@ -710,20 +749,18 @@ class EbRunner:
                 # print("\nfn: {}".format(ebantdoc.file_id))
                 # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
                 # pred_prob_start_end_list, txt)
+                # currently, PROVISION_EVAL_ANYMATCH_SET only has 'title', not 'party' or 'date'
                 if provision in ebannotator.PROVISION_EVAL_ANYMATCH_SET:
                     xtp, xfn, xfp, xtn = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
-                                                                         ebantdoc,
-                                                                         # threshold,
+                                                                         ebantdoc.get_text(),
                                                                          diagnose_mode=True)
                 else:
-                    threshold = self.provision_annotator_map[provision].threshold
                     xtp, xfn, xfp, xtn = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                 ant_list,
-                                                                ebantdoc,
-                                                                threshold,
+                                                                ebantdoc.get_text(),
                                                                 diagnose_mode=True)
                 tp += xtp
                 fn += xfn
@@ -752,7 +789,7 @@ class EbDocCatRunner:
         self.model_dir = model_dir
 
         # load the available classifiers from dir_model
-        full_model_fn = self.model_dir + '/ebrevia_docclassifier.pkl'
+        full_model_fn = '{}/{}'.format(self.model_dir, DOCCAT_MODEL_FILE_NAME)
         print("model_fn = [{}]".format(full_model_fn))
 
         self.doc_classifier = joblib.load(full_model_fn)
@@ -773,17 +810,19 @@ class EbLangDetectRunner:
 
     def detect_lang(self, atext):
         try:
-            detect_lang = langdetect.detect(atext) or 'unknown'
+            detect_lang = langdetect.detect(atext)
         except:
-            detect_lang = 'unknown'
+            detect_lang = None
         # logging.info("detected language '{}'".format(detect_lang))
         return detect_lang
 
     def detect_langs(self, atext):
         try:
             lang_probs = langdetect.detect_langs(atext)
+            if lang_probs is None:
+                return ''
             detect_langs = ','.join(['{}={}'.format(lang.lang, lang.prob) for lang in lang_probs])
         except:
-            detect_langs = 'unknown=0.00001'
+            detect_langs = ''
         # logging.info("detected languages '{}'".format(detect_langs))
         return detect_langs

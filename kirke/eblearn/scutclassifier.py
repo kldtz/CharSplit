@@ -11,6 +11,8 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import GroupKFold
 
+from sklearn.model_selection import cross_val_score, cross_val_predict
+
 from kirke.eblearn import ebpostproc, ebattrvec
 from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformer import EbTransformer
@@ -66,18 +68,17 @@ class ShortcutClassifier(EbClassifier):
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
 
-    def make_bare_copy(self):
-        return ShortcutClassifier(self.provision)
-
     # pylint: disable=R0914
-    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):
+    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name, is_debug=True):
         logging.info('train_antdoc_list()...')
 
+        sent_list = []
         attrvec_list, group_id_list = [], []
         for group_id, eb_antdoc in enumerate(ebantdoc_list):
             tmp_attrvec_list = eb_antdoc.get_attrvec_list()
             attrvec_list.extend(tmp_attrvec_list)
             group_id_list.extend([group_id] * len(tmp_attrvec_list))
+            sent_list.extend([str(atvec.bag_of_words) for atvec in tmp_attrvec_list])
 
         label_list = [self.provision in attrvec.labels for attrvec in attrvec_list]
 
@@ -141,7 +142,44 @@ class ShortcutClassifier(EbClassifier):
         self.eb_grid_search = grid_search.best_estimator_
         self.save(model_file_name)
 
-        return grid_search
+        # this is the score while doing cross validation,
+        # trying to repeat the above testing, but based on
+        # optimal parameter
+        cv_scores = []
+        if is_debug:
+            alpha = self.best_parameters['alpha']
+            # print("alpha = {}".format(alpha))
+
+            sgd_clf2 = SGDClassifier(loss='log', penalty='l2', alpha=alpha,
+                                     n_iter=iterations, shuffle=True,
+                                     random_state=42, class_weight={True: 3, False: 1})
+            print("sgd_clf2 used for detailed cross-validation status")
+            print(sgd_clf2)
+
+            cv_scores = cross_val_predict(sgd_clf2,
+                                          X_train,
+                                          y_train,
+                                          groups=group_id_list,
+                                          cv=GroupKFold(), method="predict_proba")[:, 1]
+
+            num_tp, num_fp, num_fn, num_tn = 0, 0, 0, 0
+            for score, sent, ylab in zip(cv_scores, sent_list, y_train):
+                pred = score >= self.threshold
+                if ylab and pred:
+                    num_tp += 1
+                    print("\nTP #{}: {}".format(num_tp, sent))
+                elif ylab and not pred:
+                    num_fn += 1
+                    print("\nFN #{}: {}".format(num_fn, sent))
+                elif pred and not ylab:
+                    num_fp += 1
+                    print("\nFP #{}: {}".format(num_fp, sent))
+                else:
+                    num_tn += 1
+            print("\nnum_tp = %d, num_fn = %d, num_fp = %d, num_tn = %d\n" %
+                  (num_tp, num_fn, num_fp, num_tn))
+
+        return grid_search.best_estimator_, cv_scores
 
 
     def predict_antdoc(self, eb_antdoc, work_dir) -> List[float]:

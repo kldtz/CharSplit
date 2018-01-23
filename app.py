@@ -8,9 +8,6 @@ import copy
 import json
 import logging
 import os.path
-import pprint
-
-
 from flask import Flask, request, jsonify
 
 from kirke.eblearn import ebrunner
@@ -44,6 +41,7 @@ osutils.mkpath(CUSTOM_MODEL_DIR)
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 eb_doccat_runner = None
 
+eb_doccat_runner = ebrunner.EbDocCatRunner(MODEL_DIR)
 eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
 if not eb_runner:
@@ -69,6 +67,8 @@ def annotate_uploaded_document():
         osutils.mkpath(work_dir)
     else:
         work_dir = WORK_DIR
+
+    ebannotation = {}
 
     request_file_name, pdf_offsets_file_name = '', ''
     fn_list = request.files.getlist('file')
@@ -98,8 +98,15 @@ def annotate_uploaded_document():
     
     atext = strutils.loads(txt_file_name)
     doc_lang = eb_langdetect_runner.detect_lang(atext)
-    ebannotations['lang'] = doc_lang
     logging.info("detected language '{}'".format(doc_lang))
+    if doc_lang is None:
+        ebannotations['lang'] = doc_lang
+        ebannotations['ebannotations'] = {}
+        ebannotations['tags'] = []
+        return json.dumps(ebannotations)
+    if is_detect_lang:
+        ebannotations['lang'] = doc_lang
+
     # if no other classification is specified, return early
     if not provision_set and not is_classify_doc:
         return json.dumps(ebannotations)
@@ -145,8 +152,7 @@ def annotate_uploaded_document():
         prov_labels_map['effectivedate_auto'] = effectivedate_annotations
         del prov_labels_map['effectivedate']
 
-    ebannotations = {'ebannotations': prov_labels_map}
-
+    ebannotations['ebannotations'] = prov_labels_map
     return json.dumps(ebannotations)
 
 
@@ -197,9 +203,36 @@ def custom_train(cust_id):
         else:
             logging.warning('unknown file extension in custom_train(): "{}"'.format(fn))
 
+    print("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames),
+                                                  full_txt_fnames))
+
+    txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames.list')
+    strutils.dumps('\n'.join(full_txt_fnames), txt_fn_list_fn)
+
+    base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
+
+    # Following the logic in the original code.
+    eval_status, log_json = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
+                                                                          provision,
+                                                                          CUSTOM_MODEL_DIR,
+                                                                          base_model_fname,
+                                                                          is_doc_structure=True,
+                                                                          work_dir=work_dir)
+    # copy the result into the expected format for client
+    ant_status = eval_status['ant_status']
+    cf = ant_status['confusion_matrix']
+    status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
+              'fscore': ant_status['f1'],
+              'precision': ant_status['prec'],
+              'recall': ant_status['recall']}
+
+    logging.info("status:")
+    pprint.pprint(status)
     #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
     all_stats = {}
     for doc_lang, names_per_lang in full_txt_fnames.items():
+        if not doc_lang:  # if a document has no text, its langid can be None
+            continue
         ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
         logging.info('Number of annotations for {}: {}'.format(doc_lang, ant_count))
         if ant_count >= 6:
@@ -275,5 +308,4 @@ def detect_langs():
     detect_langs = eb_langdetect_runner.detect_langs(atext)
     logging.info("detected languages '{}'".format(detect_langs))
     return json.dumps({'lang-probs': detect_langs })
-
 

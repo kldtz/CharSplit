@@ -1,36 +1,33 @@
 #!/usr/bin/env python
 
 import argparse
+from collections import defaultdict
 import configparser
 import copy
 import json
 import logging
+import os
 import pprint
 import re
 import sys
 import warnings
-import re
-import json
-import time
-
-
-from collections import defaultdict
-import os
 
 from sklearn.externals import joblib
 
 from kirke.docclassifier.unigramclassifier import UnigramDocClassifier
-from kirke.eblearn import ebrunner, ebtrainer, provclassifier, scutclassifier
-from kirke.eblearn import ebannotator
+from kirke.docclassifier import doccatsplittrte
+from kirke.eblearn import ebannotator, ebrunner, ebtrainer, provclassifier, scutclassifier
 from kirke.ebrules import rateclassifier
-from kirke.utils import osutils, splittrte, strutils
-from kirke.ebrules import rateclassifier
+from kirke.utils import ebantdoc2, osutils, splittrte, strutils
 
 config = configparser.ConfigParser()
 config.read('kirke.ini')
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 PROV_CLF_VERSION = config['ebrevia.com']['PROV_CLF_VERSION']
+
+DOCCAT_MODEL_FILE_NAME = ebrunner.DOCCAT_MODEL_FILE_NAME
+
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -61,15 +58,19 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
 # PATH = "/home/jshaw/proj/KirkeDocCat/sample_data2"
 def train_doc_classifier(txt_fn_list_fn, model_dir):
     doc_classifier = UnigramDocClassifier()
-    model_file_name = model_dir + "/ebrevia_docclassifier.pkl"
-
+    model_file_name = '{}/{}'.format(model_dir, DOCCAT_MODEL_FILE_NAME)
+    osutils.mkpath(model_dir)
     doc_classifier.train(txt_fn_list_fn, model_file_name)
 
 
-def train_eval_doc_classifier(txt_fn_list_fn, is_step1=False):
+def train_eval_doc_classifier(txt_fn_list_fn):
     doc_classifier = UnigramDocClassifier()
-
-    doc_classifier.train_and_evaluate(txt_fn_list_fn, is_step1)
+    # This does not save model, only train and eval.
+    # We are passing in the model file name to save the status of the production models
+    # for future references.
+    model_file_name = '{}/{}'.format(model_dir, DOCCAT_MODEL_FILE_NAME)
+    doc_classifier.train_and_evaluate(txt_fn_list_fn,
+                                      prod_status_fname=model_file_name.replace('.pkl', '.status'))
 
 
 def classify_document(file_name, model_dir):
@@ -92,12 +93,12 @@ def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_
         model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
                                                                 provision,
                                                                 PROV_CLF_VERSION)
-    eval_stats, log_json = ebtrainer.train_eval_annotator_with_trte(provision,
-                                                                    work_dir,
-                                                                    model_dir,
-                                                                    model_file_name,
-                                                                    eb_classifier,
-                                                                    is_doc_structure=is_doc_structure)
+    ebtrainer.train_eval_annotator_with_trte(provision,
+                                             work_dir,
+                                             model_dir,
+                                             model_file_name,
+                                             eb_classifier,
+                                             is_doc_structure=is_doc_structure)
 
 
 def eval_line_annotator_with_trte(provision,
@@ -124,7 +125,7 @@ def custom_train_annotator(provision, txt_fn_list_fn, work_dir, model_dir,
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
     # cust_id = '12345'
-    provision = 'cust_12345'
+    # provision = 'cust_12345'
 
     base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision,
                                                           SCUT_CLF_VERSION)
@@ -146,14 +147,10 @@ def test_annotators(provisions, txt_fn_list_fn, work_dir, model_dir, custom_mode
         provision_set = set(provisions.split(','))
 
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
-    eval_status, log_json = eb_runner.test_annotators(txt_fn_list_fn, provision_set, threshold)
+    eval_status = eb_runner.test_annotators(txt_fn_list_fn, provision_set, threshold)
 
     # return some json accuracy info
-    pprint(eval_status)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    log_fn = '_'.join(provision_set)+'-test-' + timestr + ".log"
-    strutils.dumps(json.dumps(log_json), log_fn)
-
+    pprint.pprint(eval_status)
 
 # test only 1 annotator
 def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
@@ -171,15 +168,12 @@ def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
 
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status, log_json = prov_annotator.test_antdoc_list(ebantdoc_list)
+    ant_status = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
 
-    pprint(ant_status)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    log_fn = '_'.join(provision_set)+'-test-' + timestr + ".log"
-    strutils.dumps(json.dumps(log_json), log_fn)
+    pprint.pprint(ant_status)
 
 
 def test_title_annotator(txt_fn_list_fn, work_dir, model_file_name):
@@ -197,7 +191,7 @@ def test_title_annotator(txt_fn_list_fn, work_dir, model_file_name):
 
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status, _ = prov_annotator.test_antdoc_list(ebantdoc_list)
+    ant_status = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
@@ -240,8 +234,7 @@ def annotate_document(file_name,
     pprint.pprint(prov_labels_map)
 
     eb_doccat_runner = None
-    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
-    if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
+    if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists('{}/{}'.format(model_dir, DOCCAT_MODEL_FILE_NAME)):
         eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
 
     print("eb_doccat_runner = {}".format(eb_doccat_runner))
@@ -258,7 +251,7 @@ def annotate_htmled_document(file_name, work_dir, model_dir, custom_model_dir):
     pprint(prov_labels_map)
 
     eb_doccat_runner = None
-    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
+    doccat_model_fn = "{}/{}".format(model_dir, DOCCAT_MODEL_FILE_NAME)
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
         eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
 
@@ -276,7 +269,7 @@ def annotate_pdfboxed_document(file_name, linfo_file_name, work_dir, model_dir, 
     pprint(prov_labels_map)
 
     eb_doccat_runner = None
-    doccat_model_fn = model_dir + '/ebrevia_docclassifier.pkl'
+    doccat_model_fn = "{}/{}".format(model_dir, DOCCAT_MODEL_FILE_NAME)    
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
         eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
 
@@ -389,15 +382,14 @@ if __name__ == '__main__':
                                        work_dir,
                                        model_dir_list,
                                        is_doc_structure=True)
+    elif cmd == 'split_doccat_trte':
+        doccatsplittrte.split_doccat_trte(txt_fn_list_fn)
     elif cmd == 'train_doc_classifier':
         # doccatutils.train_doc_classifier(txt_fn_list_fn, model_dir)
         train_doc_classifier(txt_fn_list_fn, model_dir)
     elif cmd == 'train_eval_doc_classifier':
         # doccatutils.train_eval_doc_classifier(txt_fn_list_fn)
         train_eval_doc_classifier(txt_fn_list_fn)
-    elif cmd == 'train_eval_doc_step1_classifier':
-        # doccatutils.train_eval_doc_classifier(txt_fn_list_fn)
-        train_eval_doc_classifier(txt_fn_list_fn, is_step1=True)
     elif cmd == 'classify_doc':
         classify_document(args.doc, model_dir)
     else:

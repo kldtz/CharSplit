@@ -1,40 +1,37 @@
 import re
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import Dict, List, Optional, Tuple
 
 from kirke.eblearn import ebattrvec
-from kirke.ebrules import dates
+from kirke.ebrules import dates, parties
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
 from kirke.utils.ebsentutils import EbEntityType
 
-
 PROVISION_PAT_MAP = {
     'change_control': (re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL), 1.0),
-#    'confidentiality': (re.compile(r'(information.*confidential|confidential.*information)',
-#                                   re.IGNORECASE | re.DOTALL), 1.0),
+    # 'confidentiality': (re.compile(r'(information.*confidential|confidential.*information)',
+    #                     re.IGNORECASE | re.DOTALL), 1.0),
     'limliability': (re.compile(r'((is|are)\s+not\s+(liable|responsible)|'
-                               r'will\s+not\s+be\s+(held\s+)?(liable|responsible)|'
-                               r'no\s+(\S+\s+){1,5}(is|will\s+be)\s+responsible\s+for|'
-                               r'not\s+(be\s+)?required\s+to\s+make\s+(\S+\s+){1,3}payment|'
-                               r'need\s+not\s+make\s(\S+\s+){1,3}payment)',
+                                r'will\s+not\s+be\s+(held\s+)?(liable|responsible)|'
+                                r'no\s+(\S+\s+){1,5}(is|will\s+be)\s+responsible\s+for|'
+                                r'not\s+(be\s+)?required\s+to\s+make\s+(\S+\s+){1,3}payment|'
+                                r'need\s+not\s+make\s(\S+\s+){1,3}payment)',
                                 re.IGNORECASE | re.DOTALL), 1.0),
     'term': (re.compile(r'[“"]Termination\s+Date[”"]', re.IGNORECASE | re.DOTALL), 1.0)
 }
 
-
-def to_ant_result_dict(label, prob, start, end, text):
+def to_ant_result_dict(label: str, prob: float, start: int, end: int, text: str) -> Dict:
     return {'label': label,
             'prob': prob,
             'start': start,
             'end':  end,
             'text': text}
 
-
 # pylint: disable=too-few-public-methods
 class ConciseProbAttrvec:
 
     # pylint: disable=too-many-arguments
-    def __init__(self, prob, start, end, entities, sechead, text):
+    def __init__(self, prob, start, end, entities, sechead, text) -> None:
         self.prob = prob
         self.start = start
         self.end = end
@@ -43,7 +40,8 @@ class ConciseProbAttrvec:
         self.sechead = sechead.lower()
 
 
-def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
+def to_cx_prob_attrvecs(prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]]) \
+    -> List[ConciseProbAttrvec]:
     return [ConciseProbAttrvec(prob,
                                attrvec.start,
                                attrvec.end,
@@ -54,7 +52,8 @@ def to_cx_prob_attrvecs(prob_attrvec_list) -> List[ConciseProbAttrvec]:
 
 
 # pylint: disable=invalid-name
-def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list):
+def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list: List[ConciseProbAttrvec]) \
+    -> ConciseProbAttrvec:
     # don't bother with len 1
     if len(cx_prob_attrvec_list) == 1:
         return cx_prob_attrvec_list[0]
@@ -78,10 +77,16 @@ def merge_cx_prob_attrvecs_with_entities(cx_prob_attrvec_list):
     #    print("jjj: {}".format((prob, start, end)))
     #print("result jjj: {}".format((max_prob, min_start, max_end)))
 
-    return ConciseProbAttrvec(max_prob, min_start, max_end, merged_entities, only_first_sechead, only_first_text)
+    return ConciseProbAttrvec(max_prob,
+                              min_start,
+                              max_end,
+                              merged_entities,
+                              only_first_sechead,
+                              only_first_text)
 
 
-def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
+def merge_cx_prob_attrvecs(cx_prob_attrvec_list: List[ConciseProbAttrvec],
+                           threshold: float) -> List[ConciseProbAttrvec]:
     result = []
     prev_list = []
     for cx_prob_attrvec in cx_prob_attrvec_list:
@@ -100,7 +105,8 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold):
 SHORT_PROVISIONS = set(['title', 'date', 'effectivedate', 'sigdate', 'choiceoflaw'])
 
 # override some provisions during testing
-def gen_provision_overrides(provision, sent_st_list):
+def gen_provision_overrides(provision: str,
+                            sent_st_list: List[str]) -> List[float]:
     overrides = [0.0 for _ in range(len(sent_st_list))]
 
     global_min_length = 6
@@ -124,7 +130,8 @@ def gen_provision_overrides(provision, sent_st_list):
         is_toc = num_words > 60 and num_numeric / num_words > 0.2
         is_table_row = num_words > 5 and num_numeric / num_words > 0.3
         contains_dots = '....' in sent_st
-        if (provision_pattern and provision_pattern.search(sent_st) and
+        if (provision_pattern and \
+            provision_pattern.search(sent_st) and \
             num_words > min_pattern_override_length and not is_toc):
             overrides[sent_idx] = adjust_prob
         if num_words < global_min_length and provision not in SHORT_PROVISIONS:
@@ -138,7 +145,12 @@ def gen_provision_overrides(provision, sent_st_list):
 class EbPostPredictProcessing(ABC):
 
     @abstractmethod
-    def post_process(self, doc_text, prob_attrvec_list, threshold, provision=None, prov_human_ant_list=None):
+    def post_process(self,
+                     doc_text: str,
+                     prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
+                     threshold: float,
+                     provision: str = None,
+                     prov_human_ant_list: List[Dict] = None) -> List[Dict]:
         pass
 
 
@@ -148,12 +160,15 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'default'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+    def post_process(self,
+                     doc_text: str,
+                     prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
-
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
@@ -165,8 +180,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                                      end=cx_prob_attrvec.end,
                                                      # pylint: disable=line-too-long
                                                      text=strutils.remove_nltab(cx_prob_attrvec.text)))
-        return ant_result, threshold
-
+        return ant_result
 
 # Note from PythonClassifier.java:
 # The NER seems to pick up the bare word LLC, INC, and CORP as parties sometimes.  This RE
@@ -181,26 +195,54 @@ class PostPredPartyProc(EbPostPredictProcessing):
         self.threshold = 0.5
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
-
+        last_result = None
+        count = 0
         ant_result = []
         for cx_prob_attrvec in merged_prob_attrvec_list:
+            count += 1
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
-                for entity in cx_prob_attrvec.entities:
-                    if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
-
-                        if 'agreement' in entity.text.lower() or NOT_PARTY_PAT.match(entity.text):
-                            continue
-                        ant_result.append(to_ant_result_dict(label=self.provision,
-                                                             prob=cx_prob_attrvec.prob,
-                                                             start=entity.start,
-                                                             end=entity.end,
-                                                             text=strutils.remove_nltab(entity.text)))
-        return ant_result, self.threshold
-
+                sent_st = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
+                #first tries to extract parties with regex
+                extr_parties = parties.extract_parties_from_party_line('(1) ' + sent_st, is_party=True)
+                if extr_parties:
+                    for extr in extr_parties:
+                      if parties.is_invalid_party(extr[0]) == True:
+                          continue
+                      if len(extr[0].split()) == 1 and parties.is_valid_1word_party(extr[0]) == None:
+                          continue
+                      else:
+                          for part in extr:
+                              mat = re.search(re.escape(part), sent_st, re.I)
+                              if mat:
+                                  ant_start, ant_end = mat.span()
+                                  #adds only if it's in close proximity to the last party line
+                                  if not last_result or count - last_result < 10:
+                                      last_result = count
+                                      ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                           prob=cx_prob_attrvec.prob,
+                                                                           start=cx_prob_attrvec.start+ant_start,
+                                                                           end=cx_prob_attrvec.start+ant_end,
+                                                                           text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                              else:
+                                  continue
+                #uses entities if party extraction fails
+                else: 
+                    for entity in cx_prob_attrvec.entities:
+                        if entity.ner in {EbEntityType.PERSON.name, EbEntityType.ORGANIZATION.name}:
+                            if 'agreement' in entity.text.lower() or NOT_PARTY_PAT.match(entity.text):
+                                continue
+                            if not last_result or count - last_result < 5:
+                                last_result = count
+                                ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                     prob=cx_prob_attrvec.prob,
+                                                                     start=entity.start,
+                                                                     end=entity.end,
+                                                                     text=strutils.remove_nltab(entity.text)))
+        return ant_result
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
 
@@ -217,6 +259,9 @@ LENDER_PAT = re.compile(r'[^“"”]+[“"”]?(Lender|LENDER|Noteholder|Issuer|
 LENDER_PAT2 = re.compile(r'[“"”]Banks?[“"”]', re.IGNORECASE)
 
 AGENT_PAT = re.compile(r'[^“"”]+[“"”]?(Agent|AGENT|Arranger)s?[“"”]?\)?')
+
+LESSOR_PAT = re.compile(r'[^“"”]+[“"”]?(Lessor|LESSOR|lessor|Landlord|LANDLORD|landlord)s?[“"”]?\)?')
+LESSEE_PAT = re.compile(r'[^“"”]+[“"”]?(Lessee|LESSEE|lessee|Tenant|TENANT|tenant)s?[“"”]?\)?')
 
 DEBUG_MODE = False
 
@@ -268,7 +313,7 @@ def extract_ea_employer(sent_start, sent_end, attrvec_entities, doc_text):
     person_after_list = []
 
     for entity in attrvec_entities:
-        if (entity.ner == 'ORGANIZATION' and
+        if (entity.ner == 'ORGANIZATION' and \
             mathutils.start_end_overlap((entity.start, entity.end),
                                         (sent_start, sent_end))):
             # print("  entities: {}".format(entity))
@@ -276,11 +321,11 @@ def extract_ea_employer(sent_start, sent_end, attrvec_entities, doc_text):
                 print("  entities: {}".format(entity))
 
             entity_doc_st = doc_text[entity.start:entity.end]
-            if ("Company" in entity_doc_st or
-                "COMPANY" in entity_doc_st or
-                "Corporation" in entity_doc_st or
-                "CORPORATION" in entity_doc_st or
-                "Employer" in entity_doc_st or
+            if ("Company" in entity_doc_st or \
+                "COMPANY" in entity_doc_st or \
+                "Corporation" in entity_doc_st or \
+                "CORPORATION" in entity_doc_st or \
+                "Employer" in entity_doc_st or \
                 "EMPLOYER" in entity_doc_st):
                 found_provision_list.append((entity_doc_st,
                                              entity.start,
@@ -338,7 +383,7 @@ def extract_ea_employee(sent_start, sent_end, attrvec_entities, doc_text):
     person_after_list = []
 
     for entity in attrvec_entities:
-        if (entity.ner == 'PERSON' and
+        if (entity.ner == 'PERSON' and \
             mathutils.start_end_overlap((entity.start, entity.end),
                                         (sent_start, sent_end))):
             # print("  entities: {}".format(entity))
@@ -346,7 +391,7 @@ def extract_ea_employee(sent_start, sent_end, attrvec_entities, doc_text):
                 print("  entities: {}".format(entity))
 
             entity_doc_st = doc_text[entity.start:entity.end]
-            if ("Executive" in entity_doc_st or
+            if ("Executive" in entity_doc_st or \
                 "Employee" in entity_doc_st):
                 found_provision_list.append((entity_doc_st,
                                              entity.start,
@@ -394,7 +439,7 @@ def extract_lic_licensee(sent_start, sent_end, attrvec_entities, doc_text):
     person_before_list = []
 
     for entity in attrvec_entities:
-        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and \
             mathutils.start_end_overlap((entity.start, entity.end),
                                         (sent_start, sent_end))):
             # print("  entities: {}".format(entity))
@@ -402,7 +447,7 @@ def extract_lic_licensee(sent_start, sent_end, attrvec_entities, doc_text):
                 print("  entities: {}".format(entity))
 
             entity_doc_st = doc_text[entity.start:entity.end]
-            if ("Licensee" in entity_doc_st or
+            if ("Licensee" in entity_doc_st or \
                 "LICENSEE" in entity_doc_st):
                 found_provision_list.append((entity_doc_st,
                                              entity.start,
@@ -466,7 +511,7 @@ def extract_lic_licensor(sent_start, sent_end, attrvec_entities, doc_text):
     person_before_list = []
 
     for entity in attrvec_entities:
-        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and \
             mathutils.start_end_overlap((entity.start, entity.end),
                                         (sent_start, sent_end))):
             # print("  entities: {}".format(entity))
@@ -474,15 +519,15 @@ def extract_lic_licensor(sent_start, sent_end, attrvec_entities, doc_text):
                 print("  entities: {}".format(entity))
 
             entity_doc_st = doc_text[entity.start:entity.end]
-            if ("Licensor" in entity_doc_st or
-                "LICENSOR" in entity_doc_st or
-                "Manufacturer" in entity_doc_st or
-                "MANUFACTURER" in entity_doc_st or
-                "Supplier" in entity_doc_st or
-                "SUPPLIER" in entity_doc_st or
-                "Vendor" in entity_doc_st or
-                "VENDOR" in entity_doc_st or
-                "Seller" in entity_doc_st or
+            if ("Licensor" in entity_doc_st or \
+                "LICENSOR" in entity_doc_st or \
+                "Manufacturer" in entity_doc_st or \
+                "MANUFACTURER" in entity_doc_st or \
+                "Supplier" in entity_doc_st or \
+                "SUPPLIER" in entity_doc_st or \
+                "Vendor" in entity_doc_st or \
+                "VENDOR" in entity_doc_st or \
+                "Seller" in entity_doc_st or \
                 "SELLER" in entity_doc_st):
                 found_provision_list.append((entity_doc_st,
                                              entity.start,
@@ -546,7 +591,7 @@ def extract_la_borrower(sent_start, sent_end, attrvec_entities, doc_text):
     person_before_list = []
 
     for entity in attrvec_entities:
-        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and \
             mathutils.start_end_overlap((entity.start, entity.end),
                                         (sent_start, sent_end))):
             # print("  entities: {}".format(entity))
@@ -554,7 +599,7 @@ def extract_la_borrower(sent_start, sent_end, attrvec_entities, doc_text):
                 print("  entities: {}".format(entity))
 
             entity_doc_st = doc_text[entity.start:entity.end]
-            if ("Borrower" in entity_doc_st or
+            if ("Borrower" in entity_doc_st or \
                 "BORROWER" in entity_doc_st) and re.search(r'[“"”]', entity_doc_st):
                 found_provision_list.append((entity_doc_st,
                                              entity.start,
@@ -603,7 +648,7 @@ def extract_la_lender(sent_start, sent_end, attrvec_entities, doc_text):
     person_before_list = []
 
     for entity in attrvec_entities:
-        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and \
             mathutils.start_end_overlap((entity.start, entity.end),
                                         (sent_start, sent_end))):
             # print("  entities: {}".format(entity))
@@ -611,14 +656,14 @@ def extract_la_lender(sent_start, sent_end, attrvec_entities, doc_text):
                 print("  entities: {}".format(entity))
 
             entity_doc_st = doc_text[entity.start:entity.end]
-            if ("Lender" in entity_doc_st or
-                "Noteholder" in entity_doc_st or
-                "Issuer" in entity_doc_st or
-                "Bank" in entity_doc_st or
-                "Subscriber" in entity_doc_st or
-                "SUBSCRIBER" in entity_doc_st or
-                "Provider" in entity_doc_st or
-                "Purchaser" in entity_doc_st or
+            if ("Lender" in entity_doc_st or \
+                "Noteholder" in entity_doc_st or \
+                "Issuer" in entity_doc_st or \
+                "Bank" in entity_doc_st or \
+                "Subscriber" in entity_doc_st or \
+                "SUBSCRIBER" in entity_doc_st or \
+                "Provider" in entity_doc_st or \
+                "Purchaser" in entity_doc_st or \
                 "LENDER" in entity_doc_st):
                 found_provision_list.append((entity_doc_st,
                                              entity.start,
@@ -678,7 +723,7 @@ def extract_la_agent_trustee(sent_start, sent_end, attrvec_entities, doc_text):
     person_before_list = []
 
     for entity in attrvec_entities:
-        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and
+        if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and \
             mathutils.start_end_overlap((entity.start, entity.end),
                                         (sent_start, sent_end))):
             # print("  entities: {}".format(entity))
@@ -686,16 +731,16 @@ def extract_la_agent_trustee(sent_start, sent_end, attrvec_entities, doc_text):
                 print("  entities: {}".format(entity))
 
             entity_doc_st = doc_text[entity.start:entity.end]
-            if ("Agent" in entity_doc_st or
-                "Noteholder" in entity_doc_st or
-                "Issuer" in entity_doc_st or
-                # "Bank" in entity_doc_st or
-                "Subscriber" in entity_doc_st or
-                "SUBSCRIBER" in entity_doc_st or
-                "Provider" in entity_doc_st or
-                "Purchaser" in entity_doc_st or
+            # "Bank" in entity_doc_st or \
+            if ("Agent" in entity_doc_st or \
+                "Noteholder" in entity_doc_st or \
+                "Issuer" in entity_doc_st or \
+                "Subscriber" in entity_doc_st or \
+                "SUBSCRIBER" in entity_doc_st or \
+                "Provider" in entity_doc_st or \
+                "Purchaser" in entity_doc_st or \
                 "AGENT" in entity_doc_st) and len(entity_doc_st.split()) > 1:
-                # the last number of token check is for "KeyBank"  
+                # the last number of token check is for "KeyBank"
                 found_provision_list.append((entity_doc_st,
                                              entity.start,
                                              entity.end, 'x1'))
@@ -735,6 +780,65 @@ def extract_la_agent_trustee(sent_start, sent_end, attrvec_entities, doc_text):
     return None
 
 
+def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, prov):
+    is_provision_found = False
+    prov_end_start_map = {}
+    found_provision_list = []
+    person_after_list = []
+    person_before_list = []
+    sent_st = doc_text[sent_start:sent_end]
+
+    if prov == 'l_landlord_lessor':
+        agent = ['landlord', 'lessor']
+    else:
+        agent = ['tenant', 'lessee']
+
+    #uses party extraction to extract the tenant and landlord
+    extr_parties = parties.extract_parties_from_party_line(sent_st, is_party=False)
+    try:
+        for party, ref in extr_parties:
+            for ag in agent:
+                if ag in ref.lower():
+                    mat = re.search(re.escape(party), sent_st, re.I)
+                    ant_start, ant_end = mat.span()
+                    found_provision_list.append((party, sent_start+ant_start, sent_start+ant_end, 'x1'))
+                    is_provision_found = True
+    except:
+        #splits on "and" and matches entities from the attrvec as a fallback 
+        sent_split = re.compile(r'\s+and\s+', re.I)
+        agent_in_split = [x.lower() for x in sent_split.split(sent_st) if (agent[0] in x.lower() or agent[1] in x.lower())]
+        for part in agent_in_split:
+            for entity in attrvec_entities:
+                if ((entity.ner == 'ORGANIZATION' or entity.ner == 'PERSON') and \
+                    mathutils.start_end_overlap((entity.start, entity.end),
+                                                (sent_start, sent_end))):
+                    entity_doc_st = doc_text[entity.start:entity.end]
+                    if entity_doc_st.lower() in part:
+                        found_provision_list.append((entity_doc_st,
+                                                     entity.start,
+                                                     entity.end, 'x2'))
+                        is_provision_found = True
+
+    if not is_provision_found:
+        mat = re.match(r'((\(\d\))? ?[\w\s&\-]+ (limited|l\.?l\.?c\.?|l\.?p\.?|l\.?l\.?p\.?|p\.?l\.?c\.?))', sent_st, re.I)
+        if mat:
+            name_start, name_end = mat.span()
+            found_provision_list.append((mat.group(),
+                                         sent_start+name_start,
+                                         sent_start+name_end, 'x3'))
+    #picks best from these possibilities
+    best_provision = pick_best_provision(found_provision_list, has_x3=True)
+    if best_provision:
+        prov_st, prov_start, prov_end, match_type = best_provision
+        if prov_st and not prov_st.isspace():
+            return best_provision
+    
+    #otherwise returns the sentence
+    if len(sent_st.split()) > 2:
+        return [sent_st, sent_start, sent_end, None]
+    
+
+
 # pylint: disable=R0903
 class PostPredEaEmployerProc(EbPostPredictProcessing):
 
@@ -742,7 +846,7 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
         self.provision = 'ea_employer'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -763,7 +867,7 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -773,7 +877,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
         self.provision = 'ea_employee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -794,7 +898,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 # pylint: disable=R0903
 class PostPredLicLicenseeProc(EbPostPredictProcessing):
@@ -803,7 +907,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
         self.provision = 'lic_licensee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -824,7 +928,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -834,7 +938,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
         self.provision = 'lic_licensor'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -855,7 +959,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -865,7 +969,7 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
         self.provision = 'la_borrower'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -874,9 +978,9 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 borrower_matched_span = extract_la_borrower(cx_prob_attrvec.start,
-                                                             cx_prob_attrvec.end,
-                                                             cx_prob_attrvec.entities,
-                                                             doc_text)
+                                                            cx_prob_attrvec.end,
+                                                            cx_prob_attrvec.entities,
+                                                            doc_text)
                 if borrower_matched_span:
                     prov_st, prov_start, prov_end, match_type = borrower_matched_span
                     ant_result.append(to_ant_result_dict(label=self.provision,
@@ -886,7 +990,7 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -896,7 +1000,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
         self.provision = 'la_lender'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -905,9 +1009,9 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
             sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 lender_matched_span = extract_la_lender(cx_prob_attrvec.start,
-                                                             cx_prob_attrvec.end,
-                                                             cx_prob_attrvec.entities,
-                                                             doc_text)
+                                                        cx_prob_attrvec.end,
+                                                        cx_prob_attrvec.entities,
+                                                        doc_text)
                 if lender_matched_span:
                     prov_st, prov_start, prov_end, match_type = lender_matched_span
                     ant_result.append(to_ant_result_dict(label=self.provision,
@@ -917,7 +1021,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -927,7 +1031,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
         self.provision = 'la_agent_trustee'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -948,7 +1052,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(prov_st)))
                     break
-        return ant_result, threshold
+        return ant_result
 
 
 class PostPredChoiceOfLawProc(EbPostPredictProcessing):
@@ -957,7 +1061,7 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
         self.provision = 'choiceoflaw'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -983,7 +1087,7 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
                                                          start=cx_prob_attrvec.start,
                                                          end=cx_prob_attrvec.end,
                                                          text=anttext))
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
@@ -993,7 +1097,7 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
         self.provision = prov
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1012,48 +1116,19 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
                                                      end=cx_prob_attrvec.end,
                                                      # pylint: disable=line-too-long
                                                      text=strutils.remove_nltab(cx_prob_attrvec.text)))
-        return ant_result, threshold
-
-
-# pylint: disable=R0903
-class PostPredPrintProbProc(EbPostPredictProcessing):
-
-    def __init__(self, prov):
-        self.provision = prov
-
-    def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
-        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
-        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
-                                                          threshold)
-
-        ant_result = []
-        for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            #print("{}\t{}\t{}\tsechead=[{}]\t[{}]".format(self.provision, cx_prob_attrvec.prob, threshold,
-            #                                              cx_prob_attrvec.sechead,
-            #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
-                tmp_provision = provision if provision else self.provision
-                ant_result.append(to_ant_result_dict(label=tmp_provision,
-                                                     prob=cx_prob_attrvec.prob,
-                                                     start=cx_prob_attrvec.start,
-                                                     end=cx_prob_attrvec.end,
-                                                     # pylint: disable=line-too-long
-                                                     text=strutils.remove_nltab(cx_prob_attrvec.text)))
-        return ant_result, threshold
+        return ant_result
 
 
 # pylint: disable=R0903
 # this is not used
-"""
+'''
 class PostPredConfidentialityProc(EbPostPredictProcessing):
 
     def __init__(self):
         self.provision = 'confidentiality'
 
     def post_process(self, doc_text, prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1076,7 +1151,7 @@ class PostPredConfidentialityProc(EbPostPredictProcessing):
                                                      # pylint: disable=line-too-long
                                                      text=strutils.remove_nltab(cx_prob_attrvec.text)))
         return ant_result
-"""    
+'''
 
 
 # Note from PythonClassifier.java:
@@ -1092,7 +1167,7 @@ class PostPredTitleProc(EbPostPredictProcessing):
         self.provision = 'title'
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1110,12 +1185,12 @@ class PostPredTitleProc(EbPostPredictProcessing):
                                                          start=tmp_start,
                                                          end=tmp_start + len(tmp_title),
                                                          text=tmp_title))
-                    return ant_result, threshold
-        return ant_result, threshold
+                    return ant_result
+        return ant_result
 
 
 # used by both PostPredDateProc, PostPredEffectiveDate
-def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold) -> ConciseProbAttrvec:
+def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold) -> Optional[ConciseProbAttrvec]:
     best_prob = 0
     best = None
     for cx_prob_attrvec in prob_attrvec_list:
@@ -1136,7 +1211,7 @@ class PostPredBestDateProc(EbPostPredictProcessing):
     # TODO, jshaw, it seems that in the original code PythonClassifier.java
     # the logic is to keep only the first date, not all dates in a doc
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1152,8 +1227,8 @@ class PostPredBestDateProc(EbPostPredictProcessing):
                                                          end=entity.end,
                                                          # pylint: disable=line-too-long
                                                          text=strutils.remove_nltab(doc_text[entity.start:entity.end])))
-                    return ant_result, self.threshold
-        return ant_result, self.threshold
+                    return ant_result
+        return ant_result
 
 
 class PostPredEffectiveDateProc(EbPostPredictProcessing):
@@ -1163,11 +1238,13 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
         self.threshold = 0.5
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
+
         best_effectivedate_sent = get_best_date(merged_prob_attrvec_list, threshold)
+
         ant_result = []
         if best_effectivedate_sent:
             first = None
@@ -1176,7 +1253,6 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                 if entity.ner == EbEntityType.DATE.name:
                     prior_text = doc_text[best_effectivedate_sent.start:entity.start]
                     has_prior_text_effective = 'effective' in prior_text.lower()
-
                     ant_rx = to_ant_result_dict(label=self.provision,
                                                 prob=best_effectivedate_sent.prob,
                                                 start=entity.start,
@@ -1192,7 +1268,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                 ant_result.append(first_after_effective)
             elif first:
                 ant_result.append(first)
-        return ant_result, self.threshold
+        return ant_result
 
 class PostPredLeaseDateProc(EbPostPredictProcessing):
 
@@ -1213,7 +1289,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
     }
     revokers = '|'.join(['earlier', 'earliest', 'later', 'first', 'last',
                          'former', 'latter', 'previous', 'prior', 'sooner',
-                         '\(a\)', '\(i\)', '\(1\)'])
+                         r'\(a\)', r'\(i\)', r'\(1\)'])
 
     # Compile regular expressions once
     revokers_regex = re.compile(r'\b{}\b'.format(revokers), re.I)
@@ -1254,7 +1330,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                                   text=text)
 
     def post_process(self, doc_text, cx_prob_attrvec_list, threshold,
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float):
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1282,7 +1358,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
             if date_found:
                 # If stopping when we find a date, return only this date
                 if self.stop_at_one_date:
-                    return [ant_result[-1]], self.threshold
+                    return [ant_result[-1]]
                 continue
  
             # If an l_commencement term is in the line, take previous date
@@ -1297,7 +1373,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                         break
             if date_found:
                 if self.stop_at_one_date:
-                    return [ant_result[-1]], self.threshold
+                    return [ant_result[-1]]
                 continue
  
             # If there is an l_commencement non-term noun, take next date
@@ -1311,7 +1387,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                         break
             if date_found:
                 if self.stop_at_one_date:
-                    return [ant_result[-1]], self.threshold
+                    return [ant_result[-1]]
                 continue
  
             # If no date found and next line starts with a date, return that
@@ -1326,19 +1402,65 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                         next_date = sorted(next_date_list)[0]
                         lr = next_line[:next_date[0]] + next_line[next_date[1]:]
                         if not any(c.isalnum() for c in lr):
-                            next_prob = next_attrvec.prob
-                            next_attrvec.prob = 1.0
                             ant_result.append(self.ant(next_line, next_attrvec,
                                                        next_date))
-                            next_attrvec.prob = next_prob
                             if self.stop_at_one_date:
-                                return [ant_result[-1]], self.threshold
+                                return [ant_result[-1]]
                             continue
             if cx_prob_attrvec.prob >= threshold:
                 ant_result.append(self.ant(line, cx_prob_attrvec,
                                            (0, len(line))))
-        return ant_result, self.threshold
-    
+        return ant_result
+  
+class PostPredLandlordTenantProc(EbPostPredictProcessing):
+
+    def __init__(self, prov):
+        self.provision = prov
+
+    def post_process(self, doc_text, prob_attrvec_list, threshold,
+                     provision=None, prov_human_ant_list=None) -> List[Dict]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
+        flags = {'l_tenant_lessee': ['tenant', '(2)'], 'l_landlord_lessor': ['landlord', '(1)']}
+        flag = flags[self.provision][0]
+        bullet = flags[self.provision][1]
+        ant_result = []
+        prev_text = ''
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            prev_flag = False
+            lease_matched_span = []
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            if flag in prev_text.lower():
+                prev_flag = True
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
+                lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
+                                                      cx_prob_attrvec.end,
+                                                      cx_prob_attrvec.entities,
+                                                      doc_text,
+                                                      self.provision)
+            elif (re.findall(re.escape(flag)+'\s|'+re.escape(bullet), doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].lower()[:50]) and cx_prob_attrvec.prob > 0):
+                lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
+                                                      cx_prob_attrvec.end,
+                                                      cx_prob_attrvec.entities,
+                                                      doc_text,
+                                                      self.provision)
+            elif (prev_flag and cx_prob_attrvec.prob > 0):
+                lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
+                                                      cx_prob_attrvec.end,
+                                                      cx_prob_attrvec.entities,
+                                                      doc_text,
+                                                      self.provision)
+            if lease_matched_span:
+                prov_st, prov_start, prov_end, match_type = lease_matched_span
+                ant_result.append(to_ant_result_dict(label=self.provision,
+                                                prob=cx_prob_attrvec.prob,
+                                                start=prov_start,
+                                                end=prov_end,
+                                                # pylint: disable=line-too-long
+                                                text=strutils.remove_nltab(prov_st)))
+                return ant_result
+            prev_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
+        return ant_result 
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
@@ -1356,6 +1478,8 @@ PROVISION_POSTPROC_MAP = {
     'lic_licensor': PostPredLicLicensorProc(),
     'l_commencement_date': PostPredLeaseDateProc('l_commencement_date'),
     'l_expiration_date': PostPredLeaseDateProc('l_expiration_date'),
+    'l_landlord_lessor': PostPredLandlordTenantProc('l_landlord_lessor'),
+    'l_tenant_lessee': PostPredLandlordTenantProc('l_tenant_lessee'),
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(),

@@ -1,17 +1,19 @@
-from collections import defaultdict
-from datetime import datetime
 import json
 import logging
 from pprint import pprint
-import time
 
 from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import cross_val_predict, train_test_split
+from sklearn.model_selection import GroupKFold
 
-from kirke.eblearn import ebannotator, ebattrvec, ebpostproc, lineannotator
-from kirke.ebrules import titles
-from kirke.utils import ebantdoc2, evalutils, splittrte, strutils
+from kirke.eblearn import ebannotator, ebpostproc, lineannotator
+from kirke.utils import evalutils, splittrte, strutils, ebantdoc2
+from kirke.eblearn import ebattrvec
+from kirke.ebrules import titles, parties, dates
+
+from datetime import datetime
+import time
 
 DEFAULT_CV = 5
 
@@ -24,137 +26,13 @@ DEFAULT_CV = 5
 MIN_FULL_TRAINING_SIZE = 100
 
 
+
 # Take all the data for training.
 # Unless you know what you are doing, don't use this function, use
 # train_eval_annotator() instead.
 def _train_classifier(txt_fn_list, work_dir, model_file_name, eb_classifier):
     eb_classifier.train(txt_fn_list, work_dir, model_file_name)
     return eb_classifier
-
-
-def log_model_eval_status(ant_status):
-    with open('provision_model_stat.tsv', 'a') as pmout:
-        pstatus = ant_status['pred_status']['pred_status']
-        pcfmtx = pstatus['confusion_matrix']
-        astatus = ant_status['ant_status']
-        acfmtx = astatus['confusion_matrix']
-        timestamp = int(time.time())
-        provision = ant_status['provision']        
-        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
-                 str(timestamp),
-                 provision,
-                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
-                 ant_status['pred_status']['best_params_']['alpha'],
-                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
-                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
-                 astatus['threshold'],
-                 astatus['prec'], astatus['recall'], astatus['f1']]
-        print('\t'.join([str(x) for x in aline]), file=pmout)
-
-
-def log_custom_model_eval_status(ant_status):
-    with open('provision_model_stat.tsv', 'a') as pmout:
-        pstatus = ant_status['ant_status']  # only ant status is available for custom training
-        pcfmtx = pstatus['confusion_matrix']
-        astatus = ant_status['ant_status']
-        acfmtx = astatus['confusion_matrix']
-        timestamp = int(time.time())
-        provision = ant_status['provision']
-        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
-                 str(timestamp),
-                 provision,
-                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
-                 # pred_status['best_params_']['alpha'],
-                 -9999.99,
-                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
-                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
-                 astatus['threshold'],
-                 astatus['prec'], astatus['recall'], astatus['f1']]
-        print('\t'.join([str(x) for x in aline]), file=pmout)
-
-
-def cv_train_at_annotation_level(provision, x_traindoc_list, bool_list,
-                                 eb_classifier_orig,
-                                 model_file_name,
-                                 model_dir,
-                                 work_dir):
-    # we do 4-fold cross validation, as the big set for custom training
-    # test_size = 0.25
-    # this will be looped mutliple times, so a list, not a generator
-    x_antdoc_list = list(ebantdoc2.traindoc_list_to_antdoc_list(x_traindoc_list, work_dir))
-
-    num_fold = 4
-    # distribute positives to all buckets
-    pos_list, neg_list = [], []
-    for x_antdoc, label in zip(x_antdoc_list, bool_list):
-        if label:
-            pos_list.append((x_antdoc, label))
-        else:
-            neg_list.append((x_antdoc, label))
-    pos_list.extend(neg_list)
-    bucket_x_map = defaultdict(list)
-    for count, (x_antdoc, label) in enumerate(pos_list):
-        # bucket_x_map[count % num_fold].append((x_antdoc, label))
-        bucket_x_map[count % num_fold].append(x_antdoc)
-
-    #for bnum, alist in bucket_x_map.items():
-    #    print("-----")
-    #    for ebantdoc, y in alist:
-    #        print("{}\t{}\t{}".format(bnum, ebantdoc.file_id, y))
-
-    log_list = {}
-    cv_ant_status_list = []
-    for bucket_num in range(num_fold):  # cross train each bucket
-
-        train_buckets = []
-        test_bucket = None
-        for bnum, bucket_x in bucket_x_map.items():
-            if bnum != bucket_num:
-                train_buckets.extend(bucket_x)
-            else:  # bnum == bucket_num
-                test_bucket = bucket_x
-
-        cv_eb_classifier = eb_classifier_orig.make_bare_copy()
-        timestr = time.strftime("%Y%m%d-%H%M%S")
-        cv_eb_classifier_fn = '/tmp/{}-{}-{}'.format(provision, timestr, bucket_num)
-        cv_eb_classifier.train_antdoc_list(train_buckets,
-                                           work_dir,
-                                           cv_eb_classifier_fn)
-        cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir)
-
-        cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket)
-        # print("cv ant_status, bucket_num = {}:".format(bucket_num))
-        # print(cv_ant_status)
-
-        log_list.update(cv_log_json)
-        cv_ant_status_list.append(cv_ant_status)
-
-    # now build the annotator using ALL training data
-    eb_classifier = eb_classifier_orig.make_bare_copy()
-    eb_classifier.train_antdoc_list(x_antdoc_list,
-                                    work_dir,
-                                    model_file_name)
-    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    log_json = log_list
-    merged_ant_status = evalutils.aggregate_ant_status_list(cv_ant_status_list)['ant_status']
-
-    ant_status= {'provision': provision}
-    ant_status['ant_status'] = merged_ant_status
-    ant_status['pred_status'] = {'pred_status': merged_ant_status}  # we are going to fake it for now
-    prov_annotator.eval_status = ant_status
-    pprint(ant_status)
-
-    model_status_fn = model_dir + '/' +  provision + ".status"
-    strutils.dumps(json.dumps(ant_status), model_status_fn)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    result_fn = model_dir + '/' + provision + "-ant_result-" + timestr + ".json"
-    logging.info('wrote result file at: {}'.format(result_fn))
-    strutils.dumps(json.dumps(log_json), result_fn)
-
-    log_custom_model_eval_status({'provision': provision,
-                                  'ant_status': merged_ant_status})
-
-    return prov_annotator, log_list
 
 
 # Take 1/5 of the data out for testing
@@ -184,8 +62,11 @@ def train_eval_annotator(provision,
                                                           doc_lang=doc_lang)
 
     attrvec_list = []
-    for eb_traindoc in eb_traindoc_list:
-        attrvec_list.extend(eb_traindoc.get_attrvec_list())
+    group_id_list = []
+    for group_id, eb_traindoc in enumerate(eb_traindoc_list):
+        tmp_attrvec_list = eb_traindoc.get_attrvec_list()
+        attrvec_list.extend(tmp_attrvec_list)
+        group_id_list.extend([group_id] * len(tmp_attrvec_list))
 
     num_pos_label, num_neg_label = 0, 0
     
@@ -222,52 +103,37 @@ def train_eval_annotator(provision,
         # y_train = y
         train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir, provision, doc_lang)
         splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
-        eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
+        # We use cv_scores to generate a more detailed status resport
+        # than just a score number for cross-validation folds.
+        _, cv_scores = eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
 
-        # set up the status of the classifier, based on the best parameter
         print("eb_classifier.best_parameters")
         best_parameters = eb_classifier.best_parameters
         pprint(best_parameters)
-        # for param_name in sorted(parameters.keys()):
-        #    print("\t%s: %r" % (param_name, best_parameters[param_name]))
-        alpha = best_parameters['alpha']
-        print("alpha xxx = {}".format(alpha))
 
-        iterations = 10
-        # now X and y are different
-        X_sent = eb_classifier.transformer.transform(attrvec_list)
         y_label_list = [provision in attrvec.labels for attrvec in attrvec_list]
 
-        # the goal here is to provide some status information
-        # no guarantee that it is consistent with eb_classifier status yet
-        tmp_sgd_clf = SGDClassifier(loss='log', penalty='l2', alpha=alpha, n_iter=iterations,
-                                    shuffle=True, random_state=42,
-                                    class_weight={True: 10, False: 1})
-        tmp_preds = cross_val_predict(tmp_sgd_clf, X_sent, y_label_list, cv=DEFAULT_CV)
         # this setup eb_classifier.status
         pred_status = calc_scut_predict_evaluate(eb_classifier,
-                                                 attrvec_list, tmp_preds, y_label_list)
+                                                 attrvec_list,
+                                                 cv_scores,
+                                                 y_label_list)
 
         # make the classifier into an annotator
         prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
 
         ant_status = {'provision' : provision,
                       'pred_status' : pred_status}
-        
-        ## X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
-        ## using generator, instead of all loaded at once.
-        # X_train_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_train, work_dir)
-        # ant_status, log_json = prov_annotator.test_antdoc_list(X_train_antdoc_list)
-        
         prov_annotator.eval_status = ant_status
-        print("original status:")
         pprint(ant_status)
 
         model_status_fn = model_dir + '/' +  provision + ".status"
         strutils.dumps(json.dumps(ant_status), model_status_fn)
 
         # NOTE: jshaw
-        # we can output a log file, based on the pred_status.
+        # we should output a log file, based on the pred_status.
+        # Need to look into tmp_preds and do a customize log generation for this?
+        
         # timestr = time.strftime("%Y%m%d-%H%M%S")
         # log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
         # logging.info('wrote logging file at: {}'.format(log_fn))
@@ -309,7 +175,7 @@ def train_eval_annotator(provision,
     # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
     # using generator, instead of all loaded at once.
     X_test_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_test, work_dir)
-    ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
+    ant_status = prov_annotator.test_antdoc_list(X_test_antdoc_list)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
@@ -318,13 +184,24 @@ def train_eval_annotator(provision,
 
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    result_fn = model_dir + '/' + provision + "-ant_result-" + timestr + ".json"
-    logging.info('wrote result file at: {}'.format(result_fn))
-    strutils.dumps(json.dumps(log_json), result_fn)
 
-    log_model_eval_status(ant_status)
-    return prov_annotator, log_json
+    with open('provision_model_stat.tsv', 'a') as pmout:
+        pstatus = pred_status['pred_status']
+        pcfmtx = pstatus['confusion_matrix']
+        astatus = ant_status['ant_status']
+        acfmtx = astatus['confusion_matrix']
+        timestamp = int(time.time())
+        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                 str(timestamp),        
+                 provision,
+                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
+                 pred_status['best_params_']['alpha'],
+                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
+                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
+                 astatus['threshold'],
+                 astatus['prec'], astatus['recall'], astatus['f1']]
+        print('\t'.join([str(x) for x in aline]), file=pmout)        
+    return prov_annotator
 
 
 # Take 1/5 of the data out for testing
@@ -352,7 +229,7 @@ def train_eval_annotator_with_trte(provision,
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
+    ant_status = prov_annotator.test_antdoc_list(X_test)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
@@ -361,12 +238,25 @@ def train_eval_annotator_with_trte(provision,
 
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    result_fn = model_dir + '/' + provision + "-ant_result-" + timestr + ".json"
-    strutils.dumps(json.dumps(log_json), result_fn)
 
-    log_model_eval_status(ant_status)
-    return prov_annotator, log_json
+    with open('provision_model_stat.tsv', 'a') as pmout:
+        pstatus = pred_status['pred_status']
+        pcfmtx = pstatus['confusion_matrix']
+        astatus = ant_status['ant_status']
+        acfmtx = astatus['confusion_matrix']
+        timestamp = int(time.time())
+        aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                 str(timestamp),
+                 provision,
+                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
+                 pred_status['best_params_']['alpha'],
+                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
+                 acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
+                 astatus['threshold'],
+                 astatus['prec'], astatus['recall'], astatus['f1']]
+        print('\t'.join([str(x) for x in aline]), file=pmout)
+
+    return prov_annotator
 
 
 def eval_annotator(txt_fn_list, work_dir, model_file_name):
@@ -384,7 +274,7 @@ def eval_annotator(txt_fn_list, work_dir, model_file_name):
 
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    provision_status_map['ant_status'], _ = prov_annotator.test_antdoc_list(ebantdoc_list)
+    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     pprint(provision_status_map)
 
@@ -404,7 +294,7 @@ def eval_ml_rule_annotator(txt_fn_list, work_dir, model_file_name):
 
     # update the hashmap of annotators
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    provision_status_map['ant_status'], _ = prov_annotator.test_antdoc_list(ebantdoc_list)
+    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     pprint(provision_status_map)
 
@@ -422,12 +312,14 @@ def eval_line_annotator_with_trte(provision,
 
     provision_status_map = {'provision': provision}
     # update the hashmap of annotators
-    prov_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
+    if provision == 'title':
+        prov_annotator = lineannotator.LineAnnotator('title', titles.TitleAnnotator('title'))
+    elif provision == 'party':
+        prov_annotator = lineannotator.LineAnnotator('party', parties.PartyAnnotator('party'))
+    elif provision == 'date':
+        prov_annotator = lineannotator.LineAnnotator('date', dates.DateAnnotator('date'))
     # we need ebantdoc_list because it has the annotations
-
-    provision_status_map['ant_status'], _ = prov_annotator.test_antdoc_list(paras_with_attrs_list,
-                                                                            paras_text_list,
-                                                                            ebantdoc_list)
+    provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     pprint(provision_status_map)
 
