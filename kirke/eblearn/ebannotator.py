@@ -33,7 +33,7 @@ class ProvisionAnnotator:
             threshold = self.threshold
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
-
+        log_json = {}
         for ebantdoc in ebantdoc_list:
             #print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
             # print("ant_list: {}".format(ant_list))
@@ -45,14 +45,14 @@ class ProvisionAnnotator:
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
             if self.provision in PROVISION_EVAL_ANYMATCH_SET:
-                xtp, xfn, xfp, xtn = \
+                xtp, xfn, xfp, xtn, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc,
                                                                      # threshold,
                                                                      diagnose_mode=True)
             else:
-                xtp, xfn, xfp, xtn = \
+                xtp, xfn, xfp, xtn, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
                                                             ebantdoc,

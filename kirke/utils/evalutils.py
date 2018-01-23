@@ -116,7 +116,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
 
     txt = ebantdoc.get_text()
     tp, fp, tn, fn = 0, 0, 0, 0
-
+    json_return = {'tp': [], 'fn': [], 'fp': []}
     pred_ant_list = []
     for adict in ant_list:
         pred_ant_list.append(AnnotationWithProb(adict['label'],
@@ -136,10 +136,10 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
         if pred_overlap_list:
             prob = max([x.prob for x in pred_overlap_list])
             if prob >= threshold:
-                tp_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+                tp_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                 tp += 1
             else:
-                fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+                fn_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                 fn += 1
         else:
             fn += 1
@@ -158,16 +158,22 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
 
     # there is no tn, because we deal with only annotations
     if diagnose_mode:
-        for hant_key in sorted(tp_inst_map.keys()):
-            tp_inst_list = tp_inst_map[hant_key]
+        for i, hant in enumerate(sorted(tp_inst_map.keys())):
+            _, hstart, hend, label = hant
+            tp_inst_list = tp_inst_map[hant] 
             tp_txt = " ".join([txt[x.start:x.end] for x in tp_inst_list])
+            min_start = min([x.start for x in tp_inst_list])
+            max_end = max([x.end for x in tp_inst_list])
             prob = max([x.prob for x in tp_inst_list])
             print("tp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", tp_txt), str(prob)))
             json_return['tp'].append([min_start, max_end, label, prob, linebreaks.sub(" ", tp_txt)])
 
-        for hant_key in sorted(fn_inst_map.keys()):
-            fn_inst_list = fn_inst_map[hant_key]
+        for i, hant in enumerate(sorted(fn_inst_map.keys())): 
+            _, hstart, hend, label = hant
+            fn_inst_list = fn_inst_map[hant]
             fn_txt = " ".join([txt[x.start:x.end] for x in fn_inst_list])
+            min_start = min([x.start for x in fn_inst_list])
+            max_end = max([x.end for x in fn_inst_list])
             prob = max([x.prob for x in fn_inst_list])
             print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
             json_return['fn'].append([min_start, max_end, label, prob, linebreaks.sub(" ", fn_txt)])

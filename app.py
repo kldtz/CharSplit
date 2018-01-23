@@ -204,31 +204,6 @@ def custom_train(cust_id):
         else:
             logging.warning('unknown file extension in custom_train(): "{}"'.format(fn))
 
-    print("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames),
-                                                  full_txt_fnames))
-
-    txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames.list')
-    strutils.dumps('\n'.join(full_txt_fnames), txt_fn_list_fn)
-
-    base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
-
-    # Following the logic in the original code.
-    eval_status, log_json = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
-                                                                          provision,
-                                                                          CUSTOM_MODEL_DIR,
-                                                                          base_model_fname,
-                                                                          is_doc_structure=True,
-                                                                          work_dir=work_dir)
-    # copy the result into the expected format for client
-    ant_status = eval_status['ant_status']
-    cf = ant_status['confusion_matrix']
-    status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
-              'fscore': ant_status['f1'],
-              'precision': ant_status['prec'],
-              'recall': ant_status['recall']}
-
-    logging.info("status:")
-    pprint.pprint(status)
     #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
     all_stats = {}
     for doc_lang, names_per_lang in full_txt_fnames.items():
