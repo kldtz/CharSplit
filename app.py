@@ -8,7 +8,9 @@ import copy
 import json
 import logging
 import os.path
+
 from flask import Flask, request, jsonify
+
 from kirke.eblearn import ebrunner
 from kirke.utils import osutils, strutils
 
