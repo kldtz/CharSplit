@@ -117,6 +117,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
                 fn_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                 fn += 1
         else:
+            fn += 1
             fn_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = [AnnotationWithProb(hant.label,
                                                                                   hant.start,
                                                                                   hant.end,
