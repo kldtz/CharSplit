@@ -134,11 +134,6 @@ def train_eval_annotator(provision,
         # we should output a log file, based on the pred_status.
         # Need to look into tmp_preds and do a customize log generation for this?
         
-        # timestr = time.strftime("%Y%m%d-%H%M%S")
-        # log_fn = model_dir + '/' + provision + "-" + timestr + ".log"
-        # logging.info('wrote logging file at: {}'.format(log_fn))
-        # strutils.dumps(json.dumps(log_json), log_fn)
-
         prov_annotator2, combined_log_json = \
             cv_train_at_annotation_level(provision,
                                          X_train,

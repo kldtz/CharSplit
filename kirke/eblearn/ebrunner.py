@@ -632,19 +632,6 @@ class EbRunner:
 
         # eb_classifier = scutclassifier.ShortcutClassifier(provision)
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
-<<<<<<< HEAD
-
-        eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
-                                                                txt_fn_list,
-                                                                work_dir,
-                                                                custom_model_dir,
-                                                                full_model_fname,
-                                                                eb_classifier,
-                                                                is_doc_structure=is_doc_structure,
-                                                                custom_training_mode=True,
-                                                                doc_lang=doc_lang)
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
         eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
                                                                 txt_fn_list,
                                                                 work_dir,
@@ -653,38 +640,6 @@ class EbRunner:
                                                                 eb_classifier,
                                                                 is_doc_structure=is_doc_structure,
                                                                 custom_training_mode=True)
-||||||||| merged common ancestors
-        eb_annotator = ebtrainer.train_eval_annotator(provision,
-                                                      txt_fn_list,
-                                                      work_dir,
-                                                      custom_model_dir,
-                                                      full_model_fname,
-                                                      eb_classifier,
-                                                      is_doc_structure=is_doc_structure,
-                                                      custom_training_mode=True)
-=========
-        eb_annotator = ebtrainer.train_eval_annotator(provision,
-                                                      txt_fn_list,
-                                                      work_dir,
-                                                      custom_model_dir,
-                                                      full_model_fname,
-                                                      eb_classifier,
-                                                      is_doc_structure=is_doc_structure,
-                                                      custom_training_mode=True,
-                                                      doc_lang=doc_lang)
->>>>>>>>> Temporary merge branch 2
-=======
-        eb_annotator = ebtrainer.train_eval_annotator(provision,
-                                                      txt_fn_list,
-                                                      work_dir,
-                                                      custom_model_dir,
-                                                      full_model_fname,
-                                                      eb_classifier,
-                                                      is_doc_structure=is_doc_structure,
-                                                      custom_training_mode=True,
-                                                      doc_lang=doc_lang)
->>>>>>> c7ff530a49e4db13e57eae900ba7e3de8389be8f
-
         # update the hashmap of classifier
         if doc_lang != "en":
             provision = "{}_{}".format(provision, doc_lang)
