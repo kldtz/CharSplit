@@ -64,7 +64,7 @@ class ProvisionAnnotator:
             fn += xfn
             fp += xfp
             tn += xtn
-            log_json[ebantdoc.file_id] = json_return
+            log_json[ebantdoc.get_document_id()] = json_return
 
         title = "annotate_status, threshold = {}".format(threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
@@ -110,7 +110,7 @@ class ProvisionAnnotator:
 
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations, threshold = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.text,
+        prov_annotations, threshold = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
                                                                                     prob_attrvec_list,
                                                                                     threshold,
                                                                                     provision=prov,
