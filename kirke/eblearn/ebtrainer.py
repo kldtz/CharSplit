@@ -1,3 +1,4 @@
+from collections import defaultdict
 import json
 import logging
 from pprint import pprint
@@ -348,7 +349,7 @@ def train_eval_annotator_with_trte(provision,
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-    ant_status = prov_annotator.test_antdoc_list(X_test)
+    ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
 
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
@@ -375,7 +376,7 @@ def train_eval_annotator_with_trte(provision,
                  astatus['prec'], astatus['recall'], astatus['f1']]
         print('\t'.join([str(x) for x in aline]), file=pmout)
 
-    return prov_annotator
+    return prov_annotator, log_json
 
 
 def eval_annotator(txt_fn_list, work_dir, model_file_name):

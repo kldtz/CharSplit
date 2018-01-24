@@ -658,7 +658,7 @@ class EbRunner:
         last_modified_date = datetime.fromtimestamp(mtime)
         self.custom_model_timestamp_map[base_model_fname] = last_modified_date
 
-        return eb_annotator.get_eval_status()
+        return eb_annotator.get_eval_status(), log_json
 
     def update_existing_provision_fn_map_aux(self, provision: str, full_model_fname: str) -> None:
         # intentioanlly not using .get(), because the previous model file must exist.
