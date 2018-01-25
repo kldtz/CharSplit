@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
-from kirke.utils.ebsentutils import EbEntityType
+from kirke.utils.ebsentutils import EbEntityType, ProvisionAnnotation
 
 PROVISION_PAT_MAP = {
     'change_control': (re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL), 1.0),
@@ -150,7 +150,7 @@ class EbPostPredictProcessing(ABC):
                      prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
                      threshold: float,
                      provision: str = None,
-                     prov_human_ant_list: List[Dict] = None) -> Tuple[List[Dict], float]:
+                     prov_human_ant_list: List[ProvisionAnnotation] = None) -> Tuple[List[Dict], float]:
         pass
 
 
@@ -165,7 +165,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                      prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
                      threshold: float,
                      provision=None,
-                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+                     prov_human_ant_list : List[ProvisionAnnotation] = None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)

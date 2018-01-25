@@ -94,11 +94,13 @@ class ProvisionAnnotator:
         # ebsent_list = eb_antdoc.get_ebsent_list()
         # print("txt_fn = '{}', vec_size= {}".format(eb_antdoc.file_id,
         # len(eb_antdoc.get_attrvec_list())))
+        if prov_human_ant_list is None:
+            prov_human_ant_list = []
 
         attrvec_list = eb_antdoc.get_attrvec_list()
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
-        if threshold != None:
+        if threshold is not None:
             self.threshold = threshold
         else:
             threshold = self.threshold
@@ -108,13 +110,19 @@ class ProvisionAnnotator:
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
                       self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
+        # mapping the offsets in prov_human_ant_list from raw_text to nlp_text
+        fromto_mapper = fromtomapper.FromToMapper('raw_text to nlp_text offset mapper',
+                                                  eb_antdoc.origin_sx_lnpos_list,
+                                                  eb_antdoc.nlp_sx_lnpos_list)
+        adj_prov_human_ant_list = fromto_mapper.adjust_provants_fromto_offsets(prov_human_ant_list)
+
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
         prov_annotations, threshold = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
                                                                                     prob_attrvec_list,
                                                                                     threshold,
                                                                                     provision=prov,
-                                                                                    prov_human_ant_list=prov_human_ant_list)
+                                                                                    prov_human_ant_list=adj_prov_human_ant_list)
 
         # print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
         # print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
