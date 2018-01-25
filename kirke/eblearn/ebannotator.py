@@ -1,6 +1,7 @@
 import logging
 import time
 from typing import Dict, List, Tuple
+import traceback
 
 from kirke.docstruct import docutils, fromtomapper
 from kirke.eblearn import ebpostproc
@@ -39,7 +40,6 @@ class ProvisionAnnotator:
             #print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
             # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-            # prov_human_ant_list = [hant for hant in ebantdoc.para_prov_ant_list
                                    if hant.label == self.provision]
             ant_list, threshold = self.annotate_antdoc(ebantdoc, threshold=threshold, prov_human_ant_list=prov_human_ant_list)
             # print("\nfname: {}".format(ebantdoc.file_id))
@@ -110,11 +110,18 @@ class ProvisionAnnotator:
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
                       self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
-        # mapping the offsets in prov_human_ant_list from raw_text to nlp_text
-        fromto_mapper = fromtomapper.FromToMapper('raw_text to nlp_text offset mapper',
-                                                  eb_antdoc.origin_sx_lnpos_list,
-                                                  eb_antdoc.nlp_sx_lnpos_list)
-        adj_prov_human_ant_list = fromto_mapper.adjust_provants_fromto_offsets(prov_human_ant_list)
+        try:
+            # mapping the offsets in prov_human_ant_list from raw_text to nlp_text
+            fromto_mapper = fromtomapper.FromToMapper('raw_text to nlp_text offset mapper',
+                                                      eb_antdoc.origin_sx_lnpos_list,
+                                                      eb_antdoc.nlp_sx_lnpos_list)
+            adj_prov_human_ant_list = fromto_mapper.adjust_provants_fromto_offsets(prov_human_ant_list)
+        except IndexError:
+            error = traceback.format_exc()
+            logging.warning("IndexError, adj_prov_human_ant_list, %s", eb_antdoc.file_id)
+            logging.warning(error)
+            # move on, probably because there is no input
+            adj_prov_human_ant_list = prov_human_ant_list
 
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
@@ -129,9 +136,17 @@ class ProvisionAnnotator:
         # for fr_sxlnpos, to_sxlnpos in zip(eb_antdoc.origin_sx_lnpos_list, eb_antdoc.nlp_sx_lnpos_list):
         #    print("35234 origin: {}, nlp: {}".format(fr_sxlnpos, to_sxlnpos))
 
-        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
-        # this is an in-place modification
-        fromto_mapper.adjust_fromto_offsets(prov_annotations)
+        try:
+            fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
+                                                      eb_antdoc.nlp_sx_lnpos_list,
+                                                      eb_antdoc.origin_sx_lnpos_list)
+            # this is an in-place modification
+            fromto_mapper.adjust_fromto_offsets(prov_annotations)
+        except IndexError:
+            error = traceback.format_exc()
+            logging.warning("IndexError, adj_fromto_offsets, %s", eb_antdoc.file_id)
+            logging.warning(error)
+            # move on, probably because there is no input
         update_text_with_span_list(prov_annotations, eb_antdoc.text)
 
         prov_annotations = self.recover_false_negatives(prov_human_ant_list, eb_antdoc.text, prov, prov_annotations)

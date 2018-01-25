@@ -165,7 +165,8 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                      prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
                      threshold: float,
                      provision=None,
-                     prov_human_ant_list : List[ProvisionAnnotation] = None) -> Tuple[List[Dict], float]:
+                     prov_human_ant_list : Optional[List[ProvisionAnnotation]] = None) -> Tuple[List[Dict], float]:
+
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)

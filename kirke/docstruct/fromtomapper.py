@@ -322,7 +322,7 @@ class FromToMapper:
             antx['span_list'] = span_list
 
     # this is destructive
-    def adjust_provants_fromto_offsets(self, ant_list: List[ProvisionAnnotation]) -> None:
+    def adjust_provants_fromto_offsets(self, ant_list: List[ProvisionAnnotation]) -> List[ProvisionAnnotation]:
         result = []
         for antx in ant_list:
             # print("ant start = {}, end = {}".format(antx['start'], antx['end']))

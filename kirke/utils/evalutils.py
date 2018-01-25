@@ -1,7 +1,7 @@
 from collections import defaultdict, namedtuple
 import re
 # pylint: disable=unused-import
-from typing import DefaultDict, Dict, List, Set, Tuple
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 from kirke.utils import mathutils, wordutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
@@ -11,10 +11,12 @@ AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 
 
 # pylint: disable=C0103
 # label_start_end_list is of type prov_annotation_list
+
+# Any = Union[AnnotationWithProb, ProvisionAnnotation]
 def find_annotation_overlap(start: int,
                             end: int,
-                            label_start_end_list: List[AnnotationWithProb]) \
-                            -> List[AnnotationWithProb]:
+                            label_start_end_list: Optional[List]) \
+                            -> List:
     """Find annotations that overlaps with 'start' and 'end'.
 
     The annotation list is expected to have minimally 'start' and 'end' attributes.
@@ -26,7 +28,7 @@ def find_annotation_overlap(start: int,
         The list of annotations that overlaps with 'start' and 'end'.
     """
 
-    result_list = []  # type: List[AnnotationWithProb]
+    result_list = []  # type: List
     if not label_start_end_list:
         return result_list
     for ant in label_start_end_list:
