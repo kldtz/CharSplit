@@ -150,7 +150,10 @@ def test_annotators(provisions, txt_fn_list_fn, work_dir, model_dir, custom_mode
     eval_status = eb_runner.test_annotators(txt_fn_list_fn, provision_set, threshold)
 
     # return some json accuracy info
-    pprint.pprint(eval_status)
+    for provision in provision_set:
+        confusion_matrix, errors = eval_status[provision]
+        print("{}:".format(provision))
+        pprint.pprint(confusion_matrix)
 
 # test only 1 annotator
 def test_one_annotator(txt_fn_list_fn, work_dir, model_file_name):
