@@ -2,7 +2,7 @@ from collections import defaultdict, namedtuple
 import re
 # pylint: disable=unused-import
 from typing import DefaultDict, Dict, List, Set, Tuple
-
+import logging
 from kirke.utils import mathutils, wordutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
@@ -138,8 +138,12 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
     fn_inst_map = defaultdict(list)  # type: DefaultDict[Tuple[str, int, int, str], List[AnnotationWithProb]]
     tp_fn_set = set([])  # type: Set[AnnotationWithProb]
 
+
+    # checks predicted annotations against human annotations
     for hant in prov_human_ant_list:
         pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
+        # postproc adds any annotations that have scores above the threshold or have an overlap with the list of human annotations
+        # so all tps and fns should be in pred_ant_list, if not, something is wrong with pred_ant_list or prov_human_ant_list
         if pred_overlap_list:
             prob = max([x.prob for x in pred_overlap_list])
             if prob >= threshold:
@@ -149,12 +153,10 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                 fn_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                 fn += 1
         else:
-            fn_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = [AnnotationWithProb(hant.label,
-                                                                                                    hant.start,
-                                                                                                    hant.end,
-                                                                                                    0.0)]
+           logging.warning("Human annotation not present in the list of annotations, something is wrong!") 
         tp_fn_set |= set(pred_overlap_list)
 
+    # any remaining predicted annotations are false positives or true negatives
     for pant in pred_ant_list:
         if pant in tp_fn_set:
             continue
@@ -162,7 +164,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
             fp_inst_list.append(pant)
             fp += 1
 
-    # there is no tn, because we deal with only annotations
+    # we don't care about reporting true negatives 
     if diagnose_mode:
         for i, xhant in enumerate(sorted(tp_inst_map.keys())):
             _, hstart, hend, label = xhant
