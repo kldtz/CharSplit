@@ -348,8 +348,7 @@ def parties_to_offsets(parties: List[List[str]],
                 part_pat = re.compile(re.sub(r'(\\ )+', r'\s+', re.escape(part)))
                 part_mat = part_pat.search(party_line)
                 if part_mat:
-                    start_index = part_mat.start(0)
-                    offsets.append((start_index, start_index + len(part)))
+                    offsets.append((part_mat.start(0), part_mat.end(0)))
             if offsets:
                 result.append(offsets)
     return result
