@@ -151,7 +151,7 @@ def train_eval_span_annotator_with_trte(label: str,
 
 
 def eval_rule_annotator_with_trte(label,
-                                  model_dir='dir-model',
+                                  model_dir='dir-scut-model',
                                   work_dir='dir-work',
                                   is_doc_structure=False,
                                   is_train_mode=False):
