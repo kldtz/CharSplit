@@ -107,12 +107,12 @@ def annotate_uploaded_document():
         return json.dumps(ebannotations)
 
     if is_classify_doc:
-        if eb_doccat_runner != None:
+        if eb_doccat_runner.is_initialized:
             logging.info("classify document '{}'".format(txt_file_name))
             doc_catnames = eb_doccat_runner.classify_document(txt_file_name)
             ebannotations['tags'] = doc_catnames
         else:
-            logging.warning('is_classify_doc is specified, but no models for eb_doccat_runner')
+            logging.warning('is_classify_doc is specified, but no model exists for eb_doccat_runner')
             ebannotations['tags'] = []
 
     if provision_set:

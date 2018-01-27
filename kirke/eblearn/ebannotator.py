@@ -1,9 +1,9 @@
 import logging
 import time
 
-from kirke.docstruct import docutils, fromtomapper
+from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
-from kirke.utils import evalutils
+from kirke.utils import ebantdoc2, evalutils
 
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
@@ -38,9 +38,29 @@ class ProvisionAnnotator:
             #print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
             # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-            # prov_human_ant_list = [hant for hant in ebantdoc.para_prov_ant_list
                                    if hant.label == self.provision]
-            ant_list = self.annotate_antdoc(ebantdoc, threshold=self.threshold, prov_human_ant_list=prov_human_ant_list)
+            try:
+                ant_list = self.annotate_antdoc(ebantdoc,
+                                                threshold=self.threshold,
+                                                prov_human_ant_list=prov_human_ant_list)
+            # pylint: disable=broad-except
+            except Exception as e:
+                logging.warning('Faile to annotat_antdoc(%s) in test_antdoc_list.', ebantdoc.file_id)
+                raise
+                """
+                # retry all the operations, except for loading the cache
+                ebantdoc = ebantdoc2.text_to_ebantdoc2(ebantdoc.file_id,
+                                                       work_dir=None,
+                                                       is_cache_enabled=False,
+                                                       is_bespoke_mode=False,
+                                                       is_doc_structure=True)
+                prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
+                                       if hant.label == self.provision]
+                ant_list = self.annotate_antdoc(ebantdoc,
+                                                threshold=self.threshold,
+                                                prov_human_ant_list=prov_human_ant_list)
+                """
+
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -87,7 +107,8 @@ class ProvisionAnnotator:
         # pylint: disable=C0103
         tp, fn, fp, tn = evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                  ant_list,
-                                                                 ebantdoc.get_text())
+                                                                 ebantdoc.get_text(),
+                                                                 self.threshold)
 
         title = "annotate_status, threshold = {}".format(self.threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
@@ -121,18 +142,22 @@ class ProvisionAnnotator:
 
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations = ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
-                                                                         prob_attrvec_list,
-                                                                         self.threshold,
-                                                                         provision=prov,
-                                                                         prov_human_ant_list=prov_human_ant_list)
+        prov_annotations = ebpostproc.obtain_postproc(prov) \
+                                     .post_process(eb_antdoc.nlp_text,
+                                                   prob_attrvec_list,
+                                                   self.threshold,
+                                                   provision=prov,
+                                                   prov_human_ant_list=prov_human_ant_list)
 
-        #print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
-        #print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
-        #for fr_sxlnpos, to_sxlnpos in zip(eb_antdoc.origin_sx_lnpos_list, eb_antdoc.nlp_sx_lnpos_list):
+        # print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
+        # print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
+        # for fr_sxlnpos, to_sxlnpos in zip(eb_antdoc.origin_sx_lnpos_list,
+        #                                   eb_antdoc.nlp_sx_lnpos_list):
         #    print("35234 origin: {}, nlp: {}".format(fr_sxlnpos, to_sxlnpos))
 
-        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
+        fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
+                                                  eb_antdoc.nlp_sx_lnpos_list,
+                                                  eb_antdoc.origin_sx_lnpos_list)
         # this is an in-place modification
         fromto_mapper.adjust_fromto_offsets(prov_annotations)
         update_text_with_span_list(prov_annotations, eb_antdoc.text)

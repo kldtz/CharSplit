@@ -19,6 +19,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--debug', action='store_true', help='print debug information')
     parser.add_argument('-u', '--url', help='url to post the file')
     parser.add_argument('-l', '--lang', action='store_true', help='to detect lang')
+    parser.add_argument('--header', action='store_true', help='to print header')
     parser.add_argument('--doccat', action='store_true', help='to classify document')
 
     parser.add_argument('filename')
@@ -53,7 +54,11 @@ if __name__ == '__main__':
             else:
                 files = {'file': open(args.filename, 'rt', encoding='utf-8')}
 
-            req = requests.post(url, files=files, data=payload)
-            print(req.text)
+            resp = requests.post(url, files=files, data=payload)
+
+            if args.header:
+                print('status: [{}]'.format(resp.status_code))
+                print(resp.headers)
+            print(resp.text)
     else:
         print("file '{}' is not a valid file".format(args.filename), file=sys.stderr)

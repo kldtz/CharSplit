@@ -5,7 +5,7 @@ import logging
 import pprint
 import time
 
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sklearn.model_selection import GroupKFold
 from sklearn.linear_model import SGDClassifier
@@ -13,7 +13,7 @@ from sklearn.model_selection import GridSearchCV
 
 from kirke.docstruct import docutils, fromtomapper
 from kirke.eblearn import baseannotator, ebpostproc
-from kirke.utils import evalutils, strutils
+from kirke.utils import ebantdoc3, evalutils, strutils
 
 
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
@@ -31,7 +31,8 @@ def adapt_pipeline_params(best_params):
 class SpanAnnotator(baseannotator.BaseAnnotator):
 
     def __init__(self,
-                 label,
+                 label: str,
+                 version: str,
                  *,
                  doclist_to_antdoc_list,
                  docs_to_samples,
@@ -40,8 +41,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  gridsearch_parameters,
                  threshold: float=0.5,
                  kfold: int=3):
-        self.label = label
-        
+        super().__init__(label, 'no description')
+        self.provision = label  # to be consistent with ProvAnnotator in ebannotator.py
+        self.version = version
+
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
         self.docs_to_samples = docs_to_samples
@@ -105,7 +108,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     #    pass
     # pylint: disable=R0914
     def test_antdoc_list(self, ebantdoc_list, threshold=None, work_dir='work_dir'):
-        logging.debug('test_document_list')
+        logging.debug('spanannotator.test_antdoc_list(), len= %d', len(ebandoc_list))
         if not threshold:
             threshold = self.threshold
         # pylint: disable=C0103
@@ -189,11 +192,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         return samples, label_list, group_id_list
 
     def annotate_antdoc(self,
-                        eb_antdoc,
+                        eb_antdoc: ebantdoc3.EbAnnotatedDoc3,
                         *,
-                        threshold=None,
-                        prov_human_ant_list=None,
-                        work_dir='dir-work'):
+                        threshold: Optional[float] = None,
+                        prov_human_ant_list: Optional[List] = None,
+                        work_dir: str = 'dir-work'):
         
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
@@ -212,15 +215,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                        threshold,
                                                        provision=self.label,
                                                        prov_human_ant_list=prov_human_ant_list)
-
-        """
-        fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
-                                                  eb_antdoc.nlp_sx_lnpos_list,
-                                                  eb_antdoc.origin_sx_lnpos_list)
-        # this is an in-place modification
-        fromto_mapper.adjust_fromto_offsets(prov_annotations)
-        update_text_with_span_list(prov_annotations, eb_antdoc.text)
-        """
+        # this is in-place update
+        add_span_list(prov_annotations)
 
         return prov_annotations
 
@@ -253,8 +249,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
 
     # return a list of samples, a list of labels
-    def predict_antdoc(self, antdoc, work_dir):
-        logging.info('predict_antdoc({})...'.format(antdoc.file_id))
+    def predict_antdoc(self,
+                       antdoc: ebantdoc3.EbAnnotatedDoc3,
+                       work_dir: str) -> List[Tuple[List[Dict[str, Any]], List[float]]]:
+        logging.info('predict_antdoc(%s)', antdoc.file_id)
 
         # label_list, group_id_list are ignored
         samples, _, _ = self.documents_to_samples([antdoc])
@@ -330,12 +328,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     
 
 # this is destructive
-def update_text_with_span_list(prov_annotations, doc_text):
-    # print("prov_annotations: {}".format(prov_annotations))
+def add_span_list(prov_annotations: List[Dict[str, Any]]) -> None:
+    """Add field 'span_list' based on 'start' and 'end' fields."""
     for ant in prov_annotations:
-        tmp_span_text_list = []
-        for span in ant['span_list']:
-            start = span['start']
-            end = span['end']
-            tmp_span_text_list.append(doc_text[start:end])
-        ant['text'] = ' '.join(tmp_span_text_list)
+        ant['span_list'] = [{'start': ant['start'],
+                             'end': ant['end']}]

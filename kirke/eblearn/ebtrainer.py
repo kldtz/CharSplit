@@ -104,6 +104,7 @@ def train_eval_span_annotator_with_trte(label: str,
                                                        config['version'])
 
     span_annotator = spanannotator.SpanAnnotator(label,
+                                                 version=config['version'],
                                                  doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                                  docs_to_samples=config['docs_to_samples'],
                                                  sample_transformers=config.get('sample_transformers', []),

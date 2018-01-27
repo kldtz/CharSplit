@@ -47,7 +47,11 @@ AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 
 
 
 # pylint: disable=R0914
-def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, threshold, diagnose_mode=False):
+def calc_doc_ant_confusion_matrix(prov_human_ant_list,
+                                  ant_list,
+                                  ebantdoc,
+                                  threshold,
+                                  diagnose_mode=False):
     txt = ebantdoc.get_text()
     tp, fp, tn, fn = 0, 0, 0, 0
 
@@ -65,14 +69,16 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
 
     for hant in prov_human_ant_list:
         pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
+        prob = 0.0
         if len(pred_overlap_list) > 0:
             prob = max([x.prob for x in pred_overlap_list])
-            if prob >= threshold:
-                tp_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
-                tp += 1
-            else:
-                fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
-                fn += 1
+
+        if prob >= threshold:
+            tp_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+            tp += 1
+        else:
+            fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+            fn += 1
         tp_fn_set |= set(pred_overlap_list)
     
     for pant in pred_ant_list:
@@ -96,7 +102,9 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list, ant_list, ebantdoc, thres
             hstart, hend, _ = hant
             fn_inst_list = fn_inst_map[hant]
             fn_txt = " ".join([txt[x.start:x.end] for x in fn_inst_list])
-            prob = max([x.prob for x in fn_inst_list])
+            prob = -1.0
+            if fn_inst_list:
+                prob = max([x.prob for x in fn_inst_list])
             print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
 
         for i, pred_ant in enumerate(fp_inst_list):

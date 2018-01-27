@@ -560,6 +560,8 @@ def text_to_ebantdoc2(txt_fname,
                       is_doc_structure=True,
                       doc_lang="en") -> EbAnnotatedDoc2:
     txt_base_fname = os.path.basename(txt_fname)
+    if work_dir is None:
+        work_dir = '/tmp'
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     # never want to save in bespoke_mode because annotation can change
         #if os.path.exists(eb_antdoc_fn):
