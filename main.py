@@ -112,7 +112,9 @@ def train_span_annotator(label,
 def eval_rule_annotator(label,
                         is_train_mode=False):
     # ebtrainer.eval_rule_annotator_with_trte(label, is_train_mode=True)
-    ebtrainer.eval_rule_annotator_with_trte(label, is_train_mode=is_train_mode)
+    ebtrainer.eval_rule_annotator_with_trte(label,
+                                            model_dir=model_dir,
+                                            is_train_mode=is_train_mode)
 
 
 def eval_line_annotator_with_trte(provision,

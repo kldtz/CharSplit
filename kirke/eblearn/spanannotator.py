@@ -108,7 +108,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     #    pass
     # pylint: disable=R0914
     def test_antdoc_list(self, ebantdoc_list, threshold=None, work_dir='work_dir'):
-        logging.debug('spanannotator.test_antdoc_list(), len= %d', len(ebandoc_list))
+        logging.debug('spanannotator.test_antdoc_list(), len= %d', len(ebantdoc_list))
         if not threshold:
             threshold = self.threshold
         # pylint: disable=C0103
