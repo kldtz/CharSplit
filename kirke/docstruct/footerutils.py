@@ -97,8 +97,10 @@ def classify_line_page_number(line: str):
     
     return False
 
-def is_sechead(line: str) -> Match[str]:
-    return SECHEAD_PREFIX_PAT.match(line)
+
+def is_sechead(line: str) -> bool:
+    return bool(SECHEAD_PREFIX_PAT.match(line))
+
 
 """
 tmpst = 'Exhibit K -Page 2'

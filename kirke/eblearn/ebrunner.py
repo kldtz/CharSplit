@@ -11,7 +11,7 @@ import pprint
 import re
 import sys
 import time
-from typing import List, Set
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 from sklearn.externals import joblib
 
@@ -30,14 +30,17 @@ DOCCAT_MODEL_FILE_NAME = 'ebrevia_docclassifier.v1.pkl'
 
 def annotate_provision(eb_annotator,
                        eb_antdoc: ebantdoc2.EbAnnotatedDoc2,
-                       eb_antdoc3: ebantdoc3.EbAnnotatedDoc3):
+                       eb_antdoc3: ebantdoc3.EbAnnotatedDoc3) -> Tuple[List[Dict], float]:
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc3)
 
     return eb_annotator.annotate_antdoc(eb_antdoc)
 
 
-def test_provision(eb_annotator, eb_antdoc_list, threshold):
+def test_provision(eb_annotator,
+                   eb_antdoc_list,
+                   threshold) -> Tuple[Dict[str, Dict],
+                                       Dict[str, Dict]]:
     print("test_provision, type(eb_annotator) = {}".format(type(eb_annotator)))
     return eb_annotator.test_antdoc_list(eb_antdoc_list, threshold)
 
@@ -92,25 +95,26 @@ def update_dates_by_domain_rules(ant_result_dict):
 class EbRunner:
 
     # pylint: disable=too-many-locals,too-many-statements
-    def __init__(self, model_dir, work_dir, custom_model_dir):
+    def __init__(self, model_dir: str, work_dir: str, custom_model_dir: str) -> None:
         osutils.mkpath(model_dir)
         osutils.mkpath(work_dir)
         osutils.mkpath(custom_model_dir)
         self.model_dir = model_dir
         self.work_dir = work_dir
         self.custom_model_dir = custom_model_dir
-        self.custom_model_timestamp_map = {}
+        self.custom_model_timestamp_map = {}  # type: Dict[str, datetime]
         # Kirke can have different custom model versions for the same provision right
         # after training new ones. Need to keep them unique by remove the old one.
         # Must syncrhonize the update of self.provision_annotator_map and
         # self.provision_custom_model_fn_map.
-        self.provision_custom_model_fn_map = {}
+        self.provision_custom_model_fn_map = {}  # type: Dict[str, str]
 
         # load the available classifiers from dir_model
         model_files = osutils.get_model_files(model_dir)
         provision_classifier_map = {}
-        self.provisions = set([])
-        self.provision_annotator_map = {}
+        self.provisions = set([])  # type: Set[str]
+        self.provision_annotator_map = {}  # type: Dict[str, Union[ebannotator.ProvisionAnnotator, spanannotator.SpanAnnotator]]
+
 
         candg_model_files = osutils.get_candg_model_files(model_dir)
 
@@ -248,7 +252,7 @@ class EbRunner:
         #else:
         #    logging.info("user specified provision list: %s", provision_set)
 
-        annotations = defaultdict(list)
+        prov_antlist_map = defaultdict(list)  # type: DefaultDict[str, List[Dict]]
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
                                                    self.provision_annotator_map[provision],
@@ -257,13 +261,13 @@ class EbRunner:
                                    provision for provision in provision_set if provision in self.provision_annotator_map.keys()}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                data = future.result()
+                ant_list, unused_threshold = future.result()
                 # want to collapse language-specific cust models to one provision
-                if 'cust_' in provision and data:
-                    provision = data[0]['label']
-                # aggregates all annotations across languages for cust models
-                annotations[provision].extend(data)
-        return annotations
+                if 'cust_' in provision and ant_list:
+                    provision = ant_list[0]['label']
+                # aggregates all prov_antlist_map across languages for cust models
+                prov_antlist_map[provision].extend(ant_list)
+        return prov_antlist_map
 
     def update_custom_models(self):
         provision_classifier_map = {}
@@ -330,7 +334,8 @@ class EbRunner:
                           provision_set: Set[str] = None,
                           work_dir: str = None,
                           is_doc_structure: bool = True,
-                          doc_lang: str = "en"):
+                          doc_lang: str = "en") -> Tuple[Dict[str, List],
+                                                         ebantdoc2.EbAnnotatedDoc2]:
         time1 = time.time()
         if not provision_set:
             provision_set = self.provisions
@@ -357,21 +362,20 @@ class EbRunner:
         # if the file contains too few words, don't bother
         # otherwise, might cause classifier error if only have 1 error because of minmax
         if len(eb_antdoc.text) < 100:
-            empty_result = {}
+            empty_result = {}  # type: Dict[str, List]
             for prov in provision_set:
                 empty_result[prov] = []
+            # we always return eb_antdoc, not eb_antdoc3
             return empty_result, eb_antdoc
         # this execute the annotators in parallel
         prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, eb_antdoc3, provision_set)
 
         # this update the 'start_end_span_list' in each antx in-place
         # docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
-
         # update prov_labels_map based on rules
         self.apply_line_annotators(prov_labels_map,
                                    eb_antdoc,
                                    work_dir=work_dir)
-
         # since nobody is using rate-table classifier yet
         # we are disabling it for now.
         """
@@ -401,6 +405,7 @@ class EbRunner:
 
         time2 = time.time()
         logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
+        # we always return eb_antdoc, not eb_antdoc3
         return prov_labels_map, eb_antdoc
 
 
@@ -447,12 +452,10 @@ class EbRunner:
 
         party_ant_list = self.party_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                               eb_antdoc.nlp_text)
-
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
             fromto_mapper.adjust_fromto_offsets(party_ant_list)
             prov_labels_map['party'] = party_ant_list
-
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
                                                             eb_antdoc.nlp_text)
@@ -512,12 +515,10 @@ class EbRunner:
 
         party_ant_list = self.party_annotator.annotate_antdoc(paraline_with_attrs,
                                                               paraline_text)
-
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
             fromto_mapper.adjust_fromto_offsets(party_ant_list)
             prov_labels_map['party'] = party_ant_list
-
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(paraline_with_attrs,
                                                             paraline_text)
@@ -635,7 +636,8 @@ class EbRunner:
             if xx_date_list:
                 prov_labels_map['date'] = xx_date_list
 
-
+    # This is only called in main.py, annotate_doc_party(), which is disabled.
+    """
     def annotate_provision_in_document(self, file_name, provision: str):
         provision_set = set([provision])
         ant_result_dict, doc_text = self.annotate_text_document(file_name, provision_set)
@@ -646,9 +648,15 @@ class EbRunner:
             prob = prov['prob']
             print('{}\t{}\t{}\t{}\t{}\t{}\t{:.4f}'.format(file_name, i, provision,
                                                           doc_text[start:end], start, end, prob))
+    """
 
 
-    def test_annotators(self, txt_fns_file_name, provision_set, threshold=None):
+    def test_annotators(self,
+                        txt_fns_file_name: str,
+                        provision_set: Set[str],
+                        threshold: Optional[float] = None) \
+                        -> Dict[str, Tuple[Dict[str, Any],
+                                           Dict[str, Dict]]]:
         if not provision_set:
             provision_set = self.provisions
         else:
@@ -668,7 +676,7 @@ class EbRunner:
             ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir)
 
-        annotations = {}
+        prov_antlist_logjson_map = {}
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(test_provision,
                                                    self.provision_annotator_map[provision],
@@ -677,9 +685,10 @@ class EbRunner:
                                    provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                data = future.result()
-                annotations[provision] = data
-        return annotations
+                ant_status, log_json = future.result()
+                prov_antlist_logjson_map[provision] = (ant_status, log_json)
+
+        return prov_antlist_logjson_map
 
     #
     # custom_train_provision_and_evaluate
@@ -692,7 +701,7 @@ class EbRunner:
                                             base_model_fname,
                                             is_doc_structure=False,
                                             work_dir=None,
-                                            doc_lang="en"):
+                                            doc_lang="en") -> Tuple[Dict[str, Any], Dict[str, Dict]]:
 
         logging.info("txt_fn_list_fn: %s", txt_fn_list)
 
@@ -705,16 +714,14 @@ class EbRunner:
 
         # eb_classifier = scutclassifier.ShortcutClassifier(provision)
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        eb_annotator = ebtrainer.train_eval_annotator(provision,
-                                                      txt_fn_list,
-                                                      work_dir,
-                                                      custom_model_dir,
-                                                      full_model_fname,
-                                                      eb_classifier,
-                                                      is_doc_structure=is_doc_structure,
-                                                      custom_training_mode=True,
-                                                      doc_lang=doc_lang)
-
+        eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
+                                                                txt_fn_list,
+                                                                work_dir,
+                                                                custom_model_dir,
+                                                                full_model_fname,
+                                                                eb_classifier,
+                                                                is_doc_structure=is_doc_structure,
+                                                                custom_training_mode=True)
         # update the hashmap of classifier
         if doc_lang != "en":
             provision = "{}_{}".format(provision, doc_lang)
@@ -733,7 +740,7 @@ class EbRunner:
         last_modified_date = datetime.fromtimestamp(mtime)
         self.custom_model_timestamp_map[base_model_fname] = last_modified_date
 
-        return eb_annotator.get_eval_status()
+        return eb_annotator.get_eval_status(), log_json
 
     def update_existing_provision_fn_map_aux(self, provision: str, full_model_fname: str) -> None:
         # intentioanlly not using .get(), because the previous model file must exist.
@@ -748,7 +755,7 @@ class EbRunner:
                 # del self.custom_model_timestamp_map[tmp_base_fname]
                 self.provision_custom_model_fn_map[provision] = full_model_fname
 
-    def eval_ml_rule_annotator_with_trte(self,
+    def eval_mlxline_annotator_with_trte(self,
                                          provision,
                                          model_dir='dir-scut-model',
                                          work_dir='dir-work',
@@ -779,6 +786,7 @@ class EbRunner:
                 # print("\nfn: {}".format(ebantdoc.file_id))
                 # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
                 # pred_prob_start_end_list, txt)
+                # currently, PROVISION_EVAL_ANYMATCH_SET only has 'title', not 'party' or 'date'
                 if provision in ebannotator.PROVISION_EVAL_ANYMATCH_SET:
                     xtp, xfn, xfp, xtn = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
@@ -844,17 +852,19 @@ class EbLangDetectRunner:
 
     def detect_lang(self, atext):
         try:
-            detect_lang = langdetect.detect(atext) or 'unknown'
+            detect_lang = langdetect.detect(atext)
         except:
-            detect_lang = 'unknown'
+            detect_lang = None
         # logging.info("detected language '{}'".format(detect_lang))
         return detect_lang
 
     def detect_langs(self, atext):
         try:
             lang_probs = langdetect.detect_langs(atext)
+            if lang_probs is None:
+                return ''
             detect_langs = ','.join(['{}={}'.format(lang.lang, lang.prob) for lang in lang_probs])
         except:
-            detect_langs = 'unknown=0.00001'
+            detect_langs = ''
         # logging.info("detected languages '{}'".format(detect_langs))
         return detect_langs

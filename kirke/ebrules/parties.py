@@ -4,7 +4,7 @@ import re
 import string
 import logging
 
-from kirke.ebrules import titles
+from kirke.ebrules import titles, addresses
 from kirke.utils import strutils
 
 
@@ -18,7 +18,15 @@ TERM_CANT_HAVE = [r'\bdate\b', r'\boffice\b', r'\bdefined\b']
 
 """Get keywords"""
 
+parens = re.compile(r'\([^\)]*?(?:“|")[^\)]*?(?:"|”)[^\)]*?\)')
+non_comma_separators = re.compile(r',\sand|\sand|;')
+paren_symbol = re.compile(r'(⭐️)')
+zip_code_year = re.compile(r'\b\d{5}(?:\-\d{4})?\b|\b(?:19|20)\d{2}\b')
+quote = re.compile(r'“|"|”')
 
+# Supports US (5 or 5-4), UK, Australia (4), Switzerland (4), Shanghai (6)
+UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? +(?:(?![CIKMOV])[0-9O][a-zA-Z]{2})'
+zip_code_year = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
 dot_space = re.compile(r'[\.\s]+')
 
 
@@ -42,26 +50,43 @@ suffixes = business_suffixes + [cap_rm_dot_space(s) for s in name_suffixes]
 invalid_parties_st_list = strutils.load_str_list('dict/parties/invalid.parties.txt')
 invalid_parties_set = set(invalid_parties_st_list)
 
-VALID_1WORD_PARTY_SET = ['customer']
-def is_valid_1word_party(line):
-    return line.lower() in VALID_1WORD_PARTY_SET
+VALID_1WORD_PARTY_SET = ['supplier', 'customer']
 
+def is_valid_1word_party(line):
+    if line.lower() in VALID_1WORD_PARTY_SET or line.isupper():
+        return True 
+
+ADDRESS_PARTS = ['floor', 'road', 'court', 'street', 'drive']
 ZIP_PAT = re.compile(r'[loO\d]{5,6}')
-def is_invalid_party(line):
+def is_invalid_party(line, is_party=True):
+    #checks for some punctuation
     if ':' in line or '/' in line:
         return True
+
+    #too short to be a party
     if len(line) <= 2:
         return True
+
     lc_line = line.lower()
-    if ('floor' in lc_line or ' road' in lc_line or
-        ' court' in lc_line):
-        return True
+    #catches things that are likely part of an address
+    if is_party:
+        for part in ADDRESS_PARTS:
+            if part in lc_line:
+                return True
+        if addresses.classify(line) > 0.5:
+            return True
+
+    #catches other likely fps
     if ' this ' in lc_line:
         return True
     if 'page ' in lc_line:
         return True
-    if ZIP_PAT.search(lc_line):
+
+    #catches zip code pulls
+    if zip_code_year.search(line):
         return True
+
+    #if not invalid, return
     return lc_line in invalid_parties_set
 
 """Process parts of strings (already split by comma, and, & semicolon)"""
@@ -99,7 +124,7 @@ def process_part(p):
     # Remove certain phrases like 'on the one hand'
     for r in party_regexes:
         p = r.sub('', p)
-
+ 
     # Take away any lowercase words from end e.g. 'organized'
     while p.strip() and p.split()[-1].islower():
         p = p[:len(p) - len(p.split()[-1]) - 1]
@@ -122,7 +147,7 @@ def process_term(t):
 """Helper functions and regexes for extracting parties from party line"""
 
 
-party_chars = set(string.ascii_letters).union(string.digits).union('=.')
+party_chars = set(string.ascii_letters).union(string.digits).union('⭐️.')
 
 
 def party_strip(s):
@@ -143,45 +168,51 @@ def first_sentence(s):
     return match.group() if match else s
 
 
-parens = re.compile(r'\([^\)]*?(?:“|")[^\)]*?(?:"|”)[^\)]*?\)')
-non_comma_separators = re.compile(r',\sand|\sand|;')
-paren_symbol = re.compile(r'(=)')
-zip_code_year = re.compile(r'\b\d{5}(?:\-\d{4})?\b|\b(?:19|20)\d{2}\b')
-quote = re.compile(r'“|"|”')
-
-# Supports US (5 or 5-4), UK, Australia (4), Switzerland (4), Shanghai (6)
-UK_STD = '[A-Z]{1,2}[0-9R][0-9A-Z]? (?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
-zip_code_year = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
-
-
 """Extract parties from party line"""
 
 
-def extract_between_among(s):
+def zipcode_replace(p, new_parts):
+    # If zip code or year in part and not already deleting ('❌'), mark '🏡'
+    if zip_code_year.search(p):
+        new_parts.append('🏡')
+    return new_parts
+
+def zipcode_remove(grps):
+    # Going backwards, when see a zip code/ year, remove up to prev removed line
+    for i in range(len(grps)):
+        zip_code_inds = [j for j, part in enumerate(grps[i]) if part == '🏡']
+        if zip_code_inds:
+            new_start = max(zip_code_inds) + 1
+            terms_before = [part for part in grps[i][:new_start] if part == '⭐️']
+            new_parts = grps[i][new_start:]
+            grps[i] = terms_before + new_parts
+    return grps
+
+def extract_between_among(s, is_party=True):
+
     """Return parties for party lines containing either 'between' or 'among'."""
-
-    # Consider after between. If line ends in between (no 'and'), return None.
     s = s.split('between')[-1].split('among')[-1]
-    if 'and' not in s:
-        return None
-
+    
     # Temporarily sub defined terms with '=' to avoid splitting on their commas
     terms = parens.findall(s)
-    s = non_comma_separators.sub(',', parens.sub('=', s))
+
+    #sub common delimiters with commas to split on
+    s = re.sub('(between)|(being)|(\n)|\(?[\div]+\)', ', ', s)
+    s = non_comma_separators.sub(',', parens.sub('⭐️', s))
 
     # Split the string into parts, applying party_strip between each step
     parts = [party_strip(part) for part in party_strip(s).split(', ')]
     parts = [party_strip(q) for p in parts for q in paren_symbol.split(p) if q]
     parts = [q for q in parts if q]
-
+    
     # Process parts and decide which parts to keep
     new_parts = ['']
     for p in parts:
         # If p is a term, keep the term and continue
-        if p == '=':
+        if p == '⭐️':
             new_parts.append(p)
             continue
-
+        
         # If first word is a suffix (MD MBA), add to previous and remove from p
         seen_suffixes = ''
         check_again = True
@@ -208,31 +239,22 @@ def extract_between_among(s):
         # Mark for deletion if first word has no uppercase letters or digits
         first_word = p.split()[0]
         if not any(c.isupper() or c.isdigit() for c in first_word):
-            new_parts.append('^')
+            new_parts.append('❌')
             continue
-
-        # If zip code or year in part and not already deleting ('^'), mark '+'
-        if zip_code_year.search(p):
-            new_parts.append('+')
-            continue
-
+        
+        if is_party: 
+            new_parts = zipcode_replace(p, new_parts)
+        
         # Process then keep the part if not a title, etc.
         processed_part = process_part(p)
         if processed_part:
             new_parts.append(processed_part)
-
-    # Remove lines marked for deletion (^)
+    
+    # Remove lines marked for deletion (❌)
     parts = new_parts if new_parts[0] else new_parts[1:]
-    grps = [list(g) for k, g in groupby(parts, lambda p: '^' in p) if not k]
-
-    # Going backwards, when see a zip code/ year, remove up to prev removed line
-    for i in range(len(grps)):
-        zip_code_inds = [j for j, part in enumerate(grps[i]) if part == '+']
-        if zip_code_inds:
-            new_start = max(zip_code_inds) + 1
-            terms_before = [part for part in grps[i][:new_start] if part == '=']
-            new_parts = grps[i][new_start:]
-            grps[i] = terms_before + new_parts
+    grps = [list(g) for k, g in groupby(parts, lambda p: '❌' in p) if not k]
+    #if is_party:
+        #grps = zipcode_remove(grps)
     parts = [part for g in grps for part in g]
 
     # Add terms back in
@@ -243,7 +265,7 @@ def extract_between_among(s):
     part_type_bools = []
     for p in parts:
         # Record term type {0: party, 1: (), 2: ("")} and substitute term
-        part_type_bool = p == '='
+        part_type_bool = p == '⭐️'
         part_type = int(part_type_bool)
         if part_type_bool:
             p = terms[current_term]
@@ -264,32 +286,35 @@ def extract_between_among(s):
                 part_types.append(part_type)
                 part_type_bools.append(part_type_bool)
                 continue
-
         # Otherwise start a new party
         parties.append([p])
         part_types = [part_type]
         part_type_bools = [part_type_bool]
-
     # Remove parties that only contain defined terms, then return
     parties = [p for p in parties if not all(parens.search(w) for w in p)]
     return parties
 
 
-def extract_parties_from_party_line(s):
-    """Return list of parties (which are lists of strings) of s (party line)."""
+def extract_parties_from_party_line(s, is_party=True):
+    """
+    Return list of parties (which are lists of strings) of s (party line).
+    is_party flag should be true for party provision but false for landlord / tenant provisions
+    when is_party is false it will keep address-like extractions
+    """
     s = first_sentence(s)
+    
+    #bullet type parties won't contain between / among, extract anyway
+    if re.match(r'\(?[\div]\)', s):
+       return extract_between_among(s, is_party)
 
-    # Try (eventually several) possible rules
-    if 'between' in s or 'among' in s:
-        return extract_between_among(s)
+    # Try possible rules
+    if ('between' in s or 'among' in s) or not is_party:
+        return extract_between_among(s, is_party)
 
-    # Fall back to NER (not implemented) if none of the above criteria were met
     return None
 
 
 """Extract parties from debug file"""
-
-
 def parties_to_offsets(parties, party_line):
     """Converts string parts of parties to offsets (relative to party line)."""
     if parties:
@@ -323,7 +348,7 @@ def extract_parties(filepath):
         return None
 
     # Extract parties and return their offsets
-    parties = extract_parties_from_party_line(party_line)
+    parties = extract_parties_from_party_line(party_line, is_party=True)
     return parties_to_offsets(parties, party_line)
 
 
@@ -335,9 +360,22 @@ def extract_party_line(paras_attr_list):
         # attrs_st = '|'.join([str(attr) for attr in para_attrs])
         # print('\t'.join([attrs_st, '[{}]'.format(line_st)]), file=fout1)
         line_st_len = len(line_st)
-
-        if 'party_line' in para_attrs:
-            return offset, offset + line_st_len, line_st
+        whitespace_line = '\n'
+        # checks if bullet type party, joins all bullets into a line
+        if 'party_line' in para_attrs and 'toc' not in para_attrs:
+            if re.match(r'\(?[\div]+\)', line_st, re.I):
+                next_idx = i+1
+                next_line, next_attrs = paras_attr_list[next_idx] 
+                offset_add = line_st_len
+                return_st = line_st
+                while not next_line or re.match(r'\(?[\div]+\)', next_line, re.I) or re.match(r'^[\-\s]*and', next_line, re.I):
+                    offset_add += len(next_line)
+                    return_st += "\n" + next_line
+                    next_idx += 1
+                    next_line, next_attrs = paras_attr_list[next_idx]
+                return offset, offset+ offset_add, return_st
+            else:
+                return offset, offset + line_st_len, line_st
         offset += line_st_len + 1
 
         # don't bother if party_line is too far from start of the doc
@@ -380,8 +418,7 @@ def extract_offsets(paras_attr_list, para_text):
     for start, end in non_partyline_parties:
         out_list.append(((start, end), None))
     """
-        
-    # logging.info("out_list: {}".format(out_list))
+    #logging.info("out_list: {}".format(out_list))
     return out_list
 
 

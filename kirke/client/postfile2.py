@@ -39,7 +39,8 @@ if __name__ == '__main__':
     # payload = {'types': 'party'}
     # payload = {'types': 'party,change_control'}
     # payload = {'types': 'termination,term,confidentiality,cust_3566'}
-    payload = {'types': 'term'}
+    # payload = {'types': 'term'}
+    payload = {'types': 'l_tenant_notice'}
     if args.lang:
         payload['detect-lang'] = True
     if args.doccat:

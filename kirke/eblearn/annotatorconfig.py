@@ -16,6 +16,7 @@ ml_annotator_config_map = \
                            ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                  shuffle=True, random_state=42,
                                                  class_weight={True: 3, False: 1}))]),
+                       'threshold': 0.2,
                        'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}},
      'l_tenant_notice': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                          'docs_to_samples': linegen.LineSpanGenerator(10, 10),  # 10, not 20
