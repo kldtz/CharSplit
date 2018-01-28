@@ -40,7 +40,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  sample_transformers,
                  pipeline,
                  gridsearch_parameters,
-                 threshold: float = 0.5,
+                 # prefer recall over precision
+                 threshold: float = 0.2,
                  kfold: int = 3) -> None:
         super().__init__(label, 'no description')
         self.provision = label  # to be consistent with ProvAnnotator in ebannotator.py
@@ -125,10 +126,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.label]
 
-            ant_list = self.annotate_antdoc(ebantdoc,
-                                            threshold=threshold,
-                                            prov_human_ant_list=prov_human_ant_list,
-                                            work_dir=work_dir)
+            ant_list, threshold = self.annotate_antdoc(ebantdoc,
+                                                       threshold=threshold,
+                                                       prov_human_ant_list=prov_human_ant_list,
+                                                       work_dir=work_dir)
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -227,17 +228,20 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
                       self.label, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
-        post_processor = ebpostproc.obtain_postproc('span_default')
-        prov_annotations, threshold = post_processor.post_process(eb_antdoc.text,
-                                                                  list(zip(samples, prob_list)),
-                                                                  threshold,
-                                                                  provision=self.label,
-                                                                  # pylint: disable=line-too-long
-                                                                  prov_human_ant_list=prov_human_ant_list)
-        # this is in-place update
-        add_span_list(prov_annotations)
+        # print('threshold = {}'.format(threshold))
+        # for ci, (ss, pp) in enumerate(zip(samples, prob_list)):
+        #    if pp >= threshold:
+        #        print('#{}, prov= {}, prob = {}, sample = {}'.format(ci, self.provision, pp, ss))
 
-        return prov_annotations, threshold
+        post_processor = ebpostproc.obtain_postproc('span_default')
+        # change to x_threshold to pass "mypy" type checking
+        prov_annotations, x_threshold = post_processor.post_process(eb_antdoc.text,
+                                                                    list(zip(samples, prob_list)),
+                                                                    threshold,
+                                                                    provision=self.label,
+                                                                    # pylint: disable=line-too-long
+                                                                    prov_human_ant_list=prov_human_ant_list)
+        return prov_annotations, x_threshold
 
     def print_eval_status(self, model_dir):
 
@@ -271,7 +275,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def predict_antdoc(self,
                        antdoc: ebantdoc3.EbAnnotatedDoc3,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
-        logging.info('predict_antdoc(%s)', antdoc.file_id)
+        logging.info('prov = %s, predict_antdoc(%s)', self.provision, antdoc.file_id)
 
         # label_list, group_id_list are ignored
         samples, unused_label_list, unused_group_id_list = \
@@ -350,11 +354,3 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.classifier_status['best_params_'] = self.best_parameters
 
         return self.classifier_status
-
-
-# this is destructive
-def add_span_list(prov_annotations: List[Dict[str, Any]]) -> None:
-    """Add field 'span_list' based on 'start' and 'end' fields."""
-    for ant in prov_annotations:
-        ant['span_list'] = [{'start': ant['start'],
-                             'end': ant['end']}]

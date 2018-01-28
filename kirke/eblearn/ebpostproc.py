@@ -106,6 +106,8 @@ def merge_sample_probs_aux(sample_prob_list: List[Tuple[Dict, float]]) -> Dict[s
     # don't bother with len 1
     if len(sample_prob_list) == 1:
         sample, prob = sample_prob_list[0]
+        sample['span_list'] = [{'start': sample['start'],
+                                'end': sample['end']}]
         sample['prob'] = prob
         return sample
 
@@ -115,6 +117,8 @@ def merge_sample_probs_aux(sample_prob_list: List[Tuple[Dict, float]]) -> Dict[s
     min_start = sample['start']
     max_end = sample['end']
     line_list = [sample['text']]
+
+    span_list = []
     for sample, prob in sample_prob_list[1:]:
         if prob > max_prob:
             max_prob = prob
@@ -123,17 +127,24 @@ def merge_sample_probs_aux(sample_prob_list: List[Tuple[Dict, float]]) -> Dict[s
         if sample['end'] > max_end:
             max_end = sample['end']
         line_list.append(sample['text'])
+        span_list.append({'start': sample['start'],
+                          'end': sample['end']})
 
     out = {'label': label,
            'prob': max_prob,
            'start': min_start,
            'end': max_end,
+           'span_list': span_list,
            'text': ' '.join(line_list)}
 
     return out
 
 
 def merge_sample_prob_list(sample_prob_list: List[Tuple[Dict, float]], threshold: float) -> List[Dict[str, Any]]:
+    """Merge adjacent samples if their score is above threshold.
+
+    This also guarantees that "span_list" is set up correctly during the merging.
+    """
     result = []  # type: List[Dict[str, Any]]
     prev_list = []
     for sample, prob in sample_prob_list:
@@ -144,6 +155,9 @@ def merge_sample_prob_list(sample_prob_list: List[Tuple[Dict, float]], threshold
                 result.append(merge_sample_probs_aux(prev_list))
                 prev_list = []
             sample['prob'] = prob
+            if not sample.get('span_list'):
+                sample['span_list'] = [{'start': sample['start'],
+                                        'end': sample['end']}]
             result.append(sample)
     if prev_list:
         result.append(merge_sample_probs_aux(prev_list))
@@ -177,9 +191,9 @@ def gen_provision_overrides(provision: str,
         is_toc = num_words > 60 and num_numeric / num_words > 0.2
         is_table_row = num_words > 5 and num_numeric / num_words > 0.3
         contains_dots = '....' in sent_st
-        if (provision_pattern and \
-            provision_pattern.search(sent_st) and \
-            num_words > min_pattern_override_length and not is_toc):
+        if provision_pattern and \
+           provision_pattern.search(sent_st) and \
+           num_words > min_pattern_override_length and not is_toc:
             overrides[sent_idx] = adjust_prob
         if num_words < global_min_length and provision not in SHORT_PROVISIONS:
             overrides[sent_idx] = -10.0
@@ -196,8 +210,9 @@ class EbPostPredictProcessing(ABC):
                      doc_text: str,
                      prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
                      threshold: float,
-                     provision: str = None,
-                     prov_human_ant_list: List[ProvisionAnnotation] = None) -> Tuple[List[Dict], float]:
+                     provision: Optional[str] = None,
+                     prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
+                     -> Tuple[List[Dict], float]:
         pass
 
 
@@ -212,7 +227,8 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                      prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
                      threshold: float,
                      provision=None,
-                     prov_human_ant_list : Optional[List[ProvisionAnnotation]] = None) -> Tuple[List[Dict], float]:
+                     prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
+                     -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -243,8 +259,12 @@ class PostPredPartyProc(EbPostPredictProcessing):
         self.provision = 'party'
         self.threshold = 0.5
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
         last_result = None
@@ -903,8 +923,12 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'ea_employer'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -934,8 +958,12 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'ea_employee'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -964,8 +992,12 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'lic_licensee'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -995,8 +1027,12 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'lic_licensor'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1026,8 +1062,12 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'la_borrower'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1057,8 +1097,12 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'la_lender'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1088,8 +1132,12 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'la_agent_trustee'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1118,8 +1166,12 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'choiceoflaw'
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1154,8 +1206,12 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
     def __init__(self, prov):
         self.provision = prov
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1224,8 +1280,12 @@ class PostPredTitleProc(EbPostPredictProcessing):
     def __init__(self):
         self.provision = 'title'
 
-    def post_process(self, doc_text, cx_prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     cx_prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
@@ -1268,8 +1328,12 @@ class PostPredBestDateProc(EbPostPredictProcessing):
 
     # TODO, jshaw, it seems that in the original code PythonClassifier.java
     # the logic is to keep only the first date, not all dates in a doc
-    def post_process(self, doc_text, cx_prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     cx_prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1295,8 +1359,12 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
         self.provision = prov_name
         self.threshold = 0.5
 
-    def post_process(self, doc_text, cx_prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     cx_prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1387,8 +1455,12 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                                   end=cx_prob_attrvec.start + date[1],
                                   text=text)
 
-    def post_process(self, doc_text, cx_prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     cx_prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
@@ -1475,8 +1547,12 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
     def __init__(self, prov):
         self.provision = prov
 
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold: float,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
         flags = {'l_tenant_lessee': ['tenant', '(2)'], 'l_landlord_lessor': ['landlord', '(1)']}
@@ -1529,9 +1605,8 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
                      doc_text: str,
                      prob_attrvec_list: List,
                      threshold: float,
-                     provision: Optional[str]=None,
-                     prov_human_ant_list: Optional[List]=None) \
-                     -> Tuple[List[Dict], float]:
+                     provision: Optional[str] = None,
+                     prov_human_ant_list: Optional[List] = None) -> Tuple[List[Dict], float]:
 
         merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list,
                                                          threshold)
@@ -1548,6 +1623,7 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
             if merged_sample_prob['prob'] >= threshold or len(overlap) > 0:
                 # tmp_label = label if label else self.label
                 ant_result.append(merged_sample_prob)
+
         return ant_result, threshold
 
 

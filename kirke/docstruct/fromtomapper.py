@@ -307,7 +307,20 @@ class FromToMapper:
         return merged_list
 
     # this is destructive
+    # TODO, jshaw, maybe update in future
+    # Should only update the offsets, not creating
+    # new 'span_list' because now, ebpostproc.merge_sample_prob_list()
+    # already insert this info.  The offsets are not based on raw-text though.
     def adjust_fromto_offsets(self, ant_list: List) -> None:
+        """Adjust the offsets based on the mapping.
+
+        One side effect is that This adds 'span_list'.  This functionality
+        shouldn't be needed because ebpostproc.merge_sample_prob_list()
+        has been updated to add such info.  Anyway, this code will override such
+        field in the antlist for ML models in ebannotator.  The offsets need
+        to be changed to raw_text anyway here.
+        """
+
         for antx in ant_list:
             # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
             corenlp_start = antx['start']

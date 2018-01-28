@@ -4,16 +4,16 @@ import json
 import logging
 import pprint
 import time
+# pylint: disable=unused-import
 from typing import Any, Dict, List, Tuple
 
 from sklearn.externals import joblib
-from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import cross_val_predict, train_test_split
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import train_test_split
 
 from kirke.eblearn import ebannotator, ebpostproc
 from kirke.eblearn import annotatorconfig, lineannotator, ruleannotator, spanannotator
 from kirke.utils import evalutils, splittrte, strutils, ebantdoc2, ebantdoc3
+# pylint: disable=unused-import
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import titles, parties, dates
 
@@ -79,7 +79,10 @@ def log_custom_model_eval_status(ant_status: Dict[str, Any]) -> None:
         print('\t'.join([str(x) for x in aline]), file=pmout)
 
 
-def cv_train_at_annotation_level(provision, x_traindoc_list, bool_list,
+# pylint: disable=too-many-arguments, too-many-locals
+def cv_train_at_annotation_level(provision,
+                                 x_traindoc_list,
+                                 bool_list,
                                  eb_classifier_orig,
                                  model_file_name,
                                  model_dir,
@@ -142,18 +145,21 @@ def cv_train_at_annotation_level(provision, x_traindoc_list, bool_list,
                                     model_file_name)
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
     log_json = log_list
-    merged_ant_status = evalutils.aggregate_ant_status_list(cv_ant_status_list)['ant_status']
+    merged_ant_status = \
+        evalutils.aggregate_ant_status_list(cv_ant_status_list)['ant_status']
 
     ant_status = {'provision': provision}
     ant_status['ant_status'] = merged_ant_status
-    ant_status['pred_status'] = {'pred_status': merged_ant_status}  # we are going to fake it for now
+    # we are going to fake it for now
+    ant_status['pred_status'] = {'pred_status': merged_ant_status}
     prov_annotator.eval_status = ant_status
     pprint.pprint(ant_status)
 
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    result_fn = model_dir + '/' + provision + "-ant_result-" + timestr + ".json"
+    result_fn = model_dir + '/' + provision + "-ant_result-" + \
+                timestr + ".json"
     logging.info('wrote result file at: %s', result_fn)
     strutils.dumps(json.dumps(log_json), result_fn)
 
@@ -178,7 +184,8 @@ def train_eval_annotator(provision,
                          eb_classifier,
                          is_doc_structure=False,
                          custom_training_mode=False,
-                         doc_lang="en") -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
+                         doc_lang="en") \
+            -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
     logging.info("training_eval_annotator(%s) called", provision)
     logging.info("    txt_fn_list = %s", txt_fn_list)
     logging.info("    work_dir = %s", work_dir)
@@ -187,11 +194,12 @@ def train_eval_annotator(provision,
     logging.info("    is_doc_structure= %s", is_doc_structure)
     # is_combine_line should be file dependent, PDF than False
     # HTML is True.
-    eb_traindoc_list = ebantdoc2.doclist_to_traindoc_list(txt_fn_list,
-                                                          work_dir,
-                                                          is_bespoke_mode=custom_training_mode,
-                                                          is_doc_structure=is_doc_structure,
-                                                          doc_lang=doc_lang)
+    eb_traindoc_list = \
+        ebantdoc2.doclist_to_traindoc_list(txt_fn_list,
+                                           work_dir,
+                                           is_bespoke_mode=custom_training_mode,
+                                           is_doc_structure=is_doc_structure,
+                                           doc_lang=doc_lang)
 
     attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     group_id_list = []  # type: List[int]
@@ -348,6 +356,7 @@ def train_eval_annotator_with_trte(provision: str,
     logging.info("    model_file_name = %s", model_file_name)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
+    # pylint: disable=invalid-name
     X_train = ebantdoc2.doclist_to_ebantdoc_list(train_doclist_fn,
                                                  work_dir,
                                                  is_doc_structure=is_doc_structure)
@@ -355,6 +364,7 @@ def train_eval_annotator_with_trte(provision: str,
     X_train = None  # free that memory
 
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
+    # pylint: disable=invalid-name
     X_test = ebantdoc2.doclist_to_ebantdoc_list(test_doclist_fn,
                                                 work_dir,
                                                 is_doc_structure=is_doc_structure)
@@ -393,25 +403,28 @@ def train_eval_annotator_with_trte(provision: str,
 
 # Take 1/5 of the data out for testing
 # Train on 4/5 of the data
-# pylint: disable=R0915, R0913, R0914
+# pylint: disable=invalid-name
 def train_eval_span_annotator_with_trte(label: str,
                                         work_dir: str,
-                                        model_dir: str) -> Tuple[spanannotator.SpanAnnotator, Dict[str, Dict]]:
+                                        model_dir: str) \
+            -> Tuple[spanannotator.SpanAnnotator,
+                     Dict[str, Dict]]:
     config = annotatorconfig.get_ml_annotator_config(label)
     model_file_name = '{}/{}_annotator.v{}.pkl'.format(model_dir,
                                                        label,
                                                        config['version'])
 
-    span_annotator = spanannotator.SpanAnnotator(label,
-                                                 version=config['version'],
-                                                 doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
-                                                 docs_to_samples=config['docs_to_samples'],
-                                                 sample_transformers=config.get('sample_transformers', []),
-                                                 pipeline=config['pipeline'],
-                                                 gridsearch_parameters=config['gridsearch_parameters'],
-                                                 # we prefer recall over precision
-                                                 threshold=config.get('threshold', 0.24),
-                                                 kfold=config.get('kfold', 3))
+    span_annotator = \
+        spanannotator.SpanAnnotator(label,
+                                    version=config['version'],
+                                    doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
+                                    docs_to_samples=config['docs_to_samples'],
+                                    sample_transformers=config.get('sample_transformers', []),
+                                    pipeline=config['pipeline'],
+                                    gridsearch_parameters=config['gridsearch_parameters'],
+                                    # we prefer recall over precision
+                                    threshold=config.get('threshold', 0.24),
+                                    kfold=config.get('kfold', 3))
 
     logging.info("training_eval_span_annotator_with_trte(%s) called", label)
     logging.info("    work_dir = %s", work_dir)
@@ -422,9 +435,11 @@ def train_eval_span_annotator_with_trte(label: str,
                                                               work_dir,
                                                               is_doc_structure=False)
 
-    samples, label_list, group_id_list = span_annotator.documents_to_samples(train_antdoc_list, label)
+    samples, label_list, group_id_list = \
+        span_annotator.documents_to_samples(train_antdoc_list, label)
 
-    logging.info("after span_annotator.documents_to_samples(), {}".format(strutils.to_pos_neg_count(label_list)))
+    logging.info("after span_annotator.documents_to_samples(), %s",
+                 strutils.to_pos_neg_count(label_list))
 
     # span_annotator.estimator
     span_annotator.train_antdoc_list(samples,
@@ -440,9 +455,13 @@ def train_eval_span_annotator_with_trte(label: str,
                                                           is_doc_structure=False)
 
     # the eval result is already saved in span_annotator
-    classifier_status = span_annotator.predict_and_evaluate(test_antdoc_list, work_dir)
+    unused_classifier_status = \
+        span_annotator.predict_and_evaluate(test_antdoc_list,
+                                            work_dir)
     # the eval result is already saved in span_annotator
-    ant_status, log_json = span_annotator.test_antdoc_list(test_antdoc_list, span_annotator.threshold)
+    unused_ant_status, log_json = \
+        span_annotator.test_antdoc_list(test_antdoc_list,
+                                        span_annotator.threshold)
 
     span_annotator.save(model_file_name)
     span_annotator.print_eval_status(model_dir)
@@ -450,18 +469,19 @@ def train_eval_span_annotator_with_trte(label: str,
     return span_annotator, log_json
 
 
-def eval_rule_annotator_with_trte(label,
+def eval_rule_annotator_with_trte(label: str,
                                   model_dir='dir-scut-model',
                                   work_dir='dir-work',
-                                  is_doc_structure=False,
                                   is_train_mode=False):
     config = annotatorconfig.get_rule_annotator_config(label)
 
-    rule_annotator = ruleannotator.RuleAnnotator(label,
-                                                 doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
-                                                 docs_to_samples=config['docs_to_samples'],
-                                                 rule_engine=config['rule_engine'],
-                                                 post_process=config.get('post_process', []))
+    rule_annotator = \
+        ruleannotator.RuleAnnotator(label,
+                                    version=config['version'],
+                                    doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
+                                    docs_to_samples=config['docs_to_samples'],
+                                    rule_engine=config['rule_engine'],
+                                    post_process=config.get('post_process', []))
 
     logging.info("eval_rule_annotator_with_trte(%s) called", label)
 
@@ -476,7 +496,8 @@ def eval_rule_annotator_with_trte(label,
                                                              work_dir,
                                                              is_doc_structure=False)
 
-    rule_annotator.ant_status = rule_annotator.test_antdoc_list(test_antdoc_list)
+    # the eval result is already saved in span_annotator
+    unused_ant_status = rule_annotator.test_antdoc_list(test_antdoc_list)
     print("ant_status x24: {}".format(rule_annotator.ant_status))
 
     # rule_annotator.save(model_file_name)

@@ -31,15 +31,17 @@ class LineSpanGenerator:
             else:
                 nl_text = antdoc.nl_text
 
-            if group_id % 10 == 0:
-                print("LineSpanGenerator.documents_to_samples(), group_id = {}".format(group_id))
+            # if group_id % 10 == 0:
+            #    print("LineSpanGenerator.documents_to_samples(), group_id = {}". \
+            #        format(group_id))
 
             lines = nl_text.split('\n')
             offset = 0
             notempty_line_seq = 0
             
             for line in lines:
-                if not line:  # skip
+                # there are lines with just spaces, or non-breaking spaces
+                if not line or not line.strip():  # skip
                     offset += len(line) + 1
                     continue
 

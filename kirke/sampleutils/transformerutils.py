@@ -83,9 +83,9 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
             return self
         else:
             prev_matrix = self.prev_words_vectorizer.transform(prev_words_list)
-            print("prev_matrix.shape: {}".format(prev_matrix.shape))
+            # print("prev_matrix.shape: {}".format(prev_matrix.shape))
             post_matrix = self.post_words_vectorizer.transform(post_words_list)
-            print("post_matrix.shape: {}".format(post_matrix.shape))
+            # print("post_matrix.shape: {}".format(post_matrix.shape))
             X_out = sparse.hstack((prev_matrix, post_matrix))
 
             return X_out

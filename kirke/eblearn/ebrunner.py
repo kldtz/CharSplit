@@ -155,7 +155,6 @@ class EbRunner:
             full_model_fn = '{}/{}'.format(model_dir, model_fn)
             # this is spanannotator.SpanAnnotator
             prov_classifier = joblib.load(full_model_fn)
-            print("type 2345 annotator2 = {}".format(type(prov_classifier)))
             clf_provision = prov_classifier.provision
             if hasattr(prov_classifier, 'version'):
                 prov_classifier_version = prov_classifier.version
