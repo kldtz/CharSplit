@@ -10,13 +10,12 @@ GLOBAL_THRESHOLD = 0.12
 
 class BaseAnnotator(ABC):
 
-    def __init__(self, label, desc):
-        self.label = label
+    def __init__(self, name, desc):
+        self.name = name
         self.description = desc
         self.threshold = GLOBAL_THRESHOLD
         self.pred_status = {}
-        self.file_name = 'unknown'
-        super().__init__()
+        super(BaseAnnoator, self).__init__()
 
     def set_threshold(self, val):
         self.threshold = val
@@ -26,7 +25,6 @@ class BaseAnnotator(ABC):
 
     def save(self, model_file_name):
         logging.info("saving model file: %s", model_file_name)
-        self.file_name = model_file_name
         joblib.dump(self, model_file_name)
 
     def train(self, txt_fn_list, work_dir, model_file_name, name=None):
