@@ -5,7 +5,8 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, Generator, List, Match, Optional, Pattern, Set, Tuple, Union
+from typing import (Any, Dict, Generator, List, Match, Optional, Pattern,
+                    Set, Tuple, Union)
 import unicodedata
 import urllib.parse
 
@@ -311,6 +312,8 @@ ALPHA_WORD_PAT = re.compile(r'[a-zA-Z]+')
 
 ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
 
+ALPHA_OR_NUM_WORD_PAT = re.compile(r'[a-zA-Z0-9]+')
+
 ALL_PUNCT_PAT = re.compile(r"^[\(\)\.,\[\]\-/\\\{\}`'\"]+$")
 
 ANY_PUNCT_PAT = re.compile(r"[\(\)\.,\[\]\-/\\\{\}`'\"]")
@@ -358,6 +361,10 @@ def get_alphanum_words(line: str, is_lower=True) -> List[str]:
         line = line.lower()
     return [word for word in ALPHANUM_WORD_PAT.findall(line)]
 
+def get_alpha_or_num_words(line: str, is_lower=True) -> List[str]:
+    if is_lower:
+        line = line.lower()
+    return [word for word in ALPHA_OR_NUM_WORD_PAT.findall(line)]
 
 def tokens_to_all_ngrams(word_list: List[str], max_n: int=1) -> Set[str]:
     # unigram
@@ -381,18 +388,22 @@ def is_punct(line: str) -> bool:
     else:
         return False
 
+
 def is_sent_punct(line: str) -> bool:
     return bool(line) and len(line) == 1 and line in r'.?!'
 
+
 def is_not_sent_punct(line: str) -> bool:
     return bool(line) and is_punct(line) and not is_sent_punct(line)
+
 
 def is_punct_not_period(line: str) -> bool:
     if line:
         return line[0] != '.' and is_punct(line)
     else:
         return False
-    
+
+
 def is_punct_notwork(line: str) -> bool:
     if line:
         return is_punct_core(line)
@@ -653,7 +664,7 @@ def get_lc_post_n_words(text: str, end: int, num_words: int) -> List[str]:
 
 
 def to_pos_neg_count(bool_list: List[bool]) -> str:
-    pos_neg_counter = collections.Counter()
+    pos_neg_counter = collections.Counter()  # type: collections.Counter
     pos_neg_counter.update(bool_list)
     return "num_pos = {}, num_neg = {}".format(pos_neg_counter.get(True, 0),
                                                pos_neg_counter.get(False, 0))

@@ -34,8 +34,9 @@ class DateSpanGenerator:
             else:
                 nl_text = antdoc.nl_text
 
-            if group_id % 10 == 0:
-                logging.info("DateSpanGenerator.documents_to_samples(), group_id = {}".format(group_id))
+            # if group_id % 10 == 0:
+            #     print("DateSpanGenerator.documents_to_samples(), group_id = {}". \
+            #         format(group_id))
 
             lines = nl_text.split('\n')
             offset = 0

@@ -1,11 +1,12 @@
-
 from typing import Any, Dict, Union
 
 
+# pylint: disable=too-few-public-methods
 class LnPos:
     __slots__ = ['start', 'end', 'line_num', 'is_gap']
-    
-    def __init__(self, start: int, end: int, line_num: int=-1, is_gap: bool=False) -> None:
+
+    def __init__(self, start: int, end: int, line_num: int = -1, is_gap: bool = False) -> None:
+
         self.start = start
         self.end = end
         self.line_num = line_num
@@ -25,7 +26,7 @@ class LnPos:
             alist.append('{}'.format(self.line_num))
         if self.is_gap:
             alist.append('gap')
-        return '({})'.format(', '.join(alist))        
+        return '({})'.format(', '.join(alist))
 
     def __repr__(self) -> str:
         return self.__str__()

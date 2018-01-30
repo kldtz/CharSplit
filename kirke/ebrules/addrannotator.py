@@ -17,13 +17,14 @@ class AddressAnnotator:
 
         return prob_samples
 
+
 class SampleAddAddrLineProb:
 
     def __init__(self) -> None:
         pass
 
     def enrich(self, samples: List[Dict]) -> List[Dict]:
-        logging.info("SampleAddrLineProb.enriching() called")
+        # print("SampleAddrLineProb.enriching() called")
         for i, sample in enumerate(samples):
             sample['addr_line_prob'] = addresses.classify(sample['text'])
             if (i + 1) % 1000 == 0:
