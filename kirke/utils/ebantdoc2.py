@@ -3,7 +3,6 @@ from enum import Enum
 import json
 import logging
 import os
-import re
 import shutil
 import sys
 import time
@@ -15,6 +14,7 @@ from kirke.eblearn import sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
 from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
 from kirke.utils.textoffset import TextCpointCunitMapper
+
 
 CORENLP_JSON_VERSION = '1.4'
 EBANTDOC_VERSION = '1.4'
@@ -41,9 +41,6 @@ class EbDocFormat(Enum):
     html = 2
     pdf = 3
     other = 4
-
-
-EB_NUMERIC_FILE_ID_PAT = re.compile(r'\-(\d+)\.txt')
 
 class EbAnnotatedDoc2:
 
@@ -103,25 +100,11 @@ class EbAnnotatedDoc2:
     def get_file_id(self):
         return self.file_id
 
-    def get_document_id(self) -> str:
-        """Return the identifier of the document, in string"""
-        mat = EB_NUMERIC_FILE_ID_PAT.search(self.file_id)
-        # must match
-        if mat:
-            return mat.group(1)
-        return 'no-doc-id-found:{}'.format(self.file_id)
-
     def set_provision_annotations(self, ant_list):
         self.prov_annotation_list = ant_list
 
     def get_provision_annotations(self):
         return self.prov_annotation_list
-
-    def has_provision_ant(self, provision):
-        for prov_annotation in self.prov_annotation_list:
-            if prov_annotation.label == provision:
-                return True
-        return False
 
     def get_provision_set(self):
         return self.provision_set
@@ -174,7 +157,6 @@ def nlptxt_to_attrvec_list(para_doc_text,
                            is_cache_enabled,
                            doc_lang="en"):
     # para_doc_text is what is sent, not txt_base_fname
-    is_cache_enabled = True
     corenlp_json = text_to_corenlp_json(para_doc_text,
                                         txt_base_fname,
                                         work_dir=work_dir,
@@ -570,10 +552,8 @@ def text_to_ebantdoc2(txt_fname,
                       is_cache_enabled=True,
                       is_bespoke_mode=False,
                       is_doc_structure=True,
-                      doc_lang="en") -> EbAnnotatedDoc2:
+                      doc_lang="en"):
     txt_base_fname = os.path.basename(txt_fname)
-    if work_dir is None:
-        work_dir = '/tmp'
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     # never want to save in bespoke_mode because annotation can change
         #if os.path.exists(eb_antdoc_fn):
@@ -581,6 +561,7 @@ def text_to_ebantdoc2(txt_fname,
         # corenlp should be cache so that we don't run it again for same
         # files.
         # is_cache_enabled = False
+        
     if is_cache_enabled:
         # check if file exist, if it is, load it and return
         # regarless of the existing PDF or HtML or is_doc_structure
@@ -589,11 +570,9 @@ def text_to_ebantdoc2(txt_fname,
             tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
                                                                                eb_antdoc.codepoint_to_cunit_mapper)
             if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
-                eb_antdoc.file_id = txt_fname
                 return eb_antdoc
             eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
         if eb_antdoc:
-            eb_antdoc.file_id = txt_fname
             return eb_antdoc
 
     pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
@@ -607,9 +586,6 @@ def text_to_ebantdoc2(txt_fname,
         eb_antdoc = html_to_ebantdoc2(txt_fname, work_dir=work_dir,
                                       is_cache_enabled=is_cache_enabled, doc_lang=doc_lang)
 
-    ## in doclist, we only want "export-train" dir, not "work_dir"
-    # We need to keep .txt with .ebdata together
-    eb_antdoc.file_id = txt_fname
     return eb_antdoc
 
 
@@ -643,6 +619,7 @@ def doclist_to_ebantdoc_list(doclist_file,
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
+
     txt_fn_list = []
     with open(doclist_file, 'rt') as fin:
         for txt_file_name in fin:
@@ -698,7 +675,6 @@ class EbAntdocProvSet:
         self.file_id = ebantdoc.get_file_id()
         self.provset = ebantdoc.get_provision_set()
         self.is_test_set = ebantdoc.is_test_set
-        self.prov_annotation_list = ebantdoc.prov_annotation_list
 
     def get_file_id(self):
         return self.file_id
@@ -707,9 +683,7 @@ class EbAntdocProvSet:
         return self.provset
 
 
-def fnlist_to_fn_ebantdoc_provset_map(fn_list: List[str],
-                                      work_dir: str,
-                                      is_doc_structure: bool=False) -> Dict[str, EbAntdocProvSet]:
+def fnlist_to_fn_ebantdoc_provset_map(fn_list, work_dir, is_doc_structure=False):
     logging.debug('fnlist_to_fn_ebantdoc_map(len(list)=%d, work_dir=%s)', len(fn_list), work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
@@ -854,26 +828,28 @@ def text_to_traindoc2(txt_fname,
                       is_cache_enabled=True,
                       is_bespoke_mode=False,
                       is_doc_structure=True,
-                      doc_lang='en') -> TrainDoc2:
+                      doc_lang='en'):
     eb_antdoc = text_to_ebantdoc2(txt_fname,
                                   work_dir,
                                   is_cache_enabled=is_cache_enabled,
                                   is_bespoke_mode=is_bespoke_mode,
                                   is_doc_structure=is_doc_structure,
                                   doc_lang=doc_lang)
-    return TrainDoc2(file_name=eb_antdoc.get_file_id(),
-                     doc_format=eb_antdoc.get_doc_format(),
-                     text=eb_antdoc.get_text(),
-                     prov_ant_list=eb_antdoc.get_provision_annotations(),
-                     attrvec_list=eb_antdoc.get_attrvec_list(),
-                     nlp_text=eb_antdoc.get_nlp_text())
+    if eb_antdoc:
+        return TrainDoc2(file_name=eb_antdoc.get_file_id(),
+                         doc_format=eb_antdoc.get_doc_format(),
+                         text=eb_antdoc.get_text(),
+                         prov_ant_list=eb_antdoc.get_provision_annotations(),
+                         attrvec_list=eb_antdoc.get_attrvec_list(),
+                         nlp_text=eb_antdoc.get_nlp_text())
+    return None
 
 
 def doclist_to_traindoc_list(doclist_file,
                              work_dir,
                              is_bespoke_mode=False,
                              is_doc_structure=False,
-                             doc_lang='en') -> List[TrainDoc2]:
+                             doc_lang='en'):
     logging.debug('ebantdoc2.doclist_to_traindoc_list(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
