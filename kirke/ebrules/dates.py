@@ -79,12 +79,12 @@ def extract_dates_from_party_line(line):
             date_start = mat.start(1)
             date_end = mat.start(1) + set_forth_mat.end()
         effective_mat = EFFECTIVE_FOR_AS_IF_PAT.search(maybe_date)
-        #if effective_mat:  # hand written date
-        #    # maybe_date_st = line[mat.start(1):mat.start(1)+effective_mat.start()]
-        #    # print("maybe_date_st2: [{}], len= {}".format(maybe_date_st, len(maybe_date_st)))
-        #    if len(maybe_date_st) < 20 or (len(maybe_date_st) < 35 and 'day' in maybe_date_st.lower()):  # signature
-        #        date_start = mat.start(1)
-        #        date_end = mat.start(1)+by_mat.start()
+        if effective_mat:  # hand written date
+            # maybe_date_st = line[mat.start(1):mat.start(1)+effective_mat.start()]
+            # print("maybe_date_st2: [{}], len= {}".format(maybe_date_st, len(maybe_date_st)))
+            if len(maybe_date_st) < 20 or (len(maybe_date_st) < 35 and 'day' in maybe_date_st.lower()):  # signature
+                date_start = mat.start(1)
+                date_end = mat.start(1)+by_mat.start()
         if date_start != -1:
             char40_before = line[max(mat.start()-40, 0):mat.start()]
             char40_after = line[mat.end():mat.end()+40]
@@ -266,10 +266,7 @@ def extract_dates_v2(line, line_start, doc_text=''):
         else:
             result.append((mat.start(), mat.end(), mat.group(),  'date'))
 
-    # remove duplicates
-    out_list2 = mathutils.remove_subsumed(result)
-
-    return out_list2
+    return result
 
 
 def extract_dates(filepath):

@@ -33,7 +33,7 @@ class LineAnnotator:
 
         for ebantdoc in ebantdoc_list:
             paras_with_attrs = ebantdoc.paras_with_attrs
-            paras_text = ebantdoc.nlp_text
+            paras_text = ebantdoc.para_doc_text
 
             ant_list = self.annotate_antdoc(paras_with_attrs, paras_text)
             print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
@@ -47,7 +47,7 @@ class LineAnnotator:
             xtp, xfn, xfp, xtn = \
                 evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                  ant_list,
-                                                                 ebantdoc,
+                                                                 paras_text,
                                                                  diagnose_mode=True)
             tp += xtp
             fn += xfn
@@ -66,7 +66,7 @@ class LineAnnotator:
     def test_antdoc(self, ebantdoc):
         logging.debug('test_document')
         paras_with_attrs = ebantdoc.paras_with_attrs
-        paras_text = ebantdoc.nlp_text
+        paras_text = ebantdoc.para_doc_text
 
         ant_list = self.annotate_antdoc(paras_with_attrs, paras_text)
         # print("ant_list: {}".format(ant_list))
@@ -96,6 +96,7 @@ class LineAnnotator:
         if self.provision == 'party':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             party_offset_pair_list = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
+            
             if party_offset_pair_list:
                 for i, party_offset_pair in enumerate(party_offset_pair_list, 1):
                     (party_start, party_end), term_ox = party_offset_pair

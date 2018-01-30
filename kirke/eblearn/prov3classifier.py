@@ -120,23 +120,23 @@ class ProvisionClassifier(EbClassifier):
         grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
                                    verbose=1, cv=group_kfold)
 
-        logging.info("Performing grid search...")
-        logging.info("pipeline:", [name for name, _ in pipeline.steps])
+        print("Performing grid search...")
+        print("pipeline:", [name for name, _ in pipeline.steps])
         print("parameters:")
         pprint(parameters)
         time_0 = time()
         grid_search.fit(attrvec_list, label_list)
-        logging.info("done in %0.3fs" % (time() - time_0))
+        print("done in %0.3fs" % (time() - time_0))
 
-        logging.info("Best score: %0.3f" % grid_search.best_score_)
-        logging.info("Best parameters set:")
+        print("Best score: %0.3f" % grid_search.best_score_)
+        print("Best parameters set:")
         self.best_parameters = grid_search.best_estimator_.get_params()
         self.best_parameters = adapt_pipeline_params(grid_search.best_estimator_.get_params())
 
         # pylint: disable=C0201
         for param_name in sorted(self.best_parameters.keys()):
-            logging.info("\t%s: %r" % (param_name, self.best_parameters[param_name]))
-        #print()
+            print("\t%s: %r" % (param_name, self.best_parameters[param_name]))
+        print()
 
         self.eb_grid_search = grid_search.best_estimator_
         self.save(model_file_name)

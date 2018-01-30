@@ -52,14 +52,6 @@ def save_antdoc_fn_list(eb_antdoc_list, doclist_file_name):
             print(txt_fn, file=fout)
 
 
-def has_provision_ant(ebantdoc_provset: ebantdoc2.EbAntdocProvSet,
-                      provision: str) -> bool:
-    for prov_annotation in ebantdoc_provset.prov_annotation_list:
-        if prov_annotation.label == provision:
-            return True
-    return False
-
-
 # pylint: disable=too-many-locals
 def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structure=False):
     osutils.mkpath(work_dir)
@@ -90,23 +82,17 @@ def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structu
         # pylint: disable=invalid-name
         X_train = []
         X_test = []
-        X_train_positive = []
         for fname in prov_filelist_map[provision]:
-            tmp_ebantdoc_provset = fn_ebantdoc_map[fname]
-            eb_antdoc_list.append(tmp_ebantdoc_provset)
-            if tmp_ebantdoc_provset.is_test_set:
+            tmp_ebantdoc = fn_ebantdoc_map[fname]
+            eb_antdoc_list.append(tmp_ebantdoc)
+            if tmp_ebantdoc.is_test_set:
                 X_test.append(fn_ebantdoc_map[fname])
             else:
                 X_train.append(fn_ebantdoc_map[fname])
-
-                if has_provision_ant(tmp_ebantdoc_provset, provision):
-                    X_train_positive.append(fn_ebantdoc_map[fname])
-
             # print("fnxxx = [{}], id= [{}]".format(fname, mat.group(1)))
-        print("provision: {}, len(train)= {}, len(test)= {}, len(train_pos)".format(provision,
-                                                                                    len(X_train),
-                                                                                    len(X_test),
-                                                                                    len(X_train_positive)))
+        print("provision: {}, len(train)= {}, len(test)= {}".format(provision,
+                                                                    len(X_train),
+                                                                    len(X_test)))
 
         if len(X_train) < 3:  # skip provisions with insufficient data
             logging.info("skipping '%s' in split_provision_trte(), len(X_train) = %d is < 3",
@@ -119,9 +105,6 @@ def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structu
 
             train_doclist_fn = "{}/{}_train_doclist.txt".format(moddir, provision)
             save_antdoc_fn_list(X_train, train_doclist_fn)
-
-            train_pos_doclist_fn = "{}/{}_train_pos_doclist.txt".format(moddir, provision)
-            save_antdoc_fn_list(X_train_positive, train_pos_doclist_fn)
 
             test_doclist_fn = "{}/{}_test_doclist.txt".format(moddir, provision)
             save_antdoc_fn_list(X_test, test_doclist_fn)

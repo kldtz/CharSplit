@@ -3,7 +3,6 @@ from enum import Enum
 import json
 import logging
 import os
-import re
 import shutil
 import sys
 import time
@@ -34,8 +33,6 @@ class EbDocFormat(Enum):
     html = 2
     pdf = 3
     other = 4
-
-EB_NUMERIC_FILE_ID_PAT = re.compile(r'\-(\d+)\.txt')
 
 class EbAnnotatedDoc3:
 
@@ -93,21 +90,11 @@ class EbAnnotatedDoc3:
     def get_file_id(self) -> str:
         return self.file_id
 
-    def get_document_id(self) -> str:
-        """Return the identifier of the document, in string"""
-        mat = EB_NUMERIC_FILE_ID_PAT.search(self.file_id)
-        # must match
-        if mat:
-            return mat.group(1)
-        return 'no-doc-id-found:{}'.format(self.file_id)
-
     def set_provision_annotations(self, ant_list: List[Dict[str, Any]]) -> None:
         self.prov_annotation_list = ant_list
 
-    def get_provision_annotations(self, label: str=None) -> List[Dict[str, Any]]:
-        if label == None:
-            return self.prov_annotation_list
-        return [ant for ant in self.prov_annotation_list if ant.label == label]
+    def get_provision_annotations(self) -> List[Dict[str, Any]]:
+        return self.prov_annotation_list
 
     def get_provision_set(self) -> Set[str]:
         return self.provision_set
@@ -255,7 +242,6 @@ def chop_at_exhibit_complete(txt_file_name: str,
     doc_text = txtreader.loads(txt_file_name)
     cpoint_cunit_mapper = textoffset.TextCpointCunitMapper(doc_text)
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper)
-
     max_txt_size = len(doc_text)
     is_chopped = False
     for prov_ant in prov_annotation_list:
@@ -463,7 +449,7 @@ def text_to_ebantdoc3(txt_fname,
                       is_cache_enabled=True,
                       is_bespoke_mode=False,
                       is_doc_structure=True,
-                      doc_lang="en") -> EbAnnotatedDoc3:
+                      doc_lang="en"):
     txt_base_fname = os.path.basename(txt_fname)
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     # never want to save in bespoke_mode because annotation can change
@@ -481,11 +467,9 @@ def text_to_ebantdoc3(txt_fname,
             tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
                                                                                eb_antdoc.codepoint_to_cunit_mapper)
             if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
-                eb_antdoc.file_id = txt_fname
                 return eb_antdoc
             eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
         if eb_antdoc:
-            eb_antdoc.file_id = txt_fname
             return eb_antdoc
 
     pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
@@ -499,7 +483,6 @@ def text_to_ebantdoc3(txt_fname,
         eb_antdoc = html_to_ebantdoc3(txt_fname, work_dir=work_dir,
                                       is_cache_enabled=is_cache_enabled, doc_lang=doc_lang)
 
-    eb_antdoc.file_id = txt_fname
     return eb_antdoc
 
 

@@ -17,7 +17,12 @@ if __name__ == '__main__':
 
     fname = args.file
 
-    ebantdoc2 = ebantdoc2.text_to_ebantdoc2(fname, work_dir='dir-work')
+    offset_fname = fname.replace('.txt', '.offsets.json')
+    if os.path.exists(offset_fname):
+        eb_antdoc = ebantdoc2.pdf_to_ebantdoc2(fname, offset_fname, work_dir='dir-work')
+    else:
+        eb_antdoc = ebantdoc2.html_to_ebantdoc2(fname, work_dir='dir-work')
+    ebantdoc2.dump_ebantdoc_attrvec_with_secheads(eb_antdoc)
     
     """
     with open(fname, 'rt') as fin:

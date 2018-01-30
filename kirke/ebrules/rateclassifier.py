@@ -109,8 +109,7 @@ def classify_table_list(table_span_list, doc_text):
                              'label': 'rate_table',
                              'prob': 1.0,
                              'start': startx,
-                             'span_list': [{'start': startx,
-                                            'end': endx}],
+                             'start_end_span_list': '{}:{}'.format(startx, endx),
                              'text': strutils.remove_nltab(st_text)})
     return ant_list
 
