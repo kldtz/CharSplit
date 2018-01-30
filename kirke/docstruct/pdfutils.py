@@ -19,11 +19,7 @@ def load_pdf_offsets(file_name: str, cpoint_cunit_mapper: TextCpointCunitMapper)
 
     # in-place update the offsets
     # print("cpoint_cunit_mapper.max_cunit = {}, docLen = {}".format(cpoint_cunit_mapper.max_cunit, ajson['docLen']))
-    # ajson['docLen'] = cpoint_cunit_mapper.to_codepoint_offset(ajson['docLen'])
-    if not ajson.get('docLen'):
-        ajson['docLen'] = len(atext)
-    else:
-        ajson['docLen'] = cpoint_cunit_mapper.to_codepoint_offset(ajson['docLen'])
+    ajson['docLen'] = cpoint_cunit_mapper.to_codepoint_offset(ajson['docLen'])
     for adict in ajson.get('blockOffsets'):
         adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
     for adict in ajson.get('lineOffsets'):
