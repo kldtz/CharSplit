@@ -146,7 +146,7 @@ def merge_sample_prob_list(sample_prob_list: List[Tuple[Dict, float]], threshold
     """
     result = []  # type: List[Dict[str, Any]]
     prev_list = []
-    for prob, sample in sample_prob_list:
+    for sample, prob in sample_prob_list:
         if prob >= threshold:
             prev_list.append((sample, prob))
         else:
@@ -1232,40 +1232,6 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
         return ant_result, threshold
 
 
-# pylint: disable=R0903
-# this is not used
-'''
-class PostPredConfidentialityProc(EbPostPredictProcessing):
-
-    def __init__(self):
-        self.provision = 'confidentiality'
-
-    def post_process(self, doc_text, prob_attrvec_list, threshold: float,
-                     provision=None, prov_human_ant_list=None) -> Tuple[List[Dict], float]:
-        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
-        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
-                                                          threshold)
-
-        ant_result = []
-        for cx_prob_attrvec in merged_prob_attrvec_list:
-            overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
-            #print("{}\t{}\t{}\tsechead=[{}]\t[{}]".format(self.provision, cx_prob_attrvec.prob, threshold,
-            #                                              cx_prob_attrvec.sechead,
-            #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
-            boost = 0
-            if 'confidentiality' in cx_prob_attrvec.sechead:
-                boost = 0.20
-            if cx_prob_attrvec.prob + boost >= threshold or len(overlap) > 0:
-                tmp_provision = provision if provision else self.provision
-                ant_result.append(to_ant_result_dict(label=tmp_provision,
-                                                     prob=cx_prob_attrvec.prob,
-                                                     start=cx_prob_attrvec.start,
-                                                     end=cx_prob_attrvec.end,
-                                                     # pylint: disable=line-too-long
-                                                     text=strutils.remove_nltab(cx_prob_attrvec.text)))
-        return ant_result
-'''
-
 
 # Note from PythonClassifier.java:
 # A title might optionally start with an Exhibit X.X number (for SEC contracts) or optionally
@@ -1580,10 +1546,11 @@ class PostAddressProc(EbPostPredictProcessing):
         ant_result = []		
         all_notice = []
         for merged_sample_prob in merged_sample_prob_list: 
+            print(">>>>>", type(merged_sample_prob))
             sent_overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'], merged_sample_prob['end'], prov_human_ant_list)
-            print("@@@", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
+            #print("@@@", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
             if merged_sample_prob['prob'] >= threshold or sent_overlap:		
-                print(">>>", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
+                #print(">>>", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
                 best, address = self.find_constituencies(merged_sample_prob['start'], merged_sample_prob['end'], doc_text, all_keywords) 		
                 if best:		
                     prov_st, prov_start, prov_end = best

@@ -1,11 +1,9 @@
 import logging
 import time
-from typing import Any, Dict, List, Optional, Tuple
-import traceback
 
-from kirke.docstruct import fromtomapper
+from kirke.docstruct import docutils, fromtomapper
 from kirke.eblearn import ebpostproc
-from kirke.utils import ebantdoc2, evalutils, strutils
+from kirke.utils import evalutils
 
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
@@ -44,42 +42,20 @@ class ProvisionAnnotator:
             # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
-            try:
-                ant_list, threshold = self.annotate_antdoc(ebantdoc,
-                                                           threshold=self.threshold,
-                                                           prov_human_ant_list=prov_human_ant_list)
-            # pylint: disable=broad-except, unused-variable
-            except Exception as e:
-                logging.warning('Faile to annotat_antdoc(%s) in test_antdoc_list.',
-                                ebantdoc.file_id)
-                raise
-                """
-                # retry all the operations, except for loading the cache
-                ebantdoc = ebantdoc2.text_to_ebantdoc2(ebantdoc.file_id,
-                                                       work_dir=None,
-                                                       is_cache_enabled=False,
-                                                       is_bespoke_mode=False,
-                                                       is_doc_structure=True)
-                prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-                                       if hant.label == self.provision]
-                ant_list = self.annotate_antdoc(ebantdoc,
-                                                threshold=self.threshold,
-                                                prov_human_ant_list=prov_human_ant_list)
-                """
-
+            ant_list = self.annotate_antdoc(ebantdoc, threshold=self.threshold, prov_human_ant_list=prov_human_ant_list)
             # print("\nfn: {}".format(ebantdoc.file_id))
 
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
             if self.provision in PROVISION_EVAL_ANYMATCH_SET:
-                xtp, xfn, xfp, xtn, json_return = \
+                xtp, xfn, xfp, xtn = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc,
                                                                      threshold,
                                                                      diagnose_mode=True)
             else:
-                xtp, xfn, xfp, xtn, json_return = \
+                xtp, xfn, xfp, xtn = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
                                                             ebantdoc,
@@ -90,39 +66,6 @@ class ProvisionAnnotator:
             fn += xfn
             fp += xfp
             tn += xtn
-            log_json[ebantdoc.get_document_id()] = json_return
-
-        title = "annotate_status, threshold = {}".format(threshold)
-        prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
-
-        tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp,
-                                                               'fn': fn, 'tp': tp},
-                                          'threshold': threshold,
-                                          'prec': prec, 'recall': recall, 'f1': f1}}
-        return tmp_eval_status, log_json
-
-    # jshaw, nobody is calling this?
-    # There are many outdate stuff here
-    """
-    def test_antdoc(self, ebantdoc, threshold=None):
-        logging.debug('test_document')
-
-        ant_list = self.annotate_antdoc(ebantdoc, threshold)
-        # print("ant_list: {}".format(ant_list))
-        prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-                               if hant.label == self.provision]
-        # print("human_list: {}".format(prov_human_ant_list))
-
-        # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
-        # pred_prob_start_end_list, txt)
-        # pylint: disable=C0103
-        tp, fn, fp, tn, json_return = evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
-                                                                 ant_list,
-                                                                 ebantdoc,
-                                                                 is_raw_mode=False,
-                                                                 self.threshold)
-        log_json = {ebantdoc.get_document_id():
-                    json_return}
 
         title = "annotate_status, threshold = {}".format(self.threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
@@ -131,9 +74,7 @@ class ProvisionAnnotator:
                                                                'fn': fn, 'tp': tp},
                                           'threshold': self.threshold,
                                           'prec': prec, 'recall': recall, 'f1': f1}}
-
         return tmp_eval_status, log_json
-    """
 
     # pylint: disable=no-self-use
     def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
