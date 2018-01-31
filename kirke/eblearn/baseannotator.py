@@ -15,7 +15,7 @@ class BaseAnnotator(ABC):
         self.description = desc
         self.threshold = GLOBAL_THRESHOLD
         self.pred_status = {}
-        super(BaseAnnoator, self).__init__()
+        super(BaseAnnotator, self).__init__()
 
     def set_threshold(self, val):
         self.threshold = val
