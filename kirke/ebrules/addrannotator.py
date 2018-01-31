@@ -1,4 +1,4 @@
-import logging
+
 from typing import Dict, List, Tuple
 
 from kirke.ebrules import addresses
@@ -28,5 +28,5 @@ class SampleAddAddrLineProb:
         for i, sample in enumerate(samples):
             sample['addr_line_prob'] = addresses.classify(sample['text'])
             if (i + 1) % 1000 == 0:
-                logging.info("processed addr_line_prob {}".format(i+1))
+                print("processed addr_line_prob {}".format(i+1))
         return samples

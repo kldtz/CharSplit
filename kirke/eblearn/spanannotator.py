@@ -63,7 +63,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         # these are set after training
         self.classifier_status = {'label': label}  # type: Dict[str, Any]
-        self.ant_status = {'label': label}  # type: Dict[str, Any]
+        self.annotator_status = {'label': label} 
 
     # pylint: disable=too-many-arguments
     def train_antdoc_list(self,
@@ -124,7 +124,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         for ebantdoc in ebantdoc_list:
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-                                   if hant.label == self.label]
+                                   if hant.label == self.provision]
 
             ant_list, threshold = self.annotate_antdoc(ebantdoc,
                                                        threshold=threshold,
@@ -133,43 +133,41 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
-            if self.label in PROVISION_EVAL_ANYMATCH_SET:
-                xtp, xfn, xfp, xtn, json_return = \
+            if self.provision in PROVISION_EVAL_ANYMATCH_SET:
+                xtp, xfn, xfp, xtn = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc,
                                                                      threshold,
                                                                      diagnose_mode=True)
             else:
-                xtp, xfn, xfp, xtn, json_return = \
+                xtp, xfn, xfp, xtn = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
                                                             ebantdoc,
                                                             threshold,
-                                                            is_raw_mode=True,
                                                             diagnose_mode=True)
             tp += xtp
             fn += xfn
             fp += xfp
             tn += xtn
-            log_json[ebantdoc.get_document_id()] = json_return
 
         title = "annotate_status, threshold = {}".format(self.threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
 
-        self.ant_status['eval_status'] = {'confusion_matrix': {'tn': tn, 'fp': fp,
+        self.annotator_status['eval_status'] = {'confusion_matrix': {'tn': tn, 'fp': fp,
                                                                'fn': fn, 'tp': tp},
                                           'threshold': self.threshold,
                                           'prec': prec, 'recall': recall, 'f1': f1}
 
 
-        return self.ant_status, log_json
+        return self.annotator_status
 
     def test_antdoc(self, ebantdoc, threshold=None, dir_work='dir-work'):
         ant_list = self.annotate_antdoc(ebantdoc, threshold=threshold, dir_work=dir_work)
         # print("ant_list: {}".format(ant_list))
         prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-                               if hant.label == self.label]
+                               if hant.label == self.provision]
         # print("human_list: {}".format(prov_human_ant_list))
 
         # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
@@ -220,7 +218,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         samples, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
-                      self.label, eb_antdoc.file_id, (end_time - start_time) * 1000)
+                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         # print('threshold = {}'.format(threshold))
         # for ci, (ss, pp) in enumerate(zip(samples, prob_list)):
@@ -232,19 +230,19 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         prov_annotations, x_threshold = post_processor.post_process(eb_antdoc.text,
                                                                     list(zip(samples, prob_list)),
                                                                     threshold,
-                                                                    provision=self.label,
+                                                                    provision=self.provision,
                                                                     # pylint: disable=line-too-long
                                                                     prov_human_ant_list=prov_human_ant_list)
         return prov_annotations, x_threshold
 
     def print_eval_status(self, model_dir):
 
-        eval_status = {'label': self.label}
+        eval_status = {'label': self.provision}
         eval_status['classifier_status'] = self.classifier_status['eval_status']
-        eval_status['annotator_status'] = self.ant_status['eval_status']
+        eval_status['annotator_status'] = self.annotator_status['eval_status']
         pprint.pprint(eval_status)
 
-        model_status_fn = model_dir + '/' +  self.label + ".status"
+        model_status_fn = model_dir + '/' +  self.provision + ".status"
         strutils.dumps(json.dumps(eval_status), model_status_fn)
 
         with open('label_model_stat.tsv', 'a') as pmout:
@@ -256,7 +254,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             timestamp = int(time.time())
             aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
                      str(timestamp),
-                     self.label,
+                     self.provision,
                      cls_cfmtx['tp'], cls_cfmtx['fn'], cls_cfmtx['fp'], cls_cfmtx['tn'],
                      cls_status['prec'], cls_status['recall'], cls_status['f1'],
                      ant_cfmtx['tp'], ant_cfmtx['fn'], ant_cfmtx['fp'], ant_cfmtx['tn'],
@@ -280,7 +278,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         # to indicate which type of annotation this is
         for sample in samples:
-            sample['label'] = self.label
+            sample['label'] = self.provision
 
         """
         doc_text = antdoc.text
@@ -307,7 +305,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         # label_list, group_id_list are ignored
         samples, label_list, unused_group_id_list = self.documents_to_samples(antdoc_list,
-                                                                              self.label)
+                                                                              self.provision)
 
         pos_neg_map = defaultdict(int)
         for label in label_list:

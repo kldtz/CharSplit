@@ -11,12 +11,14 @@
 
 PROVFILE_DIR=dir-provfiles
 WORK_DIR=dir-work
-MODEL_DIR=dir-model
+# MODEL_DIR=dir-model
 SCUT_MODEL_DIR=dir-scut-model
 CUSTOM_MODEL_DIR=dir-custom-model
 
-./main.py --cmd split_provision_trte --provfiles_dir $PROVFILE_DIR --work_dir $WORK_DIR --model_dirs "$MODEL_DIR,$SCUT_MODEL_DIR" --custom_model_dir $CUSTOM_MODEL_DIR
+./main.py --cmd split_provision_trte --provfiles_dir $PROVFILE_DIR --work_dir $WORK_DIR --model_dirs "$SCUT_MODEL_DIR"
 
+
+rm -rf dir-provfiles
 
 # below is doing this without caching
 

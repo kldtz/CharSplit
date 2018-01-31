@@ -232,6 +232,29 @@ class EbTransformer(EbTransformerBase):
                                                   dtype=int)
         return bi_topgram_matrix
 
+    """
+    def gen_top_ig_ngram_matrix(self, sent_st_list, tokenize):
+        # for each sentence, find which top words it contains.  Then generate all pairs of these,
+        # and generate the sparse matrix row entries for the rows it contains.
+        indptr = [0]
+        indices = []
+        data = []
+        for sent_st in sent_st_list:
+            sent_wordset = tokenize(sent_st)
+
+            for ngram in sent_wordset:
+                index = self.vocab_id_map.get(ngram)
+                if index:
+                    indices.append(index)
+                    data.append(1)
+            indptr.append(len(indices))
+
+        top_ig_ngram_matrix = sparse.csr_matrix((data, indices, indptr),
+                                                shape=(len(sent_st_list), len(self.vocab_id_map)),
+                                                dtype=int)
+        return top_ig_ngram_matrix
+    """
+
     def gen_top_ngram_matrix(self, sent_st_list, tokenize):
         # for each sentence, find which top words it contains.  Then generate all pairs of these,
         # and generate the sparse matrix row entries for the rows it contains.

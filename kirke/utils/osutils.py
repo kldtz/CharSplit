@@ -24,7 +24,14 @@ def get_last_cmd_line_arg():
 def get_model_files(dir_name):
     return [f for f in os.listdir(dir_name)
             if (os.path.isfile(os.path.join(dir_name, f))
+                and not 'docclassifier' in f
                 and 'classifier' in f and f.endswith('.pkl'))]
+
+def get_candg_model_files(dir_name):
+    return [f for f in os.listdir(dir_name)
+            if (os.path.isfile(os.path.join(dir_name, f))
+                and '_annotator' in f
+                and f.endswith('.pkl'))]
 
 def get_size(obj, seen=None):
     """Recursively finds size of objects"""

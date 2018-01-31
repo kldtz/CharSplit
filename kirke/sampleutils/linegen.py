@@ -21,11 +21,8 @@ class LineSpanGenerator:
         # each sample is the date regex +
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
 
-            ant_list = antdoc.prov_annotation_list
-            label_ant_list = []
-            for ant in ant_list:
-                if ant.label == label:
-                    label_ant_list.append(ant)
+            # get only ant for this particular label
+            label_ant_list = antdoc.get_provision_annotations(label)
 
             if antdoc.doc_format in set([ebantdoc3.EbDocFormat.html,
                                          ebantdoc3.EbDocFormat.html_nodocstruct,
@@ -34,15 +31,17 @@ class LineSpanGenerator:
             else:
                 nl_text = antdoc.nl_text
 
-            if group_id % 10 == 0:
-                print("LineSpanGenerator.documents_to_samples(), group_id = {}".format(group_id))
+            # if group_id % 10 == 0:
+            #    print("LineSpanGenerator.documents_to_samples(), group_id = {}". \
+            #        format(group_id))
 
             lines = nl_text.split('\n')
             offset = 0
             notempty_line_seq = 0
             
             for line in lines:
-                if not line:  # skip
+                # there are lines with just spaces, or non-breaking spaces
+                if not line or not line.strip():  # skip
                     offset += len(line) + 1
                     continue
 
@@ -76,6 +75,5 @@ class LineSpanGenerator:
                 group_id_list.append(group_id)                            
                             
                 offset += len(line) + 1  # for eoln
-        
-        # the data is fake right now
+
         return samples, label_list, group_id_list
