@@ -63,7 +63,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         # these are set after training
         self.classifier_status = {'label': label}  # type: Dict[str, Any]
-        self.annotator_status = {'label': label} 
+        self.ant_status = {'label': label}  # type: Dict[str, Any] 
 
     # pylint: disable=too-many-arguments
     def train_antdoc_list(self,
@@ -85,7 +85,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for label, count in pos_neg_map.items():
             logging.info("train_antdoc_list(), pos_neg_map[%s] = %d", label, count)
 
-        group_kfold = list(GroupKFold().split(samples,
+        group_kfold = list(GroupKFold(n_splits=self.kfold).split(samples,
                                                                  label_list,
                                                                  groups=group_id_list))
         # grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
@@ -152,17 +152,18 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             fn += xfn
             fp += xfp
             tn += xtn
+            log_json[ebantdoc.get_document_id()] = json_return
 
         title = "annotate_status, threshold = {}".format(self.threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
 
-        self.annotator_status['eval_status'] = {'confusion_matrix': {'tn': tn, 'fp': fp,
+        self.ant_status['eval_status'] = {'confusion_matrix': {'tn': tn, 'fp': fp,
                                                                'fn': fn, 'tp': tp},
                                           'threshold': self.threshold,
                                           'prec': prec, 'recall': recall, 'f1': f1}
 
 
-        return self.annotator_status
+        return self.annotator_status, log_json
 
     def test_antdoc(self, ebantdoc, threshold=None, dir_work='dir-work'):
         ant_list = self.annotate_antdoc(ebantdoc, threshold=threshold, dir_work=dir_work)
@@ -239,8 +240,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def print_eval_status(self, model_dir):
 
         eval_status = {'label': self.provision}
-        eval_status['classifier_status'] = self.classifier_status['eval_status']
-        eval_status['annotator_status'] = self.annotator_status['eval_status']
+        eval_status['pred_status'] = self.classifier_status['eval_status']
+        eval_status['ant_status'] = self.ant_status['eval_status'] 
         pprint.pprint(eval_status)
 
         model_status_fn = model_dir + '/' +  self.provision + ".status"
@@ -249,7 +250,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         with open('label_model_stat.tsv', 'a') as pmout:
             cls_status = self.classifier_status['eval_status']
             cls_cfmtx = cls_status['confusion_matrix']
-            ant_status = self.annotator_status['eval_status']
+            ant_status = self.ant_status['eval_status']
             ant_cfmtx = ant_status['confusion_matrix']
 
             timestamp = int(time.time())
@@ -281,24 +282,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for sample in samples:
             sample['label'] = self.provision
 
-        """
-        doc_text = antdoc.text
-        span_st_list = [doc_text[sample['start']:sample['end']]
-                        for sample in samples]
-        overrides = ebpostproc.gen_provision_overrides(self.provision,
-                                                       sent_st_list)
-        """
-
-        probs = self.estimator.predict_proba(samples)[:, 1]
-
-        # do the override
-        """
-        for i, override in enumerate(overrides):
-            if override != 0.0:
-                probs[i] += override
-                probs[i] = min(probs[i], 1.0)
-        """
-
+        probs = [] # type: List[float]
+        if self.estimator:
+            probs = self.estimator.predict_proba(samples)[:, 1]
         return samples, probs
 
     def predict_and_evaluate(self, antdoc_list, work_dir, is_debug=False):
@@ -319,18 +305,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # print("full_txt_fn_list.size = ", len(full_txt_fn_list))
 
         y_te = label_list
-        """
-        # num_positive = np.count_nonzero(y_te)
-        # logging.debug('num true positives in testing = {}'.format(num_positive))
-        sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
-        overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
-        """
 
-        # pylint: disable=fixme
-        # TODO, jshaw
-        # can remove sgd_preds and use 0.5 as the filter
-        # sgd_preds = self.eb_grid_search.predict(attrvec_list)
-        probs = self.estimator.predict_proba(samples)[:, 1]
+        probs = [] # type: List[float]
+        if self.estimator:
+            probs = self.estimator.predict_proba(samples)[:, 1]
 
         self.classifier_status['classifer_type'] = 'spanclassifier'
         self.classifier_status['eval_status'] = evalutils.calc_pred_status_with_prob(probs, y_te)
@@ -345,13 +323,3 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         return self.classifier_status
 
 
-# this is destructive
-def update_text_with_span_list(prov_annotations, doc_text):
-    # print("prov_annotations: {}".format(prov_annotations))
-    for ant in prov_annotations:
-        tmp_span_text_list = []
-        for span in ant['span_list']:
-            start = span['start']
-            end = span['end']
-            tmp_span_text_list.append(doc_text[start:end])
-        ant['text'] = ' '.join(tmp_span_text_list)
