@@ -226,7 +226,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
 def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAnnotation],
                                            ant_list: List[Dict],  # this is machine annotation
                                            ebantdoc,
-                                           # threshold,
+                                           #threshold: float,
                                            diagnose_mode: bool = False) \
                                            -> Tuple[int, int, int, int, Dict[str, List]]:
     """Calculate the confusion matrix for one document, if there is any match by offset or string.

@@ -420,6 +420,7 @@ def train_eval_span_annotator_with_trte(label: str,
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                     docs_to_samples=config['docs_to_samples'],
                                     sample_transformers=config.get('sample_transformers', []),
+                                    postproc=config.get('post_process_list', 'span_default'),
                                     pipeline=config['pipeline'],
                                     gridsearch_parameters=config['gridsearch_parameters'],
                                     # we prefer recall over precision

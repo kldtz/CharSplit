@@ -134,18 +134,19 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
             if self.provision in PROVISION_EVAL_ANYMATCH_SET:
-                xtp, xfn, xfp, xtn = \
+                xtp, xfn, xfp, xtn, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc,
-                                                                     threshold,
+                                                                     #threshold,
                                                                      diagnose_mode=True)
             else:
-                xtp, xfn, xfp, xtn = \
+                xtp, xfn, xfp, xtn, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
                                                             ebantdoc,
                                                             threshold,
+                                                            is_raw_mode=False,
                                                             diagnose_mode=True)
             tp += xtp
             fn += xfn
