@@ -146,7 +146,7 @@ def merge_sample_prob_list(sample_prob_list: List[Tuple[Dict, float]], threshold
     """
     result = []  # type: List[Dict[str, Any]]
     prev_list = []
-    for prob, sample in sample_prob_list:
+    for sample, prob in sample_prob_list:
         if prob >= threshold:
             prev_list.append((sample, prob))
         else:
@@ -1544,10 +1544,9 @@ class PostAddressProc(EbPostPredictProcessing):
         merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, threshold)
         all_keywords = addresses.all_constituencies()		
         ant_result = []		
-        all_notice = []
         for merged_sample_prob in merged_sample_prob_list: 
             sent_overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'], merged_sample_prob['end'], prov_human_ant_list)
-            #print("@@@", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
+            print("@@@", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
             if merged_sample_prob['prob'] >= threshold or sent_overlap:		
                 #print(">>>", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
                 best, address = self.find_constituencies(merged_sample_prob['start'], merged_sample_prob['end'], doc_text, all_keywords) 		

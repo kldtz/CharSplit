@@ -163,7 +163,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                           'prec': prec, 'recall': recall, 'f1': f1}
 
 
-        return self.annotator_status, log_json
+        return self.ant_status, log_json
 
     def test_antdoc(self, ebantdoc, threshold=None, dir_work='dir-work'):
         ant_list = self.annotate_antdoc(ebantdoc, threshold=threshold, dir_work=dir_work)

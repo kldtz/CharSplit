@@ -250,7 +250,6 @@ class EbRunner:
             provision_set = self.provisions
         #else:
         #    logging.info("user specified provision list: %s", provision_set)
-
         prov_antlist_map = defaultdict(list)  # type: DefaultDict[str, List[Dict]]
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,

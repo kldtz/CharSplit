@@ -623,9 +623,9 @@ def find_next_token(line: str) -> Match[str]:
 
 SIMPLE_WORD_PAT = re.compile('(\w+)')
 
-def get_simple_words(text: str) -> List[str]:
+def get_simple_words(text: str) -> List[Tuple[int, int, str]]:
     matches = SIMPLE_WORD_PAT.finditer(text)
-    spans = [[m.start(), m.end(), m.group()] for m in matches]
+    spans = [(m.start(), m.end(), m.group()) for m in matches]
     return spans
 
 
@@ -635,9 +635,9 @@ def get_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
     if first_offset < 0:
         first_offset = 0
     prev_text = text[first_offset:start]
-    spans = get_simple_words(prev_text)[-num_words:]
-    words = [x[-1] for x in spans]
-    spans = [[x+first_offset,y+first_offset] for [x,y,z] in spans]
+    words_and_spans = get_simple_words(prev_text)[-num_words:]
+    words = [x[-1] for x in words_and_spans]
+    spans = [[x+first_offset,y+first_offset] for [x,y,z] in words_and_spans]
     return words[-num_words:], spans[-num_words:]
 
 
@@ -647,9 +647,9 @@ def get_post_n_words(text: str, end: int, num_words: int) -> List[str]:
     if last_offset > len(text):
         last_offset = len(text)
     post_text = text[end:last_offset]
-    spans = get_simple_words(post_text)
-    words = [x[-1] for x in spans]
-    spans = [[x+end, y+end] for [x,y,z] in spans]
+    words_and_spans = get_simple_words(post_text)
+    words = [x[-1] for x in words_and_spans]
+    spans = [[x+end, y+end] for [x,y,z] in words_and_spans]
     return words[:num_words], spans[:num_words]
 
 
