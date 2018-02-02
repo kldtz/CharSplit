@@ -25,7 +25,7 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
         numeric_matrix = np.zeros(shape=(len(span_sample_list),
                                          1))
         for i, span_sample in enumerate(span_sample_list):
-            prob = span_sample['addr_line_prob']
+            prob = span_sample['has_addr']
             numeric_matrix[i] = prob
         if fit_mode:
             numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
@@ -84,9 +84,9 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
             prev_matrix = []
             post_matrix = []
             prev_matrix = self.prev_words_vectorizer.transform(prev_words_list)
-            logging.info("prev_matrix.shape: {}".format(prev_matrix.shape))
+            # print("prev_matrix.shape: {}".format(prev_matrix.shape))
             post_matrix = self.post_words_vectorizer.transform(post_words_list)
-            logging.info("post_matrix.shape: {}".format(post_matrix.shape))
+            # print("post_matrix.shape: {}".format(post_matrix.shape))
             X_out = sparse.hstack((prev_matrix, post_matrix))
 
             return X_out

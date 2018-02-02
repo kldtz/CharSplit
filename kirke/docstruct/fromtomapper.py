@@ -4,6 +4,7 @@ import logging
 from typing import Any, Dict, List, Tuple, Union
 
 from kirke.docstruct import linepos
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 def compute_fromto_offsets(start: int,
                            end: int,
@@ -306,7 +307,20 @@ class FromToMapper:
         return merged_list
 
     # this is destructive
+    # TODO, jshaw, maybe update in future
+    # Should only update the offsets, not creating
+    # new 'span_list' because now, ebpostproc.merge_sample_prob_list()
+    # already insert this info.  The offsets are not based on raw-text though.
     def adjust_fromto_offsets(self, ant_list: List) -> None:
+        """Adjust the offsets based on the mapping.
+
+        One side effect is that This adds 'span_list'.  This functionality
+        shouldn't be needed because ebpostproc.merge_sample_prob_list()
+        has been updated to add such info.  Anyway, this code will override such
+        field in the antlist for ML models in ebannotator.  The offsets need
+        to be changed to raw_text anyway here.
+        """
+
         for antx in ant_list:
             # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
             corenlp_start = antx['start']
@@ -319,7 +333,20 @@ class FromToMapper:
             antx['start'] = span_list[0]['start']
             antx['end'] = span_list[-1]['end']
             antx['span_list'] = span_list
-        
+
+    # this is destructive
+    def adjust_provants_fromto_offsets(self, ant_list: List[ProvisionAnnotation]) -> List[ProvisionAnnotation]:
+        result = []
+        for antx in ant_list:
+            # print("ant start = {}, end = {}".format(antx['start'], antx['end']))
+            raw_start, raw_end, label = antx.to_tuple()
+
+            span_list = self.get_span_list(raw_start, raw_end)
+
+            corenlp_start = span_list[0]['start']
+            corenlp_end = span_list[-1]['end']
+            result.append(ProvisionAnnotation(corenlp_start, corenlp_end, label))
+        return result
 
     def get_se_offsets(self, start:int, end:int) -> Tuple[int, int]:
         result_start = find_offset_to(start, self.frstart_list, self.tostart_list)

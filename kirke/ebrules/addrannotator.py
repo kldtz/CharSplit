@@ -1,4 +1,4 @@
-import logging
+
 from typing import Dict, List, Tuple
 
 from kirke.ebrules import addresses
@@ -17,15 +17,16 @@ class AddressAnnotator:
 
         return prob_samples
 
+
 class SampleAddAddrLineProb:
 
     def __init__(self) -> None:
         pass
 
     def enrich(self, samples: List[Dict]) -> List[Dict]:
-        logging.info("SampleAddrLineProb.enriching() called")
+        # print("SampleAddrLineProb.enriching() called")
         for i, sample in enumerate(samples):
             sample['addr_line_prob'] = addresses.classify(sample['text'])
             if (i + 1) % 1000 == 0:
-                logging.info("processed addr_line_prob {}".format(i+1))
+                print("processed addr_line_prob {}".format(i+1))
         return samples

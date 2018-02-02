@@ -92,7 +92,8 @@ class AddrContextGenerator:
                                 'line_seq': notempty_line_seq,
                                 'text': new_bow,
                                 'prev_n_words': ' ' .join(prev_n_words),
-                                'post_n_words': ' '.join(post_n_words)}
+                                'post_n_words': ' '.join(post_n_words),
+                                'has_addr': False}
                     samples.append(a_sample)
                     group_id_list.append(group_id)
                     if is_label:
@@ -124,7 +125,8 @@ class AddrContextGenerator:
                                     'line_seq': notempty_line_seq,
                                     'text': new_bow,
                                     'prev_n_words': ' '.join(prev_n_words),
-                                    'post_n_words': ' '.join(post_n_words)}
+                                    'post_n_words': ' '.join(post_n_words),
+                                    'has_addr': True}
                         samples.append(a_sample)
                         group_id_list.append(group_id)
                         if is_label:
@@ -133,6 +135,5 @@ class AddrContextGenerator:
                         else:
                             label_list.append(False)
                 notempty_line_seq += 1
-                #updates boolean list for whether candidate is pos for provision?
                 offset += len(line) + 1  # for eoln
         return samples, label_list, group_id_list

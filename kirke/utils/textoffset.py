@@ -10,7 +10,7 @@ from typing import Dict, Tuple
 # This saves memory.
 class TextCpointCunitMapper:
 
-    def __init__(self, text:str) -> None:
+    def __init__(self, text: str) -> None:
         cpoint_bytesize_map = {}  # type: Dict[str, int]
         for ch in text:
             utf16_bytes = ch.encode('utf-16-le')
@@ -23,8 +23,8 @@ class TextCpointCunitMapper:
                 if not cpoint_bytesize_map.get(ch):
                     cpoint_bytesize_map[ch] = 2
 
-        cpoint_to_cunit_map = {}
-        cunit_to_cpoint_map = {}
+        cpoint_to_cunit_map = {}  # type: Dict[int, int]
+        cunit_to_cpoint_map = {}  # type: Dict[int, int]
         cpoint_offset = 0
         cunit_offset = 0
         for cpoint_offset, ch in enumerate(text, 1):

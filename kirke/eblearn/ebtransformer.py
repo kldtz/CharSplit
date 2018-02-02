@@ -48,7 +48,7 @@ class EbTransformer(EbTransformerBase):
 
     """Transform a list ebantdoc to matrix."""
     def __init__(self, provision):
-        # provision is needed because infogain computation needs to know the classes
+        # provision is needed because of infogain computation need to know the classes
         self.provision = provision
 
         (binary_attr_list, numeric_attr_list, categorical_attr_list) = \
@@ -76,15 +76,17 @@ class EbTransformer(EbTransformerBase):
                                     attrvec_list,
                                     label_list,
                                     fit_mode=False):
-        
+        # prov = self.provision
+        # print("attrvec_list.size = ", len(attrvec_list))
+        # print("label_list.size = ", len(label_list))
         num_rows = len(attrvec_list)
+
         # handle numeric_matrix and categorical_matrix
         numeric_matrix = np.zeros(shape=(num_rows,
                                          len(self.binary_attr_list) +
                                          len(self.numeric_attr_list)))
         categorical_matrix = np.zeros(shape=(num_rows,
                                              len(self.categorical_attr_list)))
-        #splitting numeric / categorical attribute vectors from ebattrvec (why not just save them in the attrvec like this???)
         for instance_i, attrvec in enumerate(attrvec_list):
             for ibin, binary_attr in enumerate(self.binary_attr_list):
                 numeric_matrix[instance_i, ibin] = strutils.bool_to_int(attrvec.get_val(binary_attr))
@@ -92,8 +94,6 @@ class EbTransformer(EbTransformerBase):
                 numeric_matrix[instance_i, len(self.binary_attr_list) + inum] = attrvec.get_val(numeric_attr)
             for icat, cat_attr in enumerate(self.categorical_attr_list):
                 categorical_matrix[instance_i, icat] = attrvec.get_val(cat_attr)
-
-        #fits min/max scaler for the numerical matrix
         if fit_mode:
             numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
             categorical_matrix = self.one_hot_encoder.fit_transform(categorical_matrix)
@@ -101,7 +101,7 @@ class EbTransformer(EbTransformerBase):
             numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
             categorical_matrix = self.one_hot_encoder.transform(categorical_matrix)
 
-        #appends bag of words to sent_st_list (again....why)
+        # handle bag of words
         sent_st_list = []
         positive_sent_st_list = []  # only populated if fit_mode
         if fit_mode:  # label_list:  # for testing, there is no label_list
@@ -115,15 +115,14 @@ class EbTransformer(EbTransformerBase):
                 sent_st = attrvec.bag_of_words
                 sent_st_list.append(sent_st)
 
-        #gets rid of stop words in sent_st_list
         nostop_sent_st_list = stopwordutils.remove_stopwords(sent_st_list, mode=2)
 
         if fit_mode:
             # we are cheating here because vocab is trained from both training and testing
             # jshaw, TODO, remove
             logging.info("starting computing info_gain")
+            # igain_vocabs = igain.doc_label_list_to_vocab(sent_st_list, label_list, tokenize=igain.eb_doc_to_all_ngrams, debug_mode=True, provision=self.provision)
             # the tokenizer is bigramutils, not igain's
-            # TODO <<< calculates infogain across all sents not just positive sents??? >>>
             igain_vocabs = igain.doc_label_list_to_vocab(sent_st_list,
                                                          label_list,
                                                          tokenize=bigramutils.eb_doc_to_all_ngrams,
@@ -131,11 +130,10 @@ class EbTransformer(EbTransformerBase):
                                                          provision=self.provision)
 
             logging.info("starting computing unigram and bigram")
-            #TODO check what this does exactly
             vocabs, positive_vocabs = bigramutils.doc_label_list_to_vocab(sent_st_list,
                                                                           label_list,
                                                                           tokenize=bigramutils.eb_doc_to_all_ngrams)
-            # replace vocabs with igain.vocab (why?????)
+            # replace vocabs with igain.vocab
             vocabs = igain_vocabs
             vocab_id_map = {}
             for vid, vocab in enumerate(vocabs):
@@ -155,11 +153,8 @@ class EbTransformer(EbTransformerBase):
             # handling bi-topgram
             # only lower case, mode=0, label_list must not be empty
             logging.info("starting computing bi_topgram")
-            #remove stopwords for positive sents
             nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
             filtered_list = []
-
-            #filters out sents that are too short?
             for nostop_positive_sent in nostop_positive_sent_st_list:
                 for tmp_w in nostop_positive_sent.split():
                     if len(tmp_w) > 3:
@@ -168,30 +163,38 @@ class EbTransformer(EbTransformerBase):
             self.n_top_positive_words = [item[0] for item in
                                          fdistribution.most_common(EbTransformer.MAX_NUM_BI_TOPGRAM_WORDS)]
 
+            # replace this top positive word with top most informative words
+            # self.n_top_positive_words = top_igain_unigrams
+            # after some thinking, those words can be either 'for' or 'against' the provision,
+            # and not always better, better simply leave them as before
+
         # still need to go through rest of fit_mode because of more vars are setup
 
-        #TODO gets most useful bigrams??
+        # logging.info("converting into matrix")
+        # bow_matrix = self.gen_top_ig_ngram_matrix(sent_st_list, tokenize=igain.eb_doc_to_all_ngrams)
         bow_matrix, perc_positive_ngrams = self.gen_top_ngram_matrix(sent_st_list,
                                                                      tokenize=bigramutils.eb_doc_to_all_ngrams)
 
-        #TODO gets most useful bigrams??
+        # print("n_top_positive_words = {}".format(self.n_top_positive_words))
         bi_topgram_matrix = self.gen_bi_topgram_matrix(nostop_sent_st_list, fit_mode=fit_mode)
 
-        #TODO reshapes the matrix of positive ngrams??
+        # put together my perc_positive_matrix
         perc_pos_ngram_matrix = np.zeros(shape=(num_rows, 1))
         for instance_i, perc_pos_ngram in enumerate(perc_positive_ngrams):
             perc_pos_ngram_matrix[instance_i, 0] = perc_pos_ngram
 
-        #TODO combines the matrices we have so far
         comb_matrix = sparse.hstack((numeric_matrix, perc_pos_ngram_matrix, categorical_matrix, bow_matrix))
         sparse_comb_matrix = sparse.csr_matrix(comb_matrix)
 
-        #removes any zero columns
         nozero_sparse_comb_matrix = self.remove_zero_column(sparse_comb_matrix, fit_mode=fit_mode)
 
+        # print("shape of bi_topgram: ", bi_topgram_matrix.shape)
+        # pylint: disable=C0103
         X = sparse.hstack((nozero_sparse_comb_matrix, bi_topgram_matrix), format='csr')
+        # print("combined shape of X = {}".format(X.shape))
+        # print("shape of X: {}", X)
 
-        # return training data to be sent to scikit learn 
+        # return sparse_comb_matrix, bi_topgram_matrix, sent_st_list
         return X
 
     def gen_bi_topgram_matrix(self, sent_st_list, fit_mode=False):
@@ -229,6 +232,28 @@ class EbTransformer(EbTransformerBase):
                                                   dtype=int)
         return bi_topgram_matrix
 
+    """
+    def gen_top_ig_ngram_matrix(self, sent_st_list, tokenize):
+        # for each sentence, find which top words it contains.  Then generate all pairs of these,
+        # and generate the sparse matrix row entries for the rows it contains.
+        indptr = [0]
+        indices = []
+        data = []
+        for sent_st in sent_st_list:
+            sent_wordset = tokenize(sent_st)
+
+            for ngram in sent_wordset:
+                index = self.vocab_id_map.get(ngram)
+                if index:
+                    indices.append(index)
+                    data.append(1)
+            indptr.append(len(indices))
+
+        top_ig_ngram_matrix = sparse.csr_matrix((data, indices, indptr),
+                                                shape=(len(sent_st_list), len(self.vocab_id_map)),
+                                                dtype=int)
+        return top_ig_ngram_matrix
+    """
 
     def gen_top_ngram_matrix(self, sent_st_list, tokenize):
         # for each sentence, find which top words it contains.  Then generate all pairs of these,

@@ -1,4 +1,4 @@
-import logging
+
 from typing import Dict, List, Tuple
 
 from kirke.ebrules import dates
@@ -18,13 +18,12 @@ class LineSpanGenerator:
         label_list = []   # type: List[bool]
         group_id_list = []  # type: List[int]
 
-
         # each sample is the date regex +
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
+
             # get only ant for this particular label
             label_ant_list = antdoc.get_provision_annotations(label)
 
-            #gets text based on document type
             if antdoc.doc_format in set([ebantdoc3.EbDocFormat.html,
                                          ebantdoc3.EbDocFormat.html_nodocstruct,
                                          ebantdoc3.EbDocFormat.other]):
@@ -32,16 +31,17 @@ class LineSpanGenerator:
             else:
                 nl_text = antdoc.nl_text
 
-            if group_id % 10 == 0:
-                logging.info("LineSpanGenerator.documents_to_samples(), group_id = {}".format(group_id))
+            # if group_id % 10 == 0:
+            #    print("LineSpanGenerator.documents_to_samples(), group_id = {}". \
+            #        format(group_id))
 
             lines = nl_text.split('\n')
             offset = 0
             notempty_line_seq = 0
             
-            #creates dict for candidate information
             for line in lines:
-                if not line:  # skip
+                # there are lines with just spaces, or non-breaking spaces
+                if not line or not line.strip():  # skip
                     offset += len(line) + 1
                     continue
 
@@ -63,8 +63,7 @@ class LineSpanGenerator:
                             'prev_n_words': ' '.join(prev_n_words),
                             'post_n_words': ' '.join(post_n_words)}
                 notempty_line_seq += 1
-                
-                #updates boolean list for whether candidate is pos for provision?
+
                 if is_label:
                     a_sample['label_human'] = label
                     label_list.append(True)
