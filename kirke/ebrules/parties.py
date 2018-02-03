@@ -318,20 +318,44 @@ def extract_between_among(astr: str, is_party: bool = True) -> List[List[str]]:
                           for word in xpart)]
     return parties
 
-A_COMPANY_PAT = re.compile(r' a\s+company ', re.I)
+BETWEEN_PAT = re.compile(r' between ', re.I)
+A_COMPANY_PAT = re.compile(r',? ((an?\s+(company|individual|business))|whose) ', re.I)
 AND_PAT = re.compile(r' and,? ', re.I)
 PARENS_PAT = re.compile(r'\(([^\(]+)\)')
+
+def is_all_title(line: str) -> bool:
+    if not line:
+        return False
+    words = line.split()
+    for word in words:
+        if not word[0].isupper():
+            return False
+    return True
+
 
 def extract_party_defined_term_list(line: str) \
     -> List[Tuple[Optional[Tuple[int, int, str, str]],
                   Optional[Tuple[int, int, str, str]]]]:
+
+    between_list = list(BETWEEN_PAT.finditer(line))
+    # chop at first xxx entered ... by and between (wanted)
+    start_offset = 0
+    if between_list:
+        last_between = between_list[-1]
+        start_offset = last_between.end()
+        line = line[start_offset:]
+        # everything afterward is based on this line
+        # need to set it back right before returning
+    print("chopped party_line = [{}]".format(line))
+
     company_list = list(A_COMPANY_PAT.finditer(line))
     and_list = list(AND_PAT.finditer(line))
     se_mat_list = []  # type: List[Tuple[int, int, str]]
     for mat in itertools.chain(company_list, and_list):
         se_mat_list.append((mat.start(), mat.end(), mat.group()))
-    # sorted_se_mat_list = sorted(se_mat_list)
-    # print("sorted_se_mat_list: {}".format(sorted_se_mat_list))
+    if IS_DEBUG_MODE:
+        sorted_se_mat_list = sorted(se_mat_list)
+        print("sorted_se_mat_list: {}".format(sorted_se_mat_list))
 
     line_len = len(line)
     span_st_list = []  # type: List[Tuple[int, int, str]]
@@ -344,19 +368,32 @@ def extract_party_defined_term_list(line: str) \
     if start < line_len:
         span_st_list.append((start, line_len, line[start:]))
 
+    if IS_DEBUG_MODE:
+        for i, spanx in enumerate(span_st_list):
+            print('  span_x[{}] = {}'.format(i, spanx))
+
     result = []
+    # put back the start_offset because we might have done some chopping
+    # to remove non-party prefix before
     for span_x in span_st_list:
         start, end, span_st = span_x
         parens_mat_list = list(PARENS_PAT.finditer(span_st))
         # found a defined term
         if parens_mat_list:
             last_parens_mat = parens_mat_list[-1]
-            result.append((start + last_parens_mat.start(),
-                           start + last_parens_mat.end(),
+            result.append((start_offset + start + last_parens_mat.start(),
+                           start_offset + start + last_parens_mat.end(),
                            last_parens_mat.group(),
                            'defined_term'))
         else:
-            result.append((start, end, span_st, 'party'))
+            if is_all_title(span_st):
+                print("pass titled test: [{}]".format(span_st))
+                result.append((start_offset + start,
+                               start_offset + end,
+                               span_st,
+                               'party'))
+            else:
+                print("failed titled test: [{}]".format(span_st))
 
     # pylint: disable=line-too-long
     paired_result = []  # type: List[Tuple[Optional[Tuple[int, int, str, str]], Optional[Tuple[int, int, str, str]]]]
@@ -469,6 +506,15 @@ def is_end_party_list(line: str) -> bool:
         return True
     return False
 
+def get_next_not_empty_se_paras_list(se_paras_attr_list: List[Tuple[int, int, str, List[str]]],
+                                     i: int) -> Optional[Tuple[int,
+                                                               Tuple[int, int, str, List[str]]]]:
+    if i < len(se_paras_attr_list):
+        for i, se_paras_attr in enumerate(se_paras_attr_list[i+1:], i+1):
+            sx, ex, line_st, para_attrs = se_paras_attr
+            if line_st.strip():
+                return i, se_paras_attr
+    return None
 
 def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
     -> Optional[Tuple[Tuple[int, int, str],
@@ -499,12 +545,28 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
 
         # checks if bullet type party, joins all bullets into a line
         if 'party_line' in para_attrs and 'toc' not in para_attrs:
+            print("checking party_line 2222")
             if is_list_prefix(line_st):
                 is_party_list = True
                 # include this line as a list
                 return (sx, ex, line_st), is_party_list, se_paras_attr_list[i:]
 
-            is_party_list = bool(re.search(r':\s*$', line_st))
+            # peek at the next line
+            next_i, (next_sx, next_ex, next_line_st, next_para_attrs) = \
+                get_next_not_empty_se_paras_list(se_paras_attr_list, i)
+            # if the next line has only 'among' or 'between, the party groups are
+            # after.  38608.txt
+            print("checking next line: [{}]".format(next_line_st))
+            if re.match(r'(between|among)', next_line_st, re.I):
+                is_party_list = True
+
+                # skip some blank lines
+                nx2_i, (nx2_sx, nx2_ex, nx2_line_st, nx2_para_attrs) = \
+                    get_next_not_empty_se_paras_list(se_paras_attr_list, next_i)
+
+                return (next_sx, next_ex, next_line_st), is_party_list, se_paras_attr_list[nx2_i:]
+
+            is_party_list = bool(re.search(r'(:|among|between)\s*$', line_st))
             return (sx, ex, line_st), is_party_list, se_paras_attr_list[i+1:]
 
 
@@ -533,6 +595,13 @@ def party_line_group_to_party_term(party_line_list: List[Tuple[int, int, str, Li
         mat = re.search(r' [a-z]', party_st)  # no re.I here
         if mat:
             party_end = party_start + mat.start()
+    else:
+        company_mat = A_COMPANY_PAT.search(first_line)
+        if company_mat:
+            party_start = 0
+            party_end = party_start + company_mat.start()
+            party_st = first_line[party_start:party_end]
+            mat = company_mat  # value inside is ignore
 
     # re.search(r'\(([^\(]+)\)\s*[\.;]?\s*(and|or)?\s*$', last_line)
     term_mat_list = list(re.finditer(r'\(([^\(]+)\)', last_line))
@@ -553,7 +622,12 @@ def party_line_group_to_party_term(party_line_list: List[Tuple[int, int, str, Li
 
     return (None, None)
 
-
+def is_one_party_line(line: str) -> bool:
+    words = line.split()
+    words10 = ' '.join(words[:10])
+    if re.search(r' (ltd|registered)\b', words10, re.I):
+        return True
+    return False
 
 # pylint: disable=line-too-long
 def extract_parties_from_list_lines(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
@@ -568,11 +642,31 @@ def extract_parties_from_list_lines(se_after_paras_attr_list: List[Tuple[int, in
     cur_party_group = []  # type: List[Tuple[int, int, str, List[str]]]
     party_line_group_list = []  # type: List[List[Tuple[int, int, str, List[str]]]]
 
+    # sometime, lines with only list prefix, such as '(1)' might get
+    # deleted because they were considered as page numbers.  HTML specific
+    # issue.  Why are such thing on a separate line?  Table in HTML?
+    # for debug purpose
+    if IS_DEBUG_MODE:
+        print()
+        for i in range(min(10, len(se_after_paras_attr_list))):
+            print("  list_line #{}: {}".format(i, se_after_paras_attr_list[i]))
+        print()
+
     for i in range(min(100, len(se_after_paras_attr_list))):
         se_line_attrs = se_after_paras_attr_list[i]
         _, _, linex, unused_attr_list = se_line_attrs
         if linex:
             if is_list_prefix(linex):
+                print("is_list_prefix: [{}]".format(linex))
+                if cur_party_group:
+                    party_line_group_list.append(cur_party_group)
+                    cur_party_group = []
+                cur_party_group.append(se_line_attrs)
+                # print("\n     count_other_line: {}".format(count_other_line))
+                # print("     after_para: {}".format(se_after_paras_attr_list[i]))
+                count_other_line = 0
+            elif is_one_party_line(linex):
+                print("is_one_party_line: [{}]".format(linex))
                 if cur_party_group:
                     party_line_group_list.append(cur_party_group)
                     cur_party_group = []

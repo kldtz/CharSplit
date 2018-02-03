@@ -116,7 +116,8 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                 fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
                 fn += 1
         else:  # in case people are using this without providing FN beforehand
-            fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+            antprob = AnnotationWithProb(hant.label, hant.start, hant.end, -1.0)
+            fn_inst_map[(hant.start, hant.end, hant.label)].append(antprob)
             fn += 1
         tp_fn_set |= set(pred_overlap_list)
 
@@ -138,7 +139,9 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
         for hant_key in sorted(fn_inst_map.keys()):
             fn_inst_list = fn_inst_map[hant_key]
             fn_txt = " ".join([txt[x.start:x.end] for x in fn_inst_list])
-            prob = max([x.prob for x in fn_inst_list])
+            prob = -1.0
+            if fn_inst_list:
+                prob = max([x.prob for x in fn_inst_list])
             print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
 
         for pred_ant in fp_inst_list:

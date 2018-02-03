@@ -46,12 +46,16 @@ this_agreement_pat = re.compile(r'this.*agreement\b', re.IGNORECASE)
 
 REGISTERED_PAT = re.compile(r'\bregistered\b', re.I)
 
-def is_party_line(line):
+def is_party_line(line: str) -> bool:
     #returns true if bullet type, and a real line
     if re.match(r'\(?[\div]+\)', line) and len(line) > 60:
         return True
     # multipled parties mentioned
     if len(list(REGISTERED_PAT.finditer(line))) > 1:
+        return True
+    if line.startswith('T') and re.match('(this|the).*contract.*is made on',
+                                         line,
+                                         re.I):
         return True
     if len(line) < 40:  # don't want to match line "BY AND BETWEEN" in title page
         return False
@@ -78,7 +82,7 @@ def is_party_line(line):
         return True
     # assigns lease to
     if 'assign' in lc_line and 'lease to' in lc_line:
-        return True    
+        return True
     if made_by_pat.search(line) and ('day' in lc_line or
                                      'date' in lc_line):
         return True
@@ -93,7 +97,7 @@ def is_party_line(line):
         return True
     # 'Patent Security Agreement, dated as of December 1, 2009, by BUSCH ENTERTAINMENT LLC (the “Grantor”), in favor of BANK OF AMERICA, N.A...'
     if 'date' in lc_line and ' by ' in lc_line and 'in favor of' in lc_line:
-        return True    
+        return True
     if ('reach an agreement' in lc_line or
         'the following terms' in lc_line or
         'terms and condistions' in lc_line or
@@ -108,11 +112,11 @@ def is_party_line(line):
     if 'agree' in lc_line and 'follow' in lc_line and not "meaning" in lc_line:
         return True
     if 'follow' in lc_line and 'between' in lc_line:
-        return True        
+        return True
     # for warrants, 'the Lenders from time to time party thereto,'
     if 'from time to time party thereto' in lc_line:
         return True
-    
+
     #"""This Amendment No. 1 to the Convertible Promissory Note (this
     #   "Amendment") is executed as of October 17, 2011, by SOLAR ENERGY
     #   INITIATIVES, INC., a Nevada corporation (the “Maker”); and ASHER
@@ -133,7 +137,7 @@ def is_party_line(line):
         return True
     if ('is made' in lc_line and
         'following parties' in lc_line):
-        return True    
+        return True
     return False
 
 def find_first_party_lead(line):
@@ -189,7 +193,7 @@ def extract_parties(line):
             after_sep2 = after_sep[mm3.end():]
             mm4 = find_a_corp(after_sep2)
             print('\nmm4 = [{}]'.format(after_sep2[mm4.start():mm4.end()]))
-        
+
     return []
 
 
@@ -215,7 +219,7 @@ def extract_name_parties(line):
 
             mm1 = find_a_corp2(before_sep)
             print('\nmm1 = [{}]'.format(before_sep[mm1.start():mm1.end()]))
-            
+
             mm3 = find_a_corp2(after_sep)
             print('\nmm3 = [{}]'.format(after_sep[mm3.start():mm3.end()]))
 
@@ -228,13 +232,13 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
     # parser.add_argument('--dir', default='data-300-txt', help='input directory for .txt files')
     parser.add_argument('files', metavar='FILE', nargs='*',
-                        help='files to read, if empty, stdin is used')    
+                        help='files to read, if empty, stdin is used')
 
     args = parser.parse_args()
 
 
     st = 'THIS FIFTH AMENDMENT TO CREDIT AGREEMENT, dated as of December 17, 2012 (this “Amendment”) to the Existing Credit Agreement (such capitalized term and other capitalized terms used in this preamble and the recitals below to have the meanings set forth in, or are defined by reference in, Article I below) is entered into by and among W.E.T. AUTOMOTIVE SYSTEMS, AG, a German stock corporation (the “German Borrower”), W.E.T. AUTOMOTIVE SYSTEMS LTD., a Canadian corporation (together with the German Borrower, the “Borrowers” and each, a “Borrower”), each lender party hereto (collectively, the “Lenders” and individually, a “Lender”), BANC OF AMERICA SECURITIES LIMITED, as administrative agent (in such capacity, the “Administrative Agent”) and BANK OF AMERICA, N.A., as Swing Line Lender and L/C Issuer (“Bank of America”).'
-    
+
 
     # party_list = extract_parties(st)
 
@@ -242,8 +246,8 @@ if __name__ == '__main__':
     st2 = 'THIS REVOLVING LINE OF CREDIT LOAN AGREEMENT (this “Agreement”) is made as of May 29, 2009, by and between Michael Reger having a business address at 777 Glade Road Suite 300, Boca Raton, Florida 33431("Lender") and GelTech Solutions, Inc., a Delaware Coloration (the "Borrower"), having a business address at 1460 Park Lane South Suite 1, Jupiter, Florida 33458 attention, Michael Cordani.'
 
     party_list = extract_name_parties(st2)
-    
+
 
     st3 = 'This Executive Employment Agreement (this "Agreement") is made this 21st day of May, 2010 (the "Effective Date"), by and between MOLYCORP, INC., a Delaware corporation ("Employer") and John Burba ("Executive"). '
 
-    party_list = extract_name_parties(st3)    
+    party_list = extract_name_parties(st3)
