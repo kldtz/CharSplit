@@ -7,6 +7,9 @@ from typing import List, Optional, Tuple
 from kirke.ebrules import titles, addresses
 from kirke.utils import strutils
 
+# IS_DEBUG_MODE = False
+IS_DEBUG_MODE = True
+
 
 # """Config"""
 
@@ -27,7 +30,10 @@ QUOTE = re.compile(r'[“"”]')
 
 # Supports US (5 or 5-4), UK, Australia (4), Switzerland (4), Shanghai (6)
 UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? +(?:(?![CIKMOV])[0-9O][a-zA-Z]{2})'
-ZIP_CODE_YEAR = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
+
+# 'DELL RECEIVABLES FINANCING 2016 D.A.C", year is valid
+# ZIP_CODE_YEAR = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
+ZIP_CODE_YEAR = re.compile(r'\b{}\b'.format(UK_STD))
 DOT_SPACE = re.compile(r'[\.\s]+')
 
 
@@ -179,6 +185,7 @@ def zipcode_replace(apart: str, new_parts: List) -> List:
     if ZIP_CODE_YEAR.search(apart):
         new_parts.append('🏡')
     return new_parts
+
 
 def zipcode_remove(grps):
     # Going backwards, when see a zip code/ year, remove up to prev removed line
@@ -377,44 +384,155 @@ def extract_parties(filepath: str) -> List[List[Tuple[int, int]]]:
     return parties_to_offsets(parties, party_line)
 
 
-def extract_party_line(paras_attr_list):
-    # lines = []
+def is_list_prefix(line: str) -> bool:
+    return bool(re.match(r'\(?[\div]\)', line))
+
+def is_end_party_list(line: str) -> bool:
+    words = line.split(line)
+    if len(words) > 2 and words[0].isupper() and words[1].isupper():
+        return True
+    if len(line) > 400:
+        return True
+    if len(line) > 200 and words[0].istitle():
+        return True
+    return False
+
+
+def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
+    -> Optional[Tuple[Tuple[int, int, str],
+                      bool,
+                      List[Tuple[int, int, str, List[str]]]]]:
+
     offset = 0
-    # start_end_list = []
-    for i, (line_st, para_attrs) in enumerate(paras_attr_list):
+    # we want to know the start ane end of each line
+    se_paras_attr_list = []  # type: List[Tuple[int, int, str, List[str]]]
+    for line_st, para_attrs in paras_attr_list:
+        line_st_len = len(line_st)
+        se_paras_attr_list.append((offset, offset + line_st_len, line_st, para_attrs))
+        offset += line_st_len + 1
+
+    for i, (_, _, line_st, para_attrs) in enumerate(se_paras_attr_list):
         # attrs_st = '|'.join([str(attr) for attr in para_attrs])
         # print('\t'.join([attrs_st, '[{}]'.format(line_st)]), file=fout1)
-        line_st_len = len(line_st)
-        # whitespace_line = '\n'
+
         # checks if bullet type party, joins all bullets into a line
         if 'party_line' in para_attrs and 'toc' not in para_attrs:
-            if re.match(r'\(?[\div]+\)', line_st, re.I):
-                next_idx = i+1
-                next_line, unused_next_attrs = paras_attr_list[next_idx]
-                offset_add = line_st_len
-                return_st = line_st
-                while not next_line or re.match(r'\(?[\div]+\)', next_line, re.I) or \
-                      re.match(r'^[\-\s]*and', next_line, re.I):
-                    offset_add += len(next_line)
-                    return_st += "\n" + next_line
-                    next_idx += 1
-                    next_line, unused_next_attrs = paras_attr_list[next_idx]
-                return offset, offset+ offset_add, return_st
+            if is_list_prefix(line_st):
+                is_party_list = True
+                # include this line as a list
+                return (offset, offset+line_st_len, line_st), is_party_list, se_paras_attr_list[i:]
 
-            return offset, offset + line_st_len, line_st
-        offset += line_st_len + 1
+            is_party_list = bool(re.search(r'\s*:\s*$', line_st))
+            return (offset, offset + line_st_len, line_st), is_party_list, se_paras_attr_list[i+1:]
 
         # don't bother if party_line is too far from start of the doc
         if i > 2000:
             return None
-
     return None
 
+
+def party_line_group_to_party_term(party_line_list: List[Tuple[int, int, str, List[str]]]) \
+    -> Tuple[Optional[Tuple[int, int]],
+             Optional[Tuple[int, int]]]:
+    fstart, unused_fend, first_line, _ = party_line_list[0]
+    last_start, unused_last_end, last_line, _ = party_line_list[-1]
+    mat = re.match(r'\(?[\div]\)\s*(.*)', first_line)
+
+    if mat:
+        party_start = mat.start(1)
+        party_end = mat.end(1)
+        party_st = mat.group(1)
+
+        # find first non-title words
+        mat = re.search(r' [a-z]', party_st)  # no re.I here
+        if mat:
+            party_end = party_start + mat.start()
+
+    # re.search(r'\(([^\(]+)\)\s*[\.;]?\s*(and|or)?\s*$', last_line)
+    term_mat_list = list(re.finditer(r'\(([^\(]+)\)', last_line))
+    if term_mat_list:
+        term_mat = term_mat_list[-1]
+        term_start = term_mat.start(1)
+        term_end = term_mat.end(1)
+        # term_st = term_mat.group(1)
+
+    if mat and term_mat:
+        return ((fstart + party_start, fstart + party_end),
+                (last_start + term_start, last_start + term_end))
+    if not mat and term_mat:
+        return (None, (last_start + term_start, last_start + term_end))
+    if mat and not term_mat:
+        return ((fstart + party_start, fstart + party_end), None)
+
+    return (None, None)
+
+
+
+# pylint: disable=line-too-long
+def extract_parties_from_list_lines(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
+                                    -> List[Tuple[Optional[Tuple[int, int]],
+                                                  Optional[Tuple[int, int]]]]:
+    result = []
+    count_other_line = 0
+    is_last_char_lower = False
+
+    # To capture lines for each party.  Sometime lines in a group can be broken for
+    # whatever reason (change of font, too much spaces between lines, etc).
+    cur_party_group = []  # type: List[Tuple[int, int, str, List[str]]]
+    party_line_group_list = []  # type: List[List[Tuple[int, int, str, List[str]]]]
+
+    for i in range(min(100, len(se_after_paras_attr_list))):
+        se_line_attrs = se_after_paras_attr_list[i]
+        _, _, linex, unused_attr_list = se_line_attrs
+        if linex:
+            if is_list_prefix(linex):
+                if cur_party_group:
+                    party_line_group_list.append(cur_party_group)
+                    cur_party_group = []
+                cur_party_group.append(se_line_attrs)
+                print("\n     count_other_line: {}".format(count_other_line))
+                print("     after_para: {}".format(se_after_paras_attr_list[i]))
+                count_other_line = 0
+            elif is_last_char_lower:
+                print("skipping last char lower")
+                cur_party_group.append(se_line_attrs)
+            elif is_end_party_list(linex):
+                print("break end_party_list: {}".format(linex))
+                break
+            else:
+                count_other_line += 1
+
+            if count_other_line >= 3:
+                print("break count_other_line >= 3")
+                break
+            is_last_char_lower = linex[-1].islower()
+
+    if cur_party_group:
+        party_line_group_list.append(cur_party_group)
+
+    # now process each group into a party
+    for i, party_line_group in enumerate(party_line_group_list):
+        print('party group #{}:'.format(i))
+        for se_line_attrs in party_line_group:
+            print('     {}'.format(se_line_attrs))
+        result.append(party_line_group_to_party_term(party_line_group))
+
+    for offsets_pair in result:
+        print("offsets_pair: {}".format(offsets_pair))
+
+    return result
+
+def is_list_party_line(line: str) -> bool:
+    # any party_line ends with ':' is considered a list party prefix
+    if re.search(r':\s*', line):
+        return True
+    return False
 
 # paras_text is not used for title right now
 # The first Tuple[int, int] is the party offset
 # the Optional[Tuple[int, int]] is the defined term offsets
-def extract_offsets(paras_attr_list, unused_para_text: str) \
+def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
+                    unused_para_text: str) \
     -> List[Tuple[Tuple[int, int],
                   Optional[Tuple[int, int]]]]:
     """Return list of parties (lists of (start, inclusive-end) offsets)."""
@@ -422,24 +540,47 @@ def extract_offsets(paras_attr_list, unused_para_text: str) \
     out_list = []  # type: List[Tuple[Tuple[int, int], Optional[Tuple[int, int]]]]
 
     # Grab lines from the file
-    start_end_partyline = extract_party_line(paras_attr_list)
-    if start_end_partyline:
+    pline_after_lines = extract_party_line(paras_attr_list)
+    if pline_after_lines:
+        start_end_partyline, is_list_party, after_se_paras_attr_list = pline_after_lines
         start, unused_end, party_line = start_end_partyline
 
-        # Extract parties and return their offsets
-        parties = extract_parties_from_party_line(party_line)
-        offset_pair_list = parties_to_offsets(parties, party_line)
-        # logging.info("offset_pair_list: {}".format(offset_pair_list))
-        for party_term_ox_list in offset_pair_list:
-            if len(party_term_ox_list) == 2:
-                party_start, party_end = party_term_ox_list[0]
-                defined_term_start, defined_term_end = party_term_ox_list[1]
-                out_list.append(((start + party_start, start + party_end),
-                                 (start + defined_term_start, start + defined_term_end)))
-            else:
-                party_start, party_end = party_term_ox_list[0]
-                out_list.append(((start + party_start, start + party_end),
-                                 None))
+        if IS_DEBUG_MODE:
+            print('\nparty_line: (%d, %d)' % (start, unused_end))
+            print(party_line)
+
+        if is_list_party:
+            # all the parties are in after_se_paras_attr_list
+            party_term_offsets_list = extract_parties_from_list_lines(after_se_paras_attr_list)
+            for party_term_offsets in party_term_offsets_list:
+                party_offset_pair, term_offset_pair = party_term_offsets
+                if party_offset_pair and term_offset_pair:
+                    print("xxx {},,,, {}".format(party_offset_pair, term_offset_pair))
+                    out_list.append((party_offset_pair, term_offset_pair))
+                if party_offset_pair and not term_offset_pair:
+                    print("xxx111 {}".format(party_offset_pair))
+                    out_list.append((party_offset_pair, None))
+                if not party_offset_pair and term_offset_pair:
+                    print("found defined_term, but not party: {}".format(term_offset_pair))
+                    print("xxx222 {}".format(term_offset_pair))
+                    out_list.append((term_offset_pair, None))
+        else:  # normal party line
+            # Extract parties and return their offsets
+            parties = extract_parties_from_party_line(party_line)
+            for ppart in parties:
+                print("ppart: {}".format(ppart))
+            offset_pair_list = parties_to_offsets(parties, party_line)
+            # logging.info("offset_pair_list: {}".format(offset_pair_list))
+            for party_term_ox_list in offset_pair_list:
+                if len(party_term_ox_list) == 2:
+                    party_start, party_end = party_term_ox_list[0]
+                    defined_term_start, defined_term_end = party_term_ox_list[1]
+                    out_list.append(((start + party_start, start + party_end),
+                                     (start + defined_term_start, start + defined_term_end)))
+                else:
+                    party_start, party_end = party_term_ox_list[0]
+                    out_list.append(((start + party_start, start + party_end),
+                                     None))
 
     # """
     # non_partyline_parties = party_islands.extract_party_islands_offset(paras_attr_list)
@@ -458,7 +599,9 @@ class PartyAnnotator:
         self.provision = 'party'
 
     # pylint: disable=no-self-use
-    def extract_provision_offsets(self, paras_with_attrs, paras_text) \
+    def extract_provision_offsets(self,
+                                  paras_with_attrs: List[Tuple[str, List[str]]],
+                                  paras_text: str) \
         -> List[Tuple[Tuple[int, int],
                       Optional[Tuple[int, int]]]]:
         return extract_offsets(paras_with_attrs, paras_text)

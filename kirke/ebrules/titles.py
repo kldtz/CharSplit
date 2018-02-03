@@ -59,11 +59,12 @@ def regex_of(category):
     return re.compile(r'\b({})\b'.format('|'.join(terms)))
 
 
-tag_regexes = [(re.compile(r'\d'), 1), (regex_of('cardinals'), 4),
-               (regex_of('ordinals'), 6), (re.compile(r'1+(?:st|nd|rd|th)'), 6),
-               (regex_of('months'), 7), (regex_of('states'), 9)]
+# These appeared in utils/regexutils.py also
+tag_regexes0 = [(re.compile(r'\d'), 1), (regex_of('cardinals'), 4),
+                (regex_of('ordinals'), 6), (re.compile(r'1+(?:st|nd|rd|th)'), 6),
+                (regex_of('months'), 7), (regex_of('states'), 9)]
 
-tag_regexes = [(regex, str(tag) * tag) for (regex, tag) in tag_regexes]
+tag_regexes = [(regex, str(tag) * tag) for (regex, tag) in tag_regexes0]
 
 
 def tag(s):
@@ -118,11 +119,12 @@ def extract_lines_v2(paras_attr_list):
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
         if is_debug:
             attrs_st = '|'.join([str(attr) for attr in para_attrs])
-            print("titles.extract_line_v2()\t{}".format('\t'.join([attrs_st, '[{}]'.format(line_st)])))
+            print("titles.extract_line_v2()\t{}".format('\t'.join([attrs_st,
+                                                                   '[{}]'.format(line_st)])))
 
         line_st_len = len(line_st)
 
-        if (i >= max_maybe_title_lines or
+        if (i >= max_maybe_title_lines or \
             'toc' in para_attrs):
             is_found_toc = True
             break
@@ -155,7 +157,7 @@ def extract_lines_v2(paras_attr_list):
 
 def extract_lines_v2_old(paras_attr_list):
     lines = []
-    num_lines_before_first_eng_para = 0    
+    num_lines_before_first_eng_para = 0
     offset = 0
     start_end_list = []
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
@@ -298,15 +300,24 @@ def title_ratio(s):
             return 88
         if s.startswith("leaseofland"):
             return 88
-        # end of special cases
 
-        ratios = process.extract(s, titles, scorer=fuzz.ratio,
-                                 limit = num_titles_to_match)
+        # should have a set of very bad titles here
+        if s == 'executionversion':
+            return 0
+
+        ratios = process.extract(s,
+                                 titles,
+                                 scorer=fuzz.ratio,
+                                 limit=num_titles_to_match)
+
+        # end of special cases
+        # print("\ntitle_ratio(%s) = %r" % (s[:40], ratios))
+
         # print("titlxxx: ratios = {}".format(ratios))
         ratios = [ratio[1] for ratio in ratios]
         if 0 not in ratios:
             return stats.hmean(ratios)
-    
+
     # If either s is empty after processing or a ratio was 0
     return 0
 
@@ -423,7 +434,7 @@ def extract_offsets(paras_attr_list, paras_text):
         else:
             end_offset = start_end_list[line_end][0] + chopped_offset
         return start_offset, end_offset
-        
+
     return None, None
 
 
@@ -436,4 +447,4 @@ class TitleAnnotator:
         if is_debug:
             print("title called extract_provision_offsets()")
         return extract_offsets(paras_with_attrs, paras_text)
-        
+
