@@ -369,58 +369,6 @@ class EbRunner:
                                            eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
 
 
-    # TODO, remove later, this is for html, original
-    # NLP text doesn't always work for PDF because blanks lines sometime cause
-    # whole page to be the same paragraph
-    def apply_line_annotators_aux_orig(self, prov_labels_map, eb_antdoc, work_dir):
-
-        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
-
-        # title works on the para_doc_text, not original text. so the
-        # offsets needs to be adjusted, just like for text4nlp stuff.
-        # The offsets here differs from above because of line break differs.
-        # As a result, probably more page numbers are detected correctly and skipped.
-        title_ant_list = self.title_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
-                                                              eb_antdoc.nlp_text)
-
-        # we always replace the title using rules
-        fromto_mapper.adjust_fromto_offsets(title_ant_list)
-        prov_labels_map['title'] = title_ant_list
-
-        party_ant_list = self.party_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
-                                                              eb_antdoc.nlp_text)
-        # if rule found parties, replace it.  Otherwise, keep the old ones
-        if party_ant_list:
-            fromto_mapper.adjust_fromto_offsets(party_ant_list)
-            prov_labels_map['party'] = party_ant_list
-        # comment out all the date code below to disable applying date rule
-        date_ant_list = self.date_annotator.annotate_antdoc(eb_antdoc.paras_with_attrs,
-                                                            eb_antdoc.nlp_text)
-        if date_ant_list:
-            xx_effective_date_list = []
-            xx_date_list = []
-            fromto_mapper.adjust_fromto_offsets(date_ant_list)
-
-            for antx in date_ant_list:
-                if antx['label'] == 'effectivedate':
-                    xx_effective_date_list.append(antx)
-                else:
-                    xx_date_list.append(antx)
-            if xx_effective_date_list:
-                prov_labels_map['effectivedate'] = xx_effective_date_list
-                ## replace date IFF classification date is very large
-                ## replace the case wehre "1001" is matched as a date, with prob 0.4
-                ## This modification is anecdotal, not firmly verified.
-                ## this is hacking on the date threshold.
-                # ml_date = prov_labels_map.get('date')
-                # print("ml_date = {}".format(ml_date))
-                # if ml_date and ml_date[0]['prob'] <= 0.5:
-                #    prov_labels_map['date'] = []  # let override later in update_dates_by_domain_rules()
-                # prov_labels_map['effectivedate'] = xx_effective_date_list
-            if xx_date_list:
-                prov_labels_map['date'] = xx_date_list
-
-                
     # this parses both originally text and html documents
     # It's main goal is to detect sechead
     # optionally pagenum, footer, toc, signature
@@ -437,32 +385,33 @@ class EbRunner:
     def apply_line_annotators_aux(self, prov_labels_map, paraline_with_attrs, paraline_text,
                                       paraline_sx_lnpos_list, origin_sx_lnpos_list):
 
-        fromto_mapper = fromtomapper.FromToMapper('an offset mapper', paraline_sx_lnpos_list, origin_sx_lnpos_list)
+        fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
+                                                  paraline_sx_lnpos_list,
+                                                  origin_sx_lnpos_list)
 
         # title works on the para_doc_text, not original text. so the
         # offsets needs to be adjusted, just like for text4nlp stuff.
         # The offsets here differs from above because of line break differs.
         # As a result, probably more page numbers are detected correctly and skipped.
         title_ant_list = self.title_annotator.annotate_antdoc(paraline_with_attrs,
-                                                              paraline_text)
-
+                                                              paraline_text,
+                                                              fromto_mapper)
         # we always replace the title using rules
-        fromto_mapper.adjust_fromto_offsets(title_ant_list)
         prov_labels_map['title'] = title_ant_list
 
         party_ant_list = self.party_annotator.annotate_antdoc(paraline_with_attrs,
-                                                              paraline_text)
+                                                              paraline_text,
+                                                              fromto_mapper)
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
-            fromto_mapper.adjust_fromto_offsets(party_ant_list)
             prov_labels_map['party'] = party_ant_list
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(paraline_with_attrs,
-                                                            paraline_text)
+                                                            paraline_text,
+                                                            fromto_mapper)
         if date_ant_list:
             xx_effective_date_list = []
             xx_date_list = []
-            fromto_mapper.adjust_fromto_offsets(date_ant_list)
 
             for antx in date_ant_list:
                 if antx['label'] == 'effectivedate':

@@ -44,10 +44,14 @@ concluded_pat = re.compile(r'\bhave concluded.*agreement\b', re.IGNORECASE)
 
 this_agreement_pat = re.compile(r'this.*agreement\b', re.IGNORECASE)
 
+REGISTERED_PAT = re.compile(r'\bregistered\b', re.I)
 
 def is_party_line(line):
-    #returns true if bullet type
-    if re.match(r'\(?[\div]+\)', line):
+    #returns true if bullet type, and a real line
+    if re.match(r'\(?[\div]+\)', line) and len(line) > 60:
+        return True
+    # multipled parties mentioned
+    if len(list(REGISTERED_PAT.finditer(line))) > 1:
         return True
     if len(line) < 40:  # don't want to match line "BY AND BETWEEN" in title page
         return False

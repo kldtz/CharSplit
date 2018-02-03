@@ -491,6 +491,9 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
              found_toc or
              # it was 10 before
              abs(first_eng_para_idx - line_idx) < 40)):
+
+            # print("adding party line jjjjj, [{}]".format(line))
+            # print("is party? {}".format(partyutils.is_party_line(line)))
             attr2_list.append('party_line')
             party_line_idx = line_idx
             lc_party_line = line.lower()

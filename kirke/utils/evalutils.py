@@ -115,6 +115,9 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
             else:
                 fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
                 fn += 1
+        else:  # in case people are using this without providing FN beforehand
+            fn_inst_map[(hant.start, hant.end, hant.label)] = pred_overlap_list
+            fn += 1
         tp_fn_set |= set(pred_overlap_list)
 
     for pant in pred_ant_list:
