@@ -493,9 +493,13 @@ def has_alpha(line: str):
     return ANY_ALPHA_PAT.search(line)
 
 
-DIGIT_PAT = re.compile(r'^\d+$')
-def is_digit_st(line: str) -> Match[str]:
-    return DIGIT_PAT.match(line)
+DIGIT_PAT = re.compile(r'^\s*\d+\s*$')
+def is_digit_st(line: str) -> bool:
+    return bool(DIGIT_PAT.match(line))
+
+# alias
+is_digits = is_digit_st
+
 
 # to detect telephone or SSN
 BIG_DASHED_DIGIT_PAT = re.compile(r'^(\d+)\-[\d\-]+$')
@@ -611,6 +615,30 @@ NEXT_TOKEN_PAT = re.compile(r'\s*\S+')
 def find_next_token(line: str):
     return NEXT_TOKEN_PAT.match(line)
 
+
+
+# this probably should go into strutils
+def split_with_offsets(line: str) -> List[Tuple[int, int, str]]:
+    ret = [(mat.start(), mat.end(), mat.group())
+           for mat in re.finditer(r'\S+', line)]
+    return ret
+
+def split_with_offsets_xparens(line: str) -> List[Tuple[int, int, str]]:
+    ret = [(mat.start(), mat.end(), mat.group())
+           for mat in re.finditer(r'\S+', line)]
+    out_list = []
+    for se_matst in ret:
+        start, end, mat_st = se_matst
+        parts = re.split(r'([\(\)])', mat_st)  # capture separators also
+        if len(parts) > 1:
+            offset = start
+            for part in parts:
+                if part:
+                    out_list.append((offset, offset + len(part), part))
+                    offset += len(part)
+        else:
+            out_list.append(se_matst)
+    return out_list
 
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
