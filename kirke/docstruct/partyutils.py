@@ -1,22 +1,19 @@
 #!/usr/bin/env python
 
 import argparse
-import fileinput
 import logging
-import sys
-import warnings
 import re
-import pprint
 
-from kirke.utils import strutils
-from kirke.utils import txtreader, engutils
+from typing import List, Match
+
+from kirke.utils import engutils
 
 
 DEBUG_MODE = False
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s : %(levelname)s : %(message)s')
 
-st_pat_list = ['is made and entered into by and between',
+ST_PAT_LIST = ['is made and entered into by and between',
                'is made and entered into',
                'is entered into between',
                'is entered into by and among',
@@ -34,18 +31,70 @@ st_pat_list = ['is made and entered into by and between',
                'the parties to this',
                'promises to pay',
                'to the order of',
-               'promises to pay to'
-]
+               'promises to pay to']
 
-party_pat = re.compile(r'\b({})\b'.format('|'.join(st_pat_list)), re.IGNORECASE)
+PARTY_PAT = re.compile(r'\b({})\b'.format('|'.join(ST_PAT_LIST)), re.IGNORECASE)
 
-made_by_pat = re.compile(r'\bmade.*by\b', re.IGNORECASE)
-concluded_pat = re.compile(r'\bhave concluded.*agreement\b', re.IGNORECASE)
+MADE_BY_PAT = re.compile(r'\bmade.*by\b', re.IGNORECASE)
+CONCLUDED_PAT = re.compile(r'\bhave concluded.*agreement\b', re.IGNORECASE)
 
-this_agreement_pat = re.compile(r'this.*agreement\b', re.IGNORECASE)
+THIS_AGREEMENT_PAT = re.compile(r'this.*agreement\b', re.IGNORECASE)
 
 REGISTERED_PAT = re.compile(r'\bregistered\b', re.I)
 
+ORG_SUFFIX_ST = (r' ('
+                 r'branch|ag|company|co|corp|corporation|d\.\s*a\.\s*c|inc|incorporated|llc|'
+                 r'gmbh|'
+                 r'l\.\s*l\.\s*c|ulc|'
+                 r'ltd|limited|lp|l\.\s*p|limited partnership|n\.\s*a|plc|'
+                 r'pca|pty|holdings?|'
+                 r'bank|trust|association|group|sas|s\.\s*a|sa|c\.\s*v|cv'
+                 r')\b\.?')
+
+# copied from kirke/ebrules/parties.py on 2/4/2016
+ORG_SUFFIX_PAT = re.compile(ORG_SUFFIX_ST, re.I)
+ORG_SUFFIX_END_PAT = re.compile(ORG_SUFFIX_ST + r'\s*$', re.I)
+
+def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
+    """Get all org suffix matching mat extracted from line.
+
+     Because of capitalization concerns, we are making
+     a pass to make sure, it is not just 'a limited company'"""
+
+    lc_mat_list = list(ORG_SUFFIX_PAT.finditer(line))
+    # print("2342 lc_mat_list = {}".format(lc_mat_list))
+    result = []  # type: List[Match[str]]
+    for lc_mat in lc_mat_list:
+        # we need the strip because we might have prefix space
+        if lc_mat.group().strip()[0].isupper():
+            result.append(lc_mat)
+
+    # when there is adjcent ones, take the last one
+    # 'xxx Group, Ltd.', will return 'ltd'
+    prev_mat = None
+    result2 = [] # type: List[Match[str]]
+    # Only if we now that the current mat is not adjacent to
+    # the previous mat, we can add previous mat.
+    # Remember the last one.
+    for amat in result:
+        # print('amt = ({}, {}) {}'.format(amat.start(), amat.end(), amat.group()))
+        # 2 is chosen, just in case, normally the diff is 1
+        if prev_mat and amat.start() - prev_mat.end() > 2:
+            result2.append(prev_mat)
+        prev_mat = amat
+    if prev_mat:
+        result2.append(prev_mat)
+
+    #if IS_DEBUG_MODE:
+    #    print()
+    #    for i, mat in enumerate(result2):
+    #        print("mat #{}: {}".format(i, mat))
+    #    print()
+    return result2
+
+
+
+# pylint: disable=too-many-return-statements, too-many-branches
 def is_party_line(line: str) -> bool:
     #returns true if bullet type, and a real line
     if re.match(r'\(?[\div]+\)', line) and len(line) > 60:
@@ -53,9 +102,38 @@ def is_party_line(line: str) -> bool:
     # multipled parties mentioned
     if len(list(REGISTERED_PAT.finditer(line))) > 1:
         return True
-    if line.startswith('T') and re.match('(this|the).*contract.*is made on',
-                                         line,
-                                         re.I):
+
+    # Party A: xxx,
+    # Party B:
+    if re.match(r'Party \S+\s*:', line, re.I) and line[0].isupper():
+        return True
+
+    num_org_suffix = len(get_org_suffix_mat_list(line))
+    if 'among' in line and ' dated ' in line and num_org_suffix > 2:
+        return True
+
+    # this is from a title line, not a party line
+    if len(line) < 200 and ORG_SUFFIX_END_PAT.search(line) and line.strip()[-1] != '.':
+        return False
+
+    # 44139.txt, info is attached, yada yada
+    # '\$\d' doesn't work, decrease F1 by 20%!  Too many
+    # promissory or loan notes has partyline with '$'
+    # if re.search(r'\b(is attached|partial)\b', line, re.I):
+    #    return False
+
+    # This is NOT true.  There are agreements that this is not true.
+    # 39761.txt.  Around 2% lower.
+    # # 'agreement, dated may 24, 2004', is NOT a party line
+    # if re.search(r'\bdated\b', line, re.I) and \
+    #    not re.search(r'\bis\s+dated\b', line, re.I):
+    #    return False
+
+    if re.search(r'\b(entered)\b', line, re.I) and \
+       re.search(r'\b(by\s+and\s+between)\b', line, re.I):
+        return True
+    if line.startswith('T') and \
+       re.match('(this|the).*contract.*is made on', line, re.I):
         return True
     if len(line) < 40:  # don't want to match line "BY AND BETWEEN" in title page
         return False
@@ -63,7 +141,7 @@ def is_party_line(line: str) -> bool:
         return False
     if 'means' in line:  # in definition section of 'purchase agreement'
         return False
-    mat = party_pat.search(line)
+    mat = PARTY_PAT.search(line)
     if mat:
         return mat
     lc_line = line.lower()
@@ -83,25 +161,26 @@ def is_party_line(line: str) -> bool:
     # assigns lease to
     if 'assign' in lc_line and 'lease to' in lc_line:
         return True
-    if made_by_pat.search(line) and ('day' in lc_line or
+    if MADE_BY_PAT.search(line) and ('day' in lc_line or
                                      'date' in lc_line):
         return True
-    if concluded_pat.search(line):
+    if CONCLUDED_PAT.search(line):
         return True
 
-    if this_agreement_pat.search(line) and "amendment" in lc_line:
+    if THIS_AGREEMENT_PAT.search(line) and "amendment" in lc_line:
         return True
 
     # termination agreement
     if 'agree that' in lc_line and 'employment at' in lc_line:
         return True
-    # 'Patent Security Agreement, dated as of December 1, 2009, by BUSCH ENTERTAINMENT LLC (the “Grantor”), in favor of BANK OF AMERICA, N.A...'
+    # 'Patent Security Agreement, dated as of December 1, 2009, by BUSCH
+    # ENTERTAINMENT LLC (the “Grantor”), in favor of BANK OF AMERICA, N.A...'
     if 'date' in lc_line and ' by ' in lc_line and 'in favor of' in lc_line:
         return True
-    if ('reach an agreement' in lc_line or
-        'the following terms' in lc_line or
-        'terms and condistions' in lc_line or
-        'enter into this contract' in lc_line):
+    if 'reach an agreement' in lc_line or \
+       'the following terms' in lc_line or \
+       'terms and condistions' in lc_line or \
+       'enter into this contract' in lc_line:
         return True
     if 'hereinafter' in lc_line and 'agree' in lc_line:
         return True
@@ -121,28 +200,29 @@ def is_party_line(line: str) -> bool:
     #   "Amendment") is executed as of October 17, 2011, by SOLAR ENERGY
     #   INITIATIVES, INC., a Nevada corporation (the “Maker”); and ASHER
     #   ENTERPRISES, INC., a Delaware corporatio"""
-    if ('is executed' in lc_line and
-        'by' in lc_line and
-        'and' in lc_line):
+    if 'is executed' in lc_line and \
+       'by' in lc_line and \
+       'and' in lc_line:
         return True
     # agreement is made to ..., dated as of ... among
-    if ('agreement' in lc_line and
-        'dated' in lc_line and
-        'among' in lc_line):
+    if 'agreement' in lc_line and \
+       'dated' in lc_line and \
+       'among' in lc_line:
         return True
     # 'this certifies that, ... is entitled to,
-    if ('is entitled to' in lc_line and
-        'certifies' in lc_line and
-        'purchase' in lc_line):
+    if 'is entitled to' in lc_line and \
+       'certifies' in lc_line and \
+       'purchase' in lc_line:
         return True
-    if ('is made' in lc_line and
-        'following parties' in lc_line):
+    if 'is made' in lc_line and \
+    'following parties' in lc_line:
         return True
     return False
 
+
 def find_first_party_lead(line):
     lc_line = line.lower()
-    for st_pat in st_pat_list:
+    for st_pat in ST_PAT_LIST:
         idx = lc_line.find(st_pat)
         if idx != -1:
             return idx + len(st_pat)
@@ -161,7 +241,8 @@ def find_and(line):
     return re.search(pat, line)
 
 def find_a_corp(line):
-    pat = re.compile(r'[A-Z\.\, ]+ (AG|LTD|N\.\s*A|Limited|LIMITED)\.?, (a|as)\b[^\(]+\([^\)]+\)[\.,]?')
+    pat = re.compile(r'[A-Z\.\, ]+ (AG|LTD|N\.\s*A|Limited|LIMITED)\.?, '
+                     r'(a|as)\b[^\(]+\([^\)]+\)[\.,]?')
     return re.search(pat, line)
 
 
@@ -172,7 +253,7 @@ def extract_parties(line):
 
         party_separator_match = find_party_separator(line[index:])
         if party_separator_match:
-            index2 = party_separator_match.end() + index
+            # index2 = party_separator_match.end() + index
 
             before_sep = line[index:index + party_separator_match.start()]
             after_sep = line[index + party_separator_match.end():]
@@ -209,7 +290,7 @@ def extract_name_parties(line):
 
         party_separator_match = find_party_separator2(line[index:])
         if party_separator_match:
-            index2 = party_separator_match.end() + index
+            # index2 = party_separator_match.end() + index
 
             before_sep = line[index:index + party_separator_match.start()]
             after_sep = line[index + party_separator_match.end():]
@@ -227,6 +308,7 @@ def extract_name_parties(line):
 
 
 if __name__ == '__main__':
+    # pylint: disable=invalid-name
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
     parser.add_argument("-v", "--verbosity", help="increase output verbosity")
     parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
@@ -234,15 +316,16 @@ if __name__ == '__main__':
     parser.add_argument('files', metavar='FILE', nargs='*',
                         help='files to read, if empty, stdin is used')
 
+    # pylint: disable=invalid-name
     args = parser.parse_args()
 
-
+    # pylint: disable=line-too-long
     st = 'THIS FIFTH AMENDMENT TO CREDIT AGREEMENT, dated as of December 17, 2012 (this “Amendment”) to the Existing Credit Agreement (such capitalized term and other capitalized terms used in this preamble and the recitals below to have the meanings set forth in, or are defined by reference in, Article I below) is entered into by and among W.E.T. AUTOMOTIVE SYSTEMS, AG, a German stock corporation (the “German Borrower”), W.E.T. AUTOMOTIVE SYSTEMS LTD., a Canadian corporation (together with the German Borrower, the “Borrowers” and each, a “Borrower”), each lender party hereto (collectively, the “Lenders” and individually, a “Lender”), BANC OF AMERICA SECURITIES LIMITED, as administrative agent (in such capacity, the “Administrative Agent”) and BANK OF AMERICA, N.A., as Swing Line Lender and L/C Issuer (“Bank of America”).'
 
 
     # party_list = extract_parties(st)
 
-
+    # pylint: disable=line-too-long
     st2 = 'THIS REVOLVING LINE OF CREDIT LOAN AGREEMENT (this “Agreement”) is made as of May 29, 2009, by and between Michael Reger having a business address at 777 Glade Road Suite 300, Boca Raton, Florida 33431("Lender") and GelTech Solutions, Inc., a Delaware Coloration (the "Borrower"), having a business address at 1460 Park Lane South Suite 1, Jupiter, Florida 33458 attention, Michael Cordani.'
 
     party_list = extract_name_parties(st2)

@@ -41,6 +41,9 @@ class LineAnnotator:
                                                       ebantdoc.origin_sx_lnpos_list)
 
             ant_list = self.annotate_antdoc(paras_with_attrs, paras_text, fromto_mapper)
+            # print("88234 ant_list = {}".format(ant_list))
+            # for ant in ant_list:
+            #     print("ant: {}".format(ant))
             print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
             # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list

@@ -477,10 +477,12 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
         if engutils.has_date(line):
             attr2_list.append('has_date')
 
-        if (first_eng_para_idx == -1 and
-            'yes_eng' in attr2_list and
-            not 'skip_as_template' in attr2_list and
-            len(line) > 110):
+        if first_eng_para_idx == -1 and \
+           'yes_eng' in attr2_list and \
+           not 'skip_as_template' in attr2_list and \
+           not re.search(r'the\s+Securities\s+and\s+Exchange\s+Commission',
+                         line, re.I) and \
+           len(line) > 110:
             attr2_list.append('first_eng_para')
             first_eng_para_idx = line_idx
 
