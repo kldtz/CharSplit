@@ -93,12 +93,29 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     return result2
 
 
+def is_party_line(line: str) -> bool:
+    result = is_party_line_aux(line)
+
+    # do some extra verfication
+    # a party line must starts with 1) a) or i) 'l' is for bad OCR 1's
+    if result:
+        if re.match(r'\(\S\)', line):
+            return bool(re.match(r'\(?(1|a|i|l)\)', line, re.I))
+    return result
 
 # pylint: disable=too-many-return-statements, too-many-branches
-def is_party_line(line: str) -> bool:
+def is_party_line_aux(line: str) -> bool:
+
+    # this is not a party line due to the words used
+    # adding this will decrease f1 by 0.001.  Will figure out later.
+    # if re.search(r'\bif\b', line, re.I) and re.search(r'\bwithout\b', line, re.I):
+    #    return False
+
     #returns true if bullet type, and a real line
-    if re.match(r'\(?[\div]+\)', line) and len(line) > 60:
+    # if re.match(r'\(?[\div]+\)', line) and len(line) > 60:
+    if re.match(r'\(?(1|a|i|l)\)', line, re.I) and len(line) > 60:
         return True
+
     # multipled parties mentioned
     if len(list(REGISTERED_PAT.finditer(line))) > 1:
         return True
@@ -116,6 +133,7 @@ def is_party_line(line: str) -> bool:
     if len(line) < 200 and ORG_SUFFIX_END_PAT.search(line) and line.strip()[-1] != '.':
         return False
 
+
     # 44139.txt, info is attached, yada yada
     # '\$\d' doesn't work, decrease F1 by 20%!  Too many
     # promissory or loan notes has partyline with '$'
@@ -132,6 +150,13 @@ def is_party_line(line: str) -> bool:
     if re.search(r'\b(entered)\b', line, re.I) and \
        re.search(r'\b(by\s+and\s+between)\b', line, re.I):
         return True
+    # TODO, jshaw, kkk
+    # [tn=0, fp=1347], [fn=2877, tp=8034]], f1=0.7918
+    # => [[tn=0, fp=1335], [fn=2877, tp=8034]] f1= 0.7923
+    # so remove this line reduces false positives.
+    # if re.search(r'\b(hereby\s+enter(ed)?\s+into)\b', line, re.I):
+    #    return True
+
     if line.startswith('T') and \
        re.match('(this|the).*contract.*is made on', line, re.I):
         return True
@@ -143,7 +168,7 @@ def is_party_line(line: str) -> bool:
         return False
     mat = PARTY_PAT.search(line)
     if mat:
-        return mat
+        return bool(mat)
     lc_line = line.lower()
     if 'between' in lc_line and engutils.has_date(lc_line):
         return True

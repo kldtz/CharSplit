@@ -10,8 +10,8 @@ from kirke.docstruct import partyutils
 from kirke.ebrules import titles, addresses
 from kirke.utils import strutils
 
-# IS_DEBUG_MODE = False
-IS_DEBUG_MODE = True
+IS_DEBUG_MODE = False
+# IS_DEBUG_MODE = True
 
 
 # """Config"""
@@ -66,6 +66,8 @@ ZIP_PAT = re.compile(r'[loO\d]{5,6}')
 
 
 def is_valid_1word_party(line) -> bool:
+    # experimentally, line.isupper() is 0.7925 over 0.7918
+    # return line.lower() in VALID_1WORD_PARTY_SET or line[0].isupper()
     return line.lower() in VALID_1WORD_PARTY_SET or line.isupper()
 
 
@@ -381,11 +383,25 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
 
 
 def get_one_char_parens_mat(line: str) -> List[Match[str]]:
-    result = list(re.finditer(r'\(\S\)', line))
-    return result
+    result = list(re.finditer(r'\(\S\)\s*', line))
+
+    if len(result) > 1:
+        # check if first and 2nd are valid indexes
+        first = result[0].group()
+        second = result[1].group()
+        # print("first = [{}]".format(first))
+        # print("second = [{}]".format(second))
+        # print("    matched 1 = {}".format(re.match(r'\((1|a|i)\)', first, re.I)))
+        # print("    matched 2 = {}".format(re.match(r'\((2|b|ii)\)', second, re.I)))
+        if re.match(r'\((1|a|i)\)', first, re.I) and \
+           re.match(r'\((2|b|ii)\)', second, re.I):
+            return result
+    return []
 
 # returns (start, end, (entity_st, entity_type))
-def get_title_phrase_list(line: str, is_all_upper: bool = False) -> List[Tuple[int, int, str]]:
+def get_title_phrase_list(line: str,
+                          is_all_upper: bool = False,
+                          is_single_word_allowed: bool = False) -> List[Tuple[int, int, str]]:
     """Return a list of all title phrases.
 
     We will skip all phrase inside parenthesis.  Also entity with just one
@@ -420,8 +436,18 @@ def get_title_phrase_list(line: str, is_all_upper: bool = False) -> List[Tuple[i
                 if len(current_term) > 1:
                     # print("word complete: {}".format(current_term))
                     title_phrase_list.append(current_term)
+                elif is_single_word_allowed and current_term:
+                    # print("word complete: {}".format(current_term))
+                    title_phrase_list.append(current_term)
                 current_term = []
                 # nothing else
+    # just in case a title word is the last word in the line
+    if len(current_term) > 1:
+        # print("word complete: {}".format(current_term))
+        title_phrase_list.append(current_term)
+    elif is_single_word_allowed and current_term:
+        # print("word complete: {}".format(current_term))
+        title_phrase_list.append(current_term)
 
     # When all upper, we might find one or two examples of company
     # names, but reject other valid ones.  reject in this case.
@@ -439,6 +465,86 @@ def get_title_phrase_list(line: str, is_all_upper: bool = False) -> List[Tuple[i
         unused_lstart, lend, unused_last_word = title_phrase[-1]
         out_list.append((fstart, lend, line[fstart:lend]))
     return out_list
+
+
+def get_itemized_entity_span_list(line: str) -> List[Tuple[Tuple[int, int, str],
+                                                           Tuple[int, int, str]]]:
+    parens1_mat_list = get_one_char_parens_mat(line)
+
+    len_line = len(line)
+    span_list = []
+    prev_span_start = parens1_mat_list[0].end()
+    for parens1_mat in parens1_mat_list[1:]:
+        mstart, mend, mat_st = parens1_mat.start(), parens1_mat.end(), parens1_mat.group()
+        start = prev_span_start
+        span_list.append((start, mstart, line[start:mstart]))
+        prev_span_start = mend
+    if prev_span_start != len_line:
+        span_list.append((prev_span_start, len_line, line[prev_span_start:len_line]))
+
+    # for i, span in enumerate(span_list):
+    #    print("  spantext[{}] = [{}]".format(i, span))
+
+    result = []  # type: List[Tuple[Tuple[int, int, str], Tuple[int, int, str]]]
+    for start, end, span_st in span_list:
+        if len(span_st) > 80:
+            title_phrase_list = get_title_phrase_list(span_st)
+        else:
+            title_phrase_list = get_title_phrase_list(span_st, is_single_word_allowed=True)
+        if title_phrase_list:  # if there is title_phrase
+            # we only take first one, the rest is span.  Ok this doesn't work, 39014.txt,
+
+            if len(title_phrase_list) == 1:
+                # 39811.txt
+                tstart, tend, tst = title_phrase_list[0]
+                not_space_mat = re.search(r'\S', span_st[tend:])
+                if not_space_mat:  # found text after title phrase
+                    x2span_start = start + tend + not_space_mat.start()
+                    result.append(((start + tstart, start + tend, tst),
+                                   (x2span_start,
+                                    end,
+                                    span_st[tend+not_space_mat.start():])))
+                else:
+                    result.append(((start + tstart, start + tend, tst),
+                                   (start + tend, start + tend, '')))
+            elif len(title_phrase_list) > 1:
+                # 39014.txt
+
+                len_span_st = len(span_st)
+                tt_entity_list = []
+                prev_tphrase_start = title_phrase_list[0][1]  # end
+                for tphrase in title_phrase_list[1:]:
+                    tstart, tend, tst = tphrase
+                    out_start = prev_tphrase_start
+                    tt_entity_list.append((out_start, tstart, span_st[out_start:tstart]))
+                    prev_tphrase_start = tend
+                if prev_tphrase_start != len_span_st:
+                    tt_entity_list.append((prev_tphrase_start,
+                                           len_span_st,
+                                           span_st[prev_tphrase_start:len_span_st]))
+
+                #print('len(title_phrase_list) = %d, len(tt_entity_list) = %d' %
+                #      (len(title_phrase_list), len(tt_entity_list)))
+                #for i, (tt, span) in enumerate(zip(title_phrase_list, tt_entity_list)):
+                #    print("  tt_text[{}] = tt={}, span={}".format(i, tt, span))
+
+                for i, (tt, span) in enumerate(zip(title_phrase_list, tt_entity_list)):
+                    tstart, tend, tst = tt
+                    sstart, send, sst = span
+                    not_space_mat = re.search(r'\S', sst)
+                    if not_space_mat:  # found text after title phrase
+                        result.append(((start + tstart, start + tend, tst),
+                                       (start + sstart + not_space_mat.start(),
+                                        start + send,
+                                        sst[not_space_mat.start():])))
+                    else:
+                        result.append(((start + tstart, start + tend, tst),
+                                       (start + send, start + send, '')))
+
+    if IS_DEBUG_MODE:
+        for i, pp_span in enumerate(result):
+            print("  span_entity[{}] = [{}]".format(i, pp_span))
+    return result
 
 
 def is_all_title(line: str) -> bool:
@@ -701,34 +807,33 @@ def extract_party_defined_term_list(line: str) \
 
     # first try this aggressive itemize match inside party_line
     if re.match(r'\(\S\)', line) and len(get_one_char_parens_mat(line)) > 1:
-        print("helllo yeah")
+        entity_span_list = get_itemized_entity_span_list(line)
+    else:
+        # try with all entities in upper()
+        entities = get_title_phrase_list(line, is_all_upper=True)
+        # if IS_DEBUG_MODE:
+        #     print_debug_list(entities, 'zz', title='before_remove_invalid')
+        entities = remove_invalid_entities(entities)
+        # if IS_DEBUG_MODE:
+        #    print_debug_list(entities, 'zz2', title='after_remove_invalid')
+        if not entities:
+            # otherwise, try with title(), but this might get addresses
+            entities = get_title_phrase_list(line)
 
-    # try with all entities in upper()
-    entities = get_title_phrase_list(line, is_all_upper=True)
-    # if IS_DEBUG_MODE:
-    #     print_debug_list(entities, 'zz', title='before_remove_invalid')
-    entities = remove_invalid_entities(entities)
-    # if IS_DEBUG_MODE:
-    #    print_debug_list(entities, 'zz2', title='after_remove_invalid')
-    if not entities:
-        # otherwise, try with title(), but this might get addresses
-        entities = get_title_phrase_list(line)
-
-        # firs try only company names, if work, keep just that
-        # otherwise, backdown.
-        # Then, need to try less accurate way of removing addresses
-        obvious_entities = select_highly_likely_parties(entities, line)
-        if obvious_entities:
-            entities = obvious_entities
-        else:
-            entities = remove_address_entities(entities)
-    if IS_DEBUG_MODE:
-        print()
-        for i, entity in enumerate(entities):
-            print("  y entity #{}: {}".format(i, entity))
-        print()
-
-    entity_span_list = split_by_phrase_offsets(line, entities)
+            # firs try only company names, if work, keep just that
+            # otherwise, backdown.
+            # Then, need to try less accurate way of removing addresses
+            obvious_entities = select_highly_likely_parties(entities, line)
+            if obvious_entities:
+                entities = obvious_entities
+            else:
+                entities = remove_address_entities(entities)
+        if IS_DEBUG_MODE:
+            print()
+            for i, entity in enumerate(entities):
+                print("  y entity #{}: {}".format(i, entity))
+            print()
+        entity_span_list = split_by_phrase_offsets(line, entities)
 
     # pylint: disable=line-too-long
     paired_result = []  # type: List[Tuple[Optional[Tuple[int, int, str, str]], Optional[Tuple[int, int, str, str]]]]
