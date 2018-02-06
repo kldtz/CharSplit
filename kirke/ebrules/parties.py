@@ -7,10 +7,13 @@ from typing import List, Match, Optional, Tuple
 from nltk.tokenize import sent_tokenize
 
 from kirke.docstruct import partyutils
-from kirke.ebrules import titles, addresses
+from kirke.ebrules import titlesold, addresses
 from kirke.utils import strutils
 
+IS_DEBUG_DISPLAY_TEXT = False
 IS_DEBUG_MODE = False
+
+# IS_DEBUG_DISPLAY_TEXT = True
 # IS_DEBUG_MODE = True
 
 
@@ -60,48 +63,24 @@ SUFFIXES = BUSINESS_SUFFIXES + [cap_rm_dot_space(s) for s in NAME_SUFFIXES]
 INVALID_PARTIES_ST_LIST = strutils.load_str_list('dict/parties/invalid.parties.txt')
 INVALID_PARTIES_SET = set(INVALID_PARTIES_ST_LIST)
 
-VALID_1WORD_PARTY_SET = ['supplier', 'customer']
+VALID_1WORD_PARTY_ST_LIST = ['supplier', 'customer', 'purchaser', 'guarantor']
+valid_1word_party_set = set(VALID_1WORD_PARTY_ST_LIST)
+valid_1word_party_set.update([v1word + 's' for v1word in VALID_1WORD_PARTY_ST_LIST])
+    
+
 ADDRESS_PARTS = ['floor', 'road', 'court', 'street', 'drive']
+ADDRESS_PARTS_PAT = re.compile(r'\b(' + '|'.join(ADDRESS_PARTS) + r')\b', re.I)
 ZIP_PAT = re.compile(r'[loO\d]{5,6}')
 
 
 def is_valid_1word_party(line) -> bool:
     # experimentally, line.isupper() is 0.7925 over 0.7918
-    # return line.lower() in VALID_1WORD_PARTY_SET or line[0].isupper()
-    return line.lower() in VALID_1WORD_PARTY_SET or line.isupper()
+    # but, theoretically, 'Modularis ("MOD")' or company name with just 1 word
+    return line.lower() in valid_1word_party_set or \
+           line[0].isupper() or \
+           (len(line) > 1 and line[1].isupper())      # coopany name like, 'eBrevia'
+    # return line.lower() in valid_1word_party_set or line.isupper()
 
-
-# pylint: disable=too-many-return-statements
-def is_invalid_party(line, is_party=True) -> bool:
-    #checks for some punctuation
-    if ':' in line:  # or '/' in line:  'MY/ZP IP Group, Ltd.' 41207.txt
-        return True
-
-    #too short to be a party
-    if len(line) <= 2:
-        return True
-
-    lc_line = line.lower()
-    #catches things that are likely part of an address
-    if is_party:
-        for part in ADDRESS_PARTS:
-            if part in lc_line:
-                return True
-        if addresses.classify(line) > 0.5:
-            return True
-
-    #catches other likely fps
-    if ' this ' in lc_line:
-        return True
-    if 'page ' in lc_line:
-        return True
-
-    #catches zip code pulls
-    if ZIP_CODE_YEAR.search(line):
-        return True
-
-    #if not invalid, return
-    return lc_line in INVALID_PARTIES_SET
 
 # """Process parts of strings (already split by comma, and, & semicolon)"""
 
@@ -118,7 +97,7 @@ def invalid_lower(word):
 def keep(astr: str) -> bool:
     """Eliminate titles (the "Agreement") as potential parties and terms."""
     alphanum_chars = ''.join([c for c in astr if c.isalnum()])
-    return titles.title_ratio(alphanum_chars) < 73 if alphanum_chars else False
+    return titlesold.title_ratio(alphanum_chars) < 73 if alphanum_chars else False
 
 
 PARTY_REGEXES = [re.compile(party, re.IGNORECASE) for party in PARTY_CANT_HAVE]
@@ -217,7 +196,7 @@ def extract_between_among(astr: str, is_party: bool = True) -> List[List[str]]:
     terms = PARENS.findall(astr)
 
     #sub common delimiters with commas to split on
-    astr = re.sub(r'(between)|(being)|(\n)|\(?[\div]+\)', ', ', astr)
+    astr = re.sub(r'(between)|(being)|(\n)|\(?\s*[\divx]+\s*\)', ', ', astr)
     astr = NON_COMMA_SEPARATORS.sub(',', PARENS.sub('⭐️', astr))
 
     # Split the string into parts, applying party_strip between each step
@@ -336,13 +315,17 @@ PARENS_PAT = re.compile(r'\(([^\(]+)\)')
 # TODO, 'seller, seller' the context?
 ORG_SUFFIX_PAT = re.compile(r' ('
                             r'branch|ag|company|co|corp|corporation|d\.\s*a\.\s*c|inc|incorporated|llc|'
-                            r'gmbh|'
+                            r'gmbh|foundation|enterprises?'
                             r'l\.\s*l\.\s*c|ulc|'
                             r'ltd|limited|lp|l\.\s*p|limited partnership|n\.\s*a|plc|'
-                            r'pca|pty|holdings?|'
+                            r's\.\s*r\.\s*l|'
+                            r'pca|pty|holdings?|hospital|'
                             r'bank|trust|association|group|sas|s\.\s*a|sa|c\.\s*v|cv'
                             r')\b\.?',
                             re.I)
+
+# for Spanish org names
+ORG_PREFIX_PAT = re.compile(r'\b(asociacion|hospital)\.?', re.I)
 
 def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     """Get all org suffix matching mat extracted from line.
@@ -382,22 +365,6 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     return result2
 
 
-def get_one_char_parens_mat(line: str) -> List[Match[str]]:
-    result = list(re.finditer(r'\(\S\)\s*', line))
-
-    if len(result) > 1:
-        # check if first and 2nd are valid indexes
-        first = result[0].group()
-        second = result[1].group()
-        # print("first = [{}]".format(first))
-        # print("second = [{}]".format(second))
-        # print("    matched 1 = {}".format(re.match(r'\((1|a|i)\)', first, re.I)))
-        # print("    matched 2 = {}".format(re.match(r'\((2|b|ii)\)', second, re.I)))
-        if re.match(r'\((1|a|i)\)', first, re.I) and \
-           re.match(r'\((2|b|ii)\)', second, re.I):
-            return result
-    return []
-
 # returns (start, end, (entity_st, entity_type))
 def get_title_phrase_list(line: str,
                           is_all_upper: bool = False,
@@ -415,23 +382,36 @@ def get_title_phrase_list(line: str,
     paren_level = 0
     current_term = []  # type: List[Tuple[int, int, str]]
     title_phrase_list = []  # type: List[List[Tuple[int, int, str]]]
-    for word_offsets in word_offsets_list:
+    for word_idx, word_offsets in enumerate(word_offsets_list):  # need to peek for '(', so word_idx
         unused_start, unused_end, word_st = word_offsets
         if word_st == '(':
+            # a capitalized word before paren, and hasn't been added
+            # 'Modularis ("MOD")'
+            if current_term:  
+                title_phrase_list.append(current_term)
+                current_term = []
             paren_level += 1
         elif word_st == ')':
             paren_level -= 1
 
         # we don't do anything if inside a parenthesis
         if paren_level == 0:
+            # TODO, jshaw, the use of 'of', 'de' need more research
             # print("word_offsets: {}".format(word_offsets))
-            if (is_all_upper and word_st.isupper()) or word_st == '&':
+            if (is_all_upper and word_st.isupper()) or word_st.lower() in set(['&', 'dba', 'de']):
                 # print("is_upper word, add to term")
                 current_term.append(word_offsets)
-            elif (not is_all_upper and word_st[0].isupper()) or word_st == '&':
+            elif (not is_all_upper and word_st[0].isupper()) or word_st.lower() in set(['&', 'dba', 'de']):
                 # print("is_title word, add to term")
                 current_term.append(word_offsets)
             else:  # not a title word
+                # is_next_word_left_paren = False
+                # if word_idx + 1 < len(word_offsets_list):
+                #    _, _, next_word_st = word_offsets_list[word_idx + 1]
+                #    print('next_word_st = [{}]'.format(next_word_st))
+                #    if next_word_st[0] == '(':
+                #        is_next_word_left_paren = True
+                
                 # print("not upper or title word")
                 if len(current_term) > 1:
                     # print("word complete: {}".format(current_term))
@@ -469,7 +449,7 @@ def get_title_phrase_list(line: str,
 
 def get_itemized_entity_span_list(line: str) -> List[Tuple[Tuple[int, int, str],
                                                            Tuple[int, int, str]]]:
-    parens1_mat_list = get_one_char_parens_mat(line)
+    parens1_mat_list = strutils.get_consecutive_one_char_parens_mats(line)
 
     len_line = len(line)
     span_list = []
@@ -638,7 +618,10 @@ def span_to_party(span_offsets: Tuple[int, int, str]) \
         return span_offsets
 
     # special case: 'FOR VALUE RECEIVED, Blue Calypso, Inc.,', 35836.txt
-    if is_upper_only_before_title and span_st[:title_start_offset].strip().endswith(','):
+    # But, then you have 'SAVVIs, Inc.' in 38703.txt
+    if is_upper_only_before_title and \
+       span_st[:title_start_offset].strip().endswith(',') and \
+       span_st[:title_start_offset].strip().startswith('FOR '):
         # something strange, skip to title start
         diff = title_start_offset - start
         return title_start_offset, end, span_st[start + diff:end]
@@ -706,6 +689,9 @@ def span_to_dterm(span_offsets: Tuple[int, int, str]) \
             dterm_start, dterm_end, dterm_st = dterm.start(), dterm.end(), dterm.group()
             if re.search(r'hereinafter\s+(referred|designated)', dterm_st):
                 return start + dterm_start, start + dterm_end, dterm_st
+            # '(the "Company") over "formerly known as xxx" in 41204.txt
+            if re.search(r'^\(the\b', dterm_st):
+                return start + dterm_start, start + dterm_end, dterm_st            
 
         dterm = maybe_dterm_list[0]
         dterm_start, dterm_end, dterm_st = dterm.start(), dterm.end(), dterm.group()
@@ -713,20 +699,102 @@ def span_to_dterm(span_offsets: Tuple[int, int, str]) \
 
     return None
 
+def is_invalid_party_phrase(line: str) -> bool:
+    # this has to be exact phrase,
+    # 'dominican republic bank'
+    if re.search(r'^(dominican republic)$', line, re.I):
+        return True
+
+    # 'llc' is 'through or to Credit Suisse Securities (USA) LLC (“Credit Suisse”) and
+    # Deutsche Bank Securities Inc. (“Deutsche Bank”)' in 40281.txt.
+    # This needs special deal with '(USA)' by replacing it with something non-parens?
+    if re.search(r'^(parent|company|manager|llc)$', line, re.I):
+        return True
+
+    # 'California, USA', 'San Jose, Costa Rica'
+    if re.search(r'\b(USA|Costa Rica|avenidas?)\s*$', line, re.I):
+        return True
+
+    if is_address(line):
+        return True
+
+    #too short to be a party
+    if len(line) <= 2:
+        return True
+
+    # catches other likely FP
+    # the space here are significant
+    if re.search(r'\b( this |page |agreements?)\b', line, re.I):
+        return True
+
+    #catches zip code pulls
+    if ZIP_CODE_YEAR.search(line):
+        return True
+
+    lc_line = line.lower()
+    if lc_line in INVALID_PARTIES_SET:
+        return True
+    
+    return False
+
+    
 def is_address(line: str) -> bool:
     if re.search(r'(, new york|plaza)', line, re.I):
         return True
     if re.search(r'\b(street|cyprus|box|tbilisi)\b', line, re.I):
         return True
+
+    # catches things that are likely part of an address
+    if ADDRESS_PARTS_PAT.search(line):
+        return True
+    if addresses.classify(line) > 0.5:
+        return True
+
     return False
 
-def remove_address_entities(entity_list: List[Tuple[int, int, str]]) \
+
+# NOTE: jshaw
+# This is called by somebody, so I am not modifying this
+# pylint: disable=too-many-return-statements
+def is_invalid_party(line, is_party=True) -> bool:
+    #checks for some punctuation
+    if ':' in line:  # or '/' in line:  'MY/ZP IP Group, Ltd.' 41207.txt
+        return True
+
+    #too short to be a party
+    if len(line) <= 2:
+        return True
+
+    lc_line = line.lower()
+    #catches things that are likely part of an address
+    if is_party:
+        for part in ADDRESS_PARTS:
+            if part in lc_line:
+                return True
+        if addresses.classify(line) > 0.5:
+            return True
+
+    #catches other likely fps
+    if ' this ' in lc_line:
+        return True
+    if 'page ' in lc_line:
+        return True
+
+    #catches zip code pulls
+    if ZIP_CODE_YEAR.search(line):
+        return True
+
+    #if not invalid, return
+    return lc_line in INVALID_PARTIES_SET
+
+
+def remove_invalid_entities(entity_list: List[Tuple[int, int, str]]) \
     -> List[Tuple[int, int, str]]:
     out_list = []
     for entity in entity_list:
         unused_start, unused_end, entity_st = entity
         # this should be using some ML address detector
-        if is_address(entity_st):
+        if is_invalid_party_phrase(entity_st):
             pass
         else:
             out_list.append(entity)
@@ -761,13 +829,16 @@ def select_highly_likely_parties(entities: List[Tuple[int, int, str]],
 
     out_list = []  # type: List[Tuple[int, int, str]]
     for entity in entities:
-        start, unused_end, entity_st = entity
+        start, end, entity_st = entity
 
         # print("select entity: {}".format(entity))
         # anything that's has org suffix, add it
-        if ORG_SUFFIX_PAT.search(entity_st):
+        if re.search(r'\b(law|code)$', entity_st, re.I):
+            pass            
+        elif ORG_SUFFIX_PAT.search(entity_st):
             out_list.append(entity)
-        elif is_address(entity_st):
+        # invalid word pattern
+        elif is_invalid_party_phrase(entity_st):
             pass
             # print("skipping 1 [{}]".format(entity_st))
         elif entity_st[0] == '(':
@@ -780,6 +851,16 @@ def select_highly_likely_parties(entities: List[Tuple[int, int, str]],
             # print("prefix = [{}]".format(prefix))
             if prefix == ' and ':
                 out_list.append(entity)
+                continue
+
+            # check if entity_st is right before a paren, whatever
+            # it is, it is a party name
+            suffix = line[end:]
+            # print("    sssufix = [{}]".format(suffix))
+            if suffix.strip() and suffix.strip()[0] == '(':
+                out_list.append(entity)
+                continue
+            
             #else:
             #    print("skipping 2 [{}]".format(entity_st))
     if IS_DEBUG_MODE:
@@ -806,7 +887,7 @@ def extract_party_defined_term_list(line: str) \
         print("chopped party_line = [{}]".format(line))
 
     # first try this aggressive itemize match inside party_line
-    if re.match(r'\(\S\)', line) and len(get_one_char_parens_mat(line)) > 1:
+    if re.match(r'\(\S\)', line) and len(strutils.get_consecutive_one_char_parens_mats(line)) > 1:
         entity_span_list = get_itemized_entity_span_list(line)
     else:
         # try with all entities in upper()
@@ -816,7 +897,10 @@ def extract_party_defined_term_list(line: str) \
         entities = remove_invalid_entities(entities)
         # if IS_DEBUG_MODE:
         #    print_debug_list(entities, 'zz2', title='after_remove_invalid')
-        if not entities:
+        # if only found 1 all_cap entities, try something else
+        # Maybe only 1 company is all cap, the others are normal case
+        # don't want to skip normal ones.  35436.txt
+        if len(entities) < 2:
             # otherwise, try with title(), but this might get addresses
             entities = get_title_phrase_list(line)
 
@@ -827,7 +911,7 @@ def extract_party_defined_term_list(line: str) \
             if obvious_entities:
                 entities = obvious_entities
             else:
-                entities = remove_address_entities(entities)
+                entities = remove_invalid_entities(entities)
         if IS_DEBUG_MODE:
             print()
             for i, entity in enumerate(entities):
@@ -1051,9 +1135,18 @@ def extract_parties(filepath: str) -> List[List[Tuple[int, int]]]:
     return parties_to_offsets(parties, party_line)
 
 
+def re_match_any_list_prefix(line: str) -> Match[str]:
+    # I have seen up to 13 companies
+    return re.match(r'\(?\s*[\divx]+\s*\)\s*(.*)', line, re.I)
+    # re.match(r'\(?[\divx]+\)', line) or \
+
 def is_list_prefix(line: str) -> bool:
-    return bool(re.match(r'\(?[\div]\)', line) or
-                re.match(r'Party \S+\s*:', line, re.I))
+    if re_match_any_list_prefix(line) or \
+       re.match(r'Party \S+\s*:', line, re.I):
+        if re.search(r'\b(engages?|product)\b', line, re.I):
+            return False
+        return True
+    return False
 
 def is_end_party_list(line: str, attrs: List[str]) -> bool:
     if 'sechead' in attrs:  # sechead ends party lines
@@ -1097,8 +1190,10 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
     # prev_line_st = ''
     # pylint: disable=invalid-name
     for i, (sx, ex, line_st, para_attrs) in enumerate(se_paras_attr_list):
-        # attrs_st = '|'.join([str(attr) for attr in para_attrs])
-        # print(i, '\t'.join([attrs_st, '[{}]'.format(line_st)]))
+        # print display party_line here
+        if IS_DEBUG_DISPLAY_TEXT:
+            attrs_st = '|'.join([str(attr) for attr in para_attrs])
+            print(i, '\t'.join([attrs_st, '[{}]'.format(line_st)]))
 
         # checks if bullet type party, joins all bullets into a line
         if 'party_line' in para_attrs and 'toc' not in para_attrs:
@@ -1130,8 +1225,8 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
                 # after.  38608.txt
                 if IS_DEBUG_MODE:
                     print("checking next line: [{}]".format(next_line_st))
-                # this is a "match" not "search"
-                if re.match(r'(between|among|by and between)', next_line_st, re.I):
+                # this is a "match" not "search", ignore ";" if there is one
+                if re.match(r'(between|among|by and between|by)', next_line_st, re.I):
                     is_party_list = True
                     # skip some blank lines
                     maybe_nx2 = get_next_not_empty_se_paras_list(se_paras_attr_list, next_i)
@@ -1200,6 +1295,10 @@ def find_first_non_title_word_mat(line: str) -> Optional[Tuple[Match[str], int]]
     return maybe_mat, maybe_mat.start()
 
 
+def split_party_term_efforts(line: str) -> Tuple[Tuple[int, int],
+                                                 Tuple[int, int]]:
+    pass
+
 # this is for party list
 def party_line_group_to_party_term(party_line_list:
                                    List[Tuple[int, int, str, List[str]]]) \
@@ -1212,14 +1311,18 @@ def party_line_group_to_party_term(party_line_list:
         print()
         print('party_line_group_to_party_term({})'.format(first_line))
 
-    mat = re.match(r'\(?[\div]\)\s*(.*)', first_line)
+    # re.match(r'\(?[\div]\)\s*(.*)', first_line)        
+    mat = re_match_any_list_prefix(first_line)
     if not mat:
         # now try "Party A:"
-        mat = re.match(r'Party \S+\s*:\s*(.*)', first_line)
+        mat = re.match(r'Party\s*\S+\s*:\s*(.*)', first_line)
     if mat:
         party_start = mat.start(1)
         party_end = mat.end(1)
         party_st = mat.group(1)
+
+        # split_party_term = split_party_term_effort(party_st)
+        # should return correct offsets now
 
         # find first non-title words
         # mat = re.search(r' [a-z]', party_st)  # no re.I here
@@ -1328,6 +1431,23 @@ def is_one_party_line_no_other(line: str) -> bool:
         return True
     if ORG_SUFFIX_PAT.search(line):
         return True
+
+    if is_likely_person_name(line):
+        return True
+    return False
+
+
+def is_likely_person_name(line: str) -> bool:
+    """Return if line is likely a person name.
+
+    This can be make more robust by using name DB or ML
+    """
+    words = line.split()
+    if len(words) <= 4:
+        for word in words:
+            # abbreviation
+            if re.search(r'^[a-z]\.?$', word, re.I):
+                return True
     return False
 
 # pylint: disable=line-too-long

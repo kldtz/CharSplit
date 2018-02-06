@@ -6,7 +6,7 @@ import re
 
 from typing import List, Match
 
-from kirke.utils import engutils
+from kirke.utils import engutils, strutils
 
 
 DEBUG_MODE = False
@@ -100,7 +100,19 @@ def is_party_line(line: str) -> bool:
     # a party line must starts with 1) a) or i) 'l' is for bad OCR 1's
     if result:
         if re.match(r'\(\S\)', line):
-            return bool(re.match(r'\(?(1|a|i|l)\)', line, re.I))
+            # (a) EAch three (3)
+            parens1_mat_list = strutils.get_consecutive_one_char_parens_mats(line)
+
+            if parens1_mat_list:
+                return True
+
+            parens1_mat_list = strutils.get_one_char_parens_mats(line)
+
+            if len(parens1_mat_list) == 1:
+                return bool(re.match(r'\(?\s*(1|a|i|l)\s*\)', line, re.I))
+            else:
+                # if has one than 1 parens1_mat, should have pass the consecutive test before
+                return False
     return result
 
 # pylint: disable=too-many-return-statements, too-many-branches
@@ -111,9 +123,27 @@ def is_party_line_aux(line: str) -> bool:
     # if re.search(r'\bif\b', line, re.I) and re.search(r'\bwithout\b', line, re.I):
     #    return False
 
+    if re.search(r'\b(engages?)\b', line, re.I):
+        return False
+
     #returns true if bullet type, and a real line
     # if re.match(r'\(?[\div]+\)', line) and len(line) > 60:
-    if re.match(r'\(?(1|a|i|l)\)', line, re.I) and len(line) > 60:
+    mat = re.match(r'\(?\s*(1|a|i|l)\s*\)\s*(.*)', line, re.I)
+    if mat and len(line) > 60:
+        # TODO, jshaw, 36820.txt  Rediculous way of formatting
+        # need to pass line number in to disable this aggressive matching
+        # will fix later.  Not happening in PDF docs?
+        """
+        print("I am hereeeeeeeee")
+        suffix_st = mat.group(2)
+        suffix_mat = re.match(r'\s*party \(?(.*)\b', suffix_st, re.I)
+        if not suffix_mat:
+            return True
+        if suffix_mat and \
+           not (suffix_mat.group(1).startswith('A') or
+                suffix_mat.group(1).startswith('1')):
+            return False
+        """
         return True
 
     # multipled parties mentioned
@@ -154,8 +184,18 @@ def is_party_line_aux(line: str) -> bool:
     # [tn=0, fp=1347], [fn=2877, tp=8034]], f1=0.7918
     # => [[tn=0, fp=1335], [fn=2877, tp=8034]] f1= 0.7923
     # so remove this line reduces false positives.
-    # if re.search(r'\b(hereby\s+enter(ed)?\s+into)\b', line, re.I):
-    #    return True
+    if re.search(r'\b(hereby\s+enter(ed)?\s+into)\b', line, re.I):
+        return True
+
+    # added on 02/06/2018, jshaw
+    if re.search(r'way\s+of\s+deed', line, re.I):
+        return True
+    # uk doc, file2
+    # This Agreement is made on 2017
+    #        Between:
+    # (1) ...
+    if re.search(r'agreement\s+is\s+made\s+on', line, re.I):
+        return True
 
     if line.startswith('T') and \
        re.match('(this|the).*contract.*is made on', line, re.I):

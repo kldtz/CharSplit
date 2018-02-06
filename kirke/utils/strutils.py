@@ -640,6 +640,36 @@ def split_with_offsets_xparens(line: str) -> List[Tuple[int, int, str]]:
             out_list.append(se_matst)
     return out_list
 
+
+def get_consecutive_one_char_parens_mats(line: str) -> List[Match[str]]:
+    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
+
+    Makes sure they start with 1, 2 or a, b.
+    """
+    result = list(re.finditer(r'\(?\S\)\s*', line))
+
+    if len(result) > 1:
+        # check if first and 2nd are valid indexes
+        first = result[0].group()
+        second = result[1].group()
+        # print("first = [{}]".format(first))
+        # print("second = [{}]".format(second))
+        # print("    matched 1 = {}".format(re.match(r'\((1|a|i)\)', first, re.I)))
+        # print("    matched 2 = {}".format(re.match(r'\((2|b|ii)\)', second, re.I)))
+        if re.match(r'\(?(1|a|i)\)', first, re.I) and \
+           re.match(r'\(?(2|b|ii)\)', second, re.I):
+            return result
+    return []
+
+def get_one_char_parens_mats(line: str) -> List[Match[str]]:
+    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
+
+    No check to make sure they start with 1, 2 or a, b.
+    """
+    result = list(re.finditer(r'\(?\S\)\s*', line))
+    return result
+
+
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
     print(str(_get_num_prefix_space("abc")))      # 0
