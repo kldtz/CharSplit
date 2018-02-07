@@ -123,7 +123,7 @@ def is_party_line_aux(line: str) -> bool:
     # if re.search(r'\bif\b', line, re.I) and re.search(r'\bwithout\b', line, re.I):
     #    return False
 
-    if re.search(r'\b(engages?|made\s+available|wether|otherwise)\b', line, re.I):
+    if re.search(r'\b(engages?|made\s+available)\b', line, re.I):
         return False
 
     # 2/6/2018, uk/file3.txt, multiple parties got mentioned and registered, but not a party line

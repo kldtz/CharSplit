@@ -1763,7 +1763,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
         if party_y:
             start, end = party_y
             party_y_text = unused_para_text[start:end]
-            if re.search(r'\b(the|each)\b', party_y_text, re.I):
+            if re.match(r'^(the|each)$', party_y_text, re.I):
                 party_y = None
                 term_y = None
                 # skip the append part
