@@ -66,6 +66,12 @@ def load_train_title_list() -> List[str]:
         line = line.strip().lower()
         if not line in seen_set:
             seen_set.add(line)
+
+    st_list = txtreader.load_str_list(DATA_DIR + 'uk_titles_train.list')
+    for line in st_list:
+        line = line.strip().lower()
+        if not line in seen_set:
+            seen_set.add(line)
     return sorted(seen_set)
 
 TRAIN_TITLE_LIST = load_train_title_list()
