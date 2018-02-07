@@ -110,9 +110,9 @@ def is_party_line(line: str) -> bool:
 
             if len(parens1_mat_list) == 1:
                 return bool(re.match(r'\(?\s*(1|a|i|l)\s*\)', line, re.I))
-            else:
-                # if has one than 1 parens1_mat, should have pass the consecutive test before
-                return False
+
+            # if has one than 1 parens1_mat, should have pass the consecutive test before
+            return False
     return result
 
 # pylint: disable=too-many-return-statements, too-many-branches
@@ -139,17 +139,16 @@ def is_party_line_aux(line: str) -> bool:
         # TODO, jshaw, 36820.txt  Rediculous way of formatting
         # need to pass line number in to disable this aggressive matching
         # will fix later.  Not happening in PDF docs?
-        """
-        print("I am hereeeeeeeee")
-        suffix_st = mat.group(2)
-        suffix_mat = re.match(r'\s*party \(?(.*)\b', suffix_st, re.I)
-        if not suffix_mat:
-            return True
-        if suffix_mat and \
-           not (suffix_mat.group(1).startswith('A') or
-                suffix_mat.group(1).startswith('1')):
-            return False
-        """
+
+        # print("I am hereeeeeeeee")
+        # suffix_st = mat.group(2)
+        # suffix_mat = re.match(r'\s*party \(?(.*)\b', suffix_st, re.I)
+        # if not suffix_mat:
+        #     return True
+        # if suffix_mat and \
+        #   not (suffix_mat.group(1).startswith('A') or
+        #        suffix_mat.group(1).startswith('1')):
+        #    return False
         return True
 
     # Party A: xxx,
@@ -189,7 +188,8 @@ def is_party_line_aux(line: str) -> bool:
     if re.search(r'\b(entered)\b', line, re.I) and \
        re.search(r'\b(by\s+and\s+between)\b', line, re.I):
         return True
-    # TODO, jshaw, kkk
+
+    # TODO, jshaw, look into this
     # [tn=0, fp=1347], [fn=2877, tp=8034]], f1=0.7918
     # => [[tn=0, fp=1335], [fn=2877, tp=8034]] f1= 0.7923
     # so remove this line reduces false positives.
