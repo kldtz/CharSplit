@@ -103,13 +103,11 @@ class AddrContextGenerator:
                         label_list.append(False)
                 else:
                     for x in found_adresses: 
-                        ad_start = x[0]
-                        ad_end = x[1]
-                        new_start = ad_start + start
-                        new_end = ad_end + start
-                        prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, new_start, self.num_prev_words)
-                        post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, new_end, self.num_post_words)
-                        new_bow = '{} {} {}'.format(' '.join(prev_n_words), x[2], ' '.join(post_n_words))
+                        ad_start = x[0] + start
+                        ad_end = x[1] + start
+                        prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, ad_start, self.num_prev_words)
+                        post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, ad_end, self.num_post_words)
+                        new_bow = '{} {} {}'.format(' '.join(prev_n_words), '🤠', ' '.join(post_n_words))
                         #new_bow = '{} {}'.format(' '.join(prev_n_words), ' '.join(post_n_words))
                         if prev_spans:
                             new_start = prev_spans[0][0]
