@@ -76,6 +76,7 @@ if IS_DEBUG_MODE:
 # for the below file, need to remove the BOM at the end of the phrases toward the end of
 # the file.  Should automate this
 """
+Remember to swap comment line above.  Select past_titles_train.list instead
 with open('dict/titles/jclean.train.title.list', 'w') as fout:
     for title in TRAIN_TITLE_LIST:
         print(title.strip(), file=fout)

@@ -58,7 +58,7 @@ def load_lines_with_offsets(file_name: str) -> Generator[Tuple[int, int, str], N
                 if not prev_line and not is_printed_empty_line:
                     yield offset, end, new_line
                     is_printed_empty_line = True
-                
+
             offset += orig_length
             prev_line = new_line
 
@@ -210,7 +210,7 @@ def is_word_all_lc(word):
 TWO_GT_3_NUM_SEQ_PAT = re.compile(r'\d{3}.*\d{3}')
 def has_likely_phone_number(line):
     return TWO_GT_3_NUM_SEQ_PAT.search(line)
-    
+
 def is_all_alphas(line: str) -> Match[str]:
     return is_alpha_word(line)
 
@@ -254,8 +254,8 @@ def is_all_dash_underline(line: str) -> bool:
             return False
     return True
 
-def is_all_caps_space(line: str) -> Match[str]:
-    return CAP_SPACE_PAT.match(line)
+def is_all_caps_space(line: str) -> bool:
+    return bool(CAP_SPACE_PAT.match(line))
 
 def is_all_lower(line: str) -> bool:
     words = line.split()
@@ -263,6 +263,15 @@ def is_all_lower(line: str) -> bool:
         return False
     for word in words:
         if not word[0].islower():
+            return False
+    return True
+
+
+def is_all_upper_words(words: List[str]) -> bool:
+    if not words:
+        return False
+    for word in words:
+        if not word.isupper():
             return False
     return True
 
@@ -396,7 +405,7 @@ def is_punct_not_period(line: str) -> bool:
         return line[0] != '.' and is_punct(line)
     else:
         return False
-    
+
 def is_punct_notwork(line: str) -> bool:
     if line:
         return is_punct_core(line)
@@ -486,7 +495,7 @@ def is_all_title(words: List[str]) -> bool:
                 return False
     return has_alpha_word
 
-    
+
 ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)
 
 def has_alpha(line: str):
@@ -520,7 +529,7 @@ NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
 def find_number(line: str) -> Match[str]:
     return NUM_10_PAT.search(line)
 
-    
+
 def is_digit_core(line: str) -> bool:
     return unicodedata.category(line) == 'Nd'
 

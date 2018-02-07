@@ -123,7 +123,13 @@ def is_party_line_aux(line: str) -> bool:
     # if re.search(r'\bif\b', line, re.I) and re.search(r'\bwithout\b', line, re.I):
     #    return False
 
-    if re.search(r'\b(engages?)\b', line, re.I):
+    if re.search(r'\b(engages?|made\s+available|wether|otherwise)\b', line, re.I):
+        return False
+
+    # 2/6/2018, uk/file3.txt, multiple parties got mentioned and registered, but not a party line
+    alpha_words = strutils.get_alpha_words(line, is_lower=False)
+    # this is match, not search, uk/file3.txt
+    if re.match(r'\d+\-\d+', line) and strutils.is_all_upper_words(alpha_words):
         return False
 
     #returns true if bullet type, and a real line
@@ -146,10 +152,6 @@ def is_party_line_aux(line: str) -> bool:
         """
         return True
 
-    # multipled parties mentioned
-    if len(list(REGISTERED_PAT.finditer(line))) > 1:
-        return True
-
     # Party A: xxx,
     # Party B:
     if re.match(r'Party \S+\s*:', line, re.I) and line[0].isupper():
@@ -162,6 +164,13 @@ def is_party_line_aux(line: str) -> bool:
     # this is from a title line, not a party line
     if len(line) < 200 and ORG_SUFFIX_END_PAT.search(line) and line.strip()[-1] != '.':
         return False
+
+    # Removed.  This turns out to be false for UK document multiple times.
+    # multipled parties mentioned
+    # if len(list(REGISTERED_PAT.finditer(line))) > 1:
+    #    if strutils.is_all_upper_words(alpha_words):  #
+    #        return False
+    #    return True
 
 
     # 44139.txt, info is attached, yada yada
@@ -190,6 +199,13 @@ def is_party_line_aux(line: str) -> bool:
     # added on 02/06/2018, jshaw
     if re.search(r'way\s+of\s+deed', line, re.I):
         return True
+    # 'deed of release is made"
+    if re.search(r'\b(deed\s+is\s+made|deed.*is\s+made)\b', line, re.I):
+        return True
+    # this is slight aggressive
+    if re.search(r'^This.*(deed|guarantee).*dated\b', line, re.I):
+        return True
+
     # uk doc, file2
     # This Agreement is made on 2017
     #        Between:
