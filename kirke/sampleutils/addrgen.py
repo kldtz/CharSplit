@@ -1,5 +1,5 @@
 import logging
-import re
+import re, regex
 from typing import Dict, List, Tuple
 from kirke.ebrules import dates, addresses
 from kirke.utils import ebantdoc3, ebsentutils, strutils
@@ -18,7 +18,7 @@ class AddrContextGenerator:
                 s += '1'
             else:
                 s += '0'
-        matches = re.finditer(r'(1+0?0?(1+0?0?)*1+)', s)
+        matches = re.finditer(r'(1+0?0?(1+0?0?){1,3}1+)', s)
         all_spans = [match.span(1) for match in matches]
         ads = []
         for ad_start, ad_end in all_spans:
@@ -26,9 +26,12 @@ class AddrContextGenerator:
             ad_st = " ".join(list_address) 
             address_prob = addresses.classify(ad_st)
             if address_prob >= 0.5 and len(text.split()[ad_start:ad_end]) > 3:
-                pred_start,_ = re.search(list_address[0], text).span()
-                _, pred_end = re.search(list_address[-1], text[pred_start:]).span()
-                ads.append([pred_start, pred_end, text[pred_start:pred_end]])
+                ad_st = re.sub('[\(\.\)]', '', ad_st)
+                for found in regex.finditer('(?e)(?:'+ad_st+'){e<=3}', text):
+                    pred_start, pred_end = found.span()
+                    ads_list = [pred_start, pred_end, text[pred_start:pred_end]]
+                    if ads_list not in ads:
+                        ads.append(ads_list)
         return ads
 
     def documents_to_samples(self,
@@ -61,7 +64,36 @@ class AddrContextGenerator:
                 logging.info("AddrContextGenerator.documents_to_samples(), group_id = {}".format(group_id))
             
             all_keywords = addresses.all_constituencies()
-            split_text = nl_text.split() 
+            split_text = nl_text.split()
+            #print([x[2] for x in self.find_constituencies(nl_text, all_keywords)])
+            for addr in self.find_constituencies(nl_text, all_keywords):
+                new_start, new_end, addr_st = addr
+                is_label = ebsentutils.check_start_end_overlap(new_start,
+                                                               new_end,
+                                                               label_ant_list)
+                prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, new_start, self.num_prev_words)
+                post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, new_end, self.num_post_words)
+                new_bow = '{} {} {}'.format(' '.join(prev_n_words), addr_st, ' '.join(post_n_words))
+                #print("\t>>>>>", new_bow)
+                if prev_spans:
+                    new_start = prev_spans[0][0]
+                if post_spans:
+                    new_end = post_spans[-1][-1]
+                a_sample = {'sample_type': 'addr',
+                            'start': new_start,
+                            'end': new_end,
+                            'text': new_bow,
+                            'prev_n_words': ' '.join(prev_n_words),
+                            'post_n_words': ' '.join(post_n_words),
+                            'has_addr': True}
+                samples.append(a_sample)
+                group_id_list.append(group_id)
+                if is_label:
+                    a_sample['label_human'] = label
+                    label_list.append(True)
+                else:
+                    label_list.append(False)
+            '''
             lines = nl_text.split('\n')
             offset = 0
             notempty_line_seq = 0
@@ -134,4 +166,5 @@ class AddrContextGenerator:
                             label_list.append(False)
                 notempty_line_seq += 1
                 offset += len(line) + 1  # for eoln
+            '''
         return samples, label_list, group_id_list
