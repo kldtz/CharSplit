@@ -9,7 +9,7 @@ from typing import List, Match
 from kirke.utils import engutils, strutils
 
 
-DEBUG_MODE = False
+IS_DEBUG_MODE = False
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s : %(levelname)s : %(message)s')
 
@@ -93,12 +93,30 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     return result2
 
 
-def is_party_line(line: str) -> bool:
+# all those heuristics didn't work.
+# they eliminated too many tp
+# line_notoc_empty > 100
+# num_sechead > 60
+# num_date > 10
+def is_party_line(line: str,
+                  num_long_english_line: int = -1) -> bool:
+
+    # print("is_party_line({})".format(line))
+    #print("  ln_nempty_toc = {}, eng = {}, num_sechead = {}, num_date = {}".format(line_notoc_empty,
+    #                                                         num_long_english_line,
+    #                                                         num_sechead,
+    #                                                         num_date))
+    if num_long_english_line > 10:
+        return False
+
     result = is_party_line_aux(line)
+
+    if IS_DEBUG_MODE:
+        print('branch {}, line = [{}]'.format(result, line))
 
     # do some extra verfication
     # a party line must starts with 1) a) or i) 'l' is for bad OCR 1's
-    if result:
+    if result.startswith('T'):   # result:
         if re.match(r'\(\S\)', line):
             # (a) EAch three (3)
             parens1_mat_list = strutils.get_consecutive_one_char_parens_mats(line)
@@ -113,24 +131,52 @@ def is_party_line(line: str) -> bool:
 
             # if has one than 1 parens1_mat, should have pass the consecutive test before
             return False
-    return result
+
+    if result.startswith('T'):
+        return True
+    return False
+    # return result
 
 # pylint: disable=too-many-return-statements, too-many-branches
-def is_party_line_aux(line: str) -> bool:
+# for debug purpose, return str of 'True\d', or 'False\d'
+def is_party_line_aux(line: str) -> str:
 
     # this is not a party line due to the words used
     # adding this will decrease f1 by 0.001.  Will figure out later.
     # if re.search(r'\bif\b', line, re.I) and re.search(r'\bwithout\b', line, re.I):
     #    return False
 
-    if re.search(r'\b(engages?|made\s+available)\b', line, re.I):
-        return False
+    if re.match(r'this\s+agreement\s+is\s+dated\b', line, re.I):
+        return 'True0.1'
+
+    if len(line) > 5000:  # sometime the whole doc is a line
+        return 'False1'
+
+    if re.search(r'\b(engages?|made\s+available|subordinate\s+to|all\s+liens)\b', line, re.I):
+        return 'False2'
+
+    # 2/7/2018
+    # only impacted 3 files, but negatively on F1
+    # if re.search(r'\b(i\s+confirm|signing|i\s+acknowledge|following\s+(meaning|definition)s?)\b', line, re.I):
+    #    return 'False3'
 
     # 2/6/2018, uk/file3.txt, multiple parties got mentioned and registered, but not a party line
     alpha_words = strutils.get_alpha_words(line, is_lower=False)
+    is_all_upper_words = strutils.is_all_upper_words(alpha_words)
     # this is match, not search, uk/file3.txt
-    if re.match(r'\d+\-\d+', line) and strutils.is_all_upper_words(alpha_words):
-        return False
+    if re.match(r'\d+\-\d+', line) and is_all_upper_words:
+        return 'False4'
+
+    # this is a title
+    if is_all_upper_words and \
+       len(alpha_words) < 20 and \
+       alpha_words[0] != 'THIS':
+       # (line[-1] in set(['.', ':'])
+        return 'False4.1'
+
+    # PROMISSORY NOTE ... IS SUBJECT TO XXX AGREEMENT
+    if is_all_upper_words and re.search('is\s+subject\s+to', line, re.I):
+        return 'False4.2'
 
     #returns true if bullet type, and a real line
     # if re.match(r'\(?[\div]+\)', line) and len(line) > 60:
@@ -144,138 +190,142 @@ def is_party_line_aux(line: str) -> bool:
         # suffix_st = mat.group(2)
         # suffix_mat = re.match(r'\s*party \(?(.*)\b', suffix_st, re.I)
         # if not suffix_mat:
-        #     return True
+        #     return 'True1'
         # if suffix_mat and \
         #   not (suffix_mat.group(1).startswith('A') or
         #        suffix_mat.group(1).startswith('1')):
-        #    return False
-        return True
+        #    return 'False1'
+        return 'True5'
 
     # Party A: xxx,
     # Party B:
     if re.match(r'Party \S+\s*:', line, re.I) and line[0].isupper():
-        return True
+        return 'True6'
 
     num_org_suffix = len(get_org_suffix_mat_list(line))
     if 'among' in line and ' dated ' in line and num_org_suffix > 2:
-        return True
+        return 'True7'
 
     # this is from a title line, not a party line
     if len(line) < 200 and ORG_SUFFIX_END_PAT.search(line) and line.strip()[-1] != '.':
-        return False
+        return 'False8'
 
     # Removed.  This turns out to be false for UK document multiple times.
     # multipled parties mentioned
     # if len(list(REGISTERED_PAT.finditer(line))) > 1:
     #    if strutils.is_all_upper_words(alpha_words):  #
-    #        return False
-    #    return True
+    #        return 'False1'
+    #    return 'True1'
 
 
     # 44139.txt, info is attached, yada yada
     # '\$\d' doesn't work, decrease F1 by 20%!  Too many
     # promissory or loan notes has partyline with '$'
     # if re.search(r'\b(is attached|partial)\b', line, re.I):
-    #    return False
+    #    return 'False1'
 
     # This is NOT true.  There are agreements that this is not true.
     # 39761.txt.  Around 2% lower.
     # # 'agreement, dated may 24, 2004', is NOT a party line
     # if re.search(r'\bdated\b', line, re.I) and \
     #    not re.search(r'\bis\s+dated\b', line, re.I):
-    #    return False
+    #    return 'False1'
 
     if re.search(r'\b(entered)\b', line, re.I) and \
        re.search(r'\b(by\s+and\s+between)\b', line, re.I):
-        return True
+        return 'True9'
+
+    if re.search(r'\b(agreement|contract)\b', line, re.I) and \
+       re.search(r'\b(entered\s+into)\b', line, re.I):
+        return 'True9.1'
 
     # TODO, jshaw, look into this
     # [tn=0, fp=1347], [fn=2877, tp=8034]], f1=0.7918
     # => [[tn=0, fp=1335], [fn=2877, tp=8034]] f1= 0.7923
     # so remove this line reduces false positives.
     if re.search(r'\b(hereby\s+enter(ed)?\s+into)\b', line, re.I):
-        return True
+        return 'True10'
 
     # added on 02/06/2018, jshaw
     if re.search(r'way\s+of\s+deed', line, re.I):
-        return True
+        return 'True11'
     # 'deed of release is made"
     if re.search(r'\b(deed\s+is\s+made|deed.*is\s+made)\b', line, re.I):
-        return True
+        return 'True12'
     # this is slight aggressive
     if re.search(r'^This.*(deed|guarantee).*dated\b', line, re.I):
-        return True
+        return 'True13'
 
     # uk doc, file2
     # This Agreement is made on 2017
     #        Between:
     # (1) ...
     if re.search(r'agreement\s+is\s+made\s+on', line, re.I):
-        return True
+        return 'True14'
 
     if line.startswith('T') and \
        re.match('(this|the).*contract.*is made on', line, re.I):
-        return True
+        return 'True15'
     if len(line) < 40:  # don't want to match line "BY AND BETWEEN" in title page
-        return False
+        return 'False16'
     if engutils.is_skip_template_line(line):
-        return False
+        return 'False17'
     if 'means' in line:  # in definition section of 'purchase agreement'
-        return False
+        return 'False18'
     mat = PARTY_PAT.search(line)
     if mat:
-        return bool(mat)
+        return 'True8.8'  # bool(mat)
     lc_line = line.lower()
     if 'between' in lc_line and engutils.has_date(lc_line):
-        return True
+        return 'True19'
     if 'made' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
-        return True
+        return 'True20'
     if 'issued' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
-        return True
+        return 'True21'
     if 'entered' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
-        return True
+        return 'True22'
     # power of attorney
     if 'made on' in lc_line and engutils.has_date(lc_line) and 'power' in lc_line:
-        return True
+        return 'True23'
     if 'between' in lc_line and 'agreement' in lc_line:
-        return True
+        return 'True24'
     # assigns lease to
     if 'assign' in lc_line and 'lease to' in lc_line:
-        return True
+        return 'True25'
     if MADE_BY_PAT.search(line) and ('day' in lc_line or
                                      'date' in lc_line):
-        return True
+        return 'True26'
     if CONCLUDED_PAT.search(line):
-        return True
+        return 'True27'
 
     if THIS_AGREEMENT_PAT.search(line) and "amendment" in lc_line:
-        return True
+        return 'True28'
 
     # termination agreement
     if 'agree that' in lc_line and 'employment at' in lc_line:
-        return True
+        return 'True29'
     # 'Patent Security Agreement, dated as of December 1, 2009, by BUSCH
     # ENTERTAINMENT LLC (the “Grantor”), in favor of BANK OF AMERICA, N.A...'
     if 'date' in lc_line and ' by ' in lc_line and 'in favor of' in lc_line:
-        return True
+        return 'True30'
     if 'reach an agreement' in lc_line or \
        'the following terms' in lc_line or \
        'terms and condistions' in lc_line or \
        'enter into this contract' in lc_line:
-        return True
+        return 'True31'
     if 'hereinafter' in lc_line and 'agree' in lc_line:
-        return True
+        return 'True32'
     if 'confirm' in lc_line and 'agree' in lc_line:
-        return True
+        return 'True33'
     #"""In this Agreement (unless the context requires otherwise) the following words
     # shall have the following meanings"""
     if 'agree' in lc_line and 'follow' in lc_line and not "meaning" in lc_line:
-        return True
+        return 'True34'
     if 'follow' in lc_line and 'between' in lc_line:
-        return True
+        return 'True35'
     # for warrants, 'the Lenders from time to time party thereto,'
     if 'from time to time party thereto' in lc_line:
-        return True
+        return 'True36'
 
     #"""This Amendment No. 1 to the Convertible Promissory Note (this
     #   "Amendment") is executed as of October 17, 2011, by SOLAR ENERGY
@@ -284,21 +334,21 @@ def is_party_line_aux(line: str) -> bool:
     if 'is executed' in lc_line and \
        'by' in lc_line and \
        'and' in lc_line:
-        return True
+        return 'True37'
     # agreement is made to ..., dated as of ... among
     if 'agreement' in lc_line and \
        'dated' in lc_line and \
        'among' in lc_line:
-        return True
+        return 'True38'
     # 'this certifies that, ... is entitled to,
     if 'is entitled to' in lc_line and \
        'certifies' in lc_line and \
        'purchase' in lc_line:
-        return True
+        return 'True39'
     if 'is made' in lc_line and \
-    'following parties' in lc_line:
-        return True
-    return False
+       'following parties' in lc_line:
+        return 'True40'
+    return 'False41'
 
 
 def find_first_party_lead(line):

@@ -875,15 +875,21 @@ def extract_party_defined_term_list(line: str) \
                   Optional[Tuple[int, int, str, str]]]]:
     """Extract all the party and its defined term from party_line."""
 
-    between_list = list(BTWN_AMONG_PAT.finditer(line))
-    # chop at first xxx entered ... by and between (wanted)
     start_offset = 0
-    if between_list:
-        last_between = between_list[-1]
-        start_offset = last_between.end()
+    tmp_mat = re.match(r'for\s+value\s+received,?\s+(.*)$', line, re.I)
+    if tmp_mat:
+        start_offset = tmp_mat.start(1)
         line = line[start_offset:]
-        # everything afterward is based on this line
-        # need to set it back right before returning
+    else:
+        between_list = list(BTWN_AMONG_PAT.finditer(line))
+        # chop at first xxx entered ... by and between (wanted)
+        if between_list:
+            # last_between = between_list[-1]
+            last_between = between_list[0]
+            start_offset = last_between.end()
+            line = line[start_offset:]
+            # everything afterward is based on this line
+            # need to set it back right before returning
     if IS_DEBUG_MODE:
         print("\nextract_party_defined_term_list()")
         print("chopped party_line = [{}]".format(line))
@@ -1768,11 +1774,18 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                 # term_y = None
                 # skip the append part
                 continue
+            if re.search(r'(date|dollars?|millions?)\s*$', party_y_text, re.I):
+                continue
+            tmp_mat = re.match(r'for\s+value\s+received,?\s+', party_y_text, re.I)
+            if tmp_mat:
+                start = start + tmp_mat.end()
+                # part_y_text = unused_para_text[start:]
+                party_y = start, end
             # there is no bad parties for now
         if term_y:
             start, end = term_y
             term_y_text = unused_para_text[start:end]
-            if re.search(r'\b(as\s+defined\s+below)\b', term_y_text, re.I):
+            if re.search(r'\b(as\s+defined\s+below|amount)\b', term_y_text, re.I):
                 term_y = None
         filtered_out_list.append((party_y, term_y))
 
