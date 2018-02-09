@@ -363,10 +363,12 @@ class EbRunner:
 
             # there is no offset map because paraline is the same
             self.apply_line_annotators_aux(prov_labels_map, paras_with_attrs, para_doc_text,
-                                           nlp_sx_lnpos_list, origin_sx_lnpos_list)
+                                           nlp_sx_lnpos_list, origin_sx_lnpos_list,
+                                           eb_antdoc.nl_text)
         else:
             self.apply_line_annotators_aux(prov_labels_map, eb_antdoc.paras_with_attrs, eb_antdoc.nlp_text,
-                                           eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list)
+                                           eb_antdoc.nlp_sx_lnpos_list, eb_antdoc.origin_sx_lnpos_list,
+                                           eb_antdoc.nl_text)
 
 
     # this parses both originally text and html documents
@@ -383,7 +385,8 @@ class EbRunner:
 								     doc_lang=doc_lang)
 
     def apply_line_annotators_aux(self, prov_labels_map, paraline_with_attrs, paraline_text,
-                                      paraline_sx_lnpos_list, origin_sx_lnpos_list):
+                                  paraline_sx_lnpos_list, origin_sx_lnpos_list,
+                                  nl_text: str):
 
         fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
                                                   paraline_sx_lnpos_list,
@@ -395,20 +398,23 @@ class EbRunner:
         # As a result, probably more page numbers are detected correctly and skipped.
         title_ant_list = self.title_annotator.annotate_antdoc(paraline_with_attrs,
                                                               paraline_text,
-                                                              fromto_mapper)
+                                                              fromto_mapper,
+                                                              nl_text)
         # we always replace the title using rules
         prov_labels_map['title'] = title_ant_list
 
         party_ant_list = self.party_annotator.annotate_antdoc(paraline_with_attrs,
                                                               paraline_text,
-                                                              fromto_mapper)
+                                                              fromto_mapper,
+                                                              nl_text)
         # if rule found parties, replace it.  Otherwise, keep the old ones
         if party_ant_list:
             prov_labels_map['party'] = party_ant_list
         # comment out all the date code below to disable applying date rule
         date_ant_list = self.date_annotator.annotate_antdoc(paraline_with_attrs,
                                                             paraline_text,
-                                                            fromto_mapper)
+                                                            fromto_mapper,
+                                                            nl_text)
         if date_ant_list:
             xx_effective_date_list = []
             xx_date_list = []

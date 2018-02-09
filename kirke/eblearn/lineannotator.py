@@ -40,7 +40,10 @@ class LineAnnotator:
                                                       ebantdoc.nlp_sx_lnpos_list,
                                                       ebantdoc.origin_sx_lnpos_list)
 
-            ant_list = self.annotate_antdoc(paras_with_attrs, paras_text, fromto_mapper)
+            ant_list = self.annotate_antdoc(paras_with_attrs,
+                                            paras_text,
+                                            fromto_mapper,
+                                            ebantdoc.nl_text)
             # print("88234 ant_list = {}".format(ant_list))
             # for ant in ant_list:
             #     print("ant: {}".format(ant))
@@ -112,7 +115,11 @@ class LineAnnotator:
         return tmp_eval_status
 
 
-    def annotate_antdoc(self, paras_with_attrs, paras_text, fromto_mapper: fromtomapper.FromToMapper):
+    def annotate_antdoc(self,
+                        paras_with_attrs,
+                        paras_text: str,
+                        fromto_mapper: fromtomapper.FromToMapper,
+                        nl_text: str):
         prov_annotations = []
         if self.provision == 'party':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
@@ -141,6 +148,8 @@ class LineAnnotator:
                                                      'start': term_start,
                                                      'prob': 0.91,
                                                      'text': paras_text[term_start:term_end]})
+            fromto_mapper.adjust_fromto_offsets(prov_annotations)
+
         elif self.provision == 'date':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             # prov_type can be 'date', 'effective-date', 'signature-date'
@@ -154,7 +163,9 @@ class LineAnnotator:
                                              'start': start_offset,
                                              'prob': 0.91,
                                              'text': paras_text[start_offset:end_offset]})
-        else:
+            fromto_mapper.adjust_fromto_offsets(prov_annotations)
+
+        else:  # title
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             start_offset, end_offset = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
 
@@ -165,6 +176,24 @@ class LineAnnotator:
                                      'prob': 0.91,
                                      'text': paras_text[start_offset:end_offset]}]
 
+                fromto_mapper.adjust_fromto_offsets(prov_annotations)
+            else:
+                # didn't find title based on para_text, now try nl_text
+                start_offset, end_offset = \
+                    self.provision_annotator.extract_nl_provision_offsets(nl_text)
 
-        fromto_mapper.adjust_fromto_offsets(prov_annotations)
+                if start_offset is not None:
+                    prov_annotations = [{'end': end_offset,
+                                         'label': self.provision,
+                                         'start': start_offset,
+                                         # span_list is normally added by fromto_mapper
+                                         'span_list': [{'start': start_offset,
+                                                        'end': end_offset}],
+                                         'prob': 0.91,
+                                         'text': nl_text[start_offset:end_offset]}]
+
+                    # since nl_text has the original offsets, use that.
+                    # DO NOT transform
+                    # fromto_mapper.adjust_fromto_offsets(prov_annotations)
+
         return prov_annotations
