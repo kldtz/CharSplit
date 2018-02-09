@@ -1482,6 +1482,15 @@ def party_line_group_to_party_term(party_line_list:
         term_end = term_mat.end(1)
         # term_st = term_mat.group(1)
 
+        # just in case if the defined term happened before
+        # first_non_title_word
+        if term_start < party_end:
+            party_end = term_start - 1  # usually it's paren - 1
+            party_st = first_line[party_start:party_end]
+            espace_mat = re.search(r'\s*$', party_st)
+            if espace_mat:
+                party_end -= len(espace_mat.group())
+
     if mat and term_mat:
         return ((fstart + party_start, fstart + party_end),
                 (fstart + term_start, fstart + term_end))
