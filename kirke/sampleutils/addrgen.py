@@ -32,7 +32,7 @@ class AddrContextGenerator:
             ad_st = " ".join(list_address) 
             address_prob = addresses.classify(ad_st)
             if address_prob >= 0.5 and len(text.split()[ad_start:ad_end]) > 3:
-                ad_st = re.sub('[\(\.\)]', '', ad_st)
+                ad_st = re.sub('[\[\]\(\.\)]', '', ad_st)
 
                 #finds address in text so we can recover the exact indices
                 for found in regex.finditer('(?e)(?:'+ad_st+'){e<=3}', text):
