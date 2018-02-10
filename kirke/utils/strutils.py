@@ -58,7 +58,7 @@ def load_lines_with_offsets(file_name: str) -> Generator[Tuple[int, int, str], N
                 if not prev_line and not is_printed_empty_line:
                     yield offset, end, new_line
                     is_printed_empty_line = True
-                
+
             offset += orig_length
             prev_line = new_line
 
@@ -210,7 +210,7 @@ def is_word_all_lc(word):
 TWO_GT_3_NUM_SEQ_PAT = re.compile(r'\d{3}.*\d{3}')
 def has_likely_phone_number(line):
     return TWO_GT_3_NUM_SEQ_PAT.search(line)
-    
+
 def is_all_alphas(line: str) -> Match[str]:
     return is_alpha_word(line)
 
@@ -254,8 +254,8 @@ def is_all_dash_underline(line: str) -> bool:
             return False
     return True
 
-def is_all_caps_space(line: str) -> Match[str]:
-    return CAP_SPACE_PAT.match(line)
+def is_all_caps_space(line: str) -> bool:
+    return bool(CAP_SPACE_PAT.match(line))
 
 def is_all_lower(line: str) -> bool:
     words = line.split()
@@ -263,6 +263,15 @@ def is_all_lower(line: str) -> bool:
         return False
     for word in words:
         if not word[0].islower():
+            return False
+    return True
+
+
+def is_all_upper_words(words: List[str]) -> bool:
+    if not words:
+        return False
+    for word in words:
+        if not word.isupper():
             return False
     return True
 
@@ -396,7 +405,7 @@ def is_punct_not_period(line: str) -> bool:
         return line[0] != '.' and is_punct(line)
     else:
         return False
-    
+
 def is_punct_notwork(line: str) -> bool:
     if line:
         return is_punct_core(line)
@@ -486,16 +495,20 @@ def is_all_title(words: List[str]) -> bool:
                 return False
     return has_alpha_word
 
-    
+
 ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)
 
 def has_alpha(line: str):
     return ANY_ALPHA_PAT.search(line)
 
 
-DIGIT_PAT = re.compile(r'^\d+$')
-def is_digit_st(line: str) -> Match[str]:
-    return DIGIT_PAT.match(line)
+DIGIT_PAT = re.compile(r'^\s*\d+\s*$')
+def is_digit_st(line: str) -> bool:
+    return bool(DIGIT_PAT.match(line))
+
+# alias
+is_digits = is_digit_st
+
 
 # to detect telephone or SSN
 BIG_DASHED_DIGIT_PAT = re.compile(r'^(\d+)\-[\d\-]+$')
@@ -516,7 +529,7 @@ NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
 def find_number(line: str) -> Match[str]:
     return NUM_10_PAT.search(line)
 
-    
+
 def is_digit_core(line: str) -> bool:
     return unicodedata.category(line) == 'Nd'
 
@@ -610,6 +623,60 @@ NEXT_TOKEN_PAT = re.compile(r'\s*\S+')
 
 def find_next_token(line: str):
     return NEXT_TOKEN_PAT.match(line)
+
+
+
+# this probably should go into strutils
+def split_with_offsets(line: str) -> List[Tuple[int, int, str]]:
+    ret = [(mat.start(), mat.end(), mat.group())
+           for mat in re.finditer(r'\S+', line)]
+    return ret
+
+def split_with_offsets_xparens(line: str) -> List[Tuple[int, int, str]]:
+    ret = [(mat.start(), mat.end(), mat.group())
+           for mat in re.finditer(r'\S+', line)]
+    out_list = []
+    for se_matst in ret:
+        start, end, mat_st = se_matst
+        parts = re.split(r'([\(\)])', mat_st)  # capture separators also
+        if len(parts) > 1:
+            offset = start
+            for part in parts:
+                if part:
+                    out_list.append((offset, offset + len(part), part))
+                    offset += len(part)
+        else:
+            out_list.append(se_matst)
+    return out_list
+
+
+def get_consecutive_one_char_parens_mats(line: str) -> List[Match[str]]:
+    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
+
+    Makes sure they start with 1, 2 or a, b.
+    """
+    result = list(re.finditer(r'\(?\S\)\s*', line))
+
+    if len(result) > 1:
+        # check if first and 2nd are valid indexes
+        first = result[0].group()
+        second = result[1].group()
+        # print("first = [{}]".format(first))
+        # print("second = [{}]".format(second))
+        # print("    matched 1 = {}".format(re.match(r'\((1|a|i)\)', first, re.I)))
+        # print("    matched 2 = {}".format(re.match(r'\((2|b|ii)\)', second, re.I)))
+        if re.match(r'\(?(1|a|i)\)', first, re.I) and \
+           re.match(r'\(?(2|b|ii)\)', second, re.I):
+            return result
+    return []
+
+def get_one_char_parens_mats(line: str) -> List[Match[str]]:
+    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
+
+    No check to make sure they start with 1, 2 or a, b.
+    """
+    result = list(re.finditer(r'\(?\S\)\s*', line))
+    return result
 
 
 if __name__ == '__main__':
