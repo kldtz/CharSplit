@@ -949,6 +949,8 @@ def extract_party_defined_term_list(line: str) \
     else:
         # try with all entities in upper()
         entities = get_title_phrase_list(line, is_all_upper=True)
+        num_org_suffix = len(get_org_suffix_mat_list(line))
+
         if IS_DEBUG_MODE:
             print_debug_list(entities, 'zz', title='before_remove_invalid')
         entities = remove_invalid_entities(entities, is_all_upper=True)
@@ -957,7 +959,7 @@ def extract_party_defined_term_list(line: str) \
         # if only found 1 all_cap entities, try something else
         # Maybe only 1 company is all cap, the others are normal case
         # don't want to skip normal ones.  35436.txt
-        if len(entities) < 2:
+        if len(entities) < 2 or len(entities) < num_org_suffix:
             # otherwise, try with title(), but this might get addresses
             entities = get_title_phrase_list(line)
 
