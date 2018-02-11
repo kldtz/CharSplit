@@ -195,5 +195,19 @@ class LineAnnotator:
                     # since nl_text has the original offsets, use that.
                     # DO NOT transform
                     # fromto_mapper.adjust_fromto_offsets(prov_annotations)
+                else:  # still failed, last effort using regex match on paras_text
+                    start_offset, end_offset = \
+                        self.provision_annotator.extract_provision_offsets_not_line(paras_attr_list,
+                                                                                    paras_text)
+
+                    if start_offset is not None:
+                        prov_annotations = [{'end': end_offset,
+                                             'label': self.provision,
+                                             'start': start_offset,
+                                             'prob': 0.91,
+                                             'text': paras_text[start_offset:end_offset]}]
+
+                        fromto_mapper.adjust_fromto_offsets(prov_annotations)
+
 
         return prov_annotations
