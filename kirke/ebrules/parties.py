@@ -1861,6 +1861,8 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                 continue
             if re.search(r'(date|dollars?|millions?|liability)\s*$', party_y_text, re.I):
                 continue
+            if re.match(r'(for|now)\s+', party_y_text, re.I):
+                continue
             tmp_mat = re.match(r'for\s+value\s+received,?\s+', party_y_text, re.I)
             if tmp_mat:
                 start = start + tmp_mat.end()
