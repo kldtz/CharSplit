@@ -145,8 +145,13 @@ def is_ok_title_filter(line: str, norm_line: str = '') -> bool:
         return False
     if re.search(r'\bdated?\b', line, re.I):
         return False
-
     if re.match(r'section\b', line, re.I):
+        return False
+    # this probably is never reached because of extract_line_v2()'s
+    # regexutils.remove_non_alpha_num(line_st)
+    # if re.search(r'\.\.\.', line, re.I):
+    #    return False
+    if re.search(r'^\s*\d+.*\d+\s*$', line, re.I):   # '3 abc 4', toc
         return False
 
     # a heading
@@ -233,6 +238,7 @@ def extract_lines_v2(paras_attr_list) -> Tuple[List[Dict],
             break
 
         # 'skip_as_template' not in para_attrs:
+        orig_line_st = line_st
         line_st = regexutils.remove_non_alpha_num(line_st)
         is_toc = 'toc' in para_attrs or 'toc7' in para_attrs
 
@@ -249,6 +255,8 @@ def extract_lines_v2(paras_attr_list) -> Tuple[List[Dict],
 
             # lines and adjust_score_list must be synchronized
             if 'sechead' in para_attrs:
+                adjust_score_list.append(-0.9)
+            elif '...' in orig_line_st:  # check for toc
                 adjust_score_list.append(-0.9)
             else:
                 adjust_score_list.append(0)
