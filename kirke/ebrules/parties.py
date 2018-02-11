@@ -146,6 +146,18 @@ def party_strip(astr: str) -> str:
     non_party_chars = set(astr) - PARTY_CHARS
     return astr.strip(str(non_party_chars)) if non_party_chars else astr
 
+def load_us_state_end_pat():
+    state_list = strutils.load_str_list(DATA_DIR + 'us_state.list')
+    # the abbreviation is intentionally missing 'co', which is often a org suffix
+    state_incomplete_list = strutils.load_str_list(DATA_DIR + 'us_state_abbr.incomplete.list')
+    state_list.extend(state_incomplete_list)
+    state_regex = r'\b(' + '|'.join(state_list) + r')\.?\s*$'
+    return state_regex
+
+US_STATE_END_PAT = load_us_state_end_pat()
+
+def is_ending_in_us_state(line: str) -> bool:
+    return re.search(US_STATE_END_PAT, line, re.I)
 
 SENTENCE_DOES_NOT_CONTINUE = r'(?=\s+(?:[A-Z0-9].|[a-z][A-Z0-9]))'
 NOT_FEW_LETTERS = r'(?<!\b[A-Za-z]\.)(?<!\b[A-Za-z]{2}\.)'
@@ -316,7 +328,7 @@ PARENS_PAT = re.compile(r'\(([^\(]+)\)')
 # TODO, 'seller, seller' the context?
 ORG_SUFFIX_PAT = re.compile(r' ('
                             r'branch|ag|company|co|corp|corporation|d\.\s*a\.\s*c|inc|'
-                            r'incorporated|llc|gmbh|foundation|enterprises?'
+                            r'incorporated|llc|gmbh|foundation|enterprises?|'
                             r'l\.\s*l\.\s*c|ulc|'
                             r'ltd|limited|lp|l\.\s*p|limited partnership|n\.\s*a|plc|'
                             r's\.\s*r\.\s*l|'
@@ -364,6 +376,14 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     #        print("mat #{}: {}".format(i, mat))
     #    print()
     return result2
+
+def is_all_less_3char_words(term: str) -> bool:
+    words = list(re.findall(r'\w+', term))
+    for word in words:
+        # print("word: [{}]".format(word))
+        if len(word) > 2:
+            return False
+    return True
 
 
 # returns (start, end, (entity_st, entity_type))
@@ -443,6 +463,18 @@ def get_title_phrase_list(line: str,
     num_org_suffix = len(get_org_suffix_mat_list(line))
     if is_all_upper and len(title_phrase_list) < num_org_suffix:
         return []
+
+    # When is_all_upper, remove all entries with < 3 characters.
+    # They are likely to be states, such as 'VA.'
+    if is_all_upper:
+        tmp_title_phrase = []
+        for title_phrase in title_phrase_list:
+            fstart, unused_fend, unused_first_word = title_phrase[0]
+            unused_lstart, lend, unused_last_word = title_phrase[-1]
+            term = line[fstart:lend]
+            if not is_all_less_3char_words(term):
+                tmp_title_phrase.append(title_phrase)
+        title_phrase = tmp_title_phrase
 
     out_list = []  # type: List[Tuple[int, int, str]]
     for title_phrase in title_phrase_list:
@@ -727,6 +759,9 @@ def is_invalid_party_phrase(line: str) -> bool:
     if re.search(r'\b(USA|Costa Rica|avenidas?)\s*$', line, re.I):
         return True
 
+    if is_ending_in_us_state(line):
+        return True
+
     if is_address(line):
         return True
 
@@ -800,7 +835,7 @@ def is_invalid_party(line, is_party=True) -> bool:
     return lc_line in INVALID_PARTIES_SET
 
 
-def remove_invalid_entities(entity_list: List[Tuple[int, int, str]]) \
+def remove_invalid_entities(entity_list: List[Tuple[int, int, str]], is_all_upper=False) \
     -> List[Tuple[int, int, str]]:
     out_list = []
     for entity in entity_list:
@@ -808,6 +843,8 @@ def remove_invalid_entities(entity_list: List[Tuple[int, int, str]]) \
         # this should be using some ML address detector
         # This is is_invalid_party_phrase(), not is_invalid_party()
         if is_invalid_party_phrase(entity_st):
+            pass
+        elif is_all_upper and is_all_less_3char_words(entity_st):
             pass
         else:
             out_list.append(entity)
@@ -912,11 +949,11 @@ def extract_party_defined_term_list(line: str) \
     else:
         # try with all entities in upper()
         entities = get_title_phrase_list(line, is_all_upper=True)
-        # if IS_DEBUG_MODE:
-        #     print_debug_list(entities, 'zz', title='before_remove_invalid')
-        entities = remove_invalid_entities(entities)
-        # if IS_DEBUG_MODE:
-        #    print_debug_list(entities, 'zz2', title='after_remove_invalid')
+        if IS_DEBUG_MODE:
+            print_debug_list(entities, 'zz', title='before_remove_invalid')
+        entities = remove_invalid_entities(entities, is_all_upper=True)
+        if IS_DEBUG_MODE:
+            print_debug_list(entities, 'zz2', title='after_remove_invalid')
         # if only found 1 all_cap entities, try something else
         # Maybe only 1 company is all cap, the others are normal case
         # don't want to skip normal ones.  35436.txt
