@@ -575,6 +575,16 @@ def is_all_title(line: str) -> bool:
     return True
 
 
+def is_all_title_or_the(line: str) -> bool:
+    words = line.split()
+    if not words:
+        return False
+    for word in words:
+        if not (word.isupper() or word.istitle() or word.lower() == 'the'):
+            return False
+    return True
+
+
 def split_by_phrase_offsets(line: str, entity_list: List[Tuple[int, int, str]]) \
     -> List[Tuple[Tuple[int, int, str],
                   Tuple[int, int, str]]]:
@@ -666,15 +676,6 @@ def span_to_party(span_offsets: Tuple[int, int, str]) \
 
     return span_offsets
 
-
-def is_all_title_or_the(line: str) -> bool:
-    words = line.split()
-    if not words:
-        return False
-    for word in words:
-        if not (word.isupper() or word.istitle() or word.lower() == 'the'):
-            return False
-    return True
 
 # pylint: disable=too-many-return-statements
 def span_to_dterm(span_offsets: Tuple[int, int, str]) \
