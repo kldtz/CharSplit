@@ -174,9 +174,9 @@ MONTH_LIST = ['January', 'February', 'March', 'April', 'May',
               'November', 'December',
               # for OCR misspelling?
               'M ay']
-MONTH_ABBR_LIST = ['Jan.?', 'Feb.?', 'Mar.?', 'Apr.?',
-                   'Jun.?', 'Jul.?', 'Sep.?', 'Sept.?', 'Oct.?',
-                   'Nov.?', 'Dec.?']
+MONTH_ABBR_LIST = [r'Jan\.?', r'Feb\.?', r'Mar\.?', r'Apr\.?',
+                   r'Jun\.?', r'Jul\.?', r'Sep\.?', r'Sept\.?', r'Oct\.?',
+                   r'Nov\.?', r'Dec\.?']
 ALL_MONTH_LIST = MONTH_LIST + MONTH_ABBR_LIST
 
 ALL_MONTH_PAT = '|'.join(ALL_MONTH_LIST)
