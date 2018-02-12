@@ -146,6 +146,18 @@ def party_strip(astr: str) -> str:
     non_party_chars = set(astr) - PARTY_CHARS
     return astr.strip(str(non_party_chars)) if non_party_chars else astr
 
+def load_us_state_end_pat():
+    state_list = strutils.load_str_list(DATA_DIR + 'us_state.list')
+    # the abbreviation is intentionally missing 'co', which is often a org suffix
+    state_incomplete_list = strutils.load_str_list(DATA_DIR + 'us_state_abbr.incomplete.list')
+    state_list.extend(state_incomplete_list)
+    state_regex = r'\b(' + '|'.join(state_list) + r')\.?\s*$'
+    return state_regex
+
+US_STATE_END_PAT = load_us_state_end_pat()
+
+def is_ending_in_us_state(line: str) -> bool:
+    return re.search(US_STATE_END_PAT, line, re.I)
 
 SENTENCE_DOES_NOT_CONTINUE = r'(?=\s+(?:[A-Z0-9].|[a-z][A-Z0-9]))'
 NOT_FEW_LETTERS = r'(?<!\b[A-Za-z]\.)(?<!\b[A-Za-z]{2}\.)'
@@ -316,7 +328,7 @@ PARENS_PAT = re.compile(r'\(([^\(]+)\)')
 # TODO, 'seller, seller' the context?
 ORG_SUFFIX_PAT = re.compile(r' ('
                             r'branch|ag|company|co|corp|corporation|d\.\s*a\.\s*c|inc|'
-                            r'incorporated|llc|gmbh|foundation|enterprises?'
+                            r'incorporated|llc|gmbh|foundation|enterprises?|'
                             r'l\.\s*l\.\s*c|ulc|'
                             r'ltd|limited|lp|l\.\s*p|limited partnership|n\.\s*a|plc|'
                             r's\.\s*r\.\s*l|'
@@ -364,6 +376,14 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     #        print("mat #{}: {}".format(i, mat))
     #    print()
     return result2
+
+def is_all_less_3char_words(term: str) -> bool:
+    words = list(re.findall(r'\w+', term))
+    for word in words:
+        # print("word: [{}]".format(word))
+        if len(word) > 2:
+            return False
+    return True
 
 
 # returns (start, end, (entity_st, entity_type))
@@ -443,6 +463,18 @@ def get_title_phrase_list(line: str,
     num_org_suffix = len(get_org_suffix_mat_list(line))
     if is_all_upper and len(title_phrase_list) < num_org_suffix:
         return []
+
+    # When is_all_upper, remove all entries with < 3 characters.
+    # They are likely to be states, such as 'VA.'
+    if is_all_upper:
+        tmp_title_phrase = []
+        for title_phrase in title_phrase_list:
+            fstart, unused_fend, unused_first_word = title_phrase[0]
+            unused_lstart, lend, unused_last_word = title_phrase[-1]
+            term = line[fstart:lend]
+            if not is_all_less_3char_words(term):
+                tmp_title_phrase.append(title_phrase)
+        title_phrase = tmp_title_phrase
 
     out_list = []  # type: List[Tuple[int, int, str]]
     for title_phrase in title_phrase_list:
@@ -543,6 +575,16 @@ def is_all_title(line: str) -> bool:
     return True
 
 
+def is_all_title_or_the(line: str) -> bool:
+    words = line.split()
+    if not words:
+        return False
+    for word in words:
+        if not (word.isupper() or word.istitle() or word.lower() == 'the'):
+            return False
+    return True
+
+
 def split_by_phrase_offsets(line: str, entity_list: List[Tuple[int, int, str]]) \
     -> List[Tuple[Tuple[int, int, str],
                   Tuple[int, int, str]]]:
@@ -635,15 +677,6 @@ def span_to_party(span_offsets: Tuple[int, int, str]) \
     return span_offsets
 
 
-def is_all_title_or_the(line: str) -> bool:
-    words = line.split()
-    if not words:
-        return False
-    for word in words:
-        if not (word.isupper() or word.istitle() or word.lower() == 'the'):
-            return False
-    return True
-
 # pylint: disable=too-many-return-statements
 def span_to_dterm(span_offsets: Tuple[int, int, str]) \
     -> Optional[Tuple[int, int, str]]:
@@ -727,6 +760,9 @@ def is_invalid_party_phrase(line: str) -> bool:
     if re.search(r'\b(USA|Costa Rica|avenidas?)\s*$', line, re.I):
         return True
 
+    if is_ending_in_us_state(line):
+        return True
+
     if is_address(line):
         return True
 
@@ -800,7 +836,7 @@ def is_invalid_party(line, is_party=True) -> bool:
     return lc_line in INVALID_PARTIES_SET
 
 
-def remove_invalid_entities(entity_list: List[Tuple[int, int, str]]) \
+def remove_invalid_entities(entity_list: List[Tuple[int, int, str]], is_all_upper=False) \
     -> List[Tuple[int, int, str]]:
     out_list = []
     for entity in entity_list:
@@ -808,6 +844,8 @@ def remove_invalid_entities(entity_list: List[Tuple[int, int, str]]) \
         # this should be using some ML address detector
         # This is is_invalid_party_phrase(), not is_invalid_party()
         if is_invalid_party_phrase(entity_st):
+            pass
+        elif is_all_upper and is_all_less_3char_words(entity_st):
             pass
         else:
             out_list.append(entity)
@@ -821,6 +859,12 @@ def print_debug_list(alist: List, prefix: str, title: str = '') -> None:
             print('   {} elt #{}: {}'.format(prefix, i, elt))
         print()
 
+def get_last_word(line: str, index: int) -> str:
+    words = line[:index].split()
+    if words:
+        return words[-1]
+    return ''
+
 # if person party, following ' and ', is probably OK
 def select_highly_likely_parties(entities: List[Tuple[int, int, str]],
                                  line: str) \
@@ -833,12 +877,18 @@ def select_highly_likely_parties(entities: List[Tuple[int, int, str]],
     for entity in entities:
         start, end, entity_st = entity
 
+        last_word = get_last_word(line, start)
+
         # print("select entity: {}".format(entity))
         # anything that's has org suffix, add it
         if re.search(r'\b(law|code)$', entity_st, re.I):
             pass
         elif ORG_SUFFIX_PAT.search(entity_st):
-            out_list.append(entity)
+            # print('last word = [{}], entity_st = [{}]'.format(last_word, entity_st))
+            # a Delaware Corporation (bad capitalization),
+            # a Limited Liability company (bad capitalization also?)
+            if last_word not in set(['a', 'an']):
+                out_list.append(entity)
         # invalid word pattern
         elif is_invalid_party_phrase(entity_st):
             pass
@@ -900,15 +950,17 @@ def extract_party_defined_term_list(line: str) \
     else:
         # try with all entities in upper()
         entities = get_title_phrase_list(line, is_all_upper=True)
-        # if IS_DEBUG_MODE:
-        #     print_debug_list(entities, 'zz', title='before_remove_invalid')
-        entities = remove_invalid_entities(entities)
-        # if IS_DEBUG_MODE:
-        #    print_debug_list(entities, 'zz2', title='after_remove_invalid')
+        num_org_suffix = len(get_org_suffix_mat_list(line))
+
+        if IS_DEBUG_MODE:
+            print_debug_list(entities, 'zz', title='before_remove_invalid')
+        entities = remove_invalid_entities(entities, is_all_upper=True)
+        if IS_DEBUG_MODE:
+            print_debug_list(entities, 'zz2', title='after_remove_invalid')
         # if only found 1 all_cap entities, try something else
         # Maybe only 1 company is all cap, the others are normal case
         # don't want to skip normal ones.  35436.txt
-        if len(entities) < 2:
+        if len(entities) < 2 or len(entities) < num_org_suffix:
             # otherwise, try with title(), but this might get addresses
             entities = get_title_phrase_list(line)
 
@@ -1698,55 +1750,12 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
             print(party_line)
             print("is_list_party = {}".format(is_list_party))
 
-        if is_list_party:
-            # all the parties are in after_se_paras_attr_list
-            party_term_offsets_list = extract_parties_from_list_lines(after_se_paras_attr_list)
-            for party_term_offsets in party_term_offsets_list:
-                party_offset_pair, term_offset_pair = party_term_offsets
-                if party_offset_pair and term_offset_pair:
-                    # print("xxx {},,,, {}".format(party_offset_pair, term_offset_pair))
-                    out_list.append((party_offset_pair, term_offset_pair))
-                if party_offset_pair and not term_offset_pair:
-                    # print("xxx111 {}".format(party_offset_pair))
-                    out_list.append((party_offset_pair, None))
-                if not party_offset_pair and term_offset_pair:
-                    # print("found defined_term, but not party: {}".format(term_offset_pair))
-                    # print("xxx222 {}".format(term_offset_pair))
-                    out_list.append((term_offset_pair, None))
-        else:  # normal party line
-            """
-            # Extract parties and return their offsets
-            parties = extract_parties_from_party_line(party_line)
 
-            # for ppart in parties:
-            #     print("ppart: {}".format(ppart))
-            offset_pair_list = parties_to_offsets(parties, party_line)
-            # for ppart in offset_pair_list:
-            #     print("ppart 22: {}".format(ppart))
-            # logging.info("offset_pair_list: {}".format(offset_pair_list))
-            for party_term_ox_list in offset_pair_list:
-                if len(party_term_ox_list) == 2:
-                    party_start, party_end = party_term_ox_list[0]
-                    defined_term_start, defined_term_end = party_term_ox_list[1]
-                    out_list.append(((start + party_start, start + party_end),
-                                     (start + defined_term_start, start + defined_term_end)))
-                else:
-                    party_start, party_end = party_term_ox_list[0]
-                    out_list.append(((start + party_start, start + party_end),
-                                     None))
-            """
-
-            # there still can be multiple sentences in the paragraph containing
-            # the party line.  Use NLTK to take care of this.
-            """
-            sent_tokenize_list = sent_tokenize(party_line)
-            if IS_DEBUG_MODE:
-                for sent in sent_tokenize_list:
-                    print("found sent: {}".format(sent))
-            party_line = sent_tokenize_list[0]
-            """
-
-            party_dterm_list = extract_party_defined_term_list(party_line)
+        # Sometimes if is_list_party, still have parties in party line only.
+        # So, try that first.  If found parties, don't bother with the is_party list
+        # print("ok, party_line: [{}]".format(first_sentence(party_line)))
+        party_dterm_list = extract_party_defined_term_list(first_sentence(party_line))
+        if party_dterm_list:
             for party_dterm in party_dterm_list:
                 party_x, dterm_x = party_dterm
                 if party_x and dterm_x:
@@ -1760,6 +1769,73 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                 elif dterm_x:
                     tstart, tend, _, _ = dterm_x
                     out_list.append(((start + tstart, start + tend), None))
+        else:
+            # ok, now, we have tries to find parties in party line already.
+            # let's try is_list_party logic
+
+            if is_list_party:
+                # all the parties are in after_se_paras_attr_list
+                party_term_offsets_list = extract_parties_from_list_lines(after_se_paras_attr_list)
+                for party_term_offsets in party_term_offsets_list:
+                    party_offset_pair, term_offset_pair = party_term_offsets
+                    if party_offset_pair and term_offset_pair:
+                        # print("xxx {},,,, {}".format(party_offset_pair, term_offset_pair))
+                        out_list.append((party_offset_pair, term_offset_pair))
+                    if party_offset_pair and not term_offset_pair:
+                        # print("xxx111 {}".format(party_offset_pair))
+                        out_list.append((party_offset_pair, None))
+                    if not party_offset_pair and term_offset_pair:
+                        # print("found defined_term, but not party: {}".format(term_offset_pair))
+                        # print("xxx222 {}".format(term_offset_pair))
+                        out_list.append((term_offset_pair, None))
+            else:  # normal party line
+                """
+                # Extract parties and return their offsets
+                parties = extract_parties_from_party_line(party_line)
+
+                # for ppart in parties:
+                #     print("ppart: {}".format(ppart))
+                offset_pair_list = parties_to_offsets(parties, party_line)
+                # for ppart in offset_pair_list:
+                #     print("ppart 22: {}".format(ppart))
+                # logging.info("offset_pair_list: {}".format(offset_pair_list))
+                for party_term_ox_list in offset_pair_list:
+                    if len(party_term_ox_list) == 2:
+                        party_start, party_end = party_term_ox_list[0]
+                        defined_term_start, defined_term_end = party_term_ox_list[1]
+                        out_list.append(((start + party_start, start + party_end),
+                                         (start + defined_term_start, start + defined_term_end)))
+                    else:
+                        party_start, party_end = party_term_ox_list[0]
+                        out_list.append(((start + party_start, start + party_end),
+                                         None))
+                """
+
+                # there still can be multiple sentences in the paragraph containing
+                # the party line.  Use NLTK to take care of this.
+                """
+                sent_tokenize_list = sent_tokenize(party_line)
+                if IS_DEBUG_MODE:
+                    for sent in sent_tokenize_list:
+                        print("found sent: {}".format(sent))
+                party_line = sent_tokenize_list[0]
+                """
+
+                # party_dterm_list = extract_party_defined_term_list(party_line)
+                party_dterm_list = extract_party_defined_term_list(first_sentence(party_line))
+                for party_dterm in party_dterm_list:
+                    party_x, dterm_x = party_dterm
+                    if party_x and dterm_x:
+                        pstart, pend, _, _ = party_x
+                        tstart, tend, _, _ = dterm_x
+                        out_list.append(((start + pstart, start + pend),
+                                         (start + tstart, start + tend)))
+                    elif party_x:
+                        pstart, pend, _, _ = party_x
+                        out_list.append(((start + pstart, start + pend), None))
+                    elif dterm_x:
+                        tstart, tend, _, _ = dterm_x
+                        out_list.append(((start + tstart, start + tend), None))
 
     if IS_DEBUG_MODE:
         print()
@@ -1783,7 +1859,9 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                 # term_y = None
                 # skip the append part
                 continue
-            if re.search(r'(date|dollars?|millions?)\s*$', party_y_text, re.I):
+            if re.search(r'(date|dollars?|millions?|liability)\s*$', party_y_text, re.I):
+                continue
+            if re.match(r'(for|now)\s+', party_y_text, re.I):
                 continue
             tmp_mat = re.match(r'for\s+value\s+received,?\s+', party_y_text, re.I)
             if tmp_mat:

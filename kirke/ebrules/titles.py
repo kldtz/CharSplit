@@ -4,11 +4,11 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from kirke.utils import regexutils, txtreader
 
-IS_DEBUG = False
-IS_DEBUG_MODE = False
-
 # IS_DEBUG = True
 # IS_DEBUG_MODE = True
+
+IS_DEBUG = False
+IS_DEBUG_MODE = False
 
 DATA_DIR = './dict/titles/'
 
@@ -75,8 +75,6 @@ def load_train_title_list() -> List[str]:
     return sorted(seen_set)
 
 TRAIN_TITLE_LIST = load_train_title_list()
-if IS_DEBUG_MODE:
-    print('len(TRAIN_TITLE_LIST) = {}, {}'.format(len(TRAIN_TITLE_LIST), TRAIN_TITLE_LIST[:15]))
 
 # TODO, jshaw, should remove BOM
 # for the below file, need to remove the BOM at the end of the phrases toward the end of
@@ -147,9 +145,25 @@ def is_ok_title_filter(line: str, norm_line: str = '') -> bool:
         return False
     if re.search(r'\bdated?\b', line, re.I):
         return False
+    if re.match(r'section\b', line, re.I):
+        return False
+    # this probably is never reached because of extract_line_v2()'s
+    # regexutils.remove_non_alpha_num(line_st)
+    # if re.search(r'\.\.\.', line, re.I):
+    #    return False
+    if re.search(r'^\s*\d+.*\d+\s*$', line, re.I):   # '3 abc 4', toc
+        return False
 
     # a heading
-    if re.search(r'^\d+\.\s+', line):
+    # 1. xxxx
+    # 1       Amendment
+    if re.match(r'\s*[\divx]+\.\s+', line) or \
+       re.match(r'[\divx]+\.?\s\s\s+', line):
+        return False
+
+    # a toc
+    # 'xxx         13'
+    if re.search(r'\s\s\s+[\divx]+\s*$', line) and len(line) > 60:
         return False
 
     norm_words = norm_line.split()
@@ -224,6 +238,7 @@ def extract_lines_v2(paras_attr_list) -> Tuple[List[Dict],
             break
 
         # 'skip_as_template' not in para_attrs:
+        orig_line_st = line_st
         line_st = regexutils.remove_non_alpha_num(line_st)
         is_toc = 'toc' in para_attrs or 'toc7' in para_attrs
 
@@ -234,14 +249,21 @@ def extract_lines_v2(paras_attr_list) -> Tuple[List[Dict],
             line = {'line': line_st, 'start': i, 'end': i, 'end_char': -1,
                     'title': title, 'maybe_title': maybe_title, 'is_toc': is_toc}
             lines.append(line)
+
+            if IS_DEBUG_MODE:
+                print('j3 line: [{}], attr = {}'.format(line_st, para_attrs))
+
+            # lines and adjust_score_list must be synchronized
+            if 'sechead' in para_attrs:
+                adjust_score_list.append(-0.9)
+            elif '...' in orig_line_st:  # check for toc
+                adjust_score_list.append(-0.9)
+            else:
+                adjust_score_list.append(0)
+
         # lines and start_end_list are NOT synchronized
         # start_end_list must have the same size as i
         start_end_list.append((offset, offset + line_st_len))
-        if 'sechead' in para_attrs:
-            adjust_score_list.append(-0.9)
-        else:
-            adjust_score_list.append(0)
-
         offset += line_st_len + 1
 
     if is_found_party_line or is_found_toc:
@@ -347,6 +369,7 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
         elif found_title_try_limited == 0:
             break
 
+        # print('adjscore = {}, linex = [{}]'.format(adjust_score, linex['line']))
         if adjust_score < 0:  # skip sechead
             continue
 
@@ -458,8 +481,40 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
     return None, None
 
 
+# pylint: disable=too-many-branches, too-many-statements
+def extract_offsets_not_line(paras_attr_list, paras_text: str) -> Tuple[Optional[int],
+                                                                        Optional[int]]:
+    """Extract title based on regex.
+
+    Example: 'This consuting agreement (the "agreement")...
+    """
+    offset = 0
+    for i, (line_st, para_attrs) in enumerate(paras_attr_list):
+        line_st_len = len(line_st)
+
+        if 'party_line' in para_attrs:
+            # must start from ebgin of a sentence
+            mat = re.match(r'((\w+)(\s+\w+)+)\s+\(the [“"”]agreement[“"”]\)', line_st, re.I)
+            if mat and len(mat.group(3).split()) < 5:
+                maybe_title_st = mat.group(1)
+                first_word = mat.group(2)
+                span_start = offset + mat.start(1)
+                if first_word in set(['the', 'this']):
+                    span_start = offset + mat.start(3)
+                span_end = offset + mat.end(1)
+                return span_start, span_end
+
+        offset += line_st_len + 1
+    return None, None
+
+
 def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
                                               Optional[int]]:
+    """Extract based on NL offsets.
+
+       Because sometimes nl_text is empty, i.e., HTML documents, we also try
+       paras_text on some regex also.
+    """
     # pylint: disable=global-statement
     global train_title_wordset_list
 
@@ -578,10 +633,26 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
                         span_end -= len(end_space_mat.group())
                     return span_start, span_end
 
+
+    # At this stage, still no title found.
+    # Will take "This xxx agreement (the "agreement")
+    for i, se_line in enumerate(se_lines):
+        start, end, line = se_line
+        # print('trying out ({}, {}) [{}]'.format(start, end, line))
+        # must start from ebgin of a sentence
+        mat = re.match(r'((\w+)(\s+\w+)+)\s+\(the [“"”]agreement[“"”]\)', line, re.I)
+        if mat and len(mat.group(3).split()) < 5:
+            maybe_title_st = mat.group(1)
+            first_word = mat.group(2)
+            span_start = mat.start(1)
+            if first_word in set(['the', 'this']):
+                span_start = mat.start(3)
+            span_end = mat.end(1)
+            return span_start, span_end
+        if i > 50:  # we only do this up till first 50 lines
+            break
+
     return None, None
-
-
-
 
 
 # pylint: disable=too-few-public-methods
@@ -602,6 +673,21 @@ class TitleAnnotator:
         # print("tag date: {}".format(tag('12 January 2017')))
         return extract_offsets(paras_with_attrs, paras_text)
 
+    def extract_provision_offsets_not_line(self,
+                                           paras_with_attrs,
+                                           paras_text: str) -> Tuple[Optional[int],
+                                                                     Optional[int]]:
+        """Extract title based on regex.
+
+           Example: 'This consuting agreement (the "agreement")...
+        """
+
+        if IS_DEBUG:
+            print("title called extract_provision_offsets_not_line()")
+
+        # print("tag date: {}".format(tag('12 January 2017')))
+        return extract_offsets_not_line(paras_with_attrs, paras_text)
+
     def extract_nl_provision_offsets(self,
                                      nl_text: str) -> Tuple[Optional[int],
                                                             Optional[int]]:
@@ -610,3 +696,4 @@ class TitleAnnotator:
 
         # print("tag date: {}".format(tag('12 January 2017')))
         return extract_nl_offsets(nl_text)
+

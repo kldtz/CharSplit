@@ -178,6 +178,9 @@ def is_party_line_aux(line: str) -> str:
     if is_all_upper_words and re.search('is\s+subject\s+to', line, re.I):
         return 'False4.2'
 
+    if re.search(r'terms?\s+and\s+conditions?', line, re.I):
+        return 'False4.3'
+
     #returns true if bullet type, and a real line
     # if re.match(r'\(?[\div]+\)', line) and len(line) > 60:
     mat = re.match(r'\(?\s*(1|a|i|l)\s*\)\s*(.*)', line, re.I)
