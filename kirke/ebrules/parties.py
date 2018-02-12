@@ -76,7 +76,7 @@ def is_valid_1word_party(line) -> bool:
     # experimentally, line.isupper() is 0.7925 over 0.7918
     # but, theoretically, 'Modularis ("MOD")' or company name with just 1 word
     return line.lower() in VALID_1WORD_PARTY_SET or \
-           line[0].isupper() or \
+           line.isupper() or \
            (len(line) > 1 and line[1].isupper())      # coopany name like, 'eBrevia'
     # return line.lower() in VALID_1WORD_PARTY_SET or line.isupper()
 
