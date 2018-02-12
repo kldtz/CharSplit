@@ -35,10 +35,10 @@ QUOTE = re.compile(r'[“"”]')
 
 # Supports US (5 or 5-4), UK, Australia (4), Switzerland (4), Shanghai (6)
 UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? +(?:(?![CIKMOV])[0-9O][a-zA-Z]{2})'
-
+ZIP_CODE_YEAR = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
+# TODO, jshaw, this is introducing zip code as party names.  Remove for now.
 # 'DELL RECEIVABLES FINANCING 2016 D.A.C", year is valid
-# ZIP_CODE_YEAR = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
-ZIP_CODE_YEAR = re.compile(r'\b{}\b'.format(UK_STD))
+# ZIP_CODE_YEAR = re.compile(r'\b{}\b'.format(UK_STD))
 DOT_SPACE = re.compile(r'[\.\s]+')
 
 
@@ -745,6 +745,11 @@ def is_invalid_party_phrase(line: str) -> bool:
     # this has to be exact phrase,
     # 'dominican republic bank'
     if re.search(r'^(dominican republic)$', line, re.I):
+        return True
+
+    # sometimes, a fully all-cap sentence will get there.
+    # THIS DEED OF CHARGE (THIS “DEED”) IS DATED 2017 AND MADE BETWEEN:   tdocs/file21.txt
+    if re.search(r'\b(this|dated|made)\b', line, re.I):
         return True
 
     # 'llc' is 'through or to Credit Suisse Securities (USA) LLC (“Credit Suisse”) and
