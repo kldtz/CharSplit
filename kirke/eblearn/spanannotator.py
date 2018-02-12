@@ -204,6 +204,20 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             samples = sample_transformer.enrich(samples)
         return samples, label_list, group_id_list
 
+    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
+        if not prov_human_ant_list:
+            return ant_result
+        for ant in prov_human_ant_list:
+            if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
+                clean_text = strutils.remove_nltab(doc_text[ant.start:ant.end])
+                fn_ant = ebpostproc.to_ant_result_dict(label=provision,
+                                                       prob=0.0,
+                                                       start=ant.start,
+                                                       end=ant.end,
+                                                       text=clean_text)
+                ant_result.append(fn_ant)
+        return ant_result
+
     def annotate_antdoc(self,
                         eb_antdoc: ebantdoc3.EbAnnotatedDoc3,
                         *,
@@ -235,6 +249,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                                     provision=self.provision,
                                                                     # pylint: disable=line-too-long
                                                                     prov_human_ant_list=prov_human_ant_list)
+        prov_annotations = self.recover_false_negatives(prov_human_ant_list, eb_antdoc.text, self.provision, prov_annotations)
         return prov_annotations, x_threshold
 
     def print_eval_status(self, model_dir):

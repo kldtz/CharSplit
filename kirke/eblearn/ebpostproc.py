@@ -1519,26 +1519,19 @@ class PostAddressProc(EbPostPredictProcessing):
         ant_result = []
         for merged_sample_prob in merged_sample_prob_list: 
             sent_overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'], merged_sample_prob['end'], prov_human_ant_list)
-            print([doc_text[x.start:x.end] for x in sent_overlap])
-            print("@@@", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
             if merged_sample_prob['prob'] >= threshold or sent_overlap:		
                 text = doc_text[merged_sample_prob['start']:merged_sample_prob['end']]
                 found_addrs = addresses.find_constituencies(text, all_keywords) 		
                 if not found_addrs:
-                    print("\t ADDING:", doc_text[merged_sample_prob['start']:merged_sample_prob['end']])
                     ant_result.append(merged_sample_prob)
                 else:
                     addr = found_addrs[-1]		
                     prov_start, prov_end, prov_st = addr
                     new_sample = copy.deepcopy(merged_sample_prob) 
-                    print("\t>>", prov_st)
-                    print("\t>>>>", doc_text[merged_sample_prob['start']+prov_start:merged_sample_prob['start']+prov_end])
                     new_sample['end'] = merged_sample_prob['start'] + prov_end
                     new_sample['start'] = merged_sample_prob['start'] + prov_start
                     new_sample['text'] = strutils.remove_nltab(prov_st)		
-                    print("\t ADDINGG:", doc_text[new_sample['start']:new_sample['end']], prov_st) 
                     ant_result.append(new_sample)
-        print("%%%", [(x['start'], x['end'], x['text']) for x in ant_result]) 
         return ant_result, threshold
 
 class PostPredLandlordTenantProc(EbPostPredictProcessing):
@@ -1622,7 +1615,6 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
             if merged_sample_prob['prob'] >= threshold or len(overlap) > 0:
                 # tmp_label = label if label else self.label
                 ant_result.append(merged_sample_prob)
-
         return ant_result, threshold
 
 
