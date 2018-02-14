@@ -4,7 +4,7 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
 
 from kirke.ebrules import addrannotator, dummyannotator, postprocess
-from kirke.sampleutils import addrgen, dategen, linegen, transformerutils
+from kirke.sampleutils import dollargen, addrgen, dategen, linegen, transformerutils
 from kirke.utils import ebantdoc2, ebantdoc3
 
 ml_annotator_config_map = \
@@ -30,6 +30,21 @@ ml_annotator_config_map = \
                                      ('is_addr_line_transformer', transformerutils.AddrLineTransformer())
                                  ])),
                              ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                                   shuffle=True, random_state=42,
+                                                   class_weight={True: 3, False: 1}))]),
+                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                         'threshold': 0.25,
+                         'kfold': 2},
+     'purchase_price': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+                        'docs_to_samples': dollargen.DollarContextGenerator(2,0),
+                        'post_process_list': 'purchase_price',
+                        'version': "1.0",
+                        'pipeline': Pipeline([ 
+                            ('union', FeatureUnion(
+                            transformer_list=[
+                                ('surround_transformer', transformerutils.SimpleTextTransformer())
+                            ])),
+                        ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                    shuffle=True, random_state=42,
                                                    class_weight={True: 3, False: 1}))]),
                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
