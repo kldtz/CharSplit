@@ -233,10 +233,11 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
     ptr = -1
     max_token_ptr = len(tokens)
     # fix incorrect pos
+    '''
     for token in tokens:
         if token.word == 'CORPORATE':
             token.pos = 'NNP'
-
+    '''
     for i, token in enumerate(tokens):
         # print('{}\t{}'.format(i, token))
         if (token.word[0].isupper() and
@@ -253,10 +254,12 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
                 if ptr == i - 1 and tokens[ptr].word == ',':
                     tokens[ptr].ner = EbEntityType.ORGANIZATION.name
                     ptr -= 1
-                elif tokens[ptr].pos in NAME_POS_SET:
-                    # print("tokens[{}].pos = {}, {}".format(ptr, tokens[ptr].pos, tokens[ptr]))
-                    tokens[ptr].ner = EbEntityType.ORGANIZATION.name
-                    ptr -= 1
+                    '''
+                    elif tokens[ptr].pos in NAME_POS_SET:
+                        # print("tokens[{}].pos = {}, {}".format(ptr, tokens[ptr].pos, tokens[ptr]))
+                        tokens[ptr].ner = EbEntityType.ORGANIZATION.name
+                        ptr -= 1
+                    '''
                 else:
                     break
         # separate "the Company and xxx"
