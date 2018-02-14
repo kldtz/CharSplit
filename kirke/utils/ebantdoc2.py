@@ -205,7 +205,7 @@ def nlptxt_to_attrvec_list(para_doc_text,
     # We only handle up to "exhibit_appendix,exhibit_appendix_complete"
     for ebsent in ebsent_list:
         ebsentutils.fix_ner_tags(ebsent)
-        ebsentutils.populate_ebsent_entities(ebsent, para_doc_text[ebsent.start:ebsent.end])
+        ebsentutils.populate_ebsent_entities(ebsent, para_doc_text[ebsent.start:ebsent.end], lang=doc_lang)
 
         overlap_provisions = (ebsentutils.get_labels_if_start_end_overlap(ebsent.start,
                                                                           ebsent.end,
