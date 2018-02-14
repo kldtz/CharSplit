@@ -212,7 +212,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                     for extr in extr_parties:
                       if parties.is_invalid_party(extr[0]) == True:
                           continue
-                      if len(extr[0].split()) == 1 and parties.is_valid_1word_party(extr[0]) == None:
+                      if len(extr[0].split()) == 1 and not parties.is_valid_1word_party(extr[0]):
                           continue
                       else:
                           for part in extr:
@@ -794,7 +794,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
         agent = ['tenant', 'lessee']
 
     #uses party extraction to extract the tenant and landlord
-    extr_parties = parties.extract_parties_from_party_line(sent_st, is_party=False)
+    extr_parties = parties.extract_between_among(sent_st, is_party=False)
     try:
         for party, ref in extr_parties:
             for ag in agent:
