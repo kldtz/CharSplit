@@ -4,22 +4,22 @@ import copy
 
 # pylint: disable=R0903
 class EbToken:
-    __slots__ = ['start', 'end', 'word', 'index', 'ner']
+    __slots__ = ['start', 'end', 'word', 'lemma', 'pos', 'index', 'ner']
 
     # pylint: disable=R0913
-    def __init__(self, start, end, word, index, ner):
+    def __init__(self, start, end, word, lemma, pos, index, ner):
         self.start = start
         self.end = end
         self.word = word
-        #self.lemma = lemma
-        #self.pos = pos
+        self.lemma = lemma
+        self.pos = pos
         self.index = index
         self.ner = ner
 
     def __str__(self):
         return 'EbToken({}, {}, {}, {}, {}, {})'.format(self.word,
                                                         self.index,
-                                                        #self.pos,
+                                                        self.pos,
                                                         self.ner,
                                                         self.start,
                                                         self.end)
