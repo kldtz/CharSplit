@@ -229,41 +229,44 @@ def _extract_entities(tokens, wanted_ner_names):
 NAME_POS_SET = set(['NNS', 'CD', 'NNP', 'NN', 'POS'])
 
 # this is destructive/in-place
-def _extract_entities_v2(tokens, raw_sent_text, start_offset=0):
+def _extract_entities_v2(tokens, raw_sent_text, start_offset=0, lang: str ='en'):
     ptr = -1
     max_token_ptr = len(tokens)
     # fix incorrect pos
-    for token in tokens:
-        if token.word == 'CORPORATE':
-            token.pos = 'NNP'
+    # We only fix NER related POS info for languages that have POS, currently
+    # that's only English.
+    if lang == 'en':
+        for token in tokens:
+            if token.word == 'CORPORATE':
+                token.pos = 'NNP'
 
-    for i, token in enumerate(tokens):
-        # print('{}\t{}'.format(i, token))
-        if (token.word[0].isupper() and
-            token.word.lower() in set(['llc.', 'llc', 'inc.', 'inc',
-                                       'l.p.', 'n.a.', 'corp',
-                                       'corporation', 'corp.', 'ltd.',
-                                       'ltd', 'co.', 'co', 'l.l.p.',
-                                       'lp', 's.a.', 'sa',
-                                       'n.v.', 'plc', 'plc.', 'l.l.c.'])):
-            # reset all previous tokens to ORG
-            # print("I am in here")
-            ptr = i
-            while ptr >= 0:
-                if ptr == i - 1 and tokens[ptr].word == ',':
-                    tokens[ptr].ner = EbEntityType.ORGANIZATION.name
-                    ptr -= 1
-                elif tokens[ptr].pos in NAME_POS_SET:
-                    # print("tokens[{}].pos = {}, {}".format(ptr, tokens[ptr].pos, tokens[ptr]))
-                    tokens[ptr].ner = EbEntityType.ORGANIZATION.name
-                    ptr -= 1
-                else:
-                    break
-        # separate "the Company and xxx"
-        if (token.word in 'Company' and token.ner == EbEntityType.ORGANIZATION.name and
-            (i + 1) < max_token_ptr and tokens[i+1].word == 'and' and
-            tokens[i+1].ner == EbEntityType.ORGANIZATION.name):
-            tokens[i+1].ner = 'O'
+        for i, token in enumerate(tokens):
+            # print('{}\t{}'.format(i, token))
+            if (token.word[0].isupper() and
+                token.word.lower() in set(['llc.', 'llc', 'inc.', 'inc',
+                                           'l.p.', 'n.a.', 'corp',
+                                           'corporation', 'corp.', 'ltd.',
+                                           'ltd', 'co.', 'co', 'l.l.p.',
+                                           'lp', 's.a.', 'sa',
+                                           'n.v.', 'plc', 'plc.', 'l.l.c.'])):
+                # reset all previous tokens to ORG
+                # print("I am in here")
+                ptr = i
+                while ptr >= 0:
+                    if ptr == i - 1 and tokens[ptr].word == ',':
+                        tokens[ptr].ner = EbEntityType.ORGANIZATION.name
+                        ptr -= 1
+                    elif tokens[ptr].pos in NAME_POS_SET:
+                        # print("tokens[{}].pos = {}, {}".format(ptr, tokens[ptr].pos, tokens[ptr]))
+                        tokens[ptr].ner = EbEntityType.ORGANIZATION.name
+                        ptr -= 1
+                    else:
+                        break
+            # separate "the Company and xxx"
+            if (token.word in 'Company' and token.ner == EbEntityType.ORGANIZATION.name and
+                (i + 1) < max_token_ptr and tokens[i+1].word == 'and' and
+                tokens[i+1].ner == EbEntityType.ORGANIZATION.name):
+                tokens[i+1].ner = 'O'
 
     pat_list = entityutils.extract_define_party(raw_sent_text, start_offset=start_offset)
     if pat_list:
@@ -328,9 +331,9 @@ def update_ebsents_with_sechead(ebsent_list, paras_with_attrs):
     #    print("sent #{}: {}".format(ebsent_i, ebsent_list[ebsent_i]))
     #    ebsent_i += 1
 
-def populate_ebsent_entities(ebsent, raw_sent_text):
+def populate_ebsent_entities(ebsent, raw_sent_text, lang: str = 'en'):
     tokens = ebsent.get_tokens()
-    _extract_entities_v2(tokens, raw_sent_text, ebsent.start)
+    _extract_entities_v2(tokens, raw_sent_text, ebsent.start, lang=lang)
     entity_list = _extract_entities(tokens, _WANTED_ENTITY_NAMES)
     if entity_list:
         ebsent.set_entities(entity_list)
