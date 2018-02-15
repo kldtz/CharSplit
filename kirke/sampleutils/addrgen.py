@@ -49,6 +49,8 @@ class AddrContextGenerator:
                 prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, addr_start, self.num_prev_words)
                 post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, addr_end, self.num_post_words)
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words), addr_st, ' '.join(post_n_words))
+                bow_start = addr_start
+                bow_end = addr_end
                 #update span based on window size
                 if prev_spans:
                     bow_start = prev_spans[0][0]
