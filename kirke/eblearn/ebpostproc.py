@@ -1,4 +1,4 @@
-import re
+import re, copy
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 from kirke.eblearn import ebattrvec
@@ -1512,50 +1512,26 @@ class PostAddressProc(EbPostPredictProcessing):
     def __init__(self, prov):		
         self.provision = prov		
 		
-    def find_constituencies(self, start, end, doc_text, constituencies):		
-        s = ''		
-        text = doc_text[start:end]		
-        for word in text.split():		
-            word = re.sub(r'[,\.]+$|\-', "", word)		
-            if word.isdigit() or word in constituencies:		
-                s += '1'		
-            else:		
-                s += '0'		
-        matches = re.finditer(r'(1+0?0?(1+0?0?)*1+)', s)		
-        all_spans = [match.span(1) for match in matches]		
-        max_prob = 0.0		
-        best = None		
-        for ad_start, ad_end in all_spans:		
-            list_address = text.split()[ad_start:ad_end]		
-            ad_st = " ".join(list_address)		
-            address_prob = addresses.classify(ad_st)		
-            if address_prob >= 0.5 and address_prob > max_prob and len(list_address) > 3:		
-                max_prob = address_prob		
-                pred_start,_ = re.search(list_address[0], text).span()		
-                _, pred_end = re.search(list_address[-1], text[pred_start:]).span()		
-                best = [" ".join(list_address), start+pred_start, start+pred_start+pred_end]		
-        if best:		
-            return best, True		
-        else:		
-            return [text, start, end], False		
-		
     def post_process(self, doc_text, prob_attrvec_list, threshold,		
                      provision=None, prov_human_ant_list=None) -> (List[Dict], float): 		
         merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, threshold)
         all_keywords = addresses.all_constituencies()		
-        ant_result = []		
+        ant_result = []
         for merged_sample_prob in merged_sample_prob_list: 
             sent_overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'], merged_sample_prob['end'], prov_human_ant_list)
-            print("@@@", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
             if merged_sample_prob['prob'] >= threshold or sent_overlap:		
-                #print(">>>", doc_text[merged_sample_prob['start']:merged_sample_prob['end']].replace("\n", " "), merged_sample_prob['prob'])
-                best, address = self.find_constituencies(merged_sample_prob['start'], merged_sample_prob['end'], doc_text, all_keywords) 		
-                if best:		
-                    prov_st, prov_start, prov_end = best
-                    merged_sample_prob['start'] = prov_start
-                    merged_sample_prob['end'] = prov_end
-                    merged_sample_prob['text'] = strutils.remove_nltab(prov_st)		
+                text = doc_text[merged_sample_prob['start']:merged_sample_prob['end']]
+                found_addrs = addresses.find_constituencies(text, all_keywords) 		
+                if not found_addrs:
                     ant_result.append(merged_sample_prob)
+                else:
+                    addr = found_addrs[-1]		
+                    prov_start, prov_end, prov_st = addr
+                    new_sample = copy.deepcopy(merged_sample_prob) 
+                    new_sample['end'] = merged_sample_prob['start'] + prov_end
+                    new_sample['start'] = merged_sample_prob['start'] + prov_start
+                    new_sample['text'] = strutils.remove_nltab(prov_st)		
+                    ant_result.append(new_sample)
         return ant_result, threshold
 
 class PostPredLandlordTenantProc(EbPostPredictProcessing):
@@ -1639,7 +1615,6 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
             if merged_sample_prob['prob'] >= threshold or len(overlap) > 0:
                 # tmp_label = label if label else self.label
                 ant_result.append(merged_sample_prob)
-
         return ant_result, threshold
 
 

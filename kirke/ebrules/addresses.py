@@ -1,6 +1,6 @@
 import pandas as pd
 import pickle
-import re
+import re, regex
 import string
 import time
 # from unidecode import unidecode
@@ -23,16 +23,40 @@ def pad(s):
     """Add a space before and after a string to ensure whole-word matches."""
     return ' ' + s + ' '
 
+def find_constituencies(text, constituencies):
+    s = ''
+    text = text.replace ("\n", " ")
+    for word in text.split():
+        word = re.sub(r'[,\.]+$|\-', "", word)
+        if word.isdigit() or word in constituencies:
+            s += '1'
+        else:
+            s += '0'
+    matches = re.finditer(r'(1+0?0?(1+0?0?){,2}1+)', s)
+    all_spans = [match.span(1) for match in matches]
+    ads = []
+    for ad_start, ad_end in all_spans:
+        list_address = text.split()[ad_start:ad_end]
+        ad_st = " ".join(list_address)
+        address_prob = classify(ad_st)
+        if address_prob >= 0.5 and len(text.split()[ad_start:ad_end]) > 3:
+            ad_st = re.sub('[\(\.\)]', '', ad_st)
+            for found in regex.finditer('(?e)(?:'+ad_st+'){e<=3}', text):
+                pred_start, pred_end = found.span()
+                ads_list = [pred_start, pred_end, text[pred_start:pred_end]]
+                if pred_start not in [x[0] for x in ads]:
+                    ads.append(ads_list)
+    return ads
 
 def all_constituencies():
     all_keywords = load_keywords()
     all_const = []
-    stop_keywords = ["Incorporated", "INCORPORATED", "&", "Corporation", "CORPORATION", "Inc", "INC", "LLC", "Llc", "llc"]
+    stop_keywords = ["Plan", "Incorporated", "INCORPORATED", "&", "Corporation", "CORPORATION", "Inc", "INC", "LLC", "Llc", "llc"]
     for category in all_keywords.keys():
         for const in all_keywords[category]:
             if const.strip() not in stop_keywords:
                 all_const.append(const.strip())
-    return all_const+['P.O', 'BOX', 'Box', 'Creek', 'CREEK', 'Las', 'LAS', 'Rio', 'RIO', 'New', 'NEW', 'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los', 'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E', 'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST', 'West', 'WEST']
+    return all_const+['P', 'PO', 'BOX', 'Box', 'Creek', 'CREEK', 'Las', 'LAS', 'Rio', 'RIO', 'New', 'NEW', 'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los', 'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E', 'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST', 'West', 'WEST']
 
 def load_keywords():
     # Create a dictionary object to return
