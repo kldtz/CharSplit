@@ -1,10 +1,10 @@
-
+import re
 import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
 
 from kirke.ebrules import addrannotator, dummyannotator, postprocess
-from kirke.sampleutils import dollargen, addrgen, dategen, linegen, transformerutils
+from kirke.sampleutils import regexgen, addrgen, dategen, linegen, transformerutils
 from kirke.utils import ebantdoc2, ebantdoc3
 
 ml_annotator_config_map = \
@@ -35,9 +35,8 @@ ml_annotator_config_map = \
                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                          'threshold': 0.25,
                          'kfold': 2},
-     'purchase_price': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                        'docs_to_samples': dollargen.DollarContextGenerator(2,0),
-                        'post_process_list': 'purchase_price',
+     'cust_9': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+                        'docs_to_samples': regexgen.RegexContextGenerator(15,5, re.compile(r'(\$(\d{,3},?)+(.\d\d)?)'), 'dollar'),
                         'version': "1.0",
                         'pipeline': Pipeline([ 
                             ('union', FeatureUnion(

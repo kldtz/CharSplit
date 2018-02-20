@@ -1,8 +1,11 @@
+import logging
+import re
+from kirke.utils import ebantdoc3, ebsentutils, strutils
 from typing import Dict, List, Tuple
 
 class RegexContextGenerator:
 
-    def __init__(self, num_prev_words: int, num_post_words: int, center_regex: String, sample_type: String) -> None:
+    def __init__(self, num_prev_words: int, num_post_words: int, center_regex: str, sample_type: str) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
         self.center_regex = center_regex
@@ -34,19 +37,18 @@ class RegexContextGenerator:
 
             if group_id % 10 == 0:
                 logging.info("ContextGenerator.documents_to_samples(), group_id = {}".format(group_id))
-
-            matches = re.finditer(re.escape(self.center_regex), nl_text, re.I)
+            
+            matches = self.center_regex.finditer(nl_text, re.I)
             #finds all matches in the text and adds window around each as a candidate
             for match in matches:
-                match_start, match_end = match.span()
-                match_str = match.group()
+                match_start, match_end = match.span(1)
+                match_str = match.group(1)
                 is_label = ebsentutils.check_start_end_overlap(match_start,
                                                                match_end,
                                                                label_ant_list)
                 prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, match_start, self.num_prev_words)
                 post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, match_end, self.num_post_words)
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words), match_str, ' '.join(post_n_words))
-                
                 #update span based on window size
                 new_start = match_start
                 new_end = match_end
@@ -59,8 +61,8 @@ class RegexContextGenerator:
                             'start': new_start,
                             'end': new_end,
                             'text': new_bow,
-                            'match_start': match_start
-                            'match_end': match_end
+                            'match_start': match_start,
+                            'match_end': match_end,
                             'prev_n_words': ' '.join(prev_n_words),
                             'post_n_words': ' '.join(post_n_words)}
                 samples.append(a_sample)
