@@ -68,4 +68,4 @@ class AddrContextGenerator:
                     label_list.append(True)
                 else:
                     label_list.append(False)
-       return samples, label_list, group_id_list
+        return samples, label_list, group_id_list
