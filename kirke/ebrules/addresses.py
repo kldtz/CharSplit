@@ -23,7 +23,7 @@ def pad(s):
     """Add a space before and after a string to ensure whole-word matches."""
     return ' ' + s + ' '
 
-def find_constituencies(text, constituencies):
+def find_addresses(text, constituencies):
     s = ''
     text = text.replace ("\n", " ")
     for word in text.split():
@@ -32,31 +32,32 @@ def find_constituencies(text, constituencies):
             s += '1'
         else:
             s += '0'
-    matches = re.finditer(r'(1+0?0?(1+0?0?){,2}1+)', s)
-    all_spans = [match.span(1) for match in matches]
+    matches = re.finditer(r'(1+0?0?(1+0?0?){,3}1+)', s)
+    all_spans = [match.span(1) for match in matches] 
     ads = []
     for ad_start, ad_end in all_spans:
         list_address = text.split()[ad_start:ad_end]
         ad_st = " ".join(list_address)
         address_prob = classify(ad_st)
-        if address_prob >= 0.5 and len(text.split()[ad_start:ad_end]) > 3:
+        if address_prob >= 0.5 and len(list_address) > 3:
             ad_st = re.sub('[\(\.\)]', '', ad_st)
-            for found in regex.finditer('(?e)(?:'+ad_st+'){e<=3}', text):
+            for found in regex.finditer('(?e)(?:'+ad_st+'){e<=7}', text):
                 pred_start, pred_end = found.span()
                 ads_list = [pred_start, pred_end, text[pred_start:pred_end]]
                 if pred_start not in [x[0] for x in ads]:
                     ads.append(ads_list)
     return ads
 
-def all_constituencies():
+def addr_keywords():
+    categories = ['us', 'uk', 'aus', 'can', 'apt_abbrs', 'country_names', 'numbers', 'road_abbrs']
     all_keywords = load_keywords()
-    all_const = []
-    stop_keywords = ["Plan", "Incorporated", "INCORPORATED", "&", "Corporation", "CORPORATION", "Inc", "INC", "LLC", "Llc", "llc"]
-    for category in all_keywords.keys():
-        for const in all_keywords[category]:
-            if const.strip() not in stop_keywords:
-                all_const.append(const.strip())
-    return all_const+['P', 'PO', 'BOX', 'Box', 'Creek', 'CREEK', 'Las', 'LAS', 'Rio', 'RIO', 'New', 'NEW', 'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los', 'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E', 'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST', 'West', 'WEST']
+    all_terms = []
+    stop_keywords = []
+    for c in categories:
+        for term in all_keywords[c]:
+            if term.strip() not in stop_keywords:
+                all_terms.append(term.strip())
+    return all_terms+['London', 'LONDON', 'Floor', 'floor', 'FLOOR', 'Suite', 'SUITE', 'P', 'PO', 'BOX', 'Box', 'Creek', 'CREEK', 'Las', 'LAS', 'Rio', 'RIO', 'New', 'NEW', 'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los', 'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E', 'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST', 'West', 'WEST']
 
 def load_keywords():
     # Create a dictionary object to return

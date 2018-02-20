@@ -629,7 +629,7 @@ def get_simple_words(text: str) -> List[Tuple[int, int, str]]:
     return spans
 
 
-def get_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
+def get_prev_n_words(text: str, start: int, num_words: int) -> (List[str], List[Tuple[int, int]]):
     num_chars = num_words * 20  # avg word len is 7
     first_offset = start - num_chars
     if first_offset < 0:
@@ -637,11 +637,11 @@ def get_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
     prev_text = text[first_offset:start]
     words_and_spans = get_simple_words(prev_text)[-num_words:]
     words = [x[-1] for x in words_and_spans]
-    spans = [[x+first_offset,y+first_offset] for [x,y,z] in words_and_spans]
+    spans = [(x+first_offset,y+first_offset) for [x,y,z] in words_and_spans]
     return words[-num_words:], spans[-num_words:]
 
 
-def get_post_n_words(text: str, end: int, num_words: int) -> List[str]:
+def get_post_n_words(text: str, end: int, num_words: int) -> (List[str], List[Tuple[int, int]]):
     num_chars = num_words * 20  # avg word len is 7
     last_offset = end + num_chars
     if last_offset > len(text):

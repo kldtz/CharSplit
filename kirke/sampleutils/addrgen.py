@@ -37,27 +37,31 @@ class AddrContextGenerator:
                 logging.info("AddrContextGenerator.documents_to_samples(), group_id = {}".format(group_id))
            
             #loads address keywords 
-            all_keywords = addresses.all_constituencies()
+            all_keywords = addresses.addr_keywords()
             split_text = nl_text.split()
 
             #finds all addresses in the text and adds window around each as a candidate
-            for addr in addresses.find_constituencies(nl_text, all_keywords):
-                new_start, new_end, addr_st = addr
-                is_label = ebsentutils.check_start_end_overlap(new_start,
-                                                               new_end,
+            for addr in addresses.find_addresses(nl_text, all_keywords):
+                addr_start, addr_end, addr_st = addr
+                is_label = ebsentutils.check_start_end_overlap(addr_start,
+                                                               addr_end,
                                                                label_ant_list)
-                prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, new_start, self.num_prev_words)
-                post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, new_end, self.num_post_words)
+                prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, addr_start, self.num_prev_words)
+                post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, addr_end, self.num_post_words)
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words), addr_st, ' '.join(post_n_words))
+                bow_start = addr_start
+                bow_end = addr_end
                 #update span based on window size
                 if prev_spans:
-                    new_start = prev_spans[0][0]
+                    bow_start = prev_spans[0][0]
                 if post_spans:
-                    new_end = post_spans[-1][-1]
+                    bow_end = post_spans[-1][-1]
                 a_sample = {'sample_type': 'addr',
-                            'start': new_start,
-                            'end': new_end,
+                            'start': bow_start,
+                            'end': bow_end,
                             'text': new_bow,
+                            'addr_start': addr_start,
+                            'addr_end': addr_end,
                             'prev_n_words': ' '.join(prev_n_words),
                             'post_n_words': ' '.join(post_n_words),
                             'has_addr': True}
