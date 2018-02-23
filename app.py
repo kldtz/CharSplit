@@ -160,7 +160,8 @@ def annotate_uploaded_document():
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 @app.route('/custom-train/<cust_id>', methods=['POST'])
-def custom_train(cust_id: str):
+def custom_train(cust_id: str, candidate_type: str = 'CORENLP'):
+    candidate_type = '1.CURRENCY'
     request_work_dir = request.form.get('workdir')
     if request_work_dir:
         work_dir = request_work_dir
@@ -217,11 +218,18 @@ def custom_train(cust_id: str):
             txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
             fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
             strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-            base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
-            if doc_lang != "en":
-                base_model_fname = '{}_{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                         doc_lang,
-                                                                         SCUT_CLF_VERSION)
+            if candidate_type == 'CORENLP':
+                base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
+                if doc_lang != "en":
+                    base_model_fname = '{}_{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                             doc_lang,
+                                                                             SCUT_CLF_VERSION)
+            else:
+                base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, candidate_type)
+                if doc_lang != "en":
+                    base_model_fname = '{}_{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                             doc_lang,
+                                                                             candidate_type)
 
             # Following the logic in the original code.
             eval_status, log_json = \
@@ -229,6 +237,7 @@ def custom_train(cust_id: str):
                                                               provision,
                                                               CUSTOM_MODEL_DIR,
                                                               base_model_fname,
+                                                              candidate_type,
                                                               is_doc_structure=True,
                                                               work_dir=work_dir,
                                                               doc_lang=doc_lang)

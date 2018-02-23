@@ -406,16 +406,18 @@ def train_eval_annotator_with_trte(provision: str,
 # pylint: disable=invalid-name
 def train_eval_span_annotator_with_trte(label: str,
                                         work_dir: str,
-                                        model_dir: str) \
+                                        model_dir: str,
+                                        candidate_type: str) \
             -> Tuple[spanannotator.SpanAnnotator,
                      Dict[str, Dict]]:
-    config = annotatorconfig.get_ml_annotator_config(label)
-    model_file_name = '{}/{}_annotator.v{}.pkl'.format(model_dir,
+    config = annotatorconfig.get_ml_annotator_config(candidate_type)
+    model_file_name = '{}/{}_{}_annotator.v{}.pkl'.format(model_dir,
                                                        label,
+                                                       candidate_type,
                                                        config['version'])
 
     span_annotator = \
-        spanannotator.SpanAnnotator(label,
+        spanannotator.SpanAnnotator(candidate_type,
                                     version=config['version'],
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                     docs_to_samples=config['docs_to_samples'],
@@ -437,7 +439,7 @@ def train_eval_span_annotator_with_trte(label: str,
                                                               is_doc_structure=False)
 
     samples, label_list, group_id_list = \
-        span_annotator.documents_to_samples(train_antdoc_list, label)
+        span_annotator.documents_to_samples(train_antdoc_list, candidate_type)
 
     logging.info("after span_annotator.documents_to_samples(), %s",
                  strutils.to_pos_neg_count(label_list))

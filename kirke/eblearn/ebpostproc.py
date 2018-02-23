@@ -128,7 +128,6 @@ def merge_sample_probs_aux(sample_prob_list: List[Tuple[Dict, float]]) -> Dict[s
         line_list.append(sample['text'])
         span_list.append({'start': sample['start'],
                           'end': sample['end']})
-
     out = {'label': label,
            'prob': max_prob,
            'start': min_start,
@@ -1592,22 +1591,26 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
                      threshold: float,
                      provision: Optional[str] = None,
                      prov_human_ant_list: Optional[List] = None) -> Tuple[List[Dict], float]:
-
-        merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list,
-                                                         threshold)
+        #TODO merge_sample_prob_list does too many things, you should be able to run postproc without running it first
+        #merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, 1.0)
+        merged_sample_prob_list = []
+        for sample, prob in prob_attrvec_list:
+            sample['prob'] = prob 
+            merged_sample_prob_list.append(sample)
 
         ant_result = []
         for merged_sample_prob in merged_sample_prob_list:
             overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'],
                                                         merged_sample_prob['end'],
                                                         prov_human_ant_list)
-            # jshaw, len(overlap) > 0  ??
-            # to include false negatives?
             # TODO, this has the issue if the "sample" doesn't overlap with prov_human_ant_list
             # at all.  Now we generate the samples, so it not totally miss the human annotation.
             if merged_sample_prob['prob'] >= threshold or len(overlap) > 0:
-                # tmp_label = label if label else self.label
-                ant_result.append(merged_sample_prob)
+                new_sample = copy.deepcopy(merged_sample_prob)
+                new_sample['start'] = new_sample['match_start']
+                new_sample['end'] = new_sample['match_end']
+                new_sample['text'] = doc_text[new_sample['match_start']:new_sample['match_end']]
+                ant_result.append(new_sample)
         return ant_result, threshold
 
 

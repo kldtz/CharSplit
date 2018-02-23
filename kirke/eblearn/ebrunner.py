@@ -44,15 +44,6 @@ def test_provision(eb_annotator,
     print("test_provision, type(eb_annotator) = {}".format(type(eb_annotator)))
     return eb_annotator.test_antdoc_list(eb_antdoc_list, threshold)
 
-# def annotate_provision(eb_runner, file_name):
-#     return eb_runner.annotate_document(file_name)
-
-# def trainProvision(provision,train_file,test_file,bag_matrix,bag_matrix_te,Y,Y_te,prefix):
-#  print ('STARTING TRAINING FOR ' + provision)
-#  clf = EBClassifier(prefix,provision)
-#  clf.train(train_file,test_file,bag_matrix,bag_matrix_te,Y,Y_te)
-#  return clf
-
 pid = os.getpid()
 py = psutil.Process(pid)
 
@@ -634,21 +625,6 @@ class EbRunner:
             if xx_date_list:
                 prov_labels_map['date'] = xx_date_list
 
-    # This is only called in main.py, annotate_doc_party(), which is disabled.
-    """
-    def annotate_provision_in_document(self, file_name, provision: str):
-        provision_set = set([provision])
-        ant_result_dict, doc_text = self.annotate_text_document(file_name, provision_set)
-        prov_list = ant_result_dict[provision]
-        for i, prov in enumerate(prov_list, 1):
-            start = prov['start']
-            end = prov['end']
-            prob = prov['prob']
-            print('{}\t{}\t{}\t{}\t{}\t{}\t{:.4f}'.format(file_name, i, provision,
-                                                          doc_text[start:end], start, end, prob))
-    """
-
-
     def test_annotators(self,
                         txt_fns_file_name: str,
                         provision_set: Set[str],
@@ -688,38 +664,36 @@ class EbRunner:
 
         return prov_antlist_logjson_map
 
-    #
-    # custom_train_provision_and_evaluate
-    #
     # pylint: disable=C0103
     def custom_train_provision_and_evaluate(self,
                                             txt_fn_list,
                                             provision,
                                             custom_model_dir,
                                             base_model_fname,
+                                            candidate_type,
                                             is_doc_structure=False,
                                             work_dir=None,
                                             doc_lang="en") -> Tuple[Dict[str, Any], Dict[str, Dict]]:
 
         logging.info("txt_fn_list_fn: %s", txt_fn_list)
-
         if not work_dir:
             work_dir = self.work_dir
-
         full_model_fname = '{}/{}'.format(custom_model_dir, base_model_fname)
 
         logging.info("custom_mode_file: %s", full_model_fname)
 
-        # eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
-                                                                txt_fn_list,
-                                                                work_dir,
-                                                                custom_model_dir,
-                                                                full_model_fname,
-                                                                eb_classifier,
-                                                                is_doc_structure=is_doc_structure,
-                                                                custom_training_mode=True)
+        if candidate_type == 'CORENLP':
+            eb_classifier = scutclassifier.ShortcutClassifier(provision)
+            eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
+                                                                    txt_fn_list,
+                                                                    work_dir,
+                                                                    custom_model_dir,
+                                                                    full_model_fname,
+                                                                    eb_classifier,
+                                                                    is_doc_structure=is_doc_structure,
+                                                                    custom_training_mode=True)
+        else:
+            eb_annotator, log_json = ebtrainer.train_eval_span_annotator_with_trte(provision, work_dir, custom_model_dir, candidate_type)
         # update the hashmap of classifier
         if doc_lang != "en":
             provision = "{}_{}".format(provision, doc_lang)

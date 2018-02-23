@@ -35,10 +35,38 @@ ml_annotator_config_map = \
                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                          'threshold': 0.25,
                          'kfold': 2},
-     'cust_9': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                        'docs_to_samples': regexgen.RegexContextGenerator(15,5, re.compile(r'(\$(\d{,3},?)+(.\d\d)?)'), 'dollar'),
+     '1.CURRENCY': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+                        'docs_to_samples': regexgen.RegexContextGenerator(15,5, re.compile(r'([\$€₹£¥](\d{1,3},?)+([,\.]\d\d)?)[€円]?'), '1.CURRENCY'),
                         'version': "1.0",
                         'pipeline': Pipeline([ 
+                            ('union', FeatureUnion(
+                            transformer_list=[
+                                ('surround_transformer', transformerutils.SimpleTextTransformer())
+                            ])),
+                        ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                                   shuffle=True, random_state=42,
+                                                   class_weight={True: 3, False: 1}))]),
+                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                         'threshold': 0.25,
+                         'kfold': 2},
+     '1.NUMBER': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+                        'docs_to_samples': regexgen.RegexContextGenerator(15,5, re.compile(r'(\d[\d\-\.,]+)'), '1.NUMBER'),
+                        'version': "1.0",
+                        'pipeline': Pipeline([
+                            ('union', FeatureUnion(
+                            transformer_list=[
+                                ('surround_transformer', transformerutils.SimpleTextTransformer())
+                            ])),
+                        ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                                   shuffle=True, random_state=42,
+                                                   class_weight={True: 3, False: 1}))]),
+                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                         'threshold': 0.25,
+                         'kfold': 2},
+     '1.PERCENT': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+                        'docs_to_samples': regexgen.RegexContextGenerator(15,5, re.compile(r'(\d+%)'), '1.PERCENT'),
+                        'version': "1.0",
+                        'pipeline': Pipeline([
                             ('union', FeatureUnion(
                             transformer_list=[
                                 ('surround_transformer', transformerutils.SimpleTextTransformer())
