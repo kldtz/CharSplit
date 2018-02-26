@@ -629,7 +629,7 @@ def get_simple_words(text: str) -> List[Tuple[int, int, str]]:
     return spans
 
 
-def get_prev_n_words(text: str, start: int, num_words: int) -> (List[str], List[Tuple[int, int]]):
+def get_prev_n_words(text: str, start: int, num_words: int) -> Tuple[List[str], List[Tuple[int, int]]]:
     num_chars = num_words * 20  # avg word len is 7
     first_offset = start - num_chars
     if first_offset < 0:
@@ -641,7 +641,7 @@ def get_prev_n_words(text: str, start: int, num_words: int) -> (List[str], List[
     return words[-num_words:], spans[-num_words:]
 
 
-def get_post_n_words(text: str, end: int, num_words: int) -> (List[str], List[Tuple[int, int]]):
+def get_post_n_words(text: str, end: int, num_words: int) -> Tuple[List[str], List[Tuple[int, int]]]:
     num_chars = num_words * 20  # avg word len is 7
     last_offset = end + num_chars
     if last_offset > len(text):
@@ -649,16 +649,16 @@ def get_post_n_words(text: str, end: int, num_words: int) -> (List[str], List[Tu
     post_text = text[end:last_offset]
     words_and_spans = get_simple_words(post_text)
     words = [x[-1] for x in words_and_spans]
-    spans = [[x+end, y+end] for [x,y,z] in words_and_spans]
+    spans = [(x+end, y+end) for [x,y,z] in words_and_spans]
     return words[:num_words], spans[:num_words]
 
 
-def get_lc_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
+def get_lc_prev_n_words(text: str, start: int, num_words: int) -> Tuple[List[str], List[Tuple[int, int]]]:
     words, spans = get_prev_n_words(text, start, num_words)
     return [word.lower() for word in words], spans 
 
 
-def get_lc_post_n_words(text: str, end: int, num_words: int) -> List[str]:
+def get_lc_post_n_words(text: str, end: int, num_words: int) -> Tuple[List[str], List[Tuple[int, int]]]:
     words, spans = get_post_n_words(text, end, num_words)
     return [word.lower() for word in words], spans 
 
