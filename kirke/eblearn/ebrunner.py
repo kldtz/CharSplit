@@ -682,6 +682,7 @@ class EbRunner:
 
         logging.info("custom_mode_file: %s", full_model_fname)
 
+        #if CORENLP runs the standard pipeline, if specified candidate type run candidate generation
         if candidate_type == 'CORENLP':
             eb_classifier = scutclassifier.ShortcutClassifier(provision)
             eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
@@ -693,10 +694,18 @@ class EbRunner:
                                                                     is_doc_structure=is_doc_structure,
                                                                     custom_training_mode=True)
         else:
-            eb_annotator, log_json = ebtrainer.train_eval_span_annotator_with_trte(provision, work_dir, custom_model_dir, candidate_type)
-        # update the hashmap of classifier
+            ##### probably need to put something here that creates doclists if they don't exist yet
+            ##### that's rolled into train_eval_annotator but not train_eval_span_annotator_with_trte
+            eb_annotator, log_json = ebtrainer.train_eval_span_annotator_with_trte(provision, 
+                                                                                   work_dir, 
+                                                                                   custom_model_dir, 
+                                                                                   candidate_type, 
+                                                                                   model_file_name=full_model_fname)
+        
         if doc_lang != "en":
             provision = "{}_{}".format(provision, doc_lang)
+        
+        #update maps of provision to model name, provision to annotator, and custom model to modified date
         old_provision_annotator = self.provision_annotator_map.get(provision)
         if old_provision_annotator:
             logging.info("Updating annotator, '%s', %s.", provision, full_model_fname)
@@ -707,7 +716,7 @@ class EbRunner:
         self.provision_annotator_map[provision] = eb_annotator
         self.provision_custom_model_fn_map[provision] = full_model_fname
 
-        # updating the model timestamp, for update purpose
+        # update the model timestamp to reflect last time trained 
         mtime = os.path.getmtime(os.path.join(self.custom_model_dir, base_model_fname))
         last_modified_date = datetime.fromtimestamp(mtime)
         self.custom_model_timestamp_map[base_model_fname] = last_modified_date
@@ -715,16 +724,16 @@ class EbRunner:
         return eb_annotator.get_eval_status(), log_json
 
     def update_existing_provision_fn_map_aux(self, provision: str, full_model_fname: str) -> None:
-        # intentioanlly not using .get(), because the previous model file must exist.
+        
+        # intentionally not using .get(), because the previous model file must exist.
         prev_provision_model_fname = self.provision_custom_model_fn_map[provision]
+        
         # in case the model version is different
         if prev_provision_model_fname != full_model_fname:
             logging.info("removing old customized model file, '%s', %s.", provision, prev_provision_model_fname)
             if os.path.isfile(prev_provision_model_fname):
                 os.remove(prev_provision_model_fname)
                 # the old timestamp for the removed file doesn't matter.
-                # tmp_base_fname = os.path.basename(prev_provision_model_fname)
-                # del self.custom_model_timestamp_map[tmp_base_fname]
                 self.provision_custom_model_fn_map[provision] = full_model_fname
 
     def eval_mlxline_annotator_with_trte(self,

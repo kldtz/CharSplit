@@ -225,11 +225,11 @@ def custom_train(cust_id: str, candidate_type: str = 'CORENLP'):
                                                                              doc_lang,
                                                                              SCUT_CLF_VERSION)
             else:
-                base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, candidate_type)
+                base_model_fname = '{}_{}_annotator.pkl'.format(provision, candidate_type)
                 if doc_lang != "en":
-                    base_model_fname = '{}_{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                             doc_lang,
-                                                                             candidate_type)
+                    base_model_fname = '{}_{}_{}_annotator.pkl'.format(provision,
+                                                             doc_lang,
+                                                             candidate_type)
 
             # Following the logic in the original code.
             eval_status, log_json = \

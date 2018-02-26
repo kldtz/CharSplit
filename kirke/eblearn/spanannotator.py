@@ -32,7 +32,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
     # pylint: disable=too-many-instance-attributes
     def __init__(self,
-                 label: str,
+                 provision: str,
+                 candidate_type: str,
                  version: str,
                  *,
                  doclist_to_antdoc_list,
@@ -44,8 +45,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  # prefer recall over precision
                  threshold: float = 0.2,
                  kfold: int = 3) -> None:
-        super().__init__(label, 'no description')
-        self.provision = label  # to be consistent with ProvAnnotator in ebannotator.py
+        super().__init__(provision, 'no description')
+        self.provision = provision  
         self.version = version
 
         # used for training
@@ -62,8 +63,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.estimator = None
 
         # these are set after training
-        self.classifier_status = {'label': label}  # type: Dict[str, Any]
-        self.ant_status = {'label': label}  # type: Dict[str, Any] 
+        self.classifier_status = {'label': provision}  # type: Dict[str, Any]
+        self.ant_status = {'label': provision}  # type: Dict[str, Any] 
 
     # pylint: disable=too-many-arguments
     def train_antdoc_list(self,
@@ -252,6 +253,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         prov_annotations = self.recover_false_negatives(prov_human_ant_list, eb_antdoc.text, self.provision, prov_annotations)
         return prov_annotations, x_threshold
 
+    def get_eval_status(self):
+        eval_status = {'label': self.provision}
+        eval_status['pred_status'] = self.classifier_status['eval_status']
+        eval_status['ant_status'] = self.ant_status['eval_status']
+        return eval_status
+
     def print_eval_status(self, model_dir):
 
         eval_status = {'label': self.provision}
@@ -315,10 +322,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for label, count in pos_neg_map.items():
             print("predict_and_evaluate(), pos_neg_map[{}] = {}".format(label, count))
 
-        # print("attrvec_list.size = ", len(attrvec_list))
-        # print("label_list.size = ", len(label_list))
-        # print("full_txt_fn_list.size = ", len(full_txt_fn_list))
-
         y_te = label_list
 
         probs = [] # type: List[float]
@@ -327,12 +330,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         self.classifier_status['classifer_type'] = 'spanclassifier'
         self.classifier_status['eval_status'] = evalutils.calc_pred_status_with_prob(probs, y_te)
-        # self.classifier['pos_threshold_status'] = (
-        #     evalutils.calc_pos_threshold_prob_status(probs, y_te, self.pos_threshold))
-        # self.classifier['threshold_status'] = (
-        #     evalutils.calc_threshold_prob_status(probs, y_te, self.threshold))
-        # self.classifier['override_status'] = (
-        #    evalutils.calc_prob_override_status(probs, y_te, self.threshold, overrides))
         self.classifier_status['best_params_'] = self.best_parameters
 
         return self.classifier_status

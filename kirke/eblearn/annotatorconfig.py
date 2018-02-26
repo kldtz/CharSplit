@@ -36,7 +36,7 @@ ml_annotator_config_map = \
                          'threshold': 0.25,
                          'kfold': 2},
      '1.CURRENCY': {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                        'docs_to_samples': regexgen.RegexContextGenerator(15,5, re.compile(r'([\$€₹£¥](\d{1,3},?)+([,\.]\d\d)?)[€円]?'), '1.CURRENCY'),
+                        'docs_to_samples': regexgen.RegexContextGenerator(20,5, re.compile(r'([\$€₹£¥](\d{1,3},?)+([,\.]\d\d)?)[€円]?'), '1.CURRENCY'),
                         'version': "1.0",
                         'pipeline': Pipeline([ 
                             ('union', FeatureUnion(

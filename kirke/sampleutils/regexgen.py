@@ -49,6 +49,7 @@ class RegexContextGenerator:
                 prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, match_start, self.num_prev_words)
                 post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, match_end, self.num_post_words)
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words), match_str, ' '.join(post_n_words))
+
                 #update span based on window size
                 new_start = match_start
                 new_end = match_end
