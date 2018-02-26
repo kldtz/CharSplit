@@ -87,8 +87,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             logging.info("train_antdoc_list(), pos_neg_map[%s] = %d", label, count)
 
         group_kfold = list(GroupKFold(n_splits=self.kfold).split(samples,
-                                                                 label_list,
-                                                                 groups=group_id_list))
+                                            label_list,
+                                            groups=group_id_list))
         # grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
         grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
                                    verbose=1, cv=group_kfold)
@@ -199,11 +199,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                              label: Optional[str] = None) -> Tuple[List[Dict],
                                                                    List[bool],
                                                                    List[int]]:
-        samples, label_list, group_id_list = \
+        samples, label_list, group_ids = \
             self.docs_to_samples.documents_to_samples(antdoc_list, label)
         for sample_transformer in self.sample_transformers:
             samples = sample_transformer.enrich(samples)
-        return samples, label_list, group_id_list
+        return samples, label_list, group_ids
 
     def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
         if not prov_human_ant_list:
@@ -294,7 +294,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logging.info('prov = %s, predict_antdoc(%s)', self.provision, antdoc.file_id)
 
         # label_list, group_id_list are ignored
-        samples, unused_label_list, unused_group_id_list = \
+        samples, _ , _ = \
             self.documents_to_samples([antdoc])
 
         if not samples:
@@ -309,12 +309,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             probs = self.estimator.predict_proba(samples)[:, 1]
         return samples, probs
 
-    def predict_and_evaluate(self, antdoc_list, work_dir, is_debug=False):
+    def predict_and_evaluate(self, samples, label_list, work_dir, is_debug=False):
         logging.info('predict_and_evaluate()...')
-
-        # label_list, group_id_list are ignored
-        samples, label_list, unused_group_id_list = self.documents_to_samples(antdoc_list,
-                                                                              self.provision)
 
         pos_neg_map = defaultdict(int)
         for label in label_list:

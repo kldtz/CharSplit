@@ -425,6 +425,7 @@ def train_eval_annotator_with_trte(provision: str,
 # Train on 4/5 of the data
 # pylint: disable=invalid-name
 def train_eval_span_annotator_with_trte(provision: str,
+                                        txt_fn_list,
                                         work_dir: str,
                                         model_dir: str,
                                         candidate_type: str,
@@ -459,48 +460,54 @@ def train_eval_span_annotator_with_trte(provision: str,
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_file_name = %s", model_file_name)
 
-    train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
-    
-    #converts training docs to ebantdocs based on doclist
-    train_antdoc_list = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
-                                                              work_dir,
-                                                              is_doc_structure=False)
-    #candidate generation on training set
-    samples, label_list, group_id_list = \
-        span_annotator.documents_to_samples(train_antdoc_list, provision)
+    #converts all docs to ebantdocs
+    eb_antdoc_list = span_annotator.doclist_to_antdoc_list(txt_fn_list,
+                                                           work_dir,
+                                                           is_doc_structure=False)
+    #split training and test data, save doclists
+    X = eb_antdoc_list
+    y = [provision in eb_antdoc.get_provision_set()
+         for eb_antdoc in eb_antdoc_list]
 
-    logging.info("after span_annotator.documents_to_samples(), %s",
-                 strutils.to_pos_neg_count(label_list))
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25,
+                                             random_state=42, stratify=y)
+    train_doclist_fn = "{}/{}_v{}_train_doclist.txt".format(model_dir, provision, candidate_type)
+    splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
+    test_doclist_fn = "{}/{}_v{}_test_doclist.txt".format(model_dir, provision, candidate_type)
+    splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
+
+    #candidate generation on training set
+    train_samples, train_label_list, train_group_ids = \
+        span_annotator.documents_to_samples(X_train, provision)
 
     #trains an annotator
-    span_annotator.train_antdoc_list(samples,
-                                     label_list,
-                                     group_id_list,
+    span_annotator.train_antdoc_list(train_samples,
+                                     train_label_list,
+                                     train_group_ids,
                                      span_annotator.pipeline,
                                      span_annotator.gridsearch_parameters,
                                      work_dir)
-
-    test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
     
-    #converts testing docs to ebantdocs based on doclist
-    test_antdoc_list = ebantdoc3.doclist_to_ebantdoc_list(test_doclist_fn,
-                                                          work_dir,
-                                                          is_doc_structure=False)
-
+    #candidate generation on test set
+    test_samples, test_label_list, test_group_ids = \
+        span_annotator.documents_to_samples(X_test, provision)
+    
     # annotates the test set and runs through evaluation
-    # the eval result is already saved in span_annotator
-    unused_classifier_status = \
-        span_annotator.predict_and_evaluate(test_antdoc_list,
+    pred_status = \
+        span_annotator.predict_and_evaluate(test_samples,
+                                            test_label_list,
                                             work_dir)
-
-    # the eval result is already saved in span_annotator
-    unused_ant_status, log_json = \
-        span_annotator.test_antdoc_list(test_antdoc_list,
+    ant_status, log_json = \
+        span_annotator.test_antdoc_list(X_test,
                                         span_annotator.threshold)
 
+    
     #serializes model, prints results
     span_annotator.save(model_file_name)
     span_annotator.print_eval_status(model_dir)
+    ant_status['provision'] = provision
+    ant_status['pred_status'] = pred_status
+    span_annotator.eval_status = ant_status
 
     return span_annotator, log_json
 

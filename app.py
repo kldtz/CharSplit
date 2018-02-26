@@ -161,7 +161,6 @@ def annotate_uploaded_document():
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 @app.route('/custom-train/<cust_id>', methods=['POST'])
 def custom_train(cust_id: str, candidate_type: str = 'CORENLP'):
-    candidate_type = '1.CURRENCY'
     request_work_dir = request.form.get('workdir')
     if request_work_dir:
         work_dir = request_work_dir
@@ -225,9 +224,9 @@ def custom_train(cust_id: str, candidate_type: str = 'CORENLP'):
                                                                              doc_lang,
                                                                              SCUT_CLF_VERSION)
             else:
-                base_model_fname = '{}_{}_annotator.pkl'.format(provision, candidate_type)
+                base_model_fname = '{}_v{}_annotator.pkl'.format(provision, candidate_type)
                 if doc_lang != "en":
-                    base_model_fname = '{}_{}_{}_annotator.pkl'.format(provision,
+                    base_model_fname = '{}_{}_v{}_annotator.pkl'.format(provision,
                                                              doc_lang,
                                                              candidate_type)
 

@@ -696,7 +696,8 @@ class EbRunner:
         else:
             ##### probably need to put something here that creates doclists if they don't exist yet
             ##### that's rolled into train_eval_annotator but not train_eval_span_annotator_with_trte
-            eb_annotator, log_json = ebtrainer.train_eval_span_annotator_with_trte(provision, 
+            eb_annotator, log_json = ebtrainer.train_eval_span_annotator_with_trte(provision,
+                                                                                   txt_fn_list, 
                                                                                    work_dir, 
                                                                                    custom_model_dir, 
                                                                                    candidate_type, 
