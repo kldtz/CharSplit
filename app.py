@@ -224,14 +224,15 @@ def custom_train(cust_id: str, candidate_type: str = 'CORENLP'):
                                                                              doc_lang,
                                                                              SCUT_CLF_VERSION)
             else:
-                base_model_fname = '{}_v{}_annotator.pkl'.format(provision, candidate_type)
+                base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision, candidate_type, SCUT_CLF_VERSION)
                 if doc_lang != "en":
-                    base_model_fname = '{}_{}_v{}_annotator.pkl'.format(provision,
-                                                             doc_lang,
-                                                             candidate_type)
+                    base_model_fname = '{}_{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                           doc_lang,
+                                                                           candidate_type,
+                                                                           SCUT_CLF_VERSION)
 
             # Following the logic in the original code.
-            eval_status, log_json = \
+            eval_status, _ = \
                 eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                               provision,
                                                               CUSTOM_MODEL_DIR,
@@ -251,15 +252,12 @@ def custom_train(cust_id: str, candidate_type: str = 'CORENLP'):
             logging.info("status: %s", str(status))
 
             # return some json accuracy info
-            status_and_antana = {"stats": status,
-                                 "eval_log": log_json}
-            all_stats[doc_lang] = status_and_antana
+            all_stats[doc_lang] = status
         else:
             all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
                                              'fscore': -1.0,
                                              'precision': -1.0,
-                                             'recall': -1.0},
-                                   'eval_log': {}}
+                                             'recall': -1.0}}
     return jsonify(all_stats)
 
 
