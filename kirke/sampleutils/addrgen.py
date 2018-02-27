@@ -52,11 +52,13 @@ class AddrContextGenerator:
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words), addr_st, ' '.join(post_n_words))
                 bow_start = addr_start
                 bow_end = addr_end
+
                 #update span based on window size
                 if prev_spans:
                     bow_start = prev_spans[0][0]
                 if post_spans:
                     bow_end = post_spans[-1][-1]
+
                 a_sample = {'sample_type': self.sample_type,
                             'start': bow_start,
                             'end': bow_end,
@@ -67,6 +69,8 @@ class AddrContextGenerator:
                             'post_n_words': ' '.join(post_n_words),
                             'has_addr': True}
                 samples.append(a_sample)
+
+                #update group ids and label list
                 group_id_list.append(group_id)
                 if is_label:
                     a_sample['label_human'] = label

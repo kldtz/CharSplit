@@ -19,15 +19,16 @@ class DateSpanGenerator:
         label_list = []   # type: List[bool]
         group_id_list = []  # type: List[int]
 
-        # each sample is the date regex +
-        for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
+        for group_id, antdoc in enumerate(antdoc_list):
 
+            #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
             label_ant_list = []
             for ant in ant_list:
                 if ant.label == label:
                     label_ant_list.append(ant)
 
+            #gets text based on document type
             if antdoc.doc_format in set([ebantdoc3.EbDocFormat.html,
                                          ebantdoc3.EbDocFormat.html_nodocstruct,
                                          ebantdoc3.EbDocFormat.other]):
@@ -38,6 +39,7 @@ class DateSpanGenerator:
             if group_id % 10 == 0:
                 logging.info("ContextGenerator.documents_to_samples(), group_id = {}".format(group_id))
             
+            #finds all matches in the text and adds window around each as a candidate
             matches = dates.extract_std_dates(nl_text)
             for match_start, match_end in matches:
                 match_str = nl_text[match_start:match_end]
