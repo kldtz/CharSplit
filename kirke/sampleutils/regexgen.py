@@ -37,9 +37,9 @@ class RegexContextGenerator:
 
             if group_id % 10 == 0:
                 logging.info("ContextGenerator.documents_to_samples(), group_id = {}".format(group_id))
-            
-            matches = self.center_regex.finditer(nl_text, re.I)
+
             #finds all matches in the text and adds window around each as a candidate
+            matches = self.center_regex.finditer(nl_text, re.I)
             for match in matches:
                 match_start, match_end = match.span(1)
                 match_str = match.group(1)
