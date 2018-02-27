@@ -694,18 +694,16 @@ class EbRunner:
                                                                     is_doc_structure=is_doc_structure,
                                                                     custom_training_mode=True)
         else:
-            ##### probably need to put something here that creates doclists if they don't exist yet
-            ##### that's rolled into train_eval_annotator but not train_eval_span_annotator_with_trte
             eb_annotator, log_json = ebtrainer.train_eval_span_annotator_with_trte(provision,
                                                                                    txt_fn_list, 
                                                                                    work_dir, 
                                                                                    custom_model_dir, 
                                                                                    candidate_type, 
-                                                                                   model_file_name=full_model_fname)
+                                                                                   model_file_name=full_model_fname,
+                                                                                   is_bespoke_mode=True)
         
         if doc_lang != "en":
             provision = "{}_{}".format(provision, doc_lang)
-        
         #update maps of provision to model name, provision to annotator, and custom model to modified date
         old_provision_annotator = self.provision_annotator_map.get(provision)
         if old_provision_annotator:
@@ -721,7 +719,6 @@ class EbRunner:
         mtime = os.path.getmtime(os.path.join(self.custom_model_dir, base_model_fname))
         last_modified_date = datetime.fromtimestamp(mtime)
         self.custom_model_timestamp_map[base_model_fname] = last_modified_date
-
         return eb_annotator.get_eval_status(), log_json
 
     def update_existing_provision_fn_map_aux(self, provision: str, full_model_fname: str) -> None:

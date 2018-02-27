@@ -47,8 +47,8 @@ class DateSpanGenerator:
                         start = offset + start
                         end = offset + end
 
-                        prev_n_words = strutils.get_lc_prev_n_words(nl_text, start, self.num_prev_words)
-                        post_n_words = strutils.get_lc_post_n_words(nl_text, end, self.num_post_words)
+                        prev_n_words, _ = strutils.get_lc_prev_n_words(nl_text, start, self.num_prev_words)
+                        post_n_words, _ = strutils.get_lc_post_n_words(nl_text, end, self.num_post_words)
 
                         is_label = ebsentutils.check_start_end_overlap(start,
                                                                        end,
@@ -56,6 +56,8 @@ class DateSpanGenerator:
                         a_sample = {'sample_type': 'date',
                                     'start': start,
                                     'end': end,
+                                    'match_start': start,
+                                    'match_end': end,
                                     'text': nl_text[start:end],
                                     'prev_n_words': ' '.join(prev_n_words),
                                     'post_n_words': ' '.join(post_n_words)}

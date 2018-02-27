@@ -429,7 +429,8 @@ def train_eval_span_annotator_with_trte(provision: str,
                                         work_dir: str,
                                         model_dir: str,
                                         candidate_type: str,
-                                        model_file_name=None) \
+                                        model_file_name=None,
+                                        is_bespoke_mode=False) \
             -> Tuple[spanannotator.SpanAnnotator,
                      Dict[str, Dict]]:
     
@@ -463,6 +464,7 @@ def train_eval_span_annotator_with_trte(provision: str,
     #converts all docs to ebantdocs
     eb_antdoc_list = span_annotator.doclist_to_antdoc_list(txt_fn_list,
                                                            work_dir,
+                                                           is_bespoke_mode=is_bespoke_mode,
                                                            is_doc_structure=False)
     #split training and test data, save doclists
     X = eb_antdoc_list
@@ -471,9 +473,9 @@ def train_eval_span_annotator_with_trte(provision: str,
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25,
                                              random_state=42, stratify=y)
-    train_doclist_fn = "{}/{}_v{}_train_doclist.txt".format(model_dir, provision, candidate_type)
+    train_doclist_fn = "{}/{}_{}_v{}_train_doclist.txt".format(model_dir, provision, candidate_type, config['version'])
     splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
-    test_doclist_fn = "{}/{}_v{}_test_doclist.txt".format(model_dir, provision, candidate_type)
+    test_doclist_fn = "{}/{}_{}_v{}_test_doclist.txt".format(model_dir, provision, candidate_type, config['version'])
     splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
 
     #candidate generation on training set

@@ -58,12 +58,12 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                 'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                                 'threshold': 0.25,
                                 'kfold': 2}),
-    ('1.CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+    ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                            'docs_to_samples': regexgen.RegexContextGenerator(20,
                                                                              5,
                                                                              # pylint: disable=line-too-long
                                                                              re.compile(r'([\$€₹£¥](\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
-                                                                             '1.CURRENCY'),
+                                                                             'CURRENCY'),
                            'version': "1.0",
                            'pipeline': Pipeline([
                                ('union', FeatureUnion(
@@ -77,12 +77,12 @@ ML_ANNOTATOR_CONFIG_LIST = [
                            'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                            'threshold': 0.25,
                            'kfold': 2}),
-    ('1.NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+    ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                          'docs_to_samples': regexgen.RegexContextGenerator(15,
                                                                            5,
                                                                            # pylint: disable=line-too-long
                                                                            re.compile(r'(\d[\d\-\.,]+)'),
-                                                                           '1.NUMBER'),
+                                                                           'NUMBER'),
                          'version': "1.0",
                          'pipeline': Pipeline([('union', FeatureUnion(
                              # pylint: disable=line-too-long
@@ -97,11 +97,11 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                          'threshold': 0.25,
                          'kfold': 2}),
-    ('1.PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+    ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                           'docs_to_samples': regexgen.RegexContextGenerator(15,
                                                                             5,
                                                                             re.compile(r'(\d+%)'),
-                                                                            '1.PERCENT'),
+                                                                            'PERCENT'),
                           'version': "1.0",
                           'pipeline': Pipeline([('union', FeatureUnion(
                               # pylint: disable=line-too-long
