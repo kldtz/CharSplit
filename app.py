@@ -160,7 +160,7 @@ def annotate_uploaded_document():
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 @app.route('/custom-train/<cust_id>', methods=['POST'])
-def custom_train(cust_id: str, candidate_type: str = 'CORENLP'):
+def custom_train(cust_id: str, candidate_type: str = 'SENTENCE'):
     request_work_dir = request.form.get('workdir')
     if request_work_dir:
         work_dir = request_work_dir

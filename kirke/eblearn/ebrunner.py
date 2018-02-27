@@ -637,8 +637,8 @@ class EbRunner:
 
         logging.info("custom_mode_file: %s", full_model_fname)
 
-        #if CORENLP runs the standard pipeline, if specified candidate type run candidate generation
-        if candidate_type == 'CORENLP':
+        # SENTENCE runs the standard pipeline, if specified candidate type run candidate generation
+        if candidate_type == 'SENTENCE':
             eb_classifier = scutclassifier.ShortcutClassifier(provision)
             eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
                                                                     txt_fn_list,
