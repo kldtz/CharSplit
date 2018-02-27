@@ -216,26 +216,25 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                                        is_party=True)
                 if extr_parties:
                     for extr in extr_parties:
-                        if parties.is_invalid_party(extr[0]) == True:
-                            continue
-                        if len(extr[0].split()) == 1 and parties.is_valid_1word_party(extr[0]) == None:
-                            continue
-                        else:
-                            for part in extr:
-                                mat = re.search(re.escape(part), sent_st, re.I)
-                                if mat:
-                                    ant_start, ant_end = mat.span()
-                                    #adds only if it's in close proximity to the last party line
-                                    if not last_result or count - last_result < 10:
-                                        last_result = count
-                                        ant_result.append(
-                                            to_ant_result_dict(label=self.provision,
-                                                               prob=cx_prob_attrvec.prob,
-                                                               start=cx_prob_attrvec.start+ant_start,
-                                                               end=cx_prob_attrvec.start+ant_end,
-                                                               text=strutils.remove_nltab(cx_prob_attrvec.text)))
-                                else:
-                                    continue
+                      if parties.is_invalid_party(extr[0]) == True:
+                          continue
+                      if len(extr[0].split()) == 1 and not parties.is_valid_1word_party(extr[0]):
+                          continue
+                      else:
+                          for part in extr:
+                              mat = re.search(re.escape(part), sent_st, re.I)
+                              if mat:
+                                  ant_start, ant_end = mat.span()
+                                  #adds only if it's in close proximity to the last party line
+                                  if not last_result or count - last_result < 10:
+                                      last_result = count
+                                      ant_result.append(to_ant_result_dict(label=self.provision,
+                                                                           prob=cx_prob_attrvec.prob,
+                                                                           start=cx_prob_attrvec.start+ant_start,
+                                                                           end=cx_prob_attrvec.start+ant_end,
+                                                                           text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                              else:
+                                  continue
                 #uses entities if party extraction fails
                 else:
                     for entity in cx_prob_attrvec.entities:
@@ -801,7 +800,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
         agent = ['tenant', 'lessee']
 
     #uses party extraction to extract the tenant and landlord
-    extr_parties = parties.extract_parties_from_party_line(sent_st, is_party=False)
+    extr_parties = parties.extract_between_among(sent_st, is_party=False)
     try:
         for party, ref in extr_parties:
             for ag in agent:

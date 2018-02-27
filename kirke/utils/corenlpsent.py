@@ -74,11 +74,18 @@ def eb_tokens_to_lemma_st(eb_token_list):
 def to_eb_tokens(token_list, num_prefix_space):
     result = []
     for token in token_list:
+        pos_tag = ''
+        if token.get('pos'):
+            pos_tag = sys.intern(token['pos'])
+        lemma = ''
+        if token.get('lemma'):
+            lemma = sys.intern(token['lemma'])
+
         eb_token = EbToken(start=token['characterOffsetBegin'] + num_prefix_space,
                            end=token['characterOffsetEnd'] + num_prefix_space,
                            word=sys.intern(token['word']),
-                           lemma=sys.intern(token['lemma']),
-                           pos=sys.intern(token['pos']),
+                           lemma=lemma,
+                           pos=pos_tag,
                            index=token['index'],
                            ner=sys.intern(token['ner']))
         result.append(eb_token)

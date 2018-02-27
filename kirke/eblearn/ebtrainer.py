@@ -2,9 +2,9 @@ from collections import defaultdict
 from datetime import datetime
 import json
 import logging
+import os
 from pprint import pprint
-import time
-from typing import Dict, Tuple
+from typing import List
 
 from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
@@ -12,7 +12,7 @@ from sklearn.model_selection import cross_val_predict, train_test_split
 from sklearn.model_selection import GroupKFold
 
 from kirke.eblearn import ebannotator, ebpostproc, lineannotator
-from kirke.utils import evalutils, splittrte, strutils, ebantdoc2
+from kirke.utils import ebantdoc2, evalutils, splittrte, strutils, txtreader
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import titles, parties, dates
 
@@ -419,16 +419,36 @@ def eval_ml_rule_annotator(txt_fn_list, work_dir, model_file_name):
     pprint(provision_status_map)
 
 
-def eval_line_annotator_with_trte(provision,
-                                  model_dir='dir-scut-model',
-                                  work_dir='dir-work',
-                                  is_doc_structure=False):
+def skip_ebantdoc_list(ebantdoc_list: List[ebantdoc2.EbAnnotatedDoc2],
+                       txt_fnlist: str):
+    fn_list = txtreader.load_str_list(txt_fnlist)
+    skip_fileid_set = set([])  # type: Set[str]
+    for line in fn_list:
+        cols = line.split(' ')
+        if cols[0]:  # just in case a blank line
+            skip_fileid_set.add(cols[0])
+    result = [ebantdoc for ebantdoc in ebantdoc_list if ebantdoc.file_id not in skip_fileid_set]
+    print("skip_ebantdoc_list(), orig = {}, out = {}".format(len(ebantdoc_list), len(result)))
+    return result
 
-    test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
-    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(test_doclist_fn,
+
+def eval_line_annotator_with_trte(provision: str,
+                                  txt_fn_list_fn: str,
+                                  model_dir: str = 'dir-scut-model',
+                                  work_dir: str = 'dir-work',
+                                  is_doc_structure: bool = False):
+    print('eval_line_annotator_with_trte(), provision: [{}]'.format(provision))
+    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list_fn,
                                                        work_dir=work_dir,
                                                        is_doc_structure=is_doc_structure)
-    print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
+    # Sometimes annotation can be wrong to due changed guidelines, such as
+    # composite date logic.  To avoid such cases, problematic annotated documents
+    # can be removed per provision by adding skip files below.
+    prov_skip_txt_fnlist = 'dict/{}_skip_doclist.txt'.format(provision)
+    if os.path.exists(prov_skip_txt_fnlist):
+        ebantdoc_list = skip_ebantdoc_list(ebantdoc_list, prov_skip_txt_fnlist)
+
+    print("txt_fn_list_fn = [%s], len(ebantdoc) = %d" % (txt_fn_list_fn, len(ebantdoc_list)))
 
     provision_status_map = {'provision': provision}
     # update the hashmap of annotators
@@ -437,14 +457,17 @@ def eval_line_annotator_with_trte(provision,
     elif provision == 'party':
         prov_annotator = lineannotator.LineAnnotator('party', parties.PartyAnnotator('party'))
     elif provision == 'date':
-        prov_annotator = lineannotator.LineAnnotator('date', dates.DateAnnotator('date'))
+        prov_annotator = lineannotator.LineAnnotator(provision, dates.DateAnnotator(provision))
+
     # we need ebantdoc_list because it has the annotations
     provision_status_map['ant_status'] = prov_annotator.test_antdoc_list(ebantdoc_list)
 
     pprint(provision_status_map)
 
 
-def eval_classifier(txt_fn_list, work_dir, model_file_name):
+def eval_classifier(txt_fn_list,
+                    work_dir: str,
+                    model_file_name: str) -> None:
     eb_classifier = joblib.load(model_file_name)
     provision = eb_classifier.provision
     print("provision = {}".format(provision))

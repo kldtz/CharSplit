@@ -30,6 +30,7 @@ DOCCAT_MODEL_FILE_NAME = ebrunner.DOCCAT_MODEL_FILE_NAME
 
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# who is overriding this?
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
@@ -101,21 +102,26 @@ def train_annotator(provision, txt_fn_list_fn, work_dir, model_dir, is_scut, is_
                                              is_doc_structure=is_doc_structure)
 
 
-def eval_line_annotator_with_trte(provision,
-                                  work_dir,
-                                  model_dir,
-                                  is_doc_structure=True):
+def eval_line_annotator_with_trte(provision: str,
+                                  txt_fn_list_fn: str,
+                                  work_dir: str,
+                                  model_dir: str,
+                                  is_doc_structure: bool = True):
+    """Test line annotators based on txt_fn_list."""
     ebtrainer.eval_line_annotator_with_trte(provision,
+                                            txt_fn_list_fn,
                                             work_dir=work_dir,
                                             model_dir=model_dir,
                                             is_doc_structure=is_doc_structure)
 
 
-def eval_ml_rule_annotator_with_trte(provision,
-                                     work_dir,
-                                     model_dir):
+def eval_mlxline_annotator_with_trte(provision: str,
+                                     txt_fn_list_fn: str,
+                                     work_dir: str,
+                                     model_dir: str):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
-    eb_runner.eval_ml_rule_annotator_with_trte(provision,
+    eb_runner.eval_mlxline_annotator_with_trte(provision,
+                                               txt_fn_list_fn,
                                                work_dir=work_dir,
                                                model_dir=model_dir)
 
@@ -210,11 +216,11 @@ def annotate_document(file_name,
                       is_doc_structure=True):
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
     eb_langdetect_runner = ebrunner.EbLangDetectRunner()
-   
+
     atext = strutils.loads(file_name)
     doc_lang = eb_langdetect_runner.detect_lang(atext)
     logging.info("detected language '{}'".format(doc_lang))
-    
+
 
     # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
     #                      'party', 'warranty', 'termination', 'term']))
@@ -272,7 +278,7 @@ def annotate_pdfboxed_document(file_name, linfo_file_name, work_dir, model_dir, 
     pprint(prov_labels_map)
 
     eb_doccat_runner = None
-    doccat_model_fn = "{}/{}".format(model_dir, DOCCAT_MODEL_FILE_NAME)    
+    doccat_model_fn = "{}/{}".format(model_dir, DOCCAT_MODEL_FILE_NAME)
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists(doccat_model_fn):
         eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
 
@@ -360,17 +366,25 @@ if __name__ == '__main__':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
             sys.exit(1)
+        if not args.docs:
+            print('please specify --docs', file=sys.stderr)
+            sys.exit(1)
         eval_line_annotator_with_trte(args.provision,
+                                      txt_fn_list_fn,
                                       work_dir,
                                       model_dir,
                                       is_doc_structure=True)
-    elif cmd == 'eval_ml_rule_annotator':
+    elif cmd == 'eval_mlxline_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
             sys.exit(1)
-        eval_ml_rule_annotator_with_trte(args.provision,
-                                         work_dir,
-                                         model_dir)
+        if not args.docs:
+            print('please specify --docs', file=sys.stderr)
+            sys.exit(1)
+        eval_mlxline_annotator_with_trte(args.provision,
+                                         txt_fn_list_fn,
+                                         work_dir=work_dir,
+                                         model_dir=model_dir)
     elif cmd == 'split_provision_trte':
         if not args.provfiles_dir:
             print('please specify --provfiles_dir', file=sys.stderr)
