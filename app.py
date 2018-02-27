@@ -238,15 +238,16 @@ def custom_train(cust_id):
             logging.info("status: {}".format(status))
               
             # return some json accuracy info
-            status_and_antana = {"stats": status,
-                                 "eval_log": log_json}
+            # TODO add eval_log back in when PR 408 is merged and the front end is ready to accept it
+            status_and_antana = {"stats": status}
+                                 #"eval_log": log_json}
             all_stats[doc_lang] = status_and_antana
         else:
             all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
                                              'fscore': -1.0,
                                              'precision': -1.0,
-                                             'recall': -1.0},
-                                   'eval_log': {}}
+                                             'recall': -1.0}}
+                                   #'eval_log': {}}
     return jsonify(all_stats)
 
 
