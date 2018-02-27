@@ -220,6 +220,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
             json_return['fp'].append([pred_ant.start, pred_ant.end, pred_ant.label, pred_ant.prob, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])])
     return tp, fn, fp, tn, json_return
 
+
 # for 'title', we want to match any title annotation
 # if any matched, we passed.  Don't care about any other.
 # pylint: disable=too-many-branches

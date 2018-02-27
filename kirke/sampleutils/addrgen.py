@@ -4,6 +4,10 @@ from typing import Dict, List, Tuple
 from kirke.ebrules import dates, addresses
 from kirke.utils import ebantdoc3, ebsentutils, strutils
 
+
+# loads address keywords 
+ALL_KEYWORDS = addresses.addr_keywords()
+
 class AddrContextGenerator:
     def __init__(self, num_prev_words: int, num_post_words: int) -> None:
         self.num_prev_words = num_prev_words
@@ -36,12 +40,8 @@ class AddrContextGenerator:
             if group_id % 10 == 0:
                 logging.info("AddrContextGenerator.documents_to_samples(), group_id = {}".format(group_id))
            
-            #loads address keywords 
-            all_keywords = addresses.addr_keywords()
-            split_text = nl_text.split()
-
             #finds all addresses in the text and adds window around each as a candidate
-            for addr in addresses.find_addresses(nl_text, all_keywords):
+            for addr in addresses.find_addresses(nl_text, ALL_KEYWORDS):
                 addr_start, addr_end, addr_st = addr
                 is_label = ebsentutils.check_start_end_overlap(addr_start,
                                                                addr_end,

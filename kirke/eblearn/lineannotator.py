@@ -4,7 +4,7 @@ import time
 from kirke.eblearn import ebpostproc
 from kirke.utils import evalutils
 
-from kirke.docstruct import htmltxtparser
+from kirke.docstruct import fromtomapper, htmltxtparser
 from kirke.ebrules import titles, parties
 
 
@@ -14,11 +14,12 @@ class LineAnnotator:
         self.provision_annotator = prov_annotator
         self.provision = provision
         self.eval_status = {}  # this is set after training
+        self.threshold = 0.2
 
-        
+
     def get_eval_status(self):
         return self.eval_status
-    
+
 
     # ProvisionAnnotator does not train, it only predict
     # Training is available only for classifiers
@@ -35,7 +36,17 @@ class LineAnnotator:
             paras_with_attrs = ebantdoc.paras_with_attrs
             paras_text = ebantdoc.nlp_text
 
-            ant_list = self.annotate_antdoc(paras_with_attrs, paras_text)
+            fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
+                                                      ebantdoc.nlp_sx_lnpos_list,
+                                                      ebantdoc.origin_sx_lnpos_list)
+
+            ant_list = self.annotate_antdoc(paras_with_attrs,
+                                            paras_text,
+                                            fromto_mapper,
+                                            ebantdoc.nl_text)
+            # print("88234 ant_list = {}".format(ant_list))
+            # for ant in ant_list:
+            #     print("ant: {}".format(ant))
             print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
             # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
@@ -44,11 +55,20 @@ class LineAnnotator:
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
-            xtp, xfn, xfp, xtn = \
-                evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
-                                                                 ant_list,
-                                                                 ebantdoc,
-                                                                 diagnose_mode=True)
+            if self.provision == 'title':
+                xtp, xfn, xfp, xtn = \
+                    evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
+                                                                     ant_list,
+                                                                     ebantdoc,
+                                                                     diagnose_mode=True)
+            else:
+                xtp, xfn, xfp, xtn = \
+                    evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
+                                                            ant_list,
+                                                            ebantdoc,
+                                                            self.threshold,
+                                                            diagnose_mode=True)
+
             tp += xtp
             fn += xfn
             fp += xfp
@@ -61,12 +81,16 @@ class LineAnnotator:
                                                                'fn': fn, 'tp': tp},
                                               'prec': prec, 'recall': recall, 'f1': f1}}
         return tmp_eval_status
-    
+
 
     def test_antdoc(self, ebantdoc):
         logging.debug('test_document')
         paras_with_attrs = ebantdoc.paras_with_attrs
         paras_text = ebantdoc.nlp_text
+
+        fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
+                                                  ebantdoc.nlp_sx_lnpos_list,
+                                                  ebantdoc.origin_sx_lnpos_list)
 
         ant_list = self.annotate_antdoc(paras_with_attrs, paras_text)
         # print("ant_list: {}".format(ant_list))
@@ -91,11 +115,16 @@ class LineAnnotator:
         return tmp_eval_status
 
 
-    def annotate_antdoc(self, paras_with_attrs, paras_text):
+    def annotate_antdoc(self,
+                        paras_with_attrs,
+                        paras_text: str,
+                        fromto_mapper: fromtomapper.FromToMapper,
+                        nl_text: str):
         prov_annotations = []
         if self.provision == 'party':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             party_offset_pair_list = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
+
             if party_offset_pair_list:
                 for i, party_offset_pair in enumerate(party_offset_pair_list, 1):
                     (party_start, party_end), term_ox = party_offset_pair
@@ -119,6 +148,8 @@ class LineAnnotator:
                                                      'start': term_start,
                                                      'prob': 0.91,
                                                      'text': paras_text[term_start:term_end]})
+            fromto_mapper.adjust_fromto_offsets(prov_annotations)
+
         elif self.provision == 'date':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             # prov_type can be 'date', 'effective-date', 'signature-date'
@@ -132,7 +163,9 @@ class LineAnnotator:
                                              'start': start_offset,
                                              'prob': 0.91,
                                              'text': paras_text[start_offset:end_offset]})
-        else:
+            fromto_mapper.adjust_fromto_offsets(prov_annotations)
+
+        else:  # title
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             start_offset, end_offset = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
 
@@ -142,5 +175,39 @@ class LineAnnotator:
                                      'start': start_offset,
                                      'prob': 0.91,
                                      'text': paras_text[start_offset:end_offset]}]
+
+                fromto_mapper.adjust_fromto_offsets(prov_annotations)
+            else:
+                # didn't find title based on para_text, now try nl_text
+                start_offset, end_offset = \
+                    self.provision_annotator.extract_nl_provision_offsets(nl_text)
+
+                if start_offset is not None:
+                    prov_annotations = [{'end': end_offset,
+                                         'label': self.provision,
+                                         'start': start_offset,
+                                         # span_list is normally added by fromto_mapper
+                                         'span_list': [{'start': start_offset,
+                                                        'end': end_offset}],
+                                         'prob': 0.91,
+                                         'text': nl_text[start_offset:end_offset]}]
+
+                    # since nl_text has the original offsets, use that.
+                    # DO NOT transform
+                    # fromto_mapper.adjust_fromto_offsets(prov_annotations)
+                else:  # still failed, last effort using regex match on paras_text
+                    start_offset, end_offset = \
+                        self.provision_annotator.extract_provision_offsets_not_line(paras_attr_list,
+                                                                                    paras_text)
+
+                    if start_offset is not None:
+                        prov_annotations = [{'end': end_offset,
+                                             'label': self.provision,
+                                             'start': start_offset,
+                                             'prob': 0.91,
+                                             'text': paras_text[start_offset:end_offset]}]
+
+                        fromto_mapper.adjust_fromto_offsets(prov_annotations)
+
 
         return prov_annotations

@@ -125,22 +125,27 @@ def eval_rule_annotator(label: str,
                                             is_train_mode=is_train_mode)
 
 
-def eval_line_annotator_with_trte(provision,
-                                  work_dir,
-                                  model_dir,
-                                  is_doc_structure=True):
+def eval_line_annotator_with_trte(provision: str,
+                                  txt_fn_list_fn: str,
+                                  work_dir: str,
+                                  model_dir: str,
+                                  is_doc_structure: bool = True):
+    """Test line annotators based on txt_fn_list."""
     ebtrainer.eval_line_annotator_with_trte(provision,
+                                            txt_fn_list_fn,
                                             work_dir=work_dir,
                                             model_dir=model_dir,
                                             is_doc_structure=is_doc_structure)
 
 
 def eval_mlxline_annotator_with_trte(provision: str,
+                                     txt_fn_list_fn: str,
                                      work_dir: str,
-                                     model_dir: str) -> None:
+                                     model_dir: str):
     # custom_model_dir is not used
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir='dir-scut-model')
     eb_runner.eval_mlxline_annotator_with_trte(provision,
+                                               txt_fn_list_fn,
                                                work_dir=work_dir,
                                                model_dir=model_dir)
 
@@ -403,7 +408,11 @@ def main():
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
             sys.exit(1)
+        if not args.docs:
+            print('please specify --docs', file=sys.stderr)
+            sys.exit(1)
         eval_line_annotator_with_trte(args.provision,
+                                      txt_fn_list_fn,
                                       work_dir,
                                       model_dir,
                                       is_doc_structure=True)
@@ -411,9 +420,13 @@ def main():
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
             sys.exit(1)
+        if not args.docs:
+            print('please specify --docs', file=sys.stderr)
+            sys.exit(1)
         eval_mlxline_annotator_with_trte(args.provision,
-                                         work_dir,
-                                         model_dir)
+                                         txt_fn_list_fn,
+                                         work_dir=work_dir,
+                                         model_dir=model_dir)
     elif cmd == 'split_provision_trte':
         if not args.provfiles_dir:
             print('please specify --provfiles_dir', file=sys.stderr)
