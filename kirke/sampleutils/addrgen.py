@@ -5,9 +5,10 @@ from kirke.ebrules import dates, addresses
 from kirke.utils import ebantdoc3, ebsentutils, strutils
 
 class AddrContextGenerator:
-    def __init__(self, num_prev_words: int, num_post_words: int) -> None:
+    def __init__(self, num_prev_words: int, num_post_words: int, sample_type: str) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
+        self.sample_type = sample_type
 
     def documents_to_samples(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
@@ -56,7 +57,7 @@ class AddrContextGenerator:
                     bow_start = prev_spans[0][0]
                 if post_spans:
                     bow_end = post_spans[-1][-1]
-                a_sample = {'sample_type': 'addr',
+                a_sample = {'sample_type': self.sample_type,
                             'start': bow_start,
                             'end': bow_end,
                             'text': new_bow,
