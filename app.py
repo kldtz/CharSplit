@@ -252,7 +252,7 @@ def custom_train(cust_id: str, candidate_type: str = 'SENTENCE'):
             logging.info("status: %s", str(status))
 
             # return some json accuracy info
-            all_stats[doc_lang] = status
+            all_stats[doc_lang] = {'stats': status}
         else:
             all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
                                              'fscore': -1.0,

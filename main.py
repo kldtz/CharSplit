@@ -108,13 +108,17 @@ def train_annotator(provision: str,
                                              eb_classifier,
                                              is_doc_structure=is_doc_structure)
 
-    # This separates out training and testing data, trains only on training data.
-def train_span_annotator(label,
-                         work_dir,
-                         model_dir):
+def train_span_annotator(label: str,
+                         txt_fn_list_fn: str,
+                         candidate_type: str,
+                         work_dir: str,
+                         model_dir: str) -> None:
     ebtrainer.train_eval_span_annotator_with_trte(label,
+                                                  txt_fn_list_fn,
                                                   work_dir,
-                                                  model_dir)
+                                                  model_dir,
+                                                  candidate_type,
+                                                  is_bespoke_mode=False)
 
 def eval_rule_annotator(label: str,
                         model_dir: str,
@@ -349,6 +353,7 @@ def main():
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
+    parser.add_argument('--cand_type', default='SENTENCE', help='type of candidate generator')
     # only for eval_rule_annotator
     parser.add_argument('--is_train_mode', action="store_true",
                         help="training mode for eval_rule_annotator")
@@ -371,6 +376,8 @@ def main():
                         is_doc_structure=True)
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,
+                             args.docs,
+                             args.cand_type,
                              work_dir,
                              model_dir)
     elif cmd == 'eval_rule_annotator':
