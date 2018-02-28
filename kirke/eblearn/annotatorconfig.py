@@ -102,7 +102,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'docs_to_samples': regexgen.RegexContextGenerator(10,
                                                                            10,
                                                                            # pylint: disable=line-too-long
-                                                                           re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
+                                                                           re.compile(r'\(?(\d[\d\-\.,]+)[\s\)]'),
                                                                            'NUMBER'),
                          'version': "1.0",
                          'pipeline': Pipeline([('union', FeatureUnion(

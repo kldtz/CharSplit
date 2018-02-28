@@ -32,14 +32,6 @@ class BaseAnnotator(ABC):
         self.file_name = model_file_name
         joblib.dump(self, model_file_name)
 
-    # def train(self,
-    #          txt_fn_list,
-    #          work_dir: str,
-    #          model_file_name: str,
-    #          name: Optional[str] = None):
-    #    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
-    #    return self.train_antdoc_list(ebantdoc_list, work_dir, model_file_name)
-
     # pylint: disable=too-many-arguments
     @abstractmethod
     def train_samples(self,
