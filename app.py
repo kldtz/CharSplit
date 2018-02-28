@@ -96,7 +96,7 @@ def annotate_uploaded_document():
 
     # cannot just access the request.files['file'].read() earlier, which
     # make it unavailable to the rest of the code.
-    
+
     atext = strutils.loads(txt_file_name)
     doc_lang = eb_langdetect_runner.detect_lang(atext)
     logging.info("detected language '{}'".format(doc_lang))
@@ -174,7 +174,7 @@ def custom_train(cust_id):
     tmp_dir = '{}/{}'.format(work_dir, provision)
     osutils.mkpath(tmp_dir)
     fn_list = request.files.getlist('file')
-    
+
     # save all the uploaded files in a location
     for fstorage in fn_list:
         fn = '{}/{}'.format(tmp_dir, fstorage.filename)
@@ -236,18 +236,25 @@ def custom_train(cust_id):
                       'recall': ant_status['recall']}
 
             logging.info("status: {}".format(status))
-              
+
             # return some json accuracy info
             # TODO add eval_log back in when PR 408 is merged and the front end is ready to accept it
-            status_and_antana = {"stats": status}
-                                 #"eval_log": log_json}
-            all_stats[doc_lang] = status_and_antana
+            # status_and_antana = {'status': stats,
+            #                      'eval_log': log_json}
+            # all_stats[doc_lang] = status_and_antana
+
+            all_stats[doc_lang] = status
         else:
-            all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
-                                             'fscore': -1.0,
-                                             'precision': -1.0,
-                                             'recall': -1.0}}
-                                   #'eval_log': {}}
+            # TODO, remove disabling log output until frontend is ready
+            # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
+            #                                 'fscore': -1.0,
+            #                                 'precision': -1.0,
+            #                                 'recall': -1.0}
+            #                       'eval_log': {}}
+            all_stats[doc_lang] = {'confusion_matrix': [[]],
+                                   'fscore': -1.0,
+                                   'precision': -1.0,
+                                   'recall': -1.0}
     return jsonify(all_stats)
 
 
