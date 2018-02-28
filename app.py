@@ -169,7 +169,7 @@ def custom_train(cust_id: str):
     else:
         work_dir = WORK_DIR
 
-    candidate_type = request.form.get('candtype')
+    candidate_type = request.form.get('candidate_type')
     if not candidate_type:
         candidate_type = 'SENTENCE'
 

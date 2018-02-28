@@ -1,6 +1,9 @@
-import re, copy
+
 from abc import ABC, abstractmethod
+import copy
+import re
 from typing import Any, Dict, List, Optional, Tuple
+
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties, addresses
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
@@ -1220,7 +1223,7 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
             #print("{}\t{}\t{}\tsechead=[{}]\t[{}]".format(self.provision, cx_prob_attrvec.prob, threshold,
             #                                              cx_prob_attrvec.sechead,
             #                                              doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]))
-            if cx_prob_attrvec.prob >= threshold or len(overlap) > 0:
+            if cx_prob_attrvec.prob >= threshold or overlap:
                 tmp_provision = provision if provision else self.provision
                 ant_result.append(to_ant_result_dict(label=tmp_provision,
                                                      prob=cx_prob_attrvec.prob,
@@ -1245,12 +1248,13 @@ class PostPredTitleProc(EbPostPredictProcessing):
         self.provision = 'title'
 
     def post_process(self,
-                     doc_text,
-                     cx_prob_attrvec_list,
+                     doc_text: str,
+                     prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
                      threshold: float,
-                     provision=None,
-                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
-        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
+                     provision: Optional[str] = None,
+                     prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
+                     -> Tuple[List[Dict], float]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list, threshold)
 
         ant_result = []
@@ -1294,11 +1298,11 @@ class PostPredBestDateProc(EbPostPredictProcessing):
     # the logic is to keep only the first date, not all dates in a doc
     def post_process(self,
                      doc_text,
-                     cx_prob_attrvec_list,
+                     prob_attrvec_list,
                      threshold: float,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
-        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
@@ -1325,11 +1329,11 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
 
     def post_process(self,
                      doc_text,
-                     cx_prob_attrvec_list,
+                     prob_attrvec_list,
                      threshold: float,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
-        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
@@ -1421,11 +1425,11 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
 
     def post_process(self,
                      doc_text,
-                     cx_prob_attrvec_list,
+                     prob_attrvec_list,
                      threshold: float,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
-        cx_prob_attrvec_list = to_cx_prob_attrvecs(cx_prob_attrvec_list)
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
         ant_result = []
@@ -1508,17 +1512,21 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
 
 class PostAddressProc(EbPostPredictProcessing):
 
-    def __init__(self, prov):		
-        self.provision = prov		
-		
-    def post_process(self, doc_text, prob_attrvec_list, threshold,		
-                     provision=None, prov_human_ant_list=None) -> (List[Dict], float): 		
+    def __init__(self, prov):
+        self.provision = prov
+
+    def post_process(self,
+                     doc_text,
+                     prob_attrvec_list,
+                     threshold,
+                     provision=None,
+                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, 1.0)
-        all_keywords = addresses.addr_keywords()		
+        all_keywords = addresses.addr_keywords()
         ant_result = []
-        for merged_sample_prob in merged_sample_prob_list: 
+        for merged_sample_prob in merged_sample_prob_list:
             sent_overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'], merged_sample_prob['end'], prov_human_ant_list)
-            if merged_sample_prob['prob'] >= threshold or sent_overlap:		
+            if merged_sample_prob['prob'] >= threshold or sent_overlap:
                 new_sample = copy.deepcopy(merged_sample_prob)
                 new_sample['start'] = new_sample['addr_start']
                 new_sample['end'] = new_sample['addr_end']
@@ -1547,7 +1555,9 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
         for cx_prob_attrvec in merged_prob_attrvec_list:
             prev_flag = False
             lease_matched_span = None  # type: Optional[Tuple[str, int, int, str]]
-            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start, cx_prob_attrvec.end, prov_human_ant_list)
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start,
+                                                             cx_prob_attrvec.end,
+                                                             prov_human_ant_list)
             if flag in prev_text.lower():
                 prev_flag = True
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
@@ -1556,7 +1566,9 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                                                              cx_prob_attrvec.entities,
                                                              doc_text,
                                                              self.provision)
-            elif (re.findall(re.escape(flag)+'\s|'+re.escape(bullet), doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].lower()[:50]) and cx_prob_attrvec.prob > 0):
+            elif (re.findall(re.escape(flag)+r'\s|'+re.escape(bullet),
+                             doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end].lower()[:50]) and \
+                  cx_prob_attrvec.prob > 0):
                 lease_matched_span = extract_landlord_tenant(cx_prob_attrvec.start,
                                                              cx_prob_attrvec.end,
                                                              cx_prob_attrvec.entities,
@@ -1595,7 +1607,7 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
         #merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, 1.0)
         merged_sample_prob_list = []
         for sample, prob in prob_attrvec_list:
-            sample['prob'] = prob 
+            sample['prob'] = prob
             merged_sample_prob_list.append(sample)
 
         ant_result = []
@@ -1605,7 +1617,7 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
                                                         prov_human_ant_list)
             # TODO, this has the issue if the "sample" doesn't overlap with prov_human_ant_list
             # at all.  Now we generate the samples, so it not totally miss the human annotation.
-            if merged_sample_prob['prob'] >= threshold or len(overlap) > 0:
+            if merged_sample_prob['prob'] >= threshold or overlap:
                 new_sample = copy.deepcopy(merged_sample_prob)
                 new_sample['start'] = new_sample['match_start']
                 new_sample['end'] = new_sample['match_end']

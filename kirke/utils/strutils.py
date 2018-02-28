@@ -272,8 +272,8 @@ def is_all_upper_words(words: List[str]) -> bool:
     return True
 
 
-def bool_to_int(bxx: bool) -> int:
-    if bxx:
+def bool_to_int(bool_val: bool) -> int:
+    if bool_val:
         return 1
     return 0
 

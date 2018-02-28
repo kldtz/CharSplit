@@ -203,7 +203,12 @@ def train_eval_annotator(provision,
     attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     group_id_list = []  # type: List[int]
     
-    #???
+    # group_id is used to ensure all the attrvec for a document are together
+    # and not distributed between both training and testing.  A document can
+    # be either in training or testing, but not both.  This parameter is used
+    # scikit learn crosss validation.  James implemented something similar in
+    # an earlier commit.  After realizing scikit learn supports this functionality
+    # directly, we switched to scikit learn's mechanism.
     for group_id, eb_traindoc in enumerate(eb_traindoc_list):
         tmp_attrvec_list = eb_traindoc.get_attrvec_list()
         attrvec_list.extend(tmp_attrvec_list)
@@ -476,12 +481,12 @@ def train_eval_span_annotator_with_trte(provision: str,
         span_annotator.documents_to_samples(X_train, provision)
 
     #trains an annotator
-    span_annotator.train_antdoc_list(train_samples,
-                                     train_label_list,
-                                     train_group_ids,
-                                     span_annotator.pipeline,
-                                     span_annotator.gridsearch_parameters,
-                                     work_dir)
+    span_annotator.train_samples(train_samples,
+                                 train_label_list,
+                                 train_group_ids,
+                                 span_annotator.pipeline,
+                                 span_annotator.gridsearch_parameters,
+                                 work_dir)
     
     #candidate generation on test set
     test_samples, test_label_list, test_group_ids = \

@@ -11,7 +11,7 @@ import requests
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-def upload_train_dir(url_st: str, upload_dir: str, candtype: str):
+def upload_train_dir(url_st: str, upload_dir: str, candidate_type: str):
     txt_fnames, ant_fnames = [], []
     offsets_fnames = []
     for file in os.listdir(upload_dir):
@@ -44,8 +44,8 @@ def upload_train_dir(url_st: str, upload_dir: str, candtype: str):
         else:
             print("cannot find matching ant file for {}".format(txt_fname), file=sys.stderr)
 
-    print('candtype: %s' % (candtype, ))
-    payload = {'candtype': candtype}
+    print('candidate_type: %s' % (candidate_type, ))
+    payload = {'candidate_type': candidate_type}
 
     txt_fname_set = set(txt_fnames)
     for ant_fname in ant_fnames:
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbosity', help='increase output verbosity')
     parser.add_argument('--url', help='url to post the files')
     parser.add_argument('--custid', default='12345', help='custom-id')
-    parser.add_argument('--candtype', default='SENTENCE', help='SENTENCE, CURRENCY, DATE, ADDRESS, NUMBER, PERCENT')
+    parser.add_argument('--candidate_type', default='SENTENCE', help='SENTENCE, CURRENCY, DATE, ADDRESS, NUMBER, PERCENT')
     parser.add_argument('upload_dir', help='directory to upload')
 
     args = parser.parse_args()
@@ -78,4 +78,4 @@ if __name__ == '__main__':
         url = args.url
 
     # provision = 'cust_{}'.format(args.custid)
-    upload_train_dir(url, args.upload_dir, args.candtype)
+    upload_train_dir(url, args.upload_dir, args.candidate_type)

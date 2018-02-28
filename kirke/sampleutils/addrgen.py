@@ -1,5 +1,5 @@
 import logging
-import re, regex
+import re
 from typing import Dict, List, Tuple
 from kirke.ebrules import dates, addresses
 from kirke.utils import ebantdoc3, ebsentutils, strutils

@@ -1,11 +1,9 @@
 import logging
-import time
 
-from kirke.eblearn import ebpostproc
 from kirke.utils import evalutils
 
 from kirke.docstruct import fromtomapper, htmltxtparser
-from kirke.ebrules import titles, parties
+from kirke.ebrules import parties
 
 
 class LineAnnotator:
@@ -56,17 +54,20 @@ class LineAnnotator:
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
             if self.provision == 'title':
-                xtp, xfn, xfp, xtn = \
+                xtp, xfn, xfp, xtn, unused_log_json = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
-                                                                     ebantdoc,
+                                                                     ebantdoc.file_id,
+                                                                     ebantdoc.get_text(),
                                                                      diagnose_mode=True)
             else:
-                xtp, xfn, xfp, xtn = \
+                xtp, xfn, xfp, xtn, unused_log_json = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
-                                                            ebantdoc,
+                                                            ebantdoc.file_id,
+                                                            ebantdoc.get_text(),
                                                             self.threshold,
+                                                            is_raw_mode=True,
                                                             diagnose_mode=True)
 
             tp += xtp
@@ -79,7 +80,7 @@ class LineAnnotator:
 
         tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp,
                                                                'fn': fn, 'tp': tp},
-                                              'prec': prec, 'recall': recall, 'f1': f1}}
+                                          'prec': prec, 'recall': recall, 'f1': f1}}
         return tmp_eval_status
 
 
@@ -92,7 +93,10 @@ class LineAnnotator:
                                                   ebantdoc.nlp_sx_lnpos_list,
                                                   ebantdoc.origin_sx_lnpos_list)
 
-        ant_list = self.annotate_antdoc(paras_with_attrs, paras_text)
+        ant_list = self.annotate_antdoc(paras_with_attrs,
+                                        paras_text,
+                                        fromto_mapper,
+                                        ebantdoc.nl_text)
         # print("ant_list: {}".format(ant_list))
         prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                if hant.label == self.provision]
@@ -101,9 +105,14 @@ class LineAnnotator:
         # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
         # pred_prob_start_end_list, txt)
         # pylint: disable=C0103
-        tp, fn, fp, tn = evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
-                                                                 ant_list,
-                                                                 paras_text)
+        tp, fn, fp, tn, unused_json_return = \
+            evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
+                                                    ant_list,
+                                                    ebantdoc.file_id,
+                                                    paras_text,
+                                                    self.threshold,
+                                                    is_raw_mode=True,
+                                                    diagnose_mode=True)
 
         title = "annotate_status, line-based"
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
@@ -115,6 +124,7 @@ class LineAnnotator:
         return tmp_eval_status
 
 
+    # pylint: disable=too-many-branches
     def annotate_antdoc(self,
                         paras_with_attrs,
                         paras_text: str,
@@ -123,15 +133,18 @@ class LineAnnotator:
         prov_annotations = []
         if self.provision == 'party':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
-            party_offset_pair_list = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
+            party_offset_pair_list = \
+                self.provision_annotator.extract_provision_offsets(paras_attr_list,
+                                                                   paras_text)
 
             if party_offset_pair_list:
                 for i, party_offset_pair in enumerate(party_offset_pair_list, 1):
                     (party_start, party_end), term_ox = party_offset_pair
                     party_st = paras_text[party_start:party_end]
                     num_words = len(party_st.split())
-                    if (not parties.is_invalid_party(party_st) and
-                        (num_words > 1 or (num_words == 1 and parties.is_valid_1word_party(party_st)))):
+                    if not parties.is_invalid_party(party_st) and \
+                       (num_words > 1 or \
+                        (num_words == 1 and parties.is_valid_1word_party(party_st))):
                         prov_annotations.append({'end': party_end,
                                                  'label': self.provision,
                                                  'id': i,
@@ -153,7 +166,8 @@ class LineAnnotator:
         elif self.provision == 'date':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
             # prov_type can be 'date', 'effective-date', 'signature-date'
-            date_list = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
+            date_list = self.provision_annotator.extract_provision_offsets(paras_attr_list,
+                                                                           paras_text)
 
             if date_list:
                 for i, date_ox in enumerate(date_list, 1):
@@ -167,7 +181,9 @@ class LineAnnotator:
 
         else:  # title
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
-            start_offset, end_offset = self.provision_annotator.extract_provision_offsets(paras_attr_list, paras_text)
+            start_offset, end_offset = \
+                self.provision_annotator.extract_provision_offsets(paras_attr_list,
+                                                                   paras_text)
 
             if start_offset is not None:
                 prov_annotations = [{'end': end_offset,

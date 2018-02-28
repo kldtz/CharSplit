@@ -106,7 +106,6 @@ class EbRunner:
         self.provisions = set([])  # type: Set[str]
         self.provision_annotator_map = {}  # type: Dict[str, Union[ebannotator.ProvisionAnnotator, spanannotator.SpanAnnotator]]
 
-
         candg_model_files = osutils.get_candg_model_files(model_dir)
 
         # print("megabyte = {}".format(2**20))
@@ -689,16 +688,20 @@ class EbRunner:
                 # the old timestamp for the removed file doesn't matter.
                 self.provision_custom_model_fn_map[provision] = full_model_fname
 
+    # this function is here because it is a combination of both ML and rule-based annotator
     def eval_mlxline_annotator_with_trte(self,
-                                         provision,
-                                         model_dir='dir-scut-model',
-                                         work_dir='dir-work',
-                                         is_doc_structure=False):
+                                         provision: str,
+                                         model_dir: str = 'dir-scut-model',
+                                         work_dir: str = 'dir-work',
+                                         is_doc_structure: bool = True):
 
         test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
         num_test_doc = 0
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
+
+        # need the ML threshold for evalutils.calc_doc_ant_confusion_mnatrix()
+        threshold = self.provision_annotator_map[provision].threshold
 
         with open(test_doclist_fn, 'rt') as testin:
             for test_fn in testin:
@@ -722,16 +725,20 @@ class EbRunner:
                 # pred_prob_start_end_list, txt)
                 # currently, PROVISION_EVAL_ANYMATCH_SET only has 'title', not 'party' or 'date'
                 if provision in ebannotator.PROVISION_EVAL_ANYMATCH_SET:
-                    xtp, xfn, xfp, xtn = \
+                    xtp, xfn, xfp, xtn, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
+                                                                         ebantdoc.file_id,
                                                                          ebantdoc.get_text(),
                                                                          diagnose_mode=True)
                 else:
-                    xtp, xfn, xfp, xtn = \
+                    xtp, xfn, xfp, xtn, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                 ant_list,
+                                                                ebantdoc.file_id,
                                                                 ebantdoc.get_text(),
+                                                                threshold,
+                                                                is_raw_mode=False,
                                                                 diagnose_mode=True)
                 tp += xtp
                 fn += xfn
