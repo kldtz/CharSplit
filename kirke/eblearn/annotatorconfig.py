@@ -29,7 +29,7 @@ no model for that candidate generation type can be found. (edited)
 
 ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                              'docs_to_samples': dategen.DateSpanGenerator(20, 20, 'DATE'),
+                              'docs_to_samples': dategen.DateSpanGenerator(10,10, 'DATE'),
                               'version': "1.0",
                               'pipeline': Pipeline([
                                   # pylint: disable=line-too-long
@@ -99,8 +99,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
                            'kfold': 2}),
 
     ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                         'docs_to_samples': regexgen.RegexContextGenerator(20,
-                                                                           20,
+                         'docs_to_samples': regexgen.RegexContextGenerator(10,
+                                                                           10,
                                                                            # pylint: disable=line-too-long
                                                                            re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
                                                                            'NUMBER'),

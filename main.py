@@ -113,12 +113,15 @@ def train_span_annotator(label: str,
                          candidate_type: str,
                          work_dir: str,
                          model_dir: str) -> None:
-    ebtrainer.train_eval_span_annotator_with_trte(label,
-                                                  txt_fn_list_fn,
-                                                  work_dir,
-                                                  model_dir,
-                                                  candidate_type,
-                                                  is_bespoke_mode=False)
+    if candidate_type != 'SENTENCE':
+        ebtrainer.train_eval_span_annotator_with_trte(label,
+                                                      txt_fn_list_fn,
+                                                      work_dir,
+                                                      model_dir,
+                                                      candidate_type,
+                                                      is_bespoke_mode=False)
+    else:
+        train_annotator(label, work_dir, model_dir, True)
 
 def eval_rule_annotator(label: str,
                         model_dir: str,
