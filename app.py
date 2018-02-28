@@ -160,7 +160,7 @@ def annotate_uploaded_document():
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 @app.route('/custom-train/<cust_id>', methods=['POST'])
-def custom_train(cust_id: str, candidate_type: str = 'SENTENCE'):
+def custom_train(cust_id: str):
     request_work_dir = request.form.get('workdir')
     if request_work_dir:
         work_dir = request_work_dir
@@ -168,6 +168,10 @@ def custom_train(cust_id: str, candidate_type: str = 'SENTENCE'):
         osutils.mkpath(work_dir)
     else:
         work_dir = WORK_DIR
+
+    candidate_type = request.form.get('candtype')
+    if not candidate_type:
+        candidate_type = 'SENTENCE'
 
     # to ensure that no accidental file name overlap
     logging.info("cust_id = '%s'", cust_id)
@@ -252,12 +256,12 @@ def custom_train(cust_id: str, candidate_type: str = 'SENTENCE'):
             logging.info("status: %s", str(status))
 
             # return some json accuracy info
-            all_stats[doc_lang] = {'stats': status}
+            all_stats[doc_lang] = status
         else:
-            all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
-                                             'fscore': -1.0,
-                                             'precision': -1.0,
-                                             'recall': -1.0}}
+            all_stats[doc_lang] = {'confusion_matrix': [[]],
+                                   'fscore': -1.0,
+                                   'precision': -1.0,
+                                   'recall': -1.0}
     return jsonify(all_stats)
 
 

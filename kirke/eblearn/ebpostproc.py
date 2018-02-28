@@ -242,7 +242,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                                      start=cx_prob_attrvec.start,
                                                      end=cx_prob_attrvec.end,
                                                      # pylint: disable=line-too-long
-                                                     text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                                                     text=strutils.sub_nltab_with_space(cx_prob_attrvec.text)))
         return ant_result, threshold
 
 # Note from PythonClassifier.java:
@@ -297,7 +297,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                                prob=cx_prob_attrvec.prob,
                                                                start=cx_prob_attrvec.start+ant_start,
                                                                end=cx_prob_attrvec.start+ant_end,
-                                                               text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                                                               text=strutils.sub_nltab_with_space(cx_prob_attrvec.text)))
                                 else:
                                     continue
                 #uses entities if party extraction fails
@@ -312,7 +312,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                                      prob=cx_prob_attrvec.prob,
                                                                      start=entity.start,
                                                                      end=entity.end,
-                                                                     text=strutils.remove_nltab(entity.text)))
+                                                                     text=strutils.sub_nltab_with_space(entity.text)))
         return ant_result, threshold
 
 EMPLOYEE_PAT = re.compile(r'.*(Executive|Employee|employee|Officer|Chairman|you)[“"”]?\)?')
@@ -945,7 +945,7 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
                                                          start=prov_start,
                                                          end=prov_end,
                                                          # pylint: disable=line-too-long
-                                                         text=strutils.remove_nltab(prov_st)))
+                                                         text=strutils.sub_nltab_with_space(prov_st)))
                     break
         return ant_result, threshold
 
@@ -980,7 +980,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
                                                          start=prov_start,
                                                          end=prov_end,
                                                          # pylint: disable=line-too-long
-                                                         text=strutils.remove_nltab(prov_st)))
+                                                         text=strutils.sub_nltab_with_space(prov_st)))
                     break
         return ant_result, threshold
 
@@ -1014,7 +1014,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
                                                          start=prov_start,
                                                          end=prov_end,
                                                          # pylint: disable=line-too-long
-                                                         text=strutils.remove_nltab(prov_st)))
+                                                         text=strutils.sub_nltab_with_space(prov_st)))
                     break
         return ant_result, threshold
 
@@ -1049,7 +1049,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
                                                          start=prov_start,
                                                          end=prov_end,
                                                          # pylint: disable=line-too-long
-                                                         text=strutils.remove_nltab(prov_st)))
+                                                         text=strutils.sub_nltab_with_space(prov_st)))
                     break
         return ant_result, threshold
 
@@ -1084,7 +1084,7 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
                                                          start=prov_start,
                                                          end=prov_end,
                                                          # pylint: disable=line-too-long
-                                                         text=strutils.remove_nltab(prov_st)))
+                                                         text=strutils.sub_nltab_with_space(prov_st)))
                     break
         return ant_result, threshold
 
@@ -1119,7 +1119,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
                                                          start=prov_start,
                                                          end=prov_end,
                                                          # pylint: disable=line-too-long
-                                                         text=strutils.remove_nltab(prov_st)))
+                                                         text=strutils.sub_nltab_with_space(prov_st)))
                     break
         return ant_result, threshold
 
@@ -1154,7 +1154,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
                                                          start=prov_start,
                                                          end=prov_end,
                                                          # pylint: disable=line-too-long
-                                                         text=strutils.remove_nltab(prov_st)))
+                                                         text=strutils.sub_nltab_with_space(prov_st)))
                     break
         return ant_result, threshold
 
@@ -1227,7 +1227,7 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
                                                      start=cx_prob_attrvec.start,
                                                      end=cx_prob_attrvec.end,
                                                      # pylint: disable=line-too-long
-                                                     text=strutils.remove_nltab(cx_prob_attrvec.text)))
+                                                     text=strutils.sub_nltab_with_space(cx_prob_attrvec.text)))
         return ant_result, threshold
 
 
@@ -1312,7 +1312,7 @@ class PostPredBestDateProc(EbPostPredictProcessing):
                                                          start=entity.start,
                                                          end=entity.end,
                                                          # pylint: disable=line-too-long
-                                                         text=strutils.remove_nltab(doc_text[entity.start:entity.end])))
+                                                         text=strutils.sub_nltab_with_space(doc_text[entity.start:entity.end])))
                     return ant_result, threshold
         return ant_result, threshold
 
@@ -1348,7 +1348,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                                                 start=entity.start,
                                                 end=entity.end,
                                                 # pylint: disable=line-too-long
-                                                text=strutils.remove_nltab(doc_text[entity.start:entity.end]))
+                                                text=strutils.sub_nltab_with_space(doc_text[entity.start:entity.end]))
                     if not first:
                         first = ant_rx
                     if has_prior_text_effective and not first_after_effective:
@@ -1413,7 +1413,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
 
     def ant(self, line, cx_prob_attrvec, date):
         """Compiles an ant_result."""
-        text = strutils.remove_nltab(line[date[0]:date[1]])
+        text = strutils.sub_nltab_with_space(line[date[0]:date[1]])
         return to_ant_result_dict(label=self.provision, prob=cx_prob_attrvec.prob,
                                   start=cx_prob_attrvec.start + date[0],
                                   end=cx_prob_attrvec.start + date[1],
@@ -1575,7 +1575,7 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                                                      start=prov_start,
                                                      end=prov_end,
                                                      # pylint: disable=line-too-long
-                                                     text=strutils.remove_nltab(prov_st)))
+                                                     text=strutils.sub_nltab_with_space(prov_st)))
                 return ant_result, threshold
             prev_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
         return ant_result, threshold

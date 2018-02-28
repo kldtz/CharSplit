@@ -103,7 +103,7 @@ def classify_table_list(table_span_list, doc_text):
         st_text = doc_text[startx:endx]
         # TODO, jshaw, this is outputing a lot of interesting bad tables...
         # print("classify table_span: {}".format(table_span))
-        # print("    txt= {}".format(strutils.remove_nltab(st_text)))
+        # print("    txt= {}".format(strutils.sub_nltab_with_space(st_text)))
         if is_energy_rate_table(st_text.split('\n')):
             ant_list.append({'end': endx,
                              'label': 'rate_table',
@@ -111,7 +111,7 @@ def classify_table_list(table_span_list, doc_text):
                              'start': startx,
                              'span_list': [{'start': startx,
                                             'end': endx}],
-                             'text': strutils.remove_nltab(st_text)})
+                             'text': strutils.sub_nltab_with_space(st_text)})
     return ant_list
 
 
