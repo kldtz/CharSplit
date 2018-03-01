@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python kirke/client/uploaddir.py --custid 4052 cust_4052
+python3 kirke/client/uploaddir.py --custid 4052 cust_4052
