@@ -23,7 +23,7 @@ those configs.  There will be a default config list, in which people
 can modify at will.  The one with the highest version will be used if
 no model for that candidate generation type can be found. (edited)
 
-'provision' is outside of annotationconfig.py.
+'provision' is outside of annotatorconfig.py.
 """
 
 

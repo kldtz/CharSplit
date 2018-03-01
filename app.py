@@ -170,6 +170,7 @@ def custom_train(cust_id: str):
         work_dir = WORK_DIR
 
     candidate_type = request.form.get('candidate_type')
+    candidate_type = 'CURRENCY' ####DELETE LATER
     if not candidate_type:
         candidate_type = 'SENTENCE'
 
@@ -224,7 +225,7 @@ def custom_train(cust_id: str):
             txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
             fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
             strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-            if candidate_type == 'CORENLP':
+            if candidate_type == 'SENTENCE':
                 base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
                 if doc_lang != "en":
                     base_model_fname = '{}_{}_scutclassifier.v{}.pkl'.format(provision,
