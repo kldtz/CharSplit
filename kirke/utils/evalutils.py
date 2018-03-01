@@ -180,7 +180,6 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                     fn += 1
             else:
                 logging.warning("Human annotation not present in the list of annotations, something is wrong!")
-
         tp_fn_set |= set(pred_overlap_list)
 
     # any remaining predicted annotations are false positives or true negatives
