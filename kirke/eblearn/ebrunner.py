@@ -569,10 +569,10 @@ class EbRunner:
             # Conflicts with above.
             eb_annotator, log_json = \
                 ebtrainer.train_eval_span_annotator(provision,
-                                                    txt_fn_list,
+                                                    candidate_type,
                                                     work_dir,
                                                     custom_model_dir,
-                                                    candidate_type,
+                                                    txt_fn_list,
                                                     model_file_name=full_model_fname,
                                                     is_bespoke_mode=True)
 

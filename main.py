@@ -113,10 +113,10 @@ def train_span_annotator(label: str,
                          work_dir: str,
                          model_dir: str) -> None:
     if candidate_type != 'SENTENCE':
-        ebtrainer.train_eval_span_annotator_with_trte(label=label,
-                                                      candidate_type=candidate_type,
-                                                      work_dir=work_dir,
-                                                      model_dir=model_dir)
+        ebtrainer.train_eval_span_annotator(provision=label,
+                                            candidate_type=candidate_type,
+                                            work_dir=work_dir,
+                                            model_dir=model_dir)
     else:
         print("Currently train_span_annotator doesn't support candiate_type == 'SENTENCE'.")
         # print("Running normal non-spanannotator training instead")

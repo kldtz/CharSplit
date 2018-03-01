@@ -424,9 +424,9 @@ def train_eval_annotator_with_trte(provision: str,
 # Train on 4/5 of the data
 # pylint: disable=invalid-name
 def train_eval_span_annotator(provision: str,
+                              candidate_type: str,
                               work_dir: str,
                               model_dir: str,
-                              candidate_type: str,
                               txt_fn_list=None,
                               model_file_name=None,
                               is_bespoke_mode=False) \
@@ -460,16 +460,15 @@ def train_eval_span_annotator(provision: str,
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_file_name = %s", model_file_name)
 
-    train_doclist_fn = "{}/{}_{}_v{}_train_doclist.txt".format(model_dir,
+    if is_bespoke_mode:
+        train_doclist_fn = "{}/{}_{}_v{}_train_doclist.txt".format(model_dir,
                                                                    provision,
                                                                    candidate_type,
                                                                    config['version'])
-    test_doclist_fn = "{}/{}_{}_v{}_test_doclist.txt".format(model_dir,
-                                                             provision,
-                                                             candidate_type,
-                                                             config['version'])
-
-    if is_bespoke_mode:
+        test_doclist_fn = "{}/{}_{}_v{}_test_doclist.txt".format(model_dir,
+                                                                 provision,
+                                                                 candidate_type,
+                                                                 config['version'])
         #converts all docs to ebantdocs
         eb_antdoc_list = span_annotator.doclist_to_antdoc_list(txt_fn_list,
                                                                work_dir,
@@ -480,26 +479,30 @@ def train_eval_span_annotator(provision: str,
         y = [provision in eb_antdoc.get_provision_set()
              for eb_antdoc in eb_antdoc_list]
 
-        X_train, X_test, unused_y_train, unused_y_test = train_test_split(X, y, test_size=0.25,
-                                                                      random_state=42, stratify=y)
+        X_train, X_test, unused_y_train, unused_y_test = train_test_split(X,
+                                                                          y,
+                                                                          test_size=0.25,
+                                                                          random_state=42,
+                                                                          stratify=y)
         splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
         splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
-
     else:
-        #loads existing doclists
+        train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
+        test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
+        # loads existing doclists
         X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
                                                         work_dir,
                                                         is_bespoke_mode=is_bespoke_mode,
                                                         is_doc_structure=False)
-        y_train = [provision in eb_antdoc.get_provision_set()
-                   for eb_antdoc in X_train]
+        # y_train = [provision in eb_antdoc.get_provision_set()
+        #            for eb_antdoc in X_train]
         X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
-                                                       work_dir,                                                          
+                                                       work_dir,
                                                        is_bespoke_mode=is_bespoke_mode,
                                                        is_doc_structure=False)
-        y_test = [provision in eb_antdoc.get_provision_set()
-                  for eb_antdoc in X_test]
-    
+        # y_test = [provision in eb_antdoc.get_provision_set()
+        #           for eb_antdoc in X_test]
+
     # candidate generation on training set
     train_samples, train_label_list, train_group_ids = \
         span_annotator.documents_to_samples(X_train, provision)
@@ -524,7 +527,6 @@ def train_eval_span_annotator(provision: str,
     ant_status, log_json = \
         span_annotator.test_antdoc_list(X_test,
                                         span_annotator.threshold)
-
 
     #serializes model, prints results
     span_annotator.save(model_file_name)
