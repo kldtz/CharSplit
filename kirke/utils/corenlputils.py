@@ -1,10 +1,11 @@
 import re
 import json
 import logging
+from typing import List
 
 from stanfordcorenlp import StanfordCoreNLP
 
-from kirke.utils.corenlpsent import EbSentence, eb_tokens_to_st
+from kirke.utils.corenlpsent import EbSentence
 
 from kirke.utils.strutils import corenlp_normalize_text
 from kirke.utils.textoffset import TextCpointCunitMapper
@@ -24,40 +25,39 @@ NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
 # WARNING: all the spaces before the first non-space character will be removed in the output.
 # In other words, the offsets will be incorrect if there are prefix spaces in the text.
 # We will fix those issues in the later modules, not here.
-def annotate(text_as_string, doc_lang):
+def annotate(text_as_string: str, doc_lang: str):
     no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
     doc_lang = doc_lang[:2]
     supported_langs = ["fr", "es", "zh"] #ar and de also supported, can add later
     if doc_lang in supported_langs:
-        logging.info("corenlp running on {}".format(doc_lang))
+        logging.info("corenlp running on %s", doc_lang)
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
-                                   properties={'annotators': 'tokenize,ssplit,ner',
-                                               'outputFormat': 'json',
-                                               'enforceRequirements': 'false',
-                                               'ssplit.newlineIsSentenceBreak': 'two',
-				               'pipelineLanguage': doc_lang})
-    
+                                     properties={'annotators': 'tokenize,ssplit,ner',
+                                                 'outputFormat': 'json',
+                                                 'enforceRequirements': 'false',
+                                                 'ssplit.newlineIsSentenceBreak': 'two',
+                                                 'pipelineLanguage': doc_lang})
     elif doc_lang == "pt":
-        logging.info("corenlp running on {}".format(doc_lang))
+        logging.info("corenlp running on %s", doc_lang)
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
-                                   properties={'annotators': 'tokenize,ssplit,ner',
-                                               'outputFormat': 'json',
-                                               'enforceRequirements': 'false',
-                                               'ssplit.newlineIsSentenceBreak': 'two',
-                                               'ner.model':'portuguese-ner.ser.gz'})
+                                     properties={'annotators': 'tokenize,ssplit,ner',
+                                                 'outputFormat': 'json',
+                                                 'enforceRequirements': 'false',
+                                                 'ssplit.newlineIsSentenceBreak': 'two',
+                                                 'ner.model':'portuguese-ner.ser.gz'})
     else:
         logging.info("corenlp running on en")
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
-                                   properties={'annotators': 'tokenize,ssplit,pos,ner',
-                                               'outputFormat': 'json',
-                                               'ssplit.newlineIsSentenceBreak': 'two',
-                                               'pipelineLanguage': 'en'})
+                                     properties={'annotators': 'tokenize,ssplit,pos,ner',
+                                                 'outputFormat': 'json',
+                                                 'ssplit.newlineIsSentenceBreak': 'two',
+                                                 'pipelineLanguage': 'en'})
     return json.loads(output)
 
 
-def annotate_for_enhanced_ner(text_as_string, doc_lang="en"):
+def annotate_for_enhanced_ner(text_as_string: str, doc_lang: str = 'en'):
     acopy_text = transform_corp_in_text(text_as_string)
 
     cpoint_cunit_mapper = TextCpointCunitMapper(acopy_text)
@@ -150,7 +150,8 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
                     ebsent.extend_tokens(ebsent_list[sent_idx+1].get_tokens(),
                                          atext)
                     sent_idx += 1
-                elif is_sent_page_number(ebsent_list, sent_idx+1, atext) and sent_idx + 2 < num_sent:
+                elif is_sent_page_number(ebsent_list, sent_idx+1, atext) and \
+                     sent_idx + 2 < num_sent:
                 #elif (is_sent_page_number(ebsent_list, sent_idx+1, atext) and
                 #      is_sent_starts_with_lower(ebsent_list, sent_idx+1)):
                     # throw away the page number tokens
@@ -176,12 +177,12 @@ def align_first_word_offset(json_sent_list, atext):
 
 # ajson is result from corenlp
 # returns a list of EbSentence
-def corenlp_json_to_ebsent_list(file_id, ajson, atext, is_doc_structure=False):
-    result = []
+def corenlp_json_to_ebsent_list(file_id, ajson, atext, is_doc_structure=False) -> List[EbSentence]:
+    result = []  # type: List[EbSentence]
 
     if isinstance(ajson, str):
-        logging.error('failed to corenlp file_id_xxx: [{}]'.format(file_id))
-        logging.error('ajson= {}...'.format(str(ajson)[:200]))
+        logging.error('failed to corenlp file_id_xxx: [%s]', file_id)
+        logging.error('ajson= %s...', str(ajson)[:200])
 
     # num_prefix_space = _strutils.get_num_prefix_space(atext)
     num_prefix_space = align_first_word_offset(ajson['sentences'], atext)
@@ -197,6 +198,7 @@ def corenlp_json_to_ebsent_list(file_id, ajson, atext, is_doc_structure=False):
         result = filter_out_empty_lines(result, atext)
     return result
 
+# pylint: disable=pointless-string-statement
 """
 # ajson is result from corenlp
 # paras_with_attrs has the the corenlp offsets

@@ -11,11 +11,11 @@ def startswith_approximate(term: str, line: str, edist: int):
     # print("jjjjjjjjj234234234")
     # print("tmp_str = [{}]".format(tmp_str))
     # print("found_starts: {}".format(found_starts))
-    
+
     if found_starts:
         # print('find_approximate([{}], [{}], {}, returned True1'.format(term, line, edist))
         return True
-    
+
     term_defn = '{}_defn'.format(term)
     term_list = [(term, term_defn)]
     term_pattrie = pattrie3.PatTrie()
@@ -28,4 +28,3 @@ def startswith_approximate(term: str, line: str, edist: int):
         print('find_approximate([{}], [{}], {}, returned True2'.format(term, line, edist))
 
     return mat
-

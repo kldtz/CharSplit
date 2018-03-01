@@ -6,6 +6,7 @@ from kirke.utils.textoffset import TextCpointCunitMapper
 
 
 if __name__ == '__main__':
+    # pylint: disable=invalid-name
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
     parser.add_argument("-v", "--verbosity", help="increase output verbosity")
     parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
@@ -14,14 +15,13 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    provision = args.prov
-    fname = args.file
+    PROVISION = args.prov
 
-    if not provision or not fname:
+    if not PROVISION or not args.file:
         print('usage: printProvAnt.py <prov> <fn_list.txt>')
 
     fname_list = []
-    with open(fname, 'rt') as fin:
+    with open(args.file, 'rt') as fin:
         for line in fin:
             fname_list.append(line.strip())
 
@@ -38,9 +38,9 @@ if __name__ == '__main__':
             label = prov_ant.label
             start = prov_ant.start
             end = prov_ant.end
-            if label == provision:
+            if label == PROVISION:
                 print("====={}\t{}\t{}=====".format(count, label, fname))
                 print(doc_text[start:end])
                 count += 1
-        
+
     print("done.")

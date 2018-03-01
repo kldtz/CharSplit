@@ -141,7 +141,7 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
     transform_count = 0
 
     def __init__(self) -> None:
-        self.name = 'SurroundWordTransformer'
+        self.name = 'SimpleTextTransformer'
         self.version = '1.0'
         self.words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
 
