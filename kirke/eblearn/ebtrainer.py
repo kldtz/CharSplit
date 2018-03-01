@@ -460,16 +460,13 @@ def train_eval_span_annotator(provision: str,
     logging.info("    work_dir = %s", work_dir)
     logging.info("    model_file_name = %s", model_file_name)
 
-    train_doclist_fn = "{}/{}_{}_v{}_train_doclist.txt".format(model_dir,
-                                                                   provision,
-                                                                   candidate_type,
-                                                                   config['version'])
-    test_doclist_fn = "{}/{}_{}_v{}_test_doclist.txt".format(model_dir,
-                                                             provision,
-                                                             candidate_type,
-                                                             config['version'])
-
     if is_bespoke_mode:
+        train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir,
+                                                           provision,
+                                                           candidate_type)
+        test_doclist_fn = "{}/{}_{}_test_doclist.txt".format(model_dir,
+                                                         provision,
+                                                         candidate_type)
         #converts all docs to ebantdocs
         eb_antdoc_list = span_annotator.doclist_to_antdoc_list(txt_fn_list,
                                                                work_dir,
@@ -486,6 +483,8 @@ def train_eval_span_annotator(provision: str,
         splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
 
     else:
+        train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
+        test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
         #loads existing doclists
         X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
                                                         work_dir,
