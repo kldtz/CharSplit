@@ -1,28 +1,30 @@
 import logging
-import re
 from typing import Dict, List, Tuple
-from kirke.ebrules import dates, addresses
+from kirke.ebrules import addresses
 from kirke.utils import ebantdoc3, ebsentutils, strutils
 
 
-# loads address keywords 
+# loads address keywords
 ALL_KEYWORDS = addresses.addr_keywords()
 
+# pylint: disable=too-few-public-methods
 class AddrContextGenerator:
+
     def __init__(self, num_prev_words: int, num_post_words: int, sample_type: str) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
         self.sample_type = sample_type
 
+    # pylint: disable=too-many-locals
     def documents_to_samples(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: str=None) -> Tuple[List[Dict], List[bool], List[int]]:
+                             label: str = None) -> Tuple[List[Dict], List[bool], List[int]]:
         samples = []  # type: List[Dict]
         label_list = []   # type: List[bool]
         group_id_list = []  # type: List[int]
 
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
-            
+
             #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
             label_ant_list = []
@@ -39,17 +41,23 @@ class AddrContextGenerator:
                 nl_text = antdoc.nl_text
 
             if group_id % 10 == 0:
-                logging.info("AddrContextGenerator.documents_to_samples(), group_id = {}".format(group_id))
-           
+                logging.info('AddrContextGenerator.documents_to_samples(), group_id = %d', group_id)
+
             #finds all addresses in the text and adds window around each as a candidate
             for addr in addresses.find_addresses(nl_text, ALL_KEYWORDS):
                 addr_start, addr_end, addr_st = addr
                 is_label = ebsentutils.check_start_end_overlap(addr_start,
                                                                addr_end,
                                                                label_ant_list)
-                prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text, addr_start, self.num_prev_words)
-                post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text, addr_end, self.num_post_words)
-                new_bow = '{} {} {}'.format(' '.join(prev_n_words), addr_st, ' '.join(post_n_words))
+                prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text,
+                                                                        addr_start,
+                                                                        self.num_prev_words)
+                post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text,
+                                                                        addr_end,
+                                                                        self.num_post_words)
+                new_bow = '{} {} {}'.format(' '.join(prev_n_words),
+                                            addr_st,
+                                            ' '.join(post_n_words))
                 bow_start = addr_start
                 bow_end = addr_end
 
