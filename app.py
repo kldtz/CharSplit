@@ -96,7 +96,7 @@ def annotate_uploaded_document():
 
     # cannot just access the request.files['file'].read() earlier, which
     # make it unavailable to the rest of the code.
-    
+
     atext = strutils.loads(txt_file_name)
     doc_lang = eb_langdetect_runner.detect_lang(atext)
     logging.info("detected language '{}'".format(doc_lang))
@@ -174,7 +174,7 @@ def custom_train(cust_id):
     tmp_dir = '{}/{}'.format(work_dir, provision)
     osutils.mkpath(tmp_dir)
     fn_list = request.files.getlist('file')
-    
+
     # save all the uploaded files in a location
     for fstorage in fn_list:
         fn = '{}/{}'.format(tmp_dir, fstorage.filename)
@@ -203,6 +203,7 @@ def custom_train(cust_id):
             txt_offsets_fn_map[tmp_txt_fn] = name
         else:
             logging.warning('unknown file extension in custom_train(): "{}"'.format(fn))
+
     #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
     all_stats = {}
     for doc_lang, names_per_lang in full_txt_fnames.items():
@@ -219,26 +220,37 @@ def custom_train(cust_id):
                 base_model_fname = '{}_{}_scutclassifier.v{}.pkl'.format(provision, doc_lang, SCUT_CLF_VERSION)
 
             # Following the logic in the original code.
-            eval_status = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
-                                                                        provision,
-                                                                        CUSTOM_MODEL_DIR,
-                                                                        base_model_fname,
-                                                                        is_doc_structure=True,
-                                                                        work_dir=work_dir,
-                                                                        doc_lang=doc_lang)
+            eval_status, log_json = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
+                                                                                  provision,
+                                                                                  CUSTOM_MODEL_DIR,
+                                                                                  base_model_fname,
+                                                                                  is_doc_structure=True,
+                                                                                  work_dir=work_dir,
+                                                                                  doc_lang=doc_lang)
             # copy the result into the expected format for client
-            pred_status = eval_status['pred_status']['pred_status']
-            cf = pred_status['confusion_matrix']
+            ant_status = eval_status['ant_status']
+            cf = ant_status['confusion_matrix']
             status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
-                      'fscore': pred_status['f1'],
-                      'precision': pred_status['prec'],
-                      'recall': pred_status['recall']}
+                      'fscore': ant_status['f1'],
+                      'precision': ant_status['prec'],
+                      'recall': ant_status['recall']}
 
             logging.info("status: {}".format(status))
-              
+
             # return some json accuracy info
+            # TODO add eval_log back in when PR 408 is merged and the front end is ready to accept it
+            # status_and_antana = {'status': stats,
+            #                      'eval_log': log_json}
+            # all_stats[doc_lang] = status_and_antana
+
             all_stats[doc_lang] = status
         else:
+            # TODO, remove disabling log output until frontend is ready
+            # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
+            #                                 'fscore': -1.0,
+            #                                 'precision': -1.0,
+            #                                 'recall': -1.0}
+            #                       'eval_log': {}}
             all_stats[doc_lang] = {'confusion_matrix': [[]],
                                    'fscore': -1.0,
                                    'precision': -1.0,

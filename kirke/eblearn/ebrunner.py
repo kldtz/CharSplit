@@ -210,7 +210,7 @@ class EbRunner:
                                    provision for provision in provision_set if provision in self.provision_annotator_map.keys()} 
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                data = future.result()
+                data, _ = future.result()
                 # want to collapse language-specific cust models to one provision
                 if 'cust_' in provision and data:
                     provision = data[0]['label']
@@ -587,16 +587,14 @@ class EbRunner:
 
         # eb_classifier = scutclassifier.ShortcutClassifier(provision)
         eb_classifier = scutclassifier.ShortcutClassifier(provision)
-        eb_annotator = ebtrainer.train_eval_annotator(provision,
-                                                      txt_fn_list,
-                                                      work_dir,
-                                                      custom_model_dir,
-                                                      full_model_fname,
-                                                      eb_classifier,
-                                                      is_doc_structure=is_doc_structure,
-                                                      custom_training_mode=True,
-                                                      doc_lang=doc_lang)
-
+        eb_annotator, log_json = ebtrainer.train_eval_annotator(provision,
+                                                                txt_fn_list,
+                                                                work_dir,
+                                                                custom_model_dir,
+                                                                full_model_fname,
+                                                                eb_classifier,
+                                                                is_doc_structure=is_doc_structure,
+                                                                custom_training_mode=True)
         # update the hashmap of classifier
         if doc_lang != "en":
             provision = "{}_{}".format(provision, doc_lang)
@@ -615,7 +613,7 @@ class EbRunner:
         last_modified_date = datetime.fromtimestamp(mtime)
         self.custom_model_timestamp_map[base_model_fname] = last_modified_date
 
-        return eb_annotator.get_eval_status()
+        return eb_annotator.get_eval_status(), log_json
 
     def update_existing_provision_fn_map_aux(self, provision: str, full_model_fname: str) -> None:
         # intentioanlly not using .get(), because the previous model file must exist.

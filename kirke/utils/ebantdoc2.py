@@ -3,6 +3,7 @@ from enum import Enum
 import json
 import logging
 import os
+import re
 import shutil
 import sys
 import time
@@ -40,6 +41,9 @@ class EbDocFormat(Enum):
     html = 2
     pdf = 3
     other = 4
+
+
+EB_NUMERIC_FILE_ID_PAT = re.compile(r'\-(\d+)\.txt')
 
 class EbAnnotatedDoc2:
 
@@ -98,6 +102,14 @@ class EbAnnotatedDoc2:
 
     def get_file_id(self):
         return self.file_id
+
+    def get_document_id(self) -> str:
+        """Return the identifier of the document, in string"""
+        mat = EB_NUMERIC_FILE_ID_PAT.search(self.file_id)
+        # must match
+        if mat:
+            return mat.group(1)
+        return 'no-doc-id-found:{}'.format(self.file_id)
 
     def set_provision_annotations(self, ant_list):
         self.prov_annotation_list = ant_list
