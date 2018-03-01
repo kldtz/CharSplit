@@ -114,9 +114,9 @@ def train_span_annotator(label: str,
                          model_dir: str) -> None:
     if candidate_type != 'SENTENCE':
         ebtrainer.train_eval_span_annotator(label,
+                                            candidate_type,
                                             work_dir,
-                                            model_dir,
-                                            candidate_type)
+                                            model_dir)
     else:
         train_annotator(label, work_dir, model_dir, True)
 
