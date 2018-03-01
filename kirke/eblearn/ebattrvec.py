@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 # has_org, has_loc, has_person, has_date, hr ('yes', 'no')

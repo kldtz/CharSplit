@@ -260,11 +260,23 @@ def custom_train(cust_id: str):
                       'precision': ant_status['prec'],
                       'recall': ant_status['recall']}
 
-            logging.info("status: %s", str(status))
+            logging.info("status: %r", status)
 
             # return some json accuracy info
+            # TODO add eval_log back in when PR 408 is merged and the front end is ready
+            # to accept it
+            # status_and_antana = {'status': stats,
+            #                      'eval_log': log_json}
+            # all_stats[doc_lang] = status_and_antana
+
             all_stats[doc_lang] = status
         else:
+            # TODO, remove disabling log output until frontend is ready
+            # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
+            #                                 'fscore': -1.0,
+            #                                 'precision': -1.0,
+            #                                 'recall': -1.0}
+            #                       'eval_log': {}}
             all_stats[doc_lang] = {'confusion_matrix': [[]],
                                    'fscore': -1.0,
                                    'precision': -1.0,
