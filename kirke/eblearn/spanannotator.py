@@ -336,7 +336,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                              label_list: List[bool],
                              work_dir: str,
                              is_debug: bool = False):
-        logging.info('predict_and_evaluate()...')
+        logging.info('spanannotator.predict_and_evaluate()...')
 
         pos_neg_map = defaultdict(int)  # type: DefaultDict[bool, int]
         for label in label_list:

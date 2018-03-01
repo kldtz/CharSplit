@@ -1,6 +1,7 @@
 
 import logging
 from abc import ABC, abstractmethod
+from typing import List
 
 import numpy as np
 
@@ -170,7 +171,7 @@ class UnigramDocClassifier(DocClassifier):
         print("wrote {}".format(prod_tags_fname))
 
 
-    def predict(self, doc_text, catnames=None):
+    def predict(self, doc_text: str, catnames=None) -> List[str]:
         doc_feats = [doccatutils.doc_text_to_docfeats(doc_text)]
         # pylint: disable=invalid-name
         X_test = self.transformer.transform(doc_feats)

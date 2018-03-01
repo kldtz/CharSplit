@@ -202,6 +202,9 @@ def custom_train(cust_id: str):
             txt_fnames.append(name)
             atext = strutils.loads(full_path)
             doc_lang = eb_langdetect_runner.detect_lang(atext)
+            if not doc_lang:
+                # if we don't know what language it is, skip such document
+                continue
             full_txt_fnames[doc_lang].append(file_id)
         elif name.endswith('.offsets.json'):
             # create txt -> offsets.json map in order to do sent4nlp processing
@@ -228,7 +231,9 @@ def custom_train(cust_id: str):
                                                                              doc_lang,
                                                                              SCUT_CLF_VERSION)
             else:
-                base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision, candidate_type, SCUT_CLF_VERSION)
+                base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                    candidate_type,
+                                                                    SCUT_CLF_VERSION)
                 if doc_lang != "en":
                     base_model_fname = '{}_{}_{}_annotator.v{}.pkl'.format(provision,
                                                                            doc_lang,
