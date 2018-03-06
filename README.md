@@ -46,7 +46,7 @@ source env/bin/activate
 pip install numpy
 pip install scipy
 pip install -r requirements.txt
-python download_nltk.py
+python3 download_nltk.py
 ```
 
 The need to install numpy and scip earlier than requirements.txt is because we haven't merged https://github.com/eBrevia/kirke/pull/18 .

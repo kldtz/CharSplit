@@ -1,17 +1,19 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import collections
 import json
 import logging
 import os
 import re
-from typing import (Any, Dict, Generator, List, Match, Optional, Pattern,
+# pylint: disable=unused-import
+from typing import (Any, Dict, Generator, List, Match, Pattern,
                     Set, Tuple, Union)
 import unicodedata
 import urllib.parse
 
 # https://github.com/python/typing/issues/182
 # JSONType = Union[Dict[str, Any], List[Any]]
+# pylint: disable=invalid-name
 JSONType = Union[Dict, List[Any]]
 
 # this include punctuations
@@ -19,10 +21,7 @@ CAP_SPACE_PAT = re.compile(r'^[A-Z\s\(\).,\[\]\-/\\{\}`\'"]+$')  # type: Pattern
 
 # pylint: disable=W0703, E1101
 
-# TODO, jshaw, this function need to be rename to
-# defun replace_nltab_with_space(line)
-# Currently, it is confusing.  Called in many places.
-def remove_nltab(line: str) -> str:
+def sub_nltab_with_space(line: str) -> str:
     # return re.sub(r'[\s\t\r\n]+', ' ', line)
     return re.sub(r'[\s\t\r\n]', ' ', line)
 
@@ -64,7 +63,7 @@ def load_lines_with_offsets(file_name: str) -> Generator[Tuple[int, int, str], N
                 if not prev_line and not is_printed_empty_line:
                     yield offset, end, new_line
                     is_printed_empty_line = True
-                
+
             offset += orig_length
             prev_line = new_line
 
@@ -132,17 +131,11 @@ def is_number(line: str) -> bool:
     except ValueError:
         return False
 
-# handle "5.5." as a number at the end of a sentence
-"""
-def is_relaxed_number(line: str) -> bool:
-    if line.endswith('.'):
-        return is_number(line[:-1])
-    return is_number(line)
-    """
 
 # SECHEAD_NUMBER_PAT = re.compile('^\d[\d\.]+$')
 
-NUM_ROMAN_PAT = re.compile(r'(([\(\“\”]?([\.\d]+|[ivx\d\.]+\b)[\)\“\”]?|[\(\“\”\.]?[a-z][\s\.\)\“\”])+)')
+NUM_ROMAN_PAT = re.compile(r'(([\(\“\”]?([\.\d]+|[ivx\d\.]+\b)[\)\“\”]?|'
+                           r'[\(\“\”\.]?[a-z][\s\.\)\“\”])+)')
 
 def is_header_number(line: str) -> Match[str]:
     return NUM_ROMAN_PAT.match(line)
@@ -214,7 +207,7 @@ def is_word_all_lc(word: str) -> Match[str]:
 TWO_GT_3_NUM_SEQ_PAT = re.compile(r'\d{3}.*\d{3}')
 def has_likely_phone_number(line: str) -> Match[str]:
     return TWO_GT_3_NUM_SEQ_PAT.search(line)
-    
+
 def is_all_alphas(line: str) -> Match[str]:
     return is_alpha_word(line)
 
@@ -243,7 +236,7 @@ def count_word_category(word_list: List[str]) -> Tuple[int, int, int, int]:
         elif is_all_alphas(word) and len(word) >= 3:
             num_alpha += 1
         elif '$' in word:
-            num_dollar + 1
+            num_dollar += 1
         else:
             num_other += 1
     return num_alpha, num_digit, num_dollar, num_other
@@ -257,8 +250,8 @@ def is_all_dash_underline(line: str) -> bool:
             return False
     return True
 
-def is_all_caps_space(line: str) -> Match[str]:
-    return CAP_SPACE_PAT.match(line)
+def is_all_caps_space(line: str) -> bool:
+    return bool(CAP_SPACE_PAT.match(line))
 
 def is_all_lower(line: str) -> bool:
     words = line.split()
@@ -270,8 +263,17 @@ def is_all_lower(line: str) -> bool:
     return True
 
 
-def bool_to_int(bxx: bool) -> int:
-    if bxx:
+def is_all_upper_words(words: List[str]) -> bool:
+    if not words:
+        return False
+    for word in words:
+        if not word.isupper():
+            return False
+    return True
+
+
+def bool_to_int(bool_val: bool) -> int:
+    if bool_val:
         return 1
     return 0
 
@@ -283,23 +285,8 @@ def yesno_to_int(line: str) -> int:
         return 0
     raise ValueError("Error in yesno_to_int({})".format(line))
 
-# pylint: disable=W0105
-"""
-def str_to_boolint_not_used(st):
-    if isinstance(st, str):
-        if st == 'yes':
-            return 1
-        elif st == 'no':
-            return 0
-        return to_int(st)
-    elif isinstance(st, int):
-        return st
-    else:
-        raise ValueError("str is not 'yes' or 'no' in str_to_booint({})".format(st))
-"""
 
-
-def gen_ngram(word_list: List[str], max_n: int=2) -> List[str]:
+def gen_ngram(word_list: List[str], max_n: int = 2) -> List[str]:
     result = []
     for i in range(len(word_list) - max_n + 1):
         ngram_words = [word_list[i + j] for j in range(max_n)]
@@ -338,19 +325,19 @@ def is_dollar_num(line: str) -> Match[str]:
     return DOLLAR_NUM_PAT.match(line)
 
 
-def get_alpha_words_gt_len1(line: str, is_lower: bool=True) -> List[str]:
+def get_alpha_words_gt_len1(line: str, is_lower: bool = True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHA_WORD_PAT.findall(line) if len(word) > 1]
 
 
-def get_alpha_words(line: str, is_lower: bool=True) -> List[str]:
+def get_alpha_words(line: str, is_lower: bool = True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHA_WORD_PAT.findall(line)]
 
 
-def get_alphanum_words_gt_len1(line: str, is_lower: bool=True) -> List[str]:
+def get_alphanum_words_gt_len1(line: str, is_lower: bool = True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHANUM_WORD_PAT.findall(line) if len(word) > 1]
@@ -366,7 +353,7 @@ def get_alpha_or_num_words(line: str, is_lower=True) -> List[str]:
         line = line.lower()
     return [word for word in ALPHA_OR_NUM_WORD_PAT.findall(line)]
 
-def tokens_to_all_ngrams(word_list: List[str], max_n: int=1) -> Set[str]:
+def tokens_to_all_ngrams(word_list: List[str], max_n: int = 1) -> Set[str]:
     # unigram
     sent_wordset = set(word_list)
     # bigram and up
@@ -385,8 +372,7 @@ def tokens_to_all_ngrams(word_list: List[str], max_n: int=1) -> Set[str]:
 def is_punct(line: str) -> bool:
     if line:
         return line[0] in r"().,[]-/\\{}`'\":;\?<>!"
-    else:
-        return False
+    return False
 
 
 def is_sent_punct(line: str) -> bool:
@@ -400,22 +386,19 @@ def is_not_sent_punct(line: str) -> bool:
 def is_punct_not_period(line: str) -> bool:
     if line:
         return line[0] != '.' and is_punct(line)
-    else:
-        return False
+    return False
 
 
 def is_punct_notwork(line: str) -> bool:
     if line:
         return is_punct_core(line)
-    else:
-        return False
+    return False
 
 # '_' is for 'Title: ____________'.  It is end of sentence char
 def is_eosent(line: str) -> bool:
     if line:
         return line[0] in '.!?_'
-    else:
-        return False
+    return False
 
 def is_punct_core(line: str) -> bool:
     return unicodedata.category(line[0]) == 'Po'
@@ -493,16 +476,20 @@ def is_all_title(words: List[str]) -> bool:
                 return False
     return has_alpha_word
 
-    
+
 ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)
 
 def has_alpha(line: str) -> Match[str]:
     return ANY_ALPHA_PAT.search(line)
 
 
-DIGIT_PAT = re.compile(r'^\d+$')
-def is_digit_st(line: str) -> Match[str]:
-    return DIGIT_PAT.match(line)
+DIGIT_PAT = re.compile(r'^\s*\d+\s*$')
+def is_digit_st(line: str) -> bool:
+    return bool(DIGIT_PAT.match(line))
+
+# alias
+is_digits = is_digit_st
+
 
 # to detect telephone or SSN
 BIG_DASHED_DIGIT_PAT = re.compile(r'^(\d+)\-[\d\-]+$')
@@ -523,7 +510,7 @@ NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
 def find_number(line: str) -> Match[str]:
     return NUM_10_PAT.search(line)
 
-    
+
 def is_digit_core(line: str) -> bool:
     return unicodedata.category(line) == 'Nd'
 
@@ -577,6 +564,7 @@ IGNORABLE_JSON_CTRL_PAT = re.compile(r'[' + IGNORABLE_JSON_CTRL_CHARS + ']')
 
 def replace_ignorable_json_ctrl_chars(line: str) -> str:
     line = re.sub(IGNORABLE_JSON_CTRL_PAT, ' ', line)
+    # pylint: disable=fixme
     # TODO, in future, regex these
     line = line.replace('\u201c', '"')
     line = line.replace('\u201d', '"')
@@ -621,7 +609,7 @@ def find_next_token(line: str) -> Match[str]:
 
 # primitive version of getting words using regex
 
-SIMPLE_WORD_PAT = re.compile('(\w+)')
+SIMPLE_WORD_PAT = re.compile(r'(\w+)')
 
 def get_simple_words(text: str) -> List[Tuple[int, int, str]]:
     matches = SIMPLE_WORD_PAT.finditer(text)
@@ -629,38 +617,38 @@ def get_simple_words(text: str) -> List[Tuple[int, int, str]]:
     return spans
 
 
-def get_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
+def get_prev_n_words(text: str, start: int, num_words: int) \
+    -> Tuple[List[str], List[Tuple[int, int]]]:
     num_chars = num_words * 20  # avg word len is 7
-    first_offset = start - num_chars
-    if first_offset < 0:
-        first_offset = 0
+    first_offset = max(0, start - num_chars)
     prev_text = text[first_offset:start]
     words_and_spans = get_simple_words(prev_text)[-num_words:]
     words = [x[-1] for x in words_and_spans]
-    spans = [[x+first_offset,y+first_offset] for [x,y,z] in words_and_spans]
+    spans = [(x+first_offset, y+first_offset) for [x, y, z] in words_and_spans]
     return words[-num_words:], spans[-num_words:]
 
 
-def get_post_n_words(text: str, end: int, num_words: int) -> List[str]:
+def get_post_n_words(text: str, end: int, num_words: int) \
+    -> Tuple[List[str], List[Tuple[int, int]]]:
     num_chars = num_words * 20  # avg word len is 7
-    last_offset = end + num_chars
-    if last_offset > len(text):
-        last_offset = len(text)
+    last_offset = min(len(text), end + num_chars)
     post_text = text[end:last_offset]
     words_and_spans = get_simple_words(post_text)
     words = [x[-1] for x in words_and_spans]
-    spans = [[x+end, y+end] for [x,y,z] in words_and_spans]
+    spans = [(x+end, y+end) for [x, y, z] in words_and_spans]
     return words[:num_words], spans[:num_words]
 
 
-def get_lc_prev_n_words(text: str, start: int, num_words: int) -> List[str]:
+def get_lc_prev_n_words(text: str, start: int, num_words: int) \
+    -> Tuple[List[str], List[Tuple[int, int]]]:
     words, spans = get_prev_n_words(text, start, num_words)
-    return [word.lower() for word in words], spans 
+    return [word.lower() for word in words], spans
 
 
-def get_lc_post_n_words(text: str, end: int, num_words: int) -> List[str]:
+def get_lc_post_n_words(text: str, end: int, num_words: int) \
+    -> Tuple[List[str], List[Tuple[int, int]]]:
     words, spans = get_post_n_words(text, end, num_words)
-    return [word.lower() for word in words], spans 
+    return [word.lower() for word in words], spans
 
 
 def to_pos_neg_count(bool_list: List[bool]) -> str:
@@ -669,9 +657,78 @@ def to_pos_neg_count(bool_list: List[bool]) -> str:
     return "num_pos = {}, num_neg = {}".format(pos_neg_counter.get(True, 0),
                                                pos_neg_counter.get(False, 0))
 
+
+# https://stackoverflow.com/questions/9518806/how-to-split-a-string-on-whitespace-and-retain-offsets-and-lengths-of-words
+def using_split2(line, _len=len) -> List[Tuple[int, int, str]]:
+    words = line.split()
+    index = line.index
+    offsets = []  # type: List[Tuple[int, int, str]]
+    append = offsets.append
+    running_offset = 0
+    for word in words:
+        word_offset = index(word, running_offset)
+        word_len = _len(word)
+        running_offset = word_offset + word_len
+        append((word_offset, running_offset, word))
+    return offsets
+
+
+# this probably should go into strutils
+def split_with_offsets(line: str) -> List[Tuple[int, int, str]]:
+    ret = [(mat.start(), mat.end(), mat.group())
+           for mat in re.finditer(r'\S+', line)]
+    return ret
+
+def split_with_offsets_xparens(line: str) -> List[Tuple[int, int, str]]:
+    ret = [(mat.start(), mat.end(), mat.group())
+           for mat in re.finditer(r'\S+', line)]
+    out_list = []
+    for se_matst in ret:
+        start, unused_end, mat_st = se_matst
+        parts = re.split(r'([\(\)])', mat_st)  # capture separators also
+        if len(parts) > 1:
+            offset = start
+            for part in parts:
+                if part:
+                    out_list.append((offset, offset + len(part), part))
+                    offset += len(part)
+        else:
+            out_list.append(se_matst)
+    return out_list
+
+
+def get_consecutive_one_char_parens_mats(line: str) -> List[Match[str]]:
+    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
+
+    Makes sure they start with 1, 2 or a, b.
+    """
+    result = list(re.finditer(r'\(?\S\)\s*', line))
+
+    if len(result) > 1:
+        # check if first and 2nd are valid indexes
+        first = result[0].group()
+        second = result[1].group()
+        # print("first = [{}]".format(first))
+        # print("second = [{}]".format(second))
+        # print("    matched 1 = {}".format(re.match(r'\((1|a|i)\)', first, re.I)))
+        # print("    matched 2 = {}".format(re.match(r'\((2|b|ii)\)', second, re.I)))
+        if re.match(r'\(?(1|a|i)\)', first, re.I) and \
+           re.match(r'\(?(2|b|ii)\)', second, re.I):
+            return result
+    return []
+
+def get_one_char_parens_mats(line: str) -> List[Match[str]]:
+    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
+
+    No check to make sure they start with 1, 2 or a, b.
+    """
+    result = list(re.finditer(r'\(?\S\)\s*', line))
+    return result
+
+
+
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
     print(str(_get_num_prefix_space("abc")))      # 0
     print(str(_get_num_prefix_space(" abc")))     # 1
     print(str(_get_num_prefix_space("\n\nabc")))  # 2
-

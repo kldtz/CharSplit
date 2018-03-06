@@ -1,19 +1,20 @@
 
 from typing import Dict, List, Tuple
 
-from kirke.ebrules import dates
 from kirke.utils import ebantdoc3, ebsentutils, strutils
 
-    
+
+# pylint: disable=too-few-public-methods
 class LineSpanGenerator:
-    
+
     def __init__(self, num_prev_words: int, num_post_words: int) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
 
+    # pylint: disable=too-many-locals
     def documents_to_samples(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: str=None) -> Tuple[List[Dict], List[bool], List[int]]:
+                             label: str = None) -> Tuple[List[Dict], List[bool], List[int]]:
         samples = []  # type: List[Dict]
         label_list = []   # type: List[bool]
         group_id_list = []  # type: List[int]
@@ -38,7 +39,7 @@ class LineSpanGenerator:
             lines = nl_text.split('\n')
             offset = 0
             notempty_line_seq = 0
-            
+
             for line in lines:
                 # there are lines with just spaces, or non-breaking spaces
                 if not line or not line.strip():  # skip
@@ -49,9 +50,12 @@ class LineSpanGenerator:
                 start = offset
                 end = offset + line_len
 
-                prev_n_words = strutils.get_lc_prev_n_words(nl_text, start, self.num_prev_words)
-                post_n_words = strutils.get_lc_post_n_words(nl_text, end, self.num_post_words)
-
+                prev_n_words, _ = strutils.get_lc_prev_n_words(nl_text,
+                                                               start,
+                                                               self.num_prev_words)
+                post_n_words, _ = strutils.get_lc_post_n_words(nl_text,
+                                                               end,
+                                                               self.num_post_words)
                 is_label = ebsentutils.check_start_end_overlap(start,
                                                                end,
                                                                label_ant_list)
@@ -72,8 +76,8 @@ class LineSpanGenerator:
                     label_list.append(False)
                     # print('sample = {}'.format(a_sample['text']))
                 samples.append(a_sample)
-                group_id_list.append(group_id)                            
-                            
+                group_id_list.append(group_id)
+
                 offset += len(line) + 1  # for eoln
 
         return samples, label_list, group_id_list

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import logging
@@ -202,6 +202,11 @@ def is_invalid_heading(line: str) -> bool:
 
 def is_maybe_sechead_title(line):
     norm_line_words = norm_lcword(line)  # to catch "523 East Weddel" as an address
+    # avoid 'patent license agreement', which is in sechead.xxx.xxx
+    # When such line is treated as a sechead, it cannot be
+    # considered as a 'title' anymore.  So must avoid this.
+    if norm_line_words[-1] in set(['agreement', 'contract']):
+        return False
     if (is_word_overlap(norm_line_words, sechead_xxx_word_set) and
         not is_invalid_heading(line) and
         not contains_invalid_sechead_word(norm_line_words)):
@@ -362,6 +367,20 @@ def extract_sechead3(line: str, is_skip_repeat=False, debug_mode=False):
 
     return '', '', '', ''
 
+
+
+"""
+# this is to wrap and track waht extract_sechead_v4() returns
+def extract_sechead_v4(line: str,
+                       prev_line=None,
+                       prev_line_idx=-1,
+                       debug_mode=False,
+                       is_combine_line=True):
+    xxx = extract_sechead_v4xxx(line, prev_line, prev_line_idx, debug_mode, is_combine_line)
+
+    print('extract_sechead_v4, line = [{}], result = {}'.format(line, xxx))
+    return xxx
+"""
 
 # assuming prev_line, if set, is the sec
 # returns tuple-4, (sechead|sechead-comb, prefix+num, head, split_idx)
@@ -1495,6 +1514,7 @@ def parse_line_aux(line, debug_mode=False):
             print("num=[{}]\tprefix=[{}]\thead=[{}]".format(mat.group(1), mat.group(2), mat.group(3)))
         return prefix, num_st, head_st, end_idx
 
+    # print("jjjj2v4 here: [{}]".format(line))
     mat = pat2v4.match(line)
     if mat and is_valid_sechead_number(mat.group(1)):
         num_st = mat.group(1)
@@ -1531,16 +1551,18 @@ def parse_line_aux(line, debug_mode=False):
             print("prefix6=[{}]\tspc=[{}]\thead=[{}]".format(mat.group(1), mat.group(4), mat.group(5)))
         return prefix_st, '', head_st
 """
-
+    # print("jjjj8 here: [{}]".format(line))
     mat = pat8.match(line)
     if mat:
         prefix_st = mat.group()
         return prefix_st, '', '', mat.end()
 
+    # print("jjjjj_maybe here: [{}]".format(line))
     if is_maybe_sechead_title(line):
         head_st = line
         return '', '', head_st, len(line)
 
+    # print("jjjjjout here: [{}]".format(line))
     if debug_mode:    
         print("not match: [{}]".format(line))
     return '', '', '', -1

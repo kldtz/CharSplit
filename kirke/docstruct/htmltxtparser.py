@@ -458,11 +458,15 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
     date_line_idx, first_eng_para_idx = -1, -1
     lc_party_line = ''
     num_line = len(lineinfos_paras)
+    num_long_english_line = 0
+
     for line_idx, (_, line, attr_list) in enumerate(lineinfos_paras):
         attr2_list = []
         is_english = engutils.classify_english_sentence(line)
         if is_english:
             attr2_list.append('yes_eng')
+            if len(line) > 350:
+                num_long_english_line += 1
         else:
             attr2_list.append('not_eng')
 
@@ -474,23 +478,39 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
             if date_line_idx != -1:
                 date_line_idx = line_idx
 
+        # this is redundant in regards to num_long_english_line
+        # based on tests
+        # if line.strip() and \
+        #    len(line) > 200 and \
+        #   not ('toc' in attr_list or 'toc7' in attr_list):
+        #    line_num_notoc_empty += 1
+
         if engutils.has_date(line):
             attr2_list.append('has_date')
 
-        if (first_eng_para_idx == -1 and
-            'yes_eng' in attr2_list and
-            not 'skip_as_template' in attr2_list and
-            len(line) > 110):
+        if first_eng_para_idx == -1 and \
+           'yes_eng' in attr2_list and \
+           not 'skip_as_template' in attr2_list and \
+           not re.search(r'the\s+Securities\s+and\s+Exchange\s+Commission',
+                         line, re.I) and \
+           len(line) > 110:
             attr2_list.append('first_eng_para')
             first_eng_para_idx = line_idx
 
+        #print('num_english_line = {}, nun_sechead = {}'.format(num_english_line,
+        #                                                       num_sechead), end='')
+        # print("num_date = {}".format(num_date))
         if (party_line_idx == -1 and
             not 'skip_as_template' in attr2_list and
-            partyutils.is_party_line(line) and
+            partyutils.is_party_line(line,
+                                     num_long_english_line) and
             (first_eng_para_idx == -1 or
              found_toc or
              # it was 10 before
              abs(first_eng_para_idx - line_idx) < 40)):
+
+            # print("adding party line jjjjj, [{}]".format(line))
+            # print("is party? {}".format(partyutils.is_party_line(line)))
             attr2_list.append('party_line')
             party_line_idx = line_idx
             lc_party_line = line.lower()
@@ -508,6 +528,7 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
                 prev_out_line = tmp_outline
             elif tmp_outline == prev_out_line and prefix_num == 'toc':  # it's possible to have mutlipe adjacents toc lines
                 attr2_list.append('toc')
+
         #if not found_witness:
         if witness_pat.match(line) or whereas_pat.search(line):
             attr2_list.append('preamble')

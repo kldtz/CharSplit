@@ -1,9 +1,11 @@
 import pandas as pd
 import pickle
-import re, regex
+import re
 import string
 import time
 # from unidecode import unidecode
+
+from typing import List, Tuple
 
 from kirke.utils import strutils
 
@@ -23,40 +25,43 @@ def pad(s):
     """Add a space before and after a string to ensure whole-word matches."""
     return ' ' + s + ' '
 
-def find_constituencies(text, constituencies):
-    s = ''
+
+def find_addresses(text: str, constituencies: List[str]) -> List[Tuple[int, int, str]]:
+    zero_one_st_list, zero_one_offsets = [], []
     text = text.replace ("\n", " ")
-    for word in text.split():
+    for start, end, word in strutils.using_split2(text):
         word = re.sub(r'[,\.]+$|\-', "", word)
         if word.isdigit() or word in constituencies:
-            s += '1'
+            zero_one_st_list.append('1')
         else:
-            s += '0'
-    matches = re.finditer(r'(1+0?0?(1+0?0?){,2}1+)', s)
-    all_spans = [match.span(1) for match in matches]
-    ads = []
+            zero_one_st_list.append('0')
+        zero_one_offsets.append((start, end))
+    zero_one_st = ''.join(zero_one_st_list)
+    matches = re.finditer(r'(1+0?0?(1+0?0?){,3}1+)', zero_one_st)
+    all_spans = [match.span() for match in matches]
+    addr_se_st_list = []  # type: List[Tuple[int, int, str]]
     for ad_start, ad_end in all_spans:
-        list_address = text.split()[ad_start:ad_end]
-        ad_st = " ".join(list_address)
-        address_prob = classify(ad_st)
-        if address_prob >= 0.5 and len(text.split()[ad_start:ad_end]) > 3:
-            ad_st = re.sub('[\(\.\)]', '', ad_st)
-            for found in regex.finditer('(?e)(?:'+ad_st+'){e<=3}', text):
-                pred_start, pred_end = found.span()
-                ads_list = [pred_start, pred_end, text[pred_start:pred_end]]
-                if pred_start not in [x[0] for x in ads]:
-                    ads.append(ads_list)
-    return ads
+        addr_span_offsets = zero_one_offsets[ad_start:ad_end]
 
-def all_constituencies():
+        if len(addr_span_offsets) > 3:  # an address must have at least 4 words
+            addr_start, addr_end = addr_span_offsets[0][0], addr_span_offsets[-1][1]
+            addr_st = text[addr_start:addr_end]
+
+            address_prob = classify(addr_st)
+            if address_prob >= 0.5:
+                addr_se_st_list.append((addr_start, addr_end, addr_st))
+    return addr_se_st_list
+
+def addr_keywords():
+    categories = ['us', 'uk', 'aus', 'can', 'apt_abbrs', 'country_names', 'numbers', 'road_abbrs']
     all_keywords = load_keywords()
-    all_const = []
-    stop_keywords = ["Plan", "Incorporated", "INCORPORATED", "&", "Corporation", "CORPORATION", "Inc", "INC", "LLC", "Llc", "llc"]
-    for category in all_keywords.keys():
-        for const in all_keywords[category]:
-            if const.strip() not in stop_keywords:
-                all_const.append(const.strip())
-    return all_const+['P', 'PO', 'BOX', 'Box', 'Creek', 'CREEK', 'Las', 'LAS', 'Rio', 'RIO', 'New', 'NEW', 'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los', 'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E', 'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST', 'West', 'WEST']
+    all_terms = []
+    stop_keywords = []
+    for c in categories:
+        for term in all_keywords[c]:
+            if term.strip() not in stop_keywords:
+                all_terms.append(term.strip())
+    return all_terms+['London', 'LONDON', 'Floor', 'floor', 'FLOOR', 'Suite', 'SUITE', 'P', 'PO', 'BOX', 'Box', 'Creek', 'CREEK', 'Las', 'LAS', 'Rio', 'RIO', 'New', 'NEW', 'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los', 'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E', 'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST', 'West', 'WEST']
 
 def load_keywords():
     # Create a dictionary object to return

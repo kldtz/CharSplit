@@ -169,6 +169,12 @@ def custom_train(cust_id: str):
     else:
         work_dir = WORK_DIR
 
+    candidate_type = request.form.get('candidate_type')
+    # This shouldn't be in the PR
+    # candidate_type = 'CURRENCY' ####DELETE LATER
+    if not candidate_type:
+        candidate_type = 'SENTENCE'
+
     # to ensure that no accidental file name overlap
     logging.info("cust_id = '%s'", cust_id)
     provision = 'cust_{}'.format(cust_id)
@@ -198,6 +204,9 @@ def custom_train(cust_id: str):
             txt_fnames.append(name)
             atext = strutils.loads(full_path)
             doc_lang = eb_langdetect_runner.detect_lang(atext)
+            if not doc_lang:
+                # if we don't know what language it is, skip such document
+                continue
             full_txt_fnames[doc_lang].append(file_id)
         elif name.endswith('.offsets.json'):
             # create txt -> offsets.json map in order to do sent4nlp processing
@@ -217,18 +226,29 @@ def custom_train(cust_id: str):
             txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
             fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
             strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-            base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
-            if doc_lang != "en":
-                base_model_fname = '{}_{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                         doc_lang,
-                                                                         SCUT_CLF_VERSION)
+            if candidate_type == 'SENTENCE':
+                base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
+                if doc_lang != "en":
+                    base_model_fname = '{}_{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                             doc_lang,
+                                                                             SCUT_CLF_VERSION)
+            else:
+                base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                    candidate_type,
+                                                                    SCUT_CLF_VERSION)
+                if doc_lang != "en":
+                    base_model_fname = '{}_{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                           doc_lang,
+                                                                           candidate_type,
+                                                                           SCUT_CLF_VERSION)
 
             # Following the logic in the original code.
-            eval_status, log_json = \
+            eval_status, _ = \
                 eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                               provision,
                                                               CUSTOM_MODEL_DIR,
                                                               base_model_fname,
+                                                              candidate_type,
                                                               is_doc_structure=True,
                                                               work_dir=work_dir,
                                                               doc_lang=doc_lang)
@@ -240,18 +260,27 @@ def custom_train(cust_id: str):
                       'precision': ant_status['prec'],
                       'recall': ant_status['recall']}
 
-            logging.info("status: %s", str(status))
+            logging.info("status: %r", status)
 
             # return some json accuracy info
-            status_and_antana = {"stats": status,
-                                 "eval_log": log_json}
-            all_stats[doc_lang] = status_and_antana
+            # TODO add eval_log back in when PR 408 is merged and the front end is ready
+            # to accept it
+            # status_and_antana = {'status': stats,
+            #                      'eval_log': log_json}
+            # all_stats[doc_lang] = status_and_antana
+
+            all_stats[doc_lang] = status
         else:
-            all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
-                                             'fscore': -1.0,
-                                             'precision': -1.0,
-                                             'recall': -1.0},
-                                   'eval_log': {}}
+            # TODO, remove disabling log output until frontend is ready
+            # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
+            #                                 'fscore': -1.0,
+            #                                 'precision': -1.0,
+            #                                 'recall': -1.0}
+            #                       'eval_log': {}}
+            all_stats[doc_lang] = {'confusion_matrix': [[]],
+                                   'fscore': -1.0,
+                                   'precision': -1.0,
+                                   'recall': -1.0}
     return jsonify(all_stats)
 
 

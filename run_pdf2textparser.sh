@@ -1,4 +1,4 @@
 #!/bin/bash
 
-python -m kirke.docstruct.pdf2textparser $1
+python3 -m kirke.docstruct.pdf2textparser $1
 

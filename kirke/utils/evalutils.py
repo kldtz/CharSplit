@@ -39,8 +39,11 @@ def find_annotation_overlap(start: int,
 
 
 # label_start_end are dict
-def find_annotation_overlap_x2(start, end, label_start_end_list):
-    result_list = []
+def find_annotation_overlap_x2(start: int,
+                               end: int,
+                               label_start_end_list: Optional[List]) \
+                               -> List:
+    result_list = []  # type: List
     if not label_start_end_list:
         return result_list
     for ant in label_start_end_list:
@@ -105,30 +108,32 @@ def aggregate_ant_status_list(alist):
                                                 'fp': result_map['fp'],
                                                 'fn': result_map['fn']}}}
 
-# pylint: disable=R0914
+# pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
 def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation],
                                   ant_list: List[Dict],
-                                  ebantdoc,
+                                  file_id: str,
+                                  txt: str,
                                   threshold: float,
-                                  is_raw_mode, # : bool = True,
-                                  # : bool = False) \
+                                  is_raw_mode: bool,
                                   diagnose_mode: bool) \
-                                  -> Tuple[int, int, int, int, Dict[str, List]]:
+                                  -> Tuple[int, int, int, int, int,
+                                           Dict[str, List[Tuple[int, int, str, float, str]]]]:
     """Calculate the confusion matrix for one document only, based only on offsets.
 
     Args:
         prov_human_ant_list: human annotation list, only for 1 provision
         ant_list: annotation predicted by machine
-        ebantdoc: document; kirke.utils.ebantdoc2 right now.
+        file_id: document id
+        txt: text of the document
         threshold: the threshold to decide if a provision is positive
         diagnose_mode: whether to print debug info
 
     Returns:
-        tp, fn, fp, tn
+        tp, fn, fp, tn, Dictionary of tp, fn, fp, tn
     """
-    txt = ebantdoc.get_text()
-    tp, fp, tn, fn = 0, 0, 0, 0
-    json_return = {'tp': [], 'fn': [], 'fp': []}  # type: Dict[str, List[List]]
+    tp, fp, tn, fn, fallout = 0, 0, 0, 0, 0
+    # pylint: disable=line-too-long
+    json_return = {'tp': [], 'fn': [], 'fp': []}  # type: Dict[str, List[Tuple[int, int, str, float, str]]]
     pred_ant_list = []  # type: List[AnnotationWithProb]
     for adict in ant_list:
         pred_ant_list.append(AnnotationWithProb(adict['label'],
@@ -149,17 +154,16 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
         pred_overlap_list = find_annotation_overlap(hant.start, hant.end, pred_ant_list)
         # Any naive user would be using this, just all human annotation and predict annotation.
         # We don't assume there are FN annotation with prob in here.
-        if is_raw_mode:  
-            
+        if is_raw_mode:
             prob = 0.0
-            if len(pred_overlap_list) > 0:
+            if pred_overlap_list:
                 prob = max([x.prob for x in pred_overlap_list])
 
             if prob >= threshold:
-                tp_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
+                tp_inst_map[(file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                 tp += 1
             else:
-                fn_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
+                fn_inst_map[(file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                 fn += 1
         else:  # this is used by logformat to get prob for FN
             # postproc adds any annotations that have scores above the threshold or
@@ -169,14 +173,15 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
             if pred_overlap_list:
                 prob = max([x.prob for x in pred_overlap_list])
                 if prob >= threshold:
-                    tp_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
+                    tp_inst_map[(file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                     tp += 1
                 else:
-                    fn_inst_map[(ebantdoc.file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
+                    fn_inst_map[(file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                     fn += 1
+                    if prob < 0:
+                        fallout += 1
             else:
                 logging.warning("Human annotation not present in the list of annotations, something is wrong!")
-
         tp_fn_set |= set(pred_overlap_list)
 
     # any remaining predicted annotations are false positives or true negatives
@@ -189,46 +194,65 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
 
     # we don't care about reporting true negatives
     if diagnose_mode:
-        for i, xhant in enumerate(sorted(tp_inst_map.keys())):
+        for xhant in sorted(tp_inst_map.keys()):
             _, hstart, hend, label = xhant
             tp_inst_list = tp_inst_map[xhant]
-            tp_txt = " ".join([txt[x.start:x.end] for x in tp_inst_list])
-            min_start = min([x.start for x in tp_inst_list])
-            max_end = max([x.end for x in tp_inst_list])
-            prob = max([x.prob for x in tp_inst_list])
-            print("tp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", tp_txt), str(prob)))
-            json_return['tp'].append([min_start, max_end, label, prob, linebreaks.sub(" ", tp_txt)])
+            tp_txt = " ".join([txt[x.start:x.end] for x in tp_inst_list])  # type: str
+            min_start = min([x.start for x in tp_inst_list])  # type: int
+            max_end = max([x.end for x in tp_inst_list])  # type: int
+            max_prob = max([x.prob for x in tp_inst_list])  # type: float
+            print("tp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", tp_txt), str(max_prob)))
+            json_return['tp'].append((min_start,
+                                      max_end,
+                                      label,
+                                      max_prob,
+                                      linebreaks.sub(" ", tp_txt)))
 
-        for i, xhant in enumerate(sorted(fn_inst_map.keys())):
+        for xhant in sorted(fn_inst_map.keys()):
             _, hstart, hend, label = xhant
             if is_raw_mode:
                 fn_txt = txt[hstart:hend]
-                prob = -1.0
-                print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
-                json_return['fn'].append([hstart, hend, label, prob, linebreaks.sub(" ", fn_txt)])                    
+                max_prob = -1.0
+                print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(max_prob)))
+                json_return['fn'].append((hstart,
+                                          hend,
+                                          label,
+                                          max_prob,
+                                          linebreaks.sub(" ", fn_txt)))
             else:
                 fn_inst_list = fn_inst_map[xhant]
                 fn_txt = " ".join([txt[x.start:x.end] for x in fn_inst_list])
                 min_start = min([x.start for x in fn_inst_list])
                 max_end = max([x.end for x in fn_inst_list])
-                prob = max([x.prob for x in fn_inst_list])
-                print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
-                json_return['fn'].append([min_start, max_end, label, prob, linebreaks.sub(" ", fn_txt)])
+                max_prob = max([x.prob for x in fn_inst_list])
+                print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(max_prob)))
+                json_return['fn'].append((min_start,
+                                          max_end,
+                                          label,
+                                          max_prob,
+                                          linebreaks.sub(" ", fn_txt)))
 
-        for i, pred_ant in enumerate(fp_inst_list):
-            print("fp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
-            json_return['fp'].append([pred_ant.start, pred_ant.end, pred_ant.label, pred_ant.prob, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])])
-    return tp, fn, fp, tn, json_return
+        for pred_ant in fp_inst_list:
+            print("fp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
+            json_return['fp'].append((pred_ant.start,
+                                      pred_ant.end,
+                                      pred_ant.label,
+                                      pred_ant.prob,
+                                      linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])))
+    return tp, fn, fp, tn, fallout, json_return
+
 
 # for 'title', we want to match any title annotation
 # if any matched, we passed.  Don't care about any other.
 # pylint: disable=too-many-branches
 def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAnnotation],
                                            ant_list: List[Dict],  # this is machine annotation
-                                           ebantdoc,
+                                           file_id: str,
+                                           txt: str,
                                            # threshold,
                                            diagnose_mode: bool = False) \
-                                           -> Tuple[int, int, int, int, Dict[str, List]]:
+    -> Tuple[int, int, int, int,
+             Dict[str, List[Tuple[int, int, str, float, str]]]]:
     """Calculate the confusion matrix for one document, if there is any match by offset or string.
 
     This differs from calc_doc_ant_confusion_matrix() because if there is any annotation match,
@@ -239,19 +263,21 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
     Args:
         prov_human_ant_list: human annotation list, only for 1 provision
         ant_list: annotation predicted by machine
-        ebantdoc: document
+        file_id: document id
+        txt: text of the document
         diagnose_mode: whether to print debug info
 
     Returns:
-        tp, fn, fp, tn
+        tp, fn, fp, tn, Dictionary of List of tp, fn, fp, tn
     """
     linebreaks = re.compile("[\n\r]")
-    txt = ebantdoc.get_text()
-    json_return = {'tp': [], 'fn': [], 'fp': []}  # type: Dict[str, List[List]]
+    # pylint: disable=line-too-long
+    json_return = {'tp': [], 'fn': [], 'fp': []}  # type: Dict[str, List[Tuple[int, int, str, float, str]]]
     tp, fp, tn, fn = 0, 0, 0, 0
     # print("calc_doc_ant_confusion_matrix:")
 
-    pred_ant_list = []  # this is machine annotations
+    # this is machine annotations
+    pred_ant_list = []  # type: List[AnnotationWithProb]
     # For doing matching with all human annotation by surface form,
     # not by offsets.
     pred_ant_st_list = []  # type: List[str]
@@ -326,27 +352,39 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
 
     # there is no tn, because we deal with only annotations
     if diagnose_mode:
-        for i, xhant in enumerate(sorted(tp_inst_map.keys())):
+        for xhant in sorted(tp_inst_map.keys()):
             hstart, hend, label = xhant
             tp_inst_list = tp_inst_map[xhant]
             tp_txt = " ".join([txt[x.start:x.end] for x in tp_inst_list])
             min_start = min([x.start for x in tp_inst_list])
             max_end = max([x.end for x in tp_inst_list])
             prob = max([x.prob for x in tp_inst_list])
-            print("tp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", tp_txt), str(prob)))
-            json_return['tp'].append([min_start, max_end, label, prob, linebreaks.sub(" ", tp_txt)])
+            print("tp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", tp_txt), str(prob)))
+            json_return['tp'].append((min_start,
+                                      max_end,
+                                      label,
+                                      prob,
+                                      linebreaks.sub(" ", tp_txt)))
 
-        for i, prov_ant in enumerate(fn_inst_list):
+        for prov_ant in fn_inst_list:
             hstart, hend, label = prov_ant.start, prov_ant.end, prov_ant.label
             fn_txt = txt[hstart:hend]
             prob = -1.0
-            print("fn\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", fn_txt), str(prob)))
-            json_return['fn'].append([min_start, max_end, label, prob, linebreaks.sub(" ", fn_txt)])
+            print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(prob)))
+            json_return['fn'].append((hstart,
+                                      hend,
+                                      label,
+                                      prob,
+                                      linebreaks.sub(" ", fn_txt)))
 
 
-        for i, pred_ant in enumerate(fp_inst_list):
-            print("fp\t{}\t{}\t{}".format(ebantdoc.file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
-            json_return['fp'].append([pred_ant.start, pred_ant.end, pred_ant.label, pred_ant.prob, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])])
+        for pred_ant in fp_inst_list:
+            print("fp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
+            json_return['fp'].append((pred_ant.start,
+                                      pred_ant.end,
+                                      pred_ant.label,
+                                      pred_ant.prob,
+                                      linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])))
 
     return tp, fn, fp, tn, json_return
 

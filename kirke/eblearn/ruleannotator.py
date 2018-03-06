@@ -79,14 +79,16 @@ class RuleAnnotator:
                 xtp, xfn, xfp, xtn, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
-                                                                     ebantdoc,
+                                                                     ebantdoc.file_id,
+                                                                     ebantdoc.get_text(),
                                                                      # threshold,
                                                                      diagnose_mode=True)
             else:
-                xtp, xfn, xfp, xtn, json_return = \
+                xtp, xfn, xfp, xtn, _, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
-                                                            ebantdoc,
+                                                            ebantdoc.file_id,
+                                                            ebantdoc.get_text(),
                                                             threshold,
                                                             is_raw_mode=True,
                                                             diagnose_mode=True)
