@@ -249,7 +249,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                                     provision=self.provision,
                                                                     # pylint: disable=line-too-long
                                                                     prov_human_ant_list=prov_human_ant_list)
-        prov_annotations = self.recover_false_negatives(prov_human_ant_list, eb_antdoc.text, self.provision, prov_annotations)
+        all_prov_annotations = self.recover_false_negatives(prov_human_ant_list, eb_antdoc.text, self.provision, prov_annotations)
+        fallout = len(all_prov_annotations) - len(prov_annotations)
+        max_recall = (len(all_prov_annotations) - fallout) / len(all_prov_annotations)
+        logging.info("MAX RECALL =", max_recall)
         return prov_annotations, x_threshold
 
     def print_eval_status(self, model_dir):
