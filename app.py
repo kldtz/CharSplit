@@ -169,12 +169,6 @@ def custom_train(cust_id: str):
     else:
         work_dir = WORK_DIR
 
-    candidate_type = request.form.get('candidate_type')
-    # This shouldn't be in the PR
-    # candidate_type = 'CURRENCY' ####DELETE LATER
-    if not candidate_type:
-        candidate_type = 'SENTENCE'
-
     # to ensure that no accidental file name overlap
     logging.info("cust_id = '%s'", cust_id)
     provision = 'cust_{}'.format(cust_id)
