@@ -43,18 +43,32 @@ class DateSpanGenerator:
 
             #finds all matches in the text and adds window around each as a candidate
             matches = dates.extract_std_dates(nl_text)
-            for match_start, match_end in matches:
+            doc_len = len(nl_text)
+            for mat_i, (match_start, match_end) in enumerate(matches):
                 match_str = nl_text[match_start:match_end]
                 is_label = ebsentutils.check_start_end_overlap(match_start,
                                                                match_end,
                                                                label_ant_list)
 
-                prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text,
-                                                                        match_start,
-                                                                        self.num_prev_words)
-                post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text,
-                                                                        match_end,
-                                                                        self.num_post_words)
+                prev_n_words, prev_spans = \
+                    strutils.get_lc_prev_n_words_with_quote_nl(nl_text,
+                                                               match_start,
+                                                               self.num_prev_words)
+                post_n_words, post_spans = \
+                    strutils.get_lc_post_n_words_with_quote_nl(nl_text,
+                                                               match_end,
+                                                               self.num_post_words)
+                """
+                prev_n_words, prev_spans = \
+                    strutils.get_lc_prev_n_words(nl_text,
+                                                 match_start,
+                                                 self.num_prev_words)
+                post_n_words, post_spans = \
+                    strutils.get_lc_post_n_words(nl_text,
+                                                 match_end,
+                                                 self.num_post_words)
+                """
+
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                             match_str,
                                             ' '.join(post_n_words))
@@ -67,6 +81,7 @@ class DateSpanGenerator:
                 if post_spans:
                     new_end = post_spans[-1][-1]
 
+                candidate_percentage10 = min((mat_i + 1) / 10.0, 1.0)
                 a_sample = {'sample_type': self.sample_type,
                             'start': new_start,
                             'end': new_end,
@@ -74,7 +89,9 @@ class DateSpanGenerator:
                             'match_start': match_start,
                             'match_end': match_end,
                             'prev_n_words': ' '.join(prev_n_words),
-                            'post_n_words': ' '.join(post_n_words)}
+                            'post_n_words': ' '.join(post_n_words),
+                            'candidate_percent10': candidate_percentage10,
+                            'doc_percent': match_start / doc_len}
                 samples.append(a_sample)
                 group_id_list.append(group_id)
                 if is_label:

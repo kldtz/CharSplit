@@ -651,6 +651,71 @@ def get_lc_post_n_words(text: str, end: int, num_words: int) \
     return [word.lower() for word in words], spans
 
 
+# adding period to tokens reduced 0.004 in F1 for effective_date.
+# period by itself is also dangerous because it can be a part of abbreviation or
+# floating point number.  Maybe better tokenizer in future.
+# add \n to token reduced 0.01 in F1 for effective date.
+# SIMPLE_WORD_QUOTE_NL_PAT = re.compile(r'([“"”:\.\(\)]|\w+)')
+SIMPLE_WORD_QUOTE_NL_PAT = re.compile(r'([“"”:\(\)\n]|\w+)')
+
+# please not that because CountVectorizer does some word filtering,
+# we must transform 1 char punctuations to alphabetized words, otherwise
+# CountVectorizer just ignore them
+def get_simple_words_with_quote_nl(text: str) -> List[Tuple[int, int, str]]:
+    matches = SIMPLE_WORD_QUOTE_NL_PAT.finditer(text)
+    spans = []  # type: List[Tuple[int, int, str]]
+    for mat in matches:
+        word = mat.group()
+        if word in '“"”':
+            word = 'WxxQT'
+        elif word == '(':
+            word = 'WxxLP'
+        elif word == ')':
+            word = 'WxxRP'
+        elif word == ':':
+            word = 'WxxCL'
+        elif word == '\n':
+            word = 'WxxNL'
+        # elif word == '.':
+        #    word = 'WxxPD'
+        spans.append((mat.start(), mat.end(), word))
+    return spans
+
+
+def get_prev_n_words_with_quote_nl(text: str, start: int, num_words: int) \
+    -> Tuple[List[str], List[Tuple[int, int]]]:
+    num_chars = num_words * 20  # avg word len is 7
+    first_offset = max(0, start - num_chars)
+    prev_text = text[first_offset:start]
+    words_and_spans = get_simple_words_with_quote_nl(prev_text)[-num_words:]
+    words = [x[-1] for x in words_and_spans]
+    spans = [(x+first_offset, y+first_offset) for [x, y, z] in words_and_spans]
+    return words[-num_words:], spans[-num_words:]
+
+
+def get_post_n_words_with_quote_nl(text: str, end: int, num_words: int) \
+    -> Tuple[List[str], List[Tuple[int, int]]]:
+    num_chars = num_words * 20  # avg word len is 7
+    last_offset = min(len(text), end + num_chars)
+    post_text = text[end:last_offset]
+    words_and_spans = get_simple_words_with_quote_nl(post_text)
+    words = [x[-1] for x in words_and_spans]
+    spans = [(x+end, y+end) for [x, y, z] in words_and_spans]
+    return words[:num_words], spans[:num_words]
+
+
+def get_lc_prev_n_words_with_quote_nl(text: str, start: int, num_words: int) \
+    -> Tuple[List[str], List[Tuple[int, int]]]:
+    words, spans = get_prev_n_words_with_quote_nl(text, start, num_words)
+    return [word.lower() for word in words], spans
+
+
+def get_lc_post_n_words_with_quote_nl(text: str, end: int, num_words: int) \
+    -> Tuple[List[str], List[Tuple[int, int]]]:
+    words, spans = get_post_n_words_with_quote_nl(text, end, num_words)
+    return [word.lower() for word in words], spans
+
+
 def to_pos_neg_count(bool_list: List[bool]) -> str:
     pos_neg_counter = collections.Counter()  # type: collections.Counter
     pos_neg_counter.update(bool_list)

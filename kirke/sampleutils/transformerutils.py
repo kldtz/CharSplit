@@ -77,6 +77,7 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
         self.version = '1.0'
         self.prev_words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
         self.post_words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
+        self.min_max_scaler = preprocessing.MinMaxScaler()
 
     # span_sample_list should be a list of dictionaries
     # pylint: disable=unused-argument, invalid-name
@@ -86,13 +87,17 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
                           fit_mode: bool = False):
         prev_words_list = []
         post_words_list = []
-        for span_sample in span_sample_list:
+        numeric_matrix = np.zeros(shape=(len(span_sample_list), 2))
+        for i, span_sample in enumerate(span_sample_list):
             prev_words_list.append(span_sample.get('prev_n_words', ''))
             post_words_list.append(span_sample.get('post_n_words', ''))
+            numeric_matrix[i, 0] = span_sample.get('candidate_percent10', 1.0)
+            numeric_matrix[i, 1] = span_sample.get('doc_percent', 1.0)
 
         if fit_mode:
             self.prev_words_vectorizer.fit(prev_words_list)
             self.post_words_vectorizer.fit(post_words_list)
+            numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
             return self
 
         # prev_matrxi and post_matrix are spare_matrix, not sure what typing should be
@@ -101,8 +106,10 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
         prev_matrix = self.prev_words_vectorizer.transform(prev_words_list)
         # print("prev_matrix.shape: {}".format(prev_matrix.shape))
         post_matrix = self.post_words_vectorizer.transform(post_words_list)
+        numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
+
         # print("post_matrix.shape: {}".format(post_matrix.shape))
-        X_out = sparse.hstack((prev_matrix, post_matrix))
+        X_out = sparse.hstack((prev_matrix, post_matrix, numeric_matrix))
 
         return X_out
 
