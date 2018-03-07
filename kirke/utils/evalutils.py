@@ -116,7 +116,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                                   threshold: float,
                                   is_raw_mode: bool,
                                   diagnose_mode: bool) \
-                                  -> Tuple[int, int, int, int,
+                                  -> Tuple[int, int, int, int, int,
                                            Dict[str, List[Tuple[int, int, str, float, str]]]]:
     """Calculate the confusion matrix for one document only, based only on offsets.
 
@@ -131,7 +131,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
     Returns:
         tp, fn, fp, tn, Dictionary of tp, fn, fp, tn
     """
-    tp, fp, tn, fn = 0, 0, 0, 0
+    tp, fp, tn, fn, fallout = 0, 0, 0, 0, 0
     # pylint: disable=line-too-long
     json_return = {'tp': [], 'fn': [], 'fp': []}  # type: Dict[str, List[Tuple[int, int, str, float, str]]]
     pred_ant_list = []  # type: List[AnnotationWithProb]
@@ -178,6 +178,8 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                 else:
                     fn_inst_map[(file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                     fn += 1
+                    if prob < 0:
+                        fallout += 1
             else:
                 logging.warning("Human annotation not present in the list of annotations, something is wrong!")
         tp_fn_set |= set(pred_overlap_list)
@@ -237,7 +239,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                                       pred_ant.label,
                                       pred_ant.prob,
                                       linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])))
-    return tp, fn, fp, tn, json_return
+    return tp, fn, fp, tn, fallout, json_return
 
 
 # for 'title', we want to match any title annotation

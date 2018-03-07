@@ -81,7 +81,7 @@ class ProvisionAnnotator:
                                                                      # threshold,
                                                                      diagnose_mode=True)
             else:
-                xtp, xfn, xfp, xtn, json_return = \
+                xtp, xfn, xfp, xtn, _, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
                                                             ebantdoc.file_id,

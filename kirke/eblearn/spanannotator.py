@@ -39,7 +39,7 @@ def recover_false_negatives(prov_human_ant_list,
         if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
             clean_text = strutils.sub_nltab_with_space(doc_text[ant.start:ant.end])
             fn_ant = ebpostproc.to_ant_result_dict(label=provision,
-                                                   prob=0.0,
+                                                   prob=-1.0,
                                                    start=ant.start,
                                                    end=ant.end,
                                                    text=clean_text)
@@ -140,7 +140,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         if not threshold:
             threshold = self.threshold
         # pylint: disable=C0103
-        tp, fn, fp, tn = 0, 0, 0, 0
+        fallout, tp, fn, fp, tn = 0, 0, 0, 0, 0
         log_json = dict()
 
         for ebantdoc in ebantdoc_list:
@@ -163,7 +163,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                                      #threshold,
                                                                      diagnose_mode=True)
             else:
-                xtp, xfn, xfp, xtn, json_return = \
+                xtp, xfn, xfp, xtn, xfallout, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
                                                             ebantdoc.file_id,
@@ -175,11 +175,13 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             fn += xfn
             fp += xfp
             tn += xtn
+            fallout += xfallout
             log_json[ebantdoc.get_document_id()] = json_return
 
         title = "annotate_status, threshold = {}".format(self.threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
-
+        max_recall = (tp + fn - fallout) / (tp + fn)
+        print("MAX RECALL =", max_recall, "FALLOUT =", fallout)
         self.ant_status['eval_status'] = {'confusion_matrix': {'tn': tn, 'fp': fp,
                                                                'fn': fn, 'tp': tp},
                                           'threshold': self.threshold,
@@ -258,11 +260,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
                       self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
-        # print('threshold = {}'.format(threshold))
-        # for ci, (ss, pp) in enumerate(zip(samples, prob_list)):
-        #    if pp >= threshold:
-        #        print('#{}, prov= {}, prob = {}, sample = {}'.format(ci, self.provision, pp, ss))
-
         post_processor = ebpostproc.obtain_postproc(self.postproc)
         # change to x_threshold to pass "mypy" type checking
         prov_annotations, x_threshold = post_processor.post_process(eb_antdoc.text,
@@ -271,10 +268,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                                     provision=self.provision,
                                                                     # pylint: disable=line-too-long
                                                                     prov_human_ant_list=prov_human_ant_list)
-        prov_annotations = recover_false_negatives(prov_human_ant_list,
-                                                   eb_antdoc.text,
-                                                   self.provision,
-                                                   prov_annotations)
+        prov_annotations = recover_false_negatives(prov_human_ant_list, eb_antdoc.text, self.provision, prov_annotations)
         return prov_annotations, x_threshold
 
     def get_eval_status(self):

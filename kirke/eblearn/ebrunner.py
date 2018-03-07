@@ -654,7 +654,7 @@ class EbRunner:
                                                                          ebantdoc.get_text(),
                                                                          diagnose_mode=True)
                 else:
-                    xtp, xfn, xfp, xtn, unused_json_log = \
+                    xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                 ant_list,
                                                                 ebantdoc.file_id,
