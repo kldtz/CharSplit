@@ -50,24 +50,52 @@ class DateSpanGenerator:
                                                                match_end,
                                                                label_ant_list)
 
-                prev_n_words, prev_spans = \
-                    strutils.get_lc_prev_n_words_with_quote_nl(nl_text,
-                                                               match_start,
-                                                               self.num_prev_words)
-                post_n_words, post_spans = \
-                    strutils.get_lc_post_n_words_with_quote_nl(nl_text,
-                                                               match_end,
-                                                               self.num_post_words)
+                # change num_prev_word, num_post_word to 12, 12 get this very close to optimal 0.772
+                # now it's 0.771
                 """
                 prev_n_words, prev_spans = \
-                    strutils.get_lc_prev_n_words(nl_text,
-                                                 match_start,
-                                                 self.num_prev_words)
+                    strutils.get_prev_n_clx_tokens(nl_text,
+                                                   match_start,
+                                                   self.num_prev_words-1)
                 post_n_words, post_spans = \
-                    strutils.get_lc_post_n_words(nl_text,
-                                                 match_end,
-                                                 self.num_post_words)
+                    strutils.get_post_n_clx_tokens(nl_text,
+                                                   match_end,
+                                                   self.num_post_words-1)
                 """
+
+                prev_n_words, prev_spans = \
+                    strutils.get_prev_n_words_with_quote_nl(nl_text,
+                                                            match_start,
+                                                            self.num_prev_words,
+                                                            is_lower=True,
+                                                            is_quote_nl=True)
+                post_n_words, post_spans = \
+                    strutils.get_post_n_words_with_quote_nl(nl_text,
+                                                            match_end,
+                                                            self.num_post_words,
+                                                            is_lower=True,
+                                                            is_quote_nl=True)
+
+                # Adding both lc and original-case words lowers 0.07% F1.
+                # OK, the code is not correct since using set() messes up
+                # the 2-gram for CountVector.
+                # It basically increase FP without any other benefits in
+                # FN or TP.
+                # lc_prev_n_words = [wd.lower() for wd in prev_n_words]
+                # lc_post_n_words = [wd.lower() for wd in post_n_words]
+                # prev_n_words = set(prev_n_words + lc_prev_n_words)
+                # post_n_words = set(post_n_words + lc_post_n_words)
+                # Using original-case has same F1.
+
+                # add first 4 words surround as addition features.  Improved.  :-)
+                prev_4_words = ['PV4_' + wd for wd in prev_n_words[-4:]]
+                post_4_words = ['PS4_' + wd for wd in post_n_words[:4]]
+                # to deal with n-gram of 2, added 'EOLN' to not mix
+                # prev_4_words with others
+                prev_n_words_plus = prev_n_words + ['EOLN'] + prev_4_words
+                post_n_words_plus = post_n_words + ['EOLN'] + post_4_words
+                # print("prev_n_words:\t{}".format(prev_n_words))
+                # print("post_n_words:\t{}".format(post_n_words))
 
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                             match_str,
@@ -88,8 +116,8 @@ class DateSpanGenerator:
                             'text': new_bow,
                             'match_start': match_start,
                             'match_end': match_end,
-                            'prev_n_words': ' '.join(prev_n_words),
-                            'post_n_words': ' '.join(post_n_words),
+                            'prev_n_words': ' '.join(prev_n_words_plus),
+                            'post_n_words': ' '.join(post_n_words_plus),
                             'candidate_percent10': candidate_percentage10,
                             'doc_percent': match_start / doc_len}
                 samples.append(a_sample)

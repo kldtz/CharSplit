@@ -75,8 +75,13 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
     def __init__(self) -> None:
         self.name = 'SurroundWordTransformer'
         self.version = '1.0'
-        self.prev_words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
-        self.post_words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
+        # change n-gram to 3 lowered F1 for effective date by 0.02
+        self.prev_words_vectorizer = CountVectorizer(min_df=2,
+                                                     ngram_range=(1, 2),
+                                                     lowercase=False)
+        self.post_words_vectorizer = CountVectorizer(min_df=2,
+                                                     ngram_range=(1, 2),
+                                                     lowercase=False)
         self.min_max_scaler = preprocessing.MinMaxScaler()
 
     # span_sample_list should be a list of dictionaries
