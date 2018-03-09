@@ -76,8 +76,8 @@ class AddrContextGenerator:
                             'start': bow_start,
                             'end': bow_end,
                             'text': new_bow,
-                            'addr_start': addr_start,
-                            'addr_end': addr_end,
+                            'match_start': addr_start,
+                            'match_end': addr_end,
                             'prev_n_words': ' '.join(prev_n_words),
                             'post_n_words': ' '.join(post_n_words),
                             'has_addr': True}
