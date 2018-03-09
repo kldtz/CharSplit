@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 import copy
 import re
 from typing import Any, Dict, List, Optional, Tuple
-
+from dateutil import parser
+import datetime
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
@@ -1666,6 +1667,59 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
                 ant_result.append(new_sample)
         return ant_result, threshold
 
+class NoDefaultDate(object):
+    def replace(self, **fields):
+        if any(f not in fields for f in ('year', 'month', 'day')):
+            return None
+        return datetime.datetime(2000, 1, 1).replace(**fields)
+
+class PostPredDateNormProc(EbPostPredictProcessing):
+
+    def __init__(self) -> None:
+        self.label = 'date_norm'
+
+    def parse_date(self, st):
+        norm = parser.parse(st, fuzzy=True, default=NoDefaultDate())
+        if norm:
+            return norm.date()
+        else:
+            return None
+
+    # pylint: disable=too-many-arguments
+    def post_process(self,
+                     doc_text: str,
+                     prob_attrvec_list: List,
+                     threshold: float,
+                     provision: Optional[str] = None,
+                     prov_human_ant_list: Optional[List] = None) -> Tuple[List[Dict], float]:
+        # TODO merge_sample_prob_list does too many things, you should be able to run postproc without running it first
+        # merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, 1.0)
+        merged_sample_prob_list = []
+        for sample, prob in prob_attrvec_list:
+            sample['prob'] = prob
+            merged_sample_prob_list.append(sample)
+
+        ant_result = []
+        for merged_sample_prob in merged_sample_prob_list:
+            overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'],
+                                                        merged_sample_prob['end'],
+                                                        prov_human_ant_list)
+            # TODO, this has the issue if the "sample" doesn't overlap with prov_human_ant_list
+            # at all.  Now we generate the samples, so it not totally miss the human annotation.
+            if merged_sample_prob['prob'] >= threshold or overlap:
+                new_sample = copy.deepcopy(merged_sample_prob)
+                new_sample['start'] = new_sample['match_start']
+                new_sample['end'] = new_sample['match_end']
+                new_text = doc_text[new_sample['match_start']:new_sample['match_end']]
+                new_sample['text'] = new_text
+                norm = self.parse_date(new_text)
+                if norm:
+                    new_sample['month'] = norm.month
+                    new_sample['day'] = norm.day
+                    new_sample['year'] = norm.year
+                ant_result.append(new_sample)
+        return ant_result, threshold
+
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
@@ -1676,6 +1730,7 @@ PROVISION_POSTPROC_MAP = {
     'ea_employee': PostPredEaEmployeeProc(),
     'ea_employer': PostPredEaEmployerProc(),
     'effectivedate': PostPredEffectiveDateProc('effectivedate'),
+    'date_norm': PostPredDateNormProc(),
     'la_borrower': PostPredLaBorrowerProc(),
     'la_lender': PostPredLaLenderProc(),
     'la_agent_trustee': PostPredLaAgentTrusteeProc(),

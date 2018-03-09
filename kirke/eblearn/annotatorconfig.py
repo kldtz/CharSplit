@@ -31,6 +31,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                      'docs_to_samples': dategen.DateSpanGenerator(13, 13, 'DATE'),
                      'version': "1.0",
+                     'post_process_list': 'date_norm',
                      'pipeline': Pipeline([
                          # pylint: disable=line-too-long
                          ('surround_transformer', transformerutils.SurroundWordTransformer()),
