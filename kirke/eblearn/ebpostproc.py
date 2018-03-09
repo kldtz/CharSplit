@@ -1548,31 +1548,6 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                                            (0, len(line))))
         return ant_result, self.threshold
 
-class PostAddressProc(EbPostPredictProcessing):
-
-    def __init__(self, prov):
-        self.provision = prov
-
-    # pylint: disable=too-many-arguments
-    def post_process(self,
-                     doc_text,
-                     prob_attrvec_list,
-                     threshold,
-                     provision=None,
-                     prov_human_ant_list=None) -> Tuple[List[Dict], float]:
-        merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, 1.0)
-        # all_keywords = addresses.addr_keywords()
-        ant_result = []
-        for merged_sample_prob in merged_sample_prob_list:
-            sent_overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'], merged_sample_prob['end'], prov_human_ant_list)
-            if merged_sample_prob['prob'] >= threshold or sent_overlap:
-                new_sample = copy.deepcopy(merged_sample_prob)
-                new_sample['start'] = new_sample['addr_start']
-                new_sample['end'] = new_sample['addr_end']
-                new_sample['text'] = doc_text[new_sample['addr_start']:new_sample['addr_end']]
-                ant_result.append(new_sample)
-        return ant_result, threshold
-
 class PostPredLandlordTenantProc(EbPostPredictProcessing):
 
     def __init__(self, prov):
@@ -1687,8 +1662,7 @@ PROVISION_POSTPROC_MAP = {
     'l_tenant_lessee': PostPredLandlordTenantProc('l_tenant_lessee'),
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
-    'title': PostPredTitleProc(),
-    'l_tenant_notice': PostAddressProc('l_tenant_notice'),
+    'title': PostPredTitleProc(), 
     'span_default': SpanDefaultPostPredictProcessing(),
 }
 
