@@ -62,7 +62,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'docs_to_samples': regexgen.RegexContextGenerator(20,
                                                                            5,
                                                                            # pylint: disable=line-too-long
-                                                                           re.compile(r'([\$€₹£¥](\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
+                                                                           re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
                                                                            'CURRENCY'),
                          'version': "1.0",
                          'pipeline': Pipeline([

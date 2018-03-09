@@ -925,6 +925,10 @@ def prov_ants_cpoint_to_cunit(prov_ants_map, cpoint_to_cunit_mapper):
             ant_json['start'], ant_json['end'] = cpoint_to_cunit_mapper.to_cunit_offsets(ant_json['start'],
                                                                                       ant_json['end'])
 
+            try:
+                ant_json['span_list']
+            except KeyError:
+                ant_json['span_list'] = [{'start': ant_json['start'], 'end': ant_json['end']}]
             for span_json in ant_json['span_list']:
                 span_json['cpoint_start'], span_json['cpoint_end'] = span_json['start'], span_json['end']
                 span_json['start'], span_json['end'] = cpoint_to_cunit_mapper.to_cunit_offsets(span_json['start'],
