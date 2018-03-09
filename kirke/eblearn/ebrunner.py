@@ -108,7 +108,7 @@ class EbRunner:
         # pylint: disable=line-too-long
         self.provision_annotator_map = {}  # type: Dict[str, Union[ebannotator.ProvisionAnnotator, spanannotator.SpanAnnotator]]
 
-        candg_model_files = osutils.get_candg_model_files(model_dir)
+        candg_model_files = osutils.get_candg_model_files(custom_model_dir)
 
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         logging.info('original memory use: %d Mbytes', orig_mem_usage)
@@ -143,7 +143,7 @@ class EbRunner:
 
         # after loading regular models, now load candidate-generation models
         for model_fn in candg_model_files:
-            full_model_fn = '{}/{}'.format(model_dir, model_fn)
+            full_model_fn = '{}/{}'.format(custom_model_dir, model_fn)
             # this is spanannotator.SpanAnnotator
             prov_classifier = joblib.load(full_model_fn)
             clf_provision = prov_classifier.provision

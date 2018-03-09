@@ -30,6 +30,7 @@ logging.info("eb files is [%s]", EB_FILES)
 logging.info("eb models is [%s]", EB_MODELS)
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
+CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
 
 # classifiers
 WORK_DIR = 'data-from-web'
@@ -233,12 +234,12 @@ def custom_train(cust_id: str):
             else:
                 base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
                                                                     candidate_type,
-                                                                    SCUT_CLF_VERSION)
+                                                                    CANDG_CLF_VERSION)
                 if doc_lang != "en":
                     base_model_fname = '{}_{}_{}_annotator.v{}.pkl'.format(provision,
                                                                            doc_lang,
                                                                            candidate_type,
-                                                                           SCUT_CLF_VERSION)
+                                                                           CANDG_CLF_VERSION)
 
             # Following the logic in the original code.
             eval_status, _ = \
