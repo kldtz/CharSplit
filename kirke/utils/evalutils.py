@@ -89,10 +89,13 @@ def calc_precision_recall_f1(tn: int,
 def aggregate_ant_status_list(alist):
     result_map = defaultdict(int)
     for ant_status in alist:
-        conf_mtx = ant_status['ant_status']['confusion_matrix']
+        access_field = 'ant_status'
+        if not ant_status.get(access_field):
+            access_field = 'eval_status'
+        conf_mtx = ant_status[access_field]['confusion_matrix']
         for pred_type, count in conf_mtx.items():
             result_map[pred_type] += count
-        threshold = ant_status['ant_status']['threshold']  # we just take the last one
+        threshold = ant_status[access_field]['threshold']  # we just take the last one
 
     prec, recall, f1 = calc_precision_recall_f1(result_map['tn'],
                                                 result_map['fp'],
@@ -129,7 +132,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
         diagnose_mode: whether to print debug info
 
     Returns:
-        tp, fn, fp, tn, Dictionary of tp, fn, fp, tn
+        tp, fn, fp, tn, fallout, Dictionary of tp, fn, fp, tn
     """
     tp, fp, tn, fn, fallout = 0, 0, 0, 0, 0
     # pylint: disable=line-too-long

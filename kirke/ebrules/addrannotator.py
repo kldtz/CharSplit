@@ -23,10 +23,13 @@ class SampleAddAddrLineProb:
     def __init__(self) -> None:
         pass
 
-    def enrich(self, samples: List[Dict]) -> List[Dict]:
+    def enrich(self, sample: Dict) -> None:
+        """Update the probability of the text being an address,
+
+        This is a destructive operation.
+        """
         # print("SampleAddrLineProb.enriching() called")
-        for i, sample in enumerate(samples):
-            sample['addr_line_prob'] = addresses.classify(sample['text'])
-            if (i + 1) % 1000 == 0:
-                print("processed addr_line_prob {}".format(i+1))
-        return samples
+        sample['addr_line_prob'] = addresses.classify(sample['text'])
+        if (i + 1) % 1000 == 0:
+            print("processed addr_line_prob {}".format(i+1))
+

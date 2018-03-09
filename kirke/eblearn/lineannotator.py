@@ -61,7 +61,7 @@ class LineAnnotator:
                                                                      ebantdoc.get_text(),
                                                                      diagnose_mode=True)
             else:
-                xtp, xfn, xfp, xtn, unused_log_json = \
+                xtp, xfn, xfp, xtn, _, unused_log_json = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                             ant_list,
                                                             ebantdoc.file_id,
@@ -105,7 +105,7 @@ class LineAnnotator:
         # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
         # pred_prob_start_end_list, txt)
         # pylint: disable=C0103
-        tp, fn, fp, tn, unused_json_return = \
+        tp, fn, fp, tn, _, unused_json_return = \
             evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                     ant_list,
                                                     ebantdoc.file_id,
