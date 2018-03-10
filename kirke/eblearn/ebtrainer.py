@@ -6,7 +6,7 @@ import os
 import pprint
 import time
 # pylint: disable=unused-import
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
 from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
@@ -216,14 +216,14 @@ def cv_candg_train_at_annotation_level(provision: str,
     #    for ebantdoc, y in alist:
     #        print("{}\t{}\t{}".format(bnum, ebantdoc.file_id, y))
 
-    log_list = {}
+    log_list = {}  # type: Dict
     cv_ant_status_list = []
     for bucket_num in range(num_fold):  # cross train each bucket
 
-        train_bucket_samples = []   # type: List[EbAnnotatedDoc3]
+        train_bucket_samples = []   # type: List[Dict]
         train_bucket_sample_labels = []   # type: List[bool]
         train_bucket_group_ids = []   # type: List[int]
-        test_bucket_samples = []   # type: List[EbAnnotatedDoc3]
+        test_bucket_samples = []   # type: List[Dict]
         test_bucket_sample_labels = []   # type: List[bool]
         test_bucket_group_ids = []   # type: List[int]
         test_bucket_antdoc_list = []  # type: List[ebantdoc3.EbAnnotatedDoc3]

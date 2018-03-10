@@ -667,8 +667,7 @@ def get_simple_words_with_quote_nl(text: str,
     # this is the default
     if not is_quote_nl:
         matches = SIMPLE_WORD_PAT.finditer(text)
-        spans = [(m.start(), m.end(), m.group()) for m in matches]
-        return spans
+        return [(m.start(), m.end(), m.group()) for m in matches]
 
     matches = SIMPLE_WORD_QUOTE_NL_PAT.finditer(text)
     spans = []  # type: List[Tuple[int, int, str]]
