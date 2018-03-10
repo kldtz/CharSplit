@@ -265,8 +265,6 @@ def cv_candg_train_at_annotation_level(provision: str,
         log_list.update(cv_log_json)
         cv_ant_status_list.append(cv_ant_status)
 
-    print("------------------------------------------cv_ant_status_list: {}".format(cv_ant_status_list))
-
     # now build the annotator using ALL training data
     sp_annotator = sp_annotator_orig.make_bare_copy()
     sp_annotator.train_samples(all_samples,
@@ -282,11 +280,9 @@ def cv_candg_train_at_annotation_level(provision: str,
         evalutils.aggregate_ant_status_list(cv_ant_status_list)['ant_status']
 
     ant_status = {'provision': provision}
-    ant_status['ant_status'] = merged_ant_status
-    # we are going to fake it for now
-    ant_status['pred_status'] = {'pred_status': merged_ant_status}
-    prov_annotator.classifier_status['eval_status'] = ant_status
-    pprint.pprint(ant_status)
+    prov_annotator.classifier_status['eval_status'] = merged_ant_status
+    prov_annotator.ant_status['eval_status'] = merged_ant_status
+    # pprint.pprint(prov_annotator.ant_status)
 
     model_status_fn = model_dir + '/' +  provision + ".status"
     strutils.dumps(json.dumps(ant_status), model_status_fn)
@@ -658,7 +654,9 @@ def train_eval_span_annotator(provision: str,
                                                    model_dir,
                                                    work_dir)
 
+            prov_annotator2.print_eval_status(model_dir)
             prov_annotator2.save(model_file_name)
+
             return prov_annotator2, combined_log_json
 
         # train_samples, train_lbel_list, train_group_ids are correct here
@@ -707,12 +705,8 @@ def train_eval_span_annotator(provision: str,
         span_annotator.test_antdoc_list(X_test,
                                         span_annotator.threshold)
 
-    #serializes model, prints results
-    span_annotator.save(model_file_name)
     span_annotator.print_eval_status(model_dir)
-    ant_status['provision'] = provision
-    ant_status['pred_status'] = pred_status
-    span_annotator.ant_status = ant_status
+    span_annotator.save(model_file_name)
 
     return span_annotator, log_json
 
