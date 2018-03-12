@@ -1679,8 +1679,6 @@ class PostPredDateNormProc(EbPostPredictProcessing):
             overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'],
                                                         merged_sample_prob['end'],
                                                         prov_human_ant_list)
-            # TODO, this has the issue if the "sample" doesn't overlap with prov_human_ant_list
-            # at all.  Now we generate the samples, so it not totally miss the human annotation.
             if merged_sample_prob['prob'] >= threshold or overlap:
                 new_sample = copy.deepcopy(merged_sample_prob)
                 new_sample['start'] = new_sample['match_start']
