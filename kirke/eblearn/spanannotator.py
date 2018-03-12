@@ -47,6 +47,24 @@ def recover_false_negatives(prov_human_ant_list,
     return ant_result
 
 
+def antdoc_samplex_list_to_samplex(antdoc_samplex_list: List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                                                                   List[Dict],
+                                                                   List[bool],
+                                                                   List[int]]]) \
+        -> Tuple[List[Dict], List[bool], List[int]]:
+    all_samples = []  # type: List[Dict]
+    all_sample_labels = []  # type: List[bool]
+    all_group_ids = []  # type: List[int]
+
+    for ant_samplex in antdoc_samplex_list:
+        unused_antdoc, samples, sample_labels, group_ids = ant_samplex
+        all_samples.extend(samples)
+        all_sample_labels.extend(sample_labels)
+        all_group_ids.extend(group_ids)
+
+    return all_samples, all_sample_labels, all_group_ids
+
+
 class SpanAnnotator(baseannotator.BaseAnnotator):
 
     # pylint: disable=too-many-instance-attributes
@@ -85,6 +103,21 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # these are set after training
         self.classifier_status = {'label': provision}  # type: Dict[str, Any]
         self.ant_status = {'label': provision}  # type: Dict[str, Any]
+
+    def make_bare_copy(self):
+        return SpanAnnotator(self.provision,
+                             self.candidate_type,
+                             self.version,
+                             doclist_to_antdoc_list=self.doclist_to_antdoc_list,
+                             docs_to_samples=self.docs_to_samples,
+                             sample_transformers=self.sample_transformers,
+                             pipeline=self.pipeline,
+                             postproc=self.postproc,
+                             gridsearch_parameters=self.gridsearch_parameters,
+                             # prefer recall over precision
+                             threshold=self.threshold,
+                             kfold=self.kfold)
+
 
     # pylint: disable=too-many-arguments
     def train_samples(self,
@@ -204,7 +237,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
         # pred_prob_start_end_list, txt)
         # pylint: disable=C0103
-        tp, fn, fp, tn, unused_json_return = \
+        tp, fn, fp, tn, unused_fall_out, unused_json_return = \
             evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                     ant_list,
                                                     ebantdoc.file_id,
@@ -229,14 +262,18 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     # this also enriches samples using additional self.sample_transformers
     def documents_to_samples(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: Optional[str] = None) -> Tuple[List[Dict],
-                                                                   List[bool],
-                                                                   List[int]]:
-        samples, label_list, group_ids = \
-            self.docs_to_samples.documents_to_samples(antdoc_list, label)
-        for sample_transformer in self.sample_transformers:
-            samples = sample_transformer.enrich(samples)
-        return samples, label_list, group_ids
+                             label: Optional[str] = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                                                                        List[Dict],
+                                                                        List[bool],
+                                                                        List[int]]]:
+        result = self.docs_to_samples.documents_to_samples(antdoc_list, label)
+        # enrich the result with more transformers
+        for t4tuple in result:
+            unused_antdoc, samples, unused_sample_labels, unused_group_ids = t4tuple
+            for sample_transformer in self.sample_transformers:
+                for sample in samples:
+                    sample_transformer.enrich(sample)
+        return result
 
     def annotate_antdoc(self,
                         eb_antdoc: ebantdoc3.EbAnnotatedDoc3,
@@ -268,7 +305,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                                     provision=self.provision,
                                                                     # pylint: disable=line-too-long
                                                                     prov_human_ant_list=prov_human_ant_list)
-        prov_annotations = recover_false_negatives(prov_human_ant_list, eb_antdoc.text, self.provision, prov_annotations)
+        prov_annotations = recover_false_negatives(prov_human_ant_list,
+                                                   eb_antdoc.text,
+                                                   self.provision, prov_annotations)
         return prov_annotations, x_threshold
 
     def get_eval_status(self):
@@ -311,7 +350,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logging.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
 
         # label_list, group_id_list are ignored
-        samples, unused_label_list, unused_group_ids = self.documents_to_samples([eb_antdoc])
+        antdoc_samplex_list = self.documents_to_samples([eb_antdoc])
+        samples, unused_label_list, unused_group_ids = \
+                antdoc_samplex_list_to_samplex(antdoc_samplex_list)
 
         if not samples:
             return [], []
@@ -348,5 +389,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.classifier_status['classifer_type'] = 'spanclassifier'
         self.classifier_status['eval_status'] = evalutils.calc_pred_status_with_prob(probs, y_te)
         self.classifier_status['best_params_'] = self.best_parameters
+        self.ant_status['eval_status'] = self.classifier_status['eval_status']
 
         return self.classifier_status

@@ -16,12 +16,17 @@ class DateSpanGenerator:
     # pylint: disable=too-many-locals
     def documents_to_samples(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: str = None) -> Tuple[List[Dict], List[bool], List[int]]:
-        samples = []  # type: List[Dict]
-        label_list = []   # type: List[bool]
-        group_id_list = []  # type: List[int]
-
+                             label: str = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                                                              List[Dict],
+                                                              List[bool],
+                                                              List[int]]]:
+        # pylint: disable=line-too-long
+        result = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):
+
+            samples = []  # type: List[Dict]
+            label_list = []   # type: List[bool]
+            group_id_list = []  # type: List[int]
 
             #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
@@ -128,4 +133,5 @@ class DateSpanGenerator:
                 else:
                     label_list.append(False)
 
-        return samples, label_list, group_id_list
+            result.append((antdoc, samples, label_list, group_id_list))
+        return result

@@ -18,12 +18,17 @@ class AddrContextGenerator:
     # pylint: disable=too-many-locals
     def documents_to_samples(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: str = None) -> Tuple[List[Dict], List[bool], List[int]]:
-        samples = []  # type: List[Dict]
-        label_list = []   # type: List[bool]
-        group_id_list = []  # type: List[int]
+                             label: str = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                                                              List[Dict],
+                                                              List[bool],
+                                                              List[int]]]:
 
+        # pylint: disable=line-too-long
+        result = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
+            samples = []  # type: List[Dict]
+            label_list = []   # type: List[bool]
+            group_id_list = []  # type: List[int]
 
             #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
@@ -71,8 +76,8 @@ class AddrContextGenerator:
                             'start': bow_start,
                             'end': bow_end,
                             'text': new_bow,
-                            'addr_start': addr_start,
-                            'addr_end': addr_end,
+                            'match_start': addr_start,
+                            'match_end': addr_end,
                             'prev_n_words': ' '.join(prev_n_words),
                             'post_n_words': ' '.join(post_n_words),
                             'has_addr': True}
@@ -85,4 +90,6 @@ class AddrContextGenerator:
                     label_list.append(True)
                 else:
                     label_list.append(False)
-        return samples, label_list, group_id_list
+
+            result.append((antdoc, samples, label_list, group_id_list))
+        return result

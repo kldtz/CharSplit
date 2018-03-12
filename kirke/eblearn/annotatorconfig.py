@@ -43,7 +43,6 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                         'docs_to_samples': addrgen.AddrContextGenerator(10, 10, 'ADDRESS'),
-                        'post_process_list': 'l_tenant_notice',
                         'sample_transformers': [addrannotator.SampleAddAddrLineProb()],
                         'version': "1.0",
                         'pipeline': Pipeline([
