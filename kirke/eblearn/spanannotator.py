@@ -151,6 +151,16 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                        threshold=threshold,
                                                        prov_human_ant_list=prov_human_ant_list,
                                                        work_dir=work_dir)
+
+            if ant_list:
+                for ant in ant_list:
+                    ant_prob = ant.get('prob', 0.0)
+                    if ant_prob >= threshold:
+                        print("-----\tant_norm\t{}\t{}".format(ant['text'],
+                                                               {'month': ant.get('month'),
+                                                                'day': ant.get('day'),
+                                                                'year': ant.get('year')}))
+
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -190,7 +200,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         return self.ant_status, log_json
 
-    def test_antdoc(self, ebantdoc, threshold=None, work_dir='dir-work'):
+    def test_antdoc(self,
+                    ebantdoc: ebantdoc3.EbAnnotatedDoc3,
+                    threshold: Optional[float] = None,
+                    work_dir: str = 'dir-work'):
         if threshold is None:
             threshold = self.threshold
         ant_list = self.annotate_antdoc(ebantdoc,
@@ -204,7 +217,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
         # pred_prob_start_end_list, txt)
         # pylint: disable=C0103
-        tp, fn, fp, tn, unused_json_return = \
+        tp, fn, fp, tn, fallout, unused_json_return = \
             evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                     ant_list,
                                                     ebantdoc.file_id,
@@ -255,20 +268,29 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             threshold = self.threshold
 
         start_time = time.time()
-        samples, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
+        samples, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
                       self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
+        prov_annotations = samples
+        x_threshold = threshold
+        """
         post_processor = ebpostproc.obtain_postproc(self.postproc)
         # change to x_threshold to pass "mypy" type checking
-        prov_annotations, x_threshold = post_processor.post_process(eb_antdoc.text,
-                                                                    list(zip(samples, prob_list)),
-                                                                    threshold,
-                                                                    provision=self.provision,
-                                                                    # pylint: disable=line-too-long
-                                                                    prov_human_ant_list=prov_human_ant_list)
-        prov_annotations = recover_false_negatives(prov_human_ant_list, eb_antdoc.text, self.provision, prov_annotations)
+        prov_annotations, x_threshold = \
+            post_processor.post_process(eb_antdoc.text,
+                                        list(zip(samples, prob_list)),
+                                        threshold,
+                                        provision=self.provision,
+                                        # pylint: disable=line-too-long
+                                        prov_human_ant_list=prov_human_ant_list)
+        """
+
+        prov_annotations = recover_false_negatives(prov_human_ant_list,
+                                                   eb_antdoc.text,
+                                                   self.provision,
+                                                   prov_annotations)
         return prov_annotations, x_threshold
 
     def get_eval_status(self):
@@ -309,6 +331,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                        eb_antdoc: ebantdoc3.EbAnnotatedDoc3,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
         logging.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        text = eb_antdoc.text
 
         # label_list, group_id_list are ignored
         samples, unused_label_list, unused_group_ids = self.documents_to_samples([eb_antdoc])
@@ -316,14 +339,54 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         if not samples:
             return [], []
 
-        # to indicate which type of annotation this is
-        for sample in samples:
-            sample['label'] = self.provision
-
         probs = [] # type: List[float]
         if self.estimator:
             probs = self.estimator.predict_proba(samples)[:, 1]
-        return samples, probs
+
+        # to indicate which type of annotation this is
+        out_samples = []  # type: List[Dict]
+        out_probs = []  # type: List[float]
+        for sample, prob in zip(samples, probs):
+            sample['label'] = self.provision
+            sample['prob'] = prob
+
+            # make sure the 'start' and 'end' are precise
+            if sample.get('match_start'):
+                sample['start'] = sample['match_start']
+                sample['end'] = sample['match_end']
+                sample['text'] = text[sample['match_start']:sample['match_end']]
+
+            # apply post processing, such as date normalization
+            # in case there is any bad apple, with 'reject' == True
+            print('predict_antdoc(%s)' % (eb_antdoc.file_id, ))
+            for post_proc in self.postproc:
+                post_proc.enrich(sample)
+
+            if not sample.get('reject', False):
+                out_samples.append(sample)
+                out_probs.append(prob)
+
+        """
+        # now add the false negatives
+        for prov_ant in eb_antdoc.prov_annotation_list:
+            print("prov_ant: {}".format(prov_ant))
+            if prov_ant.label != self.provision:
+                continue
+
+            overlap = evalutils.find_annotation_overlap(prov_ant.start,
+                                                        prov_ant.end,
+                                                        out_samples)
+            if not overlap:
+                fn_ant = {'start': prov_ant.start,
+                          'end': prov_ant.end,
+                          'prob': 0.0,
+                          'label': self.provision}
+                print("adding false negative: {}".format(fn_ant))
+                out_samples.append(fn_ant)
+                out_probs.append(0.0)
+        """
+
+        return out_samples, out_probs
 
     def predict_and_evaluate(self,
                              samples: List[Dict],

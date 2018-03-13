@@ -129,7 +129,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
         diagnose_mode: whether to print debug info
 
     Returns:
-        tp, fn, fp, tn, Dictionary of tp, fn, fp, tn
+        tp, fn, fp, tn, fallout, Dictionary of tp, fn, fp, tn
     """
     tp, fp, tn, fn, fallout = 0, 0, 0, 0, 0
     # pylint: disable=line-too-long
