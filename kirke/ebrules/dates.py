@@ -1,6 +1,7 @@
-import re
+import calendar
 import datetime
-from typing import Dict
+import re
+from typing import Dict, Optional
 
 from dateutil import parser
 
@@ -171,7 +172,8 @@ def extract_std_dates(line):
     dates = [(mat.start(), mat.end())
              for pat in (DATE_PAT1, DATE_PAT2, DATE_PAT3, DATE_PAT4)
              for mat in pat.finditer(line)]
-    return mathutils.remove_subsumed(dates)
+    pairs = mathutils.remove_subsumed(dates)
+    return sorted(pairs)
 
 
 MONTH_LIST = ['January', 'February', 'March', 'April', 'May',
@@ -356,7 +358,9 @@ def extract_offsets(paras_attr_list, paras_text):
             for date_ox in found_dates:
                 start, end, unused_date_st, date_type = date_ox
                 before_dates.append((line_start + start, line_start + end, date_type))
-    # print('before_dates: {}'.format(before_dates))
+    print('before_dates: {}'.format(before_dates))
+    x1 = before_dates[0]
+    print("paras_text: [{}]".format(paras_text[x1[0]:x1[1]]))
 
     if not before_dates and not partyline_dates:
         return None
@@ -398,14 +402,15 @@ class DateAnnotator:
 class NoDefaultDate(object):
 
     # pylint: disable=no-self-use
-    def replace(self, **fields):
-        # print("fields: {}".format(fields))
-        if any(f not in fields for f in ('year', 'month', 'day')):
-            return fields
-        try:
-            return datetime.datetime(2000, 1, 1).replace(**fields)
-        except ValueError:
-            return fields
+    def replace(self, **fields) -> Dict:
+        return fields
+
+
+def get_last_day_of_month(year: int, month: int) -> int:
+    """Returns the number of days in a month."""
+    _, num_day = calendar.monthrange(year, month)
+    return num_day
+
 
 # pylint: disable=too-few-public-methods
 class DateNormalizer:
@@ -416,27 +421,42 @@ class DateNormalizer:
     # if using fuzzy-with_tokens
     # Tuple[datetime.datetime, Tuple]
     # pylint: disable=no-self-use
-    def parse_date(self,
-                   line: str) -> datetime.datetime:
-        st = re.sub(r'first', '1st', line)
-        norm = parser.parse(line, fuzzy=True, default=NoDefaultDate())
-        if norm:
-            try:
-                return {'month': norm.month, 'day': norm.day, 'year': norm.year}
-            except AttributeError:
-                return norm
-        return None
+    def parse_date(self, line: str) -> Optional[Dict]:
+        orig_line = line.replace('\n', '|')
+        line = re.sub(r'first', '1st', line)
+        # fixing OCR errors for "L" for "1" or "O" for '0"
+        if 'l' in line:
+            line = re.sub(r'(\d)l', r'\g<1>1', line)
+            line = re.sub(r'l(\d)', r'1\g<1>', line)
+        if 'o' in line:
+            line = re.sub(r'(\d)[oO]', r'\g<1>0', line)
+            line = re.sub(r'[oO](\d)', r'0\g<1>', line)
+
+        try:
+            norm = parser.parse(line, fuzzy=True, default=NoDefaultDate())
+        except ValueError:
+            print("x2523, failed to parse [{}] as a date".format(text))
+            return None
+        except:
+            print("x2524, failed to parse2 [{}] as a date".format(text))
+            return None
+
+        if re.search('end of', orig_line, re.I) and \
+           norm.get('month') and norm.get('year') and \
+           not norm.get('day'):
+            norm['day'] = get_last_day_of_month(norm.get('year'),
+                                                norm.get('month'))
+
+        print("parse_date({}) -> {}".format(orig_line, norm))
+        return norm
+
 
     def enrich(self, sample: Dict) -> None:
         text = sample['text']
-        try:
-            norm = self.parse_date(text)
-        except ValueError:
-            print("x2523, failed to parse [{}] as a date".format(text))
+        date_dict = self.parse_date(text)
+
+        if not date_dict:
             sample['reject'] = True
             return
 
-        if norm:
-            sample.update(norm)
-        else:
-            print("x2544, partial parse: [{}] as a date".format(text))
+        sample.update(date_dict)

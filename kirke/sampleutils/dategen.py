@@ -46,8 +46,24 @@ class DateSpanGenerator:
             if group_id % 10 == 0:
                 logging.info('DateSpanGenerator.documents_to_samples(), group_id = %d', group_id)
 
-            #finds all matches in the text and adds window around each as a candidate
-            matches = dates.extract_std_dates(nl_text)
+
+            # Finds all matches in the text and adds window around each as a candidate
+            # We must parse line by line, otherwise, some regex capture too much.  That
+            # will cause major issue with date normalization.  The reason is probably
+            # because \s capture line break.
+            matches = []  # List[Tuple[int, int]]
+            offset = 0
+            for line in nl_text.split('\n'):
+                if line:
+                    tmp_matches = dates.extract_std_dates(line)
+                    for tmp_start, tmp_end in tmp_matches:
+                        matches.append((offset + tmp_start, offset + tmp_end))
+                offset += len(line) + 1
+            """
+            matches = dates.extract_std_dates(nl_text)  # List[Tuple[int, int]]
+            """
+            # 'matches' is already sorted
+            # matches = sorted(matches)
             doc_len = len(nl_text)
             for mat_i, (match_start, match_end) in enumerate(matches):
                 match_str = nl_text[match_start:match_end]
@@ -57,7 +73,6 @@ class DateSpanGenerator:
 
                 # change num_prev_word, num_post_word to 12, 12 get this very close to optimal 0.772
                 # now it's 0.771
-                """
                 prev_n_words, prev_spans = \
                     strutils.get_prev_n_clx_tokens(nl_text,
                                                    match_start,
@@ -69,17 +84,18 @@ class DateSpanGenerator:
                 """
 
                 prev_n_words, prev_spans = \
-                    strutils.get_prev_n_words_with_quote_nl(nl_text,
-                                                            match_start,
-                                                            self.num_prev_words,
-                                                            is_lower=True,
-                                                            is_quote_nl=True)
+                    strutils.get_prev_n_words_with_quote(nl_text,
+                                                         match_start,
+                                                         self.num_prev_words,
+                                                         is_lower=True,
+                                                         is_quote=True)
                 post_n_words, post_spans = \
-                    strutils.get_post_n_words_with_quote_nl(nl_text,
-                                                            match_end,
-                                                            self.num_post_words,
-                                                            is_lower=True,
-                                                            is_quote_nl=True)
+                    strutils.get_post_n_words_with_quote(nl_text,
+                                                         match_end,
+                                                         self.num_post_words,
+                                                         is_lower=True,
+                                                         is_quote=True)
+                """
 
                 # Adding both lc and original-case words lowers 0.07% F1.
                 # OK, the code is not correct since using set() messes up
@@ -99,8 +115,10 @@ class DateSpanGenerator:
                 # prev_4_words with others
                 prev_n_words_plus = prev_n_words + ['EOLN'] + prev_4_words
                 post_n_words_plus = post_n_words + ['EOLN'] + post_4_words
-                # print("prev_n_words:\t{}".format(prev_n_words))
-                # print("post_n_words:\t{}".format(post_n_words))
+                print("text = [{}]".format(nl_text[prev_spans[0][0]:
+                                                   post_spans[-1][0]]))
+                print("prev_n_words:\t{}".format(prev_n_words))
+                print("post_n_words:\t{}".format(post_n_words))
 
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                             match_str,

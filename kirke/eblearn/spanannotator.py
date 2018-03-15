@@ -1,4 +1,5 @@
 from collections import defaultdict
+import configparser
 from datetime import datetime
 import json
 import logging
@@ -17,6 +18,12 @@ from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc3, evalutils, strutils
 
 
+# pylint: disable=invalid-name
+config = configparser.ConfigParser()
+config.read('kirke.ini')
+
+CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
+
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 def adapt_pipeline_params(best_params):
@@ -27,6 +34,15 @@ def adapt_pipeline_params(best_params):
         else:
             pass  # skip eb_transformer_* and others
     return result
+
+
+def get_model_file_name(provision: str,
+                        candidate_type: str,
+                        model_dir: str):
+    base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
+                                                        candidate_type,
+                                                        CANDG_CLF_VERSION)
+    return "{}/{}".format(model_dir, base_model_fname)
 
 
 def recover_false_negatives(prov_human_ant_list,
@@ -385,12 +401,13 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
             # apply post processing, such as date normalization
             # in case there is any bad apple, with 'reject' == True
-            print('predict_antdoc(%s)' % (eb_antdoc.file_id, ))
             for post_proc in self.postproc:
                 post_proc.enrich(sample)
             if not sample.get('reject', False):
                 out_samples.append(sample)
                 out_probs.append(prob)
+
+            print('predict_antdoc(%s) [%s] %.1f' % (eb_antdoc.file_id, sample['text'], sample['prob']))
 
         return out_samples, out_probs
 
