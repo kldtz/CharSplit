@@ -1,18 +1,21 @@
 from collections import Mapping, Container
 import os
+import fcntl
+from fcntl import LOCK_EX, LOCK_SH, LOCK_NB
 import sys
 from sys import getsizeof
+from typing import Any, List, Optional, Set
 
 
 # Create a directory and any missing ancestor directories.
 # If the directory already exists, do nothing.
 # similar to distutils.dir_util import mkpath
-def mkpath(dir_name):
+def mkpath(dir_name: str) -> None:
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
 
 
-def get_last_cmd_line_arg():
+def get_last_cmd_line_arg() -> str:
     prefix = ''
     if len(sys.argv) > 1:
         prefix = sys.argv[-1]
@@ -21,13 +24,13 @@ def get_last_cmd_line_arg():
 # Examples of model example file names:
 #   jurisdiction_scutclassifier.pkl
 #   cust_3_scutclassifier.pk
-def get_model_files(dir_name):
+def get_model_files(dir_name: str) -> List[str]:
     return [f for f in os.listdir(dir_name)
             if (os.path.isfile(os.path.join(dir_name, f))
                 and not 'docclassifier' in f
                 and 'classifier' in f and f.endswith('.pkl'))]
 
-def get_size(obj, seen=None):
+def get_size(obj: Any, seen: Optional[Set] = None) -> int:
     """Recursively finds size of objects"""
     size = sys.getsizeof(obj)
     if seen is None:
@@ -48,7 +51,7 @@ def get_size(obj, seen=None):
 
     return size
 
-def deep_getsizeof(obj, ids):
+def deep_getsizeof(obj: Any, ids: Set) -> int:
     """Find the memory footprint of a Python object
 
     This is a recursive function that drills down a Python object graph
@@ -84,6 +87,88 @@ def deep_getsizeof(obj, ids):
     return rval
 
 
+# https://www.safaribooksonline.com/library/view/python-cookbook/0596001673/ch04s25.html
+def lock(file, flags):
+    fcntl.flock(file.fileno(), flags)
+
+def unlock(file):
+    fcntl.flock(file.fileno(), fcntl.LOCK_UN)
+
+
+def increment_file(file_name: str) -> int:
+    int_val = 1000
+    try:
+        with open(file_name, 'r+') as fin:
+            lock(fin, LOCK_EX)
+
+            line = fin.read().strip()
+            if line:
+                int_val = int(line)
+            int_val += 1
+            fin.seek(0)
+            fin.write("%d\n" % (int_val, ))
+            fin.truncate()
+
+            unlock(fin)
+    except FileNotFoundError:
+        int_val += 1 
+        with open(file_name, 'w') as fout:
+            lock(fout, LOCK_EX)
+            fout.write("%d\n" % (int_val, ))
+            unlock(fout)
+    return int_val
+
+def read_version_file(file_name: str) -> int:
+    int_val = -1
+    try:
+        with open(file_name, 'r') as fin:
+            lock(fin, LOCK_SH)
+            int_val = int(fin.read().strip())
+            unlock(fin)
+    except FileNotFoundError:
+        return -1
+
+    return int_val
+
+
+def save_locked_file(file_name: str, text: str) -> None:
+    with open(file_name, 'w') as fout:
+        lock(fout, LOCK_EX)
+        fout.write("%s\n" % (text, ))
+        unlock(fout)
+
+def read_locked_file(file_name: str) -> Optional[str]:
+    line = None
+    try:
+        with open(file_name, 'r') as fin:
+            lock(fin, LOCK_SH)
+            line = fin.read().strip()
+            unlock(fin)
+    except FileNotFoundError:
+        return None
+
+    return line
+
+    
+def increment_model_version(model_dir: str) -> int:
+    version = increment_file('%s/kirke_model_count.txt' % (model_dir, ))
+    return version
+
+def read_model_version(model_dir: str) -> int:
+    version = read_version_file('%s/kirke_model_count.txt' % (model_dir, ))
+    return version
+
+def set_cluster_name(line: str, model_dir: str) -> None:
+    save_locked_file('%s/kirke_cluster_name.txt' % (model_dir, ), line)
+
+def read_cluster_name(model_dir: str) -> int:
+    line = read_locked_file('%s/kirke_cluster_name.txt' % (model_dir, ))
+    return line
+
+
 if __name__ == '__main__':
     XOBJ = '1234567'
     print(get_size(XOBJ))
+
+
+

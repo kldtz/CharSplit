@@ -293,3 +293,11 @@ def detect_langs():
     logging.info("detected languages '{}'".format(detect_langs))
     return json.dumps({'lang-probs': detect_langs })
 
+
+@app.route('/set-cluster-name/<cluster_name>', methods=['POST'])
+def set_cluser_id(cluster_name) -> str:
+    # to ensure that no accidental file name overlap
+    logging.info("cluster_name = '%s'", cluster_name)
+    osutils.set_cluster_name(cluster_name, model_dir=MODEL_DIR)
+
+    return "OK"
