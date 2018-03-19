@@ -60,10 +60,6 @@ class DateSpanGenerator:
                         matches.append((offset + tmp_start, offset + tmp_end))
                 offset += len(line) + 1
             
-            #matches = dates.extract_std_dates(nl_text)  # List[Tuple[int, int]]
-            
-            # 'matches' is already sorted
-            # matches = sorted(matches)
             doc_len = len(nl_text)
             for mat_i, (match_start, match_end) in enumerate(matches):
                 match_str = nl_text[match_start:match_end]
@@ -71,8 +67,6 @@ class DateSpanGenerator:
                                                                match_end,
                                                                label_ant_list)
 
-                # change num_prev_word, num_post_word to 12, 12 get this very close to optimal 0.772
-                # now it's 0.771
                 prev_n_words, prev_spans = \
                     strutils.get_prev_n_clx_tokens(nl_text,
                                                    match_start,
@@ -81,32 +75,6 @@ class DateSpanGenerator:
                     strutils.get_post_n_clx_tokens(nl_text,
                                                    match_end,
                                                    self.num_post_words-1)
-                """
-
-                prev_n_words, prev_spans = \
-                    strutils.get_prev_n_words_with_quote(nl_text,
-                                                         match_start,
-                                                         self.num_prev_words,
-                                                         is_lower=True,
-                                                         is_quote=True)
-                post_n_words, post_spans = \
-                    strutils.get_post_n_words_with_quote(nl_text,
-                                                         match_end,
-                                                         self.num_post_words,
-                                                         is_lower=True,
-                                                         is_quote=True)
-                """
-
-                # Adding both lc and original-case words lowers 0.07% F1.
-                # OK, the code is not correct since using set() messes up
-                # the 2-gram for CountVector.
-                # It basically increase FP without any other benefits in
-                # FN or TP.
-                # lc_prev_n_words = [wd.lower() for wd in prev_n_words]
-                # lc_post_n_words = [wd.lower() for wd in post_n_words]
-                # prev_n_words = set(prev_n_words + lc_prev_n_words)
-                # post_n_words = set(post_n_words + lc_post_n_words)
-                # Using original-case has same F1.
 
                 # add first 4 words surround as addition features.  Improved.  :-)
                 prev_4_words = ['PV4_' + wd for wd in prev_n_words[-4:]]
