@@ -185,7 +185,7 @@ def cv_candg_train_at_annotation_level(provision: str,
     # we do 4-fold cross validation, as the big set for custom training
     # test_size = 0.25
 
-    num_fold = 4
+    num_fold = 3
     all_samples = []  # type: List[Dict]
     all_sample_labels = []  # type: List[bool]
     all_group_ids = []  # type: List[int]
@@ -593,13 +593,6 @@ def train_eval_span_annotator(provision: str,
 
 
     if is_bespoke_mode:
-        train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir,
-                                                               provision,
-                                                               candidate_type)
-        test_doclist_fn = "{}/{}_{}_test_doclist.txt".format(model_dir,
-                                                             provision,
-                                                             candidate_type)
-
         #converts all docs to ebantdocs
         eb_antdoc_list = span_annotator.doclist_to_antdoc_list(txt_fn_list,
                                                                work_dir,
@@ -617,6 +610,39 @@ def train_eval_span_annotator(provision: str,
             else:
                 num_neg_label += 1
 
+        # runs when custom training mode positive training instances are too few
+        # only train, no independent testing
+        if num_pos_label < MIN_FULL_TRAINING_SIZE:
+            # candidate generation on the whole training set
+            X_all_antdoc_samplex_list = \
+                span_annotator.documents_to_samples(X, provision)
+
+            logging.info("training with %d docs, no test (<%d).  num_pos= %d, num_neg= %d",
+                         len(X_all_antdoc_samplex_list),
+                         MIN_FULL_TRAINING_SIZE,
+                         num_pos_label, num_neg_label)
+
+            prov_annotator2, combined_log_json = \
+                cv_candg_train_at_annotation_level(provision,
+                                                   X_all_antdoc_samplex_list,
+                                                   y,
+                                                   span_annotator,
+                                                   model_dir,
+                                                   work_dir)
+
+            prov_annotator2.print_eval_status(model_dir)
+            prov_annotator2.save(model_file_name)
+
+            return prov_annotator2, combined_log_json
+
+        # normal bespoke training
+        train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir,
+                                                               provision,
+                                                               candidate_type)
+        test_doclist_fn = "{}/{}_{}_test_doclist.txt".format(model_dir,
+                                                             provision,
+                                                             candidate_type)
+
         X_train, X_test, y_train, y_test = train_test_split(X,
                                                             y,
                                                             test_size=0.25,
@@ -633,35 +659,6 @@ def train_eval_span_annotator(provision: str,
         # candidate generation on test set
         test_antdoc_samplex_list = \
             span_annotator.documents_to_samples(X_test, provision)
-
-        # candidate generation on training set
-        # pylint: disable=invalid-name
-        X_all_antdoc_samplex_list = train_antdoc_samplex_list + test_antdoc_samplex_list
-        y_all = y_train + y_test
-
-        # runs when custom training mode positive training instances are too few
-        # only train, no independent testing
-        if num_pos_label < MIN_FULL_TRAINING_SIZE:
-            logging.info("training with %d docs, no test (<%d).  num_pos= %d, num_neg= %d",
-                         len(X_all_antdoc_samplex_list),
-                         MIN_FULL_TRAINING_SIZE,
-                         num_pos_label, num_neg_label)
-
-            prov_annotator2, combined_log_json = \
-                cv_candg_train_at_annotation_level(provision,
-                                                   X_all_antdoc_samplex_list,
-                                                   y_all,
-                                                   span_annotator,
-                                                   model_dir,
-                                                   work_dir)
-
-            prov_annotator2.print_eval_status(model_dir)
-            prov_annotator2.save(model_file_name)
-
-            return prov_annotator2, combined_log_json
-
-        # train_samples, train_lbel_list, train_group_ids are correct here
-        # test_samples, test_lbel_list, test_group_ids are correct here
     else:
         train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
         test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
