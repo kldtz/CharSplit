@@ -4,8 +4,6 @@ from abc import ABC, abstractmethod
 import copy
 import re
 from typing import Any, Dict, List, Optional, Tuple
-from dateutil import parser
-import datetime
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils

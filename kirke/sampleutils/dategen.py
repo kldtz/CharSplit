@@ -59,9 +59,9 @@ class DateSpanGenerator:
                     for tmp_start, tmp_end in tmp_matches:
                         matches.append((offset + tmp_start, offset + tmp_end))
                 offset += len(line) + 1
-            """
-            matches = dates.extract_std_dates(nl_text)  # List[Tuple[int, int]]
-            """
+            
+            #matches = dates.extract_std_dates(nl_text)  # List[Tuple[int, int]]
+            
             # 'matches' is already sorted
             # matches = sorted(matches)
             doc_len = len(nl_text)
@@ -115,8 +115,6 @@ class DateSpanGenerator:
                 # prev_4_words with others
                 prev_n_words_plus = prev_n_words + ['EOLN'] + prev_4_words
                 post_n_words_plus = post_n_words + ['EOLN'] + post_4_words
-                print("text = [{}]".format(nl_text[prev_spans[0][0]:
-                                                   post_spans[-1][0]]))
                 print("prev_n_words:\t{}".format(prev_n_words))
                 print("post_n_words:\t{}".format(post_n_words))
 

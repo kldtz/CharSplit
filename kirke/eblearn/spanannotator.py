@@ -201,15 +201,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                        prov_human_ant_list=prov_human_ant_list,
                                                        work_dir=work_dir)
 
-            if ant_list:
-                for ant in ant_list:
-                    ant_prob = ant.get('prob', 0.0)
-                    if ant_prob >= threshold:
-                        print("-----\tant_norm\t{}\t{}".format(ant['text'],
-                                                               {'month': ant.get('month'),
-                                                                'day': ant.get('day'),
-                                                                'year': ant.get('year')}))
-
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -407,7 +398,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                 out_samples.append(sample)
                 out_probs.append(prob)
 
-            print('predict_antdoc(%s) [%s] %.1f' % (eb_antdoc.file_id, sample['text'], sample['prob']))
+            #print('predict_antdoc(%s) [%s] %.1f' % (eb_antdoc.file_id, sample['text'], sample['prob']))
 
         return out_samples, out_probs
 

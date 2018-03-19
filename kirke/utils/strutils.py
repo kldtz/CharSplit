@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+from nltk.tokenize import TreebankWordTokenizer 
 import collections
 import json
 import logging
@@ -763,51 +763,6 @@ def remove_ignorable_token(se_word_list: List[Tuple[int, int, str]]) \
     return result
 
 
-# please not that because CountVectorizer does some word filtering,
-# we must transform 1 char punctuations to alphabetized words, otherwise
-# CountVectorizer just ignore them
-def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
-    """
-    Normalization is performed on words, so that
-      - 'january' -> SM_MONTH
-      - '1ddd' to '2ddd' are mapped SM_YEAR
-      - d+ -> SM_DIGIT
-      - mixed digit + alpha, such as 'form 10k' or '1st day', are kept as is
-      - multiple token of same thing are collapse into just 1 token
-      - 'a' and 'the' are removed, but not any other stop words
-    stop words are kept.  We don't deal with stop words here.
-    """
-    matches = SIMPLE_WORD_QUOTE_PAT.finditer(text)
-    spans = []  # type: List[Tuple[int, int, str]]
-    for mat in matches:
-        word = mat.group()
-        if word in '“"”':
-            word = 'WxxQT'
-        elif word == '(':
-            word = 'WxxLP'
-        elif word == ')':
-            word = 'WxxRP'
-        elif word == ':':
-            word = 'WxxCL'
-        elif ALL_MONTH_REGEX.match(word):
-            word = 'SM_MONTH'
-        elif re.match(r'\b[12]\d\d\d\b', word):
-            word = 'SM_YEAR'
-        elif re.match(r'\b\d+[a-zA-Z]+\b', word):
-            # keep as is
-            pass
-        # because we do not yet capture ".", so we have '\d+\.' here
-        elif re.match(r'\b(\d+\.\d|\.\d+|\d+)\b', word):
-            word = 'SM_DIGIT'
-        # elif word == '.':
-        #    word = 'WxxPD'
-        spans.append((mat.start(), mat.end(), word))
-
-    spans = remove_ignorable_token(spans)
-
-    return spans
-
-
 # For digits, we take , and .
 # we take multiple \n as one
 # patterns:
@@ -819,11 +774,11 @@ def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
 
 SIMPLE_WORD_TOKEN_PAT = re.compile(r'([“"”:;\(\)]|\n+|\b[\d,\.]+\b|(\w\.)+|\w+)')
 
-# please not that because CountVectorizer does some word filtering,
+# please note that because CountVectorizer does some word filtering,
 # we must transform 1 char punctuations to alphabetized words, otherwise
 # CountVectorizer just ignore them
 def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
-    """
+    '''
     Normalization is performed on words, so that
       - 'january' -> SM_MONTH
       - '1ddd' to '2ddd' are mapped SM_YEAR
@@ -832,19 +787,18 @@ def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
       - multiple token of same thing are collapse into just 1 token
       - 'a' and 'the' are removed, but not any other stop words
     stop words are kept.  We don't deal with stop words here.
-    """
-    matches = SIMPLE_WORD_TOKEN_PAT.finditer(text)
+    '''
     spans = []  # type: List[Tuple[int, int, str]]
-    for mat in matches:
-        word = mat.group()
-        if word in '“"”':
+    text = text.replace('"', '``')
+    tok_spans = TreebankWordTokenizer().span_tokenize(text)
+    for start, end in tok_spans:
+        word = text[start:end]
+        if word in '``“"”':
             word = 'WxxQT'
         elif word == '(':
             word = 'WxxLP'
         elif word == ')':
             word = 'WxxRP'
-        elif word == ':':
-            word = 'WxxCL'
         elif word == ';':
             word = 'WxxSCL'
         elif '\n' in word:
@@ -856,17 +810,12 @@ def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
         elif re.match(r'\b\d+[a-zA-Z]+\b', word):
             # keep as is
             pass
-        # because we do not yet capture ".", so we have '\d+\.' here
         elif re.match(r'\b(\d+\.\d|\.\d+|\d+)\b', word):
             word = 'SM_DIGIT'
-        # elif word == '.':
-        #    word = 'WxxPD'
-        spans.append((mat.start(), mat.end(), word))
-
-    # Will remove len(token) == 1, where token is alphanum.
-    # Remove 'the' and 'an'
-    spans = [x for x in spans if not (len(x[2]) == 1 or x[2] == 'the' or x[2] == 'an')]
-
+        elif word == ',':
+            word = 'WxxCM'
+        spans.append((start, end, word))
+    spans = [x for x in spans if not (len(x[2]) < 2 or x[2] == 'the' or x[2] == 'an')]
     return spans
 
 
