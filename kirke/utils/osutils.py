@@ -92,7 +92,7 @@ def get_custom_model_files(dir_name: str,
     # 1st tuple str is int(version), 2nd str is 'lang', 3rd value is fname
     cust_id_set = set([])  # type: Set[str]
     cust_id_fnames_map = defaultdict(list)  # DefaultDict[str, Tuple[int, str, str]]
-    print("cust_prov_set: {}".format(cust_prov_set))
+    # print("cust_prov_set: {}".format(cust_prov_set))
     for cust_prov in cust_prov_set:
         if '.' in cust_prov:
             cust_idver_set.add(cust_prov)

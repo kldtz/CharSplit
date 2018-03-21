@@ -294,7 +294,7 @@ class EbRunner:
             if is_update_model:
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
-                print('finished loading {}, [{}]'.format(cust_id_ver, full_custom_model_fn))
+                # print('finished loading {}, [{}]'.format(cust_id_ver, full_custom_model_fn))
 
                 #if cust_id_ver in self.provisions:
                 #    logging.warning("*** WARNING ***  Replacing an existing provision: %s",
@@ -338,7 +338,7 @@ class EbRunner:
 
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
-        print("provision_set: {}".format(provision_set))
+        # print("provision_set: {}".format(provision_set))
 
         self.update_custom_models(provision_set, doc_lang)
 
