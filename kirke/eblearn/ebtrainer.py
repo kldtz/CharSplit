@@ -5,7 +5,7 @@ import logging
 import os
 from pprint import pprint
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from sklearn.externals import joblib
 from sklearn.linear_model import SGDClassifier
@@ -172,7 +172,9 @@ def train_eval_annotator(provision,
                          eb_classifier,
                          is_doc_structure=False,
                          custom_training_mode=False,
-                         doc_lang="en") -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
+                         doc_lang="en",
+                         model_num: Optional[int] = None) \
+                         -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
     logging.info("training_eval_annotator(%s) called", provision)
     logging.info("    txt_fn_list = %s", txt_fn_list)
     logging.info("    work_dir = %s", work_dir)
@@ -253,7 +255,12 @@ def train_eval_annotator(provision,
         prov_annotator.eval_status = ant_status
         pprint(ant_status)
 
-        model_status_fn = model_dir + '/' +  provision + ".status"
+        if model_num:
+            model_status_fn = '{}/{}.{}.status'.format(model_dir,
+                                                       provision,
+                                                       model_num)
+        else:
+            model_status_fn = '{}/{}.status'.format(model_dir, provision)
         strutils.dumps(json.dumps(ant_status), model_status_fn)
 
         # NOTE: jshaw

@@ -29,37 +29,21 @@ if __name__ == '__main__':
     if args.debug:
         isDebug = True
 
-    url = 'http://127.0.0.1:8000/detect-lang'
+    url = 'http://127.0.0.1:8000/custom-train-import'
     # use url='http://127.0.0.1:8000/detect-langs' to detect top langs with probabilities
     if args.url:
         url = args.url
 
-    # payload = {}
+    payload = {}
     # payload = {'types': 'party'}
     # payload = {'types': 'party,change_control'}
     # payload = {'types': 'termination,term,confidentiality,cust_3566'}
     # payload = {'types': 'term,cust_2253'}
-    payload = {'types': 'term,cust_1089,cust_1102,cust_1115,cust_1116,cust_1117'
-               'cust_1118,cust_1141,cust_1148,cust_1157,cust_1158,cust_1159'
-               'cust_1161,cust_1176,cust_1177,cust_1178,cust_1229,cust_1254,cust_12'
-               'cust_1392,cust_1394,cust_1399,cust_1460,cust_1473,cust_1474'
-               'cust_1478,cust_1481,cust_1482,cust_1483,cust_1484,cust_3741.1,cust_12345'}
-    # cust_3741 has '.2'
-    if args.lang:
-        payload['detect-lang'] = True
-    if args.doccat:
-        payload['classify-doc'] = True
+    zip_file = Path(args.filename)
+    if zip_file.is_file():
+        files = {'file': open(args.filename, 'rb')}
 
-    txt_file = Path(args.filename)
-    if txt_file.is_file() and args.filename.endswith('.txt'):
-            offset_filename = args.filename.replace('.txt', '.offsets.json')
-            if os.path.exists(offset_filename):
-                files = [('file', open(args.filename, 'rt', encoding='utf-8')),
-                         ('file', open(offset_filename, 'rt', encoding='utf-8'))]
-            else:
-                files = {'file': open(args.filename, 'rt', encoding='utf-8')}
-
-            req = requests.post(url, files=files, data=payload)
-            print(req.text)
+        req = requests.post(url, files=files, data={})
+        print(req.text)
     else:
         print("file '{}' is not a valid file".format(args.filename), file=sys.stderr)

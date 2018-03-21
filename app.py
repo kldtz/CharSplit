@@ -5,11 +5,16 @@
 from collections import defaultdict
 import configparser
 import copy
+from datetime import datetime
 import json
 import logging
 import os.path
+import time
+import tempfile
+import zipfile
+import zlib
 
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request, send_file
 
 from kirke.eblearn import ebrunner
 from kirke.utils import osutils, strutils
@@ -157,6 +162,53 @@ def annotate_uploaded_document():
     return json.dumps(ebannotations)
 
 
+@app.route('/custom-train-export/<cust_id>', methods=['GET'])
+def custom_train_export(cust_id):
+    # to ensure that no accidental file name overlap
+    logging.info("cust_id = {}".format(cust_id))
+
+    cust_model_fnames = eb_runner.get_custom_model_files(cust_id)
+    # create the zip file with all the provision and its langs
+    # zip_filename =  + ".zip"
+    # zip_file_obj = tempfile.NamedTemporaryFile(mode='wb')
+    zip_filename = '/tmp/{}-{}.zip'.format(cust_id, datetime.now().strftime('%Y%m%d%H%M%S'))
+    with zipfile.ZipFile(zip_filename, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for model_fname in cust_model_fnames:
+            full_model_fname = "{}/{}".format(CUSTOM_MODEL_DIR, model_fname)
+            print("full_model_fname: [{}]".format(full_model_fname))
+            zf.write(full_model_fname, arcname=model_fname)
+
+    zip_file = open(zip_filename, 'rb')
+    # response = HttpResponse(zip_file, content_type='application/force-download')
+    # response['Content-Disposition'] = 'attachment; filename="%s"' % 'cust_12345.1004.zip'
+    print("returned a zip file")
+    return send_file(zip_file,
+                     attachment_filename='{}.custom_models'.format(cust_id),
+                     as_attachment=True)
+
+
+@app.route('/custom-train-import', methods=['POST'])
+def custom_train_import():
+    # to ensure that no accidental file name overlap
+    # logging.info("import a custom train model = {}".format(cust_id))
+    logging.info("import a custom train model")
+
+    afile = request.files['file']
+
+    fn = '/tmp/{}_{}'.format(afile.filename, datetime.now().strftime('%Y%m%d%H%M%S'))
+    print("saving file '{}'".format(fn))
+    afile.save(fn)
+
+    # TODO, ideally, we should increment the model number
+    # and update the model number on all the files in this ZipFile.
+    # Later.
+    z = zipfile.ZipFile(fn)
+    z.extractall(CUSTOM_MODEL_DIR)
+
+    print("imported a zip file")
+    return "OK"
+
+
 # pylint: disable=too-many-locals
 @app.route('/custom-train/<cust_id>', methods=['POST'])
 def custom_train(cust_id):
@@ -204,6 +256,10 @@ def custom_train(cust_id):
         else:
             logging.warning('unknown file extension in custom_train(): "{}"'.format(fn))
 
+
+    next_model_num = osutils.increment_model_version(model_dir=CUSTOM_MODEL_DIR)
+    # print("next model number: {}".format(next_model_num))
+
     #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
     all_stats = {}
     for doc_lang, names_per_lang in full_txt_fnames.items():
@@ -215,15 +271,21 @@ def custom_train(cust_id):
             txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
             fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
             strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-            base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision, SCUT_CLF_VERSION)
+            base_model_fname = '{}.{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                     next_model_num,
+                                                                     SCUT_CLF_VERSION)
             if doc_lang != "en":
-                base_model_fname = '{}_{}_scutclassifier.v{}.pkl'.format(provision, doc_lang, SCUT_CLF_VERSION)
+                base_model_fname = '{}.{}_{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                            next_model_num,
+                                                                            doc_lang,
+                                                                            SCUT_CLF_VERSION)
 
             # Following the logic in the original code.
             eval_status, log_json = eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                                                   provision,
                                                                                   CUSTOM_MODEL_DIR,
                                                                                   base_model_fname,
+                                                                                  model_num=next_model_num,
                                                                                   is_doc_structure=True,
                                                                                   work_dir=work_dir,
                                                                                   doc_lang=doc_lang)
@@ -233,7 +295,8 @@ def custom_train(cust_id):
             status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
                       'fscore': ant_status['f1'],
                       'precision': ant_status['prec'],
-                      'recall': ant_status['recall']}
+                      'recall': ant_status['recall'],
+                      'model_number': next_model_num}
 
             logging.info("status: {}".format(status))
 
@@ -254,6 +317,7 @@ def custom_train(cust_id):
             all_stats[doc_lang] = {'confusion_matrix': [[]],
                                    'fscore': -1.0,
                                    'precision': -1.0,
+                                   'model_number': -1,
                                    'recall': -1.0}
     return jsonify(all_stats)
 

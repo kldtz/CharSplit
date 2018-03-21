@@ -25,6 +25,9 @@ class LRUCache:
                 self.cache.popitem(last=False)
         self.cache[key] = value
 
+    def keys(self):
+        return self.cache.keys()
+
 class LRUCache2:
 
     def __init__(self, capacity):
