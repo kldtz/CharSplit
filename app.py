@@ -9,6 +9,8 @@ from datetime import datetime
 import json
 import logging
 import os.path
+import re
+import shutil
 import time
 import tempfile
 import zipfile
@@ -193,20 +195,52 @@ def custom_train_import():
     # logging.info("import a custom train model = {}".format(cust_id))
     logging.info("import a custom train model")
 
+    result_json = {'provision': 'unknown',
+                   'model_number': -1}
+
     afile = request.files['file']
+    # we only take a certain file extension
+    if not afile.filename.endswith('.custom_models'):
+        result_json['error'] = "Invalid file extension.  Must ends with '.custom_models'."
+        return jsonify(result_json)
 
-    fn = '/tmp/{}_{}'.format(afile.filename, datetime.now().strftime('%Y%m%d%H%M%S'))
-    print("saving file '{}'".format(fn))
-    afile.save(fn)
+    fname = '/tmp/{}_{}'.format(afile.filename, datetime.now().strftime('%Y%m%d%H%M%S'))
+    logging.info("importing custom model '{}'".format(fname))
+    afile.save(fname)
 
-    # TODO, ideally, we should increment the model number
-    # and update the model number on all the files in this ZipFile.
-    # Later.
-    z = zipfile.ZipFile(fn)
-    z.extractall(CUSTOM_MODEL_DIR)
+    # Increment the model number and
+    # update the model number on all the files in this ZipFile.
+    next_model_num = osutils.increment_model_version(model_dir=CUSTOM_MODEL_DIR)
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        z = zipfile.ZipFile(fname)
+        z.extractall(tmp_dir)
+    except zipfile.BadZipFile:
+        result_json['error'] = 'Bad ZIP file'
+        return jsonify(result_json)
+    except:
+        result_json['error'] = 'Bad ZIP file'
+        return jsonify(result_json)
+    provision = None
+    pat = re.compile(r'(cust_\d+)\.\d+_(.*)')
+    for filename in os.listdir(tmp_dir):
+        mat = pat.match(filename)
+        if mat:
+            if not provision:
+                provision = mat.group(1)
+            ifname = '{}/{}'.format(tmp_dir, filename)
+            ofname = '{}/{}.{}_{}'.format(CUSTOM_MODEL_DIR,
+                                          mat.group(1),
+                                          next_model_num,
+                                          mat.group(2))
+            # print('cp {} {}'.format(ifname, ofname))
+            shutil.copyfile(ifname, ofname)
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    print("imported a zip file")
-    return "OK"
+    if provision:
+        result_json = {'provision': provision,
+                       'model_number': next_model_num}
+    return jsonify(result_json)
 
 
 # pylint: disable=too-many-locals
@@ -296,6 +330,7 @@ def custom_train(cust_id):
                       'fscore': ant_status['f1'],
                       'precision': ant_status['prec'],
                       'recall': ant_status['recall'],
+                      'provision': provision,
                       'model_number': next_model_num}
 
             logging.info("status: {}".format(status))
@@ -317,6 +352,7 @@ def custom_train(cust_id):
             all_stats[doc_lang] = {'confusion_matrix': [[]],
                                    'fscore': -1.0,
                                    'precision': -1.0,
+                                   'provision': provision,
                                    'model_number': -1,
                                    'recall': -1.0}
     return jsonify(all_stats)

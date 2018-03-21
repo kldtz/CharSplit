@@ -2,7 +2,7 @@
 
 # $1 = tmp/fail1.txt
 
-python3 kirke/client/downloadzip.py --url http://localhost:8000/custom-train-export/cust_12345
+python3 kirke/client/downloadzip.py --url http://localhost:8000/custom-train-export/cust_3738
 
 # python3 kirke/client/postfile2.py --url http://localhost:8000/annotate-doc --lang $1
 
