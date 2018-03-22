@@ -358,9 +358,9 @@ def extract_offsets(paras_attr_list, paras_text):
             for date_ox in found_dates:
                 start, end, unused_date_st, date_type = date_ox
                 before_dates.append((line_start + start, line_start + end, date_type))
-    #print('before_dates: {}'.format(before_dates))
-    x1 = before_dates[0]
-    #print("paras_text: [{}]".format(paras_text[x1[0]:x1[1]]))
+    # print('before_dates: {}'.format(before_dates))
+    # x1 = before_dates[0]
+    # print("paras_text: [{}]".format(paras_text[x1[0]:x1[1]]))
 
     if not before_dates and not partyline_dates:
         return None
