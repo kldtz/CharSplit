@@ -34,7 +34,7 @@ class RuleAnnotator:
                  version: str,
                  *,
                  doclist_to_antdoc_list,
-                 docs_to_candidates,
+                 doc_to_candidates,
                  rule_engine,
                  post_process) -> None:
         # super().__init__(label, 'no description')
@@ -46,7 +46,7 @@ class RuleAnnotator:
 
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
-        self.docs_to_candidates = docs_to_candidates
+        self.doc_to_candidates = doc_to_candidates
         self.rule_engine = rule_engine
         self.post_process_list = post_process
 
@@ -113,7 +113,7 @@ class RuleAnnotator:
     def documents_to_candidates(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
                              label: str):
-        return self.docs_to_candidates.documents_to_candidates(antdoc_list, label)
+        return self.doc_to_candidates.documents_to_candidates(antdoc_list, label)
 
 
     def annotate_antdoc(self,
@@ -127,7 +127,7 @@ class RuleAnnotator:
 
         start_time = time.time()
         # label_list, group_id_list are ignored
-        candidates, _, _ = self.docs_to_candidates.documents_to_candidates([antdoc])
+        candidates, _, _ = self.doc_to_candidates.documents_to_candidates([antdoc])
 
         if not candidates:
             return []

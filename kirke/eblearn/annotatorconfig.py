@@ -29,8 +29,9 @@ no model for that candidate generation type can be found. (edited)
 
 ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                     'docs_to_candidates': dategen.DateSpanGenerator(13, 13, 'DATE'),
+                     'doc_to_candidates': dategen.DateSpanGenerator(13, 13, 'DATE'),
                      'version': "1.0",
+                     'doc_postproc': 'span_default',
                      'pipeline': Pipeline([
                          # pylint: disable=line-too-long
                          ('surround_transformer', transformerutils.SurroundWordTransformer()),
@@ -41,9 +42,9 @@ ML_ANNOTATOR_CONFIG_LIST = [
                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}}),
 
     ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                        'docs_to_candidates': addrgen.AddrContextGenerator(10, 10, 'ADDRESS'),
-                        'candidate_transformers': [addrannotator.SampleAddAddrLineProb()],
+                        'doc_to_candidates': addrgen.AddrContextGenerator(10, 10, 'ADDRESS'),
                         'version': "1.0",
+                        'doc_postproc': 'span_default',
                         'pipeline': Pipeline([
                             ('union', FeatureUnion(
                                 transformer_list=[
@@ -58,12 +59,13 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.25,
                         'kfold': 2}),
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                         'docs_to_candidates': regexgen.RegexContextGenerator(20,
+                         'doc_to_candidates': regexgen.RegexContextGenerator(20,
                                                                            5,
                                                                            # pylint: disable=line-too-long
                                                                            re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
                                                                            'CURRENCY'),
                          'version': "1.0",
+                         'doc_postproc': 'span_default',
                          'pipeline': Pipeline([
                              ('union', FeatureUnion(
                                  transformer_list=[
@@ -78,12 +80,13 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'kfold': 2}),
 
     ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                       'docs_to_candidates': regexgen.RegexContextGenerator(10,
+                       'doc_to_candidates': regexgen.RegexContextGenerator(10,
                                                                          10,
                                                                          # pylint: disable=line-too-long
                                                                          re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
                                                                          'NUMBER'),
                        'version': "1.0",
+                       'doc_postproc': 'span_default',
                        'pipeline': Pipeline([('union', FeatureUnion(
                            # pylint: disable=line-too-long
                            transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
@@ -99,11 +102,12 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'kfold': 2}),
 
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                        'docs_to_candidates': regexgen.RegexContextGenerator(15,
+                        'doc_to_candidates': regexgen.RegexContextGenerator(15,
                                                                           5,
                                                                           re.compile(r'(\d+%)'),
                                                                           'PERCENT'),
                         'version': "1.0",
+                        'doc_postproc': 'span_default',
                         'pipeline': Pipeline([('union', FeatureUnion(
                             # pylint: disable=line-too-long
                             transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
@@ -120,9 +124,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
 ]
 '''
 ('l_tenant_notice', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                                'docs_to_candidates': addrgen.AddrContextGenerator(10, 2, 'ADDRESS'),
-                                'post_process_list': 'l_tenant_notice',
-                                'candidate_transformers': [addrannotator.SampleAddAddrLineProb()],
+                                'doc_to_candidates': addrgen.AddrContextGenerator(10, 2, 'ADDRESS'),
+                                'doc_postproc': 'span_default',
                                 'version': "1.0",
                                 'pipeline': Pipeline([
                                     ('union', FeatureUnion(
@@ -140,7 +143,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
 '''
 RULE_ANNOTATOR_CONFIG_LIST = [
     ('effectivedate', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                              'docs_to_candidates': dategen.DateSpanGenerator(20, 20, 'DATE'),
+                              'doc_to_candidates': dategen.DateSpanGenerator(20, 20, 'DATE'),
                               'version': "1.0",
                               'rule_engine': dummyannotator.DummyAnnotator()}),
 ]

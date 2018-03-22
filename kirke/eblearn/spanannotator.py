@@ -74,7 +74,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  version: str,
                  *,
                  doclist_to_antdoc_list,
-                 docs_to_candidates,
+                 doc_to_candidates,
                  candidate_transformers,
                  pipeline,
                  postproc,
@@ -89,7 +89,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
-        self.docs_to_candidates = docs_to_candidates
+        self.doc_to_candidates = doc_to_candidates
         self.candidate_transformers = candidate_transformers
         self.pipeline = pipeline
         self.gridsearch_parameters = gridsearch_parameters
@@ -109,7 +109,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                              self.candidate_type,
                              self.version,
                              doclist_to_antdoc_list=self.doclist_to_antdoc_list,
-                             docs_to_candidates=self.docs_to_candidates,
+                             doc_to_candidates=self.doc_to_candidates,
                              candidate_transformers=self.candidate_transformers,
                              pipeline=self.pipeline,
                              postproc=self.postproc,
@@ -264,13 +264,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                                 List[Dict],
                                                                 List[bool],
                                                                 List[int]]]:
-        result = self.docs_to_candidates.documents_to_candidates(antdoc_list, label)
-        # enrich the result with more transformers
-        for t4tuple in result:
-            unused_antdoc, candidates, unused_candidate_labels, unused_group_ids = t4tuple
-            for candidate_transformer in self.candidate_transformers:
-                for candidate in candidates:
-                    candidate_transformer.enrich(candidate)
+        result = self.doc_to_candidates.documents_to_candidates(antdoc_list, label)
         return result
 
     def annotate_antdoc(self,
@@ -298,7 +292,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         post_processor = ebpostproc.obtain_postproc(self.postproc)
         # change to x_threshold to pass "mypy" type checking
         prov_annotations, x_threshold = post_processor.post_process(eb_antdoc.text,
-                                                                    list(zip(candidates, prob_list))[0],
+                                                                    list(zip(candidates, prob_list)),
                                                                     threshold,
                                                                     provision=self.provision,
                                                                     # pylint: disable=line-too-long
@@ -359,7 +353,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             candidate['label'] = self.provision
         probs = [] # type: List[float]
         if self.estimator:
-            probs = self.estimator.predict_proba(all_candidates)[:, 1]
+            probs = self.estimator.predict_proba(candidates)[:, 1]
         return candidates, probs
 
     def predict_and_evaluate(self,
