@@ -83,8 +83,6 @@ class DateSpanGenerator:
                 # prev_4_words with others
                 prev_n_words_plus = prev_n_words + ['EOLN'] + prev_4_words
                 post_n_words_plus = post_n_words + ['EOLN'] + post_4_words
-                print("prev_n_words:\t{}".format(prev_n_words))
-                print("post_n_words:\t{}".format(post_n_words))
 
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                             match_str,

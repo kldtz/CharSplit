@@ -448,8 +448,8 @@ class DateNormalizer:
             norm['day'] = get_last_day_of_month(norm.get('year'),
                                                 norm.get('month'))
 
-        #print("parse_date({}) -> {}".format(orig_line, norm))
-        return norm
+        norm_st = {"norm": 'date:{}-{}-{}'.format(norm.get('year', 'xxxx'), norm.get('month', 'xx'), norm.get('day', 'xx'))}
+        return norm_st
 
 
     def enrich(self, sample: Dict) -> None:
