@@ -105,33 +105,33 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list: List[ConciseProbAttrvec],
     return result
 
 # pylint: disable=invalid-name
-def merge_sample_probs_aux(sample_prob_list: List[Tuple[Dict, float]]) -> Dict[str, Any]:
+def merge_candidate_probs_aux(candidate_prob_list: List[Tuple[Dict, float]]) -> Dict[str, Any]:
     # don't bother with len 1
-    if len(sample_prob_list) == 1:
-        sample, prob = sample_prob_list[0]
-        sample['span_list'] = [{'start': sample['start'],
-                                'end': sample['end']}]
-        sample['prob'] = prob
-        return sample
+    if len(candidate_prob_list) == 1:
+        candidate, prob = candidate_prob_list[0]
+        candidate['span_list'] = [{'start': candidate['start'],
+                                'end': candidate['end']}]
+        candidate['prob'] = prob
+        return candidate
 
-    sample, prob = sample_prob_list[0]
-    label = sample['label']
+    candidate, prob = candidate_prob_list[0]
+    label = candidate['label']
     max_prob = prob
-    min_start = sample['start']
-    max_end = sample['end']
-    line_list = [sample['text']]
+    min_start = candidate['start']
+    max_end = candidate['end']
+    line_list = [candidate['text']]
 
     span_list = []
-    for sample, prob in sample_prob_list[1:]:
+    for candidate, prob in candidate_prob_list[1:]:
         if prob > max_prob:
             max_prob = prob
-        if sample['start'] < min_start:
-            min_start = sample['start']
-        if sample['end'] > max_end:
-            max_end = sample['end']
-        line_list.append(sample['text'])
-        span_list.append({'start': sample['start'],
-                          'end': sample['end']})
+        if candidate['start'] < min_start:
+            min_start = candidate['start']
+        if candidate['end'] > max_end:
+            max_end = candidate['end']
+        line_list.append(candidate['text'])
+        span_list.append({'start': candidate['start'],
+                          'end': candidate['end']})
     out = {'label': label,
            'prob': max_prob,
            'start': min_start,
@@ -142,28 +142,28 @@ def merge_sample_probs_aux(sample_prob_list: List[Tuple[Dict, float]]) -> Dict[s
     return out
 
 
-def merge_sample_prob_list(sample_prob_list: List[Tuple[Dict, float]], threshold: float) \
+def merge_candidate_prob_list(candidate_prob_list: List[Tuple[Dict, float]], threshold: float) \
     -> List[Dict[str, Any]]:
-    """Merge adjacent samples if their score is above threshold.
+    """Merge adjacent candidates if their score is above threshold.
 
     This also guarantees that "span_list" is set up correctly during the merging.
     """
     result = []  # type: List[Dict[str, Any]]
     prev_list = []
-    for sample, prob in sample_prob_list:
+    for candidate, prob in candidate_prob_list:
         if prob >= threshold:
-            prev_list.append((sample, prob))
+            prev_list.append((candidate, prob))
         else:
             if prev_list:
-                result.append(merge_sample_probs_aux(prev_list))
+                result.append(merge_candidate_probs_aux(prev_list))
                 prev_list = []
-            sample['prob'] = prob
-            if not sample.get('span_list'):
-                sample['span_list'] = [{'start': sample['start'],
-                                        'end': sample['end']}]
-            result.append(sample)
+            candidate['prob'] = prob
+            if not candidate.get('span_list'):
+                candidate['span_list'] = [{'start': candidate['start'],
+                                        'end': candidate['end']}]
+            result.append(candidate)
     if prev_list:
-        result.append(merge_sample_probs_aux(prev_list))
+        result.append(merge_candidate_probs_aux(prev_list))
     return result
 
 SHORT_PROVISIONS = set(['title', 'date', 'effectivedate', 'sigdate', 'choiceoflaw'])
@@ -1619,26 +1619,26 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
                      threshold: float,
                      provision: Optional[str] = None,
                      prov_human_ant_list: Optional[List] = None) -> Tuple[List[Dict], float]:
-        # TODO merge_sample_prob_list does too many things, you should be able to run postproc without running it first
-        # merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, 1.0)
-        merged_sample_prob_list = []
-        for sample, prob in prob_attrvec_list:
-            sample['prob'] = prob
-            merged_sample_prob_list.append(sample)
+        # TODO merge_candidate_prob_list does too many things, you should be able to run postproc without running it first
+        # merged_candidate_prob_list = merge_candidate_prob_list(prob_attrvec_list, 1.0)
+        merged_candidate_prob_list = []
+        for candidate, prob in prob_attrvec_list:
+            candidate['prob'] = prob
+            merged_candidate_prob_list.append(candidate)
 
         ant_result = []
-        for merged_sample_prob in merged_sample_prob_list:
-            overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'],
-                                                        merged_sample_prob['end'],
+        for merged_candidate_prob in merged_candidate_prob_list:
+            overlap = evalutils.find_annotation_overlap(merged_candidate_prob['start'],
+                                                        merged_candidate_prob['end'],
                                                         prov_human_ant_list)
-            # TODO, this has the issue if the "sample" doesn't overlap with prov_human_ant_list
-            # at all.  Now we generate the samples, so it not totally miss the human annotation.
-            if merged_sample_prob['prob'] >= threshold or overlap:
-                new_sample = copy.deepcopy(merged_sample_prob)
-                new_sample['start'] = new_sample['match_start']
-                new_sample['end'] = new_sample['match_end']
-                new_sample['text'] = doc_text[new_sample['match_start']:new_sample['match_end']]
-                ant_result.append(new_sample)
+            # TODO, this has the issue if the "candidate" doesn't overlap with prov_human_ant_list
+            # at all.  Now we generate the candidates, so it not totally miss the human annotation.
+            if merged_candidate_prob['prob'] >= threshold or overlap:
+                new_candidate = copy.deepcopy(merged_candidate_prob)
+                new_candidate['start'] = new_candidate['match_start']
+                new_candidate['end'] = new_candidate['match_end']
+                new_candidate['text'] = doc_text[new_candidate['match_start']:new_candidate['match_end']]
+                ant_result.append(new_candidate)
         return ant_result, threshold
 
 

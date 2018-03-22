@@ -8,13 +8,13 @@ from kirke.utils import ebantdoc3, ebsentutils, strutils
 # pylint: disable=too-few-public-methods
 class DateSpanGenerator:
 
-    def __init__(self, num_prev_words: int, num_post_words: int, sample_type: str) -> None:
+    def __init__(self, num_prev_words: int, num_post_words: int, candidate_type: str) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
-        self.sample_type = sample_type
+        self.candidate_type = candidate_type
 
     # pylint: disable=too-many-locals
-    def documents_to_samples(self,
+    def documents_to_candidates(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
                              label: str = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
                                                               List[Dict],
@@ -24,7 +24,7 @@ class DateSpanGenerator:
         result = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):
 
-            samples = []  # type: List[Dict]
+            candidates = []  # type: List[Dict]
             label_list = []   # type: List[bool]
             group_id_list = []  # type: List[int]
 
@@ -44,7 +44,7 @@ class DateSpanGenerator:
                 nl_text = antdoc.nl_text
 
             if group_id % 10 == 0:
-                logging.info('DateSpanGenerator.documents_to_samples(), group_id = %d', group_id)
+                logging.info('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
 
             #finds all matches in the text and adds window around each as a candidate
             matches = dates.extract_std_dates(nl_text)
@@ -115,7 +115,7 @@ class DateSpanGenerator:
                     new_end = post_spans[-1][-1]
 
                 candidate_percentage10 = min((mat_i + 1) / 10.0, 1.0)
-                a_sample = {'sample_type': self.sample_type,
+                a_candidate = {'candidate_type': self.candidate_type,
                             'start': new_start,
                             'end': new_end,
                             'text': new_bow,
@@ -125,13 +125,13 @@ class DateSpanGenerator:
                             'post_n_words': ' '.join(post_n_words_plus),
                             'candidate_percent10': candidate_percentage10,
                             'doc_percent': match_start / doc_len}
-                samples.append(a_sample)
+                candidates.append(a_candidate)
                 group_id_list.append(group_id)
                 if is_label:
-                    a_sample['label_human'] = label
+                    a_candidate['label_human'] = label
                     label_list.append(True)
                 else:
                     label_list.append(False)
 
-            result.append((antdoc, samples, label_list, group_id_list))
+            result.append((antdoc, candidates, label_list, group_id_list))
         return result

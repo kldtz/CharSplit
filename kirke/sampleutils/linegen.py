@@ -12,7 +12,7 @@ class LineSpanGenerator:
         self.num_post_words = num_post_words
 
     # pylint: disable=too-many-locals
-    def documents_to_samples(self,
+    def documents_to_candidates(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
                              label: str = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
                                                               List[Dict],
@@ -21,9 +21,9 @@ class LineSpanGenerator:
 
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
-        # each sample is the date regex +
+        # each candidate is the date regex +
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
-            samples = []  # type: List[Dict]
+            candidates = []  # type: List[Dict]
             label_list = []   # type: List[bool]
             group_id_list = []  # type: List[int]
 
@@ -38,7 +38,7 @@ class LineSpanGenerator:
                 nl_text = antdoc.nl_text
 
             # if group_id % 10 == 0:
-            #    print("LineSpanGenerator.documents_to_samples(), group_id = {}". \
+            #    print("LineSpanGenerator.documents_to_candidates(), group_id = {}". \
             #        format(group_id))
 
             lines = nl_text.split('\n')
@@ -64,7 +64,7 @@ class LineSpanGenerator:
                 is_label = ebsentutils.check_start_end_overlap(start,
                                                                end,
                                                                label_ant_list)
-                a_sample = {'sample_type': 'line',
+                a_candidate = {'candidate_type': 'line',
                             'start': start,
                             'end': end,
                             'line_seq': notempty_line_seq,
@@ -74,16 +74,16 @@ class LineSpanGenerator:
                 notempty_line_seq += 1
 
                 if is_label:
-                    a_sample['label_human'] = label
+                    a_candidate['label_human'] = label
                     label_list.append(True)
-                    # print('sample = {}'.format(a_sample))
+                    # print('candidate = {}'.format(a_candidate))
                 else:
                     label_list.append(False)
-                    # print('sample = {}'.format(a_sample['text']))
-                samples.append(a_sample)
+                    # print('candidate = {}'.format(a_candidate['text']))
+                candidates.append(a_candidate)
                 group_id_list.append(group_id)
 
                 offset += len(line) + 1  # for eoln
 
-            result.append((antdoc, samples, label_list, group_id_list))
+            result.append((antdoc, candidates, label_list, group_id_list))
         return result

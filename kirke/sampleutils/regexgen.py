@@ -11,14 +11,14 @@ class RegexContextGenerator:
                  num_prev_words: int,
                  num_post_words: int,
                  center_regex: Pattern,
-                 sample_type: str) -> None:
+                 candidate_type: str) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
         self.center_regex = center_regex
-        self.sample_type = sample_type
+        self.candidate_type = candidate_type
 
     # pylint: disable=too-many-locals
-    def documents_to_samples(self,
+    def documents_to_candidates(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
                              label: str = None)  -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
                                                                List[Dict],
@@ -28,7 +28,7 @@ class RegexContextGenerator:
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
-            samples = []  # type: List[Dict]
+            candidates = []  # type: List[Dict]
             label_list = []   # type: List[bool]
             group_id_list = []  # type: List[int]
 
@@ -48,7 +48,7 @@ class RegexContextGenerator:
                 nl_text = antdoc.nl_text
 
             if group_id % 10 == 0:
-                logging.info('RegexContextGenerator.documents_to_samples(), group_id = %d',
+                logging.info('RegexContextGenerator.documents_to_candidates(), group_id = %d',
                              group_id)
 
             #finds all matches in the text and adds window around each as a candidate
@@ -77,7 +77,7 @@ class RegexContextGenerator:
                 if post_spans:
                     new_end = post_spans[-1][-1]
 
-                a_sample = {'sample_type': self.sample_type,
+                a_candidate = {'candidate_type': self.candidate_type,
                             'start': new_start,
                             'end': new_end,
                             'text': new_bow,
@@ -85,12 +85,12 @@ class RegexContextGenerator:
                             'match_end': match_end,
                             'prev_n_words': ' '.join(prev_n_words),
                             'post_n_words': ' '.join(post_n_words)}
-                samples.append(a_sample)
+                candidates.append(a_candidate)
                 group_id_list.append(group_id)
                 if is_label:
-                    a_sample['label_human'] = label
+                    a_candidate['label_human'] = label
                     label_list.append(True)
                 else:
                     label_list.append(False)
-            result.append((antdoc, samples, label_list, group_id_list))
+            result.append((antdoc, candidates, label_list, group_id_list))
         return result

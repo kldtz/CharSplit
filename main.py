@@ -353,12 +353,6 @@ def main():
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
-    # elif cmd == 'annotate_doc_party':
-    #    if not args.docs:
-    #        print('please specify --docs', file=sys.stderr)
-    #        sys.exit(1)
-    #    annotate_doc_party(args.docs, work_dir, model_dir, custom_model_dir,
-    #                       threshold=args.threshold)
     elif cmd == 'eval_line_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
@@ -398,10 +392,8 @@ def main():
     elif cmd == 'split_doccat_trte':
         doccatsplittrte.split_doccat_trte(txt_fn_list_fn)
     elif cmd == 'train_doc_classifier':
-        # doccatutils.train_doc_classifier(txt_fn_list_fn, model_dir)
         train_doc_classifier(txt_fn_list_fn, model_dir)
     elif cmd == 'train_eval_doc_classifier':
-        # doccatutils.train_eval_doc_classifier(txt_fn_list_fn)
         train_eval_doc_classifier(txt_fn_list_fn, model_dir)
     elif cmd == 'classify_doc':
         classify_document(args.doc, model_dir)

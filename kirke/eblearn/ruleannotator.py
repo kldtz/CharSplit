@@ -34,7 +34,7 @@ class RuleAnnotator:
                  version: str,
                  *,
                  doclist_to_antdoc_list,
-                 docs_to_samples,
+                 docs_to_candidates,
                  rule_engine,
                  post_process) -> None:
         # super().__init__(label, 'no description')
@@ -46,7 +46,7 @@ class RuleAnnotator:
 
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
-        self.docs_to_samples = docs_to_samples
+        self.docs_to_candidates = docs_to_candidates
         self.rule_engine = rule_engine
         self.post_process_list = post_process
 
@@ -109,11 +109,11 @@ class RuleAnnotator:
         return self.ant_status, log_json
 
 
-    # returns samples, label_list, group_id_list
-    def documents_to_samples(self,
+    # returns candidates, label_list, group_id_list
+    def documents_to_candidates(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
                              label: str):
-        return self.docs_to_samples.documents_to_samples(antdoc_list, label)
+        return self.docs_to_candidates.documents_to_candidates(antdoc_list, label)
 
 
     def annotate_antdoc(self,
@@ -127,30 +127,30 @@ class RuleAnnotator:
 
         start_time = time.time()
         # label_list, group_id_list are ignored
-        samples, _, _ = self.docs_to_samples.documents_to_samples([antdoc])
+        candidates, _, _ = self.docs_to_candidates.documents_to_candidates([antdoc])
 
-        if not samples:
+        if not candidates:
             return []
 
-        prob_samples = self.rule_engine.apply_rules(samples)
+        prob_candidates = self.rule_engine.apply_rules(candidates)
 
         # perform merging operations, such as adjacent positive lines
-        # this can also filter out negative samples
+        # this can also filter out negative candidates
         for post_process_x in self.post_process_list:
-            prob_samples = post_process_x.apply_post_process(prob_samples)
+            prob_candidates = post_process_x.apply_post_process(prob_candidates)
 
         prov_annotations = []
-        for prob, sample in prob_samples:
+        for prob, candidate in prob_candidates:
             if prob >= self.threshold:
-                start = sample['start']
-                end = sample['end']
+                start = candidate['start']
+                end = candidate['end']
                 prov_annotations.append({'label': self.label,
                                          'start': start,
                                          'end': end,
                                          'span_list': [{'start': start,
                                                         'end': end}],
                                          'prob': prob,
-                                         'text': sample['text']})
+                                         'text': candidate['text']})
 
         end_time = time.time()
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",

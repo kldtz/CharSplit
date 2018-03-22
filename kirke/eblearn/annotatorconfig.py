@@ -29,7 +29,7 @@ no model for that candidate generation type can be found. (edited)
 
 ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                     'docs_to_samples': dategen.DateSpanGenerator(13, 13, 'DATE'),
+                     'docs_to_candidates': dategen.DateSpanGenerator(13, 13, 'DATE'),
                      'version': "1.0",
                      'pipeline': Pipeline([
                          # pylint: disable=line-too-long
@@ -41,14 +41,14 @@ ML_ANNOTATOR_CONFIG_LIST = [
                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}}),
 
     ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                        'docs_to_samples': addrgen.AddrContextGenerator(10, 10, 'ADDRESS'),
-                        'sample_transformers': [addrannotator.SampleAddAddrLineProb()],
+                        'docs_to_candidates': addrgen.AddrContextGenerator(10, 10, 'ADDRESS'),
+                        'candidate_transformers': [addrannotator.SampleAddAddrLineProb()],
                         'version': "1.0",
                         'pipeline': Pipeline([
                             ('union', FeatureUnion(
                                 transformer_list=[
                                     # pylint: disable=line-too-long
-                                    ('surround_transformer', transformerutils.SimpleTextTransformer()),
+                                    ('surround_transformer', transformerutils.SurroundWordTransformer()),
                                     ('is_addr_line_transformer', transformerutils.AddrLineTransformer())
                                 ])),
                             ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
@@ -58,7 +58,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.25,
                         'kfold': 2}),
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                         'docs_to_samples': regexgen.RegexContextGenerator(20,
+                         'docs_to_candidates': regexgen.RegexContextGenerator(20,
                                                                            5,
                                                                            # pylint: disable=line-too-long
                                                                            re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
@@ -78,7 +78,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'kfold': 2}),
 
     ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                       'docs_to_samples': regexgen.RegexContextGenerator(10,
+                       'docs_to_candidates': regexgen.RegexContextGenerator(10,
                                                                          10,
                                                                          # pylint: disable=line-too-long
                                                                          re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
@@ -99,7 +99,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'kfold': 2}),
 
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                        'docs_to_samples': regexgen.RegexContextGenerator(15,
+                        'docs_to_candidates': regexgen.RegexContextGenerator(15,
                                                                           5,
                                                                           re.compile(r'(\d+%)'),
                                                                           'PERCENT'),
@@ -120,9 +120,9 @@ ML_ANNOTATOR_CONFIG_LIST = [
 ]
 '''
 ('l_tenant_notice', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                                'docs_to_samples': addrgen.AddrContextGenerator(10, 2, 'ADDRESS'),
+                                'docs_to_candidates': addrgen.AddrContextGenerator(10, 2, 'ADDRESS'),
                                 'post_process_list': 'l_tenant_notice',
-                                'sample_transformers': [addrannotator.SampleAddAddrLineProb()],
+                                'candidate_transformers': [addrannotator.SampleAddAddrLineProb()],
                                 'version': "1.0",
                                 'pipeline': Pipeline([
                                     ('union', FeatureUnion(
@@ -140,7 +140,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
 '''
 RULE_ANNOTATOR_CONFIG_LIST = [
     ('effectivedate', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                              'docs_to_samples': dategen.DateSpanGenerator(20, 20, 'DATE'),
+                              'docs_to_candidates': dategen.DateSpanGenerator(20, 20, 'DATE'),
                               'version': "1.0",
                               'rule_engine': dummyannotator.DummyAnnotator()}),
 ]
