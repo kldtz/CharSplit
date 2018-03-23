@@ -1606,42 +1606,6 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
             prev_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
         return ant_result, threshold
 
-class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
-
-    def __init__(self) -> None:
-        self.label = 'span_default'
-
-    # pylint: disable=too-many-arguments
-    def post_process(self,
-                     doc_text: str,
-                     prob_attrvec_list: List,
-                     threshold: float,
-                     provision: Optional[str] = None,
-                     prov_human_ant_list: Optional[List] = None) -> Tuple[List[Dict], float]:
-        # TODO merge_sample_prob_list does too many things, you should be able to run postproc without running it first
-        # merged_sample_prob_list = merge_sample_prob_list(prob_attrvec_list, 1.0)
-        merged_sample_prob_list = []
-        for sample, prob in prob_attrvec_list:
-            sample['prob'] = prob
-            merged_sample_prob_list.append(sample)
-
-        ant_result = []
-        for merged_sample_prob in merged_sample_prob_list:
-            overlap = evalutils.find_annotation_overlap(merged_sample_prob['start'],
-                                                        merged_sample_prob['end'],
-                                                        prov_human_ant_list)
-            # TODO, this has the issue if the "sample" doesn't overlap with prov_human_ant_list
-            # at all.  Now we generate the samples, so it not totally miss the human annotation.
-            if merged_sample_prob['prob'] >= threshold or overlap:
-                new_sample = {}
-                new_sample['start'] = merged_sample_prob['match_start']
-                new_sample['end'] = merged_sample_prob['match_end']
-                new_sample['text'] = doc_text[merged_sample_prob['match_start']:merged_sample_prob['match_end']]
-                new_sample['prob'] = merged_sample_prob['prob']
-                new_sample['label'] = merged_sample_prob['label']
-                new_sample['span_list'] = merged_sample_prob['span_list']
-                ant_result.append(new_sample)
-        return ant_result, threshold
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
@@ -1672,3 +1636,5 @@ def obtain_postproc(provision):
     if not postproc:
         postproc = PROVISION_POSTPROC_MAP['default']
     return postproc
+
+
