@@ -28,12 +28,8 @@ def get_paraline_fname(base_fname, work_dir):
 def text_offsets_to_nl(base_fname, orig_doc_text, line_breaks, work_dir, debug_mode=False):
     linebreak_offset_list = [lbrk['offset'] for lbrk in line_breaks]
     ch_list = list(orig_doc_text)
-    # It is possible that linebreak_offset == len(ch_list), ch == '\n', so ignore
-    # those cases.  This is a borderline case.
-    len_ch_list = len(ch_list)
     for linebreak_offset in linebreak_offset_list:
-        if linebreak_offset < len_ch_list:
-            ch_list[linebreak_offset] = '\n'
+        ch_list[linebreak_offset] = '\n'
     nl_text = ''.join(ch_list)
     nl_fname = get_nl_fname(base_fname, work_dir)
     txtreader.dumps(nl_text, nl_fname)
