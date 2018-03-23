@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+from nltk.tokenize import TreebankWordTokenizer 
 import collections
 import json
 import logging
@@ -655,21 +655,21 @@ def get_lc_post_n_words(text: str, end: int, num_words: int) \
 # period by itself is also dangerous because it can be a part of abbreviation or
 # floating point number.  Maybe better tokenizer in future.
 # add \n to token reduced 0.01 in F1 for effective date.
-# SIMPLE_WORD_QUOTE_NL_PAT = re.compile(r'([“"”:\.\(\)]|\w+)')
-SIMPLE_WORD_QUOTE_NL_PAT = re.compile(r'([“"”:\(\)\n]|\w+)')
+# SIMPLE_WORD_QUOTE_PAT = re.compile(r'([“"”:\.\(\)]|\w+)')
+SIMPLE_WORD_QUOTE_PAT = re.compile(r'([“"”:\(\)\n]|[\d,?]+|\d+\.\d+|\w+)')
 
 # please not that because CountVectorizer does some word filtering,
 # we must transform 1 char punctuations to alphabetized words, otherwise
 # CountVectorizer just ignore them
-def get_simple_words_with_quote_nl(text: str,
-                                   is_quote_nl: bool = False) \
-                                   -> List[Tuple[int, int, str]]:
+def get_simple_words_with_quote(text: str,
+                                is_quote: bool = False) \
+                                -> List[Tuple[int, int, str]]:
     # this is the default
-    if not is_quote_nl:
+    if not is_quote:
         matches = SIMPLE_WORD_PAT.finditer(text)
         return [(m.start(), m.end(), m.group()) for m in matches]
 
-    matches = SIMPLE_WORD_QUOTE_NL_PAT.finditer(text)
+    matches = SIMPLE_WORD_QUOTE_PAT.finditer(text)
     spans = []  # type: List[Tuple[int, int, str]]
     for mat in matches:
         word = mat.group()
@@ -683,43 +683,45 @@ def get_simple_words_with_quote_nl(text: str,
             word = 'WxxCL'
         elif word == '\n':
             word = 'WxxNL'
+        elif re.match(r'[\d\.,]+', word):
+            word = 'WxxDIGIT'            
         # elif word == '.':
         #    word = 'WxxPD'
         spans.append((mat.start(), mat.end(), word))
     return spans
 
 
-def get_prev_n_words_with_quote_nl(text: str,
-                                   start: int,
-                                   num_words: int,
-                                   is_lower: bool = True,
-                                   is_quote_nl: bool = False) \
+def get_prev_n_words_with_quote(text: str,
+                                start: int,
+                                num_words: int,
+                                is_lower: bool = True,
+                                is_quote: bool = False) \
     -> Tuple[List[str], List[Tuple[int, int]]]:
     num_chars = num_words * 20  # avg word len is 7
     first_offset = max(0, start - num_chars)
     prev_text = text[first_offset:start]
     if is_lower:
         prev_text = prev_text.lower()
-    words_and_spans = get_simple_words_with_quote_nl(prev_text,
-                                                     is_quote_nl)[-num_words:]
+    words_and_spans = get_simple_words_with_quote(prev_text,
+                                                  is_quote)[-num_words:]
     words = [x[-1] for x in words_and_spans]
     spans = [(x+first_offset, y+first_offset) for [x, y, z] in words_and_spans]
     return words, spans
 
 
-def get_post_n_words_with_quote_nl(text: str,
-                                   end: int,
-                                   num_words: int,
-                                   is_lower: bool = True,
-                                   is_quote_nl: bool = False) \
+def get_post_n_words_with_quote(text: str,
+                                end: int,
+                                num_words: int,
+                                is_lower: bool = True,
+                                is_quote: bool = False) \
     -> Tuple[List[str], List[Tuple[int, int]]]:
     num_chars = num_words * 20  # avg word len is 7
     last_offset = min(len(text), end + num_chars)
     post_text = text[end:last_offset]
     if is_lower:
         post_text = post_text.lower()
-    words_and_spans = get_simple_words_with_quote_nl(post_text,
-                                                     is_quote_nl)[:num_words]
+    words_and_spans = get_simple_words_with_quote(post_text,
+                                                     is_quote)[:num_words]
     words = [x[-1] for x in words_and_spans]
     spans = [(x+end, y+end) for [x, y, z] in words_and_spans]
     return words, spans
@@ -741,11 +743,10 @@ ALL_MONTH_PAT = '|'.join(ALL_MONTH_LIST)
 ALL_MONTH_REGEX = re.compile(r'\b(' + ALL_MONTH_PAT + r')\b', re.I)
 
 
-def remove_repeated_token(se_word_list: List[Tuple[int, int, str]]) \
+def remove_ignorable_token(se_word_list: List[Tuple[int, int, str]]) \
     -> List[Tuple[int, int, str]]:
-    """Remove repeated token.
+    """Remove ignorable token.
 
-    Main purpose, is to remove multiple WxxNLs.
     Will remove 'a', 'the', and multiple 'SM_DIGIT', from 1,222 -> 1 111
     Will remove len(token) == 1
     """
@@ -762,11 +763,22 @@ def remove_repeated_token(se_word_list: List[Tuple[int, int, str]]) \
     return result
 
 
-# please not that because CountVectorizer does some word filtering,
+# For digits, we take , and .
+# we take multiple \n as one
+# patterns:
+#    special characters: [“"”:\(\), quotes, left right parens, colon semicolon
+#    digits: we take , and . with numbers
+#    dollar and percent: $ => 'SM_DOLLAR', so are 'dollar' and 'dollars'
+#    month, year
+#    remove len(1) characters, and 'the', but kept the prepositions
+
+SIMPLE_WORD_TOKEN_PAT = re.compile(r'([“"”:;\(\)]|\n+|\b[\d,\.]+\b|(\w\.)+|\w+)')
+
+# please note that because CountVectorizer does some word filtering,
 # we must transform 1 char punctuations to alphabetized words, otherwise
 # CountVectorizer just ignore them
 def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
-    """
+    '''
     Normalization is performed on words, so that
       - 'january' -> SM_MONTH
       - '1ddd' to '2ddd' are mapped SM_YEAR
@@ -775,20 +787,21 @@ def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
       - multiple token of same thing are collapse into just 1 token
       - 'a' and 'the' are removed, but not any other stop words
     stop words are kept.  We don't deal with stop words here.
-    """
-    matches = SIMPLE_WORD_QUOTE_NL_PAT.finditer(text)
+    '''
     spans = []  # type: List[Tuple[int, int, str]]
-    for mat in matches:
-        word = mat.group()
-        if word in '“"”':
+    text = text.replace('"', '``')
+    tok_spans = TreebankWordTokenizer().span_tokenize(text)
+    for start, end in tok_spans:
+        word = text[start:end]
+        if word in '``“"”':
             word = 'WxxQT'
         elif word == '(':
             word = 'WxxLP'
         elif word == ')':
             word = 'WxxRP'
-        elif word == ':':
-            word = 'WxxCL'
-        elif word == '\n':
+        elif word == ';':
+            word = 'WxxSCL'
+        elif '\n' in word:
             word = 'WxxNL'
         elif ALL_MONTH_REGEX.match(word):
             word = 'SM_MONTH'
@@ -797,15 +810,12 @@ def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
         elif re.match(r'\b\d+[a-zA-Z]+\b', word):
             # keep as is
             pass
-        # because we do not yet capture ".", so we have '\d+\.' here
         elif re.match(r'\b(\d+\.\d|\.\d+|\d+)\b', word):
             word = 'SM_DIGIT'
-        # elif word == '.':
-        #    word = 'WxxPD'
-        spans.append((mat.start(), mat.end(), word))
-
-    spans = remove_repeated_token(spans)
-
+        elif word == ',':
+            word = 'WxxCM'
+        spans.append((start, end, word))
+    spans = [x for x in spans if not (len(x[2]) < 2 or x[2] == 'the' or x[2] == 'an')]
     return spans
 
 
@@ -858,7 +868,6 @@ def get_post_n_clx_tokens(text: str,
     words = [x[-1] for x in words_and_spans]
     spans = [(x+end, y+end) for [x, y, z] in words_and_spans]
     return words, spans
-
 
 
 def to_pos_neg_count(bool_list: List[bool]) -> str:

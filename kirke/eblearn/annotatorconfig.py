@@ -9,7 +9,8 @@ import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
 
-from kirke.ebrules import addrannotator, dummyannotator
+from kirke.sampleutils import postproc
+from kirke.ebrules import addrannotator, dummyannotator, dates
 from kirke.sampleutils import regexgen, addrgen, dategen, transformerutils
 from kirke.utils import ebantdoc3
 
@@ -31,7 +32,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                      'doc_to_candidates': dategen.DateSpanGenerator(13, 13, 'DATE'),
                      'version': "1.0",
-                     'doc_postproc': 'span_default',
+                     'doc_postproc_list': [dates.DateNormalizer(),
+                                           postproc.SpanDefaultPostProcessing()],
                      'pipeline': Pipeline([
                          # pylint: disable=line-too-long
                          ('surround_transformer', transformerutils.SurroundWordTransformer()),
@@ -44,7 +46,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
     ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                         'doc_to_candidates': addrgen.AddrContextGenerator(10, 10, 'ADDRESS'),
                         'version': "1.0",
-                        'doc_postproc': 'span_default',
+                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([
                             ('union', FeatureUnion(
                                 transformer_list=[
@@ -57,7 +59,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                   class_weight={True: 3, False: 1}))]),
                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                         'threshold': 0.25,
-                        'kfold': 2}),
+                        'kfold': 3}),
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                          'doc_to_candidates': regexgen.RegexContextGenerator(20,
                                                                            5,
@@ -65,7 +67,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                            re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
                                                                            'CURRENCY'),
                          'version': "1.0",
-                         'doc_postproc': 'span_default',
+                         'doc_postproc': [postproc.SpanDefaultPostProcessing()],
                          'pipeline': Pipeline([
                              ('union', FeatureUnion(
                                  transformer_list=[
@@ -77,7 +79,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                    class_weight={True: 3, False: 1}))]),
                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                          'threshold': 0.25,
-                         'kfold': 2}),
+                         'kfold': 3}),
 
     ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                        'doc_to_candidates': regexgen.RegexContextGenerator(10,
@@ -86,7 +88,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                          re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
                                                                          'NUMBER'),
                        'version': "1.0",
-                       'doc_postproc': 'span_default',
+                       'doc_postproc': [postproc.SpanDefaultPostProcessing()],
                        'pipeline': Pipeline([('union', FeatureUnion(
                            # pylint: disable=line-too-long
                            transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
@@ -99,7 +101,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                                  False: 1}))]),
                        'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                        'threshold': 0.25,
-                       'kfold': 2}),
+                       'kfold': 3}),
 
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                         'doc_to_candidates': regexgen.RegexContextGenerator(15,
@@ -107,7 +109,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                           re.compile(r'(\d+%)'),
                                                                           'PERCENT'),
                         'version': "1.0",
-                        'doc_postproc': 'span_default',
+                        'doc_postproc': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
                             # pylint: disable=line-too-long
                             transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
@@ -120,12 +122,12 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                                   False: 1}))]),
                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                         'threshold': 0.25,
-                        'kfold': 2})
+                        'kfold': 3})
 ]
 '''
 ('l_tenant_notice', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                                 'doc_to_candidates': addrgen.AddrContextGenerator(10, 2, 'ADDRESS'),
-                                'doc_postproc': 'span_default',
+                                'doc_postproc': [postproc.SpanDefaultPostProcessing()],
                                 'version': "1.0",
                                 'pipeline': Pipeline([
                                     ('union', FeatureUnion(
@@ -139,7 +141,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                           class_weight={True: 3, False: 1}))]),
                                 'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                                 'threshold': 0.25,
-                                'kfold': 2}),
+                                'kfold': 3}),
 '''
 RULE_ANNOTATOR_CONFIG_LIST = [
     ('effectivedate', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,

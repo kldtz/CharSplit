@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 import copy
 import re
 from typing import Any, Dict, List, Optional, Tuple
-
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
@@ -1607,40 +1606,6 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
             prev_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
         return ant_result, threshold
 
-class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
-
-    def __init__(self) -> None:
-        self.label = 'span_default'
-
-    # pylint: disable=too-many-arguments
-    def post_process(self,
-                     doc_text: str,
-                     prob_attrvec_list: List,
-                     threshold: float,
-                     provision: Optional[str] = None,
-                     prov_human_ant_list: Optional[List] = None) -> Tuple[List[Dict], float]:
-        # TODO merge_candidate_prob_list does too many things, you should be able to run postproc without running it first
-        # merged_candidate_prob_list = merge_candidate_prob_list(prob_attrvec_list, 1.0)
-        merged_candidate_prob_list = []
-        for candidate, prob in prob_attrvec_list:
-            candidate['prob'] = prob
-            merged_candidate_prob_list.append(candidate)
-
-        ant_result = []
-        for merged_candidate_prob in merged_candidate_prob_list:
-            overlap = evalutils.find_annotation_overlap(merged_candidate_prob['start'],
-                                                        merged_candidate_prob['end'],
-                                                        prov_human_ant_list)
-            # TODO, this has the issue if the "candidate" doesn't overlap with prov_human_ant_list
-            # at all.  Now we generate the candidates, so it not totally miss the human annotation.
-            if merged_candidate_prob['prob'] >= threshold or overlap:
-                new_candidate = copy.deepcopy(merged_candidate_prob)
-                new_candidate['start'] = new_candidate['match_start']
-                new_candidate['end'] = new_candidate['match_end']
-                new_candidate['text'] = doc_text[new_candidate['match_start']:new_candidate['match_end']]
-                ant_result.append(new_candidate)
-        return ant_result, threshold
-
 
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
@@ -1663,7 +1628,6 @@ PROVISION_POSTPROC_MAP = {
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(), 
-    'span_default': SpanDefaultPostPredictProcessing(),
 }
 
 
@@ -1672,3 +1636,5 @@ def obtain_postproc(provision):
     if not postproc:
         postproc = PROVISION_POSTPROC_MAP['default']
     return postproc
+
+

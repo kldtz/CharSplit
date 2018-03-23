@@ -579,7 +579,7 @@ def train_eval_span_annotator(provision: str,
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                     doc_to_candidates=config['doc_to_candidates'],
                                     candidate_transformers=config.get('candidate_transformers', []),
-                                    postproc=config.get('post_process_list', 'span_default'),
+                                    doc_postproc_list=config.get('doc_postproc_list', []),
                                     pipeline=config['pipeline'],
                                     gridsearch_parameters=config['gridsearch_parameters'],
                                     # we prefer recall over precision

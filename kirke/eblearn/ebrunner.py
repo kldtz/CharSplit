@@ -704,6 +704,80 @@ class EbRunner:
         return tmp_eval_status
 
 
+    # this function is here because it is a combination of both ML and rule-based annotator
+    # pylint: disable=invalid-name
+    def eval_span_annotator(self,
+                            provision: str,
+                            candidate_type: str,
+                            test_doclist_fn: str,
+                            work_dir: str = 'dir-work') -> Dict:
+        # test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
+        num_test_doc = 0
+        tp, fn, fp, tn = 0, 0, 0, 0
+
+        full_model_fn = spanannotator.get_model_file_name(provision,
+                                                          candidate_type,
+                                                          self.custom_model_dir)
+
+        prov_model = joblib.load(full_model_fn)
+        self.provision_annotator_map[provision] = prov_model
+        threshold = prov_model.threshold
+
+        with open(test_doclist_fn, 'rt') as testin:
+            for test_fn in testin:
+                num_test_doc += 1
+                test_fn = test_fn.strip()
+                prov_labels_map, ebantdoc = self.annotate_document(test_fn,
+                                                                   provision_set=set([provision]),
+                                                                   work_dir=work_dir)
+                ant_list = prov_labels_map.get(provision, [])
+
+                print("\ntest_fn = {}".format(test_fn))
+                print("ant_list: {}".format(ant_list))
+
+                print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
+                # print("ant_list: {}".format(ant_list))
+                prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
+                                       if hant.label == provision]
+
+                # print("\nfn: {}".format(ebantdoc.file_id))
+                # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
+                # pred_prob_start_end_list, txt)
+                # currently, PROVISION_EVAL_ANYMATCH_SET only has 'title', not 'party' or 'date'
+                if provision in ebannotator.PROVISION_EVAL_ANYMATCH_SET:
+                    xtp, xfn, xfp, xtn, unused_json_log = \
+                        evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
+                                                                         ant_list,
+                                                                         ebantdoc.file_id,
+                                                                         ebantdoc.get_text(),
+                                                                         diagnose_mode=True)
+                else:
+                    xtp, xfn, xfp, xtn, _, unused_json_log = \
+                        evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
+                                                                ant_list,
+                                                                ebantdoc.file_id,
+                                                                ebantdoc.get_text(),
+                                                                threshold,
+                                                                is_raw_mode=False,
+                                                                diagnose_mode=True)
+                tp += xtp
+                fn += xfn
+                fp += xfp
+                tn += xtn
+
+        title = 'annotate_status'
+        prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
+
+        tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp,
+                                                               'fn': fn, 'tp': tp},
+                                          'prec': prec, 'recall': recall, 'f1': f1}}
+
+        print("len({}) = {}".format(test_doclist_fn, num_test_doc))
+
+        return tmp_eval_status
+
+
+
 
 
 # pylint: disable=too-few-public-methods
