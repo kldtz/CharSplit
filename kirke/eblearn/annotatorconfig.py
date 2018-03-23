@@ -9,6 +9,7 @@ import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
 
+from kirke.sampleutils import postproc
 from kirke.ebrules import addrannotator, dummyannotator, dates
 from kirke.sampleutils import regexgen, addrgen, dategen, transformerutils
 from kirke.utils import ebantdoc3
@@ -31,7 +32,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                      'docs_to_samples': dategen.DateSpanGenerator(13, 13, 'DATE'),
                      'version': "1.0",
-                     'post_process_list': [dates.DateNormalizer()],
+                     'post_process_list': [dates.DateNormalizer(),
+                                           postproc.SpanDefaultPostProcessing()],
                      'pipeline': Pipeline([
                          # pylint: disable=line-too-long
                          ('surround_transformer', transformerutils.SurroundWordTransformer()),

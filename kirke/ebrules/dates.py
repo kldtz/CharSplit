@@ -448,7 +448,17 @@ class DateNormalizer:
             norm['day'] = get_last_day_of_month(norm.get('year'),
                                                 norm.get('month'))
 
-        norm_st = {"norm": 'date:{}-{}-{}'.format(norm.get('year', 'xxxx'), norm.get('month', 'xx'), norm.get('day', 'xx'))}
+        year_st, month_st, day_st = 'XXXX', 'XX', 'XX'
+        year_val = norm.get('year')
+        month_val = norm.get('month')
+        day_val = norm.get('day')
+        if year_val:
+            year_st = '{:04d}'.format(year_val)
+        if month_val:
+            month_st = '{:02d}'.format(month_val)
+        if day_val:
+            day_st = '{:02d}'.format(day_val)
+        norm_st = {"norm": 'date:{}-{}-{}'.format(year_st, month_st, day_st)}
         return norm_st
 
 
