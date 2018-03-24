@@ -361,7 +361,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def predict_antdoc(self,
                        eb_antdoc: ebantdoc3.EbAnnotatedDoc3,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
-        #logging.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        # logging.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
         text = eb_antdoc.text
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
@@ -385,7 +385,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                 candidate['start'] = candidate['match_start']
                 candidate['end'] = candidate['match_end']
                 candidate['text'] = text[candidate['match_start']:candidate['match_end']]
-        
+
         # apply post processing, such as date normalization
         # in case there is any bad apple, with 'reject' == True
         for post_proc in self.doc_postproc_list:

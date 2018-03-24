@@ -302,17 +302,17 @@ def cv_candg_train_at_annotation_level(provision: str,
 # Take 1/5 of the data out for testing
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
-def train_eval_annotator(provision,
+def train_eval_annotator(provision: str,
+                         model_num: int,
+                         doc_lang: str,
                          txt_fn_list,
                          work_dir,
                          model_dir,
                          model_file_name,
                          eb_classifier,
                          is_doc_structure=False,
-                         custom_training_mode=False,
-                         doc_lang="en") \
-            -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
-
+                         custom_training_mode=False) \
+                         -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
     logging.info("training_eval_annotator(%s) called", provision)
     logging.info("    txt_fn_list = %s", txt_fn_list)
     logging.info("    work_dir = %s", work_dir)
@@ -414,7 +414,9 @@ def train_eval_annotator(provision,
         prov_annotator.eval_status = ant_status
         pprint.pprint(ant_status)
 
-        model_status_fn = model_dir + '/' +  provision + ".status"
+        model_status_fn = '{}/{}.{}.status'.format(model_dir,
+                                                   provision,
+                                                   model_num)
         strutils.dumps(json.dumps(ant_status), model_status_fn)
 
         # NOTE: jshaw
@@ -555,6 +557,8 @@ def train_eval_annotator_with_trte(provision: str,
 # Train on 4/5 of the data
 # pylint: disable=invalid-name
 def train_eval_span_annotator(provision: str,
+                              model_num: int,
+                              doc_lang: str,
                               candidate_type: str,
                               work_dir: str,
                               model_dir: str,

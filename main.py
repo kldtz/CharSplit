@@ -101,6 +101,7 @@ def train_annotator(provision: str,
         model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
                                                                 provision,
                                                                 PROV_CLF_VERSION)
+
     ebtrainer.train_eval_annotator_with_trte(provision,
                                              work_dir,
                                              model_dir,
@@ -114,6 +115,8 @@ def train_span_annotator(label: str,
                          model_dir: str) -> None:
     if candidate_type != 'SENTENCE':
         ebtrainer.train_eval_span_annotator(label,
+                                            383838,
+                                            'en',
                                             candidate_type,
                                             work_dir,
                                             model_dir)

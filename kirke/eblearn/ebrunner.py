@@ -16,11 +16,12 @@ import psutil
 
 from sklearn.externals import joblib
 
-from kirke.docstruct import fromtomapper, htmltxtparser
+from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
 from kirke.eblearn import (ebannotator, ebtrainer, lineannotator, provclassifier,
                            scutclassifier, spanannotator)
 from kirke.ebrules import titles, parties, dates
-from kirke.utils import osutils, strutils, evalutils, ebantdoc2, ebantdoc3
+from kirke.utils import ebantdoc2, ebantdoc3, evalutils, lrucache, osutils, strutils
+
 
 from kirke.utils.ebantdoc2 import EbDocFormat, prov_ants_cpoint_to_cunit
 
@@ -29,6 +30,7 @@ DEBUG_MODE = False
 DOCCAT_MODEL_FILE_NAME = 'ebrevia_docclassifier.v1.pkl'
 
 EBRUN_PROCESS = psutil.Process(os.getpid())
+MAX_CUSTOM_MODEL_CACHE_SIZE = 100
 
 
 def annotate_provision(eb_annotator,
@@ -94,25 +96,31 @@ class EbRunner:
         self.model_dir = model_dir
         self.work_dir = work_dir
         self.custom_model_dir = custom_model_dir
-        self.custom_model_timestamp_map = {}  # type: Dict[str, datetime]
+
+        self.provisions = set([])  # type: Set[str]
+        # This is for standard models
+        # 'Any' should be a KirkeBaseModel
+        self.provision_annotator_map = {}  # type: Dict[str, Any]
+
+        # keep track of the timestamp of each custom model to decide to reload
+        # model file or not.
+        self.custom_model_timestamp_map = {}  # type: Dict[str, float]
         # Kirke can have different custom model versions for the same provision right
         # after training new ones. Need to keep them unique by remove the old one.
         # Must syncrhonize the update of self.provision_annotator_map and
-        # self.provision_custom_model_fn_map.
-        self.provision_custom_model_fn_map = {}  # type: Dict[str, str]
-
-        # load the available classifiers from dir_model
-        model_files = osutils.get_model_files(model_dir)
-        provision_classifier_map = {}
-        self.provisions = set([])  # type: Set[str]
-        # pylint: disable=line-too-long
-        self.provision_annotator_map = {}  # type: Dict[str, Union[ebannotator.ProvisionAnnotator, spanannotator.SpanAnnotator]]
+        # self.custom_model_fn_map.
+        self.custom_model_fn_map = {}  # type: Dict[str, str]
+        # This is for custom models
+        self.custom_annotator_map = lrucache.LRUCache(MAX_CUSTOM_MODEL_CACHE_SIZE)  # type: Dict[str, Any]
 
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         logging.info('original memory use: %d Mbytes', orig_mem_usage)
         prev_mem_usage = orig_mem_usage
         num_model = 0
 
+        # load the available classifiers from dir_model
+        model_files = osutils.get_model_files(model_dir)
+        provision_classifier_map = {}
         for model_fn in model_files:
             full_model_fn = '{}/{}'.format(model_dir, model_fn)
             prov_classifier = joblib.load(full_model_fn)
@@ -134,81 +142,6 @@ class EbRunner:
                 # pylint: disable=line-too-long
                 print('loading #{} {:<50}, mem = {:.2f}, diff {:.2f}'.format(num_model,
                                                                              full_model_fn,
-                                                                             memory_use,
-                                                                             memory_use - prev_mem_usage))
-                prev_mem_usage = memory_use
-            num_model += 1
-
-        # after loading regular models, now load candidate-generation models
-        candg_model_files = osutils.get_candg_model_files(custom_model_dir)
-        for candg_model_fn in candg_model_files:
-            # record the timestamp for update if needed in the future
-            mtime = os.path.getmtime(os.path.join(self.custom_model_dir, candg_model_fn))
-            last_modified_date = datetime.fromtimestamp(mtime)
-            self.custom_model_timestamp_map[candg_model_fn] = last_modified_date
-
-            full_custom_model_fn = '{}/{}'.format(custom_model_dir, candg_model_fn)
-            # this is spanannotator.SpanAnnotator
-            prov_classifier = joblib.load(full_custom_model_fn)
-            cust_id_mat = re.match(r'(cust_\d+_[a-z][a-z])_[A-Z]+_annotator', candg_model_fn)
-            if cust_id_mat:
-                clf_provision = cust_id_mat.group(1)
-            else:
-                clf_provision = prov_classifier.provision
-            if hasattr(prov_classifier, 'version'):
-                prov_classifier_version = prov_classifier.version
-            else:
-                prov_classifier_version = '1.0'
-            self.provision_custom_model_fn_map[clf_provision] = full_custom_model_fn
-            logging.info("ebrunner loading candg #%d: %s, ver=%s, model_fn=%s",
-                         num_model, clf_provision, prov_classifier_version, full_custom_model_fn)
-            if clf_provision in self.provisions:
-                logging.warning("*** WARNING ***  Replacing an existing provision: %s",
-                                clf_provision)
-            provision_classifier_map[clf_provision] = prov_classifier
-            self.provisions.add(clf_provision)
-            if DEBUG_MODE:
-                # print out memory usage info
-                memory_use = EBRUN_PROCESS.memory_info()[0] / 2**20
-                # pylint: disable=line-too-long
-                print('loading #{} {:<50}, mem = {:.2f}, diff {:.2f}'.format(num_model,
-                                                                             full_custom_model_fn,
-                                                                             memory_use,
-                                                                             memory_use - prev_mem_usage))
-                prev_mem_usage = memory_use
-            num_model += 1
-
-        custom_model_files = osutils.get_model_files(custom_model_dir)
-        for custom_model_fn in custom_model_files:
-            # record the timestamp for update if needed in the future
-            mtime = os.path.getmtime(os.path.join(self.custom_model_dir, custom_model_fn))
-            last_modified_date = datetime.fromtimestamp(mtime)
-            self.custom_model_timestamp_map[custom_model_fn] = last_modified_date
-
-            full_custom_model_fn = '{}/{}'.format(custom_model_dir, custom_model_fn)
-            prov_classifier = joblib.load(full_custom_model_fn)
-            cust_id = re.match(r'(cust_\d+_\w\w)_scutclassifier', custom_model_fn)
-            if cust_id:
-                clf_provision = cust_id.group(1)
-            else:
-                clf_provision = prov_classifier.provision
-            if hasattr(prov_classifier, 'version'):
-                prov_classifier_version = prov_classifier.version
-            else:
-                prov_classifier_version = '1.1'
-            self.provision_custom_model_fn_map[clf_provision] = full_custom_model_fn
-            logging.info("ebrunner loading custom #%d: %s, ver=%s, model_fn=%s",
-                         num_model, clf_provision, prov_classifier_version, full_custom_model_fn)
-            if clf_provision in self.provisions:
-                logging.warning("*** WARNING ***  Replacing an existing provision: %s",
-                                clf_provision)
-            provision_classifier_map[clf_provision] = prov_classifier
-            self.provisions.add(clf_provision)
-            if DEBUG_MODE:
-                memory_use = EBRUN_PROCESS.memory_info()[0] / 2**20
-                # pylint: disable=line-too-long
-                print('loading #{} {:<50}, mem = {:.2f}, diff {:.2f}'.format(num_model,
-                                                                             full_custom_model_fn,
                                                                              memory_use,
                                                                              memory_use - prev_mem_usage))
                 prev_mem_usage = memory_use
@@ -242,6 +175,16 @@ class EbRunner:
                      total_mem_usage, total_mem_usage - orig_mem_usage, avg_model_mem)
         logging.info('EbRunner is initiated.')
 
+
+    def get_provision_annotator(self, provision: str) -> Any:
+        """Get the annotator, depending on if it is a bespoke model or standard models."""
+
+        if provision.startswith('cust_'):
+            # self.cust_annotator_map is lrucache.LRUCache.  Must use get().
+            return self.custom_annotator_map.get(provision)
+        return self.provision_annotator_map[provision]
+
+
     def run_annotators_in_parallel(self,
                                    eb_antdoc: ebantdoc2.EbAnnotatedDoc2,
                                    eb_antdoc3: ebantdoc3.EbAnnotatedDoc3,
@@ -250,89 +193,135 @@ class EbRunner:
             provision_set = self.provisions
         #else:
         #    logging.info("user specified provision list: %s", provision_set)
-        prov_antlist_map = defaultdict(list)  # type: DefaultDict[str, List[Dict]]
+        both_default_custom_provs = set(self.provision_annotator_map.keys())
+        both_default_custom_provs.update(self.custom_annotator_map.keys())
+
+        # for provision in both_default_custom_provs:
+        #     xxx = self.get_provision_annotator(provision)
+        #     print("provision, {} -> {}".format(provision, type(xxx)))
+        
+        annotations = defaultdict(list)
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
-                                                   self.provision_annotator_map[provision],
+                                                   self.get_provision_annotator(provision),
                                                    eb_antdoc,
                                                    eb_antdoc3):
                                    provision for provision in provision_set
-                                   if provision in self.provision_annotator_map.keys()}
+                                   if provision in both_default_custom_provs}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
                 ant_list, unused_threshold = future.result()
                 # want to collapse language-specific cust models to one provision
+
                 if 'cust_' in provision and ant_list:
                     provision = ant_list[0]['label']
-                # aggregates all prov_antlist_map across languages for cust models
-                prov_antlist_map[provision].extend(ant_list)
-        return prov_antlist_map
 
-    def update_custom_models(self) -> None:
+                if '.' in provision:  # in case there is no ant_list
+                    # remove version, chop off after '.'
+                    provision = provision.split('.')[0]
+                # aggregates all annotations across languages for cust models
+                annotations[provision].extend(ant_list)
+        return annotations                
+
+
+    def get_custom_model_files(self, cust_id_ver: str) -> List[str]:
+        """Get the list of files that satisfy the cust_id_ver."""
+
+        result = [fname for cust_id_ver, fname in osutils.get_custom_model_files(self.custom_model_dir,
+                                                                                 set([cust_id_ver]),
+                                                                                 lang='all')]
+        return result
+
+
+    def update_custom_models(self, provision_set: Set[str], lang: str = 'en'):
         provision_classifier_map = {}
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         num_model = 0
 
+        cust_prov_set = [provision for provision in provision_set if provision.startswith('cust_')]
+
         start_time_1 = time.time()
-        custom_files = osutils.get_model_files(self.custom_model_dir)
-        candg_files = osutils.get_candg_model_files(self.custom_model_dir)
-        for fname in custom_files + candg_files:
+
+        # cust_id_ver is exactly the same as the vaue in cust_prov_set
+        # because everyone else is using that.  Only the
+        # fname will reflect which version and which language
+        for cust_id_ver, fname in osutils.get_custom_model_files(self.custom_model_dir,
+                                                                 cust_prov_set,
+                                                                 lang):
             mtime = os.path.getmtime(os.path.join(self.custom_model_dir, fname))
             last_modified_date = datetime.fromtimestamp(mtime)
             # print("hi {} {}".format(fn, last_modified_date))
-
             old_timestamp = self.custom_model_timestamp_map.get(fname)
-            if old_timestamp and old_timestamp == last_modified_date:
-                pass
-            else:
-                # for both out-of-date models and new models
-                # prev_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
-                # logging.info('current memory use: {} Mbytes'.format(prev_mem_usage))
 
+            print("cust_id_ver = '{}', {}".format(cust_id_ver, fname))
+
+            # we already touched the cache, so if the model file is there,
+            # it will not be deleted (assume number of provision_set will not
+            # flush this out)
+            # There is still some possibility that people might delete a version
+            # while this is running.  For now, deletion operation should not
+            # remove the file yet.
+            prov_annotator = self.custom_annotator_map.get(cust_id_ver)
+
+            is_update_model = False
+            if prov_annotator:  # found in cache
+                if old_timestamp and old_timestamp == last_modified_date:
+                    pass
+                else:  # but outdated
+                    is_update_model = True
+            else:  # not found in cache, load it
+                is_update_model = True
+
+            if is_update_model:
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
-                scut_classifier_mat = re.match(r'scutclassifier', fname)
+
+                # print("prov_classifier, {}".format(fname))
+                # print("type, {}".format(type(prov_classifier)))
+
+                scut_classifier_mat = re.search(r'scutclassifier', fname)
                 if scut_classifier_mat:
-                    cust_id_mat = re.match(r'(cust_\d+_\w\w)_scutclassifier', fname)
-                    if cust_id_mat:
-                        clf_provision = cust_id_mat.group(1)
-                    else:
-                        clf_provision = prov_classifier.provision
-                else:  # candg
-                    cust_id_mat = re.match(r'(cust_\d+_[a-z][a-z])_[A-Z]+_annotator', fname)
+                    cust_id_mat = re.match(r'(cust_\d+\.\d+_\w\w)_scutclassifier', fname)
                     if cust_id_mat:
                         clf_provision = cust_id_mat.group(1)
                     else:
                         clf_provision = prov_classifier.provision
 
-                #if clf_provision in self.provisions:
+                    provision_classifier_map[cust_id_ver] = \
+                        ebannotator.ProvisionAnnotator(prov_classifier, self.work_dir)                        
+                else:  # candidate generation
+                    cust_id_mat = re.match(r'(cust_\d+\.\d+_[a-z][a-z])_[A-Z]+_annotator', fname)
+                    if cust_id_mat:
+                        clf_provision = cust_id_mat.group(1)
+                    else:
+                        clf_provision = prov_classifier.provision
+                    provision_classifier_map[cust_id_ver] = \
+                        prov_classifier
+
+                print('======= finished loading {}, [{}]'.format(cust_id_ver, full_custom_model_fn))
+
+                #if cust_id_ver in self.provisions:
                 #    logging.warning("*** WARNING ***  Replacing an existing provision: %s",
-                #                    clf_provision)
-                provision_classifier_map[clf_provision] = prov_classifier
+                #                    cust_id_ver)
+
                 self.custom_model_timestamp_map[fname] = last_modified_date
-                self.provisions.add(clf_provision)
+                self.custom_model_fn_map[cust_id_ver] = full_custom_model_fn
+                self.provisions.add(cust_id_ver)
                 num_model += 1
 
-                prev_custom_model_fn = self.provision_custom_model_fn_map.get(clf_provision)
-                if not prev_custom_model_fn:  # doesnt exist before
-                    self.provision_custom_model_fn_map[clf_provision] = full_custom_model_fn
-                elif prev_custom_model_fn != full_custom_model_fn:  # must exist before
-                    # check for any file name change due to version change
-                    self.update_existing_provision_fn_map_aux(clf_provision, full_custom_model_fn)
-                # if the same, don't do anything
-
         if provision_classifier_map:
-            for provision in provision_classifier_map:
+            for provision, annotator in provision_classifier_map.items():
                 logging.info("updating annotator: %s", provision)
                 pclassifier = provision_classifier_map[provision]
                 if isinstance(pclassifier, spanannotator.SpanAnnotator):
-                    self.provision_annotator_map[provision] = pclassifier
+                    xxx_annotator = pclassifier
                 else:
                     prov_threshold = provclassifier.get_provision_threshold(provision)
-                    self.provision_annotator_map[provision] = \
-                        ebannotator.ProvisionAnnotator(pclassifier,
-                                                       self.work_dir,
-                                                       threshold=prov_threshold)
+                    xxx_annotator = ebannotator.ProvisionAnnotator(pclassifier,
+                                                                   self.work_dir,
+                                                                   threshold=prov_threshold)
+                self.custom_annotator_map.set(provision, xxx_annotator)
+
 
             total_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
             avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
@@ -346,14 +335,21 @@ class EbRunner:
     # pylint: disable=too-many-arguments
     def annotate_document(self,
                           file_name: str,
-                          provision_set: Set[str] = None,
-                          work_dir: str = None,
+                          provision_set: Optional[Set[str]] = None,
+                          work_dir: Optional[str] = None,
                           is_doc_structure: bool = True,
-                          doc_lang: str = "en") \
-                          -> Tuple[Dict[str, List], ebantdoc2.EbAnnotatedDoc2]:
+                          doc_lang: str = 'en') \
+                          -> Tuple[Dict[str, List], ebantdoc2.EbAnnotatedDoc2]:                          
         time1 = time.time()
         if not provision_set:
-            provision_set = self.provisions
+            # no provision specified.  Must be doing testing.
+            provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
+            provision_set.update(self.provisions)
+            # also get ALL custom provision set, since we are doing testing
+            print("custom_model_dir: {}".format(self.custom_model_dir))
+            print("provision_set: {}".format(provision_set))
+            
+            
         #else:
         #    logging.info('user specified provision list: %s', provision_set)
 
@@ -362,8 +358,8 @@ class EbRunner:
 
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
-
-        self.update_custom_models()
+        # print("provision_set: {}".format(provision_set))
+        self.update_custom_models(provision_set, doc_lang)
 
         eb_antdoc = ebantdoc2.text_to_ebantdoc2(file_name,
                                                 work_dir=work_dir,
@@ -510,8 +506,10 @@ class EbRunner:
                 # ml_date = prov_labels_map.get('date')
                 # print("ml_date = {}".format(ml_date))
                 # if ml_date and ml_date[0]['prob'] <= 0.5:
+
                 #    # let override later in update_dates_by_domain_rules()
                 #    prov_labels_map['date'] = []
+
                 # prov_labels_map['effectivedate'] = xx_effective_date_list
             if xx_date_list:
                 prov_labels_map['date'] = xx_date_list
@@ -563,12 +561,14 @@ class EbRunner:
                                             custom_model_dir,
                                             base_model_fname,
                                             candidate_type,
+                                            model_num: Optional[int] = None,
                                             is_doc_structure=False,
                                             work_dir=None,
                                             doc_lang="en") \
                                             -> Tuple[Dict[str, Any], Dict[str, Dict]]:
 
         logging.info("txt_fn_list_fn: %s", txt_fn_list)
+
         if not work_dir:
             work_dir = self.work_dir
         full_model_fname = '{}/{}'.format(custom_model_dir, base_model_fname)
@@ -582,6 +582,8 @@ class EbRunner:
             # Conflicts with below.
             eb_annotator, log_json = \
                 ebtrainer.train_eval_annotator(provision,
+                                               model_num,
+                                               doc_lang,
                                                txt_fn_list,
                                                work_dir,
                                                custom_model_dir,
@@ -589,11 +591,16 @@ class EbRunner:
                                                eb_classifier,
                                                is_doc_structure=is_doc_structure,
                                                custom_training_mode=True)
+                                               
         else:
             # It is know that 'eb_annotator' is SpanAnnotator, mypy.
             # Conflicts with above.
+            # There is no use of doc_lang in spanannotator.  It's language
+            # independent for now.
             eb_annotator, log_json = \
                 ebtrainer.train_eval_span_annotator(provision,
+                                                    model_num,
+                                                    doc_lang,
                                                     candidate_type,
                                                     work_dir,
                                                     custom_model_dir,
@@ -601,6 +608,7 @@ class EbRunner:
                                                     model_file_name=full_model_fname,
                                                     is_bespoke_mode=True)
 
+        """
         if doc_lang != "en":
             provision = "{}_{}".format(provision, doc_lang)
         # update maps of provision to model name, provision to annotator, and custom model to
@@ -619,23 +627,10 @@ class EbRunner:
         mtime = os.path.getmtime(os.path.join(self.custom_model_dir, base_model_fname))
         last_modified_date = datetime.fromtimestamp(mtime)
         self.custom_model_timestamp_map[base_model_fname] = last_modified_date
+        """
+        
         return eb_annotator.get_eval_status(), log_json
 
-    def update_existing_provision_fn_map_aux(self,
-                                             provision: str,
-                                             full_model_fname: str) -> None:
-
-        # intentionally not using .get(), because the previous model file must exist.
-        prev_provision_model_fname = self.provision_custom_model_fn_map[provision]
-
-        # in case the model version is different
-        if prev_provision_model_fname != full_model_fname:
-            logging.info("removing old customized model file, '%s', '%s'.",
-                         provision, prev_provision_model_fname)
-            if os.path.isfile(prev_provision_model_fname):
-                os.remove(prev_provision_model_fname)
-                # the old timestamp for the removed file doesn't matter.
-                self.provision_custom_model_fn_map[provision] = full_model_fname
 
     # this function is here because it is a combination of both ML and rule-based annotator
     # pylint: disable=invalid-name
@@ -775,8 +770,6 @@ class EbRunner:
         print("len({}) = {}".format(test_doclist_fn, num_test_doc))
 
         return tmp_eval_status
-
-
 
 
 

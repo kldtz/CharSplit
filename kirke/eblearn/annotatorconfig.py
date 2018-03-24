@@ -1,6 +1,7 @@
 # pylint: disable=no-name-in-module, import-error
 from distutils.version import StrictVersion
 import itertools
+import logging
 import re
 from typing import Dict, List, Optional, Tuple
 
@@ -62,12 +63,12 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'kfold': 3}),
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                          'doc_to_candidates': regexgen.RegexContextGenerator(20,
-                                                                           5,
-                                                                           # pylint: disable=line-too-long
-                                                                           re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
-                                                                           'CURRENCY'),
+                                                                             5,
+                                                                             # pylint: disable=line-too-long
+                                                                             re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
+                                                                             'CURRENCY'),
                          'version': "1.0",
-                         'doc_postproc': [postproc.SpanDefaultPostProcessing()],
+                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                          'pipeline': Pipeline([
                              ('union', FeatureUnion(
                                  transformer_list=[
@@ -88,7 +89,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                          re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
                                                                          'NUMBER'),
                        'version': "1.0",
-                       'doc_postproc': [postproc.SpanDefaultPostProcessing()],
+                       'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                        'pipeline': Pipeline([('union', FeatureUnion(
                            # pylint: disable=line-too-long
                            transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
@@ -109,7 +110,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                           re.compile(r'(\d+%)'),
                                                                           'PERCENT'),
                         'version': "1.0",
-                        'doc_postproc': [postproc.SpanDefaultPostProcessing()],
+                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
                             # pylint: disable=line-too-long
                             transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
@@ -127,7 +128,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
 '''
 ('l_tenant_notice', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                                 'doc_to_candidates': addrgen.AddrContextGenerator(10, 2, 'ADDRESS'),
-                                'doc_postproc': [postproc.SpanDefaultPostProcessing()],
+                                'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                                 'version': "1.0",
                                 'pipeline': Pipeline([
                                     ('union', FeatureUnion(
@@ -153,6 +154,35 @@ RULE_ANNOTATOR_CONFIG_LIST = [
 ML_ANNOTATOR_CONFIG_FROZEN_LIST = []  # type: List[Tuple[str, str, Dict]]
 RULE_ANNOTATOR_CONFIG_FROZEN_LIST = []  # type: List[Tuple[str, str, Dict]]
 
+def validate_annotator_config_keys(aconfig: Tuple[str, str, Dict]) -> bool:
+    label, version, adict = aconfig
+    is_valid = True
+    for key, value in adict.items():
+        if key not in set(['doclist_to_antdoc_list',
+                           'doc_to_candidates',
+                           'version',
+                           'doc_postproc_list',
+                           'pipeline',
+                           'threshold',
+                           'gridsearch_parameters',
+                           'kfold',
+                           'rule_engine']):
+            logging.warning('invalid key, %s, in %s %s config',
+                            key, label, version)
+            is_valid = False
+    return is_valid
+
+def validate_annotators_config_keys(config_list: List[Tuple[str, str, Dict]]) -> bool:
+    is_valid = True
+    for aconfig in config_list:
+        if not validate_annotator_config_keys(aconfig):
+            is_valid = False
+    return is_valid
+
+validate_annotators_config_keys(ML_ANNOTATOR_CONFIG_LIST)
+validate_annotators_config_keys(RULE_ANNOTATOR_CONFIG_LIST)
+validate_annotators_config_keys(ML_ANNOTATOR_CONFIG_FROZEN_LIST)
+validate_annotators_config_keys(RULE_ANNOTATOR_CONFIG_FROZEN_LIST)
 
 def get_ml_annotator_config(label: str, version: Optional[str] = None) -> Dict:
     configx = get_annotator_config(label,

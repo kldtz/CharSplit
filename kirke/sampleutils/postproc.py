@@ -9,7 +9,6 @@ class SpanDefaultPostProcessing(DocCandidatesTransformer):
         self.label = 'span_default'
 
     def enrich(self, candidate: Dict) -> None:
-        print("calling SpanDefaultPostProcessing.enrich()")
         del_keys = []
         for key, val in candidate.items():
             if key not in set(['start', 'end', 'label', 'prob', 'text', 'span_list', 'norm']):
