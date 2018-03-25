@@ -224,7 +224,7 @@ class FromToMapper:
 
         # if there is only 1 line, no chance of diff being different, skip
         # print("len(to_start_lnpos_ediff_list) = {}".format(len(to_start_lnpos_ediff_list)))
-        if len(to_start_lnpos_ediff_list) != 1:
+        if len(to_start_lnpos_ediff_list) > 1:
             # there is some chance if the from and to line got reordered
             # to_start_lnpos_ediff_list[0][1] = start_diff
             to_start_lnpos_ediff_list[-1].diff = end_diff
