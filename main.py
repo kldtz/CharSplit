@@ -101,6 +101,7 @@ def train_annotator(provision: str,
         model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
                                                                 provision,
                                                                 PROV_CLF_VERSION)
+
     ebtrainer.train_eval_annotator_with_trte(provision,
                                              work_dir,
                                              model_dir,
@@ -114,12 +115,28 @@ def train_span_annotator(label: str,
                          model_dir: str) -> None:
     if candidate_type != 'SENTENCE':
         ebtrainer.train_eval_span_annotator(label,
+                                            383838,
+                                            'en',
                                             candidate_type,
                                             work_dir,
                                             model_dir)
     else:
         train_annotator(label, work_dir, model_dir, True)
 
+
+def eval_span_annotator(label: str,
+                        candidate_type: str,
+                        txt_fn_list_fn: str,
+                        work_dir: str,
+                        model_dir: str):
+
+    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir=model_dir)    
+    # ebtrainer.eval_rule_annotator_with_trte(label, is_train_mode=True)
+    eb_runner.eval_span_annotator(label,
+                                  candidate_type,
+                                  txt_fn_list_fn)
+
+        
 def eval_rule_annotator(label: str,
                         model_dir: str,
                         is_train_mode: bool = False):
@@ -327,6 +344,12 @@ def main():
                              candidate_type=args.candidate_type,
                              work_dir=work_dir,
                              model_dir=model_dir)
+    elif cmd == 'eval_span_annotator':
+        eval_span_annotator(provision,
+                            candidate_type=args.candidate_type,
+                            txt_fn_list_fn=txt_fn_list_fn,
+                            work_dir=work_dir,
+                            model_dir=model_dir)        
     elif cmd == 'eval_rule_annotator':
         eval_rule_annotator(provision,
                             model_dir=model_dir,
@@ -353,12 +376,6 @@ def main():
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
-    # elif cmd == 'annotate_doc_party':
-    #    if not args.docs:
-    #        print('please specify --docs', file=sys.stderr)
-    #        sys.exit(1)
-    #    annotate_doc_party(args.docs, work_dir, model_dir, custom_model_dir,
-    #                       threshold=args.threshold)
     elif cmd == 'eval_line_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
@@ -398,10 +415,8 @@ def main():
     elif cmd == 'split_doccat_trte':
         doccatsplittrte.split_doccat_trte(txt_fn_list_fn)
     elif cmd == 'train_doc_classifier':
-        # doccatutils.train_doc_classifier(txt_fn_list_fn, model_dir)
         train_doc_classifier(txt_fn_list_fn, model_dir)
     elif cmd == 'train_eval_doc_classifier':
-        # doccatutils.train_eval_doc_classifier(txt_fn_list_fn)
         train_eval_doc_classifier(txt_fn_list_fn, model_dir)
     elif cmd == 'classify_doc':
         classify_document(args.doc, model_dir)

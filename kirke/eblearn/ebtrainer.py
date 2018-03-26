@@ -174,7 +174,7 @@ def cv_train_at_annotation_level(provision,
 # pylint: disable=too-many-arguments, too-many-locals, invalid-name, too-many-statements
 def cv_candg_train_at_annotation_level(provision: str,
                                        # pylint: disable=invalid-name
-                                       antdoc_samplex_list: List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                                       antdoc_candidatex_list: List[Tuple[ebantdoc3.EbAnnotatedDoc3,
                                                                        List[Dict],
                                                                        List[bool],
                                                                        List[int]]],
@@ -186,30 +186,30 @@ def cv_candg_train_at_annotation_level(provision: str,
     # test_size = 0.25
 
     num_fold = 3
-    all_samples = []  # type: List[Dict]
-    all_sample_labels = []  # type: List[bool]
+    all_candidates = []  # type: List[Dict]
+    all_candidate_labels = []  # type: List[bool]
     all_group_ids = []  # type: List[int]
 
     # distribute positives to all buckets
     pos_list = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
     neg_list = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
-    for label, (x_antdoc, x_samples, x_sample_label_list, x_group_ids) in zip(antdoc_bool_list,
-                                                                              antdoc_samplex_list):
+    for label, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in zip(antdoc_bool_list,
+                                                                              antdoc_candidatex_list):
 
         if label:
-            pos_list.append((x_antdoc, x_samples, x_sample_label_list, x_group_ids))
+            pos_list.append((x_antdoc, x_candidates, x_candidate_label_list, x_group_ids))
         else:
-            neg_list.append((x_antdoc, x_samples, x_sample_label_list, x_group_ids))
-        all_samples.extend(x_samples)
-        all_sample_labels.extend(x_sample_label_list)
+            neg_list.append((x_antdoc, x_candidates, x_candidate_label_list, x_group_ids))
+        all_candidates.extend(x_candidates)
+        all_candidate_labels.extend(x_candidate_label_list)
         all_group_ids.extend(x_group_ids)
 
     pos_list.extend(neg_list)
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]]
-    for count, (x_antdoc, x_samples, x_sample_label_list, x_group_ids) in enumerate(pos_list):
+    for count, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in enumerate(pos_list):
         # bucket_x_map[count % num_fold].append((x_antdoc, label))
-        bucket_x_map[count % num_fold].append((x_antdoc, x_samples, x_sample_label_list, x_group_ids))
+        bucket_x_map[count % num_fold].append((x_antdoc, x_candidates, x_candidate_label_list, x_group_ids))
 
     #for bnum, alist in bucket_x_map.items():
     #    print("-----")
@@ -220,37 +220,37 @@ def cv_candg_train_at_annotation_level(provision: str,
     cv_ant_status_list = []
     for bucket_num in range(num_fold):  # cross train each bucket
 
-        train_bucket_samples = []   # type: List[Dict]
-        train_bucket_sample_labels = []   # type: List[bool]
+        train_bucket_candidates = []   # type: List[Dict]
+        train_bucket_candidate_labels = []   # type: List[bool]
         train_bucket_group_ids = []   # type: List[int]
-        test_bucket_samples = []   # type: List[Dict]
-        test_bucket_sample_labels = []   # type: List[bool]
+        test_bucket_candidates = []   # type: List[Dict]
+        test_bucket_candidate_labels = []   # type: List[bool]
         test_bucket_group_ids = []   # type: List[int]
         test_bucket_antdoc_list = []  # type: List[ebantdoc3.EbAnnotatedDoc3]
         for bnum, bucket_docxyz_list in bucket_x_map.items():
             if bnum != bucket_num:
                 for docxyz in bucket_docxyz_list:
-                    train_bucket_samples.extend(docxyz[1])
-                    train_bucket_sample_labels.extend(docxyz[2])
+                    train_bucket_candidates.extend(docxyz[1])
+                    train_bucket_candidate_labels.extend(docxyz[2])
                     train_bucket_group_ids.extend(docxyz[3])
             else:  # bnum == bucket_num
                 for docxyz in bucket_docxyz_list:
                     test_bucket_antdoc_list.append(docxyz[0])
-                    test_bucket_samples.extend(docxyz[1])
-                    test_bucket_sample_labels.extend(docxyz[2])
+                    test_bucket_candidates.extend(docxyz[1])
+                    test_bucket_candidate_labels.extend(docxyz[2])
                     test_bucket_group_ids.extend(docxyz[3])
 
         cv_sp_annotator = sp_annotator_orig.make_bare_copy()
-        cv_sp_annotator.train_samples(train_bucket_samples,
-                                      train_bucket_sample_labels,
+        cv_sp_annotator.train_candidates(train_bucket_candidates,
+                                      train_bucket_candidate_labels,
                                       train_bucket_group_ids,
                                       cv_sp_annotator.pipeline,
                                       cv_sp_annotator.gridsearch_parameters,
                                       work_dir)
 
         # annotates the test set and runs through evaluation
-        pred_status = cv_sp_annotator.predict_and_evaluate(test_bucket_samples,
-                                                           test_bucket_sample_labels,
+        pred_status = cv_sp_annotator.predict_and_evaluate(test_bucket_candidates,
+                                                           test_bucket_candidate_labels,
                                                            work_dir)
         # ant_status, log_json = \
         #    cv_sp_annotator.test_antdoc_list(test_bucket_antdoc_list
@@ -267,8 +267,8 @@ def cv_candg_train_at_annotation_level(provision: str,
 
     # now build the annotator using ALL training data
     sp_annotator = sp_annotator_orig.make_bare_copy()
-    sp_annotator.train_samples(all_samples,
-                               all_sample_labels,
+    sp_annotator.train_candidates(all_candidates,
+                               all_candidate_labels,
                                all_group_ids,
                                sp_annotator.pipeline,
                                sp_annotator.gridsearch_parameters,
@@ -302,17 +302,17 @@ def cv_candg_train_at_annotation_level(provision: str,
 # Take 1/5 of the data out for testing
 # Train on 4/5 of the data
 # pylint: disable=R0915, R0913, R0914
-def train_eval_annotator(provision,
+def train_eval_annotator(provision: str,
+                         model_num: int,
+                         doc_lang: str,
                          txt_fn_list,
                          work_dir,
                          model_dir,
                          model_file_name,
                          eb_classifier,
                          is_doc_structure=False,
-                         custom_training_mode=False,
-                         doc_lang="en") \
-            -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
-
+                         custom_training_mode=False) \
+                         -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
     logging.info("training_eval_annotator(%s) called", provision)
     logging.info("    txt_fn_list = %s", txt_fn_list)
     logging.info("    work_dir = %s", work_dir)
@@ -414,7 +414,9 @@ def train_eval_annotator(provision,
         prov_annotator.eval_status = ant_status
         pprint.pprint(ant_status)
 
-        model_status_fn = model_dir + '/' +  provision + ".status"
+        model_status_fn = '{}/{}.{}.status'.format(model_dir,
+                                                   provision,
+                                                   model_num)
         strutils.dumps(json.dumps(ant_status), model_status_fn)
 
         # NOTE: jshaw
@@ -555,6 +557,8 @@ def train_eval_annotator_with_trte(provision: str,
 # Train on 4/5 of the data
 # pylint: disable=invalid-name
 def train_eval_span_annotator(provision: str,
+                              model_num: int,
+                              doc_lang: str,
                               candidate_type: str,
                               work_dir: str,
                               model_dir: str,
@@ -577,9 +581,9 @@ def train_eval_span_annotator(provision: str,
                                     candidate_type,
                                     version=config['version'],
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
-                                    docs_to_samples=config['docs_to_samples'],
-                                    sample_transformers=config.get('sample_transformers', []),
-                                    postproc=config.get('post_process_list', 'span_default'),
+                                    doc_to_candidates=config['doc_to_candidates'],
+                                    candidate_transformers=config.get('candidate_transformers', []),
+                                    doc_postproc_list=config.get('doc_postproc_list', []),
                                     pipeline=config['pipeline'],
                                     gridsearch_parameters=config['gridsearch_parameters'],
                                     # we prefer recall over precision
@@ -597,7 +601,6 @@ def train_eval_span_annotator(provision: str,
                                                                work_dir,
                                                                is_bespoke_mode=is_bespoke_mode,
                                                                is_doc_structure=False)
-
         #split training and test data, save doclists
         X = eb_antdoc_list
         y = [provision in eb_antdoc.get_provision_set()
@@ -613,17 +616,17 @@ def train_eval_span_annotator(provision: str,
         # only train, no independent testing
         if num_pos_label < MIN_FULL_TRAINING_SIZE:
             # candidate generation on the whole training set
-            X_all_antdoc_samplex_list = \
-                span_annotator.documents_to_samples(X, provision)
+            X_all_antdoc_candidatex_list = \
+                span_annotator.documents_to_candidates(X, provision)
 
             logging.info("training with %d docs, no test (<%d).  num_pos= %d, num_neg= %d",
-                         len(X_all_antdoc_samplex_list),
+                         len(X_all_antdoc_candidatex_list),
                          MIN_FULL_TRAINING_SIZE,
                          num_pos_label, num_neg_label)
 
             prov_annotator2, combined_log_json = \
                 cv_candg_train_at_annotation_level(provision,
-                                                   X_all_antdoc_samplex_list,
+                                                   X_all_antdoc_candidatex_list,
                                                    y,
                                                    span_annotator,
                                                    model_dir,
@@ -652,12 +655,12 @@ def train_eval_span_annotator(provision: str,
         splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
 
         # candidate generation on training set
-        train_antdoc_samplex_list = \
-            span_annotator.documents_to_samples(X_train, provision)
+        train_antdoc_candidatex_list = \
+            span_annotator.documents_to_candidates(X_train, provision)
 
         # candidate generation on test set
-        test_antdoc_samplex_list = \
-            span_annotator.documents_to_samples(X_test, provision)
+        test_antdoc_candidatex_list = \
+            span_annotator.documents_to_candidates(X_test, provision)
     else:
         train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
         test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
@@ -670,23 +673,20 @@ def train_eval_span_annotator(provision: str,
                                                        work_dir,
                                                        is_bespoke_mode=is_bespoke_mode,
                                                        is_doc_structure=False)
-
         # candidate generation on training set
-        train_antdoc_samplex_list = \
-            span_annotator.documents_to_samples(X_train, provision)
-
+        train_antdoc_candidatex_list = \
+            span_annotator.documents_to_candidates(X_train, provision)
         # candidate generation on test set
-        test_antdoc_samplex_list = \
-            span_annotator.documents_to_samples(X_test, provision)
+        test_antdoc_candidatex_list = \
+            span_annotator.documents_to_candidates(X_test, provision)
 
-    train_samples, train_label_list, train_group_ids = \
-        spanannotator.antdoc_samplex_list_to_samplex(train_antdoc_samplex_list)
-
-    test_samples, test_label_list, unused_test_group_ids = \
-        spanannotator.antdoc_samplex_list_to_samplex(test_antdoc_samplex_list)
+    train_candidates, train_label_list, train_group_ids = \
+        spanannotator.antdoc_candidatex_list_to_candidatex(train_antdoc_candidatex_list)
+    test_candidates, test_label_list, unused_test_group_ids = \
+        spanannotator.antdoc_candidatex_list_to_candidatex(test_antdoc_candidatex_list)
 
     # trains an annotator
-    span_annotator.train_samples(train_samples,
+    span_annotator.train_candidates(train_candidates,
                                  train_label_list,
                                  train_group_ids,
                                  span_annotator.pipeline,
@@ -695,7 +695,7 @@ def train_eval_span_annotator(provision: str,
 
     # annotates the test set and runs through evaluation
     pred_status = \
-        span_annotator.predict_and_evaluate(test_samples,
+        span_annotator.predict_and_evaluate(test_candidates,
                                             test_label_list,
                                             work_dir)
     ant_status, log_json = \
@@ -718,7 +718,7 @@ def eval_rule_annotator_with_trte(label: str,
         ruleannotator.RuleAnnotator(label,
                                     version=config['version'],
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
-                                    docs_to_samples=config['docs_to_samples'],
+                                    doc_to_candidates=config['doc_to_candidates'],
                                     rule_engine=config['rule_engine'],
                                     post_process=config.get('post_process', []))
 

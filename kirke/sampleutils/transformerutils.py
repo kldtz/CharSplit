@@ -22,14 +22,14 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
         self.min_max_scaler = preprocessing.MinMaxScaler()
 
     # pylint: disable=unused-argument, invalid-name
-    def samples_to_matrix(self,
-                          span_sample_list: List[Dict],
+    def candidates_to_matrix(self,
+                          span_candidate_list: List[Dict],
                           y: Optional[List[bool]],
                           fit_mode: bool = False):
-        numeric_matrix = np.zeros(shape=(len(span_sample_list),
+        numeric_matrix = np.zeros(shape=(len(span_candidate_list),
                                          1))
-        for i, span_sample in enumerate(span_sample_list):
-            prob = span_sample['has_addr']
+        for i, span_candidate in enumerate(span_candidate_list):
+            prob = span_candidate['has_addr']
             numeric_matrix[i] = prob
         if fit_mode:
             numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
@@ -40,29 +40,29 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
 
     # return self
     def fit(self,
-            span_sample_list: List[Dict],
+            span_candidate_list: List[Dict],
             # pylint: disable=invalid-name
             y: Optional[List[bool]] = None):
         start_time = time.time()
-        self.samples_to_matrix(span_sample_list, y, fit_mode=True)
+        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
         end_time = time.time()
         AddrLineTransformer.fit_count += 1
-        logging.debug("%s fit called #%d, len(span_sample_list) = %d, took %.0f msec",
-                      self.name, AddrLineTransformer.fit_count, len(span_sample_list),
+        logging.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
+                      self.name, AddrLineTransformer.fit_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return self
 
     # return X_out
     # not sure what sparse matrix is represented in typing; use List for now
     def transform(self,
-                  span_sample_list: List[Dict]) -> List:
+                  span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
         # pylint: disable=invalid-name
-        X_out = self.samples_to_matrix(span_sample_list, [], fit_mode=False)
+        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
         end_time = time.time()
         AddrLineTransformer.transform_count += 1
-        logging.debug("%s transform called #%d, len(span_sample_list) = %d, took %.0f msec",
-                      self.name, AddrLineTransformer.transform_count, len(span_sample_list),
+        logging.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
+                      self.name, AddrLineTransformer.transform_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return X_out
 
@@ -84,20 +84,20 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
                                                      lowercase=False)
         self.min_max_scaler = preprocessing.MinMaxScaler()
 
-    # span_sample_list should be a list of dictionaries
+    # span_candidate_list should be a list of dictionaries
     # pylint: disable=unused-argument, invalid-name
-    def samples_to_matrix(self,
-                          span_sample_list: List[Dict],
+    def candidates_to_matrix(self,
+                          span_candidate_list: List[Dict],
                           y: Optional[List[bool]],
                           fit_mode: bool = False):
         prev_words_list = []
         post_words_list = []
-        numeric_matrix = np.zeros(shape=(len(span_sample_list), 2))
-        for i, span_sample in enumerate(span_sample_list):
-            prev_words_list.append(span_sample.get('prev_n_words', ''))
-            post_words_list.append(span_sample.get('post_n_words', ''))
-            numeric_matrix[i, 0] = span_sample.get('candidate_percent10', 1.0)
-            numeric_matrix[i, 1] = span_sample.get('doc_percent', 1.0)
+        numeric_matrix = np.zeros(shape=(len(span_candidate_list), 2))
+        for i, span_candidate in enumerate(span_candidate_list):
+            prev_words_list.append(span_candidate.get('prev_n_words', ''))
+            post_words_list.append(span_candidate.get('post_n_words', ''))
+            numeric_matrix[i, 0] = span_candidate.get('candidate_percent10', 1.0)
+            numeric_matrix[i, 1] = span_candidate.get('doc_percent', 1.0)
 
         if fit_mode:
             self.prev_words_vectorizer.fit(prev_words_list)
@@ -121,29 +121,29 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
 
     # return self
     def fit(self,
-            span_sample_list: List[Dict],
+            span_candidate_list: List[Dict],
             # pylint: disable=invalid-name
             y: Optional[List[bool]] = None):
         start_time = time.time()
-        self.samples_to_matrix(span_sample_list, y, fit_mode=True)
+        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
         end_time = time.time()
         SurroundWordTransformer.fit_count += 1
-        logging.debug("%s fit called #%d, len(span_sample_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.fit_count, len(span_sample_list),
+        logging.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
+                      self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return self
 
     # return X_out
     # not sure what sparse matrix is represented in typing; use List for now
     def transform(self,
-                  span_sample_list: List[Dict]) -> List:
+                  span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
         # pylint: disable=invalid-name
-        X_out = self.samples_to_matrix(span_sample_list, [], fit_mode=False)
+        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
         end_time = time.time()
         SurroundWordTransformer.transform_count += 1
-        logging.debug("%s transform called #%d, len(span_sample_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.transform_count, len(span_sample_list),
+        logging.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
+                      self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return X_out
 
@@ -157,15 +157,15 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
         self.version = '1.0'
         self.words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
 
-    # span_sample_list should be a list of dictionaries
+    # span_candidate_list should be a list of dictionaries
     # pylint: disable=unused-argument, invalid-name
-    def samples_to_matrix(self,
-                          span_sample_list: List[Dict],
+    def candidates_to_matrix(self,
+                          span_candidate_list: List[Dict],
                           y: Optional[List[bool]],
                           fit_mode: bool = False):
         words_list = []
-        for span_sample in span_sample_list:
-            words_list.append(span_sample.get('text', ''))
+        for span_candidate in span_candidate_list:
+            words_list.append(span_candidate.get('text', ''))
 
         if fit_mode:
             self.words_vectorizer.fit(words_list)
@@ -177,27 +177,27 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
 
     # return self
     def fit(self,
-            span_sample_list: List[Dict],
+            span_candidate_list: List[Dict],
             # pylint: disable=invalid-name
             y: Optional[List[bool]] = None):
         start_time = time.time()
-        self.samples_to_matrix(span_sample_list, y, fit_mode=True)
+        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
         end_time = time.time()
         SurroundWordTransformer.fit_count += 1
-        logging.debug("%s fit called #%d, len(span_sample_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.fit_count, len(span_sample_list),
+        logging.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
+                      self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return self
 
     # return X_out
     # not sure what sparse matrix is represented in typing; use List for now
     def transform(self,
-                  span_sample_list: List[Dict]) -> List:
+                  span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
-        X_out = self.samples_to_matrix(span_sample_list, [], fit_mode=False)
+        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
         end_time = time.time()
         SurroundWordTransformer.transform_count += 1
-        logging.debug("%s transform called #%d, len(span_sample_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.transform_count, len(span_sample_list),
+        logging.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
+                      self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return X_out

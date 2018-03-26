@@ -34,8 +34,8 @@ class BaseAnnotator(ABC):
 
     # pylint: disable=too-many-arguments
     @abstractmethod
-    def train_samples(self,
-                      samples: List[Dict],
+    def train_candidates(self,
+                      candidates: List[Dict],
                       label_list: List[bool],
                       group_id_list: List[int],
                       pipeline: Pipeline,
@@ -51,7 +51,7 @@ class BaseAnnotator(ABC):
 
     @abstractmethod
     def predict_and_evaluate(self,
-                             samples: List[Dict],
+                             candidates: List[Dict],
                              label_list: List[bool],
                              work_dir: str,
                              is_debug=False):

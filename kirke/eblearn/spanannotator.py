@@ -1,4 +1,5 @@
 from collections import defaultdict
+import configparser
 from datetime import datetime
 import json
 import logging
@@ -17,6 +18,12 @@ from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc3, evalutils, strutils
 
 
+# pylint: disable=invalid-name
+config = configparser.ConfigParser()
+config.read('kirke.ini')
+
+CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
+
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 def adapt_pipeline_params(best_params):
@@ -27,6 +34,15 @@ def adapt_pipeline_params(best_params):
         else:
             pass  # skip eb_transformer_* and others
     return result
+
+
+def get_model_file_name(provision: str,
+                        candidate_type: str,
+                        model_dir: str):
+    base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
+                                                        candidate_type,
+                                                        CANDG_CLF_VERSION)
+    return "{}/{}".format(model_dir, base_model_fname)
 
 
 def recover_false_negatives(prov_human_ant_list,
@@ -47,22 +63,22 @@ def recover_false_negatives(prov_human_ant_list,
     return ant_result
 
 
-def antdoc_samplex_list_to_samplex(antdoc_samplex_list: List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+def antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list: List[Tuple[ebantdoc3.EbAnnotatedDoc3,
                                                                    List[Dict],
                                                                    List[bool],
                                                                    List[int]]]) \
         -> Tuple[List[Dict], List[bool], List[int]]:
-    all_samples = []  # type: List[Dict]
-    all_sample_labels = []  # type: List[bool]
+    all_candidates = []  # type: List[Dict]
+    all_candidate_labels = []  # type: List[bool]
     all_group_ids = []  # type: List[int]
-
-    for ant_samplex in antdoc_samplex_list:
-        unused_antdoc, samples, sample_labels, group_ids = ant_samplex
-        all_samples.extend(samples)
-        all_sample_labels.extend(sample_labels)
+    #change to list of lists to preserve antdocs?
+    for ant_candidatex in antdoc_candidatex_list:
+        unused_antdoc, candidates, candidate_labels, group_ids = ant_candidatex
+        all_candidates.extend(candidates)
+        all_candidate_labels.extend(candidate_labels)
         all_group_ids.extend(group_ids)
 
-    return all_samples, all_sample_labels, all_group_ids
+    return all_candidates, all_candidate_labels, all_group_ids
 
 
 class SpanAnnotator(baseannotator.BaseAnnotator):
@@ -74,10 +90,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  version: str,
                  *,
                  doclist_to_antdoc_list,
-                 docs_to_samples,
-                 sample_transformers,
+                 doc_to_candidates,
+                 candidate_transformers,
                  pipeline,
-                 postproc,
+                 doc_postproc_list: Optional[List] = None,
                  gridsearch_parameters,
                  # prefer recall over precision
                  threshold: float = 0.2,
@@ -89,13 +105,13 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
-        self.docs_to_samples = docs_to_samples
-        self.sample_transformers = sample_transformers
+        self.doc_to_candidates = doc_to_candidates
+        self.candidate_transformers = candidate_transformers
         self.pipeline = pipeline
         self.gridsearch_parameters = gridsearch_parameters
         self.threshold = threshold
         self.kfold = kfold
-        self.postproc = postproc
+        self.doc_postproc_list = doc_postproc_list if doc_postproc_list else []
 
         self.best_parameters = {}  # type: Dict[str, Any]
         self.estimator = None
@@ -109,10 +125,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                              self.candidate_type,
                              self.version,
                              doclist_to_antdoc_list=self.doclist_to_antdoc_list,
-                             docs_to_samples=self.docs_to_samples,
-                             sample_transformers=self.sample_transformers,
+                             doc_to_candidates=self.doc_to_candidates,
+                             candidate_transformers=self.candidate_transformers,
                              pipeline=self.pipeline,
-                             postproc=self.postproc,
+                             doc_postproc_list=self.doc_postproc_list,
                              gridsearch_parameters=self.gridsearch_parameters,
                              # prefer recall over precision
                              threshold=self.threshold,
@@ -120,34 +136,32 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
 
     # pylint: disable=too-many-arguments
-    def train_samples(self,
-                      samples: List[Dict],
+    def train_candidates(self,
+                      candidates: List[Dict],
                       label_list: List[bool],
                       group_id_list: List[int],
                       pipeline: Pipeline,
                       parameters: Dict,
                       work_dir: str) -> None:
-        logging.info('spanannotator.train_samples()...')
+        logging.info('spanannotator.train_candidates()...')
 
         logging.info("Performing grid search...")
         print("parameters:")
         pprint.pprint(parameters)
-
         pos_neg_map = defaultdict(int)  # type: DefaultDict[bool, int]
         for label in label_list:
             pos_neg_map[label] += 1
         for label, count in pos_neg_map.items():
-            logging.info("train_samples(), pos_neg_map[%s] = %d", label, count)
+            logging.info("train_candidates(), pos_neg_map[%s] = %d", label, count)
 
-        group_kfold = list(GroupKFold(n_splits=self.kfold).split(samples,
+        group_kfold = list(GroupKFold(n_splits=self.kfold).split(candidates,
                                                                  label_list,
                                                                  groups=group_id_list))
-        # grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
         grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
                                    verbose=1, cv=group_kfold)
 
         time_0 = time.time()
-        grid_search.fit(samples, label_list)
+        grid_search.fit(candidates, label_list)
         logging.info("done in %0.3fs", (time.time() - time_0))
 
         logging.info("Best score: %0.3f", grid_search.best_score_)
@@ -184,6 +198,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                        threshold=threshold,
                                                        prov_human_ant_list=prov_human_ant_list,
                                                        work_dir=work_dir)
+
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -223,7 +238,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         return self.ant_status, log_json
 
-    def test_antdoc(self, ebantdoc, threshold=None, work_dir='dir-work'):
+    def test_antdoc(self,
+                    ebantdoc: ebantdoc3.EbAnnotatedDoc3,
+                    threshold: Optional[float] = None,
+                    work_dir: str = 'dir-work'):
         if threshold is None:
             threshold = self.threshold
         ant_list = self.annotate_antdoc(ebantdoc,
@@ -237,7 +255,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
         # pred_prob_start_end_list, txt)
         # pylint: disable=C0103
-        tp, fn, fp, tn, unused_fall_out, unused_json_return = \
+        tp, fn, fp, tn, fallout, unused_json_return = \
             evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                     ant_list,
                                                     ebantdoc.file_id,
@@ -258,21 +276,15 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
 
 
-    # returns samples, label_list, group_id_list
-    # this also enriches samples using additional self.sample_transformers
-    def documents_to_samples(self,
-                             antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: Optional[str] = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
-                                                                        List[Dict],
-                                                                        List[bool],
-                                                                        List[int]]]:
-        result = self.docs_to_samples.documents_to_samples(antdoc_list, label)
-        # enrich the result with more transformers
-        for t4tuple in result:
-            unused_antdoc, samples, unused_sample_labels, unused_group_ids = t4tuple
-            for sample_transformer in self.sample_transformers:
-                for sample in samples:
-                    sample_transformer.enrich(sample)
+    # returns candidates, label_list, group_id_list
+    # this also enriches candidates using additional self.candidate_transformers
+    def documents_to_candidates(self,
+                                antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
+                                label: Optional[str] = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                                                                List[Dict],
+                                                                List[bool],
+                                                                List[int]]]:
+        result = self.doc_to_candidates.documents_to_candidates(antdoc_list, label)
         return result
 
     def annotate_antdoc(self,
@@ -292,22 +304,24 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             threshold = self.threshold
 
         start_time = time.time()
-        samples, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
+        candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
                       self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
-        post_processor = ebpostproc.obtain_postproc(self.postproc)
-        # change to x_threshold to pass "mypy" type checking
-        prov_annotations, x_threshold = post_processor.post_process(eb_antdoc.text,
-                                                                    list(zip(samples, prob_list)),
-                                                                    threshold,
-                                                                    provision=self.provision,
-                                                                    # pylint: disable=line-too-long
-                                                                    prov_human_ant_list=prov_human_ant_list)
+        prov_annotations = candidates
+        x_threshold = threshold
+        
         prov_annotations = recover_false_negatives(prov_human_ant_list,
                                                    eb_antdoc.text,
-                                                   self.provision, prov_annotations)
+                                                   self.provision,
+                                                   prov_annotations)
+
+        # If there is no human annotation, must be normal annotation.
+        # Remove anything below threshold
+        if not prov_human_ant_list:
+            prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= x_threshold]
+
         return prov_annotations, x_threshold
 
     def get_eval_status(self):
@@ -343,36 +357,48 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                      ant_status['prec'], ant_status['recall'], ant_status['f1']]
             print('\t'.join([str(x) for x in aline]), file=pmout)
 
-    # return a list of samples, a list of labels
+    # return a list of candidates, a list of labels
     def predict_antdoc(self,
                        eb_antdoc: ebantdoc3.EbAnnotatedDoc3,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
-        logging.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
-
+        # logging.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        text = eb_antdoc.text
         # label_list, group_id_list are ignored
-        antdoc_samplex_list = self.documents_to_samples([eb_antdoc])
-        samples, unused_label_list, unused_group_ids = \
-                antdoc_samplex_list_to_samplex(antdoc_samplex_list)
+        antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
+        candidates, unused_label_list, unused_group_ids = \
+                antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list)
 
-        if not samples:
+        if not candidates:
             return [], []
-
-        # to indicate which type of annotation this is
-        for sample in samples:
-            sample['label'] = self.provision
 
         probs = [] # type: List[float]
         if self.estimator:
-            probs = self.estimator.predict_proba(samples)[:, 1]
-        return samples, probs
+            probs = self.estimator.predict_proba(candidates)[:, 1]
+
+        # to indicate which type of annotation this is
+        for i, (candidate, prob) in enumerate(zip(candidates, probs)):
+            candidate['label'] = self.provision
+            candidate['prob'] = prob
+
+            # make sure the 'start' and 'end' are precise
+            if candidate.get('match_start'):
+                candidate['start'] = candidate['match_start']
+                candidate['end'] = candidate['match_end']
+                candidate['text'] = text[candidate['match_start']:candidate['match_end']]
+
+        # apply post processing, such as date normalization
+        # in case there is any bad apple, with 'reject' == True
+        for post_proc in self.doc_postproc_list:
+            post_proc.doc_postproc(candidates)
+
+        return candidates, probs
 
     def predict_and_evaluate(self,
-                             samples: List[Dict],
+                             candidates: List[Dict],
                              label_list: List[bool],
                              work_dir: str,
                              is_debug: bool = False):
         logging.info('spanannotator.predict_and_evaluate()...')
-
         pos_neg_map = defaultdict(int)  # type: DefaultDict[bool, int]
         for label in label_list:
             pos_neg_map[label] += 1
@@ -384,7 +410,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         probs = [] # type: List[float]
         if self.estimator:
-            probs = self.estimator.predict_proba(samples)[:, 1]
+            probs = self.estimator.predict_proba(candidates)[:, 1]
 
         self.classifier_status['classifer_type'] = 'spanclassifier'
         self.classifier_status['eval_status'] = evalutils.calc_pred_status_with_prob(probs, y_te)

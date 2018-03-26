@@ -10,13 +10,13 @@ ALL_KEYWORDS = addresses.addr_keywords()
 # pylint: disable=too-few-public-methods
 class AddrContextGenerator:
 
-    def __init__(self, num_prev_words: int, num_post_words: int, sample_type: str) -> None:
+    def __init__(self, num_prev_words: int, num_post_words: int, candidate_type: str) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
-        self.sample_type = sample_type
+        self.candidate_type = candidate_type
 
     # pylint: disable=too-many-locals
-    def documents_to_samples(self,
+    def documents_to_candidates(self,
                              antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
                              label: str = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
                                                               List[Dict],
@@ -26,7 +26,7 @@ class AddrContextGenerator:
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
-            samples = []  # type: List[Dict]
+            candidates = []  # type: List[Dict]
             label_list = []   # type: List[bool]
             group_id_list = []  # type: List[int]
 
@@ -46,7 +46,7 @@ class AddrContextGenerator:
                 nl_text = antdoc.nl_text
 
             if group_id % 10 == 0:
-                logging.info('AddrContextGenerator.documents_to_samples(), group_id = %d', group_id)
+                logging.info('AddrContextGenerator.documents_to_candidates(), group_id = %d', group_id)
 
             #finds all addresses in the text and adds window around each as a candidate
             for addr in addresses.find_addresses(nl_text, ALL_KEYWORDS):
@@ -54,12 +54,12 @@ class AddrContextGenerator:
                 is_label = ebsentutils.check_start_end_overlap(addr_start,
                                                                addr_end,
                                                                label_ant_list)
-                prev_n_words, prev_spans = strutils.get_prev_n_words_with_quote_nl(nl_text,
-                                                                                   addr_start,
-                                                                                   self.num_prev_words)
-                post_n_words, post_spans = strutils.get_post_n_words_with_quote_nl(nl_text,
-                                                                                   addr_end,
-                                                                                   self.num_post_words)
+                prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
+                                                                          addr_start,
+                                                                          self.num_prev_words)
+                post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
+                                                                          addr_end,
+                                                                          self.num_post_words)
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                             addr_st,
                                             ' '.join(post_n_words))
@@ -72,7 +72,7 @@ class AddrContextGenerator:
                 if post_spans:
                     bow_end = post_spans[-1][-1]
 
-                a_sample = {'sample_type': self.sample_type,
+                a_candidate = {'candidate_type': self.candidate_type,
                             'bow_start': bow_start,
                             'bow_end': bow_end,
                             'text': new_bow,
@@ -81,15 +81,15 @@ class AddrContextGenerator:
                             'prev_n_words': ' '.join(prev_n_words),
                             'post_n_words': ' '.join(post_n_words),
                             'has_addr': True}
-                samples.append(a_sample)
+                candidates.append(a_candidate)
 
                 #update group ids and label list
                 group_id_list.append(group_id)
                 if is_label:
-                    a_sample['label_human'] = label
+                    a_candidate['label_human'] = label
                     label_list.append(True)
                 else:
                     label_list.append(False)
 
-            result.append((antdoc, samples, label_list, group_id_list))
+            result.append((antdoc, candidates, label_list, group_id_list))
         return result
