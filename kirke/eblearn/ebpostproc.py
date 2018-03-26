@@ -1635,9 +1635,7 @@ class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
             # at all.  Now we generate the samples, so it not totally miss the human annotation.
             if merged_sample_prob['prob'] >= threshold or overlap:
                 new_sample = copy.deepcopy(merged_sample_prob)
-                new_sample['start'] = new_sample['match_start']
-                new_sample['end'] = new_sample['match_end']
-                new_sample['text'] = doc_text[new_sample['match_start']:new_sample['match_end']]
+                new_sample['text'] = doc_text[new_sample['start']:new_sample['end']]
                 ant_result.append(new_sample)
         return ant_result, threshold
 

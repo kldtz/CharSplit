@@ -57,16 +57,6 @@ class DateSpanGenerator:
 
                 # change num_prev_word, num_post_word to 12, 12 get this very close to optimal 0.772
                 # now it's 0.771
-                """
-                prev_n_words, prev_spans = \
-                    strutils.get_prev_n_clx_tokens(nl_text,
-                                                   match_start,
-                                                   self.num_prev_words-1)
-                post_n_words, post_spans = \
-                    strutils.get_post_n_clx_tokens(nl_text,
-                                                   match_end,
-                                                   self.num_post_words-1)
-                """
 
                 prev_n_words, prev_spans = \
                     strutils.get_prev_n_words_with_quote_nl(nl_text,
@@ -116,11 +106,11 @@ class DateSpanGenerator:
 
                 candidate_percentage10 = min((mat_i + 1) / 10.0, 1.0)
                 a_sample = {'sample_type': self.sample_type,
-                            'start': new_start,
-                            'end': new_end,
+                            'bow_start': new_start,
+                            'bow_end': new_end,
                             'text': new_bow,
-                            'match_start': match_start,
-                            'match_end': match_end,
+                            'start': match_start,
+                            'end': match_end,
                             'prev_n_words': ' '.join(prev_n_words_plus),
                             'post_n_words': ' '.join(post_n_words_plus),
                             'candidate_percent10': candidate_percentage10,

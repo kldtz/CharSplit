@@ -54,12 +54,12 @@ class AddrContextGenerator:
                 is_label = ebsentutils.check_start_end_overlap(addr_start,
                                                                addr_end,
                                                                label_ant_list)
-                prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text,
-                                                                        addr_start,
-                                                                        self.num_prev_words)
-                post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text,
-                                                                        addr_end,
-                                                                        self.num_post_words)
+                prev_n_words, prev_spans = strutils.get_prev_n_words_with_quote_nl(nl_text,
+                                                                                   addr_start,
+                                                                                   self.num_prev_words)
+                post_n_words, post_spans = strutils.get_post_n_words_with_quote_nl(nl_text,
+                                                                                   addr_end,
+                                                                                   self.num_post_words)
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                             addr_st,
                                             ' '.join(post_n_words))
@@ -73,11 +73,11 @@ class AddrContextGenerator:
                     bow_end = post_spans[-1][-1]
 
                 a_sample = {'sample_type': self.sample_type,
-                            'start': bow_start,
-                            'end': bow_end,
+                            'bow_start': bow_start,
+                            'bow_end': bow_end,
                             'text': new_bow,
-                            'match_start': addr_start,
-                            'match_end': addr_end,
+                            'start': addr_start,
+                            'end': addr_end,
                             'prev_n_words': ' '.join(prev_n_words),
                             'post_n_words': ' '.join(post_n_words),
                             'has_addr': True}
