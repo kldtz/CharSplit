@@ -17,7 +17,7 @@ from kirke.utils import ebantdoc2, evalutils, splittrte, strutils, txtreader
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import titles, parties, dates
 
-DEFAULT_CV = 5
+DEFAULT_CV = 3
 
 # MIN_FULL_TRAINING_SIZE = 30
 ## this is the original val
@@ -77,17 +77,20 @@ def log_custom_model_eval_status(ant_status):
         print('\t'.join([str(x) for x in aline]), file=pmout)
 
 
-def cv_train_at_annotation_level(provision, x_traindoc_list, bool_list,
+def cv_train_at_annotation_level(provision,
+                                 x_traindoc_list,
+                                 bool_list,
                                  eb_classifier_orig,
-                                 model_file_name,
-                                 model_dir,
-                                 work_dir):
-    # we do 4-fold cross validation, as the big set for custom training
-    # test_size = 0.25
+                                 model_file_name: str,
+                                 model_num: int,
+                                 model_dir: str,
+                                 work_dir: str):
+    # we do 3-fold cross validation, as the big set for custom training
+    # test_size = 0.33
     # this will be looped mutliple times, so a list, not a generator
     x_antdoc_list = list(ebantdoc2.traindoc_list_to_antdoc_list(x_traindoc_list, work_dir))
 
-    num_fold = 4
+    num_fold = DEFAULT_CV
     # distribute positives to all buckets
     pos_list, neg_list = [], []
     for x_antdoc, label in zip(x_antdoc_list, bool_list):
@@ -148,7 +151,9 @@ def cv_train_at_annotation_level(provision, x_traindoc_list, bool_list,
     prov_annotator.eval_status = ant_status
     pprint(ant_status)
 
-    model_status_fn = model_dir + '/' +  provision + ".status"
+    model_status_fn = '{}/{}.{}.status'.format(model_dir,
+                                               provision,
+                                               model_num)
     strutils.dumps(json.dumps(ant_status), model_status_fn)
     timestr = time.strftime("%Y%m%d-%H%M%S")
     result_fn = model_dir + '/' + provision + "-ant_result-" + timestr + ".json"
@@ -191,13 +196,21 @@ def train_eval_annotator(provision,
 
     attrvec_list = []
     group_id_list = []
+    num_pos_ant = 0
     for group_id, eb_traindoc in enumerate(eb_traindoc_list):
         tmp_attrvec_list = eb_traindoc.get_attrvec_list()
         attrvec_list.extend(tmp_attrvec_list)
         group_id_list.extend([group_id] * len(tmp_attrvec_list))
 
-    num_pos_label, num_neg_label = 0, 0
+        human_ant_list = eb_traindoc.prov_annotation_list
+        for human_ant in human_ant_list:
+            if provision == human_ant.label:
+                num_pos_ant += 1
+    # based on human annotations only, we don't know the num_neg_ant
+    logging.info("num_pos_ant: %d", num_pos_ant)
 
+    # these are for sentences
+    num_pos_label, num_neg_label = 0, 0
     for attrvec in attrvec_list:
         if provision in attrvec.labels:
             num_pos_label += 1
@@ -205,6 +218,7 @@ def train_eval_annotator(provision,
             # print("    [[{}]]".format(attrvec.bag_of_words))
         else:
             num_neg_label += 1
+
     # pylint: disable=C0103
     X = eb_traindoc_list
     y = [provision in eb_traindoc.get_provision_set()
@@ -216,7 +230,7 @@ def train_eval_annotator(provision,
             num_doc_pos += 1
         else:
             num_doc_neg += 1
-    print("provision: {}, pos= {}, neg= {}".format(provision, num_doc_pos, num_doc_neg))
+    logging.info("provision: %s, num_doc_pos= %d, num_doc_neg= %d", provision, num_doc_pos, num_doc_neg)
     # TODO, jshaw, hack, such as for sechead
     if num_doc_neg < 2:
         y[0] = 0
@@ -224,48 +238,13 @@ def train_eval_annotator(provision,
 
     # only in custom training mode and the positive training instances are too few
     # only train, no independent testing
-    if custom_training_mode and num_pos_label < MIN_FULL_TRAINING_SIZE:
-        logging.info("training with %d instances, no test (<%d) .  num_pos= %d, num_neg= %d",
+    # corss validation is applied to all Bespoke training
+    if custom_training_mode:  #  and num_pos_label < MIN_FULL_TRAINING_SIZE:
+        logging.info("training with %d instances, no test (<%d) .  num_inst_pos= %d, num_inst_neg= %d",
                      len(attrvec_list), MIN_FULL_TRAINING_SIZE, num_pos_label, num_neg_label)
         X_train = X
-        # y_train = y
         train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir, provision, doc_lang)
         splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
-        # We use cv_scores to generate a more detailed status resport
-        # than just a score number for cross-validation folds.
-        _, cv_scores = eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
-
-        print("eb_classifier.best_parameters")
-        best_parameters = eb_classifier.best_parameters
-        pprint(best_parameters)
-
-        y_label_list = [provision in attrvec.labels for attrvec in attrvec_list]
-
-        # this setup eb_classifier.status
-        pred_status = calc_scut_predict_evaluate(eb_classifier,
-                                                 attrvec_list,
-                                                 cv_scores,
-                                                 y_label_list)
-
-        # make the classifier into an annotator
-        prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-
-        ant_status = {'provision' : provision,
-                      'pred_status' : pred_status}
-        prov_annotator.eval_status = ant_status
-        pprint(ant_status)
-
-        if model_num:
-            model_status_fn = '{}/{}.{}.status'.format(model_dir,
-                                                       provision,
-                                                       model_num)
-        else:
-            model_status_fn = '{}/{}.status'.format(model_dir, provision)
-        strutils.dumps(json.dumps(ant_status), model_status_fn)
-
-        # NOTE: jshaw
-        # we should output a log file, based on the pred_status.
-        # Need to look into tmp_preds and do a customize log generation for this?
 
         prov_annotator2, combined_log_json = \
             cv_train_at_annotation_level(provision,
@@ -273,9 +252,10 @@ def train_eval_annotator(provision,
                                          y,
                                          eb_classifier,
                                          model_file_name,
+                                         model_num,
                                          model_dir,
                                          work_dir)
-        # return prov_annotator
+
         return prov_annotator2, combined_log_json
 
     logging.info("training with %d instances, num_pos= %d, num_neg= %d",
