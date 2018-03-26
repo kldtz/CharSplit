@@ -197,6 +197,8 @@ class FromToMapper:
 
     def get_lnpos_list_se_offsets(self, from_start: int, from_end: int) -> Tuple[List[linepos.LnPos], int, int]:
         start_idx, start_diff = find_index_diff(from_start, self.frstart_list)
+        if start_idx < 0:  # maybe empty text
+            return [], -1, -1
 
         end_idx, end_diff = find_index_diff(from_end, self.frstart_list)
 
@@ -347,6 +349,8 @@ class FromToMapper:
             raw_start, raw_end, label = antx.to_tuple()
 
             span_list = self.get_span_list(raw_start, raw_end)
+            if not span_list:  # cannot be found, mabye text is empty
+                continue
 
             corenlp_start = span_list[0]['start']
             corenlp_end = span_list[-1]['end']
