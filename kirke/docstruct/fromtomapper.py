@@ -139,7 +139,11 @@ class StartLnPosDiff:
         self.diff = diff
 
     def __lt__(self, other):
+        # assuming first part of the tuple is never equal
         return self.start_lnpos < other.start_lnpos
+
+    def __str__(self):
+        return "StartLnPosDiff(({}, {}), {})".format(self.start_lnpos[0], self.start_lnpos[1], self.diff)
 
 
 # from_start_lnpos_list
@@ -193,6 +197,8 @@ class FromToMapper:
 
     def get_lnpos_list_se_offsets(self, from_start: int, from_end: int) -> Tuple[List[linepos.LnPos], int, int]:
         start_idx, start_diff = find_index_diff(from_start, self.frstart_list)
+        if start_idx < 0:  # maybe empty text
+            return [], -1, -1
 
         end_idx, end_diff = find_index_diff(from_end, self.frstart_list)
 
@@ -224,12 +230,23 @@ class FromToMapper:
 
         # if there is only 1 line, no chance of diff being different, skip
         # print("len(to_start_lnpos_ediff_list) = {}".format(len(to_start_lnpos_ediff_list)))
-        if len(to_start_lnpos_ediff_list) != 1:
+        if len(to_start_lnpos_ediff_list) > 1:
             # there is some chance if the from and to line got reordered
             # to_start_lnpos_ediff_list[0][1] = start_diff
             to_start_lnpos_ediff_list[-1].diff = end_diff
             
         # order the chosen to_list by its starts
+        # but first, remove all lnpos with gap to avoid duplicated start.
+        removed_gap_to_start_lnpos_ediff_list = []
+        for tmp_start_lnpos_ediff in to_start_lnpos_ediff_list:
+            tmp_start, tmp_lnpos_ediff = tmp_start_lnpos_ediff.start_lnpos
+            # remove those with 'gap'
+            if tmp_lnpos_ediff.start != tmp_lnpos_ediff.end:
+                removed_gap_to_start_lnpos_ediff_list.append(tmp_start_lnpos_ediff)
+            # else:
+            #    print("skipping {}".format(tmp_start_lnpos_ediff))
+        to_start_lnpos_ediff_list = removed_gap_to_start_lnpos_ediff_list
+        # Now, order the list by 'start', which has no duplicates now
         tmp_to_start_lnpos_ediff_list = to_start_lnpos_ediff_list
         to_start_lnpos_ediff_list = sorted(to_start_lnpos_ediff_list)
 
@@ -266,6 +283,9 @@ class FromToMapper:
         #    print('\n\n')
         #    print("get_span_list(self, {}, {}) is empty".format(from_start, from_end))
         #    print('lnpos_list: {}'.format(lnpos_list))
+
+        if not lnpos_list:
+            return []
 
         if len(lnpos_list) == 1:
             lnpos = lnpos_list[0]
@@ -342,6 +362,8 @@ class FromToMapper:
             raw_start, raw_end, label = antx.to_tuple()
 
             span_list = self.get_span_list(raw_start, raw_end)
+            if not span_list:  # cannot be found, mabye text is empty
+                continue
 
             corenlp_start = span_list[0]['start']
             corenlp_end = span_list[-1]['end']
