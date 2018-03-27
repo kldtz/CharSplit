@@ -15,18 +15,11 @@ from kirke.ebrules import addrannotator, dummyannotator, dates
 from kirke.sampleutils import regexgen, addrgen, dategen, transformerutils
 from kirke.utils import ebantdoc3
 
-# pylint: disable=pointless-string-statement
-"""
-For the same candidate type', such as 1.Currency or 1.Number,
-there can be different versions, but the candidate type name should be
-kept the same.  There should be a "frozen" list of those config so
-that people are aware not to touch any of the classes mentioned in
-those configs.  There will be a default config list, in which people
-can modify at will.  The one with the highest version will be used if
-no model for that candidate generation type can be found. (edited)
-
-'provision' is outside of annotatorconfig.py.
-"""
+# Different provisions can use the same candidate type, such as Currency
+# or Number.  The specifications of 'provision' are outside of annotatorconfig.py.
+#
+# There are "frozen" lists of those config so that developer are aware not to touch
+# any of the classes mentioned in the frozen config lists.
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
@@ -84,10 +77,10 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                        'doc_to_candidates': regexgen.RegexContextGenerator(10,
-                                                                         10,
-                                                                         # pylint: disable=line-too-long
-                                                                         re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
-                                                                         'NUMBER'),
+                                                                           10,
+                                                                           # pylint: disable=line-too-long
+                                                                           re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
+                                                                           'NUMBER'),
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                        'pipeline': Pipeline([('union', FeatureUnion(
@@ -106,9 +99,9 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                         'doc_to_candidates': regexgen.RegexContextGenerator(15,
-                                                                          5,
-                                                                          re.compile(r'(\d+%)'),
-                                                                          'PERCENT'),
+                                                                            5,
+                                                                            re.compile(r'(\d+%)'),
+                                                                            'PERCENT'),
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(

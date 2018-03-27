@@ -130,13 +130,13 @@ def eval_span_annotator(label: str,
                         work_dir: str,
                         model_dir: str):
 
-    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir=model_dir)    
+    eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir=model_dir)
     # ebtrainer.eval_rule_annotator_with_trte(label, is_train_mode=True)
     eb_runner.eval_span_annotator(label,
                                   candidate_type,
                                   txt_fn_list_fn)
 
-        
+
 def eval_rule_annotator(label: str,
                         model_dir: str,
                         is_train_mode: bool = False):
@@ -350,7 +350,7 @@ def main():
                             candidate_type=args.candidate_type,
                             txt_fn_list_fn=txt_fn_list_fn,
                             work_dir=work_dir,
-                            model_dir=model_dir)        
+                            model_dir=model_dir)
     elif cmd == 'eval_rule_annotator':
         eval_rule_annotator(provision,
                             model_dir=model_dir,

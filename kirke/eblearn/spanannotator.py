@@ -332,14 +332,14 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         eval_status['ant_status'] = self.ant_status['eval_status']
         return eval_status
 
-    def print_eval_status(self, model_dir):
+    def print_eval_status(self, model_dir: str, model_num: int):
 
         eval_status = {'label': self.provision}
         eval_status['pred_status'] = self.classifier_status['eval_status']
         eval_status['ant_status'] = self.ant_status['eval_status']
         pprint.pprint(eval_status)
 
-        model_status_fn = model_dir + '/' +  self.provision + ".status"
+        model_status_fn = '{}/{}.{}.status'.format(model_dir, self.provision, model_num)
         strutils.dumps(json.dumps(eval_status), model_status_fn)
 
         with open('label_model_stat.tsv', 'a') as pmout:
