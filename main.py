@@ -190,6 +190,7 @@ def custom_train_annotator(provision: str,
                                                       custom_model_dir,
                                                       base_model_fname,
                                                       candidate_type=candidate_type,
+                                                      model_num=383838,
                                                       is_doc_structure=is_doc_structure,
                                                       work_dir=work_dir)
 

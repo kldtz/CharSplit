@@ -107,7 +107,8 @@ def cv_train_at_annotation_level(provision,
         else:
             neg_list.append((x_antdoc, label))
     pos_list.extend(neg_list)
-    bucket_x_map = defaultdict(list)
+    # this is a list of ebantdoc
+    bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List]
     for count, (x_antdoc, label) in enumerate(pos_list):
         # bucket_x_map[count % num_fold].append((x_antdoc, label))
         bucket_x_map[count % num_fold].append(x_antdoc)
@@ -121,8 +122,8 @@ def cv_train_at_annotation_level(provision,
     cv_ant_status_list = []
     for bucket_num in range(num_fold):  # cross train each bucket
 
-        train_buckets = []
-        test_bucket = None
+        train_buckets = []  # type: List
+        test_bucket = []  # type: List
         for bnum, bucket_x in bucket_x_map.items():
             if bnum != bucket_num:
                 train_buckets.extend(bucket_x)
@@ -343,7 +344,7 @@ def train_eval_annotator(provision: str,
                                            doc_lang=doc_lang)
     num_docs = len(eb_traindoc_list)
     
-    attrvec_list = []
+    attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     group_id_list = []
     num_pos_ant = 0
     for group_id, eb_traindoc in enumerate(eb_traindoc_list):

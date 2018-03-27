@@ -6,7 +6,7 @@ import re
 import sys
 from sys import getsizeof
 # pylint: disable=unused-import
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
 
 # Create a directory and any missing ancestor directories.
@@ -33,7 +33,7 @@ def get_model_files(dir_name: str) -> List[str]:
                 and 'classifier' in f and f.endswith('.pkl'))]
 
 
-def _find_fname_with_lang(lang: str, lang_fname_list: List[Tuple[str, str]]) -> str:
+def _find_fname_with_lang(lang: str, lang_fname_list: List[Tuple[str, str]]) -> Optional[str]:
     """Return the model file name that matches the language.
 
     Returns None if not even EN is available.
@@ -61,7 +61,7 @@ def _get_highest_version(ver_lang_fname_list: List[Tuple[int, Tuple[str, str]]])
 CUSTOM_MODEL_PREFIX_PAT = re.compile(r'((cust_\d+)(\.(\d+))?)_(..)(.)')
 
 
-def get_all_custom_provisions(dir_name: str) -> List[str]:
+def get_all_custom_provisions(dir_name: str) -> Set[str]:
     maybe_fnames = [f for f in os.listdir(dir_name)
                     if (os.path.isfile(os.path.join(dir_name, f))
                         and ('classifier' in f or
@@ -94,7 +94,7 @@ def get_all_custom_provisions(dir_name: str) -> List[str]:
 #      - Once highest version is chosen, the rest of logic is followed
 # Clearly, cust_prov with no version is much more costly because we have
 # to figure out which is the latest version.  This should be avoided.
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals, too-many-branches
 def get_custom_model_files(dir_name: str,
                            cust_prov_set: Set[str],
                            lang: str) -> List[Tuple[str, str]]:
@@ -111,11 +111,11 @@ def get_custom_model_files(dir_name: str,
 
     # the key is the cust_id_ver; 1st tuple str is 'lang', 2nd value is fname
     cust_idver_set = set([])  # type: Set[str]
-    cust_idver_fnames_map = defaultdict(list)  # DefaultDict[str, Tuple[str, str]]
+    cust_idver_fnames_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[str, str]]]
     # the key is the cust_id;
     # 1st tuple str is int(version), 2nd str is 'lang', 3rd value is fname
     cust_id_set = set([])  # type: Set[str]
-    cust_id_fnames_map = defaultdict(list)  # DefaultDict[str, Tuple[int, str, str]]
+    cust_id_fnames_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, Tuple[str, str]]]]
     # print("cust_prov_set: {}".format(cust_prov_set))
     for cust_prov in cust_prov_set:
         if '.' in cust_prov:
@@ -160,18 +160,22 @@ def get_custom_model_files(dir_name: str,
     cust_prov_fnames = []  # type: List[Tuple[str, str]]
     for cust_idver, lang_fname_list in cust_idver_fnames_map.items():
         if lang == 'all':  # this is for custom-train-export
-            for xlang, fname in lang_fname_list:
+            for unused_xlang, fname in lang_fname_list:
                 cust_prov_fnames.append((cust_idver, fname))
         else:
-            cust_prov_fnames.append((cust_idver, _find_fname_with_lang(lang, lang_fname_list)))
+            model_fn_with_lang = _find_fname_with_lang(lang, lang_fname_list)
+            if model_fn_with_lang:
+                cust_prov_fnames.append((cust_idver, model_fn_with_lang))
 
     for cust_id, ver_lang_fname_list in cust_id_fnames_map.items():
         lang_fname_list = _get_highest_version(ver_lang_fname_list)
         if lang == 'all':  # this is for custom-train-export
-            for xlang, fname in lang_fname_list:
+            for unused_xlang, fname in lang_fname_list:
                 cust_prov_fnames.append((cust_id, fname))
-        else:        
-            cust_prov_fnames.append((cust_id, _find_fname_with_lang(lang, lang_fname_list)))
+        else:
+            model_fn_with_lang = _find_fname_with_lang(lang, lang_fname_list)
+            if model_fn_with_lang:
+                cust_prov_fnames.append((cust_id, model_fn_with_lang))
 
     return cust_prov_fnames
 

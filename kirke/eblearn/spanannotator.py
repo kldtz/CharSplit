@@ -238,6 +238,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         return self.ant_status, log_json
 
+    # I believe nobody is calling this
+    """
     def test_antdoc(self,
                     ebantdoc: ebantdoc3.EbAnnotatedDoc3,
                     threshold: Optional[float] = None,
@@ -273,7 +275,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                           'prec': prec, 'recall': recall, 'f1': f1}}
 
         return tmp_eval_status
-
+    """
 
 
     # returns candidates, label_list, group_id_list
