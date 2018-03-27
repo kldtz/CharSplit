@@ -8,10 +8,8 @@ import logging
 import os.path
 import re
 import shutil
-import time
 import tempfile
 import zipfile
-import zlib
 # pylint: disable=unused-import
 from typing import DefaultDict, Dict, List, Optional, Tuple
 
@@ -168,9 +166,9 @@ def annotate_uploaded_document():
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 @app.route('/custom-train-export/<cust_id>', methods=['GET'])
-def custom_train_export(cust_id):
+def custom_train_export(cust_id: str):
     # to ensure that no accidental file name overlap
-    logging.info("cust_id = {}".format(cust_id))
+    logging.info("cust_id = %s", cust_id)
 
     cust_model_fnames = eb_runner.get_custom_model_files(cust_id)
     # create the zip file with all the provision and its langs
@@ -208,7 +206,7 @@ def custom_train_import():
         return jsonify(result_json)
 
     fname = '/tmp/{}_{}'.format(afile.filename, datetime.now().strftime('%Y%m%d%H%M%S'))
-    logging.info("importing custom model '{}'".format(fname))
+    logging.info("importing custom model '%s'", fname)
     afile.save(fname)
 
     # Increment the model number and
@@ -258,7 +256,7 @@ def custom_train(cust_id: str):
         work_dir = WORK_DIR
 
     candidate_type = request.form.get('candidate_type')
-    if not candidate_type:		
+    if not candidate_type:
         candidate_type = 'SENTENCE'
 
     # to ensure that no accidental file name overlap
