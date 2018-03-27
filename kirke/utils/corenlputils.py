@@ -1,7 +1,7 @@
 import re
 import json
 import logging
-from typing import List
+from typing import Any, List, Optional
 
 from stanfordcorenlp import StanfordCoreNLP
 
@@ -25,7 +25,10 @@ NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
 # WARNING: all the spaces before the first non-space character will be removed in the output.
 # In other words, the offsets will be incorrect if there are prefix spaces in the text.
 # We will fix those issues in the later modules, not here.
-def annotate(text_as_string: str, doc_lang: str):
+def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
+    if not doc_lang: # no language detected, text is probably too short or empty
+        return {'sentences': []}
+
     no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
