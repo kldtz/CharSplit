@@ -381,12 +381,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for i, (candidate, prob) in enumerate(zip(candidates, probs)):
             candidate['label'] = self.provision
             candidate['prob'] = prob
-
-            # make sure the 'start' and 'end' are precise
-            if candidate.get('match_start'):
-                candidate['start'] = candidate['match_start']
-                candidate['end'] = candidate['match_end']
-                candidate['text'] = text[candidate['match_start']:candidate['match_end']]
+            candidate['text'] = text[candidate['start']:candidate['end']]
 
         # apply post processing, such as date normalization
         # in case there is any bad apple, with 'reject' == True
