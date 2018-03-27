@@ -59,12 +59,12 @@ class RegexContextGenerator:
                 is_label = ebsentutils.check_start_end_overlap(match_start,
                                                                match_end,
                                                                label_ant_list)
-                prev_n_words, prev_spans = strutils.get_lc_prev_n_words(nl_text,
-                                                                        match_start,
-                                                                        self.num_prev_words)
-                post_n_words, post_spans = strutils.get_lc_post_n_words(nl_text,
-                                                                        match_end,
-                                                                        self.num_post_words)
+                prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
+                                                                          match_start,
+                                                                          self.num_prev_words)
+                post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
+                                                                          match_end,
+                                                                          self.num_post_words)
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                             match_str,
                                             ' '.join(post_n_words))
@@ -78,11 +78,11 @@ class RegexContextGenerator:
                     new_end = post_spans[-1][-1]
 
                 a_candidate = {'candidate_type': self.candidate_type,
-                            'start': new_start,
-                            'end': new_end,
+                            'bow_start': new_start,
+                            'bow_end': new_end,
                             'text': new_bow,
-                            'match_start': match_start,
-                            'match_end': match_end,
+                            'start': match_start,
+                            'end': match_end,
                             'prev_n_words': ' '.join(prev_n_words),
                             'post_n_words': ' '.join(post_n_words)}
                 candidates.append(a_candidate)

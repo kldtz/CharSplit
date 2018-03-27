@@ -98,11 +98,11 @@ class DateSpanGenerator:
 
                 candidate_percentage10 = min((mat_i + 1) / 10.0, 1.0)
                 a_candidate = {'candidate_type': self.candidate_type,
-                            'start': new_start,
-                            'end': new_end,
+                            'bow_start': new_start,
+                            'bow_end': new_end,
                             'text': new_bow,
-                            'match_start': match_start,
-                            'match_end': match_end,
+                            'start': match_start,
+                            'end': match_end,
                             'prev_n_words': ' '.join(prev_n_words_plus),
                             'post_n_words': ' '.join(post_n_words_plus),
                             'candidate_percent10': candidate_percentage10,

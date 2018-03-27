@@ -1606,7 +1606,6 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
             prev_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
         return ant_result, threshold
 
-
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'choiceoflaw': PostPredChoiceOfLawProc(),
