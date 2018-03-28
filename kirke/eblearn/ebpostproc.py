@@ -103,67 +103,6 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list: List[ConciseProbAttrvec],
         result.append(merge_cx_prob_attrvecs_with_entities(prev_list))
     return result
 
-# pylint: disable=invalid-name
-def merge_candidate_probs_aux(candidate_prob_list: List[Tuple[Dict, float]]) -> Dict[str, Any]:
-    # don't bother with len 1
-    if len(candidate_prob_list) == 1:
-        candidate, prob = candidate_prob_list[0]
-        candidate['span_list'] = [{'start': candidate['start'],
-                                'end': candidate['end']}]
-        candidate['prob'] = prob
-        return candidate
-
-    candidate, prob = candidate_prob_list[0]
-    label = candidate['label']
-    max_prob = prob
-    min_start = candidate['start']
-    max_end = candidate['end']
-    line_list = [candidate['text']]
-
-    span_list = []
-    for candidate, prob in candidate_prob_list[1:]:
-        if prob > max_prob:
-            max_prob = prob
-        if candidate['start'] < min_start:
-            min_start = candidate['start']
-        if candidate['end'] > max_end:
-            max_end = candidate['end']
-        line_list.append(candidate['text'])
-        span_list.append({'start': candidate['start'],
-                          'end': candidate['end']})
-    out = {'label': label,
-           'prob': max_prob,
-           'start': min_start,
-           'end': max_end,
-           'span_list': span_list,
-           'text': ' '.join(line_list)}
-
-    return out
-
-
-def merge_candidate_prob_list(candidate_prob_list: List[Tuple[Dict, float]], threshold: float) \
-    -> List[Dict[str, Any]]:
-    """Merge adjacent candidates if their score is above threshold.
-
-    This also guarantees that "span_list" is set up correctly during the merging.
-    """
-    result = []  # type: List[Dict[str, Any]]
-    prev_list = []
-    for candidate, prob in candidate_prob_list:
-        if prob >= threshold:
-            prev_list.append((candidate, prob))
-        else:
-            if prev_list:
-                result.append(merge_candidate_probs_aux(prev_list))
-                prev_list = []
-            candidate['prob'] = prob
-            if not candidate.get('span_list'):
-                candidate['span_list'] = [{'start': candidate['start'],
-                                        'end': candidate['end']}]
-            result.append(candidate)
-    if prev_list:
-        result.append(merge_candidate_probs_aux(prev_list))
-    return result
 
 SHORT_PROVISIONS = set(['title', 'date', 'effectivedate', 'sigdate', 'choiceoflaw'])
 
