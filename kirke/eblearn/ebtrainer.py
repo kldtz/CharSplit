@@ -566,6 +566,7 @@ def train_eval_span_annotator(provision: str,
         spanannotator.SpanAnnotator(provision,
                                     candidate_type,
                                     version=config['version'],
+                                    nbest=config.get('nbest', None),
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                     doc_to_candidates=config['doc_to_candidates'],
                                     candidate_transformers=config.get('candidate_transformers', []),
@@ -616,7 +617,6 @@ def train_eval_span_annotator(provision: str,
                                                    span_annotator,
                                                    model_dir,
                                                    work_dir)
-
             prov_annotator2.print_eval_status(model_dir, model_num)
             prov_annotator2.save(model_file_name)
 
@@ -694,7 +694,6 @@ def train_eval_span_annotator(provision: str,
     unused_ant_status, log_json = \
         span_annotator.test_antdoc_list(X_test,
                                         span_annotator.threshold)
-
     span_annotator.print_eval_status(model_dir, model_num)
     span_annotator.save(model_file_name)
 

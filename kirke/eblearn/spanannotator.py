@@ -88,6 +88,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  provision: str,
                  candidate_type: str,
                  version: str,
+                 nbest: int,
                  *,
                  doclist_to_antdoc_list,
                  doc_to_candidates,
@@ -102,6 +103,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.provision = provision
         self.candidate_type = candidate_type
         self.version = version
+        self.nbest = nbest
 
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
@@ -238,45 +240,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         return self.ant_status, log_json
 
-    # I believe nobody is calling this
-    """
-    def test_antdoc(self,
-                    ebantdoc: ebantdoc3.EbAnnotatedDoc3,
-                    threshold: Optional[float] = None,
-                    work_dir: str = 'dir-work'):
-        if threshold is None:
-            threshold = self.threshold
-        ant_list = self.annotate_antdoc(ebantdoc,
-                                        threshold=threshold,
-                                        work_dir=work_dir)
-        # print("ant_list: {}".format(ant_list))
-        prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-                               if hant.label == self.provision]
-        # print("human_list: {}".format(prov_human_ant_list))
-
-        # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
-        # pred_prob_start_end_list, txt)
-        # pylint: disable=C0103
-        tp, fn, fp, tn, fallout, unused_json_return = \
-            evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
-                                                    ant_list,
-                                                    ebantdoc.file_id,
-                                                    ebantdoc.get_text(),
-                                                    threshold,
-                                                    is_raw_mode=False,
-                                                    diagnose_mode=True)
-
-        title = "annotate_status, threshold = {}".format(self.threshold)
-        prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
-
-        tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp,
-                                                               'fn': fn, 'tp': tp},
-                                          'threshold': self.threshold,
-                                          'prec': prec, 'recall': recall, 'f1': f1}}
-
-        return tmp_eval_status
-    """
-
 
     # returns candidates, label_list, group_id_list
     # this also enriches candidates using additional self.candidate_transformers
@@ -318,7 +281,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                    eb_antdoc.text,
                                                    self.provision,
                                                    prov_annotations)
-
         # If there is no human annotation, must be normal annotation.
         # Remove anything below threshold
         if not prov_human_ant_list:
@@ -335,7 +297,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def print_eval_status(self, model_dir: str, model_num: int):
 
         eval_status = {'label': self.provision}
-        eval_status['pred_status'] = self.classifier_status['eval_status']
         eval_status['ant_status'] = self.ant_status['eval_status']
         pprint.pprint(eval_status)
 
@@ -343,7 +304,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         strutils.dumps(json.dumps(eval_status), model_status_fn)
 
         with open('label_model_stat.tsv', 'a') as pmout:
-            cls_status = self.classifier_status['eval_status']
+            cls_status = self.ant_status['eval_status']
             cls_cfmtx = cls_status['confusion_matrix']
             ant_status = self.ant_status['eval_status']
             ant_cfmtx = ant_status['confusion_matrix']
@@ -386,7 +347,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # apply post processing, such as date normalization
         # in case there is any bad apple, with 'reject' == True
         for post_proc in self.doc_postproc_list:
-            post_proc.doc_postproc(candidates)
+            candidates = post_proc.doc_postproc(candidates, self.nbest)
 
         return candidates, probs
 
