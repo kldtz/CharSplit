@@ -434,7 +434,7 @@ class DateNormalizer(DocCandidatesTransformer):
 
         try:
             # set dayfirst=True for UK dates, revisit later
-            print("parse_date({})".format(line))
+            # print("parse_date({})".format(line))
             norm = parser.parse(line, fuzzy=True, default=NoDefaultDate())
         except ValueError:
             print("x2523, failed to parse [{}] as a date".format(line))
