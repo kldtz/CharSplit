@@ -290,7 +290,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
     def get_eval_status(self):
         eval_status = {'label': self.provision}
-        eval_status['pred_status'] = self.classifier_status['eval_status']
+        # eval_status['pred_status'] = self.classifier_status['eval_status']
         eval_status['ant_status'] = self.ant_status['eval_status']
         return eval_status
 
