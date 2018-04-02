@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 from kirke.utils import unicodeutils, entityutils
 from kirke.utils.corenlpsent import EbSentence
@@ -40,8 +41,8 @@ def has_word_between(line: str) -> bool:
 def sent2ebattrvec(file_id: str,
                    ebsent: EbSentence,
                    sent_seq: int,
-                   prev_ebsent: EbSentence,
-                   next_ebsent: EbSentence,
+                   prev_ebsent: Optional[EbSentence],
+                   next_ebsent: Optional[EbSentence],
                    atext: str) -> ebattrvec.EbAttrVec:
     tokens = ebsent.get_tokens()
     text_len = len(atext)
@@ -50,9 +51,12 @@ def sent2ebattrvec(file_id: str,
     # TODO, pass in the token list, with lemma
     # will do chunking in the future also
     fvec = ebattrvec.EbAttrVec(file_id,
-                               ebsent.start, ebsent.end,
+                               ebsent.start,
+                               ebsent.end,
                                ebsent.get_tokens_text(),
-                               ebsent.labels, ebsent.entities, ebsent.sechead)
+                               ebsent.labels,
+                               ebsent.entities,
+                               ebsent.sechead)
 
     tmp_start = min(ENT_START_MAX, ebsent.start)
     tmp_end = min(ENT_END_MAX, ebsent.end)

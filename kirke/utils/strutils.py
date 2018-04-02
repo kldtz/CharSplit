@@ -530,10 +530,12 @@ def is_english_vowel(unich: str) -> bool:
 
 
 def find_substr_indices(sub_strx: str, text: str) -> List[Tuple[int, int]]:
-    result = []
-    for m in re.finditer(sub_strx, text):
-        result.append((m.start(), m.end()))
-    return result
+    return [(mat.start(), mat.end()) for mat in re.finditer(sub_strx, text)]
+
+
+def find_all_indices(sub_strx: str, text: str) -> List[int]:
+    return [mat.start() for mat in re.finditer(sub_strx, text)]
+
 
 def count_date(line: str) -> int:
     return len(find_substr_indices(r'(\d{1,2}/\d{1,2}/(20|19)\d\d)', line))

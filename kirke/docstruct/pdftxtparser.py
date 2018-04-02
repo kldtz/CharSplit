@@ -1,9 +1,13 @@
+
 import argparse
+import array
+from array import ArrayType
 from collections import defaultdict
 import logging
 import os
 import re
 import sys
+from typing import Dict, DefaultDict, List, Tuple
 
 
 from kirke.docstruct import docstructutils, linepos
@@ -18,14 +22,22 @@ MAX_FOOTER_YSTART = 10000
 
 DEBUG_MODE = False
 
-def get_nl_fname(base_fname, work_dir):
+def get_nl_fname(base_fname: str,
+                 work_dir: str) -> str:
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
 
-def get_paraline_fname(base_fname, work_dir):
+
+def get_paraline_fname(base_fname: str,
+                       work_dir: str) -> str:
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paraline.txt'))
 
 
-def text_offsets_to_nl(base_fname, orig_doc_text, line_breaks, work_dir, debug_mode=False):
+def text_offsets_to_nl(base_fname: str,
+                       orig_doc_text: str,
+                       line_breaks: List[Dict],
+                       work_dir: str,
+                       debug_mode: bool = False) \
+                       -> Tuple[str, str] :
     linebreak_offset_list = [lbrk['offset'] for lbrk in line_breaks]
     ch_list = list(orig_doc_text)
     for linebreak_offset in linebreak_offset_list:
@@ -38,7 +50,12 @@ def text_offsets_to_nl(base_fname, orig_doc_text, line_breaks, work_dir, debug_m
     return nl_text, nl_fname
 
 
-def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=False):
+def to_nl_paraline_texts(file_name: str,
+                         offsets_file_name: str,
+                         work_dir: str,
+                         debug_mode: bool = False) \
+                         -> Tuple[str, str, ArrayType, str, ArrayType, str, str, TextCpointCunitMapper]:
+    # orig_doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr, nl_fname, paraline_fn, cpoint_cunit_mapper:
     base_fname = os.path.basename(file_name)
 
     if debug_mode:
@@ -53,7 +70,10 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=Fals
     nl_text, nl_fname = text_offsets_to_nl(base_fname, orig_doc_text, line_breaks,
                                            work_dir=work_dir, debug_mode=debug_mode)
 
-    lxid_strinfos_map = defaultdict(list)
+    linebreak_offset_list = [lbrk['offset'] for lbrk in line_breaks]
+    linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
+
+    lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
     ## WARNING, some strx have no word/char in them, just spaces.
     ## It seems that some str with empty spaces might be intermixed with
     ## other strx, such as top of a page, blank_str, mixed with page_num
@@ -80,7 +100,7 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=Fals
             lxid_strinfos_map[line_num].append(StrInfo(start, end,
                                                        xStart, xEnd, yStart))
 
-    bxid_lineinfos_map = defaultdict(list)
+    bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
     tmp_prev_end = 0
     for i, break_offset in enumerate(line_breaks):
         start = tmp_prev_end
@@ -100,8 +120,10 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=Fals
                                                            lxid_strinfos_map[line_num]))
         tmp_prev_end = end + 1
 
-    pgid_pblockinfos_map = defaultdict(list)
+    pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]]
     block_info_list = []
+    # for nl_text, those that are not really line breaks
+    para_not_linebreak_offsets = []  # type: List[int]
     for pblock_offset in pblock_offsets:
         pblock_id = pblock_offset['id']
         start = pblock_offset['start']
@@ -112,11 +134,12 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=Fals
             end -= 1
 
         if start != end:
-            para_line, is_multi_lines = pdfutils.para_to_para_list(nl_text[start:end])
-            # print("para_line=======================")
-            # print(para_line)
-            # print("para_line==================end==")
-            # xStart, xEnd, yStart are initizlied in here
+            para_line, is_multi_lines, not_linebreaks = pdfutils.para_to_para_list(nl_text[start:end])
+            if not is_multi_lines:
+                for i in not_linebreaks:
+                    para_not_linebreak_offsets.append(start + i)
+
+            # print("is_multi_lines = {}, paraline: [{}]\n".format(is_multi_lines, para_line))
             block_info = PBlockInfo(start,
                                     end,
                                     pblock_id,
@@ -159,12 +182,13 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=Fals
     # extra stuff.
     ch_list = list(nl_text)
     for block_info in block_info_list:
-        block_text = block_info.text  # because of pblock might have multiple paragraphs; sad.
-        if block_info.is_multi_lines:
-            ch_list[block_info.start:block_info.end] = list(block_text)
-        else:
-            ch_list[block_info.start:block_info.end] = list(block_text.replace('\n', ' '))
+        block_text = block_info.text
+        # block_text is already formatted correct because of above
+        # pdfutils.para_to_para_list(nl_text[start:end])
+        ch_list[block_info.start:block_info.end] = list(block_text)
     paraline_text = ''.join(ch_list)
+
+    para_not_linebreak_arr = array.array('i', para_not_linebreak_offsets)  # type: ArrayType
 
     # save the result
     paraline_fn = get_paraline_fname(base_fname, work_dir)
@@ -172,7 +196,7 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=Fals
     if debug_mode:
         print('wrote {}, size= {}'.format(paraline_fn, len(paraline_text)), file=sys.stderr)
 
-    return orig_doc_text, nl_text, paraline_text, nl_fname, paraline_fn, cpoint_cunit_mapper
+    return orig_doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr, nl_fname, paraline_fn, cpoint_cunit_mapper
 
 
 def is_block_multi_line(linex_list):
@@ -600,7 +624,8 @@ def parse_document(file_name, work_dir, debug_mode=False):
             end -= 1
 
         if start != end:
-            para_line, is_multi_lines = pdfutils.para_to_para_list(nl_text[start:end])
+            para_line, is_multi_lines, unused_not_linebreaks = \
+                pdfutils.para_to_para_list(nl_text[start:end])
 
             linex_list = bxid_lineinfos_map[pblock_id]
             # xStart, xEnd, yStart are initizlied in here
