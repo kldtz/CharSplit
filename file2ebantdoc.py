@@ -11,7 +11,7 @@ from kirke.utils.corenlputils import annotate
 
 from kirke.utils import ebantdoc2
 from kirke.eblearn import ebattrvec
-from kirke.utils import osutils
+from kirke.utils import memutils
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
 
@@ -32,6 +32,10 @@ if __name__ == '__main__':
 
     # ebantdoc2.print_attrvec_list(eb_antdoc)
     ebantdoc2.print_para_list(eb_antdoc)
+
+    print("memory_size(eb_antdoc) = %d bytes" % (memutils.get_memory_size_bytes(eb_antdoc), ))
+    print("memory_size(eb_antdoc) = %.2f kilobytes" % (memutils.get_memory_size_kbytes(eb_antdoc), ))
+    print("memory_size(eb_antdoc) = %.2f megabytes" % (memutils.get_memory_size_mbytes(eb_antdoc), ))    
 
     """
     print("checking change_control annotation:")

@@ -6,8 +6,8 @@ import logging
 import os
 import re
 # pylint: disable=unused-import
-from typing import (Any, Dict, Generator, List, Match, Pattern,
-                    Set, Tuple, Union)
+from typing import Any, Dict, Generator, List, Match, Optional
+from typing import Pattern, Set, Tuple, Union
 import unicodedata
 import urllib.parse
 
@@ -137,15 +137,15 @@ def is_number(line: str) -> bool:
 NUM_ROMAN_PAT = re.compile(r'(([\(\“\”]?([\.\d]+|[ivx\d\.]+\b)[\)\“\”]?|'
                            r'[\(\“\”\.]?[a-z][\s\.\)\“\”])+)')
 
-def is_header_number(line: str) -> Match[str]:
-    return NUM_ROMAN_PAT.match(line)
+def is_header_number(line: str) -> bool:
+    return bool(NUM_ROMAN_PAT.match(line))
 # return SECHEAD_NUMBER_PAT.match(line)
 
 
 ROMAN_NUM_PAT = re.compile(r'^[ixv]+$', re.IGNORECASE)
 
-def is_roman_number(line: str) -> Match[str]:
-    return ROMAN_NUM_PAT.match(line)
+def is_roman_number(line: str) -> bool:
+    return bool(ROMAN_NUM_PAT.match(line))
 
 
 def is_int(line: str) -> bool:
@@ -175,11 +175,11 @@ ANY_ALPHA_PAT = re.compile(r'[a-zA-Z]')
 
 PARENS_ALL_DIGITS_PAT = re.compile(r'^\(\d+\)$')
 
-def is_all_digits(line: str) -> Match[str]:
-    return ALL_DIGITS_PAT.match(line)
+def is_all_digits(line: str) -> bool:
+    return bool(ALL_DIGITS_PAT.match(line))
 
-def is_parens_all_digits(line: str) -> Match[str]:
-    return PARENS_ALL_DIGITS_PAT.match(line)
+def is_parens_all_digits(line: str) -> bool:
+    return bool(PARENS_ALL_DIGITS_PAT.match(line))
 
 def is_all_digit_dot(line: str) -> bool:
     if not line:
@@ -199,26 +199,26 @@ def is_all_length_1_words(words: List[str]) -> bool:
 
 WORD_LC_PAT = re.compile('^[a-z]+$')
 
-def is_word_all_lc(word: str) -> Match[str]:
-    mat = WORD_LC_PAT.match(word)
-    return mat
+def is_word_all_lc(word: str) -> bool:
+    return bool(WORD_LC_PAT.match(word))
+
 
 # has more than 2 digits that's more than 3 width
 TWO_GT_3_NUM_SEQ_PAT = re.compile(r'\d{3}.*\d{3}')
-def has_likely_phone_number(line: str) -> Match[str]:
-    return TWO_GT_3_NUM_SEQ_PAT.search(line)
+def has_likely_phone_number(line: str) -> bool:
+    return bool(TWO_GT_3_NUM_SEQ_PAT.search(line))
 
-def is_all_alphas(line: str) -> Match[str]:
+def is_all_alphas(line: str) -> bool:
     return is_alpha_word(line)
 
-def is_all_alphas_dot(line: str) -> Match[str]:
-    return ALL_ALPHAS_DOT_PAT.match(line)
+def is_all_alphas_dot(line: str) -> bool:
+    return bool(ALL_ALPHAS_DOT_PAT.match(line))
 
-def is_alpha_word(line: str) -> Match[str]:
-    return ALL_ALPHAS_PAT.match(line)
+def is_alpha_word(line: str) -> bool:
+    return bool(ALL_ALPHAS_PAT.match(line))
 
-def has_digit(line: str) -> Match[str]:
-    return ANY_DIGIT_PAT.search(line)
+def has_digit(line: str) -> bool:
+    return bool(ANY_DIGIT_PAT.search(line))
 
 def is_both_alpha_and_num(line: str) -> bool:
     mat = ALL_ALPHA_NUM_PAT.match(line)
@@ -309,20 +309,20 @@ NUM_PERC_PAT = re.compile(r'^\s*\d+%\s*$')
 NUM_PERIOD_PAT = re.compile(r'^\s*\d+\.\s*$')
 DOLLAR_NUM_PAT = re.compile(r'^\s*\$\s*\d[\.\d]*\s*$')
 
-def has_punct(line: str) -> Match[str]:
-    return ANY_PUNCT_PAT.search(line)
+def has_punct(line: str) -> bool:
+    return bool(ANY_PUNCT_PAT.search(line))
 
-def is_all_punct(line: str) -> Match[str]:
-    return ALL_PUNCT_PAT.match(line)
+def is_all_punct(line: str) -> bool:
+    return bool(ALL_PUNCT_PAT.match(line))
 
-def is_num_perc(line: str) -> Match[str]:
-    return NUM_PERC_PAT.match(line)
+def is_num_perc(line: str) -> bool:
+    return bool(NUM_PERC_PAT.match(line))
 
-def is_num_period(line: str) -> Match[str]:
-    return NUM_PERIOD_PAT.match(line)
+def is_num_period(line: str) -> bool:
+    return bool(NUM_PERIOD_PAT.match(line))
 
-def is_dollar_num(line: str) -> Match[str]:
-    return DOLLAR_NUM_PAT.match(line)
+def is_dollar_num(line: str) -> bool:
+    return bool(DOLLAR_NUM_PAT.match(line))
 
 
 def get_alpha_words_gt_len1(line: str, is_lower: bool = True) -> List[str]:
@@ -479,8 +479,8 @@ def is_all_title(words: List[str]) -> bool:
 
 ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)
 
-def has_alpha(line: str) -> Match[str]:
-    return ANY_ALPHA_PAT.search(line)
+def has_alpha(line: str) -> bool:
+    return bool(ANY_ALPHA_PAT.search(line))
 
 
 DIGIT_PAT = re.compile(r'^\s*\d+\s*$')
@@ -507,8 +507,8 @@ def count_numbers(line: str) -> int:
     return len(extract_numbers(line))
 
 NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
-def find_number(line: str) -> Match[str]:
-    return NUM_10_PAT.search(line)
+def find_number(line: str) -> bool:
+    return bool(NUM_10_PAT.search(line))
 
 
 def is_digit_core(line: str) -> bool:
@@ -516,8 +516,8 @@ def is_digit_core(line: str) -> bool:
 
 DASH_ONLY_LINE = re.compile(r'^\s*-+\s*$')
 
-def is_dashed_line(line: str) -> Match[str]:
-    return DASH_ONLY_LINE.match(line)
+def is_dashed_line(line: str) -> bool:
+    return bool(DASH_ONLY_LINE.match(line))
 
 
 # this will match any substr, not just words
@@ -601,9 +601,10 @@ def replace_dot3plus_with_spaces(line: str) -> str:
     return re.sub(r'([\.\-_][\.\-_][\.\-_]+)', space_repl_same_length, line)
 
 
+# nobody is calling this?
 NEXT_TOKEN_PAT = re.compile(r'\s*\S+')  # type: Pattern[str]
 
-def find_next_token(line: str) -> Match[str]:
+def find_next_token(line: str) -> Optional[Match[str]]:
     return NEXT_TOKEN_PAT.match(line)
 
 

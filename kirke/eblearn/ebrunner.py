@@ -16,8 +16,8 @@ import psutil
 from sklearn.externals import joblib
 
 from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
-from kirke.eblearn import (ebannotator, ebtrainer, lineannotator, provclassifier,
-                           scutclassifier, spanannotator)
+from kirke.eblearn import ebannotator, ebtrainer, lineannotator, provclassifier
+from kirke.eblearn import scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import ebantdoc2, ebantdoc3, evalutils, lrucache, osutils, strutils
 
@@ -564,7 +564,8 @@ class EbRunner:
                                                full_model_fname,
                                                eb_classifier,
                                                is_doc_structure=is_doc_structure,
-                                               custom_training_mode=True)
+                                               # pylint: disable=line-too-long
+                                               custom_training_mode=True)  # type: Tuple[Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator], Dict[str, Any]]
 
         else:
             # It is know that 'eb_annotator' is SpanAnnotator, mypy.

@@ -182,8 +182,8 @@ ATT_PAGE_NUM_PAT = re.compile(r'^\s*({})\s*$'.format('|'.join(IGNORE_LINE_LIST))
 
 
 
-def is_line_footer_by_content(line: str) -> Match[str]:
-    return ATT_PAGE_NUM_PAT.match(line)
+def is_line_footer_by_content(line: str) -> bool:
+    return bool(ATT_PAGE_NUM_PAT.match(line))
 
 
 NOT_FOOTER_PAT = re.compile(r'^Note:', re.I)
