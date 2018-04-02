@@ -1,4 +1,5 @@
 from collections import defaultdict
+import configparser
 from datetime import datetime
 import json
 import logging
@@ -17,6 +18,12 @@ from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc3, evalutils, strutils
 
 
+# pylint: disable=invalid-name
+config = configparser.ConfigParser()
+config.read('kirke.ini')
+
+CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
+
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 def adapt_pipeline_params(best_params):
@@ -27,6 +34,15 @@ def adapt_pipeline_params(best_params):
         else:
             pass  # skip eb_transformer_* and others
     return result
+
+
+def get_model_file_name(provision: str,
+                        candidate_type: str,
+                        model_dir: str):
+    base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
+                                                        candidate_type,
+                                                        CANDG_CLF_VERSION)
+    return "{}/{}".format(model_dir, base_model_fname)
 
 
 def recover_false_negatives(prov_human_ant_list,
@@ -77,7 +93,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  doc_to_candidates,
                  candidate_transformers,
                  pipeline,
-                 postproc,
+                 doc_postproc_list: Optional[List] = None,
                  gridsearch_parameters,
                  # prefer recall over precision
                  threshold: float = 0.2,
@@ -95,7 +111,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.gridsearch_parameters = gridsearch_parameters
         self.threshold = threshold
         self.kfold = kfold
-        self.postproc = postproc
+        self.doc_postproc_list = doc_postproc_list if doc_postproc_list else []
 
         self.best_parameters = {}  # type: Dict[str, Any]
         self.estimator = None
@@ -112,7 +128,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                              doc_to_candidates=self.doc_to_candidates,
                              candidate_transformers=self.candidate_transformers,
                              pipeline=self.pipeline,
-                             postproc=self.postproc,
+                             doc_postproc_list=self.doc_postproc_list,
                              gridsearch_parameters=self.gridsearch_parameters,
                              # prefer recall over precision
                              threshold=self.threshold,
@@ -182,6 +198,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                        threshold=threshold,
                                                        prov_human_ant_list=prov_human_ant_list,
                                                        work_dir=work_dir)
+
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -221,7 +238,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         return self.ant_status, log_json
 
-    def test_antdoc(self, ebantdoc, threshold=None, work_dir='dir-work'):
+    # I believe nobody is calling this
+    """
+    def test_antdoc(self,
+                    ebantdoc: ebantdoc3.EbAnnotatedDoc3,
+                    threshold: Optional[float] = None,
+                    work_dir: str = 'dir-work'):
         if threshold is None:
             threshold = self.threshold
         ant_list = self.annotate_antdoc(ebantdoc,
@@ -235,7 +257,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
         # pred_prob_start_end_list, txt)
         # pylint: disable=C0103
-        tp, fn, fp, tn, unused_fall_out, unused_json_return = \
+        tp, fn, fp, tn, fallout, unused_json_return = \
             evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                     ant_list,
                                                     ebantdoc.file_id,
@@ -253,7 +275,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                           'prec': prec, 'recall': recall, 'f1': f1}}
 
         return tmp_eval_status
-
+    """
 
 
     # returns candidates, label_list, group_id_list
@@ -289,37 +311,38 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
                       self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
-        post_processor = ebpostproc.obtain_postproc(self.postproc)
-        # change to x_threshold to pass "mypy" type checking
-        prov_annotations, x_threshold = post_processor.post_process(eb_antdoc.text,
-                                                                    list(zip(candidates, prob_list)),
-                                                                    threshold,
-                                                                    provision=self.provision,
-                                                                    # pylint: disable=line-too-long
-                                                                    prov_human_ant_list=prov_human_ant_list)
+        prov_annotations = candidates
+        x_threshold = threshold
+        
         prov_annotations = recover_false_negatives(prov_human_ant_list,
                                                    eb_antdoc.text,
-                                                   self.provision, prov_annotations)
+                                                   self.provision,
+                                                   prov_annotations)
+
+        # If there is no human annotation, must be normal annotation.
+        # Remove anything below threshold
+        if not prov_human_ant_list:
+            prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= x_threshold]
+
         return prov_annotations, x_threshold
 
     def get_eval_status(self):
         eval_status = {'label': self.provision}
-        eval_status['pred_status'] = self.classifier_status['eval_status']
+        # eval_status['pred_status'] = self.classifier_status['eval_status']
         eval_status['ant_status'] = self.ant_status['eval_status']
         return eval_status
 
-    def print_eval_status(self, model_dir):
+    def print_eval_status(self, model_dir: str, model_num: int):
 
         eval_status = {'label': self.provision}
-        eval_status['pred_status'] = self.classifier_status['eval_status']
         eval_status['ant_status'] = self.ant_status['eval_status']
         pprint.pprint(eval_status)
 
-        model_status_fn = model_dir + '/' +  self.provision + ".status"
+        model_status_fn = '{}/{}.{}.status'.format(model_dir, self.provision, model_num)
         strutils.dumps(json.dumps(eval_status), model_status_fn)
 
         with open('label_model_stat.tsv', 'a') as pmout:
-            cls_status = self.classifier_status['eval_status']
+            cls_status = self.ant_status['eval_status']
             cls_cfmtx = cls_status['confusion_matrix']
             ant_status = self.ant_status['eval_status']
             ant_cfmtx = ant_status['confusion_matrix']
@@ -339,8 +362,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def predict_antdoc(self,
                        eb_antdoc: ebantdoc3.EbAnnotatedDoc3,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
-        logging.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
-
+        # logging.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        text = eb_antdoc.text
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
         candidates, unused_label_list, unused_group_ids = \
@@ -348,12 +371,22 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         if not candidates:
             return [], []
-        # to indicate which type of annotation this is
-        for candidate in candidates:
-            candidate['label'] = self.provision
+
         probs = [] # type: List[float]
         if self.estimator:
             probs = self.estimator.predict_proba(candidates)[:, 1]
+
+        # to indicate which type of annotation this is
+        for i, (candidate, prob) in enumerate(zip(candidates, probs)):
+            candidate['label'] = self.provision
+            candidate['prob'] = prob
+            candidate['text'] = text[candidate['start']:candidate['end']]
+
+        # apply post processing, such as date normalization
+        # in case there is any bad apple, with 'reject' == True
+        for post_proc in self.doc_postproc_list:
+            post_proc.doc_postproc(candidates)
+
         return candidates, probs
 
     def predict_and_evaluate(self,

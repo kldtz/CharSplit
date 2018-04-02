@@ -294,7 +294,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
     top_ig_ngram_list = []
     # i = 0
     if debug_mode:
-        with open("{}.igain.vocab.tsv".format(provision), 'wt') as fout:
+        with open("/tmp/{}.igain.vocab.tsv".format(provision), 'wt') as fout:
             for igain, word in sorted(result, reverse=True):
                 cond_count_map = word_cond_freq_dist_map[word]
                 print(word, igain, cond_count_map, sep='\t', file=fout)

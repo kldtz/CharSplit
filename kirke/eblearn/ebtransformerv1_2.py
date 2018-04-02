@@ -71,7 +71,7 @@ class EbTransformerV1_2(EbTransformerBase):
 
         self.vocabulary = {}  # used for bi_topgram_matrix generation
 
-        
+
     # label_list is a list of booleans
     # pylint: disable=R0912, R0914
     def ebantdoc_list_to_csr_matrix(self,
@@ -147,11 +147,11 @@ class EbTransformerV1_2(EbTransformerBase):
             self.positive_vocabs = positive_vocabs
 
             if DEBUG_MODE:
-                with open("{}_vocabs.tsv".format(self.provision), "wt") as fvcabout:
+                with open("/tmp/{}_vocabs.tsv".format(self.provision), "wt") as fvcabout:
                     for vocab in vocabs:
                         print(vocab, file=fvcabout)
 
-                with open("{}_posvocabs.tsv".format(self.provision), "wt") as fvcabout:
+                with open("/tmp/{}_posvocabs.tsv".format(self.provision), "wt") as fvcabout:
                     for vocab in positive_vocabs:
                         print(vocab, file=fvcabout)
 

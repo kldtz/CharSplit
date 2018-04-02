@@ -40,7 +40,16 @@ if __name__ == '__main__':
     # payload = {'types': 'party,change_control'}
     # payload = {'types': 'termination,term,confidentiality,cust_3566'}
     # payload = {'types': 'term'}
-    payload = {'types': 'l_tenant_notice'}
+    # payload = {'types': 'l_tenant_notice'}
+    # payload = {'types': 'term,cust_2253'}
+    payload = {'types': 'term,cust_1089,cust_1102,cust_1115,cust_1116,cust_1117'
+               'cust_1118,cust_1141,cust_1148,cust_1157,cust_1158,cust_1159'
+               'cust_1161,cust_1176,cust_1177,cust_1178,cust_1229,cust_1254,cust_12'
+               'cust_1392,cust_1394,cust_1399,cust_1460,cust_1473,cust_1474'
+               'cust_1478,cust_1481,cust_1482,cust_1483,cust_1484,cust_3741.1,cust_12345'}
+
+    payload = {'types': 'term,cust_9'}
+    # cust_3741 has '.2'
     if args.lang:
         payload['detect-lang'] = True
     if args.doccat:

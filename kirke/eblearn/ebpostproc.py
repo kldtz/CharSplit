@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 import copy
 import re
 from typing import Any, Dict, List, Optional, Tuple
-
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties
 from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
@@ -104,67 +103,6 @@ def merge_cx_prob_attrvecs(cx_prob_attrvec_list: List[ConciseProbAttrvec],
         result.append(merge_cx_prob_attrvecs_with_entities(prev_list))
     return result
 
-# pylint: disable=invalid-name
-def merge_candidate_probs_aux(candidate_prob_list: List[Tuple[Dict, float]]) -> Dict[str, Any]:
-    # don't bother with len 1
-    if len(candidate_prob_list) == 1:
-        candidate, prob = candidate_prob_list[0]
-        candidate['span_list'] = [{'start': candidate['start'],
-                                'end': candidate['end']}]
-        candidate['prob'] = prob
-        return candidate
-
-    candidate, prob = candidate_prob_list[0]
-    label = candidate['label']
-    max_prob = prob
-    min_start = candidate['start']
-    max_end = candidate['end']
-    line_list = [candidate['text']]
-
-    span_list = []
-    for candidate, prob in candidate_prob_list[1:]:
-        if prob > max_prob:
-            max_prob = prob
-        if candidate['start'] < min_start:
-            min_start = candidate['start']
-        if candidate['end'] > max_end:
-            max_end = candidate['end']
-        line_list.append(candidate['text'])
-        span_list.append({'start': candidate['start'],
-                          'end': candidate['end']})
-    out = {'label': label,
-           'prob': max_prob,
-           'start': min_start,
-           'end': max_end,
-           'span_list': span_list,
-           'text': ' '.join(line_list)}
-
-    return out
-
-
-def merge_candidate_prob_list(candidate_prob_list: List[Tuple[Dict, float]], threshold: float) \
-    -> List[Dict[str, Any]]:
-    """Merge adjacent candidates if their score is above threshold.
-
-    This also guarantees that "span_list" is set up correctly during the merging.
-    """
-    result = []  # type: List[Dict[str, Any]]
-    prev_list = []
-    for candidate, prob in candidate_prob_list:
-        if prob >= threshold:
-            prev_list.append((candidate, prob))
-        else:
-            if prev_list:
-                result.append(merge_candidate_probs_aux(prev_list))
-                prev_list = []
-            candidate['prob'] = prob
-            if not candidate.get('span_list'):
-                candidate['span_list'] = [{'start': candidate['start'],
-                                        'end': candidate['end']}]
-            result.append(candidate)
-    if prev_list:
-        result.append(merge_candidate_probs_aux(prev_list))
-    return result
 
 SHORT_PROVISIONS = set(['title', 'date', 'effectivedate', 'sigdate', 'choiceoflaw'])
 
@@ -1607,41 +1545,6 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
             prev_text = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
         return ant_result, threshold
 
-class SpanDefaultPostPredictProcessing(EbPostPredictProcessing):
-
-    def __init__(self) -> None:
-        self.label = 'span_default'
-
-    # pylint: disable=too-many-arguments
-    def post_process(self,
-                     doc_text: str,
-                     prob_attrvec_list: List,
-                     threshold: float,
-                     provision: Optional[str] = None,
-                     prov_human_ant_list: Optional[List] = None) -> Tuple[List[Dict], float]:
-        # TODO merge_candidate_prob_list does too many things, you should be able to run postproc without running it first
-        # merged_candidate_prob_list = merge_candidate_prob_list(prob_attrvec_list, 1.0)
-        merged_candidate_prob_list = []
-        for candidate, prob in prob_attrvec_list:
-            candidate['prob'] = prob
-            merged_candidate_prob_list.append(candidate)
-
-        ant_result = []
-        for merged_candidate_prob in merged_candidate_prob_list:
-            overlap = evalutils.find_annotation_overlap(merged_candidate_prob['start'],
-                                                        merged_candidate_prob['end'],
-                                                        prov_human_ant_list)
-            # TODO, this has the issue if the "candidate" doesn't overlap with prov_human_ant_list
-            # at all.  Now we generate the candidates, so it not totally miss the human annotation.
-            if merged_candidate_prob['prob'] >= threshold or overlap:
-                new_candidate = copy.deepcopy(merged_candidate_prob)
-                new_candidate['start'] = new_candidate['match_start']
-                new_candidate['end'] = new_candidate['match_end']
-                new_candidate['text'] = doc_text[new_candidate['match_start']:new_candidate['match_end']]
-                ant_result.append(new_candidate)
-        return ant_result, threshold
-
-
 PROVISION_POSTPROC_MAP = {
     'default': DefaultPostPredictProcessing(),
     'choiceoflaw': PostPredChoiceOfLawProc(),
@@ -1663,7 +1566,6 @@ PROVISION_POSTPROC_MAP = {
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
     'title': PostPredTitleProc(), 
-    'span_default': SpanDefaultPostPredictProcessing(),
 }
 
 
@@ -1672,3 +1574,5 @@ def obtain_postproc(provision):
     if not postproc:
         postproc = PROVISION_POSTPROC_MAP['default']
     return postproc
+
+

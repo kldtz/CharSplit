@@ -34,7 +34,7 @@ def upload_train_dir(url_st: str, upload_dir: str, candidate_type: str):
         ant_fname = txt_fname.replace('.txt', '.ant')
         offsets_fname = txt_fname.replace('.txt', '.offsets.json')
         if ant_fname in ant_fname_set:
-            file_tuple_list.append(('file', open(txt_fname, 'rt', encoding='utf-8')))
+            file_tuple_list.append(('file', open(txt_fname, 'rt', encoding='utf-8', newline='')))
             print("uploading [{}]".format(txt_fname))
             file_tuple_list.append(('file', open(ant_fname, 'rt', encoding='utf-8')))
             print("uploading [{}]".format(ant_fname))

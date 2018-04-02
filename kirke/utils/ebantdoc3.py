@@ -42,12 +42,12 @@ class EbAnnotatedDoc3:
     # pylint: disable=R0913
     def __init__(self,
                  *,   # force specify all parameters by keyword
-                 file_name,
+                 file_name: str,
                  doc_format: EbDocFormat,
-                 text,
+                 text: str,
                  cpoint_cunit_mapper,
-                 prov_ant_list,
-                 is_test,
+                 prov_ant_list: List[ebsentutils.ProvisionAnnotation],
+                 is_test: bool,
                  para_doc_text,        # adjusted
                  para_prov_ant_list,   # adjusted
                  paras_with_attrs,     # adjusted
@@ -101,10 +101,10 @@ class EbAnnotatedDoc3:
             return mat.group(1)
         return 'no-doc-id-found:{}'.format(self.file_id)
 
-    def set_provision_annotations(self, ant_list: List[Dict[str, Any]]) -> None:
+    def set_provision_annotations(self, ant_list: List[ebsentutils.ProvisionAnnotation]) -> None:
         self.prov_annotation_list = ant_list
 
-    def get_provision_annotations(self, label: str=None) -> List[Dict[str, Any]]:
+    def get_provision_annotations(self, label: str=None) -> List[ebsentutils.ProvisionAnnotation]:
         if label == None:
             return self.prov_annotation_list
         return [ant for ant in self.prov_annotation_list if ant.label == label]
