@@ -29,7 +29,7 @@ no model for that candidate generation type can be found. (edited)
 
 ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                     'doc_to_candidates': dategen.DateSpanGenerator(13, 13, 'DATE'),
+                     'doc_to_candidates': dategen.DateSpanGenerator(30, 30, 'DATE'),
                      'version': "1.0",
                      'doc_postproc': 'span_default',
                      'pipeline': Pipeline([
@@ -38,11 +38,11 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                shuffle=True, random_state=42,
                                                class_weight={True: 3, False: 1}))]),
-                     'threshold': 0.2,
+                     'threshold': 0.5,
                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}}),
 
     ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                        'doc_to_candidates': addrgen.AddrContextGenerator(10, 10, 'ADDRESS'),
+                        'doc_to_candidates': addrgen.AddrContextGenerator(30, 30, 'ADDRESS'),
                         'version': "1.0",
                         'doc_postproc': 'span_default',
                         'pipeline': Pipeline([
@@ -56,7 +56,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                   shuffle=True, random_state=42,
                                                   class_weight={True: 3, False: 1}))]),
                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                        'threshold': 0.25,
+                        'threshold': 0.35,
                         'kfold': 2}),
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
                          'doc_to_candidates': regexgen.RegexContextGenerator(20,

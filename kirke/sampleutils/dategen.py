@@ -57,29 +57,15 @@ class DateSpanGenerator:
 
                 # change num_prev_word, num_post_word to 12, 12 get this very close to optimal 0.772
                 # now it's 0.771
-                """
+
                 prev_n_words, prev_spans = \
                     strutils.get_prev_n_clx_tokens(nl_text,
                                                    match_start,
-                                                   self.num_prev_words-1)
+                                                   self.num_prev_words)
                 post_n_words, post_spans = \
                     strutils.get_post_n_clx_tokens(nl_text,
                                                    match_end,
-                                                   self.num_post_words-1)
-                """
-
-                prev_n_words, prev_spans = \
-                    strutils.get_prev_n_words_with_quote_nl(nl_text,
-                                                            match_start,
-                                                            self.num_prev_words,
-                                                            is_lower=True,
-                                                            is_quote_nl=True)
-                post_n_words, post_spans = \
-                    strutils.get_post_n_words_with_quote_nl(nl_text,
-                                                            match_end,
-                                                            self.num_post_words,
-                                                            is_lower=True,
-                                                            is_quote_nl=True)
+                                                   self.num_post_words)
 
                 # Adding both lc and original-case words lowers 0.07% F1.
                 # OK, the code is not correct since using set() messes up
@@ -93,12 +79,18 @@ class DateSpanGenerator:
                 # Using original-case has same F1.
 
                 # add first 4 words surround as addition features.  Improved.  :-)
-                prev_4_words = ['PV4_' + wd for wd in prev_n_words[-4:]]
-                post_4_words = ['PS4_' + wd for wd in post_n_words[:4]]
+                prev_15_words = ['PV15_' + wd for wd in prev_n_words[-15:]]
+                post_15_words = ['PS15_' + wd for wd in post_n_words[:15]]
+                prev_10_words = ['PV10_' + wd for wd in prev_n_words[-10:]]
+                post_10_words = ['PS10_' + wd for wd in post_n_words[:10]]
+                prev_5_words = ['PV5_' + wd for wd in prev_n_words[-5:]]
+                post_5_words = ['PS5_' + wd for wd in post_n_words[:5]]
+                prev_2_words = ['PV2_' + wd for wd in prev_n_words[-2:]]
+                post_2_words = ['PS2_' + wd for wd in post_n_words[:2]]
                 # to deal with n-gram of 2, added 'EOLN' to not mix
                 # prev_4_words with others
-                prev_n_words_plus = prev_n_words + ['EOLN'] + prev_4_words
-                post_n_words_plus = post_n_words + ['EOLN'] + post_4_words
+                prev_n_words_plus = prev_n_words + ['EOLN'] + prev_15_words + ['EOLN'] + prev_10_words + ['EOLN'] + prev_5_words + ['EOLN'] + prev_2_words
+                post_n_words_plus = post_n_words + ['EOLN'] + post_15_words + ['EOLN'] + post_10_words + ['EOLN'] + post_5_words + ['EOLN'] + post_2_words
                 # print("prev_n_words:\t{}".format(prev_n_words))
                 # print("post_n_words:\t{}".format(post_n_words))
 
