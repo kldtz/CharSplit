@@ -33,9 +33,9 @@ if __name__ == '__main__':
     # ebantdoc2.print_attrvec_list(eb_antdoc)
     ebantdoc2.print_para_list(eb_antdoc)
 
-    print("memory_size(eb_antdoc) = %d bytes" % (memutils.get_memory_size_bytes(eb_antdoc), ))
-    print("memory_size(eb_antdoc) = %.2f kilobytes" % (memutils.get_memory_size_kbytes(eb_antdoc), ))
-    print("memory_size(eb_antdoc) = %.2f megabytes" % (memutils.get_memory_size_mbytes(eb_antdoc), ))    
+    print("memory_size(eb_antdoc) = %d bytes" % (memutils.get_size(eb_antdoc),))
+    print("memory_size(eb_antdoc) = %.2f kilobytes" % (memutils.get_size_kbytes(eb_antdoc),))
+    print("memory_size(eb_antdoc) = %.2f megabytes" % (memutils.get_size_mbytes(eb_antdoc),))
 
     """
     print("checking change_control annotation:")

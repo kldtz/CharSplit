@@ -22,15 +22,18 @@ class StartEndPair2(object):
 
 StartEndNamedPair = namedtuple('StartEndNamedPair', 'start end')
 
-def get_memory_size_bytes(obj: Any) -> int:
+def get_size(obj: Any) -> int:
     return asizeof.asizeof(obj);
 
 
-def get_memory_size_kbytes(obj: Any) -> float:
+get_size_bytes = get_size
+
+
+def get_size_kbytes(obj: Any) -> float:
     return asizeof.asizeof(obj) / 1000.0;
 
 
-def get_memory_size_mbytes(obj: Any) -> float:
+def get_size_mbytes(obj: Any) -> float:
     return asizeof.asizeof(obj) / 100000.0;
 
 
