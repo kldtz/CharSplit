@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 import copy
 import re
+from operator import itemgetter
 from typing import Any, Dict, List, Optional, Tuple
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties
@@ -170,6 +171,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                      doc_text: str,
                      prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
                      -> Tuple[List[Dict], float]:
@@ -189,6 +191,9 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                                      end=cx_prob_attrvec.end,
                                                      # pylint: disable=line-too-long
                                                      text=strutils.sub_nltab_with_space(cx_prob_attrvec.text)))
+        if nbest > 0:
+            nbest_candidates = sorted(ant_result, key=itemgetter('prob'), reverse=True)[:nbest]
+            return ant_result, threshold
         return ant_result, threshold
 
 # Note from PythonClassifier.java:

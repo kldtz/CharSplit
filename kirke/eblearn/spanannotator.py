@@ -126,6 +126,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         return SpanAnnotator(self.provision,
                              self.candidate_type,
                              self.version,
+                             self.nbest,
                              doclist_to_antdoc_list=self.doclist_to_antdoc_list,
                              doc_to_candidates=self.doc_to_candidates,
                              candidate_transformers=self.candidate_transformers,

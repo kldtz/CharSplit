@@ -83,6 +83,7 @@ def log_custom_model_eval_status(ant_status: Dict[str, Any]) -> None:
 def cv_train_at_annotation_level(provision,
                                  x_traindoc_list,
                                  bool_list,
+                                 nbest,
                                  eb_classifier_orig,
                                  model_file_name: str,
                                  model_num: int,
@@ -92,7 +93,6 @@ def cv_train_at_annotation_level(provision,
     # test_size = 0.33
     # this will be looped mutliple times, so a list, not a generator
     x_antdoc_list = list(ebantdoc2.traindoc_list_to_antdoc_list(x_traindoc_list, work_dir))
-
     ordered_list = []
     for x_antdoc, label in zip(x_antdoc_list, bool_list):
         ordered_list.append((x_antdoc.file_id, x_antdoc, label))
@@ -138,7 +138,7 @@ def cv_train_at_annotation_level(provision,
                                            cv_eb_classifier_fn)
         cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir)
 
-        cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket)
+        cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket, nbest)
         # print("cv ant_status, bucket_num = {}:".format(bucket_num))
         # print(cv_ant_status)
 
@@ -317,6 +317,7 @@ def cv_candg_train_at_annotation_level(provision: str,
 def train_eval_annotator(provision: str,
                          model_num: int,
                          doc_lang: str,
+                         nbest: int,
                          txt_fn_list,
                          work_dir,
                          model_dir,
@@ -331,7 +332,6 @@ def train_eval_annotator(provision: str,
     logging.info("    model_dir = %s", model_dir)
     logging.info("    model_file_name = %s", model_file_name)
     logging.info("    is_doc_structure= %s", is_doc_structure)
-
     # group_id is used to ensure all the attrvec for a document are together
     # and not distributed between both training and testing.  A document can
     # be either in training or testing, but not both.  This parameter is used
@@ -345,7 +345,6 @@ def train_eval_annotator(provision: str,
                                            is_doc_structure=is_doc_structure,
                                            doc_lang=doc_lang)
     num_docs = len(eb_traindoc_list)
-
     attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     group_id_list = []
     num_pos_ant = 0
@@ -409,6 +408,7 @@ def train_eval_annotator(provision: str,
             cv_train_at_annotation_level(provision,
                                          X_train,
                                          y,
+                                         nbest,
                                          eb_classifier,
                                          model_file_name,
                                          model_num,
@@ -416,7 +416,6 @@ def train_eval_annotator(provision: str,
                                          work_dir)
 
         return prov_annotator2, combined_log_json
-
     # pylint: disable=line-too-long
     logging.info("training using train/test split with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
                  len(attrvec_list), num_pos_label, num_neg_label)
@@ -440,11 +439,10 @@ def train_eval_annotator(provision: str,
 
     #make the classifier into an annotator
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-
     # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
     # using generator, instead of all loaded at once.
     X_test_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_test, work_dir)
-    ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
+    ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list, nbest=nbest)
 
 
     #prints evaluation results and saves status
@@ -545,6 +543,7 @@ def train_eval_span_annotator(provision: str,
                               # TODO, why is doc_lang not used?
                               # For now, there is no lang specific spanannotator?
                               unused_doc_lang: str,
+                              nbest: int,
                               candidate_type: str,
                               work_dir: str,
                               model_dir: str,
@@ -566,7 +565,7 @@ def train_eval_span_annotator(provision: str,
         spanannotator.SpanAnnotator(provision,
                                     candidate_type,
                                     version=config['version'],
-                                    nbest=config.get('nbest', None),
+                                    nbest=nbest,
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                     doc_to_candidates=config['doc_to_candidates'],
                                     candidate_transformers=config.get('candidate_transformers', []),

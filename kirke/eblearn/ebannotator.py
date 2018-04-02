@@ -31,6 +31,7 @@ class ProvisionAnnotator:
     # pylint: disable=R0914
     def test_antdoc_list(self,
                          ebantdoc_list: List[ebantdoc2.EbAnnotatedDoc2],
+                         nbest=-1,
                          threshold: Optional[float] = None) -> Tuple[Dict[str, Any],
                                                                      Dict[str, Dict]]:
         logging.debug('test_document_list')
@@ -46,6 +47,7 @@ class ProvisionAnnotator:
                                    if hant.label == self.provision]
             try:
                 ant_list, threshold = self.annotate_antdoc(ebantdoc,
+                                                           nbest,
                                                            threshold=self.threshold,
                                                            prov_human_ant_list=prov_human_ant_list)
             # pylint: disable=broad-except, unused-variable
@@ -54,21 +56,6 @@ class ProvisionAnnotator:
                                 ebantdoc.file_id)
                 raise
             # pylint: disable=unreachable, pointless-string-statement
-            """
-                # retry all the operations, except for loading the cache
-                ebantdoc = ebantdoc2.text_to_ebantdoc2(ebantdoc.file_id,
-                                                       work_dir=None,
-                                                       is_cache_enabled=False,
-                                                       is_bespoke_mode=False,
-                                                       is_doc_structure=True)
-                prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-                                       if hant.label == self.provision]
-                ant_list = self.annotate_antdoc(ebantdoc,
-                                                threshold=self.threshold,
-                                                prov_human_ant_list=prov_human_ant_list)
-            """
-
-            # print("\nfn: {}".format(ebantdoc.file_id))
 
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -120,7 +107,7 @@ class ProvisionAnnotator:
                 ant_result.append(fn_ant)
         return ant_result
 
-    def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None) \
+    def annotate_antdoc(self, eb_antdoc, nbest, threshold=None, prov_human_ant_list=None) \
         -> Tuple[List[Dict], float]:
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
@@ -155,13 +142,13 @@ class ProvisionAnnotator:
             logging.warning(error)
             # move on, probably because there is no input
             adj_prov_human_ant_list = prov_human_ant_list
-
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
         prov_annotations, threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
                                                           prob_attrvec_list,
                                                           threshold,
+                                                          nbest=nbest,
                                                           provision=prov,
                                                           prov_human_ant_list=\
                                                               adj_prov_human_ant_list)

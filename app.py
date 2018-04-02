@@ -258,6 +258,9 @@ def custom_train(cust_id: str):
     candidate_type = request.form.get('candidate_type')
     if not candidate_type:
         candidate_type = 'SENTENCE'
+    nbest = request.form.get('nbest')
+    if not nbest:
+        nbest = -1
 
     # to ensure that no accidental file name overlap
     logging.info("cust_id = '%s'", cust_id)
@@ -342,6 +345,7 @@ def custom_train(cust_id: str):
                                                               CUSTOM_MODEL_DIR,
                                                               base_model_fname,
                                                               candidate_type,
+                                                              nbest,
                                                               model_num=next_model_num,
                                                               is_doc_structure=True,
                                                               work_dir=work_dir,

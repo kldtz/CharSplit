@@ -534,7 +534,8 @@ class EbRunner:
                                             provision,
                                             custom_model_dir,
                                             base_model_fname,
-                                            candidate_type,
+                                            candidate_type: str,
+                                            nbest: int,
                                             model_num: int,
                                             is_doc_structure=False,
                                             work_dir=None,
@@ -542,14 +543,10 @@ class EbRunner:
                                             -> Tuple[Dict[str, Any], Dict[str, Dict]]:
 
         logging.info("txt_fn_list_fn: %s", txt_fn_list)
-
         if not work_dir:
             work_dir = self.work_dir
         full_model_fname = '{}/{}'.format(custom_model_dir, base_model_fname)
-
         logging.info("custom_mode_file: %s", full_model_fname)
-
-        # SENTENCE runs the standard pipeline, if specified candidate type run candidate generation
         if candidate_type == 'SENTENCE':
             eb_classifier = scutclassifier.ShortcutClassifier(provision)
             # It is know that 'eb_annotator' is ProvisionAnnotator, mypy.
@@ -558,6 +555,7 @@ class EbRunner:
                 ebtrainer.train_eval_annotator(provision,
                                                model_num,
                                                doc_lang,
+                                               nbest,
                                                txt_fn_list,
                                                work_dir,
                                                custom_model_dir,
@@ -575,6 +573,7 @@ class EbRunner:
                 ebtrainer.train_eval_span_annotator(provision,
                                                     model_num,
                                                     doc_lang,
+                                                    nbest,
                                                     candidate_type,
                                                     work_dir,
                                                     custom_model_dir,
