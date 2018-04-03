@@ -70,19 +70,22 @@ class DateSpanGenerator:
                 prev_n_words, prev_spans = \
                     strutils.get_prev_n_clx_tokens(nl_text,
                                                    match_start,
-                                                   self.num_prev_words-1)
+                                                   self.num_prev_words)
                 post_n_words, post_spans = \
                     strutils.get_post_n_clx_tokens(nl_text,
                                                    match_end,
-                                                   self.num_post_words-1)
+                                                   self.num_post_words)
 
-                # add first 4 words surround as addition features.  Improved.  :-)
-                prev_4_words = ['PV4_' + wd for wd in prev_n_words[-4:]]
-                post_4_words = ['PS4_' + wd for wd in post_n_words[:4]]
-                # to deal with n-gram of 2, added 'EOLN' to not mix
-                # prev_4_words with others
-                prev_n_words_plus = prev_n_words + ['EOLN'] + prev_4_words
-                post_n_words_plus = post_n_words + ['EOLN'] + post_4_words
+                prev_15_words = ['PV15_' + wd for wd in prev_n_words[-15:]]
+                post_15_words = ['PS15_' + wd for wd in post_n_words[:15]]
+                prev_10_words = ['PV10_' + wd for wd in prev_n_words[-10:]]
+                post_10_words = ['PS10_' + wd for wd in post_n_words[:10]]
+                prev_5_words = ['PV5_' + wd for wd in prev_n_words[-5:]]
+                post_5_words = ['PS5_' + wd for wd in post_n_words[:5]]
+                prev_2_words = ['PV2_' + wd for wd in prev_n_words[-2:]]
+                post_2_words = ['PS2_' + wd for wd in post_n_words[:2]]
+                prev_n_words_plus = prev_n_words + ['EOLN'] + prev_15_words + ['EOLN'] + prev_10_words + ['EOLN'] + prev_5_words + ['EOLN'] + prev_2_words
+                post_n_words_plus = post_n_words + ['EOLN'] + post_15_words + ['EOLN'] + post_10_words + ['EOLN'] + post_5_words + ['EOLN'] + post_2_words
 
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                             match_str,
