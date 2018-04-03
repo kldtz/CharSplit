@@ -19,25 +19,30 @@ def load_pdf_offsets(file_name: str, cpoint_cunit_mapper: TextCpointCunitMapper)
     ajson = json.loads(atext)
 
     # in-place update the offsets
-    # print("cpoint_cunit_mapper.max_cunit = {}, docLen = {}".format(cpoint_cunit_mapper.max_cunit, ajson['docLen']))
+    # print("cpoint_cunit_mapper.max_cunit = {}, docLen = {}".format(cpoint_cunit_mapper.max_cunit,
+    #                                                                ajson['docLen']))
     # ajson['docLen'] = cpoint_cunit_mapper.to_codepoint_offset(ajson['docLen'])
     if not ajson.get('docLen'):
         ajson['docLen'] = len(atext)
     else:
         ajson['docLen'] = cpoint_cunit_mapper.to_codepoint_offset(ajson['docLen'])
     for adict in ajson.get('blockOffsets'):
-        adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
+        adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'],
+                                                                                adict['end'])
     for adict in ajson.get('lineOffsets'):
         adict['offset'] = cpoint_cunit_mapper.to_codepoint_offset(adict['offset'])
     for adict in ajson.get('pageOffsets'):
-        adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
+        adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'],
+                                                                                adict['end'])
     for adict in ajson.get('strOffsets'):
-        adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'], adict['end'])
+        adict['start'], adict['end'] = cpoint_cunit_mapper.to_codepoint_offsets(adict['start'],
+                                                                                adict['end'])
 
     return (ajson.get('docLen'), ajson.get('strOffsets'), ajson.get('lineOffsets'),
             ajson.get('blockOffsets'), ajson.get('pageOffsets'))
 
 
+# pylint: disable=too-many-branches
 def para_to_para_list(line: str) -> Tuple[str, bool, List[int]]:
     """Convert a multi-line into one line or keep as is.
 
@@ -50,9 +55,10 @@ def para_to_para_list(line: str) -> Tuple[str, bool, List[int]]:
 
     """
     fake_line = ''
-    if re.search("\n\s*\n", line):
+    if re.search(r'\n\s*\n', line):
         # print("weird double line in para..........")
-        fake_line = re.sub('([\n\s]+)([\n\s][\n\s][\n\s])', r'\1'.replace('\n', ' ') + " XX253x", line)
+        fake_line = re.sub(r'([\n\s]+)([\n\s][\n\s][\n\s])', r'\1'.replace('\n', ' ') + ' XX253x',
+                           line)
         fake_line = fake_line.replace('\n', ' ').replace(' XX253x', ' \n\n')
         # print("fake line = {}".format(fake_line))
 
@@ -62,8 +68,8 @@ def para_to_para_list(line: str) -> Tuple[str, bool, List[int]]:
     line_list = line.split('\n')
     max_line_len = 0
     num_notempty_line = 0
-    for lx in line_list:
-        lx_len = len(lx)
+    for lxx in line_list:
+        lx_len = len(lxx)
         if lx_len > max_line_len:
             max_line_len = lx_len
         if lx_len != 0:
