@@ -7,8 +7,7 @@ import logging
 import os
 import re
 import sys
-from typing import Dict, DefaultDict, List, Tuple
-
+from typing import Any, Dict, DefaultDict, List, Tuple
 
 from kirke.docstruct import docstructutils, linepos
 from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
@@ -37,7 +36,7 @@ def text_offsets_to_nl(base_fname: str,
                        line_breaks: List[Dict],
                        work_dir: str,
                        debug_mode: bool = False) \
-                       -> Tuple[str, str] :
+                       -> Tuple[str, str]:
     linebreak_offset_list = [lbrk['offset'] for lbrk in line_breaks]
     ch_list = list(orig_doc_text)
     for linebreak_offset in linebreak_offset_list:
@@ -54,8 +53,10 @@ def to_nl_paraline_texts(file_name: str,
                          offsets_file_name: str,
                          work_dir: str,
                          debug_mode: bool = False) \
-                         -> Tuple[str, str, ArrayType, str, ArrayType, str, str, TextCpointCunitMapper]:
-    # orig_doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr, nl_fname, paraline_fn, cpoint_cunit_mapper:
+                         -> Tuple[str, str, ArrayType, str, ArrayType,
+                                  str, str, TextCpointCunitMapper]:
+    # orig_doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr,
+    # nl_fname, paraline_fn, cpoint_cunit_mapper:
     base_fname = os.path.basename(file_name)
 
     if debug_mode:
@@ -272,7 +273,10 @@ def get_gap_start_end(prev_linex, linex, cur_page, next_page):
     return start_offset, end_offset
 
 
-def get_gap_frto_list(prev_linex, linex, cur_page, next_page):
+def get_gap_frto_list(prev_linex,
+                      linex,
+                      cur_page,
+                      next_page):
     start_index, end_index = -1, -1
 
     result = []
@@ -335,8 +339,30 @@ def get_gap_frto_list(prev_linex, linex, cur_page, next_page):
     return result
 
 
-# returns (paras2_with_attrs, para2_doc_text, gap2_span_list)
-def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
+
+# linepos.LnPos = start, end, line_num, is_gap
+# attr_list = List[Any]    # this is very unsatisfying
+# span_se_list = List[Tuple[linepos.LnPos, linepos.LnPos]]
+# offsets_line_list = List[Tuple[span_se_list, str, attr_list]]
+# gap_span_list = List[Tuple[int, int]]
+
+def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
+                        file_name: str,
+                        work_dir: str,
+                        debug_mode: bool = False) \
+                        -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                            str,
+                                            List[Any]]],
+                                 str,
+                                 List[Tuple[int, int]]]:
+    """Convert a pdfbox's text into NLP text, with page number gaps.
+
+    Warning: The offsets after this transformation differs from original text.
+
+    Returns: paras2_with_attrs
+             para2_doc_text (the nlp text)
+             gap_span_list (probably should be removed in the future)
+    """
     base_fname = os.path.basename(file_name)
 
     cur_attr = []
@@ -348,7 +374,7 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
 
     # para_with_attrs, from_z, to_z, line_text, attrs (toc, header, footer, sechead)
     sechead_context = []
-    not_gapped_line_nums = set([])
+    not_gapped_line_nums = set([])  # type: Set[int]
 
     # not_empty_line_num = 0
     for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
@@ -366,7 +392,8 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
                 # It should similar to the code for not is_multi-line
                 for linex in grouped_block.line_list:
                     out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                    attr_list = linex.to_para_attrvals()  # sorted(linex.attrs.items())
+                    # sorted(linex.attrs.items())
+                    attr_list = linex.to_para_attrvals()  # type: List[Any]
 
                     if linex.line_text and linex.attrs.get('sechead'):
                         sechead_context = linex.attrs.get('sechead')
@@ -401,13 +428,18 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
                 for linex in grouped_block.line_list:
 
                     if prev_page_num != -1 and linex.page_num != prev_page_num:
-                        gap_frto_list = get_gap_frto_list(prev_linex, linex, apage, pdf_text_doc.page_list[page_num])  # page_num is the next page
+                        gap_frto_list = get_gap_frto_list(prev_linex,
+                                                          linex,
+                                                          apage,
+                                                          pdf_text_doc.page_list[page_num])  # page_num is the next page
                         if gap_frto_list:
                             # span_se_list.extend(gap_frto_list)
                             # simply add a break line, the gap will be done correctly elsewhere
                             gap_line_x_attrs = gap_frto_list[0]
                             # use -2, just in case -1 + 1 == 0, and line_num is 0
-                            span_se_list.append((linepos.LnPos(gap_line_x_attrs.lineinfo.start, gap_line_x_attrs.lineinfo.start, is_gap=True),
+                            span_se_list.append((linepos.LnPos(gap_line_x_attrs.lineinfo.start,
+                                                               gap_line_x_attrs.lineinfo.start,
+                                                               is_gap=True),
                                                  linepos.LnPos(offset, offset, is_gap=True)))  # -100 will be reset later
 
                     out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
@@ -464,7 +496,6 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
         else:
             to_lnpos.line_num = not_empty_line_num
 
-
     # figure out the gap span, this has to be done at document level because
     # line sometimes are merged into the block in the previous page
     gap_span_list = []
@@ -474,7 +505,7 @@ def to_paras_with_attrs(pdf_text_doc, file_name, work_dir, debug_mode=False):
                 line_num = linex.lineinfo.line_num
                 if line_num not in not_gapped_line_nums:
                     gap_span_list.append((linex.lineinfo.start, linex.lineinfo.end))
-                    # print("gap line: ({}, {}), [{}]".format(linex.lineinfo.start, linex.lineinfo.end, linex.line_text))
+                    print("gap line: ({}, {}), [{}]".format(linex.lineinfo.start, linex.lineinfo.end, linex.line_text))
 
     paraline_text = '\n'.join(out_line_list)
 
@@ -561,7 +592,10 @@ def to_paralines(pdf_text_doc, file_name, work_dir, debug_mode=False):
     return paraline_text, offsets_line_list
 
 
-def parse_document(file_name, work_dir, debug_mode=False):
+def parse_document(file_name: str,
+                   work_dir: str,
+                   debug_mode: bool = False) \
+                   -> PDFTextDoc:
     base_fname = os.path.basename(file_name)
 
     doc_text = strutils.loads(file_name)
