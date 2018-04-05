@@ -11,9 +11,10 @@ PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 class ProvisionAnnotator:
 
-    def __init__(self, prov_classifier, work_dir, threshold=None):
+    def __init__(self, prov_classifier, work_dir, threshold=None, nbest=-1):
         self.provision_classifier = prov_classifier
         self.provision = prov_classifier.provision
+        self.nbest = nbest
         if threshold is not None:  # allow overrides from provclassifier.py
             self.threshold = threshold
         else:
@@ -107,7 +108,7 @@ class ProvisionAnnotator:
                 ant_result.append(fn_ant)
         return ant_result
 
-    def annotate_antdoc(self, eb_antdoc, nbest, threshold=None, prov_human_ant_list=None) \
+    def annotate_antdoc(self, eb_antdoc, nbest=None, threshold=None, prov_human_ant_list=None) \
         -> Tuple[List[Dict], float]:
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
@@ -115,6 +116,9 @@ class ProvisionAnnotator:
         # len(eb_antdoc.get_attrvec_list())))
         if prov_human_ant_list is None:
             prov_human_ant_list = []
+
+        if not nbest:
+            nbest = self.nbest
 
         attrvec_list = eb_antdoc.get_attrvec_list()
         # manually set the threshold

@@ -438,7 +438,7 @@ def train_eval_annotator(provision: str,
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     #make the classifier into an annotator
-    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
+    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir, nbest=nbest)
     # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
     # using generator, instead of all loaded at once.
     X_test_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_test, work_dir)

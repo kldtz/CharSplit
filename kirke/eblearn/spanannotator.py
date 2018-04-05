@@ -268,7 +268,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # self.provision_classifier.threshold = 0.5
         if threshold is None:
             threshold = self.threshold
-
+        nbest = self.nbest
         start_time = time.time()
         candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
@@ -286,7 +286,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # Remove anything below threshold
         if not prov_human_ant_list:
             prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= x_threshold]
-
+        if nbest > 0:
+            return prov_annotations[:nbest], x_threshold
         return prov_annotations, x_threshold
 
     def get_eval_status(self):
