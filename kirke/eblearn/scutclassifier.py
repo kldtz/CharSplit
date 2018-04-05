@@ -68,7 +68,12 @@ class ShortcutClassifier(EbClassifier):
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
 
     def make_bare_copy(self):
-        return ShortcutClassifier(self.provision)
+        result = ShortcutClassifier(self.provision)
+        if hasattr(self, 'nbest'):
+            result.nbest = self.nbest
+        else:
+            result.nbest = -1
+        return result
 
     # pylint: disable=R0914
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name, is_debug=True):

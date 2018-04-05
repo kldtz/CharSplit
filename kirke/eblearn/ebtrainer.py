@@ -390,6 +390,9 @@ def train_eval_annotator(provision: str,
         y[0] = 0
         y[1] = 0
 
+    # make sure nbest is know to everyone else
+    eb_classifier.nbest = nbest
+
     # runs when custom training mode positive training instances are too few
     # only train, no independent testing
     # corss validation is applied to all Bespoke training

@@ -111,9 +111,9 @@ class ProvisionAnnotator:
 
         If old bespoke model, this field won't be there.  We will create one then.
         """
-        if not hasattr(self, 'nbest'):
-            self.nbest = -1
-        return self.nbest
+        if not hasattr(self.provision_classifier, 'nbest'):
+            self.provision_classifier.nbest = -1
+        return self.provision_classifier.nbest
 
 
     def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None) \
@@ -160,7 +160,7 @@ class ProvisionAnnotator:
                                                           nbest=self.get_nbest(),
                                                           provision=prov,
                                                           prov_human_ant_list=\
-                                                              adj_prov_human_ant_list)
+                                                          adj_prov_human_ant_list)
 
         # print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
         # print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
