@@ -193,7 +193,7 @@ class DefaultPostPredictProcessing(EbPostPredictProcessing):
                                                      text=strutils.sub_nltab_with_space(cx_prob_attrvec.text)))
         if nbest > 0:
             nbest_candidates = sorted(ant_result, key=itemgetter('prob'), reverse=True)[:nbest]
-            return ant_result, threshold
+            return nbest_candidates, threshold
         return ant_result, threshold
 
 # Note from PythonClassifier.java:

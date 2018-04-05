@@ -261,6 +261,8 @@ def custom_train(cust_id: str):
     nbest = request.form.get('nbest')
     if not nbest:
         nbest = -1
+    else:
+        nbest = int(nbest)
 
     # to ensure that no accidental file name overlap
     logging.info("cust_id = '%s'", cust_id)
