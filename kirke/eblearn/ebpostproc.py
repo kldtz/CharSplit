@@ -154,6 +154,7 @@ class EbPostPredictProcessing(ABC):
                      doc_text: str,
                      prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
                      threshold: float,
+                     nbest=-1,
                      provision: Optional[str] = None,
                      prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
                      -> Tuple[List[Dict], float]:
@@ -213,6 +214,7 @@ class PostPredPartyProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -896,6 +898,7 @@ class PostPredEaEmployerProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -932,6 +935,7 @@ class PostPredEaEmployeeProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -967,6 +971,7 @@ class PostPredLicLicenseeProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1003,6 +1008,7 @@ class PostPredLicLicensorProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1039,6 +1045,7 @@ class PostPredLaBorrowerProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1075,6 +1082,7 @@ class PostPredLaLenderProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1111,6 +1119,7 @@ class PostPredLaAgentTrusteeProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1146,6 +1155,7 @@ class PostPredChoiceOfLawProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1187,6 +1197,7 @@ class PostPredPrintProbProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1228,6 +1239,7 @@ class PostPredTitleProc(EbPostPredictProcessing):
                      doc_text: str,
                      prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
                      threshold: float,
+                     nbest=-1,
                      provision: Optional[str] = None,
                      prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
                      -> Tuple[List[Dict], float]:
@@ -1278,6 +1290,7 @@ class PostPredBestDateProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1310,6 +1323,7 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1407,6 +1421,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
@@ -1501,6 +1516,7 @@ class PostPredLandlordTenantProc(EbPostPredictProcessing):
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     nbest=-1,
                      provision=None,
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
