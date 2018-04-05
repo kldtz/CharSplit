@@ -136,7 +136,7 @@ def cv_train_at_annotation_level(provision,
         cv_eb_classifier.train_antdoc_list(train_buckets,
                                            work_dir,
                                            cv_eb_classifier_fn)
-        cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir)
+        cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir, nbest=nbest)
 
         cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket, nbest)
         # print("cv ant_status, bucket_num = {}:".format(bucket_num))
@@ -150,7 +150,7 @@ def cv_train_at_annotation_level(provision,
     eb_classifier.train_antdoc_list(x_antdoc_list,
                                     work_dir,
                                     model_file_name)
-    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
+    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir, nbest=nbest)
     log_json = log_list
     merged_ant_status = \
         evalutils.aggregate_ant_status_list(cv_ant_status_list)['ant_status']
