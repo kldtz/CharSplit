@@ -32,7 +32,6 @@ class ProvisionAnnotator:
     # pylint: disable=R0914
     def test_antdoc_list(self,
                          ebantdoc_list: List[ebantdoc2.EbAnnotatedDoc2],
-                         nbest=-1,
                          threshold: Optional[float] = None) -> Tuple[Dict[str, Any],
                                                                      Dict[str, Dict]]:
         logging.debug('test_document_list')
@@ -48,7 +47,6 @@ class ProvisionAnnotator:
                                    if hant.label == self.provision]
             try:
                 ant_list, threshold = self.annotate_antdoc(ebantdoc,
-                                                           nbest,
                                                            threshold=self.threshold,
                                                            prov_human_ant_list=prov_human_ant_list)
             # pylint: disable=broad-except, unused-variable
@@ -108,7 +106,17 @@ class ProvisionAnnotator:
                 ant_result.append(fn_ant)
         return ant_result
 
-    def annotate_antdoc(self, eb_antdoc, nbest=None, threshold=None, prov_human_ant_list=None) \
+    def get_nbest(self) -> int:
+        """Return nbest.
+
+        If old bespoke model, this field won't be there.  We will create one then.
+        """
+        if not hasattr(self, 'nbest'):
+            self.nbest = -1
+        return self.nbest
+
+
+    def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None) \
         -> Tuple[List[Dict], float]:
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
@@ -116,9 +124,6 @@ class ProvisionAnnotator:
         # len(eb_antdoc.get_attrvec_list())))
         if prov_human_ant_list is None:
             prov_human_ant_list = []
-
-        if not nbest:
-            nbest = self.nbest
 
         attrvec_list = eb_antdoc.get_attrvec_list()
         # manually set the threshold
@@ -152,7 +157,7 @@ class ProvisionAnnotator:
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
                                                           prob_attrvec_list,
                                                           threshold,
-                                                          nbest=nbest,
+                                                          nbest=self.get_nbest(),
                                                           provision=prov,
                                                           prov_human_ant_list=\
                                                               adj_prov_human_ant_list)
