@@ -46,24 +46,35 @@ def load_pdf_offsets(file_name: str, cpoint_cunit_mapper: TextCpointCunitMapper)
 def para_to_para_list(line: str) -> Tuple[str, bool, List[int]]:
     """Convert a multi-line into one line or keep as is.
 
-    Input: lien is a line with new-line breaks, if there are new line break in the input text.
+    Input: line is a line with new-line breaks, if there are new line break in the input text.
 
     returns text: a non-break line, or a multi-line
             is_multi_lines: bool
             not-linebreak_offsets: [] if is_multi-lines is True, else
                                    offsets in line that should not be '\n'
-
     """
-    fake_line = ''
-    if re.search(r'\n\s*\n', line):
-        # print("weird double line in para..........")
-        fake_line = re.sub(r'([\n\s]+)([\n\s][\n\s][\n\s])', r'\1'.replace('\n', ' ') + ' XX253x',
-                           line)
-        fake_line = fake_line.replace('\n', ' ').replace(' XX253x', ' \n\n')
-        # print("fake line = {}".format(fake_line))
+    if re.search(r'\n\s*\n\s*\n', line):  # there must be a reason for 3 nl-breaks
+        mat_list = list(re.finditer(r'\n\s*\n\s*\n', line))
+        # replace all of those double new lines with space to preserve them
+        ch_list = list(line)
+        for mat in mat_list:
+            len_mat = len(mat.group())
+            mat_start = mat.start()
+            for i in range(len_mat):
+                ch_list[mat_start + i] = ' '
+        triple_line = ''.join(ch_list)
+        # print("tmp_line: [{}]".format(tmp_line))
+        not_linebreak_offsets = strutils.find_all_indices('\n', triple_line)
 
-        # print("len(line) = {}, len(fake_line)= {}".format(len(line), len(fake_line)))
-        return fake_line, True, []
+        # create the tmp_line
+        ch_list = list(line)
+        for i in not_linebreak_offsets:
+            ch_list[i] = ' '
+        tmp_line = ''.join(ch_list)
+
+        if not_linebreak_offsets:
+            return tmp_line, False, not_linebreak_offsets
+        return tmp_line, True, []
 
     line_list = line.split('\n')
     max_line_len = 0

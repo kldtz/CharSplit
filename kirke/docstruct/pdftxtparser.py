@@ -56,6 +56,10 @@ def to_nl_paraline_texts(file_name: str,
                          debug_mode: bool = False) \
                          -> Tuple[str, str, ArrayType, str, ArrayType,
                                   str, str, TextCpointCunitMapper]:
+    """Returns various format of the original document.
+
+
+    """
     # args: orig_doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr,
     #       nl_fname, paraline_fn, cpoint_cunit_mapper:
     base_fname = os.path.basename(file_name)
@@ -141,6 +145,7 @@ def to_nl_paraline_texts(file_name: str,
         if start != end:
             para_line, is_multi_lines, not_linebreaks = \
                 pdfutils.para_to_para_list(nl_text[start:end])
+
             if not is_multi_lines:
                 for i in not_linebreaks:
                     para_not_linebreak_offsets.append(start + i)

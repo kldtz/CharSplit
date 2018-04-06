@@ -536,7 +536,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         unused_nl_fname, unused_paraline_fname, cpoint_cunit_mapper = \
         pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
 
-    print("len(linebreak_arr) = {}".format(len(linebreak_arr)))
+    # print("len(linebreak_arr) = {}".format(len(linebreak_arr)))
     check_nl_ch_list = list(doc_text)
     for linebreak_x in linebreak_arr:
         check_nl_ch_list[linebreak_x] = '\n'
@@ -546,7 +546,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     else:
         print("{}\t3542x no, check_nl_text != nl_text".format(txt_file_name))
 
-    print("len(para_not_linebreak_arr) = {}".format(len(para_not_linebreak_arr)))
+    # print("len(para_not_linebreak_arr) = {}".format(len(para_not_linebreak_arr)))
     check_paraline_ch_list = list(check_nl_text)
     for not_linebreak_x in para_not_linebreak_arr:
         check_paraline_ch_list[not_linebreak_x] = ' '
@@ -555,15 +555,17 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         print("{}\t3542x yes, check_paraline_text == paraline_text".format(txt_file_name))
     else:
         print("{}\t3542x no, check_paraline_text != paraline_text".format(txt_file_name))
-        # print("check_paraline_text:")
-        # print(check_paraline_text)
-        # print("\n\nparaline_text:")
-        # print(paraline_text)
-        # print("\n\ncheck end.")
+        """
+        with open("paraline_check_text.txt", 'wt') as out1:
+            print(check_paraline_text, file=out1, end='')
+        with open("paraline_orig_text.txt", 'wt') as out2:
+            print(paraline_text, file=out2, end='')
+        print("wrote out diff in paraline_check_text.txt and paraline_orig_text.txt")
+        """
 
-    print("mem_size linebreak_arr: {}".format(memutils.get_size(linebreak_arr)))
-    print("mem_size para_not_linebreak_arr: {}".format(memutils.get_size(para_not_linebreak_arr)))
-    print("mem_size paraline_text: {}".format(memutils.get_size(paraline_text)))
+    # print("mem_size linebreak_arr: {}".format(memutils.get_size(linebreak_arr)))
+    # nprint("mem_size para_not_linebreak_arr: {}".format(memutils.get_size(para_not_linebreak_arr)))
+    # print("mem_size paraline_text: {}".format(memutils.get_size(paraline_text)))
 
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
                                                                           cpoint_cunit_mapper)

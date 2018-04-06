@@ -8,6 +8,8 @@ from typing import List
 from kirke.utils import ebantdoc4
 from kirke.utils import memutils, osutils
 
+IS_DEBUG_MODE = False
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
 
 
@@ -78,37 +80,38 @@ def main():
 
         print_obj_fields_size(attrvec, attrvec_size, prefix_st='    ')
     """
-    paras_with_attrs = eb_antdoc.paras_with_attrs
-    for i, para_with_attrs in enumerate(paras_with_attrs):
-        # print("  entities: {}".format(para_with_attrs.entities))
-        # print("  labels: {}".format(para_with_attrs.labels))
-        # print_list_size(para_with_attrs.entities, prefix_st='      entity')
+    if IS_DEBUG_MODE:
+        paras_with_attrs = eb_antdoc.paras_with_attrs
+        for i, para_with_attrs in enumerate(paras_with_attrs):
+            # print("  entities: {}".format(para_with_attrs.entities))
+            # print("  labels: {}".format(para_with_attrs.labels))
+            # print_list_size(para_with_attrs.entities, prefix_st='      entity')
 
-        para_with_attrs_size = memutils.get_size(para_with_attrs)
-        print("para_with_attrs #{}, size= {}".format(i, para_with_attrs_size))
-        obj_size = para_with_attrs_size
+            para_with_attrs_size = memutils.get_size(para_with_attrs)
+            print("para_with_attrs #{}, size= {}".format(i, para_with_attrs_size))
+            obj_size = para_with_attrs_size
 
-        val_sz_acc = 0
-        attr_size_list = []
-        if len(para_with_attrs) != 2:
-            print("len(para_with_attrs) = {}".format(len(para_with_attrs)))
-        for i, value in enumerate(para_with_attrs):
-            if i == 0:
-                attr = 'lnpos_pair_list'
-            elif i == 1:
-                attr = 'attrs'
-            val_sz = memutils.get_size(value)
-            attr_size_list.append((attr, val_sz))
+            val_sz_acc = 0
+            attr_size_list = []
+            if len(para_with_attrs) != 2:
+                print("len(para_with_attrs) = {}".format(len(para_with_attrs)))
+            for i, value in enumerate(para_with_attrs):
+                if i == 0:
+                    attr = 'lnpos_pair_list'
+                elif i == 1:
+                    attr = 'attrs'
+                val_sz = memutils.get_size(value)
+                attr_size_list.append((attr, val_sz))
 
-        prefix_st = '    '
-        for attr, val_sz in sorted(attr_size_list, key=operator.itemgetter(1), reverse=True):
-            val_sz_acc += val_sz
-            print(prefix_st, end='')
-            print("{}\tsize\t{}\t{:.5f}%\tacc\t{}\t{:.3f}%".format(attr,
-                                                                   val_sz,
-                                                                   val_sz * 100.0 / obj_size,
-                                                                   val_sz_acc,
-                                                                   val_sz_acc * 100.0 / obj_size))
+            prefix_st = '    '
+            for attr, val_sz in sorted(attr_size_list, key=operator.itemgetter(1), reverse=True):
+                val_sz_acc += val_sz
+                print(prefix_st, end='')
+                print("{}\tsize\t{}\t{:.5f}%\tacc\t{}\t{:.3f}%".format(attr,
+                                                                       val_sz,
+                                                                       val_sz * 100.0 / obj_size,
+                                                                       val_sz_acc,
+                                                                       val_sz_acc * 100.0 / obj_size))
 
 
     print("\n\n")
