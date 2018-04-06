@@ -1,13 +1,13 @@
 import os
 import re
 import sys
-from typing import List
+from typing import Any, List, Tuple
 
 from kirke.docstruct import docstructutils, footerutils, partyutils, secheadutils
 from kirke.utils import ebsentutils, engutils, mathutils, strutils, txtreader
 
 from kirke.docstruct import linepos
-                                       
+
 DEBUG_MODE = False
 
 def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_line=True):
@@ -85,7 +85,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
                                           second_line,
                                           []))
                     to_offset += len(second_line) + 1
-                    prev_output_line = second_line                    
+                    prev_output_line = second_line
             else:  # no attr_list, but maybe a page number
                 # print("{}\t{}\t[{}]".format(start, end, line))
                 if is_pagenum_line:
@@ -136,17 +136,21 @@ def get_sechead_attr(attr_list):
 # and remove pagenum.
 # TODO, Should add footer and header in the future.
 # But such info only available in PDF files.
-def lineinfos_to_paras(lineinfos):
+def lineinfos_to_paras(lineinfos) \
+    -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                        List[Tuple[Any]]]],
+             str,
+             List[Tuple[int, int]]]:
     # make a list of iterators,
     # will be easier to remove pagenum
     tmp_list = list(lineinfos)
 
     len_tmp_list = len(tmp_list)
     omit_line_set = set([])
-    cur_attr = []
+    cur_attr = []  # type: List
     prev_line = ''
-    tmp2_list = []
-    prev_notempty_line, prev_attr_list = 'Not Empty Line.', []
+    tmp2_list = []  # type: List[Tuple[int, int, str, List]]
+    prev_notempty_line, prev_attr_list = 'Not Empty Line.', []  # type: Tuple[str, List]
     gap_span_list = []
     prefix = 'fake_prefix'
     for i, linfo in enumerate(tmp_list):
@@ -213,12 +217,15 @@ def lineinfos_to_paras(lineinfos):
 
         if not prev_line and not line:
             omit_line_set.add(i)
-            
+
         tmp2_list.append((start, end, line, cur_attr))
         prev_line = line
         prev_attr_list = attr_list
 
-    result = []
+    # pylint: disable=line-too-long
+    result = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], List[Tuple[Any]]]]
+    doc_lines = []  # type: List[str]  # lines for nlp_text
+
     out_offset = 0
 
     non_empty_line_num = 0
@@ -242,15 +249,18 @@ def lineinfos_to_paras(lineinfos):
             # print("span_frto_list: {}".format(span_frto_list))
             if sechead_attr:
                 if line:
-                    result.append((span_frto_list, line, [sechead_attr]))
+                    result.append((span_frto_list, [sechead_attr]))
+                    doc_lines.append(line)
                 else:
-                    result.append((span_frto_list, line, []))
+                    result.append((span_frto_list, []))
+                    doc_lines.append(line)
             else:
                 # result.append(((start, end), (out_offset, out_offset + len(line)), line, []))
-                result.append((span_frto_list, line, []))
+                result.append((span_frto_list, []))
+                doc_lines.append(line)
             out_offset += len(line) + 1
-            
-    doc_lines = [line for _, line, _ in result]
+
+    # doc_lines = [line for _, line, _ in result]
     doc_text = '\n'.join(doc_lines)
 
     return result, doc_text, gap_span_list
@@ -449,7 +459,7 @@ def find_sechead_toc(para_attr_list):
     return -1, -1
 
 # this is called by eblearn/lineannotator.py
-def lineinfos_paras_to_attr_list(lineinfos_paras):
+def lineinfos_paras_to_attr_list(lineinfos_paras, doc_text: str):
     para_attr_list = []
     prev_out_line = ''
     found_witness = False   # never changed.
@@ -460,8 +470,15 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
     num_line = len(lineinfos_paras)
     num_long_english_line = 0
 
-    for line_idx, (_, line, attr_list) in enumerate(lineinfos_paras):
+    for line_idx, (se_list, attr_list) in enumerate(lineinfos_paras):
         attr2_list = []
+        print("se_list: {}".format(se_list))
+        line_st_list = []
+        for from_se_ln, to_se_ln in se_list:
+            fstart, fend, fln, is_gap = from_se_ln.to_tuple()
+            line_st_list.append(doc_text[fstart:fend])
+        line = ' '.join(line_st_list)
+        print("line: [{}]".format(line))
         is_english = engutils.classify_english_sentence(line)
         if is_english:
             attr2_list.append('yes_eng')
@@ -577,7 +594,14 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
 
 # 'is_combine_line' indicates if the system combines line when doing sechead identification
 # for HTML docs, this shoulbe True.  For PDF documents, this should be False.
-def parse_document(file_name, work_dir, is_combine_line=True):
+def parse_document(file_name: str,
+                   work_dir: str,
+                   is_combine_line: bool = True) \
+                   -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                       List[Tuple[Any]]]],
+                            str,
+                            List[Tuple[int, int]],
+                            str]:
     debug_mode = False
 
     base_fname = os.path.basename(file_name)
@@ -587,8 +611,8 @@ def parse_document(file_name, work_dir, is_combine_line=True):
     if debug_mode:
         lineinfo_fname = '{}/{}.lineinfo.v1'.format(work_dir, base_fname).replace('.txt', '')
         with open(lineinfo_fname, 'wt') as fout:
-            for i, (from_se, to_se, line, attr_list) in enumerate(lineinfos_with_attrs):
-                print("line #{}\t{}\t{}\t{}\t[{}]".format(i, from_se, to_se, attr_list, line), file=fout)
+            for i, (from_se, to_se, attr_list) in enumerate(lineinfos_with_attrs):
+                print("line #{}\t{}\t{}\t[{}]".format(i, from_se, to_se, attr_list, line), file=fout)
             # txtreader.dumps(lineinfo_doc_text, lineinfo_fname)
         print('wrote {}'.format(lineinfo_fname), file=sys.stderr)
 
@@ -613,14 +637,14 @@ def parse_document(file_name, work_dir, is_combine_line=True):
 
         se_para_debug_fname = paras_fname.replace('.paras', '.se.paras.debug')
         with open(se_para_debug_fname, 'wt') as fout10:
-            for span_lnpos_list, line, para_attrs in lineinfos_paras:
+            for span_lnpos_list, para_attrs in lineinfos_paras:
                 attrs_st = '|'.join([str(attr) for attr in para_attrs])
-                print('\t'.join([str(span_lnpos_list), '[{}]'.format(line), attrs_st]), file=fout10)
+                print('\t'.join([str(span_lnpos_list), attrs_st]), file=fout10)
         print('wrote {}'.format(se_para_debug_fname), file=sys.stderr)
 
         para_debug_fname = paras_fname.replace('.paras', '.paras.debug')
         with open(para_debug_fname, 'wt') as fout1:
-            paras_attr_list = lineinfos_paras_to_attr_list(lineinfos_paras)
+            paras_attr_list = lineinfos_paras_to_attr_list(lineinfos_paras, orig_doc_text)
             for line, para_attrs in paras_attr_list:
                 attrs_st = '|'.join([str(attr) for attr in para_attrs])
                 print('\t'.join([attrs_st, '[{}]'.format(line)]), file=fout1)
@@ -630,7 +654,7 @@ def parse_document(file_name, work_dir, is_combine_line=True):
         with open(sechead_fname, 'wt') as fout2:
 
             prev_out_line = ''
-            for span_frto_list, line, attr_list in lineinfos_paras:
+            for span_frto_list, attr_list in lineinfos_paras:
                 sechead_attr = ebsentutils.get_sechead_attr(attr_list)
 
                 to_se_list = [span_frto[1] for span_frto in span_frto_list]

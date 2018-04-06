@@ -5,7 +5,7 @@ import traceback
 
 from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
-from kirke.utils import ebantdoc2, evalutils, strutils
+from kirke.utils import ebantdoc4, evalutils, strutils
 
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
@@ -30,7 +30,7 @@ class ProvisionAnnotator:
     #    pass
     # pylint: disable=R0914
     def test_antdoc_list(self,
-                         ebantdoc_list: List[ebantdoc2.EbAnnotatedDoc2],
+                         ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                          threshold: Optional[float] = None) -> Tuple[Dict[str, Any],
                                                                      Dict[str, Dict]]:
         logging.debug('test_document_list')
@@ -56,7 +56,7 @@ class ProvisionAnnotator:
             # pylint: disable=unreachable, pointless-string-statement
             """
                 # retry all the operations, except for loading the cache
-                ebantdoc = ebantdoc2.text_to_ebantdoc2(ebantdoc.file_id,
+                ebantdoc = ebantdoc4.text_to_ebantdoc4(ebantdoc.file_id,
                                                        work_dir=None,
                                                        is_cache_enabled=False,
                                                        is_bespoke_mode=False,
@@ -145,8 +145,8 @@ class ProvisionAnnotator:
         try:
             # mapping the offsets in prov_human_ant_list from raw_text to nlp_text
             fromto_mapper = fromtomapper.FromToMapper('raw_text to nlp_text offset mapper',
-                                                      eb_antdoc.origin_sx_lnpos_list,
-                                                      eb_antdoc.nlp_sx_lnpos_list)
+                                                      eb_antdoc.get_origin_sx_lnpos_list(),
+                                                      eb_antdoc.get_nlp_sx_lnpos_list())
             adj_prov_human_ant_list = \
                 fromto_mapper.adjust_provants_fromto_offsets(prov_human_ant_list)
         except IndexError:
@@ -159,7 +159,7 @@ class ProvisionAnnotator:
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
         prov_annotations, threshold = \
-            ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
+            ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
                                                           threshold,
                                                           provision=prov,
@@ -174,8 +174,8 @@ class ProvisionAnnotator:
 
         try:
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
-                                                      eb_antdoc.nlp_sx_lnpos_list,
-                                                      eb_antdoc.origin_sx_lnpos_list)
+                                                      eb_antdoc.get_nlp_sx_lnpos_list(),
+                                                      eb_antdoc.get_origin_sx_lnpos_list())
             # this is an in-place modification
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
         except IndexError:

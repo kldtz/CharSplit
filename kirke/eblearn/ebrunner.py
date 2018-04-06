@@ -19,10 +19,10 @@ from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
 from kirke.eblearn import ebannotator, ebtrainer, lineannotator, provclassifier
 from kirke.eblearn import scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
-from kirke.utils import ebantdoc2, ebantdoc3, evalutils, lrucache, osutils, strutils
+from kirke.utils import ebantdoc4, ebantdoc3, evalutils, lrucache, osutils, strutils
 
 
-from kirke.utils.ebantdoc2 import EbDocFormat, prov_ants_cpoint_to_cunit
+from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 DEBUG_MODE = False
 
@@ -33,7 +33,7 @@ MAX_CUSTOM_MODEL_CACHE_SIZE = 100
 
 
 def annotate_provision(eb_annotator,
-                       eb_antdoc: ebantdoc2.EbAnnotatedDoc2,
+                       eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                        eb_antdoc3: ebantdoc3.EbAnnotatedDoc3) -> Tuple[List[Dict], float]:
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc3)
@@ -185,7 +185,7 @@ class EbRunner:
 
 
     def run_annotators_in_parallel(self,
-                                   eb_antdoc: ebantdoc2.EbAnnotatedDoc2,
+                                   eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                                    eb_antdoc3: ebantdoc3.EbAnnotatedDoc3,
                                    provision_set=None) -> Dict[str, List]:
         if not provision_set:
@@ -313,7 +313,7 @@ class EbRunner:
                           work_dir: Optional[str] = None,
                           is_doc_structure: bool = True,
                           doc_lang: str = 'en') \
-                          -> Tuple[Dict[str, List], ebantdoc2.EbAnnotatedDoc2]:
+                          -> Tuple[Dict[str, List], ebantdoc4.EbAnnotatedDoc4]:
         time1 = time.time()
         if not provision_set:
             # no provision specified.  Must be doing testing.
@@ -335,7 +335,7 @@ class EbRunner:
         # print("provision_set: {}".format(provision_set))
         self.update_custom_models(provision_set, doc_lang)
 
-        eb_antdoc = ebantdoc2.text_to_ebantdoc2(file_name,
+        eb_antdoc = ebantdoc4.text_to_ebantdoc4(file_name,
                                                 work_dir=work_dir,
                                                 is_doc_structure=is_doc_structure,
                                                 doc_lang=doc_lang)
@@ -417,14 +417,14 @@ class EbRunner:
             # there is no offset map because paraline is the same
             self.apply_line_annotators_aux(prov_labels_map, paras_with_attrs, para_doc_text,
                                            nlp_sx_lnpos_list, origin_sx_lnpos_list,
-                                           eb_antdoc.nl_text)
+                                           eb_antdoc.get_nl_text())
         else:
             self.apply_line_annotators_aux(prov_labels_map,
                                            eb_antdoc.paras_with_attrs,
-                                           eb_antdoc.nlp_text,
-                                           eb_antdoc.nlp_sx_lnpos_list,
-                                           eb_antdoc.origin_sx_lnpos_list,
-                                           eb_antdoc.nl_text)
+                                           eb_antdoc.get_nlp_text(),
+                                           eb_antdoc.get_nlp_sx_lnpos_list(),
+                                           eb_antdoc.get_origin_sx_lnpos_list(),
+                                           eb_antdoc.get_nl_text())
 
 
     def apply_line_annotators_aux(self,
@@ -508,10 +508,10 @@ class EbRunner:
                 ebantdoc_list = ebantdoc3.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir)
             else:
-                ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fns_file_name,
+                ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir)
         else:
-            ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fns_file_name,
+            ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                self.work_dir)
 
         prov_antlist_logjson_map = {}

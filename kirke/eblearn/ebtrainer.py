@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 from kirke.eblearn import annotatorconfig, ebannotator, ebattrvec, ebpostproc
 from kirke.eblearn import lineannotator, ruleannotator, spanannotator
 from kirke.ebrules import titles, parties, dates
-from kirke.utils import  ebantdoc2, ebantdoc3, evalutils, splittrte, strutils, txtreader
+from kirke.utils import  ebantdoc4, ebantdoc3, evalutils, splittrte, strutils, txtreader
 
 
 DEFAULT_CV = 3
@@ -91,7 +91,7 @@ def cv_train_at_annotation_level(provision,
     # we do 3-fold cross validation, as the big set for custom training
     # test_size = 0.33
     # this will be looped mutliple times, so a list, not a generator
-    x_antdoc_list = list(ebantdoc2.traindoc_list_to_antdoc_list(x_traindoc_list, work_dir))
+    x_antdoc_list = list(ebantdoc4.traindoc_list_to_antdoc_list(x_traindoc_list, work_dir))
 
     ordered_list = []
     for x_antdoc, label in zip(x_antdoc_list, bool_list):
@@ -178,7 +178,7 @@ def cv_train_at_annotation_level(provision,
     return prov_annotator, log_list
 
 
-# TODO, because we are using ebantdoc3 instead of ebantdoc2, I am
+# TODO, because we are using ebantdoc3 instead of ebantdoc4, I am
 # doing code copying right now.  Maybe merge with cv_train_at_annotation_level()
 # in future.
 # pylint: disable=too-many-arguments, too-many-locals, invalid-name, too-many-statements
@@ -339,7 +339,7 @@ def train_eval_annotator(provision: str,
     # an earlier commit.  After realizing scikit learn supports this functionality
     # directly, we switched to scikit learn's mechanism.
     eb_traindoc_list = \
-        ebantdoc2.doclist_to_traindoc_list(txt_fn_list,
+        ebantdoc4.doclist_to_traindoc_list(txt_fn_list,
                                            work_dir,
                                            is_bespoke_mode=custom_training_mode,
                                            is_doc_structure=is_doc_structure,
@@ -443,7 +443,7 @@ def train_eval_annotator(provision: str,
 
     # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
     # using generator, instead of all loaded at once.
-    X_test_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_test, work_dir)
+    X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
     ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
 
 
@@ -493,7 +493,7 @@ def train_eval_annotator_with_trte(provision: str,
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
     # pylint: disable=invalid-name
-    X_train = ebantdoc2.doclist_to_ebantdoc_list(train_doclist_fn,
+    X_train = ebantdoc4.doclist_to_ebantdoc_list(train_doclist_fn,
                                                  work_dir,
                                                  is_doc_structure=is_doc_structure)
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
@@ -501,7 +501,7 @@ def train_eval_annotator_with_trte(provision: str,
 
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
     # pylint: disable=invalid-name
-    X_test = ebantdoc2.doclist_to_ebantdoc_list(test_doclist_fn,
+    X_test = ebantdoc4.doclist_to_ebantdoc_list(test_doclist_fn,
                                                 work_dir,
                                                 is_doc_structure=is_doc_structure)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
@@ -743,7 +743,7 @@ def eval_annotator(txt_fn_list, work_dir, model_file_name):
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
+    ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -763,7 +763,7 @@ def eval_ml_rule_annotator(txt_fn_list, work_dir, model_file_name):
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
+    ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -778,7 +778,7 @@ def eval_ml_rule_annotator(txt_fn_list, work_dir, model_file_name):
     pprint.pprint(provision_status_map)
 
 
-def skip_ebantdoc_list(ebantdoc_list: List[ebantdoc2.EbAnnotatedDoc2],
+def skip_ebantdoc_list(ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                        txt_fnlist: str):
     fn_list = txtreader.load_str_list(txt_fnlist)
     skip_fileid_set = set([])  # type: Set[str]
@@ -796,7 +796,7 @@ def eval_line_annotator_with_trte(provision: str,
                                   work_dir: str = 'dir-work',
                                   is_doc_structure: bool = False):
     print('eval_line_annotator_with_trte(), provision: [{}]'.format(provision))
-    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list_fn,
+    ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list_fn,
                                                        work_dir=work_dir,
                                                        is_doc_structure=is_doc_structure)
     # Sometimes annotation can be wrong to due changed guidelines, such as
@@ -830,7 +830,7 @@ def eval_classifier(txt_fn_list,
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
+    ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)

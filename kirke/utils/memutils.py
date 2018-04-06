@@ -34,7 +34,7 @@ def get_size_kbytes(obj: Any) -> float:
 
 
 def get_size_mbytes(obj: Any) -> float:
-    return asizeof.asizeof(obj) / 100000.0;
+    return asizeof.asizeof(obj) / 1000000.0;
 
 
 if __name__ == '__main__':

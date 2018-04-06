@@ -238,45 +238,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         return self.ant_status, log_json
 
-    # I believe nobody is calling this
-    """
-    def test_antdoc(self,
-                    ebantdoc: ebantdoc3.EbAnnotatedDoc3,
-                    threshold: Optional[float] = None,
-                    work_dir: str = 'dir-work'):
-        if threshold is None:
-            threshold = self.threshold
-        ant_list = self.annotate_antdoc(ebantdoc,
-                                        threshold=threshold,
-                                        work_dir=work_dir)
-        # print("ant_list: {}".format(ant_list))
-        prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-                               if hant.label == self.provision]
-        # print("human_list: {}".format(prov_human_ant_list))
-
-        # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
-        # pred_prob_start_end_list, txt)
-        # pylint: disable=C0103
-        tp, fn, fp, tn, fallout, unused_json_return = \
-            evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
-                                                    ant_list,
-                                                    ebantdoc.file_id,
-                                                    ebantdoc.get_text(),
-                                                    threshold,
-                                                    is_raw_mode=False,
-                                                    diagnose_mode=True)
-
-        title = "annotate_status, threshold = {}".format(self.threshold)
-        prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
-
-        tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp,
-                                                               'fn': fn, 'tp': tp},
-                                          'threshold': self.threshold,
-                                          'prec': prec, 'recall': recall, 'f1': f1}}
-
-        return tmp_eval_status
-    """
-
 
     # returns candidates, label_list, group_id_list
     # this also enriches candidates using additional self.candidate_transformers

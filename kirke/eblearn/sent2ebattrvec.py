@@ -38,8 +38,7 @@ def has_word_between(line: str) -> bool:
 
 
 # pylint: disable=R0912,R0913,R0914,R0915
-def sent2ebattrvec(file_id: str,
-                   ebsent: EbSentence,
+def sent2ebattrvec(ebsent: EbSentence,
                    sent_seq: int,
                    prev_ebsent: Optional[EbSentence],
                    next_ebsent: Optional[EbSentence],
@@ -50,7 +49,7 @@ def sent2ebattrvec(file_id: str,
 
     # TODO, pass in the token list, with lemma
     # will do chunking in the future also
-    fvec = ebattrvec.EbAttrVec(file_id,
+    fvec = ebattrvec.EbAttrVec(None,  # there is no file_id any more
                                ebsent.start,
                                ebsent.end,
                                ebsent.get_tokens_text(),

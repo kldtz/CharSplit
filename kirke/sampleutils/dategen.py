@@ -41,7 +41,7 @@ class DateSpanGenerator:
                                          ebantdoc3.EbDocFormat.other]):
                 nl_text = antdoc.text
             else:
-                nl_text = antdoc.nl_text
+                nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
                 logging.info('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)

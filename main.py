@@ -18,7 +18,7 @@ from kirke.eblearn import ebannotator, ebrunner, ebtrainer, provclassifier, scut
 # from kirke.ebrules import rateclassifier
 # pylint: disable=unused-import
 from kirke.eblearn.ebclassifier import EbClassifier
-from kirke.utils import ebantdoc2, osutils, splittrte, strutils
+from kirke.utils import ebantdoc4, osutils, splittrte, strutils
 
 
 
@@ -230,7 +230,7 @@ def test_one_annotator(txt_fn_list_fn: str,
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
+    ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)

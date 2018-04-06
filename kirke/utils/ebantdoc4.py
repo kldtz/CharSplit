@@ -1,3 +1,5 @@
+# pylint: disable=too-many-lines
+import array
 from array import ArrayType
 import concurrent.futures
 from enum import Enum
@@ -9,15 +11,18 @@ import shutil
 import sys
 import time
 # pylint: disable=unused-import
-from typing import Any, DefaultDict, Dict, List, Tuple
+from typing import Any, DefaultDict, Dict, List, Set, Tuple
 
+# pylint: disable=import-error
 from sklearn.externals import joblib
 
-from kirke.eblearn import sent2ebattrvec
-from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
+
+from kirke.eblearn import ebattrvec, sent2ebattrvec
+from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdftxtparser
+from kirke.docstruct.pdfoffsets import PDFTextDoc
 from kirke.utils import corenlputils, ebsentutils, memutils, osutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
-
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 CORENLP_JSON_VERSION = '1.4'
 EBANTDOC_VERSION = '1.6'
@@ -54,23 +59,24 @@ class EbAnnotatedDoc4:
     # pylint: disable=too-many-locals
     def __init__(self,
                  *,   # force specify all parameters by keyword
-                 file_name,
+                 file_name: str,
                  doc_format: EbDocFormat,
-                 text,
-                 cpoint_cunit_mapper,
-                 prov_ant_list,
-                 is_test,
-                 para_doc_text,        # adjusted
-                 para_prov_ant_list,   # adjusted
-                 attrvec_list,         # adjusted
-                 paras_with_attrs,     # adjusted
-                 origin_sx_lnpos_list,
-                 nlp_sx_lnpos_list,
+                 text: str,
+                 cpoint_cunit_mapper: TextCpointCunitMapper,
+                 prov_ant_list: List[ProvisionAnnotation],
+                 is_test: bool,
+                 # para_doc_text,      # adjusted
+                 para_prov_ant_list,   # nlp_offset adjusted
+                 attrvec_list: List[ebattrvec.EbAttrVec],         # nlp offset adjusted
+                 paras_with_attrs,     # nlp_offset adjusted
+                 origin_lnpos_list: List[linepos.LnPos],
+                 nlp_lnpos_list: List[linepos.LnPos],
                  gap_span_list,  # TODO, jshaw, maybe del in future
                  linebreak_arr: ArrayType,
                  page_offsets_list=None,
                  para_not_linebreak_arr: ArrayType,
-                 doc_lang='en') -> None:
+                 doc_lang: str = 'en') \
+                 -> None:
         self.file_id = file_name
         self.doc_format = doc_format
         self.text = text
@@ -80,16 +86,16 @@ class EbAnnotatedDoc4:
 
         self.prov_annotation_list = prov_ant_list
         self.is_test_set = is_test
-        self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
+        self.provision_set = set([prov_ant.label for prov_ant in prov_ant_list])
         self.doc_lang = doc_lang
 
-        self.nlp_text = para_doc_text
+        # self.nlp_text = para_doc_text
         self.para_prov_ant_list = para_prov_ant_list
         self.attrvec_list = attrvec_list
         self.paras_with_attrs = paras_with_attrs
         # to map to original offsets
-        self.nlp_sx_lnpos_list = nlp_sx_lnpos_list     # now it's list of (start, linepos.LnPos)
-        self.origin_sx_lnpos_list = origin_sx_lnpos_list
+        self.nlp_lnpos_list = nlp_lnpos_list
+        self.origin_lnpos_list = origin_lnpos_list
         self.gap_span_list = gap_span_list
 
         self.linebreak_arr = linebreak_arr
@@ -103,6 +109,8 @@ class EbAnnotatedDoc4:
         self.footer_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
         self.signature_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
 
+        # self.nlp_text = self.get_nlp_text_aux()
+
 
     def get_file_id(self):
         return self.file_id
@@ -115,47 +123,81 @@ class EbAnnotatedDoc4:
             return mat.group(1)
         return 'no-doc-id-found:{}'.format(self.file_id)
 
-    def set_provision_annotations(self, ant_list):
+    def set_provision_annotations(self, ant_list: List[ProvisionAnnotation]) -> None:
         self.prov_annotation_list = ant_list
 
-    def get_provision_annotations(self):
+    def get_provision_annotations(self) -> List[ProvisionAnnotation]:
         return self.prov_annotation_list
 
-    def has_provision_ant(self, provision):
+    def has_provision_ant(self, provision: str) -> bool:
         for prov_annotation in self.prov_annotation_list:
             if prov_annotation.label == provision:
                 return True
         return False
 
-    def get_provision_set(self):
+    def get_provision_set(self) -> Set[str]:
         return self.provision_set
 
-    def get_attrvec_list(self):
+    def get_attrvec_list(self) -> List[ebattrvec.EbAttrVec]:
         return self.attrvec_list
 
-    def get_text(self):
+    def get_text(self) -> str:
         return self.text
 
-    def get_nl_text(self):
+    def get_nl_text(self) -> str:
         ch_list = list(self.text)
         for offset in self.linebreak_arr:
             ch_list[offset] = '\n'
         return ''.join(ch_list)
 
-    def get_paraline_text(self):
+    def get_nlp_text(self) -> str:
+        print("get_nlp_text({})".format(self.file_id))
+        doc_text = self.text
+        if not self.paras_with_attrs:  # html or html_no_docstruct
+            return doc_text
+
+        para_st_list = []
+        skip_count = 0
+        for para_with_attrs in self.paras_with_attrs:
+
+            # print("para_with_attrs: {}".format(para_with_attrs))
+            # para_with_attrs = List[Tuple[linepos.LnPos, linepos.LnPos]],
+            #                   str,
+            #                   List[Any]]
+            lnpos_pair_list, unused_attrs = para_with_attrs
+            skip_st_list = []
+            for from_lnpos, unused_to_lnpos in lnpos_pair_list:
+                from_start, from_end, unused_from_line_num, is_gap = from_lnpos.to_tuple()
+                if not is_gap:
+                    para_st_list.append(doc_text[from_start:from_end])
+                else:  # this is never called, or reached
+                    skip_count += 1
+                    skip_st_list.append("skipping #{} [{}]".format(skip_count,
+                                                                   doc_text[from_start:from_end]))
+            # para_st_list.append(' '.join(para_st_list))
+        nlp_text = '\n'.join(para_st_list)
+        return nlp_text
+
+    # def get_nlp_text(self) -> str:
+    #     return self.nlp_text
+
+    def get_paraline_text(self) -> str:
         ch_list = list(self.get_nl_text())
         for offset in self.para_not_linebreak_arr:
             ch_list[offset] = ' '
         return ''.join(ch_list)
 
-    def has_same_prov_ant_list(self, prov_ant_list2):
+    def get_nlp_sx_lnpos_list(self):
+        return [(elt.start, elt) for elt in self.nlp_lnpos_list]
+
+    def get_origin_sx_lnpos_list(self):
+        return [(elt.start, elt) for elt in self.origin_lnpos_list]
+
+    def has_same_prov_ant_list(self, prov_ant_list2: List[ProvisionAnnotation]) -> bool:
         return self.prov_annotation_list == prov_ant_list2
 
-    def get_doc_format(self):
+    def get_doc_format(self) -> EbDocFormat:
         return self.doc_format
-
-    def get_nlp_text(self):
-        return self.nlp_text
 
 
 def remove_prov_greater_offset(prov_annotation_list, max_offset):
@@ -181,15 +223,22 @@ def load_cached_ebantdoc4(eb_antdoc_fn: str):
     return None
 
 
+# return attrvec_list, nlp_prov_ant_list, original_sx_lnpos_list, nlp_sx_lnpos_list
 # pylint: disable=too-many-arguments, too-many-locals
 def nlptxt_to_attrvec_list(para_doc_text: str,
                            txt_file_name: str,
                            txt_base_fname: str,
                            prov_annotation_list,
-                           paras_with_attrs,
+                           paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                                        # str,
+                                                        List[Any]]],
                            work_dir: str,
                            is_cache_enabled: bool,
-                           doc_lang: str = 'en'):
+                           doc_lang: str = 'en') \
+                           -> Tuple[List[ebattrvec.EbAttrVec],
+                                    List[ebsentutils.ProvisionAnnotation],
+                                    List[linepos.LnPos],
+                                    List[linepos.LnPos]]:
     # para_doc_text is what is sent, not txt_base_fname
     corenlp_json = text_to_corenlp_json(para_doc_text,
                                         txt_base_fname,
@@ -262,8 +311,7 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
             next_ebsent = ebsent_list[sent_idx + 1]
         else:
             next_ebsent = None
-        fvec = sent2ebattrvec.sent2ebattrvec(txt_file_name,
-                                             ebsent,
+        fvec = sent2ebattrvec.sent2ebattrvec(ebsent,
                                              sent_idx + 1,
                                              prev_ebsent,
                                              next_ebsent,
@@ -272,9 +320,9 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
         prev_ebsent = ebsent
 
     # these lists has to be sorted by nlp_sx_lnpos_list
-    original_sx_lnpos_list, nlp_sx_lnpos_list = fromtomapper.paras_to_fromto_lists(paras_with_attrs)
+    original_lnpos_list, nlp_lnpos_list = fromtomapper.paras_to_fromto_lnpos_lists(paras_with_attrs)
 
-    return attrvec_list, nlp_prov_ant_list, original_sx_lnpos_list, nlp_sx_lnpos_list
+    return attrvec_list, nlp_prov_ant_list, original_lnpos_list, nlp_lnpos_list
 
 
 # stop at 'exhibit_appendix' or 'exhibit_appendix_complete'
@@ -300,10 +348,10 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                                                    doc_lang=doc_lang)
 
     # there is no nlp.txt
-    para_doc_text = doc_text
+    # para_doc_text = doc_text
     nlp_prov_ant_list = prov_annotation_list
-    origin_sx_lnpos_list = []
-    nlp_sx_lnpos_list = []
+    origin_lnpos_list = []
+    nlp_lnpos_list = []
     gap_span_list = []
     eb_antdoc = EbAnnotatedDoc4(file_name=txt_file_name,
                                 doc_format=EbDocFormat.html_nodocstruct,
@@ -311,12 +359,12 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                 cpoint_cunit_mapper=cpoint_cunit_mapper,
                                 prov_ant_list=prov_annotation_list,
                                 is_test=is_test,
-                                para_doc_text=para_doc_text,
+                                # para_doc_text=para_doc_text,
                                 para_prov_ant_list=nlp_prov_ant_list,
                                 attrvec_list=attrvec_list,
                                 paras_with_attrs=paras_with_attrs,
-                                origin_sx_lnpos_list=origin_sx_lnpos_list,
-                                nlp_sx_lnpos_list=nlp_sx_lnpos_list,
+                                origin_lnpos_list=origin_lnpos_list,
+                                nlp_lnpos_list=nlp_lnpos_list,
                                 gap_span_list=gap_span_list,
                                 # there is no page_offsets_list
                                 linebreak_arr=[],
@@ -337,7 +385,13 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
     return eb_antdoc
 
 
-def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode=False):
+# return txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper
+def chop_at_exhibit_complete(txt_file_name: str,
+                             txt_base_fname: str,
+                             work_dir: str,
+                             debug_mode: bool = False) \
+                             -> Tuple[str, str, List[ProvisionAnnotation], bool,
+                                      TextCpointCunitMapper]:
     doc_text = txtreader.loads(txt_file_name)
     cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
@@ -375,10 +429,10 @@ def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode
 
 
 # stop at 'exhibit_appendix' or 'exhibit_appendix_complete'
-def html_to_ebantdoc4(txt_file_name,
-                      work_dir,
-                      is_cache_enabled=True,
-                      doc_lang='en'):
+def html_to_ebantdoc4(txt_file_name: str,
+                      work_dir: str,
+                      is_cache_enabled: bool = True,
+                      doc_lang: str = 'en'):
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
@@ -398,7 +452,7 @@ def html_to_ebantdoc4(txt_file_name,
     if debug_mode:
         print("wrote {}".format(txt4nlp_fname), file=sys.stderr)
 
-    attrvec_list, nlp_prov_ant_list, origin_sx_lnpos_list, nlp_sx_lnpos_list = \
+    attrvec_list, nlp_prov_ant_list, origin_lnpos_list, nlp_lnpos_list = \
         nlptxt_to_attrvec_list(para_doc_text,
                                txt_file_name,
                                txt_base_fname,
@@ -414,16 +468,16 @@ def html_to_ebantdoc4(txt_file_name,
                                 cpoint_cunit_mapper=cpoint_cunit_mapper,
                                 prov_ant_list=prov_annotation_list,
                                 is_test=is_test,
-                                para_doc_text=para_doc_text,
+                                # para_doc_text=para_doc_text,
                                 para_prov_ant_list=nlp_prov_ant_list,
                                 attrvec_list=attrvec_list,
                                 paras_with_attrs=paras_with_attrs,
-                                origin_sx_lnpos_list=origin_sx_lnpos_list,
-                                nlp_sx_lnpos_list=nlp_sx_lnpos_list,
+                                origin_lnpos_list=origin_lnpos_list,
+                                nlp_lnpos_list=nlp_lnpos_list,
                                 gap_span_list=gap_span_list,
                                 # there is no page_offsets_list
-                                linebreak_arr=[],
-                                para_not_linebreak_arr=[],
+                                linebreak_arr=array.array('i'),
+                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
@@ -451,7 +505,7 @@ def update_special_block_info(eb_antdoc, pdf_txt_doc):
 # this parses both originally text and html documents
 # It's main goal is to detect sechead
 # optionally pagenum, footer, toc, signature
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def pdf_to_ebantdoc4(txt_file_name: str,
                      offsets_file_name: str,
                      work_dir: str,
@@ -488,9 +542,9 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         check_nl_ch_list[linebreak_x] = '\n'
     check_nl_text = ''.join(check_nl_ch_list)
     if check_nl_text == nl_text:
-        print("3542 yes, check_nl_text == nl_text")
+        print("{}\t3542x yes, check_nl_text == nl_text".format(txt_file_name))
     else:
-        print("3542 no, check_nl_text != nl_text")
+        print("{}\t3542x no, check_nl_text != nl_text".format(txt_file_name))
 
     print("len(para_not_linebreak_arr) = {}".format(len(para_not_linebreak_arr)))
     check_paraline_ch_list = list(check_nl_text)
@@ -498,14 +552,14 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         check_paraline_ch_list[not_linebreak_x] = ' '
     check_paraline_text = ''.join(check_paraline_ch_list)
     if check_paraline_text == paraline_text:
-        print("3542 yes, check_paraline_text == paraline_text")
+        print("{}\t3542x yes, check_paraline_text == paraline_text".format(txt_file_name))
     else:
-        print("3542 no, check_paraline_text != paraline_text")
-        print("check_paraline_text:")
-        print(check_paraline_text)
-        print("\n\nparaline_text:")
-        print(paraline_text)
-        print("\n\ncheck end.")
+        print("{}\t3542x no, check_paraline_text != paraline_text".format(txt_file_name))
+        # print("check_paraline_text:")
+        # print(check_paraline_text)
+        # print("\n\nparaline_text:")
+        # print(paraline_text)
+        # print("\n\ncheck end.")
 
     print("mem_size linebreak_arr: {}".format(memutils.get_size(linebreak_arr)))
     print("mem_size para_not_linebreak_arr: {}".format(memutils.get_size(para_not_linebreak_arr)))
@@ -514,7 +568,8 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
                                                                           cpoint_cunit_mapper)
 
-    pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)
+    pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)  # type: PDFTextDoc
+
 
     # paras2 here is based on information from pdfbox.
     # Current pdfbox outputs lines with only spaces, so it sometime put the text
@@ -527,15 +582,57 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     # pages with only 1 block.  Cannot really switch to *.paraline.txt now because double-lined text
     # might cause more trouble.
     paras2_with_attrs, para2_doc_text, gap2_span_list = \
-        pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir,
-                                         debug_mode=False)
+        pdftxtparser.to_paras_with_attrs(pdf_text_doc,
+                                         txt_file_name,
+                                         work_dir=work_dir,
+                                         debug_mode=True)
+
+    # for i, (gap_start, gap_end) in enumerate(gap2_span_list):
+    #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
+    # now check if the two file is the same
+    check_para_st_list = []
+    for para_with_attrs in paras2_with_attrs:
+        # para_with_attrs = List[Tuple[linepos.LnPos, linepos.LnPos]],
+        #                   str,
+        #                   List[Any]]
+        # lnpos_pair_list, unused_para_text, unused_attrs = para_with_attrs
+        lnpos_pair_list, unused_attrs = para_with_attrs
+        para_st_list = []
+        skip_count = 0
+        skip_st_list = []
+        for from_lnpos, unused_to_lnpos in lnpos_pair_list:
+            from_start, from_end, unused_from_line_num, is_gap = from_lnpos.to_tuple()
+            if not is_gap:
+                para_st_list.append(doc_text[from_start:from_end])
+            else:  # this is never called, or reached
+                skip_count += 1
+                skip_st_list.append("skipping #{} [{}]".format(skip_count,
+                                                               doc_text[from_start:from_end]))
+        check_para_st_list.append(' '.join(para_st_list))
+    check_text4nlp_fn = '{}/{}.check'.format(work_dir, txt_base_fname)
+    check_nlp_text = '\n'.join(check_para_st_list)
+    txtreader.dumps(check_nlp_text, check_text4nlp_fn)
+    if debug_mode:
+        print('wrote {}'.format(check_text4nlp_fn), file=sys.stderr)
+
+    check_text4nlp_skip_fn = '{}/{}.skip'.format(work_dir, txt_base_fname)
+    check_skip_text = '\n'.join(skip_st_list)
+    txtreader.dumps(check_skip_text, check_text4nlp_skip_fn)
+    if debug_mode:
+        print('wrote {}'.format(check_text4nlp_skip_fn), file=sys.stderr)
+
+
+    if check_nlp_text == para2_doc_text:
+        print("{}\t3542x yes, check_nlp_text == nlp_text".format(txt_file_name))
+    else:
+        print("{}\t3542x no, check_nlp_text != nlp_text".format(txt_file_name))
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para2_doc_text, text4nlp_fn)
     if debug_mode:
         print('wrote {}'.format(text4nlp_fn), file=sys.stderr)
 
-    attrvec_list, nlp_prov_ant_list, origin_sx_lnpos_list, nlp_sx_lnpos_list = \
+    attrvec_list, nlp_prov_ant_list, origin_lnpos_list, nlp_lnpos_list = \
         nlptxt_to_attrvec_list(para2_doc_text,
                                txt_file_name,
                                txt_base_fname,
@@ -551,12 +648,12 @@ def pdf_to_ebantdoc4(txt_file_name: str,
                                 cpoint_cunit_mapper=cpoint_cunit_mapper,
                                 prov_ant_list=prov_annotation_list,
                                 is_test=is_test,
-                                para_doc_text=para2_doc_text,
+                                # para_doc_text=para2_doc_text,
                                 para_prov_ant_list=nlp_prov_ant_list,
                                 attrvec_list=attrvec_list,
                                 paras_with_attrs=paras2_with_attrs,
-                                origin_sx_lnpos_list=origin_sx_lnpos_list,
-                                nlp_sx_lnpos_list=nlp_sx_lnpos_list,
+                                origin_lnpos_list=origin_lnpos_list,
+                                nlp_lnpos_list=nlp_lnpos_list,
                                 gap_span_list=gap2_span_list,
                                 linebreak_arr=linebreak_arr,
                                 page_offsets_list=pdf_text_doc.get_page_offsets(),
@@ -826,8 +923,8 @@ def print_para_list(eb_antdoc):
         print('\t'.join(cols))
 
 
-def print_attrvec_list(eb_antdoc):
-    doc_text = eb_antdoc.nlp_text
+def print_attrvec_list(eb_antdoc: EbAnnotatedDoc4):
+    doc_text = eb_antdoc.get_nlp_text()
     for i, attrvec in enumerate(eb_antdoc.attrvec_list, 1):
         # print("attrvec = {}".format(attrvec))
         tmp_start = attrvec.start

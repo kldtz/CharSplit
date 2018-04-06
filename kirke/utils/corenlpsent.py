@@ -1,5 +1,8 @@
 import sys
 import copy
+from typing import Dict, List
+
+from kirke.utils import ebsentutils
 
 
 # pylint: disable=R0903
@@ -7,7 +10,15 @@ class EbToken:
     __slots__ = ['start', 'end', 'word', 'lemma', 'pos', 'index', 'ner']
 
     # pylint: disable=R0913
-    def __init__(self, start, end, word, lemma, pos, index, ner):
+    def __init__(self,
+                 start: int,
+                 end: int,
+                 word: str,
+                 lemma: str,
+                 pos: str,
+                 index: int,
+                 ner: str) \
+                 -> None:
         self.start = start
         self.end = end
         self.word = word
@@ -39,7 +50,7 @@ class EbToken:
 # Digits might have commas in tokens, "23,000"
 # In addition, for "December 17, 2012", there is a comma token also.
 # These are removed now.
-def eb_tokens_to_st(eb_token_list):
+def eb_tokens_to_st(eb_token_list: List[EbToken]) -> str:
     st_list = []
     for eb_token in eb_token_list:
         word = eb_token.word
@@ -54,7 +65,7 @@ def eb_tokens_to_st(eb_token_list):
     return ' '.join(st_list)
 
 
-def eb_tokens_to_lemma_st(eb_token_list):
+def eb_tokens_to_lemma_st(eb_token_list: List[EbToken]) -> str:
     st_list = []
     for eb_token in eb_token_list:
         word = eb_token.lemma
@@ -71,7 +82,9 @@ def eb_tokens_to_lemma_st(eb_token_list):
 
 # because of the way num_refix_space is used, need to isolate such effect
 # here.
-def to_eb_tokens(token_list, num_prefix_space):
+def to_eb_tokens(token_list: List[Dict],
+                 num_prefix_space: int) \
+                 -> List[EbToken]:
     result = []
     for token in token_list:
         pos_tag = ''
@@ -136,8 +149,13 @@ class EbSentence:
     # Still passing atext now just in case to be used
     # in future.
     # pylint: disable=unused-argument
-    def __init__(self, file_id, json_sent, atext, num_prefix_space):
-        self.file_id = file_id
+    def __init__(self,
+                 file_id: str,
+                 json_sent: Dict,
+                 atext: str,
+                 num_prefix_space: int) -> None:
+        # self.file_id = file_id
+        self.file_id = None
         tokens = json_sent['tokens']
         self.tokens = to_eb_tokens(tokens, num_prefix_space)
         self.start = self.tokens[0].start
@@ -146,9 +164,9 @@ class EbSentence:
         # self.tokens_text = eb_tokens_to_st(self.tokens)          # no page number
         # entities are EbEntity's, not set until populate_ebsent_entities(ebsent),
         # after fix_ner_tags()
-        self.entities = []
+        self.entities = []  # type: List[ebsentutils.EbEntity]
         # set of strings
-        self.labels = set([])
+        self.labels = []  # type: List[str]
         self.sechead = ''
 
     # Still passing atext now just in case to be used
@@ -173,7 +191,7 @@ class EbSentence:
     def set_tokens(self, tokens):
         self.tokens = tokens
 
-    def get_number_tokens(self):
+    def get_number_tokens(self) -> int:
         return len(self.tokens)
 
     # this will translate all () -> -lrb- -rrb-, ' -> `` or \'\'
@@ -197,8 +215,9 @@ class EbSentence:
     def get_labels(self):
         return self.labels
 
-    def set_labels(self, labels):
-        self.labels = set(labels)
+    def set_labels(self, labels: List[str]) -> None:
+        if labels:
+            self.labels = list(set(labels))
 
-    def set_sechead(self, sechead):
+    def set_sechead(self, sechead: str):
         self.sechead = sechead

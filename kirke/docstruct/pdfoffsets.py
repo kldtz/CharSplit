@@ -15,15 +15,106 @@ MAX_Y_DIFF = 10000
 MIN_X_END = -1
 
 
+class PageInfo3:
+
+    def __init__(self, doc_text, start, end, page_num, pblockinfo_list) -> None:
+        self.start = start
+        self.end = end
+        self.page_num = page_num
+
+        # need to order the blocks by their yStart first.
+        # this impact the line list also.
+        # Fixes header and footer issues due to out of order lines.
+        # Also out of order blocks due to tables and header.  p76 carousel.txt
+        self.pblockinfo_list = sorted_pblocks_by_yStart(pblockinfo_list)
+        self.avg_single_line_break_ydiff = self.compute_avg_single_line_break_ydiff()
+
+        # self.line_list = init_line_with_attr_list()
+
+        lineinfo_list = [lineinfo
+                         for pblockinfo in self.pblockinfo_list
+                         for lineinfo in pblockinfo.lineinfo_list]
+        xstart_list = [lineinfo.xStart for lineinfo in lineinfo_list]
+
+        # print("leninfo_list = {}, xstart_list = {}, page_num = {}".format(len(lineinfo_list),
+        # xstart_list, page_num))
+        if lineinfo_list:  # not an empty page
+            if len(xstart_list) == 1:
+                xstart_list.append(xstart_list[0])  # duplicate itself to avoid jenks error with only element
+            jenks = jenksutils.Jenks(xstart_list)
+
+        line_attrs = []
+        prev_yStart = 0
+        for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
+          ydiff = lineinfo.yStart - prev_yStart
+          # it possible for self.avg_single_line_break_ydiff to be 0 when
+          # the document has only vertical lines.
+          if self.avg_single_line_break_ydiff == 0:
+              num_linebreak = 1  # hopeless, default to 1 for now
+          else:
+              num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
+          align = jenks.classify(lineinfo.xStart)
+          line_text = doc_text[lineinfo.start:lineinfo.end]
+          is_english = engutils.classify_english_sentence(line_text)
+          is_centered = docstructutils.is_line_centered(line_text, lineinfo.xStart, lineinfo.xEnd)
+          line_attrs.append(LineWithAttrs(page_line_num,
+                                          lineinfo, line_text, page_num, ydiff, num_linebreak,
+                                          align, is_centered, is_english))
+          prev_yStart = lineinfo.yStart
+        self.line_list = line_attrs
+        # attrs of page, such as 'page_num_index'
+        self.attrs = {}  # type: Dict[str, Any]
+
+        # conent_line_list is for lines that are not
+        #   - toc
+        #   - page_num
+        #   - header, footer
+        self.content_line_list = []  # type: List[LineWithAttrs]
+
+
+    def compute_avg_single_line_break_ydiff(self):
+        total_merged_ydiff, total_merged_lines = 0, 0
+        for pblockinfo in self.pblockinfo_list:
+            is_multi_lines = pblockinfo.is_multi_lines
+            if not (is_multi_lines or len(pblockinfo.lineinfo_list) == 1):
+                total_merged_ydiff += pblockinfo.yEnd - pblockinfo.yStart
+                total_merged_lines += len(pblockinfo.lineinfo_list) - 1
+
+        result = 14.0  # default value, just in case
+        if total_merged_lines != 0:
+            result = total_merged_ydiff / total_merged_lines
+        # print("\npage #{}, avg_single_line_ydiff = {}".format(self.page_num, result))
+        return result
+
+    def get_blocked_lines(self):
+        if not self.line_list:
+            return []
+        prev_block_num = -1
+        cur_block = []
+        block_list = [cur_block]
+        for linex in self.line_list:
+            if linex.lineinfo.obid != prev_block_num:  # separate blocks
+                if cur_block:
+                    cur_block = []
+                    block_list.append(cur_block)
+            cur_block.append(linex)
+            prev_block_num = linex.lineinfo.obid
+        return block_list
+
+
+
 class PDFTextDoc:
 
-    def __init__(self, file_name: str, doc_text: str, page_list) -> None:
+    def __init__(self,
+                 file_name: str,
+                 doc_text: str,
+                 page_list: List[PageInfo3]) -> None:
         self.file_name = file_name
         self.doc_text = doc_text
         self.page_list = page_list
         self.num_pages = len(page_list)
         # each page is a list of grouped_block
-        self.paged_grouped_block_list = []  # type: List[Tuple[int, List[GroupedBlockInfo]]]
+        self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
         self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
@@ -42,7 +133,7 @@ class PDFTextDoc:
                 attr_list.append('{}={}'.format(attr, value))
             if attr_list:
                 print('  attrs: {}'.format(', '.join(attr_list)))
-"""
+            """
 
             for grouped_block in grouped_block_list:
                 print()
@@ -74,7 +165,9 @@ class PDFTextDoc:
         print('wrote {}'.format(paged_debug_fname), file=sys.stderr)
 
 
-    def save_raw_pages(self, extension: str, work_dir='dir-work'):
+    def save_raw_pages(self,
+                       extension: str,
+                       work_dir: str = 'dir-work'):
         base_fname = os.path.basename(self.file_name)
         paged_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
         with open(paged_fname, 'wt') as fout:
@@ -166,93 +259,6 @@ def sorted_pblocks_by_yStart(pblockinfo_list):
     return ystart_pblockinfo_list
 
 
-class PageInfo3:
-
-    def __init__(self, doc_text, start, end, page_num, pblockinfo_list) -> None:
-        self.start = start
-        self.end = end
-        self.page_num = page_num
-
-        # need to order the blocks by their yStart first.
-        # this impact the line list also.
-        # Fixes header and footer issues due to out of order lines.
-        # Also out of order blocks due to tables and header.  p76 carousel.txt
-        self.pblockinfo_list = sorted_pblocks_by_yStart(pblockinfo_list)
-        self.avg_single_line_break_ydiff = self.compute_avg_single_line_break_ydiff()
-
-        # self.line_list = init_line_with_attr_list()
-
-        lineinfo_list = [lineinfo
-                         for pblockinfo in self.pblockinfo_list
-                         for lineinfo in pblockinfo.lineinfo_list]
-        xstart_list = [lineinfo.xStart for lineinfo in lineinfo_list]
-
-        # print("leninfo_list = {}, xstart_list = {}, page_num = {}".format(len(lineinfo_list),
-        # xstart_list, page_num))
-        if lineinfo_list:  # not an empty page
-            if len(xstart_list) == 1:
-                xstart_list.append(xstart_list[0])  # duplicate itself to avoid jenks error with only element
-            jenks = jenksutils.Jenks(xstart_list)
-
-        line_attrs = []
-        prev_yStart = 0
-        for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
-          ydiff = lineinfo.yStart - prev_yStart
-          # it possible for self.avg_single_line_break_ydiff to be 0 when
-          # the document has only vertical lines.
-          if self.avg_single_line_break_ydiff == 0:
-              num_linebreak = 1  # hopeless, default to 1 for now
-          else:
-              num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
-          align = jenks.classify(lineinfo.xStart)
-          line_text = doc_text[lineinfo.start:lineinfo.end]
-          is_english = engutils.classify_english_sentence(line_text)
-          is_centered = docstructutils.is_line_centered(line_text, lineinfo.xStart, lineinfo.xEnd)
-          line_attrs.append(LineWithAttrs(page_line_num,
-                                          lineinfo, line_text, page_num, ydiff, num_linebreak,
-                                          align, is_centered, is_english))
-          prev_yStart = lineinfo.yStart
-        self.line_list = line_attrs
-        # attrs of page, such as 'page_num_index'
-        self.attrs = {}  # type: Dict[str, Any]
-
-        # conent_line_list is for lines that are not
-        #   - toc
-        #   - page_num
-        #   - header, footer
-        self.content_line_list = []  # type: List[LineWithAttrs]
-
-
-    def compute_avg_single_line_break_ydiff(self):
-        total_merged_ydiff, total_merged_lines = 0, 0
-        for pblockinfo in self.pblockinfo_list:
-            is_multi_lines = pblockinfo.is_multi_lines
-            if not (is_multi_lines or len(pblockinfo.lineinfo_list) == 1):
-                total_merged_ydiff += pblockinfo.yEnd - pblockinfo.yStart
-                total_merged_lines += len(pblockinfo.lineinfo_list) - 1
-
-        result = 14.0  # default value, just in case
-        if total_merged_lines != 0:
-            result = total_merged_ydiff / total_merged_lines
-        # print("\npage #{}, avg_single_line_ydiff = {}".format(self.page_num, result))
-        return result
-
-    def get_blocked_lines(self):
-        if not self.line_list:
-            return []
-        prev_block_num = -1
-        cur_block = []
-        block_list = [cur_block]
-        for linex in self.line_list:
-            if linex.lineinfo.obid != prev_block_num:  # separate blocks
-                if cur_block:
-                    cur_block = []
-                    block_list.append(cur_block)
-            cur_block.append(linex)
-            prev_block_num = linex.lineinfo.obid
-        return block_list
-
-
 class LineInfo3:
 
     def __init__(self, start, end, line_num, block_num, strinfo_list) -> None:
@@ -313,8 +319,16 @@ class LineInfo3:
 
 class LineWithAttrs:
 
-    def __init__(self, page_line_num, lineinfo, line_text, page_num,
-                 ydiff, linebreak, align, is_centered, is_english) -> None:
+    def __init__(self,
+                 page_line_num: int,
+                 lineinfo: LineInfo3,
+                 line_text: str,
+                 page_num: int,
+                 ydiff: float,
+                 linebreak: float,
+                 align: str,
+                 is_centered: bool,
+                 is_english: bool) -> None:
         self.page_line_num = page_line_num  # start from 1, not 0
         self.lineinfo = lineinfo
         self.block_num = lineinfo.bid
@@ -438,7 +452,7 @@ class LineWithAttrs:
             adict['not_en'] = True
         adict.update(self.attrs)
 
-        result = []
+        result = []  # type: List[Any]
         for attr, value in adict.items():
             if attr == 'sechead':
                 if value:  # value is false sometimes?? TODO, jshaw, fix
@@ -453,13 +467,13 @@ class LineWithAttrs:
 class PBlockInfo:
 
     def __init__(self,
-                 start,
-                 end,
-                 bid,
-                 pagenum,
-                 text,
-                 lineinfo_list,
-                 is_multi_lines) -> None:
+                 start: int,
+                 end: int,
+                 bid: int,
+                 pagenum: int,
+                 text: str,
+                 lineinfo_list: List[LineInfo3],
+                 is_multi_lines: bool) -> None:
         self.start = start
         self.end = end
         self.obid = bid     # original block id
@@ -564,9 +578,10 @@ class PBlockInfo:
 class GroupedBlockInfo:
 
     def __init__(self,
-                 pagenum,
-                 bid,
-                 line_list) -> None:
+                 pagenum: int,
+                 bid: int,
+                 line_list: List[LineWithAttrs]) \
+                 -> None:
         self.bid = bid
         self.pagenum = pagenum
         self.line_list = line_list
@@ -575,7 +590,8 @@ class GroupedBlockInfo:
 
 def lines_to_block_offsets(linex_list: List[LineWithAttrs],
                            block_type: str,
-                           pagenum: int) -> Tuple[int, int, Dict[str, Any]]:
+                           pagenum: int) \
+                           -> Tuple[int, int, Dict[str, Any]]:
     if linex_list:
         min_start, max_end = linex_list[0].lineinfo.start, linex_list[-1].lineinfo.end
         # in case the original line order are not correct from pdfbox, we
@@ -585,18 +601,22 @@ def lines_to_block_offsets(linex_list: List[LineWithAttrs],
                 min_start = linex.lineinfo.start
             if linex.lineinfo.end > max_end:
                 max_end = linex.lineinfo.end
-        return (min_start, max_end, {'block-type': block_type, 'pagenum': pagenum})
+        return min_start, max_end, {'block-type': block_type, 'pagenum': pagenum}
     # why would this happen?
-    return (0, 0, {'block-type': block_type})
+    return 0, 0, {'block-type': block_type}
 
 
-def line_to_block_offsets(linex, block_type: str, pagenum: int):
+def line_to_block_offsets(linex: LineWithAttrs,
+                          block_type: str,
+                          pagenum: int) \
+                          -> Tuple[int, int, Dict]:
     start = linex.lineinfo.start
     end = linex.lineinfo.end
-    return (start, end, {'block-type': block_type, 'pagenum': pagenum})
+    return start, end, {'block-type': block_type, 'pagenum': pagenum}
 
 
-def lines_to_blocknum_map(linex_list: List[LineWithAttrs]) -> DefaultDict[str, List[LineWithAttrs]]:
+def lines_to_blocknum_map(linex_list: List[LineWithAttrs]) \
+    -> DefaultDict[str, List[LineWithAttrs]]:
     result = defaultdict(list)  # type: DefaultDict[str, List[LineWithAttrs]]
     for linex in linex_list:
         block_num = linex.block_num
@@ -619,9 +639,11 @@ def line_list_to_grouped_block_list(linex_list, page_num):
     return grouped_block_list
 """
 
-def line_list_to_grouped_block_list(linex_list, page_num):
+def line_list_to_grouped_block_list(linex_list: List[LineWithAttrs],
+                                    page_num: int) \
+                                    -> List[GroupedBlockInfo]:
     tmp_block_list = docstructutils.line_list_to_block_list(linex_list)
-    grouped_block_list = []
+    grouped_block_list = []  # type: List[GroupedBlockInfo]
     for linex_list in tmp_block_list:
         block_num = linex_list[0].block_num
         grouped_block_list.append(GroupedBlockInfo(page_num, block_num, linex_list))
