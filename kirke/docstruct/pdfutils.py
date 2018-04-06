@@ -53,6 +53,13 @@ def para_to_para_list(line: str) -> Tuple[str, bool, List[int]]:
             not-linebreak_offsets: [] if is_multi-lines is True, else
                                    offsets in line that should not be '\n'
     """
+
+    # TODO, jshaw, but not urgent because this change will invalid all corenlp cache.
+    # logically, converting 3+ new lines below to spaces is not really correct.
+    # If there are more than 2 nlb (new line breaks), that should mean a new paragraph.
+    # Should preserve those instead of 3+.
+    # The best transformation would be \s+\n+ to put all the nlb together.  Now, it
+    # might not distribute them in easy detectable manner since we take them as they are.
     if re.search(r'\n\s*\n\s*\n', line):  # there must be a reason for 3 nl-breaks
         mat_list = list(re.finditer(r'\n\s*\n\s*\n', line))
         # replace all of those double new lines with space to preserve them
