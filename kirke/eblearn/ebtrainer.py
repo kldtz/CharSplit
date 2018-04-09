@@ -81,7 +81,7 @@ def log_custom_model_eval_status(ant_status: Dict[str, Any]) -> None:
 
 # pylint: disable=too-many-arguments, too-many-locals
 def cv_train_at_annotation_level(provision,
-                                 x_traindoc_list,
+                                 x_antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                                  bool_list,
                                  eb_classifier_orig,
                                  model_file_name: str,
@@ -91,7 +91,7 @@ def cv_train_at_annotation_level(provision,
     # we do 3-fold cross validation, as the big set for custom training
     # test_size = 0.33
     # this will be looped mutliple times, so a list, not a generator
-    x_antdoc_list = list(ebantdoc4.traindoc_list_to_antdoc_list(x_traindoc_list, work_dir))
+    # x_antdoc_list = list(ebantdoc4.traindoc_list_to_antdoc_list(x_traindoc_list, work_dir))
 
     ordered_list = []
     for x_antdoc, label in zip(x_antdoc_list, bool_list):
@@ -338,23 +338,24 @@ def train_eval_annotator(provision: str,
     # scikit learn crosss validation.  James implemented something similar in
     # an earlier commit.  After realizing scikit learn supports this functionality
     # directly, we switched to scikit learn's mechanism.
-    eb_traindoc_list = \
-        ebantdoc4.doclist_to_traindoc_list(txt_fn_list,
+    eb_antdoc_list = \
+        ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list,
                                            work_dir,
                                            is_bespoke_mode=custom_training_mode,
                                            is_doc_structure=is_doc_structure,
                                            doc_lang=doc_lang)
-    num_docs = len(eb_traindoc_list)
+
+    num_docs = len(eb_antdoc_list)
 
     attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     group_id_list = []
     num_pos_ant = 0
-    for group_id, eb_traindoc in enumerate(eb_traindoc_list):
-        tmp_attrvec_list = eb_traindoc.get_attrvec_list()
+    for group_id, eb_antdoc in enumerate(eb_antdoc_list):
+        tmp_attrvec_list = eb_antdoc.get_attrvec_list()
         attrvec_list.extend(tmp_attrvec_list)
         group_id_list.extend([group_id] * len(tmp_attrvec_list))
 
-        human_ant_list = eb_traindoc.prov_annotation_list
+        human_ant_list = eb_antdoc.prov_annotation_list
         for human_ant in human_ant_list:
             if provision == human_ant.label:
                 num_pos_ant += 1
@@ -372,9 +373,9 @@ def train_eval_annotator(provision: str,
             num_neg_label += 1
 
     # pylint: disable=C0103
-    X = eb_traindoc_list
-    y = [provision in eb_traindoc.get_provision_set()
-         for eb_traindoc in eb_traindoc_list]
+    X = eb_antdoc_list
+    y = [provision in eb_antdoc.get_provision_set()
+         for eb_antdoc in eb_antdoc_list]
 
     #gets count for number of docs that have positive labels for specific provision
     num_doc_pos, num_doc_neg = 0, 0
@@ -443,8 +444,10 @@ def train_eval_annotator(provision: str,
 
     # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
     # using generator, instead of all loaded at once.
-    X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
-    ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
+    # X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
+    # ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
+    # X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
+    ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
 
 
     #prints evaluation results and saves status

@@ -36,8 +36,23 @@ def text_offsets_to_nl(base_fname: str,
                        line_breaks: List[Dict],
                        work_dir: str,
                        debug_mode: bool = False) \
-                       -> Tuple[str, str]:
-    linebreak_offset_list = [lbrk['offset'] for lbrk in line_breaks]
+                       -> Tuple[str, str, List[int]]:
+    # We allow only 1 diff, some old cached file might have the issue
+    # where a value == len(orig_doc_text).
+    # For example, BHI doc, cached 110464.txt have this property.
+    len_doc_text = len(orig_doc_text)
+    linebreak_offset_list = []  # type: List[int]
+    for lbrk in line_breaks:
+        lbrk_offset = lbrk['offset']
+        if lbrk_offset < len_doc_text:
+            linebreak_offset_list.append(lbrk_offset)
+        elif lbrk_offset == len_doc_text:
+            # logging.warning("text_offsets_to_nl(%s), len= %d, lnbrk_offset = %d",
+            #                base_fname, len_doc_text, lbrk_offset)
+            pass
+        else:
+            logging.warning("text_offsets_to_nl(%s), len= %d, lnbrk_offset = %d",
+                            base_fname, len_doc_text, lbrk_offset)
     ch_list = list(orig_doc_text)
     for linebreak_offset in linebreak_offset_list:
         ch_list[linebreak_offset] = '\n'
@@ -46,7 +61,7 @@ def text_offsets_to_nl(base_fname: str,
     txtreader.dumps(nl_text, nl_fname)
     if debug_mode:
         print('wrote {}, size= {}'.format(nl_fname, len(nl_text)), file=sys.stderr)
-    return nl_text, nl_fname
+    return nl_text, nl_fname, linebreak_offset_list
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -73,10 +88,14 @@ def to_nl_paraline_texts(file_name: str,
         pdfutils.load_pdf_offsets(offsets_file_name, cpoint_cunit_mapper)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
-    nl_text, nl_fname = text_offsets_to_nl(base_fname, orig_doc_text, line_breaks,
-                                           work_dir=work_dir, debug_mode=debug_mode)
+    # because previous issues with bad 'line_breaks', we might adjust the
+    # line_break here.  That's why it is being passed back here.
+    nl_text, nl_fname, linebreak_offset_list = text_offsets_to_nl(base_fname,
+                                                                  orig_doc_text,
+                                                                  line_breaks,
+                                                                  work_dir=work_dir,
+                                                                  debug_mode=debug_mode)
 
-    linebreak_offset_list = [lbrk['offset'] for lbrk in line_breaks]
     linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
 
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
@@ -660,14 +679,19 @@ def parse_document(file_name: str,
     base_fname = os.path.basename(file_name)
 
     doc_text = strutils.loads(file_name)
+    len_doc_text = len(doc_text)
 
     cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
     unused_doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = \
         pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name), cpoint_cunit_mapper)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
-    nl_text, unused_nl_fname = text_offsets_to_nl(base_fname, doc_text, line_breaks,
-                                                  work_dir=work_dir, debug_mode=debug_mode)
+    nl_text, unused_nl_fname, linebreak_offset_list = \
+            text_offsets_to_nl(base_fname,
+                               doc_text,
+                               line_breaks,
+                               work_dir=work_dir,
+                               debug_mode=debug_mode)
 
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
     for str_offset in str_offsets:
@@ -690,11 +714,18 @@ def parse_document(file_name: str,
         else:
             lxid_strinfos_map[line_num].append(StrInfo(start, end,
                                                        xStart, xEnd, yStart))
+
+    # because some linebreak could be invalid.  See xxx
+    valid_linebreak_offset_set = set(linebreak_offset_list)
     bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
     tmp_prev_end = 0
     for break_offset in line_breaks:
         start = tmp_prev_end
         end = break_offset['offset']
+        if end not in valid_linebreak_offset_set:
+            # set 'end' to a valid value, which is OK, based on
+            # BHI 110464.txt cache
+            end = len_doc_text
         line_num = break_offset['lineNum']
         block_num = break_offset['blockNum']
 

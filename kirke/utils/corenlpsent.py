@@ -92,11 +92,12 @@ def to_eb_tokens(token_list: List[Dict],
             pos_tag = sys.intern(token['pos'])
         lemma = ''
         if token.get('lemma'):
-            lemma = sys.intern(token['lemma'])
+            # lemma = sys.intern(token['lemma'])
+            lemma = token['lemma']
 
         eb_token = EbToken(start=token['characterOffsetBegin'] + num_prefix_space,
                            end=token['characterOffsetEnd'] + num_prefix_space,
-                           word=sys.intern(token['word']),
+                           word=token['word'],
                            lemma=lemma,
                            pos=pos_tag,
                            index=token['index'],

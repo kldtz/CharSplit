@@ -126,6 +126,21 @@ def main():
     eb_antdoc_size = memutils.get_size(eb_antdoc)
     print_obj_fields_size(eb_antdoc, eb_antdoc_size, prefix_st='')
 
+    doc_text = eb_antdoc.get_text()
+    nl_text = eb_antdoc.get_nl_text()
+    paraline_text = eb_antdoc.get_paraline_text()
+
+    if len(nl_text) != len(doc_text):
+        print("len(nl_text) {} != len(doc_text) {}".format(len(nl_text),
+                                                                 len(doc_text)))
+    if len(paraline_text) != len(doc_text):
+        print("len(paraline_text) {} != len(doc_text) {}".format(len(nl_text),
+                                                                 len(doc_text)))
+
+    # this is just to make sure nlp_text is available
+    nlp_text = eb_antdoc.get_nlp_text()
+    if len(nlp_text) <= 0:
+        print("len(nlp_text) = {}".format(len(nlp_text)))
 
 
 if __name__ == '__main__':
