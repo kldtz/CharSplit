@@ -36,7 +36,7 @@ def text_offsets_to_nl(base_fname: str,
                        line_breaks: List[Dict],
                        work_dir: str,
                        debug_mode: bool = False) \
-                       -> Tuple[str, str, List[int]]:
+                       -> Tuple[str, List[int]]:
     # We allow only 1 diff, some old cached file might have the issue
     # where a value == len(orig_doc_text).
     # For example, BHI doc, cached 110464.txt have this property.
@@ -57,11 +57,11 @@ def text_offsets_to_nl(base_fname: str,
     for linebreak_offset in linebreak_offset_list:
         ch_list[linebreak_offset] = '\n'
     nl_text = ''.join(ch_list)
-    nl_fname = get_nl_fname(base_fname, work_dir)
-    txtreader.dumps(nl_text, nl_fname)
     if debug_mode:
+        nl_fname = get_nl_fname(base_fname, work_dir)
+        txtreader.dumps(nl_text, nl_fname)
         print('wrote {}, size= {}'.format(nl_fname, len(nl_text)), file=sys.stderr)
-    return nl_text, nl_fname, linebreak_offset_list
+    return nl_text, linebreak_offset_list
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -70,7 +70,7 @@ def to_nl_paraline_texts(file_name: str,
                          work_dir: str,
                          debug_mode: bool = False) \
                          -> Tuple[str, str, ArrayType, str, ArrayType,
-                                  str, str, TextCpointCunitMapper]:
+                                  TextCpointCunitMapper]:
     """Returns various format of the original document.
 
 
@@ -90,11 +90,11 @@ def to_nl_paraline_texts(file_name: str,
 
     # because previous issues with bad 'line_breaks', we might adjust the
     # line_break here.  That's why it is being passed back here.
-    nl_text, nl_fname, linebreak_offset_list = text_offsets_to_nl(base_fname,
-                                                                  orig_doc_text,
-                                                                  line_breaks,
-                                                                  work_dir=work_dir,
-                                                                  debug_mode=debug_mode)
+    nl_text, linebreak_offset_list = text_offsets_to_nl(base_fname,
+                                                        orig_doc_text,
+                                                        line_breaks,
+                                                        work_dir=work_dir,
+                                                        debug_mode=debug_mode)
 
     linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
 
@@ -221,13 +221,13 @@ def to_nl_paraline_texts(file_name: str,
     para_not_linebreak_arr = array.array('i', para_not_linebreak_offsets)  # type: ArrayType
 
     # save the result
-    paraline_fn = get_paraline_fname(base_fname, work_dir)
-    txtreader.dumps(paraline_text, paraline_fn)
     if debug_mode:
+        paraline_fn = get_paraline_fname(base_fname, work_dir)
+        txtreader.dumps(paraline_text, paraline_fn)
         print('wrote {}, size= {}'.format(paraline_fn, len(paraline_text)), file=sys.stderr)
 
     return (orig_doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr, \
-            nl_fname, paraline_fn, cpoint_cunit_mapper)
+            cpoint_cunit_mapper)
 
 
 def is_block_multi_line(linex_list):
@@ -686,12 +686,11 @@ def parse_document(file_name: str,
         pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name), cpoint_cunit_mapper)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
-    nl_text, unused_nl_fname, linebreak_offset_list = \
-            text_offsets_to_nl(base_fname,
-                               doc_text,
-                               line_breaks,
-                               work_dir=work_dir,
-                               debug_mode=debug_mode)
+    nl_text, linebreak_offset_list = text_offsets_to_nl(base_fname,
+                                                        doc_text,
+                                                        line_breaks,
+                                                        work_dir=work_dir,
+                                                        debug_mode=debug_mode)
 
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
     for str_offset in str_offsets:
@@ -784,6 +783,9 @@ def parse_document(file_name: str,
         pdf_text_doc.save_raw_pages(extension='.raw.pages.tsv')
 
     add_doc_structure_to_doc(pdf_text_doc)
+
+    if DEBUG_MODE:
+        pdf_text_doc.save_raw_pages(extension='.raw.pages.docstruct.tsv')
 
     return pdf_text_doc
 
@@ -1144,7 +1146,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                                            line.is_centered,
                                            line.align,
                                            num_line_in_page,
-                                           header_set=docstructutils.global_page_header_set):
+                                           header_set=docstructutils.GLOBAL_PAGE_HEADER_SET):
             line.attrs['header'] = True
             pdf_txt_doc.special_blocks_map['header'].append(pdfoffsets \
                                                             .line_to_block_offsets(line,

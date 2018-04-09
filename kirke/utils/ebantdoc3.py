@@ -416,9 +416,9 @@ def pdf_to_ebantdoc3(txt_file_name,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
-    doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr, \
-        unused_nl_fname, unused_paraline_fname, cpoint_cunit_mapper = \
-        pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
+    doc_text, nl_text, linebreak_arr, \
+        paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
+            pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
 
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper)
 

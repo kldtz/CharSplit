@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(
 
 
 def print_list_size(list_obj: List, prefix_st: str) -> None:
-    list_obj_size = memutils.get_size(list_obj)
+    # list_obj_size = memutils.get_size(list_obj)
     for i, obj in enumerate(list_obj):
         obj_size = memutils.get_size(obj)
 
@@ -50,6 +50,7 @@ def print_obj_fields_size(obj, obj_size: int, prefix_st: str) -> None:
                                                                val_sz_acc * 100.0 / obj_size))
 
 
+# pylint: disable=too-many-locals
 def main():
     parser = argparse.ArgumentParser(description='Training models.')
     parser.add_argument("-v", "--verbosity", help="increase output verbosity")
@@ -68,18 +69,6 @@ def main():
 
     # print(vars(eb_antdoc))
 
-    """
-    attrvec_list = eb_antdoc.attrvec_list
-    for i, attrvec in enumerate(attrvec_list):
-        attrvec_size = memutils.get_size(attrvec)
-        print("attrvec #{}, size={}".format(i, attrvec_size))
-        print("  entities: {}".format(attrvec.entities))
-        print("  labels: {}".format(attrvec.labels))
-
-        print_list_size(attrvec.entities, prefix_st='      entity')
-
-        print_obj_fields_size(attrvec, attrvec_size, prefix_st='    ')
-    """
     if IS_DEBUG_MODE:
         paras_with_attrs = eb_antdoc.paras_with_attrs
         for i, para_with_attrs in enumerate(paras_with_attrs):
@@ -95,10 +84,10 @@ def main():
             attr_size_list = []
             if len(para_with_attrs) != 2:
                 print("len(para_with_attrs) = {}".format(len(para_with_attrs)))
-            for i, value in enumerate(para_with_attrs):
-                if i == 0:
+            for j, value in enumerate(para_with_attrs):
+                if j == 0:
                     attr = 'lnpos_pair_list'
-                elif i == 1:
+                elif j == 1:
                     attr = 'attrs'
                 val_sz = memutils.get_size(value)
                 attr_size_list.append((attr, val_sz))
@@ -107,12 +96,12 @@ def main():
             for attr, val_sz in sorted(attr_size_list, key=operator.itemgetter(1), reverse=True):
                 val_sz_acc += val_sz
                 print(prefix_st, end='')
-                print("{}\tsize\t{}\t{:.5f}%\tacc\t{}\t{:.3f}%".format(attr,
-                                                                       val_sz,
-                                                                       val_sz * 100.0 / obj_size,
-                                                                       val_sz_acc,
-                                                                       val_sz_acc * 100.0 / obj_size))
-
+                print("{}\tsize\t{}\t{:.5f}%\tacc\t{}\t{:.3f}%" \
+                      .format(attr,
+                              val_sz,
+                              val_sz * 100.0 / obj_size,
+                              val_sz_acc,
+                              val_sz_acc * 100.0 / obj_size))
 
     print("\n\n")
     print("memory_size(eb_antdoc) = %d bytes" % (memutils.get_size(eb_antdoc),))
@@ -120,7 +109,8 @@ def main():
     print("memory_size(eb_antdoc) = %.2f megabytes" % (memutils.get_size_mbytes(eb_antdoc),))
 
     print("len(eb_antdoc.attrvec) = {}".format(len(eb_antdoc.attrvec_list)))
-    print("len(eb_antdoc.origin_sx_lnpos_list) = {}".format(len(eb_antdoc.get_origin_sx_lnpos_list())))
+    print("len(eb_antdoc.origin_sx_lnpos_list) = {}" \
+          .format(len(eb_antdoc.get_origin_sx_lnpos_list())))
     print("len(eb_antdoc.nlp_sx_lnpos_list) = {}".format(len(eb_antdoc.get_nlp_sx_lnpos_list())))
 
     eb_antdoc_size = memutils.get_size(eb_antdoc)
@@ -132,7 +122,7 @@ def main():
 
     if len(nl_text) != len(doc_text):
         print("len(nl_text) {} != len(doc_text) {}".format(len(nl_text),
-                                                                 len(doc_text)))
+                                                           len(doc_text)))
     if len(paraline_text) != len(doc_text):
         print("len(paraline_text) {} != len(doc_text) {}".format(len(nl_text),
                                                                  len(doc_text)))

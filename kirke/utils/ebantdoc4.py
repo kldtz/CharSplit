@@ -532,40 +532,9 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
-    doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr, \
-        unused_nl_fname, unused_paraline_fname, cpoint_cunit_mapper = \
-        pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
-
-    # print("len(linebreak_arr) = {}".format(len(linebreak_arr)))
-    check_nl_ch_list = list(doc_text)
-    for linebreak_x in linebreak_arr:
-        check_nl_ch_list[linebreak_x] = '\n'
-    check_nl_text = ''.join(check_nl_ch_list)
-    if check_nl_text == nl_text:
-        print("{}\t3542x yes, check_nl_text == nl_text".format(txt_file_name))
-    else:
-        print("{}\t3542x no, check_nl_text != nl_text".format(txt_file_name))
-
-    # print("len(para_not_linebreak_arr) = {}".format(len(para_not_linebreak_arr)))
-    check_paraline_ch_list = list(check_nl_text)
-    for not_linebreak_x in para_not_linebreak_arr:
-        check_paraline_ch_list[not_linebreak_x] = ' '
-    check_paraline_text = ''.join(check_paraline_ch_list)
-    if check_paraline_text == paraline_text:
-        print("{}\t3542x yes, check_paraline_text == paraline_text".format(txt_file_name))
-    else:
-        print("{}\t3542x no, check_paraline_text != paraline_text".format(txt_file_name))
-        """
-        with open("paraline_check_text.txt", 'wt') as out1:
-            print(check_paraline_text, file=out1, end='')
-        with open("paraline_orig_text.txt", 'wt') as out2:
-            print(paraline_text, file=out2, end='')
-        print("wrote out diff in paraline_check_text.txt and paraline_orig_text.txt")
-        """
-
-    # print("mem_size linebreak_arr: {}".format(memutils.get_size(linebreak_arr)))
-    # nprint("mem_size para_not_linebreak_arr: {}".format(memutils.get_size(para_not_linebreak_arr)))
-    # print("mem_size paraline_text: {}".format(memutils.get_size(paraline_text)))
+    doc_text, nl_text, linebreak_arr, \
+        paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
+            pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
 
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
                                                                           cpoint_cunit_mapper)
@@ -587,12 +556,14 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         pdftxtparser.to_paras_with_attrs(pdf_text_doc,
                                          txt_file_name,
                                          work_dir=work_dir,
-                                         debug_mode=True)
+                                         debug_mode=False)
 
     # for i, (gap_start, gap_end) in enumerate(gap2_span_list):
     #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
-    # now check if the two file is the same
-    check_para_st_list = []
+    skip_st_list = []
+    if not paras2_with_attrs:
+        logging.info("Empty paras2_with_attrs.  Not urgent.  File: {}".format(txt_file_name))
+        logging.info("  Likely cause: either no text or looked too much like table-of-content.")
     for para_with_attrs in paras2_with_attrs:
         # para_with_attrs = List[Tuple[linepos.LnPos, linepos.LnPos]],
         #                   str,
@@ -601,7 +572,6 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         lnpos_pair_list, unused_attrs = para_with_attrs
         para_st_list = []
         skip_count = 0
-        skip_st_list = []
         for from_lnpos, unused_to_lnpos in lnpos_pair_list:
             from_start, from_end, unused_from_line_num, is_gap = from_lnpos.to_tuple()
             if not is_gap:
@@ -610,24 +580,6 @@ def pdf_to_ebantdoc4(txt_file_name: str,
                 skip_count += 1
                 skip_st_list.append("skipping #{} [{}]".format(skip_count,
                                                                doc_text[from_start:from_end]))
-        check_para_st_list.append(' '.join(para_st_list))
-    check_text4nlp_fn = '{}/{}.check'.format(work_dir, txt_base_fname)
-    check_nlp_text = '\n'.join(check_para_st_list)
-    txtreader.dumps(check_nlp_text, check_text4nlp_fn)
-    if debug_mode:
-        print('wrote {}'.format(check_text4nlp_fn), file=sys.stderr)
-
-    check_text4nlp_skip_fn = '{}/{}.skip'.format(work_dir, txt_base_fname)
-    check_skip_text = '\n'.join(skip_st_list)
-    txtreader.dumps(check_skip_text, check_text4nlp_skip_fn)
-    if debug_mode:
-        print('wrote {}'.format(check_text4nlp_skip_fn), file=sys.stderr)
-
-
-    if check_nlp_text == para2_doc_text:
-        print("{}\t3542x yes, check_nlp_text == nlp_text".format(txt_file_name))
-    else:
-        print("{}\t3542x no, check_nlp_text != nlp_text".format(txt_file_name))
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para2_doc_text, text4nlp_fn)
@@ -731,6 +683,7 @@ def text_to_ebantdoc4(txt_fname,
     if work_dir is None:
         work_dir = '/tmp'
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
+    print("text_to_ebantdoc({})".format(eb_antdoc_fn))
     # never want to save in bespoke_mode because annotation can change
         #if os.path.exists(eb_antdoc_fn):
         #    os.remove(eb_antdoc_fn)
@@ -773,7 +726,8 @@ def text_to_ebantdoc4(txt_fname,
 def doclist_to_ebantdoc_list_linear(doclist_file,
                                     work_dir,
                                     is_bespoke_mode=False,
-                                    is_doc_structure=False):
+                                    is_doc_structure=False,
+                                    doc_lang='en'):
     logging.debug('ebantdoc4.doclist_to_ebantdoc_list_linear(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
@@ -786,7 +740,8 @@ def doclist_to_ebantdoc_list_linear(doclist_file,
             eb_antdoc = text_to_ebantdoc4(txt_file_name,
                                           work_dir,
                                           is_bespoke_mode=is_bespoke_mode,
-                                          is_doc_structure=is_doc_structure)
+                                          is_doc_structure=is_doc_structure,
+                                          doc_lang=doc_lang)
             eb_antdoc_list.append(eb_antdoc)
     logging.debug('Finished ebantdoc4.doclist_to_ebantdoc_list_linear()')
     return eb_antdoc_list
@@ -795,7 +750,8 @@ def doclist_to_ebantdoc_list_linear(doclist_file,
 def doclist_to_ebantdoc_list(doclist_file,
                              work_dir,
                              is_bespoke_mode=False,
-                             is_doc_structure=False):
+                             is_doc_structure=False,
+                             doc_lang='en'):
     logging.debug('ebantdoc4.doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
@@ -811,7 +767,8 @@ def doclist_to_ebantdoc_list(doclist_file,
                                             txt_fn,
                                             work_dir,
                                             is_bespoke_mode=is_bespoke_mode,
-                                            is_doc_structure=is_doc_structure):
+                                            is_doc_structure=is_doc_structure,
+                                            doc_lang=doc_lang):
                             txt_fn for txt_fn in txt_fn_list}
         for future in concurrent.futures.as_completed(future_to_antdoc):
             txt_fn = future_to_antdoc[future]
