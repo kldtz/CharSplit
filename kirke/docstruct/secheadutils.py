@@ -4,12 +4,12 @@ import argparse
 import logging
 import re
 import sys
-from typing import List
+from typing import List, Tuple
+
 from nltk.tokenize import wordpunct_tokenize
 
-from kirke.utils import strutils, stopwordutils
-
 from kirke.docstruct import lxlineinfo, footerutils, addrutils
+from kirke.utils import strutils, stopwordutils
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -50,9 +50,9 @@ class SectionHead:
         self.lineinfo_list.append(lineinfo)
 
     def __repr__(self):
-        return ("SectionHead('%s', page= %d, %d, %d, '%s', '%s', '%s')" %
-                (self.category, self.pagenum, self.start, self.end, self.prefix, self.title,
-                self.text))
+        return "SectionHead('%s', page= %d, %d, %d, '%s', '%s', '%s')" % \
+            (self.category, self.pagenum, self.start, self.end, self.prefix, self.title,
+             self.text)
 
 
 def is_stopword(st):
@@ -81,7 +81,7 @@ def is_alpha_word(xst):
 def contains_invalid_sechead_word(word_list):
     for word in word_list:
         if strutils.is_number(word) and float(word) > 200:
-           return True
+            return True
         elif word in sechead_invalid_words:
             return True
     return False
@@ -113,7 +113,7 @@ def is_header_cap(line):
 
     words = [word for word in wordpunct_tokenize(line)]
     alphas = [word for word in words if is_alpha_word(word)]
-    not_stopwords =  [word for word in alphas if not is_stopword(word.lower())]
+    not_stopwords = [word for word in alphas if not is_stopword(word.lower())]
 
     num_stop = len(alphas) - len(not_stopwords)
     # 'Reference to and Effect on the Loan Documents.'
@@ -168,30 +168,6 @@ def are_the_same_word(word1: str, word2: str) -> bool:
             word1 == word2[-1])
 
 
-"""
-def normalize_sechead_words(line):
-    # words = [word for word in wordpunct_tokenize(line)]
-    raw_words = line.split()
-    words = []
-    for raw_word in raw_words:
-        if strutils.is_header_number(raw_word):
-            words.append(raw_word)
-        elif raw_word.endswith("'s") or raw_word.endswith("'S"):
-            words.append(raw_word[:-2])
-            words.append(raw_word[-2:])
-        elif strutils.is_alpha_word(raw_word):
-            words.append(raw_word)
-        else:
-            words.extend(re.findall(r"\w+|[^\w\s]", raw_word, re.UNICODE))
-    # print("words: {}".format(words))
-
-    if len(words) > 2:
-        # ARTICLES ARTICLE 1
-        if words[0][:-1] == words[1]:
-            return ' '.join(words[1:])
-    return ' '.join(words)
-"""
-
 def is_invalid_heading(line: str) -> bool:
     words = line.split()
     if len(words) >= 2:  # may contain the prefix 6.2
@@ -207,63 +183,26 @@ def is_maybe_sechead_title(line):
     # considered as a 'title' anymore.  So must avoid this.
     if norm_line_words[-1] in set(['agreement', 'contract']):
         return False
-    if (is_word_overlap(norm_line_words, sechead_xxx_word_set) and
-        not is_invalid_heading(line) and
-        not contains_invalid_sechead_word(norm_line_words)):
+    if is_word_overlap(norm_line_words, sechead_xxx_word_set) and \
+       not is_invalid_heading(line) and \
+       not contains_invalid_sechead_word(norm_line_words):
         return True
     return False
 
 
-"""
-def split_subsection_head(line) -> int:
-    likely_subsection_head = line[:60]
-    linelen = len(line)
-    period_index = likely_subsection_head.rfind('.')
-    if period_index != -1 and period_index > 10:  # we don't want the period in "16.01 xxx"
-        category, prefix, sechead = parse_sec_head(line[:period_index])
-        if category:
-            space_idx = period_index + 1
-            while space_idx < linelen and strutils.is_space(line[space_idx]):
-                space_idx += 1
-            if space_idx < linelen:  # return the whole line
-                return space_idx
-            return -1
-    return -1
-"""
+WORD_WITH_PERIOD_PAT = re.compile(r'(\S+[\.\:]\S*|\S+\s\s\s+(\S))')
 
-word_with_period_pat = re.compile(r'(\S+[\.\:]\S*|\S+\s\s\s+(\S))')
-
-# below code is bad because it calls parse_sec_head()???
-"""
-def split_subsection_head2(line) -> int:
-    linelen = len(line)
-    mat = re.search(word_with_period_pat, line)
-    # make sure it is at the beginning of the string
-    if mat and strutils.is_relaxed_number(mat.group()) and mat.start() < 30:
-        mat2 = re.search(word_with_period_pat, line[mat.end():])
-        if mat2:
-            period_index = mat.end() + mat2.end()
-            if (mat2.group().endswith('.') or mat2.group().endswith(':')) and period_index < 65:
-                category, prefix, sechead = parse_sec_head(line[:period_index])
-                if category:
-                    if period_index < linelen:
-                        space_idx = period_index + 1
-                        while space_idx < linelen and strutils.is_space(line[space_idx]):
-                            space_idx += 1
-                        return space_idx
-    return -1
-"""
 
 def split_subsection_head3(line) -> int:
     linelen = len(line)
-    mat = re.search(word_with_period_pat, line)
+    mat = re.search(WORD_WITH_PERIOD_PAT, line)
     # make sure it is at the beginning of the string
     # TODO, jshaw, is_relaxed_number() should handle '1.14b' and other valid sechead numbers
     if mat and (strutils.is_header_number(mat.group()) or strutils.is_digit_core(mat.group()[0])) and mat.start() < 30:
         matched_line = line[mat.end():]
         if '.' not in matched_line and ':' not in matched_line and stopwordutils.is_title_non_stopwords(matched_line):
             return -1
-        mat2 = re.search(word_with_period_pat, line[mat.end():])
+        mat2 = re.search(WORD_WITH_PERIOD_PAT, line[mat.end():])
         if mat2:
             # "Distributor     shall xxx"
             if mat2.group(2) and not mat2.group(2)[0].isupper():
@@ -299,8 +238,8 @@ def extract_sechead23(line: str, is_skip_repeat=False, debug_mode=False):
         line = line[:split_idx]
 
     if is_skip_repeat and line.strip() == last_extract_sechead23_line:
-        return '', '', '', ''        
-    last_extract_sechead23_line = line.strip()        
+        return '', '', '', ''
+    last_extract_sechead23_line = line.strip()
 
     category, prefix, sechead = parse_sec_head(line)
     prefix2, num2, sechead2, end_idx = parse_sechead_remove_lastnum(line)
@@ -329,7 +268,7 @@ def extract_sechead2(line: str, is_skip_repeat=False, debug_mode=False):
         line = line[:split_idx]
 
     if is_skip_repeat and line.strip() == last_extract_sechead2_line:
-        return '', '', '', ''        
+        return '', '', '', ''
     last_extract_sechead2_line = line.strip()
 
     category, prefix, sechead = parse_sec_head(line)
@@ -355,8 +294,8 @@ def extract_sechead3(line: str, is_skip_repeat=False, debug_mode=False):
         # print("split2: [{}]".format(line[:split_idx]))
         line = line[:split_idx]
     if is_skip_repeat and line.strip() == last_extract_sechead3_line:
-        return '', '', '', ''        
-    last_extract_sechead3_line = line.strip()        
+        return '', '', '', ''
+    last_extract_sechead3_line = line.strip()
 
     prefix2, num2, sechead2, end_idx = parse_sechead_remove_lastnum(line)
 
@@ -388,7 +327,8 @@ def extract_sechead_v4(line: str,
                        prev_line=None,
                        prev_line_idx=-1,
                        debug_mode=False,
-                       is_combine_line=True):
+                       is_combine_line=True) \
+                       -> Tuple[str, str, str, int]:
     if not line:
         return '', '', '', -1
 
@@ -423,11 +363,12 @@ def extract_sechead_v4(line: str,
 
     comb_prefix, comb_num, comb_head, comb_split_idx = '', '', '', -1
     prefix, num, head, split_idx = '', '', '', -1
-    
+
     lc_line = line.lower()
-    if (last_extract_sechead_v4_line and
-        not (lc_line.startswith('section') and len(last_extract_sechead_v4_line) > 20)):
-        
+    if last_extract_sechead_v4_line and \
+       not (lc_line.startswith('section') and
+            len(last_extract_sechead_v4_line) > 20):
+
         # for the following 2 cases, not include the prev_line
         # Articles Article 1
         # 3 2.3.2 Section Head.
@@ -435,7 +376,7 @@ def extract_sechead_v4(line: str,
         lc_words = lc_line[:50].split()
         # we only want the first word
         lc_prev_words = last_extract_sechead_v4_line[:50].lower().split()
-    
+
         # if (footerutils.classify_line_page_number(last_extract_sechead_v4_line) and
         #    strutils.is_digit_st(line[0])):
         if footerutils.classify_line_page_number(last_extract_sechead_v4_line):
@@ -467,8 +408,8 @@ def extract_sechead_v4(line: str,
                 # print("lx345: [{}]".format(combined_line[:end_idx]))
                 if end_idx >= 0 and len(combined_line[:end_idx].strip()) <= len(last_extract_sechead_v4_line):
                     comb_prefix, comb_num, comb_head, end_idx = '', '', '', -1
-                    
-    
+
+
     split_idx = split_subsection_head3(line)
     if split_idx != -1:
         # print("split2: [{}]".format(line[:split_idx]))
@@ -547,10 +488,10 @@ def extract_sechead_v4(line: str,
     elif (comb_prefix and strutils.is_all_digits(comb_prefix) and
           prefix and strutils.is_all_digits(prefix)):
         pass
-    # (1) Desk Chair - purple\n(1) office Chair -gray'    
+    # (1) Desk Chair - purple\n(1) office Chair -gray'
     elif (comb_prefix and strutils.is_parens_all_digits(comb_prefix) and
           prefix and strutils.is_parens_all_digits(prefix)):
-        pass    
+        pass
     else:
         pass
         # TODO, jshaw
@@ -561,8 +502,8 @@ def extract_sechead_v4(line: str,
         # logging.warning('\tcurr_line[:60]: [{}]'.format(line[:60]))
         # logging.warning('\tcomb_prefix, comb_head = [{}]\t[{}]'.format(comb_prefix, comb_head))
         # logging.warning('\tprefix, head = [{}]\t[{}]'.format(prefix, head))
-        
-    return None, None, None, -1 
+
+    return '', '', '', -1
 
 
 # sck, maybe this is not used anymore
@@ -573,9 +514,9 @@ def parse_sec_head(line, debug_mode=False):
     """
 
     lc_line = line.lower()
-    if (reject_sechead(lc_line) or
-        not is_header_cap(line) or
-        addrutils.is_address_line(line)):
+    if reject_sechead(lc_line) or \
+       not is_header_cap(line) or \
+       addrutils.is_address_line(line):
         return None, '', line
 
     mat = TOC_PREFIX_PAT.search(line)
@@ -606,7 +547,7 @@ def parse_sec_head(line, debug_mode=False):
             return ("sechead", mat.group(1), mat.group(4))
         else:
             if debug_mode:
-                print("matching mat, subhead_prefix_pat, NOT sechead_digit_pat")            
+                print("matching mat, subhead_prefix_pat, NOT sechead_digit_pat")
             return ('subsection', mat.group(1), mat.group(4))
     else:
         # try subhead suffix
@@ -626,9 +567,9 @@ def parse_sec_head(line, debug_mode=False):
                 norm_words = norm_lcword(mat.group(7))
                 norm_line_words = norm_lcword(line)  # to catch "523 East Weddel" as an address
 
-                if (is_word_overlap(norm_words, sechead_xxx_word_set) and
-                    not ' '.join(norm_words).lower() in sechead_invalid_heading_set and
-                    not contains_invalid_sechead_word(norm_line_words)):
+                if is_word_overlap(norm_words, sechead_xxx_word_set) and \
+                   ' '.join(norm_words).lower() not in sechead_invalid_heading_set and \
+                   not contains_invalid_sechead_word(norm_line_words):
                     return ("sechead", mat.group(1), mat.group(7))
                 else:   # 12000 Westheimer Rd, address
                     return None, '', line
@@ -649,19 +590,21 @@ def parse_sec_head(line, debug_mode=False):
                     # handling "W  I  T  N  E  S  S  E  T  H:"
                     if is_all_single_chars(line):
                         comp_line = compact_line(line)
-                        print("cline = {}".format(comp_line))
+                        # print("cline = {}".format(comp_line))
 
-                        norm_words =  norm_lcword(comp_line)
+                        norm_words = norm_lcword(comp_line)
                         if is_word_overlap(norm_words, sechead_xxx_word_set):
                             return ("sechead", "", line)
                         elif is_word_overlap(norm_words, subsec_xxx_word_set):
                             return ("subsection", "", line)
 
 
-    return (None, "", line)
+    return None, "", line
 
 
-def parse_sechead_remove_lastnum(line, debug_mode=False):
+def parse_sechead_remove_lastnum(line: str,
+                                 debug_mode: bool = False) \
+                                 -> Tuple[str, str, str, int]:
     """
     return (sechead|subsechead|None, prefix, rest)
     In future, we might want to return prefix_num, the exact section number.
@@ -674,7 +617,7 @@ def parse_sechead_remove_lastnum(line, debug_mode=False):
         if new_len >= 0:
             return prefix_st, num_st, new_head_st, end_idx - (len(head_st) - new_len)
         return prefix_st, num_st, head_st, end_idx
-    
+
     return '', '', '', -1
 
 
@@ -693,7 +636,7 @@ def classify_sec_head(filename):
                 gold_label = 'sechead'
 
             (guess_label, prefix, head_text) = parse_sec_head(head_line)
-            
+
             if gold_label == guess_label:
                 print("good\t{}\t[{}]\t[{}]\t[{}]".format(guess_label, prefix, head_text, line))
             elif guess_label == 'subsection':
@@ -794,8 +737,8 @@ def verify_sechead_prefix(line):
         return True, prev_top_sechead_num
 
     # "U.S.", "P.O. Box"
-    if (lc_line.startswith('u') or
-        lc_line.startswith('p')):
+    if lc_line.startswith('u') or \
+       lc_line.startswith('p'):
         return False, prev_top_sechead_num
 
     # this is line, not lc_line
@@ -886,7 +829,7 @@ def xxxfind_section_header(lineinfo_list, skip_lineinfo_set):
     max_linfo_index = len(lineinfo_list)
     while linfo_index < max_linfo_index:
         lineinfo = lineinfo_list[linfo_index]
-        
+
         if not lineinfo in skip_lineinfo_set:
 
             # if lineinfo.text.lower().startswith('article 17'):
@@ -1013,7 +956,7 @@ def find_paged_section_header(paged_lineinfo_list, skip_lineinfo_set):
         prevYStart = -1
         while linfo_index < max_linfo_index:
             lineinfo = ybased_lineinfo_list[linfo_index]
-        
+
             if lineinfo not in skip_lineinfo_set:
 
                 # if lineinfo.text.lower().startswith('article 17'):
@@ -1034,10 +977,11 @@ def find_paged_section_header(paged_lineinfo_list, skip_lineinfo_set):
 
                 # mainly for debugging purpose
                 if linfo_index+1 < max_linfo_index:
-                    next_lineinfo =  ybased_lineinfo_list[linfo_index+1]
+                    next_lineinfo = ybased_lineinfo_list[linfo_index+1]
 
-                if (is_startswith_exhibit(lineinfo.text) and linfo_index+1 < max_linfo_index and
-                    ybased_lineinfo_list[linfo_index + 1] not in skip_lineinfo_set):
+                if is_startswith_exhibit(lineinfo.text) and \
+                   linfo_index+1 < max_linfo_index and \
+                   ybased_lineinfo_list[linfo_index + 1] not in skip_lineinfo_set:
 
                     maybe_text = lineinfo.text + '  ' + ybased_lineinfo_list[linfo_index + 1].text
                     guess_label, prefix, head_text = parse_sec_head(maybe_text)
@@ -1066,9 +1010,10 @@ def find_paged_section_header(paged_lineinfo_list, skip_lineinfo_set):
                     else:
                         if cur_sechead:
                             cur_sechead.append_lineinfo(lineinfo)
-                elif (lineinfo.is_center() and linfo_index+1 < max_linfo_index and
-                    ybased_lineinfo_list[linfo_index+1].is_center() and
-                    ybased_lineinfo_list[linfo_index + 1] not in skip_lineinfo_set):
+                elif lineinfo.is_center() and \
+                     linfo_index+1 < max_linfo_index and \
+                     ybased_lineinfo_list[linfo_index+1].is_center() and \
+                     ybased_lineinfo_list[linfo_index + 1] not in skip_lineinfo_set:
 
                     maybe_text = lineinfo.text + '  ' + ybased_lineinfo_list[linfo_index + 1].text
                     guess_label, prefix, head_text = parse_sec_head(maybe_text)
@@ -1146,8 +1091,12 @@ def find_paged_section_header(paged_lineinfo_list, skip_lineinfo_set):
 ### rewrite of above code
 
 # Section 1.1 XXX
-SECHEAD_WORDS = ['section', 's\-', 'article', 'a\-', 'appendix', 'annex', 'annexes', 'recitals?', 'exhibit', 'attachment', 'exmllit', r'W\s*I\s*T\s*N\s*E\s*S\s*S\s*E\s*T\s*H', 'whereas', 'witnesses', 'schedule',
-                 ]
+SECHEAD_WORDS = ['section', r's\-', 'article', r'a\-', 'appendix', 'annex',
+                 'annexes', 'recitals?', 'exhibit', 'attachment', 'exmllit',
+                 r'W\s*I\s*T\s*N\s*E\s*S\s*S\s*E\s*T\s*H', 'whereas',
+                 'witnesses', 'schedule',
+                ]
+
 # removed 'table of contents?' because it doesn't match the last s???
 # removed 'definitions?', maybe similar to above
 """
@@ -1196,9 +1145,10 @@ SECHEAD_WORDS = ['section', 's\-', 'article', 'a\-', 'appendix', 'annex', 'annex
 """
 
 # NUM_ROMAN_PAT = r'(([\(\“\”]?([\.\d]+|[ivxm\d\.]+|[a-z])[\)\“\”]?))+'
-NUM_ROMAN_PAT = r'(([\(\“\”]?([\.\d]+|[ivxm\d]+\b)[\)\“\”\.]?|[\(\“\”\.]?[a-z][\s\.\)\“\”:]|\b[a-z]\b|\b[a-z]\-\d+\b))'
-V2_SECHEAD_PAT = r'[\s§]*({})\b\s*[\;\:\.\–\-\—]*\s*{}\s*([\;\:\.\–\-\—\s]*)(.*)$'.format('|'.join(SECHEAD_WORDS),
-                                                                                        NUM_ROMAN_PAT)
+NUM_ROMAN_PAT = r'(([\(\“\”]?([\.\d]+|[ivxm\d]+\b)[\)\“\”\.]?|[\(\“\”\.]?[a-z][\s\.\)\“\”:]|' \
+                r'\b[a-z]\b|\b[a-z]\-\d+\b))'
+V2_SECHEAD_PAT = r'[\s§]*({})\b\s*[\;\:\.\–\-\—]*\s*{}\s*([\;\:\.\–\-\—\s]*)(.*)$' \
+                 .format('|'.join(SECHEAD_WORDS), NUM_ROMAN_PAT)
 
 SECHEAD_NUM_BREAK_CHAR = r'[\;\:\s]'
 SECHEAD_NOT_NUM_BREAK_CHARS = r'([^\;\:\–\—\s]+)\s*[\;\:\.\–\—\s]*'
@@ -1212,8 +1162,9 @@ V4_SECHEAD_PAT3 = r'[\s§]*{}({})\b(.*)$'.format(SECHEAD_NOT_NUM_BREAK_CHARS,
 
 # this is in table of content
 # 11 Section 3.1
-V2_NUM_SECHEAD_PAT = r'[\s§]*\d+\s*({})\s*[\;\:\.\–\-\—]*\s*{}\s*([\;\:\.\–\-\—\s]*)(.*)$'.format('|'.join(SECHEAD_WORDS),
-                                                                                                  NUM_ROMAN_PAT)
+V2_NUM_SECHEAD_PAT = r'[\s§]*\d+\s*({})\s*[\;\:\.\–\-\—]*\s*{}\s*([\;\:\.\–\-\—\s]*)(.*)$' \
+                     .format('|'.join(SECHEAD_WORDS),
+                             NUM_ROMAN_PAT)
 
 V2_SECHEAD_PAT2 = r'[\s§]*{}\s*([\;\:\.\–\-\—\s]*)(.*)$'.format(NUM_ROMAN_PAT)
 
@@ -1283,7 +1234,7 @@ def reject_sechead(lc_line):
 
     if lc_line.startswith('$'):
         return True
-    
+
     if lc_line.startswith('va-') or lc_line.startswith('wa-'):
         return True
 
@@ -1338,7 +1289,7 @@ def reject_sechead(lc_line):
 
     # T =Tenant
     if '=' in lc_line:
-        return True    
+        return True
 
     # Broker’s License No.:
     if 'no.' in lc_line:
@@ -1348,7 +1299,7 @@ def reject_sechead(lc_line):
         return True
 
     if strutils.count_numbers(lc_line) >= 4:
-        return True        
+        return True
 
     # re.split(r'[\s\,\'\"]+', lc_line)  # lc_line.split()
     words = strutils.split_words(lc_line)
@@ -1377,19 +1328,19 @@ def reject_sechead(lc_line):
         # 'background a.'
         if len(words) == 2 and not strutils.is_all_alphas_dot(words[0]) and len(words[1]) == 2 and words[1][-1] == '.':
             return True
-            
+
         if len(words) >= 2:
             # a nevada corporation
-            if words[0] == 'a':  
+            if words[0] == 'a':
                 for word in words[1:]:
                     if word in set(['corporation', 'incorporated', 'corp.', 'inc.']):
                         return True
             if words[0] == 'o':
                 return True
-            
+
         # 2 May 2012
         for word in words[:3]:
-            if strutils.is_all_digits(word) and (int(word) > 1900 and int(word) <=3000):
+            if strutils.is_all_digits(word) and (int(word) > 1900 and int(word) <= 3000):
                 return True
         # often in title, ok to not detect them as section heading
         # '(e) regulation s.'
@@ -1405,7 +1356,7 @@ def remove_last_num(line):
     if mat:
         return mat.group(1), mat.end(1)
     return line, -1
-    
+
 def parse_line_v3(line, debug_mode=False):
     prefix_st, num_st, head_st, end_idx = parse_line_aux(line, debug_mode)
 
@@ -1480,7 +1431,7 @@ def parse_line_aux(line, debug_mode=False):
                 prefix_st = mat.group(1)
                 num_st = mat.group(2)
                 head_st = mat.group(6)
-                if debug_mode:                
+                if debug_mode:
                     print("prefix=[{}]\tnum=[{}]\tspc=[{}]\thead=[{}]".format(mat.group(1), mat.group(2), mat.group(5), mat.group(6)))
         return prefix_st, num_st, head_st
 """
@@ -1488,7 +1439,7 @@ def parse_line_aux(line, debug_mode=False):
     if mat:
         head_st = line.replace(' ', '')
         return '', '', head_st, -1
-    
+
     mat = pat4.match(line)
     #if mat:
     #    for i, mygroup in enumerate(mat.groups()):
@@ -1532,7 +1483,7 @@ def parse_line_aux(line, debug_mode=False):
             print("prefix4=[{}]\tspc=[{}]\thead=[{}]".format('', '', mat.group(2)))
         return '', '', mat.group(2), mat.end(2)
 
-    
+
     mat = extra_num_pat2.match(line)
     if mat:
         prefix_st = mat.group(1)
@@ -1563,7 +1514,7 @@ def parse_line_aux(line, debug_mode=False):
         return '', '', head_st, len(line)
 
     # print("jjjjjout here: [{}]".format(line))
-    if debug_mode:    
+    if debug_mode:
         print("not match: [{}]".format(line))
     return '', '', '', -1
 
@@ -1572,7 +1523,7 @@ def st_sechead_str(xst):
     xst = re.sub(r'[\[\]”“"\.:\-\(\)–;,…/]', ' ', xst)
     xst = re.sub(r"['’][sS]\b", '', xst)
     xst = re.sub(r"[sS]['’]", 's', xst)
-    xst = re.sub(r"\s+", ' ', xst)        
+    xst = re.sub(r"\s+", ' ', xst)
 
     words = stopwordutils.str_to_tokens(xst, mode=0, is_remove_punct=True)
     words = stopwordutils.tokens_remove_stopwords(words)

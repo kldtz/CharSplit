@@ -1,5 +1,6 @@
 import re
-from typing import Dict, List, Match, Tuple
+# pylint: disable=unused-import
+from typing import Dict, List, Match, Optional, Tuple
 
 from kirke.utils import engutils, stopwordutils, strutils
 from kirke.docstruct import secheadutils
@@ -26,11 +27,15 @@ def is_line_title(line: str) -> bool:
     return has_alpha_word
 
 
-global_page_header_set = strutils.load_lc_str_set('resources/pageheader.txt')
+GLOBAL_PAGE_HEADER_SET = strutils.load_lc_str_set('resources/pageheader.txt')
 
 
-def is_line_centered(line, xStart, xEnd, is_relax_check=False):
-    
+# seems to be only called by pdfoffsets.py
+# pylint: disable=invalid-name, too-many-return-statements
+def is_line_centered(line: str,
+                     xStart,  # is this int or float?
+                     xEnd):
+
     if len(line) > 65:
         return False
     if strutils.is_all_caps_space(line) and len(line) > 52:
@@ -49,17 +54,17 @@ def is_line_centered(line, xStart, xEnd, is_relax_check=False):
         return True
 
     # there are some short lines that are not really centered
-    if (xEnd - xStart < 100 and
-        left_diff > 100 and abs(right_diff - left_diff) < 80):
+    if xEnd - xStart < 100 and \
+       left_diff > 100 and abs(right_diff - left_diff) < 80:
         return True
 
     # there are some short lines that are not really centered
-    if (xEnd - xStart < 100 and
-        left_diff > 100 and abs(right_diff - left_diff) < 80):
+    if xEnd - xStart < 100 and \
+       left_diff > 100 and abs(right_diff - left_diff) < 80:
         return True
 
-    if (xEnd - xStart < 340 and
-        left_diff > 100 and abs(right_diff - left_diff) < 50):
+    if xEnd - xStart < 340 and \
+       left_diff > 100 and abs(right_diff - left_diff) < 50:
         return True
 
     return False
@@ -97,7 +102,8 @@ def is_line_toc(line: str):
 
 
 # [\dl] with "l" is for "1", but ocr sometimes mistaken l
-PAGENUM_PAT = re.compile(r'^\s*(\bpages?)?\(\s*?\-*(\d+|[ivxm]+|[A-Z]-[\dl]+)\-*\s*\)?\s*$', re.IGNORECASE)
+PAGENUM_PAT = re.compile(r'^\s*(\bpages?)?\(\s*?\-*(\d+|[ivxm]+|[A-Z]-[\dl]+)\-*\s*\)?\s*$',
+                         re.IGNORECASE)
 
 PAGENUM_SIMPLE1_PAT = re.compile(r'^\s*(\-*\s*\d+\s*\-*)\s*$')
 
@@ -118,8 +124,13 @@ PAGENUM_PAT5 = re.compile(r'^\s*pages?\s*\d+\s*of\s*\d+\s*$', re.IGNORECASE)
 
 
 # line_num_in_page is 1-based
-def is_line_page_num(line: str, line_num_in_page=1, num_line_in_page=20,
-                     line_break=6.0, yStart=700.0, is_centered=False):
+# pylint: disable=too-many-return-statements, too-many-branches, too-many-arguments
+def is_line_page_num(line: str,
+                     line_num_in_page: int = 1,
+                     num_line_in_page: int = 20,
+                     line_break: float = 6.0,
+                     yStart: float = 700.0,
+                     unused_is_centered: bool = False):
     if line_break > 5.0 or yStart >= 675.0:  # seen yStart==687.6 as page number
         pass
     elif line_num_in_page > 2 and line_num_in_page <= num_line_in_page - 2:
@@ -165,8 +176,8 @@ def is_line_page_num(line: str, line_num_in_page=1, num_line_in_page=20,
     # page 4 of 5
     if PAGENUM_PAT5.match(line):
         # print("pagenumber x3: {}".format(line))
-        return True    
-    
+        return True
+
     return False
 
 
@@ -198,7 +209,7 @@ def is_line_not_footer_aux(line: str) -> bool:
 
 
 
-def is_line_not_footer_by_content(line: str) -> bool :
+def is_line_not_footer_by_content(line: str) -> bool:
     if NOT_FOOTER_PAT.match(line):
         return True
     return is_line_not_footer_aux(line)
@@ -211,7 +222,8 @@ def is_line_footer(line: str,
                    page_num_index: int,
                    is_english: bool,
                    is_centered: bool,
-                   align: str,
+                   # TODO, remove, not used.  Mentioned in pdftxtparser.py
+                   unused_align: str,
                    yStart: float):
 
     if yStart < 700.0:
@@ -239,7 +251,9 @@ def is_line_footer(line: str,
     # print("score = {}, after lbk".format(score))
     if page_num_index != -1 and page_line_num >= page_num_index:
         score += 0.8
-    # print("score = {}, after page_num_index = {}, page_line_num = {}".format(score, page_num_index, page_line_num))
+    # print("score = {}, after page_num_index = {}, page_line_num = {}".format(score,
+    #                                                                          page_num_index,
+    #                                                                          page_line_num))
 
     if 'confidential information' in line.lower() and is_centered:
         score += 0.8
@@ -258,7 +272,8 @@ HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', re.I)
 # no re.I
 # TODO, jshaw, these should really be sechead, not headers.
 # OK for now.
-HEADER_PARTIAL_PAT = re.compile(r'(State and Local Sales and Use Tax|Exempt Use Certificate|State Department of)')
+HEADER_PARTIAL_PAT = re.compile(r'(State and Local Sales and Use Tax|'
+                                r'Exempt Use Certificate|State Department of)')
 
 def is_line_header(line: str,
                    yStart: float,
@@ -291,14 +306,13 @@ def is_line_header(line: str,
     elif yStart < 80.0:
         score += 0.7
 
-
     if not is_english or len(line) < 30:
         score += 0.2
 
-    if (secheadutils.is_line_sechead_prefix(line) or
-        # don't use is_line_address(), too costly
-        is_line_address_prefix(line) or
-        is_line_signature_prefix(line)):
+    # don't use is_line_address(), too costly
+    if secheadutils.is_line_sechead_prefix(line) or \
+       is_line_address_prefix(line) or \
+       is_line_signature_prefix(line):
         score -= 10.0
 
     if 'RT' in align or 'CN' in align:
@@ -324,11 +338,10 @@ def is_line_header(line: str,
     return score >= 1.0
 
 
-
-# returns tuple-4, (sechead|sechead-comb, prefix+num, head, split_idx)
-# def extract_sechead_v4(line: str,
-
-def is_invalid_sechead(sechead, prefix, head, split_idx):
+def is_invalid_sechead(unused_sechead,
+                       prefix: str,
+                       head: str,
+                       unused_split_idx: int):
     if prefix == 'a':   # 'a', 'Force Majeure Event.'
         return True
     words = head.split()
@@ -342,17 +355,18 @@ def is_invalid_sechead(sechead, prefix, head, split_idx):
     # 'Agreement'
     if (not prefix) and head in set(['Agreement', 'Agreement.']):
         return True
-            
+
     return False
 
 
-def extract_line_sechead(line: str, prev_line=None):
-    # sechead, prefix, head, split_idx = secheadutils.extract_sechead_v4(line, is_combine_line=False)
-    sechead, prefix, head, split_idx = secheadutils.extract_sechead_v4(line, is_combine_line=True)
+def extract_line_sechead(line: str, unused_prev_line: Optional[str] = None) \
+    -> Optional[Tuple[str, str, str, int]]:
+    sechead, prefix, head, split_idx = secheadutils.extract_sechead_v4(line,
+                                                                       is_combine_line=True)
     if sechead:
         if not is_invalid_sechead(sechead, prefix, head, split_idx):
             return sechead, prefix, head, split_idx
-    return False
+    return None
 
 
 SIGNATURE_PREFIX_PAT = re.compile(r'(By|Name|Title)(.*?):')
@@ -367,7 +381,9 @@ def is_line_signature_prefix(line: str):
     return False
 
 
-ADDRESS_PREFIX_PAT = re.compile(r'(attention|attn|c/o|email:|facsimi|fax|phone|tel|p[ \.]+o[ \.]+box)', re.I)
+ADDRESS_PREFIX_PAT = re.compile(r'(attention|attn|c/o|email:|'
+                                r'facsimi|fax|phone|tel|p[ \.]+o[ \.]+box)',
+                                re.I)
 
 def is_line_address_prefix(line: str):
     mat = ADDRESS_PREFIX_PAT.match(line)
@@ -383,7 +399,9 @@ def is_line_address(line: str, is_english=False, is_sechead=False):
     return is_line_address_prefix(line)
 
 
-PHONE_PAT = re.compile(r'(tel\S*|phone|fax|facsim\S*|phone num\S*)?[\s:]*(\(?\d\d\d\)?[\s\-]*\d\d\d[\s\-]*\d\d\d\d)', re.I)
+PHONE_PAT = re.compile(r'(tel\S*|phone|fax|facsim\S*|'
+                       r'phone num\S*)?[\s:]*(\(?\d\d\d\)?[\s\-]*\d\d\d[\s\-]*\d\d\d\d)',
+                       re.I)
 
 
 def is_line_phone_number(line):
@@ -424,4 +442,3 @@ def line_list_to_block_list(linex_list):
             cur_block.append(linex)
         prev_block_num = block_num
     return tmp_block_list
-
