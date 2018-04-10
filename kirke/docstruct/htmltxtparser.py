@@ -492,13 +492,13 @@ def lineinfos_paras_to_attr_list(lineinfos_paras, doc_text: str):
 
     for line_idx, (se_list, attr_list) in enumerate(lineinfos_paras):
         attr2_list = []
-        print("se_list: {}".format(se_list))
+        # print("se_list: {}".format(se_list))
         line_st_list = []
         for from_se_ln, unused_to_se_ln in se_list:
             fstart, fend, unused_fln, unused_is_gap = from_se_ln.to_tuple()
             line_st_list.append(doc_text[fstart:fend])
         line = ' '.join(line_st_list)
-        print("line: [{}]".format(line))
+        # print("line: [{}]".format(line))
         is_english = engutils.classify_english_sentence(line)
         if is_english:
             attr2_list.append('yes_eng')

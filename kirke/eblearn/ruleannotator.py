@@ -7,7 +7,7 @@ import time
 from typing import Any, Dict, List, Tuple
 
 # from kirke.eblearn import baseannotator, ebpostproc
-from kirke.utils import ebantdoc3, evalutils, strutils
+from kirke.utils import ebantdoc4, evalutils, strutils
 
 
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
@@ -34,6 +34,7 @@ class RuleAnnotator:
                  version: str,
                  *,
                  doclist_to_antdoc_list,
+                 is_use_corenlp: bool,
                  doc_to_candidates,
                  rule_engine,
                  post_process) -> None:
@@ -46,6 +47,7 @@ class RuleAnnotator:
 
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
+        self.is_use_corenlp = is_use_corenlp
         self.doc_to_candidates = doc_to_candidates
         self.rule_engine = rule_engine
         self.post_process_list = post_process
@@ -53,9 +55,15 @@ class RuleAnnotator:
         self.ant_status = {'label': label}  # type: Dict[str, Any]
 
 
+    def get_is_use_corenlp(self):
+        if not hasattr(self, 'is_use_corenlp'):
+            self.is_use_corenlp = False
+        return self.is_use_corenlp
+
+
     # pylint: disable=too-many-locals
     def test_antdoc_list(self,
-                         ebantdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
+                         ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                          threshold: float = 0.5) -> Tuple[Dict[str, Any],
                                                           Dict[str, Dict]]:
         logging.debug('RuleAnnotator.test_antdoc_list(), len= %d', len(ebantdoc_list))
@@ -111,13 +119,13 @@ class RuleAnnotator:
 
     # returns candidates, label_list, group_id_list
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
+                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                              label: str):
         return self.doc_to_candidates.documents_to_candidates(antdoc_list, label)
 
 
     def annotate_antdoc(self,
-                        antdoc: ebantdoc3.EbAnnotatedDoc3,
+                        antdoc: ebantdoc4.EbAnnotatedDoc4,
                         *,
                         # pylint: disable=unused-argument
                         prov_human_ant_list=None,

@@ -13,7 +13,7 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from kirke.sampleutils import postproc
 from kirke.ebrules import addrannotator, dummyannotator, dates
 from kirke.sampleutils import regexgen, addrgen, dategen, transformerutils
-from kirke.utils import ebantdoc3
+from kirke.utils import ebantdoc4
 
 # Different provisions can use the same candidate type, such as Currency
 # or Number.  The specifications of 'provision' are outside of annotatorconfig.py.
@@ -23,7 +23,8 @@ from kirke.utils import ebantdoc3
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
-    ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+    ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                     'is_use_corenlp': False,
                      'doc_to_candidates': dategen.DateSpanGenerator(13, 13, 'DATE'),
                      'version': "1.0",
                      'doc_postproc_list': [dates.DateNormalizer(),
@@ -37,7 +38,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
                      'threshold': 0.2,
                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}}),
 
-    ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+    ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                        'is_use_corenlp': False,
                         'doc_to_candidates': addrgen.AddrContextGenerator(10, 10, 'ADDRESS'),
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -54,7 +56,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                         'threshold': 0.25,
                         'kfold': 3}),
-    ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+    ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                         'is_use_corenlp': False,
                          'doc_to_candidates': regexgen.RegexContextGenerator(20,
                                                                              5,
                                                                              # pylint: disable=line-too-long
@@ -75,7 +78,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'threshold': 0.25,
                          'kfold': 3}),
 
-    ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+    ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                       'is_use_corenlp': False,
                        'doc_to_candidates': regexgen.RegexContextGenerator(10,
                                                                            10,
                                                                            # pylint: disable=line-too-long
@@ -97,7 +101,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'threshold': 0.25,
                        'kfold': 3}),
 
-    ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+    ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                        'is_use_corenlp': False,
                         'doc_to_candidates': regexgen.RegexContextGenerator(15,
                                                                             5,
                                                                             re.compile(r'(\d+%)'),
@@ -118,27 +123,31 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.25,
                         'kfold': 3})
 ]
+
 '''
-('l_tenant_notice', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
-                                'doc_to_candidates': addrgen.AddrContextGenerator(10, 2, 'ADDRESS'),
-                                'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
-                                'version': "1.0",
-                                'pipeline': Pipeline([
-                                    ('union', FeatureUnion(
-                                        transformer_list=[
-                                            # pylint: disable=line-too-long
+('l_tenant_notice', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                            'is_use_corenlp': False,
+                            'doc_to_candidates': addrgen.AddrContextGenerator(10, 2, 'ADDRESS'),
+                            'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                            'version': "1.0",
+                            'pipeline': Pipeline([
+                                ('union', FeatureUnion(
+                                    transformer_list=[
+                                        # pylint: disable=line-too-long
                                             ('surround_transformer', transformerutils.SimpleTextTransformer()),
-                                            ('is_addr_line_transformer', transformerutils.AddrLineTransformer())
-                                        ])),
-                                    ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
-                                                          shuffle=True, random_state=42,
-                                                          class_weight={True: 3, False: 1}))]),
-                                'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                                'threshold': 0.25,
-                                'kfold': 3}),
+                                        ('is_addr_line_transformer', transformerutils.AddrLineTransformer())
+                                    ])),
+                                ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                                      shuffle=True, random_state=42,
+                                                      class_weight={True: 3, False: 1}))]),
+                            'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                            'threshold': 0.25,
+                            'kfold': 3}),
 '''
+
 RULE_ANNOTATOR_CONFIG_LIST = [
-    ('effectivedate', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
+    ('effectivedate', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                              'is_use_corenlp': False,
                               'doc_to_candidates': dategen.DateSpanGenerator(20, 20, 'DATE'),
                               'version': "1.0",
                               'rule_engine': dummyannotator.DummyAnnotator()}),
@@ -152,6 +161,7 @@ def validate_annotator_config_keys(aconfig: Tuple[str, str, Dict]) -> bool:
     is_valid = True
     for key, value in adict.items():
         if key not in set(['doclist_to_antdoc_list',
+                           'is_use_corenlp',
                            'doc_to_candidates',
                            'version',
                            'doc_postproc_list',

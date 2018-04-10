@@ -1,6 +1,6 @@
 import logging
 
-from kirke.utils import ebantdoc3, evalutils
+from kirke.utils import ebantdoc4, evalutils
 
 from kirke.docstruct import fromtomapper, htmltxtparser
 from kirke.ebrules import parties
@@ -24,7 +24,7 @@ class LineAnnotator:
     # def train(self):
     #    pass
     # pylint: disable=R0914
-    def test_antdoc_list(self, ebantdoc_list: ebantdoc3.EbAnnotatedDoc3):
+    def test_antdoc_list(self, ebantdoc_list: ebantdoc4.EbAnnotatedDoc4):
         logging.debug('lineannotator.test_antdoc_list')
 
         # pylint: disable=C0103

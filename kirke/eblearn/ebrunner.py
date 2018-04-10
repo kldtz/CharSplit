@@ -19,8 +19,7 @@ from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
 from kirke.eblearn import ebannotator, ebtrainer, lineannotator, provclassifier
 from kirke.eblearn import scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
-from kirke.utils import ebantdoc4, ebantdoc3, evalutils, lrucache, osutils, strutils
-
+from kirke.utils import ebantdoc4, evalutils, lrucache, osutils, strutils
 
 from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
@@ -33,16 +32,17 @@ MAX_CUSTOM_MODEL_CACHE_SIZE = 100
 
 
 def annotate_provision(eb_annotator,
-                       eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
-                       eb_antdoc3: ebantdoc3.EbAnnotatedDoc3) -> Tuple[List[Dict], float]:
+                       eb_antdoc: ebantdoc4.EbAnnotatedDoc4) -> Tuple[List[Dict], float]:
+    """
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
-        return eb_annotator.annotate_antdoc(eb_antdoc3)
+        return eb_annotator.annotate_antdoc(eb_antdoc)
+    """
 
     return eb_annotator.annotate_antdoc(eb_antdoc)
 
 
 def test_provision(eb_annotator,
-                   eb_antdoc_list,
+                   eb_antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                    threshold) -> Tuple[Dict[str, Dict],
                                        Dict[str, Dict]]:
     print("test_provision, type(eb_annotator) = {}".format(type(eb_annotator)))
@@ -186,8 +186,8 @@ class EbRunner:
 
     def run_annotators_in_parallel(self,
                                    eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
-                                   eb_antdoc3: ebantdoc3.EbAnnotatedDoc3,
-                                   provision_set=None) -> Dict[str, List]:
+                                   provision_set=None) \
+                                   -> Dict[str, List]:
         if not provision_set:
             provision_set = self.provisions
         #else:
@@ -199,8 +199,7 @@ class EbRunner:
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
                                                    self.get_provision_annotator(provision),
-                                                   eb_antdoc,
-                                                   eb_antdoc3):
+                                                   eb_antdoc):
                                    provision for provision in provision_set
                                    if provision in both_default_custom_provs}
             for future in concurrent.futures.as_completed(future_to_provision):
@@ -313,7 +312,8 @@ class EbRunner:
                           work_dir: Optional[str] = None,
                           is_doc_structure: bool = True,
                           doc_lang: str = 'en') \
-                          -> Tuple[Dict[str, List], ebantdoc4.EbAnnotatedDoc4]:
+                          -> Tuple[Dict[str, List],
+                                   ebantdoc4.EbAnnotatedDoc4]:
         time1 = time.time()
         if not provision_set:
             # no provision specified.  Must be doing testing.
@@ -339,10 +339,6 @@ class EbRunner:
                                                 work_dir=work_dir,
                                                 is_doc_structure=is_doc_structure,
                                                 doc_lang=doc_lang)
-        eb_antdoc3 = ebantdoc3.text_to_ebantdoc3(file_name,
-                                                 work_dir=work_dir,
-                                                 is_doc_structure=is_doc_structure,
-                                                 doc_lang=doc_lang)
 
         # if the file contains too few words, don't bother
         # otherwise, might cause classifier error if only have 1 error because of minmax
@@ -353,7 +349,7 @@ class EbRunner:
             # we always return eb_antdoc, not eb_antdoc3
             return empty_result, eb_antdoc
         # this execute the annotators in parallel
-        prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, eb_antdoc3, provision_set)
+        prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, provision_set)
 
         # this update the 'start_end_span_list' in each antx in-place
         # docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
@@ -501,12 +497,14 @@ class EbRunner:
             logging.info('user specified provision list: %s', provision_set)
 
         # in reality, we only use 1 provision
+        ebantdoc_list = []  # type: List[ebantdoc4.EbAnnotatedDoc4]
         if len(provision_set) == 1:
             provision = list(provision_set)[0]
             annotator2 = self.provision_annotator_map[provision]
             if isinstance(annotator2, spanannotator.SpanAnnotator):
-                ebantdoc_list = ebantdoc3.doclist_to_ebantdoc_list(txt_fns_file_name,
-                                                                   self.work_dir)
+                ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
+                                                                   self.work_dir,
+                                                                   is_use_corenlp=False)
             else:
                 ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir)

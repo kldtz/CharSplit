@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 from kirke.eblearn import annotatorconfig, ebannotator, ebattrvec, ebpostproc
 from kirke.eblearn import lineannotator, ruleannotator, spanannotator
 from kirke.ebrules import titles, parties, dates
-from kirke.utils import  ebantdoc4, ebantdoc3, evalutils, splittrte, strutils, txtreader
+from kirke.utils import  ebantdoc4, evalutils, splittrte, strutils, txtreader
 
 
 DEFAULT_CV = 3
@@ -178,13 +178,13 @@ def cv_train_at_annotation_level(provision,
     return prov_annotator, log_list
 
 
-# TODO, because we are using ebantdoc3 instead of ebantdoc4, I am
+# TODO, because we are using ebantdoc4 instead of ebantdoc4, I am
 # doing code copying right now.  Maybe merge with cv_train_at_annotation_level()
 # in future.
 # pylint: disable=too-many-arguments, too-many-locals, invalid-name, too-many-statements
 def cv_candg_train_at_annotation_level(provision: str,
                                        # pylint: disable=invalid-name
-                                       antdoc_candidatex_list: List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                                       antdoc_candidatex_list: List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                                                           List[Dict],
                                                                           List[bool],
                                                                           List[int]]],
@@ -201,8 +201,8 @@ def cv_candg_train_at_annotation_level(provision: str,
     all_group_ids = []  # type: List[int]
 
     # distribute positives to all buckets
-    pos_list = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
-    neg_list = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
+    pos_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+    neg_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
     # pylint: disable=line-too-long
     for label, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in zip(antdoc_bool_list,
                                                                                     antdoc_candidatex_list):
@@ -217,7 +217,7 @@ def cv_candg_train_at_annotation_level(provision: str,
 
     pos_list.extend(neg_list)
     # pylint: disable=line-too-long
-    bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]]
+    bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
     for count, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in enumerate(pos_list):
         # bucket_x_map[count % num_fold].append((x_antdoc, label))
         bucket_x_map[count % num_fold].append((x_antdoc, x_candidates, x_candidate_label_list, x_group_ids))
@@ -237,7 +237,7 @@ def cv_candg_train_at_annotation_level(provision: str,
         test_bucket_candidates = []   # type: List[Dict]
         test_bucket_candidate_labels = []   # type: List[bool]
         test_bucket_group_ids = []   # type: List[int]
-        test_bucket_antdoc_list = []  # type: List[ebantdoc3.EbAnnotatedDoc3]
+        test_bucket_antdoc_list = []  # type: List[ebantdoc4.EbAnnotatedDoc4]
         for bnum, bucket_docxyz_list in bucket_x_map.items():
             if bnum != bucket_num:
                 for docxyz in bucket_docxyz_list:
@@ -570,6 +570,7 @@ def train_eval_span_annotator(provision: str,
                                     candidate_type,
                                     version=config['version'],
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
+                                    is_use_corenlp=config['is_use_corenlp'],
                                     doc_to_candidates=config['doc_to_candidates'],
                                     candidate_transformers=config.get('candidate_transformers', []),
                                     doc_postproc_list=config.get('doc_postproc_list', []),
@@ -585,11 +586,14 @@ def train_eval_span_annotator(provision: str,
 
 
     if is_bespoke_mode:
-        #converts all docs to ebantdocs
+        # converts all docs to ebantdocs
+        # intentially don't specify is_no_corenlp here.  It has to be done
+        # using ebantdoc4.doclist_to_antdoc_list_no_corenlp
         eb_antdoc_list = span_annotator.doclist_to_antdoc_list(txt_fn_list,
                                                                work_dir,
                                                                is_bespoke_mode=is_bespoke_mode,
-                                                               is_doc_structure=False)
+                                                               is_doc_structure=False,
+                                                               is_use_corenlp=span_annotator.get_is_use_corenlp())
         num_docs = len(eb_antdoc_list)
 
         #split training and test data, save doclists
@@ -662,11 +666,13 @@ def train_eval_span_annotator(provision: str,
         X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
                                                         work_dir,
                                                         is_bespoke_mode=is_bespoke_mode,
-                                                        is_doc_structure=False)
+                                                        is_doc_structure=False,
+                                                        is_use_corenlp=span_annotator.get_is_use_corenlp())
         X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
                                                        work_dir,
                                                        is_bespoke_mode=is_bespoke_mode,
-                                                       is_doc_structure=False)
+                                                       is_doc_structure=False,
+                                                       is_use_corenlp=span_annotator.get_is_use_corenlp())
         # candidate generation on training set
         train_antdoc_candidatex_list = \
             span_annotator.documents_to_candidates(X_train, provision)
@@ -714,6 +720,7 @@ def eval_rule_annotator_with_trte(label: str,
         ruleannotator.RuleAnnotator(label,
                                     version=config['version'],
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
+                                    is_use_corenlp=config['is_use_corenlp'],
                                     doc_to_candidates=config['doc_to_candidates'],
                                     rule_engine=config['rule_engine'],
                                     post_process=config.get('post_process', []))
@@ -729,7 +736,8 @@ def eval_rule_annotator_with_trte(label: str,
 
     test_antdoc_list = rule_annotator.doclist_to_antdoc_list(test_doclist_fn,
                                                              work_dir,
-                                                             is_doc_structure=False)
+                                                             is_doc_structure=False,
+                                                             is_use_corenlp=rule_annotator.get_is_use_corenlp())
 
     # the eval result is already saved in span_annotator
     unused_ant_status = rule_annotator.test_antdoc_list(test_antdoc_list)

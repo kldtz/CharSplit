@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Tuple
 from kirke.ebrules import addresses
-from kirke.utils import ebantdoc3, ebsentutils, strutils
+from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 
 # loads address keywords
@@ -17,15 +17,15 @@ class AddrContextGenerator:
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: str = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                             label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                                               List[Dict],
                                                               List[bool],
                                                               List[int]]]:
 
         # pylint: disable=line-too-long
-        result = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
-        for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
+        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+        for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc4
             candidates = []  # type: List[Dict]
             label_list = []   # type: List[bool]
             group_id_list = []  # type: List[int]
@@ -38,9 +38,9 @@ class AddrContextGenerator:
                     label_ant_list.append(ant)
 
             #gets text based on document type
-            if antdoc.doc_format in set([ebantdoc3.EbDocFormat.html,
-                                         ebantdoc3.EbDocFormat.html_nodocstruct,
-                                         ebantdoc3.EbDocFormat.other]):
+            if antdoc.doc_format in set([ebantdoc4.EbDocFormat.html,
+                                         ebantdoc4.EbDocFormat.html_nodocstruct,
+                                         ebantdoc4.EbDocFormat.other]):
                 nl_text = antdoc.text
             else:
                 nl_text = antdoc.get_nl_text()

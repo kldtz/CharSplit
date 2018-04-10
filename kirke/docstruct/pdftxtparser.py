@@ -221,9 +221,9 @@ def to_nl_paraline_texts(file_name: str,
     para_not_linebreak_arr = array.array('i', para_not_linebreak_offsets)  # type: ArrayType
 
     # save the result
+    paraline_fn = get_paraline_fname(base_fname, work_dir)
+    txtreader.dumps(paraline_text, paraline_fn)
     if debug_mode:
-        paraline_fn = get_paraline_fname(base_fname, work_dir)
-        txtreader.dumps(paraline_text, paraline_fn)
         print('wrote {}, size= {}'.format(paraline_fn, len(paraline_text)), file=sys.stderr)
 
     return (orig_doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr, \
