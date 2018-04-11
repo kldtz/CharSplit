@@ -51,8 +51,8 @@ class RegexContextGenerator:
                 nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logger.info('RegexContextGenerator.documents_to_candidates(), group_id = %d',
-                            group_id)
+                logger.debug('RegexContextGenerator.documents_to_candidates(), group_id = %d',
+                             group_id)
 
             #finds all matches in the text and adds window around each as a candidate
             matches = self.center_regex.finditer(nl_text, re.I)

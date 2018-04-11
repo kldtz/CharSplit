@@ -136,7 +136,7 @@ class EbRunner:
                 prov_classifier_version = prov_classifier.version
             else:
                 prov_classifier_version = '1.1'
-            logger.info("ebrunner loading #%d: %s, ver=%s, model_fn=%s",
+            logger.info("loading #%d: %s, ver=%s, model_fn=%s",
                         num_model, clf_provision, prov_classifier_version, full_model_fn)
             if clf_provision in self.provisions:
                 logger.warning("*** WARNING ***  Replacing an existing provision: %s",
@@ -559,6 +559,7 @@ class EbRunner:
             eb_classifier = scutclassifier.ShortcutClassifier(provision)
             # It is know that 'eb_annotator' is ProvisionAnnotator, mypy.
             # Conflicts with below.
+            # Please note, for 'sentence', we use is_doc_structure=True
             eb_annotator, log_json = \
                 ebtrainer.train_eval_annotator(provision,
                                                model_num,
@@ -568,7 +569,7 @@ class EbRunner:
                                                custom_model_dir,
                                                full_model_fname,
                                                eb_classifier,
-                                               is_doc_structure=is_doc_structure,
+                                               is_doc_structure=True,
                                                # pylint: disable=line-too-long
                                                custom_training_mode=True)  # type: Tuple[Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator], Dict[str, Any]]
 
@@ -577,6 +578,7 @@ class EbRunner:
             # Conflicts with above.
             # There is no use of doc_lang in spanannotator.  It's language
             # independent for now.
+            # Please note, for 'non-sentence', we use is_doc_structure=False
             eb_annotator, log_json = \
                 ebtrainer.train_eval_span_annotator(provision,
                                                     model_num,
@@ -586,6 +588,7 @@ class EbRunner:
                                                     custom_model_dir,
                                                     txt_fn_list,
                                                     model_file_name=full_model_fname,
+                                                    is_doc_structure=False,
                                                     is_bespoke_mode=True)
 
         return eb_annotator.get_eval_status(), log_json

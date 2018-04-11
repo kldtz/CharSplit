@@ -26,7 +26,8 @@ from kirke.utils.ebsentutils import ProvisionAnnotation
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+# logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 CORENLP_JSON_VERSION = '1.4'
 EBANTDOC_VERSION = '1.6'
@@ -344,6 +345,7 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                    is_cache_enabled=True,
                                    doc_lang="en",
                                    is_use_corenlp: bool = True):
+    logging.debug('html_to_ebantdoc4(%s)', txt_file_name)
     debug_mode = False
     start_time = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
@@ -449,6 +451,7 @@ def html_to_ebantdoc4(txt_file_name: str,
                       is_cache_enabled: bool = True,
                       doc_lang: str = 'en',
                       is_use_corenlp: bool = True):
+    logging.debug('html_to_ebantdoc4(%s)', txt_file_name)
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
@@ -529,6 +532,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
                      is_cache_enabled: bool = True,
                      doc_lang: str = 'en',
                      is_use_corenlp: bool = True):
+    logging.debug('pdf_to_ebantdoc4(%s)', txt_file_name)
     debug_mode = False
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
@@ -649,11 +653,11 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     return eb_antdoc
 
 
-def text_to_corenlp_json(doc_text,  # this is what is really processed by corenlp
-                         txt_base_fname,  # this is only for reference file name
-                         work_dir,
-                         is_cache_enabled=False,
-                         doc_lang="en"):
+def text_to_corenlp_json(doc_text: str,  # this is what is really processed by corenlp
+                         txt_base_fname: str,  # this is only for reference file name
+                         work_dir: str,
+                         is_cache_enabled: bool = False,
+                         doc_lang: str = 'en'):
 
     # if cache version exists, load that and return
     start_time = time.time()
@@ -674,18 +678,24 @@ def text_to_corenlp_json(doc_text,  # this is what is really processed by corenl
                 # Delete the cache file and try just once more.
                 os.remove(json_fn)
                 # rest is the same as the 'else' part of no such file exists
+                logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
+                            work_dir, txt_base_fname, doc_lang, len(doc_text))
                 corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
                 strutils.dumps(json.dumps(corenlp_json), json_fn)
                 end_time = time.time()
                 logger.info("wrote cache file: %s, took %.0f msec",
                              json_fn, (end_time - start_time) * 1000)
         else:
+            logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
+                        work_dir, txt_base_fname, doc_lang, len(doc_text))
             corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
             strutils.dumps(json.dumps(corenlp_json), json_fn)
             end_time = time.time()
             logger.info("wrote cache file: %s, took %.0f msec",
                          json_fn, (end_time - start_time) * 1000)
     else:
+        logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
+                    work_dir, txt_base_fname, doc_lang, len(doc_text))
         corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
         end_time = time.time()
         logger.info("calling corenlp, took %.0f msec", (end_time - start_time) * 1000)

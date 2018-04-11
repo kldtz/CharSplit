@@ -47,7 +47,7 @@ class DateSpanGenerator:
                 nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logger.info('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
+                logger.debug('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
 
 
             # Finds all matches in the text and adds window around each as a candidate

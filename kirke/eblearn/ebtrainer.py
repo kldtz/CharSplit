@@ -546,6 +546,9 @@ def train_eval_annotator_with_trte(provision: str,
 # For our default provisions, we take 4/5 for training, 1/5 for testing
 # For bespoke, < 600 docs, train/test split we take 3/4 for training, 1/4 for testing
 # For bespoke, >= 600 docs, cross validate
+# TODO, for both is_doc_structure==True and is_doc_structure==False, the results so far is the
+# same.  But in the future, will try to move toward is_doc_structure==True when we get
+# a better PDF document text.
 def train_eval_span_annotator(provision: str,
                               model_num: int,
                               # TODO, why is doc_lang not used?
@@ -554,9 +557,10 @@ def train_eval_span_annotator(provision: str,
                               candidate_type: str,
                               work_dir: str,
                               model_dir: str,
-                              txt_fn_list=None,
-                              model_file_name=None,
-                              is_bespoke_mode=False) \
+                              txt_fn_list: Optional[str] = None,
+                              model_file_name: Optional[str] = None,
+                              is_doc_structure: bool = True,
+                              is_bespoke_mode: bool = False) \
             -> Tuple[spanannotator.SpanAnnotator,
                      Dict[str, Dict]]:
 
@@ -595,7 +599,7 @@ def train_eval_span_annotator(provision: str,
         eb_antdoc_list = span_annotator.doclist_to_antdoc_list(txt_fn_list,
                                                                work_dir,
                                                                is_bespoke_mode=is_bespoke_mode,
-                                                               is_doc_structure=False,
+                                                               is_doc_structure=is_doc_structure,
                                                                is_use_corenlp=span_annotator.get_is_use_corenlp())
         num_docs = len(eb_antdoc_list)
 
@@ -669,12 +673,12 @@ def train_eval_span_annotator(provision: str,
         X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
                                                         work_dir,
                                                         is_bespoke_mode=is_bespoke_mode,
-                                                        is_doc_structure=False,
+                                                        is_doc_structure=is_doc_structure,
                                                         is_use_corenlp=span_annotator.get_is_use_corenlp())
         X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
                                                        work_dir,
                                                        is_bespoke_mode=is_bespoke_mode,
-                                                       is_doc_structure=False,
+                                                       is_doc_structure=is_doc_structure,
                                                        is_use_corenlp=span_annotator.get_is_use_corenlp())
         # candidate generation on training set
         train_antdoc_candidatex_list = \

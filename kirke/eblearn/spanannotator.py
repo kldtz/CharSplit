@@ -156,8 +156,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logger.info('spanannotator.train_candidates()...')
 
         logger.info("Performing grid search...")
-        print("parameters:")
-        pprint.pprint(parameters)
+        logger.info("parameters: %r", parameters)
         pos_neg_map = defaultdict(int)  # type: DefaultDict[bool, int]
         for label in label_list:
             pos_neg_map[label] += 1
@@ -279,7 +278,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         start_time = time.time()
         candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
-        logger.debug("annotate_antdoc(%s, %s) took %.0f msec",
+        logger.debug('annotate_antdoc(%s, %s) took %.0f msec',
                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates

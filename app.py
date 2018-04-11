@@ -362,7 +362,10 @@ def custom_train(cust_id: str):
                                                                               candidate_type,
                                                                               CANDG_CLF_VERSION)
 
-            # Following the logic in the original code.
+            # Intentionally not passing is_doc_structure=True
+            # For spanannotator, currently we use is_doc_structure=False to not missing
+            # any lines in the original text.
+            # For sentence-candidate, is_doc_structure=True
             eval_status, log_json = \
                 eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                               provision,
@@ -370,7 +373,6 @@ def custom_train(cust_id: str):
                                                               base_model_fname,
                                                               candidate_type,
                                                               model_num=next_model_num,
-                                                              is_doc_structure=True,
                                                               work_dir=work_dir,
                                                               doc_lang=doc_lang)
 
