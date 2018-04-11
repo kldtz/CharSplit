@@ -1,7 +1,7 @@
 import calendar
 import datetime
 import re
-from typing import Dict, Optional
+from typing import List, Dict, Optional
 
 from dateutil import parser
 
@@ -463,12 +463,14 @@ class DateNormalizer(DocCandidatesTransformer):
         return norm_st
 
 
-    def enrich(self, candidate: Dict) -> None:
-        text = candidate['text']
-        date_dict = self.parse_date(text)
+    def doc_postproc(self, candidates: List[Dict], nbest: int) -> None:
+        for candidate in candidates:
+            text = candidate['text']
+            date_dict = self.parse_date(text)
 
-        if not date_dict:
-            candidate['prob'] == 0.011
-            return
+            if not date_dict:
+                candidate['prob'] == 0.011
+                return
 
-        candidate.update(date_dict)
+            candidate.update(date_dict)
+        return candidates

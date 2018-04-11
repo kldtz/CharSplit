@@ -10,13 +10,12 @@ import os.path
 import re
 import shutil
 import tempfile
-import yaml
 import zipfile
-
 # pylint: disable=unused-import
 from typing import DefaultDict, Dict, List, Optional, Tuple
 
 from flask import Flask, jsonify, request, send_file
+import yaml
 
 from kirke.eblearn import ebrunner
 from kirke.utils import osutils, strutils
@@ -39,8 +38,8 @@ def setup_logging(default_path='logging.yaml',
         path = value
     if os.path.exists(path):
         with open(path, 'rt') as f:
-            config = yaml.safe_load(f.read())
-        logging.config.dictConfig(config)
+            xconfig = yaml.safe_load(f.read())
+        logging.config.dictConfig(xconfig)
     else:
         logging.basicConfig(level=default_level)
 
@@ -246,7 +245,7 @@ def custom_train_import():
     except zipfile.BadZipFile:
         result_json['error'] = 'Bad ZIP file'
         return jsonify(result_json)
-    except:
+    except:  # pylint: disable=bare-except
         result_json['error'] = 'Bad ZIP file'
         return jsonify(result_json)
     provision = None
@@ -285,9 +284,15 @@ def custom_train(cust_id: str):
     candidate_type = request.form.get('candidate_type')
     if not candidate_type:
         candidate_type = 'SENTENCE'
+    nbest = request.form.get('nbest')
+    if not nbest:
+        nbest = -1
+    else:
+        nbest = int(nbest)
 
     # to ensure that no accidental file name overlap
-    logger.info("cust_id = '%s'", cust_id)
+    logger.info("cust_id = '%s', candidate_type=%s, nbest= %d",
+                cust_id, candidate_type, nbest)
     provision = 'cust_{}'.format(cust_id)
     tmp_dir = '{}/{}'.format(work_dir, provision)
     osutils.mkpath(tmp_dir)
@@ -366,12 +371,14 @@ def custom_train(cust_id: str):
             # For spanannotator, currently we use is_doc_structure=False to not missing
             # any lines in the original text.
             # For sentence-candidate, is_doc_structure=True
+            # pylint: disable=unused-variable
             eval_status, log_json = \
                 eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                               provision,
                                                               CUSTOM_MODEL_DIR,
                                                               base_model_fname,
                                                               candidate_type,
+                                                              nbest,
                                                               model_num=next_model_num,
                                                               work_dir=work_dir,
                                                               doc_lang=doc_lang)

@@ -86,6 +86,7 @@ def log_custom_model_eval_status(ant_status: Dict[str, Any]) -> None:
 def cv_train_at_annotation_level(provision,
                                  x_antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                                  bool_list,
+                                 nbest,
                                  eb_classifier_orig,
                                  model_file_name: str,
                                  model_num: int,
@@ -139,9 +140,9 @@ def cv_train_at_annotation_level(provision,
         cv_eb_classifier.train_antdoc_list(train_buckets,
                                            work_dir,
                                            cv_eb_classifier_fn)
-        cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir)
+        cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir, nbest=nbest)
 
-        cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket)
+        cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket, nbest)
         # print("cv ant_status, bucket_num = {}:".format(bucket_num))
         # print(cv_ant_status)
 
@@ -153,7 +154,7 @@ def cv_train_at_annotation_level(provision,
     eb_classifier.train_antdoc_list(x_antdoc_list,
                                     work_dir,
                                     model_file_name)
-    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
+    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir, nbest=nbest)
     log_json = log_list
     merged_ant_status = \
         evalutils.aggregate_ant_status_list(cv_ant_status_list)['ant_status']
@@ -320,6 +321,7 @@ def cv_candg_train_at_annotation_level(provision: str,
 def train_eval_annotator(provision: str,
                          model_num: int,
                          doc_lang: str,
+                         nbest: int,
                          txt_fn_list,
                          work_dir,
                          model_dir,
@@ -347,9 +349,7 @@ def train_eval_annotator(provision: str,
                                            is_bespoke_mode=custom_training_mode,
                                            is_doc_structure=is_doc_structure,
                                            doc_lang=doc_lang)
-
     num_docs = len(eb_antdoc_list)
-
     attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     group_id_list = []
     num_pos_ant = 0
@@ -395,6 +395,9 @@ def train_eval_annotator(provision: str,
         y[0] = 0
         y[1] = 0
 
+    # make sure nbest is know to everyone else
+    eb_classifier.nbest = nbest
+
     # runs when custom training mode positive training instances are too few
     # only train, no independent testing
     # corss validation is applied to all Bespoke training
@@ -413,6 +416,7 @@ def train_eval_annotator(provision: str,
             cv_train_at_annotation_level(provision,
                                          X_train,
                                          y,
+                                         nbest,
                                          eb_classifier,
                                          model_file_name,
                                          model_num,
@@ -420,7 +424,6 @@ def train_eval_annotator(provision: str,
                                          work_dir)
 
         return prov_annotator2, combined_log_json
-
     # pylint: disable=line-too-long
     logger.info("training using train/test split with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
                  len(attrvec_list), num_pos_label, num_neg_label)
@@ -443,15 +446,13 @@ def train_eval_annotator(provision: str,
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     #make the classifier into an annotator
-    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
-
+    prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir, nbest=nbest)
     # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
     # using generator, instead of all loaded at once.
     # X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
     # ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
     # X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
     ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
-
 
     #prints evaluation results and saves status
     ant_status['provision'] = provision
@@ -554,6 +555,7 @@ def train_eval_span_annotator(provision: str,
                               # TODO, why is doc_lang not used?
                               # For now, there is no lang specific spanannotator?
                               unused_doc_lang: str,
+                              nbest: int,
                               candidate_type: str,
                               work_dir: str,
                               model_dir: str,
@@ -576,6 +578,7 @@ def train_eval_span_annotator(provision: str,
         spanannotator.SpanAnnotator(provision,
                                     candidate_type,
                                     version=config['version'],
+                                    nbest=nbest,
                                     doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                     is_use_corenlp=config['is_use_corenlp'],
                                     doc_to_candidates=config['doc_to_candidates'],
@@ -630,7 +633,6 @@ def train_eval_span_annotator(provision: str,
                                                    span_annotator,
                                                    model_dir,
                                                    work_dir)
-
             prov_annotator2.print_eval_status(model_dir, model_num)
             prov_annotator2.save(model_file_name)
 
@@ -710,7 +712,6 @@ def train_eval_span_annotator(provision: str,
     unused_ant_status, log_json = \
         span_annotator.test_antdoc_list(X_test,
                                         span_annotator.threshold)
-
     span_annotator.print_eval_status(model_dir, model_num)
     span_annotator.save(model_file_name)
 

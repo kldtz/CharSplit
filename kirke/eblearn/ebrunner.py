@@ -409,7 +409,7 @@ class EbRunner:
             # using htmltxtparser instead of coding the necessary logic again on PDF.
             txt_base_fname = os.path.basename(eb_antdoc.file_id)
             paraline_fname = txt_base_fname.replace('.txt', '.paraline.txt')
-            paras_with_attrs, para_doc_text, _, _ = \
+            paras_with_attrs, para_doc_text, unused_gap_span_list, unused_orig_doc_text = \
                     htmltxtparser.parse_document('{}/{}'.format(work_dir, paraline_fname),
                                                  work_dir=work_dir,
                                                  is_combine_line=False)
@@ -539,19 +539,17 @@ class EbRunner:
                                             provision,
                                             custom_model_dir,
                                             base_model_fname,
-                                            candidate_type,
+                                            candidate_type: str,
+                                            nbest: int,
                                             model_num: int,
                                             is_doc_structure=False,
                                             work_dir=None,
                                             doc_lang="en") \
                                             -> Tuple[Dict[str, Any], Dict[str, Dict]]:
-
         logger.info("txt_fn_list_fn: %s", txt_fn_list)
-
         if not work_dir:
             work_dir = self.work_dir
         full_model_fname = '{}/{}'.format(custom_model_dir, base_model_fname)
-
         logger.info("custom_mode_file: %s", full_model_fname)
 
         # SENTENCE runs the standard pipeline, if specified candidate type run candidate generation
@@ -564,6 +562,7 @@ class EbRunner:
                 ebtrainer.train_eval_annotator(provision,
                                                model_num,
                                                doc_lang,
+                                               nbest,
                                                txt_fn_list,
                                                work_dir,
                                                custom_model_dir,
@@ -583,6 +582,7 @@ class EbRunner:
                 ebtrainer.train_eval_span_annotator(provision,
                                                     model_num,
                                                     doc_lang,
+                                                    nbest,
                                                     candidate_type,
                                                     work_dir,
                                                     custom_model_dir,

@@ -12,6 +12,10 @@ from kirke.docstruct import linepos
 DEBUG_MODE = False
 
 
+# returning List[((from_start, from_end),
+#                 (to_start, to_end)),
+#                 text_span,
+#                 attr_list)]
 # pylint: disable=too-many-locals
 def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                     is_combine_line: bool = True) \
@@ -147,7 +151,10 @@ def get_sechead_attr(attr_list):
 # TODO, Should add footer and header in the future.
 # But such info only available in PDF files.
 # pylint: disable=too-many-branches, too-many-statements
-def lineinfos_to_paras(lineinfos) \
+def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
+                                             Tuple[int, int],
+                                             str,
+                                             List]]) \
     -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
                         List[Tuple[Any]]]],
              str,
@@ -162,11 +169,11 @@ def lineinfos_to_paras(lineinfos) \
     prev_line = ''
     tmp2_list = []  # type: List[Tuple[int, int, str, List]]
     prev_notempty_line, prev_attr_list = 'Not Empty Line.', []  # type: Tuple[str, List]
-    gap_span_list = []
+    gap_span_list = []  # type: List[Tuple[int, int]]
     prefix = 'fake_prefix'
     # pylint: disable=too-many-nested-blocks
     for i, linfo in enumerate(tmp_list):
-        (start, end), (_, _), line, attr_list = linfo
+        (start, end), (unused_to_start_2, unused_to_end_2), line, attr_list = linfo
         # print('line #{}\t[{}]'.format(i, line))
 
         if attr_list:
@@ -177,19 +184,22 @@ def lineinfos_to_paras(lineinfos) \
                     gap_span_list.append((start, end))
                     omit_list = []
                     if i - 1 >= 0:
-                        _, _, prev_line, _ = tmp_list[i-1]
+                        unused_prev_from_se, unused_prev_to_se, prev_line, unused_prev_attrs = \
+                            tmp_list[i-1]
                         if prev_line:
                             prev_notempty_line = prev_line
                         else:
                             omit_list.append(i-1)
                             if i - 2 >= 0:
-                                _, _, tmp_prev_notempty_line, _ = tmp_list[i-2]
+                                # pylint: disable=line-too-long
+                                unused_prev2_from_se, unused_prev2_to_se, tmp_prev_notempty_line, unused_x2 = tmp_list[i-2]
                                 if tmp_prev_notempty_line:
                                     prev_notempty_line = tmp_prev_notempty_line
                             else:
                                 prev_notempty_line = 'Not Empty Line.'
                     if i + 1 < len_tmp_list:
-                        _, _, next_line, _ = tmp_list[i+1]
+                        # pylint: disable=line-too-long
+                        unused_nline_from_se, unused_nline_to_se, next_line, unused_nline_attrs = tmp_list[i+1]
                         if next_line:
                             # next_notempty_line = next_line
                             pass
@@ -245,10 +255,10 @@ def lineinfos_to_paras(lineinfos) \
     out_offset = 0
 
     non_empty_line_num = 0
-    for i, linfo in enumerate(tmp2_list):
+    for i, linfo2 in enumerate(tmp2_list):
 
         if i not in omit_line_set:
-            start, end, line, attr_list = linfo
+            start, end, line, attr_list = linfo2
             sechead_attr = get_sechead_attr(attr_list)
             # TODO, jshaw
             # The logic to handle non-empty_line_num is not exactly

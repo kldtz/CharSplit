@@ -7,6 +7,7 @@ from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -15,9 +16,10 @@ PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 class ProvisionAnnotator:
 
-    def __init__(self, prov_classifier, work_dir, threshold=None):
+    def __init__(self, prov_classifier, work_dir, threshold=None, nbest=-1):
         self.provision_classifier = prov_classifier
         self.provision = prov_classifier.provision
+        self.nbest = nbest
         if threshold is not None:  # allow overrides from provclassifier.py
             self.threshold = threshold
         else:
@@ -35,8 +37,9 @@ class ProvisionAnnotator:
     # pylint: disable=R0914
     def test_antdoc_list(self,
                          ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                         threshold: Optional[float] = None) -> Tuple[Dict[str, Any],
-                                                                     Dict[str, Dict]]:
+                         threshold: Optional[float] = None) \
+                         -> Tuple[Dict[str, Any],
+                                  Dict[str, Dict]]:
         logger.debug('test_document_list')
         if not threshold:
             threshold = self.threshold
@@ -124,6 +127,16 @@ class ProvisionAnnotator:
                 ant_result.append(fn_ant)
         return ant_result
 
+    def get_nbest(self) -> int:
+        """Return nbest.
+
+        If old bespoke model, this field won't be there.  We will create one then.
+        """
+        if not hasattr(self.provision_classifier, 'nbest'):
+            self.provision_classifier.nbest = -1
+        return self.provision_classifier.nbest
+
+
     def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None) \
         -> Tuple[List[Dict], float]:
         # attrvec_list = eb_antdoc.get_attrvec_list()
@@ -159,16 +172,16 @@ class ProvisionAnnotator:
             logger.warning(error)
             # move on, probably because there is no input
             adj_prov_human_ant_list = prov_human_ant_list
-
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
         prov_annotations, threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
                                                           threshold,
+                                                          nbest=self.get_nbest(),
                                                           provision=prov,
-                                                          prov_human_ant_list=\
-                                                              adj_prov_human_ant_list)
+                                                          # pylint: disable=line-too-long
+                                                          prov_human_ant_list=adj_prov_human_ant_list)
 
         # print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
         # print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))

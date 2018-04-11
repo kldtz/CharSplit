@@ -29,7 +29,7 @@ logger.setLevel(logging.INFO)
 ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                      'is_use_corenlp': False,
-                     'doc_to_candidates': dategen.DateSpanGenerator(13, 13, 'DATE'),
+                     'doc_to_candidates': dategen.DateSpanGenerator(30, 30, 'DATE'),
                      'version': "1.0",
                      'doc_postproc_list': [dates.DateNormalizer(),
                                            postproc.SpanDefaultPostProcessing()],
@@ -39,12 +39,12 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                shuffle=True, random_state=42,
                                                class_weight={True: 3, False: 1}))]),
-                     'threshold': 0.2,
+                     'threshold': 0.5,
                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}}),
 
     ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
-                        'doc_to_candidates': addrgen.AddrContextGenerator(10, 10, 'ADDRESS'),
+                        'doc_to_candidates': addrgen.AddrContextGenerator(30, 30, 'ADDRESS'),
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([
@@ -58,7 +58,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                   shuffle=True, random_state=42,
                                                   class_weight={True: 3, False: 1}))]),
                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                        'threshold': 0.25,
+                        'threshold': 0.35,
                         'kfold': 3}),
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                          'is_use_corenlp': False,

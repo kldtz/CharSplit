@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 from kirke.utils import ebantdoc4, evalutils
 
@@ -27,7 +28,7 @@ class LineAnnotator:
     # def train(self):
     #    pass
     # pylint: disable=R0914
-    def test_antdoc_list(self, ebantdoc_list: ebantdoc4.EbAnnotatedDoc4):
+    def test_antdoc_list(self, ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4]):
         logger.debug('lineannotator.test_antdoc_list')
 
         # pylint: disable=C0103

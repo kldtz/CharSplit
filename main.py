@@ -177,6 +177,7 @@ def eval_mlxline_annotator_with_trte(provision: str,
 # pylint: disable=too-many-arguments
 def custom_train_annotator(provision: str,
                            candidate_type: str,
+                           nbest: int,
                            txt_fn_list_fn: str,
                            work_dir: str,
                            model_dir: str,
@@ -196,6 +197,7 @@ def custom_train_annotator(provision: str,
                                                       custom_model_dir,
                                                       base_model_fname,
                                                       candidate_type=candidate_type,
+                                                      nbest=nbest,
                                                       model_num=383838,
                                                       is_doc_structure=is_doc_structure,
                                                       work_dir=work_dir)
@@ -326,6 +328,7 @@ def main():
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
     parser.add_argument('--candidate_type', default='SENTENCE', help='type of candidate generator')
+    parser.add_argument('--nbest', default=-1, help='number of annotations per doc')
     # only for eval_rule_annotator
     parser.add_argument('--is_train_mode', action="store_true",
                         help="training mode for eval_rule_annotator")
@@ -364,6 +367,7 @@ def main():
     elif cmd == 'custom_train_annotator':
         custom_train_annotator(provision,
                                args.candidate_type,
+                               int(args.nbest),
                                txt_fn_list_fn,
                                work_dir,
                                model_dir,

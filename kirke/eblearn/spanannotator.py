@@ -91,6 +91,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  provision: str,
                  candidate_type: str,
                  version: str,
+                 nbest: int,
                  *,
                  doclist_to_antdoc_list,
                  is_use_corenlp: bool,
@@ -106,6 +107,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.provision = provision
         self.candidate_type = candidate_type
         self.version = version
+        self.nbest = nbest
 
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
@@ -129,6 +131,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         return SpanAnnotator(self.provision,
                              self.candidate_type,
                              self.version,
+                             self.nbest,
                              doclist_to_antdoc_list=self.doclist_to_antdoc_list,
                              is_use_corenlp=self.is_use_corenlp,
                              doc_to_candidates=self.doc_to_candidates,
@@ -274,7 +277,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # self.provision_classifier.threshold = 0.5
         if threshold is None:
             threshold = self.threshold
-
+        nbest = self.nbest
         start_time = time.time()
         candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
@@ -288,12 +291,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                    eb_antdoc.text,
                                                    self.provision,
                                                    prov_annotations)
-
         # If there is no human annotation, must be normal annotation.
         # Remove anything below threshold
         if not prov_human_ant_list:
             prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= x_threshold]
-
+        if nbest > 0:
+            return prov_annotations[:nbest], x_threshold
         return prov_annotations, x_threshold
 
     def get_eval_status(self):
@@ -355,7 +358,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # apply post processing, such as date normalization
         # in case there is any bad apple, with 'reject' == True
         for post_proc in self.doc_postproc_list:
-            post_proc.doc_postproc(candidates)
+            candidates = post_proc.doc_postproc(candidates, self.nbest)
 
         return candidates, probs
 

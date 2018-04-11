@@ -50,7 +50,8 @@ if __name__ == '__main__':
                'cust_1392,cust_1394,cust_1399,cust_1460,cust_1473,cust_1474'
                'cust_1478,cust_1481,cust_1482,cust_1483,cust_1484,cust_3741.1,cust_12345'}
 
-    payload = {'types': 'term,cust_9'}
+    payload = {'types': 'term,cust_9,cust_28'}
+    # payload = {'types': 'term,cust_9.1051,cust_28,cust_12345'}
     # cust_3741 has '.2'
     if args.lang:
         payload['detect-lang'] = True
