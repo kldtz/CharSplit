@@ -6,6 +6,11 @@ from typing import Any, Dict, List, Tuple
 from kirke.docstruct import linepos
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 def compute_fromto_offsets(start: int,
                            end: int,
                            from_sxlnpos_list: List[Tuple[int, linepos.LnPos]],
@@ -146,7 +151,7 @@ def find_index_diff_binary(the_offset: int, from_list: List[int]) -> Tuple[int, 
         diff = the_offset - from_list[found_i-1]
         return found_i - 1, diff
 
-    logging.error('find_index_diff_binary(%d, _) failed', the_offset)
+    logger.error('find_index_diff_binary(%d, _) failed', the_offset)
     return -1, -1
 
 
@@ -162,7 +167,7 @@ def find_index_diff_linear(the_offset: int, from_list: List[int]) -> Tuple[int, 
             # we must be greater than from_list[i] before
             diff = the_offset - from_list[i - 1]
             return i - 1, diff
-    logging.error('find_index_diff_linear(%d, _) failed', the_offset)
+    logger.error('find_index_diff_linear(%d, _) failed', the_offset)
     return -1, -1
 
 

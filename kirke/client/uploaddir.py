@@ -2,14 +2,9 @@
 
 import sys
 import argparse
-import logging
 import os
 import requests
 
-
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def upload_train_dir(url_st: str, upload_dir: str, candidate_type: str):
     txt_fnames, ant_fnames = [], []

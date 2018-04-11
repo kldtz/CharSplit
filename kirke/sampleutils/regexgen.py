@@ -4,6 +4,9 @@ from typing import Dict, List, Pattern, Tuple
 
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 # pylint: disable=too-few-public-methods
 class RegexContextGenerator:
 
@@ -48,8 +51,8 @@ class RegexContextGenerator:
                 nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logging.info('RegexContextGenerator.documents_to_candidates(), group_id = %d',
-                             group_id)
+                logger.info('RegexContextGenerator.documents_to_candidates(), group_id = %d',
+                            group_id)
 
             #finds all matches in the text and adds window around each as a candidate
             matches = self.center_regex.finditer(nl_text, re.I)

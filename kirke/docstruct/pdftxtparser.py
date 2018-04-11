@@ -16,6 +16,11 @@ from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInf
 from kirke.utils import strutils, txtreader, mathutils
 from kirke.utils.textoffset import TextCpointCunitMapper
 
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
@@ -47,11 +52,11 @@ def text_offsets_to_nl(base_fname: str,
         if lbrk_offset < len_doc_text:
             linebreak_offset_list.append(lbrk_offset)
         elif lbrk_offset == len_doc_text:
-            # logging.warning("text_offsets_to_nl(%s), len= %d, lnbrk_offset = %d",
+            # logger.warning("text_offsets_to_nl(%s), len= %d, lnbrk_offset = %d",
             #                base_fname, len_doc_text, lbrk_offset)
             pass
         else:
-            logging.warning("text_offsets_to_nl(%s), len= %d, lnbrk_offset = %d",
+            logger.warning("text_offsets_to_nl(%s), len= %d, lnbrk_offset = %d",
                             base_fname, len_doc_text, lbrk_offset)
     ch_list = list(orig_doc_text)
     for linebreak_offset in linebreak_offset_list:
@@ -276,7 +281,7 @@ def get_gap_start_end(prev_linex: LineWithAttrs,
             break
 
     if start_index == -1 and end_index == -1:  # ?? everything is gapped?
-        # logging.warning('get_gap_start_end() returned -1, -1')
+        # logger.warning('get_gap_start_end() returned -1, -1')
         start_offset, end_offset = -1, -1
     elif start_index == -1:
         # nothing from first page, so start from the first line of next page
@@ -1861,7 +1866,7 @@ def main():
 
     pdf_txt_doc.save_debug_pages(work_dir=work_dir, extension='.paged.debug.tsv')
 
-    logging.info('Done.')
+    logger.info('Done.')
 
 
 if __name__ == '__main__':

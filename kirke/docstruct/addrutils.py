@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import logging
 import re
 
 from kirke.utils import strutils
+
 
 STATES = {'AK': 'Alaska',
           'AL': 'Alabama',
@@ -63,8 +63,6 @@ STATES = {'AK': 'Alaska',
           'WV': 'West Virginia',
           'WY': 'Wyoming'}
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 ZIP_PAT = re.compile(r'\b[A-Z][A-Z]\s+\d{5}\b')
 

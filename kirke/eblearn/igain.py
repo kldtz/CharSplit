@@ -9,6 +9,10 @@ import operator
 
 from kirke.utils import stopwordutils, strutils
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 # we tried 10%, but this seems to be safer to avoid
 # sudden increase in vocab size when corpus size
 # increases drastically
@@ -201,7 +205,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
         doc_tokens = tokenize(doc_st)
         for word in doc_tokens:
             word_freq_map[word] += 1
-    logging.debug("len(word_freq_map) = %d", len(word_freq_map))
+    logger.debug("len(word_freq_map) = %d", len(word_freq_map))
 
     vocabs = set([])
     word_count = 0
@@ -209,7 +213,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
     for word, freq in sorted(word_freq_map.items(), key=operator.itemgetter(1), reverse=True):
         word_count += 1
         if word_count > vocab_size_times_10:
-            logging.debug("skipping word with freq less than %d", freq)
+            logger.debug("skipping word with freq less than %d", freq)
             break
         # print('adding vocab: [{}], freq= {}'.format(word, freq))
         vocabs.add(word)
@@ -244,13 +248,13 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
     #    print("wf_count_map[{}] = {}".format(freq, count))
 
     # print("word_docids_map[Change] = {}".format(word_docids_map['Change']))
-    logging.debug("igain.vocab size = %d", len(vocabs))
+    logger.debug("igain.vocab size = %d", len(vocabs))
 
     # vocab, cond_dist, word_label_count_map
 
     entropy_of_class = entropy_by_freq_list(cond_dist)
-    # logging.info('cond dist = {}'.format(cond_dist))
-    # logging.info('class entropy = {:.3f}'.format(entropy_of_class))
+    # logger.info('cond dist = {}'.format(cond_dist))
+    # logger.info('class entropy = {:.3f}'.format(entropy_of_class))
 
     # print('vocabs = ' + str(vocabs))
     #for col_name in vocabs:
@@ -267,8 +271,8 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, pr
             now_time = time.time()
             partial_diff = now_time - start_time
             total_diff = now_time - orig_start_time
-            logging.debug("i = %d, took %.4f seconds, total = %.4f seconds",
-                          i, partial_diff, total_diff)
+            logger.debug("i = %d, took %.4f seconds, total = %.4f seconds",
+                         i, partial_diff, total_diff)
             start_time = time.time()
         #cond_count_map = to_cond_count_map(word_true_count_map[col_name],
         #                                   word_false_count_map[col_name],

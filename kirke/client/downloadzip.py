@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import os
 from pathlib import Path
 import re
@@ -9,9 +8,6 @@ import requests
 import sys
 import zipfile, io
 
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def download_file(url: str, local_filename: str) -> str:
     # NOTE the stream=True parameter

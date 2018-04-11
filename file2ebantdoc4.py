@@ -10,7 +10,12 @@ from kirke.utils import memutils, osutils
 
 IS_DEBUG_MODE = False
 
+# NOTE: Remove the following line to get rid of all logging messages
 logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.WARN)
+logger.setLevel(logging.INFO)
+# logger.setLevel(logging.DEBUG)
 
 
 def print_list_size(list_obj: List, prefix_st: str) -> None:

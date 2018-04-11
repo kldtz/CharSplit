@@ -5,6 +5,9 @@ from kirke.utils import ebantdoc4, evalutils
 from kirke.docstruct import fromtomapper, htmltxtparser
 from kirke.ebrules import parties
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class LineAnnotator:
 
@@ -25,7 +28,7 @@ class LineAnnotator:
     #    pass
     # pylint: disable=R0914
     def test_antdoc_list(self, ebantdoc_list: ebantdoc4.EbAnnotatedDoc4):
-        logging.debug('lineannotator.test_antdoc_list')
+        logger.debug('lineannotator.test_antdoc_list')
 
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0

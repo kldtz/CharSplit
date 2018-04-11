@@ -23,6 +23,13 @@ from kirke.utils import ebantdoc4, evalutils, lrucache, osutils, strutils
 
 from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s : %(levelname)s : %(message)s')
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.WARN)
+logger.setLevel(logging.INFO)
+
+
 DEBUG_MODE = False
 
 DOCCAT_MODEL_FILE_NAME = 'ebrevia_docclassifier.v1.pkl'
@@ -114,7 +121,7 @@ class EbRunner:
         self.custom_annotator_map = lrucache.LRUCache(MAX_CUSTOM_MODEL_CACHE_SIZE)  # type: lrucache.LRUCache
 
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
-        logging.info('original memory use: %d Mbytes', orig_mem_usage)
+        logger.info('original memory use: %d Mbytes', orig_mem_usage)
         prev_mem_usage = orig_mem_usage
         num_model = 0
 
@@ -129,11 +136,11 @@ class EbRunner:
                 prov_classifier_version = prov_classifier.version
             else:
                 prov_classifier_version = '1.1'
-            logging.info("ebrunner loading #%d: %s, ver=%s, model_fn=%s",
-                         num_model, clf_provision, prov_classifier_version, full_model_fn)
+            logger.info("ebrunner loading #%d: %s, ver=%s, model_fn=%s",
+                        num_model, clf_provision, prov_classifier_version, full_model_fn)
             if clf_provision in self.provisions:
-                logging.warning("*** WARNING ***  Replacing an existing provision: %s",
-                                clf_provision)
+                logger.warning("*** WARNING ***  Replacing an existing provision: %s",
+                               clf_provision)
             provision_classifier_map[clf_provision] = prov_classifier
             self.provisions.add(clf_provision)
             if DEBUG_MODE:
@@ -164,15 +171,15 @@ class EbRunner:
         self.date_annotator = lineannotator.LineAnnotator('date', dates.DateAnnotator('date'))
 
         if num_model == 0:
-            logging.error('No model is loaded from %s and %s.', model_dir, custom_model_dir)
-            logging.error('Please verify model file names match the filter in osutils.get_model_files()')
+            logger.error('No model is loaded from %s and %s.', model_dir, custom_model_dir)
+            logger.error('Please verify model file names match the filter in osutils.get_model_files()')
             return
 
         total_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
-        logging.info('total mem: %0.2f,  model mem: %0.2f,  avg: %0.2f',
-                     total_mem_usage, total_mem_usage - orig_mem_usage, avg_model_mem)
-        logging.info('EbRunner is initiated.')
+        logger.info('total mem: %0.2f,  model mem: %0.2f,  avg: %0.2f',
+                    total_mem_usage, total_mem_usage - orig_mem_usage, avg_model_mem)
+        logger.info('EbRunner is initiated.')
 
 
     def get_provision_annotator(self, provision: str) -> Any:
@@ -191,7 +198,7 @@ class EbRunner:
         if not provision_set:
             provision_set = self.provisions
         #else:
-        #    logging.info("user specified provision list: %s", provision_set)
+        #    logger.info("user specified provision list: %s", provision_set)
         both_default_custom_provs = set(self.provision_annotator_map.keys())
         both_default_custom_provs.update(self.custom_annotator_map.keys())
 
@@ -271,11 +278,11 @@ class EbRunner:
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))
                 provision_classifier_map[cust_id_ver] = prov_classifier
-                logging.info('update custom model %s, [%s]', cust_id_ver, full_custom_model_fn)
+                logger.info('update custom model %s, [%s]', cust_id_ver, full_custom_model_fn)
 
                 #if cust_id_ver in self.provisions:
-                #    logging.warning("*** WARNING ***  Replacing an existing provision: %s",
-                #                    cust_id_ver)
+                #    logger.warning("*** WARNING ***  Replacing an existing provision: %s",
+                #                   cust_id_ver)
 
                 self.custom_model_timestamp_map[fname] = last_modified_date
                 self.custom_model_fn_map[cust_id_ver] = full_custom_model_fn
@@ -299,10 +306,10 @@ class EbRunner:
             total_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
             avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
             # pylint: disable=line-too-long
-            logging.info('total mem: %.2f,  model mem: %.2f,  avg: %.2f',
-                         total_mem_usage, total_mem_usage - orig_mem_usage, avg_model_mem)
+            logger.info('total mem: %.2f,  model mem: %.2f,  avg: %.2f',
+                        total_mem_usage, total_mem_usage - orig_mem_usage, avg_model_mem)
             start_time_2 = time.time()
-            logging.info('updating custom models took %.0f msec', (start_time_2 - start_time_1) * 1000)
+            logger.info('updating custom models took %.0f msec', (start_time_2 - start_time_1) * 1000)
 
 
     # pylint: disable=too-many-arguments
@@ -325,7 +332,7 @@ class EbRunner:
 
 
         #else:
-        #    logging.info('user specified provision list: %s', provision_set)
+        #    logger.info('user specified provision list: %s', provision_set)
 
         if not work_dir:
             work_dir = self.work_dir
@@ -387,7 +394,7 @@ class EbRunner:
         strutils.dumps(prov_ants_st, prov_ants_fn)
 
         time2 = time.time()
-        logging.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
+        logger.info('annotate_document(%s) took %0.2f sec', file_name, (time2 - time1))
         # we always return eb_antdoc, not eb_antdoc3
         return prov_labels_map, eb_antdoc
 
@@ -494,7 +501,7 @@ class EbRunner:
         if not provision_set:
             provision_set = self.provisions
         else:
-            logging.info('user specified provision list: %s', provision_set)
+            logger.info('user specified provision list: %s', provision_set)
 
         # in reality, we only use 1 provision
         ebantdoc_list = []  # type: List[ebantdoc4.EbAnnotatedDoc4]
@@ -539,13 +546,13 @@ class EbRunner:
                                             doc_lang="en") \
                                             -> Tuple[Dict[str, Any], Dict[str, Dict]]:
 
-        logging.info("txt_fn_list_fn: %s", txt_fn_list)
+        logger.info("txt_fn_list_fn: %s", txt_fn_list)
 
         if not work_dir:
             work_dir = self.work_dir
         full_model_fname = '{}/{}'.format(custom_model_dir, base_model_fname)
 
-        logging.info("custom_mode_file: %s", full_model_fname)
+        logger.info("custom_mode_file: %s", full_model_fname)
 
         # SENTENCE runs the standard pipeline, if specified candidate type run candidate generation
         if candidate_type == 'SENTENCE':
@@ -734,19 +741,19 @@ class EbDocCatRunner:
 
         # load the available classifiers from dir_model
         full_model_fn = '{}/{}'.format(self.model_dir, DOCCAT_MODEL_FILE_NAME)
-        logging.info("model_fn = [%s]", full_model_fn)
+        logger.info("model_fn = [%s]", full_model_fn)
 
         if os.path.exists(full_model_fn):
             self.doc_classifier = joblib.load(full_model_fn)
-            logging.info("EbDocCatRunner loading %s, %s", full_model_fn,
-                         str(self.doc_classifier.catname_list))
+            logger.info("EbDocCatRunner loading %s, %s", full_model_fn,
+                        str(self.doc_classifier.catname_list))
             self.is_initialized = True
         else:
-            logging.info("EbDocCatRunner not running because %s is missing.", full_model_fn)
+            logger.info("EbDocCatRunner not running because %s is missing.", full_model_fn)
             self.is_initialized = False
 
     def classify_document(self, fname: str) -> List[str]:
-        # logging.info("classifying document: '{}'".format(fname))
+        # logger.info("classifying document: '{}'".format(fname))
         with open(fname, 'rt') as fin:
             doc_text = fin.read()
             return self.doc_classifier.predict(doc_text)
@@ -763,7 +770,7 @@ class EbLangDetectRunner:
             detect_lang = langdetect.detect(atext)
         except LangDetectException:
             detect_lang = None
-        # logging.info("detected language '{}'".format(detect_lang))
+        # logger.info("detected language '{}'".format(detect_lang))
         return detect_lang
 
     # pylint: disable=no-self-use
@@ -775,5 +782,5 @@ class EbLangDetectRunner:
             detect_langs = ','.join(['{}={}'.format(lang.lang, lang.prob) for lang in lang_probs])
         except LangDetectException:
             detect_langs = ''
-        # logging.info("detected languages '{}'".format(detect_langs))
+        # logger.info("detected languages '{}'".format(detect_langs))
         return detect_langs

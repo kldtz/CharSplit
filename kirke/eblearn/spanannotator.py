@@ -18,6 +18,9 @@ from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
 config.read('kirke.ini')
@@ -150,16 +153,16 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                       pipeline: Pipeline,
                       parameters: Dict,
                       work_dir: str) -> None:
-        logging.info('spanannotator.train_candidates()...')
+        logger.info('spanannotator.train_candidates()...')
 
-        logging.info("Performing grid search...")
+        logger.info("Performing grid search...")
         print("parameters:")
         pprint.pprint(parameters)
         pos_neg_map = defaultdict(int)  # type: DefaultDict[bool, int]
         for label in label_list:
             pos_neg_map[label] += 1
         for label, count in pos_neg_map.items():
-            logging.info("train_candidates(), pos_neg_map[%s] = %d", label, count)
+            logger.info("train_candidates(), pos_neg_map[%s] = %d", label, count)
 
         group_kfold = list(GroupKFold(n_splits=self.kfold).split(candidates,
                                                                  label_list,
@@ -169,13 +172,13 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         time_0 = time.time()
         grid_search.fit(candidates, label_list)
-        logging.info("done in %0.3fs", (time.time() - time_0))
+        logger.info("done in %0.3fs", (time.time() - time_0))
 
-        logging.info("Best score: %0.3f", grid_search.best_score_)
-        logging.info("Best parameters set:")
+        logger.info("Best score: %0.3f", grid_search.best_score_)
+        logger.info("Best parameters set:")
         self.best_parameters = adapt_pipeline_params(grid_search.best_estimator_.get_params())
         for param_name in sorted(self.best_parameters.keys()):
-            logging.info("\t%s: %r", param_name, self.best_parameters[param_name])
+            logger.info("\t%s: %r", param_name, self.best_parameters[param_name])
 
         self.estimator = grid_search.best_estimator_
 
@@ -190,7 +193,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                          threshold: float,
                          work_dir: str = 'work_dir')  -> Tuple[Dict[str, Any],
                                                                Dict[str, Dict]]:
-        logging.debug('spanannotator.test_antdoc_list(), len= %d', len(ebantdoc_list))
+        logger.debug('spanannotator.test_antdoc_list(), len= %d', len(ebantdoc_list))
         if not threshold:
             threshold = self.threshold
         # pylint: disable=C0103
@@ -276,8 +279,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         start_time = time.time()
         candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
-        logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
-                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.debug("annotate_antdoc(%s, %s) took %.0f msec",
+                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates
         x_threshold = threshold
@@ -330,7 +333,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def predict_antdoc(self,
                        eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
-        # logging.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        # logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
         text = eb_antdoc.text
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
@@ -362,7 +365,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                              label_list: List[bool],
                              work_dir: str,
                              is_debug: bool = False):
-        logging.info('spanannotator.predict_and_evaluate()...')
+        logger.info('spanannotator.predict_and_evaluate()...')
         pos_neg_map = defaultdict(int)  # type: DefaultDict[bool, int]
         for label in label_list:
             pos_neg_map[label] += 1

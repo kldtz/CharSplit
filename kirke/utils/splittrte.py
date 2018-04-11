@@ -8,6 +8,10 @@ import os
 from kirke.utils import osutils, ebantdoc4
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 # Currently, we don't have the information on whether we annotated a document
 # for a particular provision or not.  Will modify this code if the situation
 # changes.
@@ -43,7 +47,7 @@ def provisions_split(provision_list, txt_fn_list, work_dir=None, is_doc_structur
 
 
 def save_antdoc_fn_list(eb_antdoc_list, doclist_file_name):
-    logging.debug("save_antdoc_fn_list(%s)", doclist_file_name)
+    logger.debug("save_antdoc_fn_list(%s)", doclist_file_name)
 
     with open(doclist_file_name, 'wt') as fout:
         for eb_antdoc in eb_antdoc_list:
@@ -109,7 +113,7 @@ def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structu
                                                                                     len(X_train_positive)))
 
         if len(X_train) < 3:  # skip provisions with insufficient data
-            logging.info("skipping '%s' in split_provision_trte(), len(X_train) = %d is < 3",
+            logger.info("skipping '%s' in split_provision_trte(), len(X_train) = %d is < 3",
                          provision, len(X_train))
             continue
 

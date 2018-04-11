@@ -10,6 +10,10 @@ from typing import Any, Dict, List, Tuple
 from kirke.utils import ebantdoc4, evalutils, strutils
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 def adapt_pipeline_params(best_params):
@@ -66,7 +70,7 @@ class RuleAnnotator:
                          ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                          threshold: float = 0.5) -> Tuple[Dict[str, Any],
                                                           Dict[str, Dict]]:
-        logging.debug('RuleAnnotator.test_antdoc_list(), len= %d', len(ebantdoc_list))
+        logger.debug('RuleAnnotator.test_antdoc_list(), len= %d', len(ebantdoc_list))
 
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
@@ -131,7 +135,7 @@ class RuleAnnotator:
                         prov_human_ant_list=None,
                         # pylint: disable=unused-argument
                         work_dir: str = 'dir-work') -> List[Dict]:
-        logging.info('ruleannotator.annotate_antdoc(%s)', antdoc.file_id)
+        logger.info('ruleannotator.annotate_antdoc(%s)', antdoc.file_id)
 
         start_time = time.time()
         # label_list, group_id_list are ignored
@@ -161,8 +165,8 @@ class RuleAnnotator:
                                          'text': candidate['text']})
 
         end_time = time.time()
-        logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
-                      self.label, antdoc.file_id, (end_time - start_time) * 1000)
+        logger.debug("annotate_antdoc(%s, %s) took %.0f msec",
+                     self.label, antdoc.file_id, (end_time - start_time) * 1000)
 
         return prov_annotations
 

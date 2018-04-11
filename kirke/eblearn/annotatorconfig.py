@@ -15,6 +15,10 @@ from kirke.ebrules import addrannotator, dummyannotator, dates
 from kirke.sampleutils import regexgen, addrgen, dategen, transformerutils
 from kirke.utils import ebantdoc4
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 # Different provisions can use the same candidate type, such as Currency
 # or Number.  The specifications of 'provision' are outside of annotatorconfig.py.
 #
@@ -170,8 +174,8 @@ def validate_annotator_config_keys(aconfig: Tuple[str, str, Dict]) -> bool:
                            'gridsearch_parameters',
                            'kfold',
                            'rule_engine']):
-            logging.warning('invalid key, %s, in %s %s config',
-                            key, label, version)
+            logger.warning('invalid key, %s, in %s %s config',
+                           key, label, version)
             is_valid = False
     return is_valid
 

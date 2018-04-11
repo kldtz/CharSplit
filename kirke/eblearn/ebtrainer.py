@@ -16,6 +16,9 @@ from kirke.eblearn import lineannotator, ruleannotator, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import  ebantdoc4, evalutils, splittrte, strutils, txtreader
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 DEFAULT_CV = 3
 
@@ -169,7 +172,7 @@ def cv_train_at_annotation_level(provision,
     timestr = time.strftime("%Y%m%d-%H%M%S")
     result_fn = model_dir + '/' + provision + "-ant_result-" + \
                 timestr + ".json"
-    logging.info('wrote result file at: %s', result_fn)
+    logger.info('wrote result file at: %s', result_fn)
     strutils.dumps(json.dumps(log_json), result_fn)
 
     log_custom_model_eval_status({'provision': provision,
@@ -300,7 +303,7 @@ def cv_candg_train_at_annotation_level(provision: str,
     timestr = time.strftime("%Y%m%d-%H%M%S")
     result_fn = model_dir + '/' + provision + "-ant_result-" + \
                 timestr + ".json"
-    logging.info('wrote result file at: %s', result_fn)
+    logger.info('wrote result file at: %s', result_fn)
     strutils.dumps(json.dumps(log_json), result_fn)
 
     log_custom_model_eval_status({'provision': provision,
@@ -325,12 +328,12 @@ def train_eval_annotator(provision: str,
                          is_doc_structure=False,
                          custom_training_mode=False) \
                          -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
-    logging.info("training_eval_annotator(%s) called", provision)
-    logging.info("    txt_fn_list = %s", txt_fn_list)
-    logging.info("    work_dir = %s", work_dir)
-    logging.info("    model_dir = %s", model_dir)
-    logging.info("    model_file_name = %s", model_file_name)
-    logging.info("    is_doc_structure= %s", is_doc_structure)
+    logger.info("training_eval_annotator(%s) called", provision)
+    logger.info("    txt_fn_list = %s", txt_fn_list)
+    logger.info("    work_dir = %s", work_dir)
+    logger.info("    model_dir = %s", model_dir)
+    logger.info("    model_file_name = %s", model_file_name)
+    logger.info("    is_doc_structure= %s", is_doc_structure)
 
     # group_id is used to ensure all the attrvec for a document are together
     # and not distributed between both training and testing.  A document can
@@ -360,7 +363,7 @@ def train_eval_annotator(provision: str,
             if provision == human_ant.label:
                 num_pos_ant += 1
     # based on human annotations only, we don't know the num_neg_ant
-    logging.info("num_docs: %d, num_pos_ant: %d", num_docs, num_pos_ant)
+    logger.info("num_docs: %d, num_pos_ant: %d", num_docs, num_pos_ant)
 
     # these are for sentences
     num_pos_label, num_neg_label = 0, 0
@@ -384,7 +387,7 @@ def train_eval_annotator(provision: str,
             num_doc_pos += 1
         else:
             num_doc_neg += 1
-    logging.info("provision: %s, num_doc_pos= %d, num_doc_neg= %d",
+    logger.info("provision: %s, num_doc_pos= %d, num_doc_neg= %d",
                  provision, num_doc_pos, num_doc_neg)
 
     # TODO, jshaw, hack, such as for sechead
@@ -397,7 +400,7 @@ def train_eval_annotator(provision: str,
     # corss validation is applied to all Bespoke training
     if custom_training_mode and num_docs < MAX_DOCS_FOR_TRAIN_CROSS_VALIDATION:
         # pylint: disable=line-too-long
-        logging.info("training using cross validation with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
+        logger.info("training using cross validation with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
                      len(attrvec_list), num_pos_label, num_neg_label)
 
         X_train = X
@@ -419,7 +422,7 @@ def train_eval_annotator(provision: str,
         return prov_annotator2, combined_log_json
 
     # pylint: disable=line-too-long
-    logging.info("training using train/test split with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
+    logger.info("training using train/test split with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
                  len(attrvec_list), num_pos_label, num_neg_label)
 
     if custom_training_mode:
@@ -489,10 +492,10 @@ def train_eval_annotator_with_trte(provision: str,
                                    is_doc_structure=False) \
                                    -> Tuple[ebannotator.ProvisionAnnotator,
                                             Dict[str, Dict]]:
-    logging.info("training_eval_annotator_with_trte(%s) called", provision)
-    logging.info("    work_dir = %s", work_dir)
-    logging.info("    model_dir = %s", model_dir)
-    logging.info("    model_file_name = %s", model_file_name)
+    logger.info("training_eval_annotator_with_trte(%s) called", provision)
+    logger.info("    work_dir = %s", work_dir)
+    logger.info("    model_dir = %s", model_dir)
+    logger.info("    model_file_name = %s", model_file_name)
 
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
     # pylint: disable=invalid-name
@@ -580,9 +583,9 @@ def train_eval_span_annotator(provision: str,
                                     threshold=config.get('threshold', 0.24),
                                     kfold=config.get('kfold', 3))
 
-    logging.info("training_eval_span_annotator(%s) called", provision)
-    logging.info("    work_dir = %s", work_dir)
-    logging.info("    model_file_name = %s", model_file_name)
+    logger.info("training_eval_span_annotator(%s) called", provision)
+    logger.info("    work_dir = %s", work_dir)
+    logger.info("    model_file_name = %s", model_file_name)
 
 
     if is_bespoke_mode:
@@ -613,7 +616,7 @@ def train_eval_span_annotator(provision: str,
                 span_annotator.documents_to_candidates(X, provision)
 
             # pylint: disable=line-too-long
-            logging.info("%s training using cross validation with %d candidates.  num_inst_pos= %d, num_inst_neg= %d",
+            logger.info("%s training using cross validation with %d candidates.  num_inst_pos= %d, num_inst_neg= %d",
                          candidate_type, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
 
             prov_annotator2, combined_log_json = \
@@ -630,7 +633,7 @@ def train_eval_span_annotator(provision: str,
             return prov_annotator2, combined_log_json
 
         # pylint: disable=line-too-long
-        logging.info("%s training using train/test split with %d candidates.  num_inst-pos= %d, num_inst_neg= %d",
+        logger.info("%s training using train/test split with %d candidates.  num_inst-pos= %d, num_inst_neg= %d",
                      candidate_type, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
 
         # normal bespoke training
@@ -725,7 +728,7 @@ def eval_rule_annotator_with_trte(label: str,
                                     rule_engine=config['rule_engine'],
                                     post_process=config.get('post_process', []))
 
-    logging.info("eval_rule_annotator_with_trte(%s) called", label)
+    logger.info("eval_rule_annotator_with_trte(%s) called", label)
 
     # Normally, we compare the test results
     # During development, use is_train_mode to peek at the data for improvements
@@ -855,7 +858,7 @@ def eval_classifier(txt_fn_list,
 # utility function
 # this is mainly used for the outer testing (real hold out)
 def calc_scut_predict_evaluate(scut_classifier, attrvec_list, y_pred, y_te):
-    logging.info('calc_scut_predict_evaluate()...')
+    logger.info('calc_scut_predict_evaluate()...')
 
     sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
     overrides = ebpostproc.gen_provision_overrides(scut_classifier.provision, sent_st_list)

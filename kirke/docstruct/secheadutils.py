@@ -11,7 +11,10 @@ from nltk.tokenize import wordpunct_tokenize
 from kirke.docstruct import lxlineinfo, footerutils, addrutils
 from kirke.utils import strutils, stopwordutils
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 DEBUG_MODE = False
 
@@ -497,11 +500,11 @@ def extract_sechead_v4(line: str,
         # TODO, jshaw
         # This sould be enabled.  Disabled for now
         # because in production
-        # logging.warning('bbbad sechead extraction:')
-        # logging.warning('\tprev_line[:60]: [{}]'.format(last_extract_sechead_v4_line[:60]))
-        # logging.warning('\tcurr_line[:60]: [{}]'.format(line[:60]))
-        # logging.warning('\tcomb_prefix, comb_head = [{}]\t[{}]'.format(comb_prefix, comb_head))
-        # logging.warning('\tprefix, head = [{}]\t[{}]'.format(prefix, head))
+        # logger.warning('bbbad sechead extraction:')
+        # logger.warning('\tprev_line[:60]: [{}]'.format(last_extract_sechead_v4_line[:60]))
+        # logger.warning('\tcurr_line[:60]: [{}]'.format(line[:60]))
+        # logger.warning('\tcomb_prefix, comb_head = [{}]\t[{}]'.format(comb_prefix, comb_head))
+        # logger.warning('\tprefix, head = [{}]\t[{}]'.format(prefix, head))
 
     return '', '', '', -1
 
@@ -673,7 +676,7 @@ if __name__ == '__main__':
 
     # docreader.format_document(adoc, sentV2_list)
 
-    logging.info('Done.')
+    logger.info('Done.')
 
 
 TOP_SEC_PREFIX_PAT = re.compile(r'^(\d+)\.\d+$')

@@ -21,6 +21,10 @@ from kirke.utils import evalutils
 from kirke.eblearn.ebtransformer import EbTransformer
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
@@ -72,7 +76,7 @@ class ShortcutClassifier(EbClassifier):
 
     # pylint: disable=R0914
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name, is_debug=True):
-        logging.info('train_antdoc_list()...')
+        logger.info('train_antdoc_list()...')
 
         sent_list = []
         attrvec_list, group_id_list = [], []
@@ -185,7 +189,7 @@ class ShortcutClassifier(EbClassifier):
 
 
     def predict_antdoc(self, eb_antdoc, work_dir) -> List[float]:
-        # logging.info('predict_antdoc()...')
+        # logger.info('predict_antdoc()...')
 
         attrvec_list = eb_antdoc.get_attrvec_list()
         # there is no sentence to classify
@@ -222,7 +226,7 @@ class ShortcutClassifier(EbClassifier):
 
     # this is mainly used for the outer testing (real hold out)
     def predict_and_evaluate(self, ebantdoc_list, work_dir, diagnose_mode=False):
-        logging.info('predict_and_evaluate()...')
+        logger.info('predict_and_evaluate()...')
 
         attrvec_list = []
         full_txt_fn_list = []
@@ -244,7 +248,7 @@ class ShortcutClassifier(EbClassifier):
         X_test = self.transformer.transform(attrvec_list)
         y_te = label_list
         # num_positive = np.count_nonzero(y_te)
-        # logging.debug('num true positives in testing = {}'.format(num_positive))
+        # logger.debug('num true positives in testing = {}'.format(num_positive))
         sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
 

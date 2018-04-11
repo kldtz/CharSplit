@@ -20,11 +20,17 @@ from kirke.eblearn import ebannotator, ebrunner, ebtrainer, provclassifier, scut
 from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.utils import ebantdoc4, osutils, splittrte, strutils
 
-
-
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
 config.read('kirke.ini')
+
+# NOTE: Remove the following line to get rid of all logging messages
+logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.WARN)
+logger.setLevel(logging.INFO)
+# logger.setLevel(logging.DEBUG)
+
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 PROV_CLF_VERSION = config['ebrevia.com']['PROV_CLF_VERSION']

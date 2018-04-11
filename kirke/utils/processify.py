@@ -8,6 +8,10 @@ from functools import wraps
 from multiprocessing import Process, Queue
 import logging
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 def processify(func):
     '''Decorator to run a function as a process.
     Be sure that every argument and the return value
@@ -43,7 +47,7 @@ def processify(func):
 
         if error:
             # ex_value can be null, then it causes the process to crash
-            logging.error("error: {}".format(error))
+            logger.error("error: {}".format(error))
             # ex_type, ex_value, tb_str = error
             # message = '%s (in subprocess)\n%s' % (ex_value.message, tb_str)
             # raise ex_type(message)

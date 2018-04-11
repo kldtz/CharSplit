@@ -4,6 +4,9 @@ from typing import Dict, List, Tuple
 from kirke.ebrules import dates
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 # pylint: disable=too-few-public-methods
 class DateSpanGenerator:
@@ -44,7 +47,7 @@ class DateSpanGenerator:
                 nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logging.info('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
+                logger.info('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
 
 
             # Finds all matches in the text and adds window around each as a candidate

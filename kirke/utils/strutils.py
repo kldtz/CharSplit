@@ -11,6 +11,10 @@ from typing import Pattern, Set, Tuple, Union
 import unicodedata
 import urllib.parse
 
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 # https://github.com/python/typing/issues/182
 # JSONType = Union[Dict[str, Any], List[Any]]
 # pylint: disable=invalid-name
@@ -36,11 +40,11 @@ def loads(file_name: str) -> str:
         with open(file_name, 'rt', newline='') as myfile:
             xst = myfile.read()
     except IOError as exc:
-        logging.error("I/O error: %s in strutils.loads(%s)",
+        logger.error("I/O error: %s in strutils.loads(%s)",
                       exc, file_name)
     except Exception as exc:  # handle other exceptions such as attribute errors
         # handle any other exception
-        logging.error("Error %s", exc)
+        logger.error("Error %s", exc)
     return xst
 
 def load_lines_with_offsets(file_name: str) -> Generator[Tuple[int, int, str], None, None]:
@@ -74,12 +78,12 @@ def dumps(xst: str, file_name: str) -> None:
             myfile.write(xst)
             myfile.write(os.linesep)
     except IOError as exc:
-        logging.error("I/O error(%s) in strutils.loads(%s)",
+        logger.error("I/O error(%s) in strutils.loads(%s)",
                       exc, file_name)
     # pylint: disable=W0703
     except Exception as exc:  # handle other exceptions such as attribute errors
         # handle any other exception
-        logging.error("Error %s", exc)
+        logger.error("Error %s", exc)
 
 
 def load_str_list(file_name: str) -> List[str]:

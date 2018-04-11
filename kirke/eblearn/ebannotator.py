@@ -7,6 +7,10 @@ from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 class ProvisionAnnotator:
@@ -33,7 +37,7 @@ class ProvisionAnnotator:
                          ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                          threshold: Optional[float] = None) -> Tuple[Dict[str, Any],
                                                                      Dict[str, Dict]]:
-        logging.debug('test_document_list')
+        logger.debug('test_document_list')
         if not threshold:
             threshold = self.threshold
         # pylint: disable=C0103
@@ -50,8 +54,8 @@ class ProvisionAnnotator:
                                                            prov_human_ant_list=prov_human_ant_list)
             # pylint: disable=broad-except, unused-variable
             except Exception as e:
-                logging.warning('Faile to annotat_antdoc(%s) in test_antdoc_list.',
-                                ebantdoc.file_id)
+                logger.warning('Faile to annotat_antdoc(%s) in test_antdoc_list.',
+                               ebantdoc.file_id)
                 raise
             # pylint: disable=unreachable, pointless-string-statement
             """
@@ -139,8 +143,8 @@ class ProvisionAnnotator:
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
-        logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
-                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.debug("annotate_antdoc(%s, %s) took %.0f msec",
+                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         try:
             # mapping the offsets in prov_human_ant_list from raw_text to nlp_text
@@ -151,8 +155,8 @@ class ProvisionAnnotator:
                 fromto_mapper.adjust_provants_fromto_offsets(prov_human_ant_list)
         except IndexError:
             error = traceback.format_exc()
-            logging.warning("IndexError, adj_prov_human_ant_list, %s", eb_antdoc.file_id)
-            logging.warning(error)
+            logger.warning("IndexError, adj_prov_human_ant_list, %s", eb_antdoc.file_id)
+            logger.warning(error)
             # move on, probably because there is no input
             adj_prov_human_ant_list = prov_human_ant_list
 
@@ -180,8 +184,8 @@ class ProvisionAnnotator:
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
         except IndexError:
             error = traceback.format_exc()
-            logging.warning("IndexError, adj_fromto_offsets, %s", eb_antdoc.file_id)
-            logging.warning(error)
+            logger.warning("IndexError, adj_fromto_offsets, %s", eb_antdoc.file_id)
+            logger.warning(error)
             # move on, probably because there is no input
 
         update_text_with_span_list(prov_annotations, eb_antdoc.text)
