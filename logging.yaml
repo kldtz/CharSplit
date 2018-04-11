@@ -36,10 +36,10 @@ loggers:
         handlers: [console]
         propagate: no
 
-    top1.foo:
-        level: DEBUG
-        handlers: [console]
-        propagate: no
+#    kirke.eblearn.spanannotator:
+#        level: DEBUG
+#        handlers: [console]
+#        propagate: no
 
 root:
     level: INFO
