@@ -80,8 +80,8 @@ class EbAnnotatedDoc2:
         self.provision_set = [prov_ant.label for prov_ant in prov_ant_list]
         self.doc_lang = doc_lang
 
-        self.nlp_text = para_doc_text
-        self.para_prov_ant_list = para_prov_ant_list
+        self.nlp_text = para_doc_text     #entire document text
+        self.para_prov_ant_list = para_prov_ant_list    #ProvisionAnnotations for the document
         self.attrvec_list = attrvec_list
         self.paras_with_attrs = paras_with_attrs
         # to map to original offsets
@@ -370,7 +370,6 @@ def html_to_ebantdoc2(txt_file_name,
             htmltxtparser.parse_document(txt_file_name,
                                          work_dir=work_dir,
                                          is_combine_line=True)
-
     txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para_doc_text, txt4nlp_fname)
     if debug_mode:
@@ -615,6 +614,7 @@ def text_to_ebantdoc2(txt_fname,
 
 def doclist_to_ebantdoc_list_linear(doclist_file,
                                     work_dir,
+                                    is_cache_enabled=True,
                                     is_bespoke_mode=False,
                                     is_doc_structure=False):
     logging.debug('ebantdoc2.doclist_to_ebantdoc_list_linear(%s, %s)', doclist_file, work_dir)
@@ -628,6 +628,7 @@ def doclist_to_ebantdoc_list_linear(doclist_file,
             txt_file_name = txt_file_name.strip()
             eb_antdoc = text_to_ebantdoc2(txt_file_name,
                                           work_dir,
+                                          is_cache_enabled=is_cache_enabled,
                                           is_bespoke_mode=is_bespoke_mode,
                                           is_doc_structure=is_doc_structure)
             eb_antdoc_list.append(eb_antdoc)
@@ -637,6 +638,7 @@ def doclist_to_ebantdoc_list_linear(doclist_file,
 
 def doclist_to_ebantdoc_list(doclist_file,
                              work_dir,
+                             is_cache_enabled=True,
                              is_bespoke_mode=False,
                              is_doc_structure=False):
     logging.debug('ebantdoc2.doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
@@ -653,6 +655,7 @@ def doclist_to_ebantdoc_list(doclist_file,
         future_to_antdoc = {executor.submit(text_to_ebantdoc2,
                                             txt_fn,
                                             work_dir,
+                                            is_cache_enabled=is_cache_enabled,
                                             is_bespoke_mode=is_bespoke_mode,
                                             is_doc_structure=is_doc_structure):
                             txt_fn for txt_fn in txt_fn_list}

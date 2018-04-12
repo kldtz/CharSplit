@@ -579,10 +579,8 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
 # for HTML docs, this shoulbe True.  For PDF documents, this should be False.
 def parse_document(file_name, work_dir, is_combine_line=True):
     debug_mode = False
-
     base_fname = os.path.basename(file_name)
     orig_doc_text = txtreader.loads(file_name)
-
     lineinfos_with_attrs, lineinfo_doc_text = htmltxt_to_lineinfos_with_attrs(file_name, is_combine_line=is_combine_line)
     if debug_mode:
         lineinfo_fname = '{}/{}.lineinfo.v1'.format(work_dir, base_fname).replace('.txt', '')
@@ -594,18 +592,6 @@ def parse_document(file_name, work_dir, is_combine_line=True):
 
     lineinfos_paras, paras_doc_text, gap_span_list = \
              lineinfos_to_paras(lineinfos_with_attrs)
-
-    """
-    tmp_lineinfo_fname = '{}/{}.lineinfo.tmp_paras'.format(work_dir, base_fname).replace('.txt', '')
-    with open(tmp_lineinfo_fname, 'wt') as fout:
-        # for _, _, line, attr_list in lineinfos_paras:
-        #        print("{}\t{}".format(attr_list, line[:50]), file=fout)
-        for x in lineinfos_paras:
-            print("{}".format(x), file=fout)
-        # txtreader.dumps(lineinfo_doc_text, lineinfo_fname)
-        print('wrote {}'.format(tmp_lineinfo_fname), file=sys.stderr)
-    """
-
     if debug_mode:
         paras_fname = '{}/{}.lineinfo.paras'.format(work_dir, base_fname).replace('.txt', '')
         txtreader.dumps(paras_doc_text, paras_fname)

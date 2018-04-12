@@ -483,6 +483,7 @@ def train_eval_annotator_with_trte(provision: str,
                                    model_dir: str,
                                    model_file_name: str,
                                    eb_classifier,
+                                   is_cache_enabled=True,
                                    is_doc_structure=False) \
                                    -> Tuple[ebannotator.ProvisionAnnotator,
                                             Dict[str, Dict]]:
@@ -495,6 +496,7 @@ def train_eval_annotator_with_trte(provision: str,
     # pylint: disable=invalid-name
     X_train = ebantdoc2.doclist_to_ebantdoc_list(train_doclist_fn,
                                                  work_dir,
+                                                 is_cache_enabled=is_cache_enabled,
                                                  is_doc_structure=is_doc_structure)
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
     X_train = None  # free that memory
@@ -503,6 +505,7 @@ def train_eval_annotator_with_trte(provision: str,
     # pylint: disable=invalid-name
     X_test = ebantdoc2.doclist_to_ebantdoc_list(test_doclist_fn,
                                                 work_dir,
+                                                is_cache_enable=is_cache_enabled,
                                                 is_doc_structure=is_doc_structure)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 

@@ -127,33 +127,6 @@ def to_nl_paraline_texts(file_name, offsets_file_name, work_dir, debug_mode=Fals
             pgid_pblockinfos_map[page_num].append(block_info)
             block_info_list.append(block_info)
 
-    # the code below DOESN'T ALWAYS produces the .paraline.txt with same size as
-    # .txt.  This is due to block offset overlaps in "\s\n\n" => "\s\n\s\s",
-    # block (start 0, end 1) followed by block (start 1, end 42).  Normally
-    # 2nd block start doesn't overlap with first block end.  2 out of 30 has this
-    # issue.
-    """
-    paraline_list = []
-    prev_end_offset = 0
-    for block_info in block_info_list:
-        diff_prev_end_offset = block_info.start - prev_end_offset
-        # output eoln
-        for i in range(max(diff_prev_end_offset - 1, 0)):
-            paraline_list.append('')
-        # print('df= {}'.format(diff_prev_end_offset), file=fout)
-        # print('', file=fout)
-        # block_text = doc_text[block_info.start:block_info.end]
-        block_text = block_info.text  # because of pblock might have multiple paragraphs; sad.
-        if block_info.is_multi_lines:
-            paraline_list.append(block_text)
-        else:
-            paraline_list.append(block_text.replace('\n', ' '))
-        # print('', file=fout)
-        prev_end_offset = block_info.end
-    for i in range(doc_len - block_info.end):
-        paraline_list.append('')
-    paraline_text = '\n'.join(paraline_list)
-    """
     # Now, switch to array replacement.  This is not affected by the wrong block info.
     # It simply override everys block based on the indexes, so guarantees not to create
     # extra stuff.

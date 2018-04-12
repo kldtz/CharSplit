@@ -90,6 +90,7 @@ def train_annotator(provision: str,
                     work_dir: str,
                     model_dir: str,
                     is_scut: bool,
+                    is_cache_enabled: bool = True,
                     is_doc_structure: bool = True) -> None:
     if is_scut:
         eb_classifier = scutclassifier.ShortcutClassifier(provision)  # type: EbClassifier
@@ -107,6 +108,7 @@ def train_annotator(provision: str,
                                              model_dir,
                                              model_file_name,
                                              eb_classifier,
+                                             is_cache_enabled=is_cache_enabled,
                                              is_doc_structure=is_doc_structure)
 
 def train_span_annotator(label: str,
@@ -320,6 +322,7 @@ def main():
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
     parser.add_argument('--candidate_type', default='SENTENCE', help='type of candidate generator')
+    parser.add_argument('--cache_disabled', action="store_true", help='disable loading cached files')
     # only for eval_rule_annotator
     parser.add_argument('--is_train_mode', action="store_true",
                         help="training mode for eval_rule_annotator")
@@ -331,6 +334,11 @@ def main():
     work_dir = args.work_dir
     model_dir = args.model_dir
     custom_model_dir = args.custom_model_dir
+    if args.cache_disabled:
+        is_cache_enabled = False
+    else:
+        is_cache_enabled = True
+
 
     if cmd == 'train_classifier':  # jshaw, nobody should be using this?
         train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, args.scut)
@@ -339,6 +347,7 @@ def main():
                         work_dir,
                         model_dir,
                         args.scut,
+                        is_cache_enabled=is_cache_enabled,
                         is_doc_structure=True)
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,

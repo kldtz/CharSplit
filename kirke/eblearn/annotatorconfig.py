@@ -12,8 +12,8 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 
 from kirke.sampleutils import postproc
 from kirke.ebrules import addrannotator, dummyannotator, dates
-from kirke.sampleutils import regexgen, addrgen, dategen, transformerutils
-from kirke.utils import ebantdoc3
+from kirke.sampleutils import sectiongen, regexgen, addrgen, paragen, dategen, transformerutils
+from kirke.utils import ebantdoc3, ebantdoc2
 
 # Different provisions can use the same candidate type, such as Currency
 # or Number.  The specifications of 'provision' are outside of annotatorconfig.py.
@@ -116,7 +116,42 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                                   False: 1}))]),
                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                         'threshold': 0.25,
-                        'kfold': 3})
+                        'kfold': 3}),
+
+     ('PARAGRAPH', '1.0', {'doclist_to_antdoc_list': ebantdoc2.doclist_to_ebantdoc_list,
+                           'doc_to_candidates': paragen.ParagraphGenerator('PARAGRAPH'),
+                           'version': "1.0",
+                           'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                           'pipeline': Pipeline([('union', FeatureUnion(
+                           # pylint: disable=line-too-long
+                           transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
+                                              ('clf', SGDClassifier(loss='log',
+                                                                    penalty='l2',
+                                                                    n_iter=50,
+                                                                    shuffle=True,
+                                                                    random_state=42,
+                                                                    class_weight={True: 3,
+                                                                                  False: 1}))]),
+                           'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                           'threshold': 0.25,
+                           'kfold': 3}),
+     ('SECTION', '1.0', {'doclist_to_antdoc_list': ebantdoc2.doclist_to_ebantdoc_list,
+                         'doc_to_candidates': sectiongen.SectionGenerator('SECTION'),
+                         'version': "1.0",
+                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                         'pipeline': Pipeline([('union', FeatureUnion(
+                         # pylint: disable=line-too-long
+                         transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
+                                              ('clf', SGDClassifier(loss='log',
+                                                                    penalty='l2',
+                                                                    n_iter=50,
+                                                                    shuffle=True,
+                                                                    random_state=42,
+                                                                    class_weight={True: 3,
+                                                                                  False: 1}))]),
+                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                         'threshold': 0.25,
+                         'kfold': 3})
 ]
 '''
 ('l_tenant_notice', '1.0', {'doclist_to_antdoc_list': ebantdoc3.doclist_to_ebantdoc_list,
