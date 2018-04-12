@@ -16,6 +16,10 @@ from sklearn import preprocessing
 from kirke.docclassifier import doccatutils
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 class DocClassifier(ABC):
 
     def __init__(self):
@@ -25,7 +29,7 @@ class DocClassifier(ABC):
         return self.pred_status
 
     def save(self, model_file_name):
-        logging.info("saving model file: %s", model_file_name)
+        logger.info("saving model file: %s", model_file_name)
         joblib.dump(self, model_file_name)
 
     @abstractmethod
@@ -55,7 +59,7 @@ class UnigramDocClassifier(DocClassifier):
 
     def train(self, txt_fn_list_fn, model_file_name):
 
-        logging.info('start training unigram document classifier: [%s]', txt_fn_list_fn)
+        logger.info('start training unigram document classifier: [%s]', txt_fn_list_fn)
 
         # instead of using all valid tags, we just want tags with f1 >= 0.75
         # doccatutils.load_doccat_maps('dict/doccat.valid.count.tsv')
@@ -94,7 +98,7 @@ class UnigramDocClassifier(DocClassifier):
 
     # pylint: disable=too-many-locals
     def train_and_evaluate(self, txt_fn_list_fn, prod_status_fname=None):
-        logging.info('start training and evaluate unigram document classifier: [%s]',
+        logger.info('start training and evaluate unigram document classifier: [%s]',
                      txt_fn_list_fn)
 
         # pylint: disable=invalid-name

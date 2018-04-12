@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import logging
 import os
 
 from collections import defaultdict
@@ -11,8 +10,7 @@ from sklearn.model_selection import train_test_split
 
 from kirke.utils import splittrte, osutils
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
+x
 def load_provisions_istest_in_ebdata(filename):
     result = []
     is_test_set = False

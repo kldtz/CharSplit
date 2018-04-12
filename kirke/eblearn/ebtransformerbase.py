@@ -12,6 +12,8 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from kirke.eblearn import igain, bigramutils
 from kirke.utils import stopwordutils, strutils
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 DEBUG_MODE = False
 
@@ -33,8 +35,11 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
         for label in label_list:
             if label:
                 self.num_pos_instances += 1
-        logging.info("fitting #%s called, len(attrvec_list) = %d, len(label_list) = %d, num_pos = %d",
-                     EbTransformerBase.fit_count, len(attrvec_list), len(label_list), self.num_pos_instances)
+        logger.info("fitting #%s called, len(attrvec_list) = %d, len(label_list) = %d, num_pos = %d",
+                    EbTransformerBase.fit_count,
+                    len(attrvec_list),
+                    len(label_list),
+                    self.num_pos_instances)
         
 
         start_time = time.time()        
@@ -43,8 +48,11 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
                                          label_list,
                                          fit_mode=True)
         end_time = time.time()
-        logging.debug("%s fit called #%d, len(attrvec_list) = %d, took %.0f msec",
-                      self.provision, EbTransformerBase.fit_count, len(attrvec_list), (end_time - start_time) * 1000)
+        logger.debug("%s fit called #%d, len(attrvec_list) = %d, took %.0f msec",
+                     self.provision,
+                     EbTransformerBase.fit_count,
+                     len(attrvec_list),
+                     (end_time - start_time) * 1000)
         
         return self
 
@@ -57,8 +65,11 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
                                              fit_mode=False)
         end_time = time.time()
         EbTransformerBase.transform_count += 1
-        logging.debug("%s transform called #%d, len(attrvec_list) = %d, took %.0f msec",
-                      self.provision, EbTransformerBase.transform_count, len(attrvec_list), (end_time - start_time) * 1000)
+        logger.debug("%s transform called #%d, len(attrvec_list) = %d, took %.0f msec",
+                     self.provision,
+                     EbTransformerBase.transform_count,
+                     len(attrvec_list),
+                     (end_time - start_time) * 1000)
 
         return X
 

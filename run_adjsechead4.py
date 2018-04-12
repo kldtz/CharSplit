@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 from pprint import pprint
 import sys
 import warnings
@@ -12,8 +11,6 @@ import nltk
 from kirke.utils import strutils
 from kirke.docstruct import secheadutils
 
-
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 dash_only_pat = re.compile(r'^\s*-+\s*$')
 
@@ -68,4 +65,3 @@ if __name__ == '__main__':
                 # for html file, uncomment below
                 # prev_line, prev_line_idx = line, split_idx
 
-    logging.info('Done.')

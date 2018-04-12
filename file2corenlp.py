@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 from pprint import pprint
 import sys
 from pprint import pprint
@@ -11,8 +10,6 @@ import re
 from kirke.utils.corenlputils import annotate
 
 from kirke.utils import strutils
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
 
 
 def test_same(orig_text):

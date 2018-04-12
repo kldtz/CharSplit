@@ -17,6 +17,9 @@ from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.utils import evalutils
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
@@ -79,7 +82,7 @@ class ProvisionClassifier(EbClassifier):
 
     # pylint: disable=R0914
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):
-        logging.info('train_antdoc_list()...')
+        logger.info('train_antdoc_list()...')
 
         attrvec_list, group_id_list = [], []
         for group_id, eb_antdoc in enumerate(ebantdoc_list):
@@ -145,12 +148,12 @@ class ProvisionClassifier(EbClassifier):
 
 
     def predict_antdoc(self, eb_antdoc, work_dir):
-        # logging.info('predict_antdoc()...')
+        # logger.info('predict_antdoc()...')
 
         attrvec_list = eb_antdoc.get_attrvec_list()
         # print("attrvec_list.size = ", len(attrvec_list))
 
-        doc_text = eb_antdoc.nlp_text
+        doc_text = eb_antdoc.get_nlp_text()
         sent_st_list = [doc_text[attrvec.start:attrvec.end]
                         for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision,
@@ -179,7 +182,7 @@ class ProvisionClassifier(EbClassifier):
     # this is mainly used for the outer testing (real hold out)
     # pylint: disable=R0914
     def predict_and_evaluate(self, ebantdoc_list, work_dir, diagnose_mode=False):
-        logging.info('predict_and_evaluate()...')
+        logger.info('predict_and_evaluate()...')
 
         attrvec_list, full_txt_fn_list = [], []
         for eb_antdoc in ebantdoc_list:
@@ -198,7 +201,7 @@ class ProvisionClassifier(EbClassifier):
 
         y_te = label_list
         # num_positive = np.count_nonzero(y_te)
-        # logging.debug('num true positives in testing = {}'.format(num_positive))
+        # logger.debug('num true positives in testing = {}'.format(num_positive))
         sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
 

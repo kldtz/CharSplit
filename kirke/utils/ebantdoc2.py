@@ -142,6 +142,12 @@ class EbAnnotatedDoc2:
     def get_nlp_text(self):
         return self.nlp_text
 
+    def get_nlp_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
+        return self.nlp_sx_lnpos_list
+
+    def get_origin_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
+        return self.origin_sx_lnpos_list
+
 
 def remove_prov_greater_offset(prov_annotation_list, max_offset):
     return [prov_ant for prov_ant in prov_annotation_list
@@ -247,7 +253,7 @@ def nlptxt_to_attrvec_list(para_doc_text,
             next_ebsent = ebsent_list[sent_idx + 1]
         else:
             next_ebsent = None
-        fvec = sent2ebattrvec.sent2ebattrvec(txt_file_name, ebsent, sent_idx + 1,
+        fvec = sent2ebattrvec.sent2ebattrvec(ebsent, sent_idx + 1,
                                              prev_ebsent, next_ebsent, para_doc_text)
         attrvec_list.append(fvec)
         prev_ebsent = ebsent
@@ -454,8 +460,9 @@ def pdf_to_ebantdoc2(txt_file_name,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
-    doc_text, nl_text, paraline_text, nl_fname, paraline_fname, cpoint_cunit_mapper = \
-        pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
+    doc_text, nl_text, unused_linebreak_arr, \
+        paraline_text, unused_para_not_linebreak_arr, cpoint_cunit_mapper = \
+            pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
 
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper)
 

@@ -8,6 +8,10 @@ from kirke.utils import mathutils, wordutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
 
 # pylint: disable=C0103
@@ -184,7 +188,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                     if prob < 0:
                         fallout += 1
             else:
-                logging.warning("Human annotation not present in the list of annotations, something is wrong!")
+                logger.warning("Human annotation not present in the list of annotations, something is wrong!")
         tp_fn_set |= set(pred_overlap_list)
 
     # any remaining predicted annotations are false positives or true negatives

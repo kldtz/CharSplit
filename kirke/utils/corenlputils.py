@@ -1,14 +1,18 @@
-import re
 import json
 import logging
+import re
 from typing import Any, List, Optional
 
 from stanfordcorenlp import StanfordCoreNLP
 
 from kirke.utils.corenlpsent import EbSentence
-
 from kirke.utils.strutils import corenlp_normalize_text
 from kirke.utils.textoffset import TextCpointCunitMapper
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+# disable logging from 'requests'
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
@@ -30,12 +34,13 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
         return {'sentences': []}
 
     no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
+
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
     doc_lang = doc_lang[:2]
     supported_langs = ["fr", "es", "zh"] #ar and de also supported, can add later
     if doc_lang in supported_langs:
-        logging.info("corenlp running on %s", doc_lang)
+        logger.debug("corenlp running on %s, len=%d", doc_lang, len(no_ctrl_chars_text))
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                      properties={'annotators': 'tokenize,ssplit,ner',
                                                  'outputFormat': 'json',
@@ -43,7 +48,7 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
                                                  'ssplit.newlineIsSentenceBreak': 'two',
                                                  'pipelineLanguage': doc_lang})
     elif doc_lang == "pt":
-        logging.info("corenlp running on %s", doc_lang)
+        logger.debug("corenlp running on %s, len=%d", doc_lang, len(no_ctrl_chars_text))
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                      properties={'annotators': 'tokenize,ssplit,ner',
                                                  'outputFormat': 'json',
@@ -51,7 +56,7 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
                                                  'ssplit.newlineIsSentenceBreak': 'two',
                                                  'ner.model':'portuguese-ner.ser.gz'})
     else:
-        logging.info("corenlp running on en")
+        logger.debug("corenlp running on en, len=%d", len(no_ctrl_chars_text))
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
                                      properties={'annotators': 'tokenize,ssplit,pos,ner',
                                                  'outputFormat': 'json',
@@ -184,8 +189,8 @@ def corenlp_json_to_ebsent_list(file_id, ajson, atext, is_doc_structure=False) -
     result = []  # type: List[EbSentence]
 
     if isinstance(ajson, str):
-        logging.error('failed to corenlp file_id_xxx: [%s]', file_id)
-        logging.error('ajson= %s...', str(ajson)[:200])
+        logger.error('failed to corenlp file_id_xxx: [%s]', file_id)
+        logger.error('ajson= %s...', str(ajson)[:200])
 
     # num_prefix_space = _strutils.get_num_prefix_space(atext)
     num_prefix_space = align_first_word_offset(ajson['sentences'], atext)
@@ -210,8 +215,8 @@ def corenlp_json_to_ebsent_list_v2(file_id, ajson, atext, paras_with_attrs):
     result = []
 
     if isinstance(ajson, str):
-        logging.error('failed to corenlp file_id_xxx: [{}]'.format(file_id))
-        logging.error('ajson= {}...'.format(str(ajson)[:200]))
+        logger.error('failed to corenlp file_id_xxx: [{}]'.format(file_id))
+        logger.error('ajson= {}...'.format(str(ajson)[:200]))
 
     # num_prefix_space = _strutils.get_num_prefix_space(atext)
     num_prefix_space = align_first_word_offset(ajson['sentences'], atext)

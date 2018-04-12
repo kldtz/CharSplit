@@ -18,13 +18,19 @@ from kirke.eblearn import ebannotator, ebrunner, ebtrainer, provclassifier, scut
 # from kirke.ebrules import rateclassifier
 # pylint: disable=unused-import
 from kirke.eblearn.ebclassifier import EbClassifier
-from kirke.utils import ebantdoc2, osutils, splittrte, strutils
-
-
+from kirke.utils import ebantdoc4, osutils, splittrte, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
 config.read('kirke.ini')
+
+# NOTE: Remove the following line to get rid of all logging messages
+logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.WARN)
+logger.setLevel(logging.INFO)
+# logger.setLevel(logging.DEBUG)
+
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 PROV_CLF_VERSION = config['ebrevia.com']['PROV_CLF_VERSION']
@@ -173,6 +179,7 @@ def eval_mlxline_annotator_with_trte(provision: str,
 # pylint: disable=too-many-arguments
 def custom_train_annotator(provision: str,
                            candidate_type: str,
+                           nbest: int,
                            txt_fn_list_fn: str,
                            work_dir: str,
                            model_dir: str,
@@ -192,6 +199,7 @@ def custom_train_annotator(provision: str,
                                                       custom_model_dir,
                                                       base_model_fname,
                                                       candidate_type=candidate_type,
+                                                      nbest=nbest,
                                                       model_num=383838,
                                                       is_doc_structure=is_doc_structure,
                                                       work_dir=work_dir)
@@ -232,7 +240,7 @@ def test_one_annotator(txt_fn_list_fn: str,
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
+    ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -323,6 +331,7 @@ def main():
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
     parser.add_argument('--candidate_type', default='SENTENCE', help='type of candidate generator')
     parser.add_argument('--cache_disabled', action="store_true", help='disable loading cached files')
+    parser.add_argument('--nbest', default=-1, help='number of annotations per doc')
     # only for eval_rule_annotator
     parser.add_argument('--is_train_mode', action="store_true",
                         help="training mode for eval_rule_annotator")
@@ -367,6 +376,7 @@ def main():
     elif cmd == 'custom_train_annotator':
         custom_train_annotator(provision,
                                args.candidate_type,
+                               int(args.nbest),
                                txt_fn_list_fn,
                                work_dir,
                                model_dir,

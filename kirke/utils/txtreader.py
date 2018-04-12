@@ -20,7 +20,7 @@ def load_lines_with_offsets(file_name: str) -> Iterator[Tuple[int, int, str]]:
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
             orig_length = len(line)
-            # remove the eoln char            
+            # remove the eoln char
             # replace non-breaking space with space for regex benefit
             new_line = line[:-1].replace('\xa0', ' ')
             end = offset + orig_length - 1   # remove eoln
@@ -35,7 +35,7 @@ def text_to_lines_with_offsets(text: str) -> Iterator[Tuple[int, int, str]]:
     for line in lines:
         line_len = len(line)
         yield offset, offset + line_len, line
-        
+
         offset += line_len + 1
 
 # return list of page offsets, and list of list of line offsets
@@ -45,7 +45,7 @@ def load_page_lines_with_offsets(file_name: str) -> Tuple[List[Tuple[int, int]],
     paged_text_list = doc_text.split(chr(12))  # pdftotext use ^L as page marker
 
     # if the last one is empty, remove it
-    if len(paged_text_list[-1]) == 0:
+    if not paged_text_list[-1]:
         paged_text_list = paged_text_list[:-1]
 
     page_offsets = []
@@ -57,7 +57,7 @@ def load_page_lines_with_offsets(file_name: str) -> Tuple[List[Tuple[int, int]],
         offset = end + 1  # for ^L
 
     page_list = []
-    for (page_start, page_end), paged_text in zip(page_offsets, paged_text_list):
+    for (page_start, unused_page_end), paged_text in zip(page_offsets, paged_text_list):
         offset = page_start
         paged_line_list = []
         for line in paged_text.split('\n'):
@@ -74,28 +74,30 @@ BE_SPACE_PAT = re.compile(r'^(\s*)(.*)$')
 
 # remove all begin and end spaces for lines
 # 'be' = begin_end
+# pylint: disable=invalid-name
 def load_normalized_lines_with_offsets(file_name: str) -> Iterator[Tuple[int, int, str]]:
     from_offset = 0
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
             orig_length = len(line)
-            # remove the eoln char            
+            # remove the eoln char
             # replace non-breaking space with space for regex benefit
             new_line = line[:-1].replace('\xa0', ' ')
 
             if new_line.strip():
                 mat = BE_SPACE_PAT.match(new_line)
-                no_be_space_line = mat.group(2).strip()
+                if mat:
+                    no_be_space_line = mat.group(2).strip()
 
-                from_start = from_offset + mat.start(2)
-                from_end = from_start + len(no_be_space_line)
+                    from_start = from_offset + mat.start(2)
+                    from_end = from_start + len(no_be_space_line)
 
-                yield from_start, from_end, no_be_space_line
+                    yield from_start, from_end, no_be_space_line
             else:
                 yield from_offset, from_offset, ''
 
             from_offset += orig_length
-            
+
 
 # remove all begin and end spaces for lines
 # 'be' = begin_end
@@ -107,27 +109,28 @@ def load_lines_with_fromto_offsets(file_name: str) -> Iterator[Tuple[Tuple[int, 
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
             orig_length = len(line)
-            # remove the eoln char            
+            # remove the eoln char
             # replace non-breaking space with space for regex benefit
             new_line = line[:-1].replace('\xa0', ' ')
 
             if new_line.strip():
                 mat = BE_SPACE_PAT.match(new_line)
-                no_be_space_line = mat.group(2).strip()
-                len_no_be_space_line = len(no_be_space_line)
+                if mat:
+                    no_be_space_line = mat.group(2).strip()
+                    len_no_be_space_line = len(no_be_space_line)
 
-                from_start = from_offset + mat.start(2)
-                from_end = from_start + len_no_be_space_line
-                to_end = to_offset + len_no_be_space_line
-                yield (from_start, from_end), (to_offset, to_end), no_be_space_line
+                    from_start = from_offset + mat.start(2)
+                    from_end = from_start + len_no_be_space_line
+                    to_end = to_offset + len_no_be_space_line
+                    yield (from_start, from_end), (to_offset, to_end), no_be_space_line
 
-                to_offset += len_no_be_space_line
+                    to_offset += len_no_be_space_line
             else:
                 yield (from_offset, from_offset), (to_offset, to_offset), ''
 
             from_offset += orig_length
             to_offset += 1  # eoln
-            
+
 
 def load_str_list(file_name: str) -> List[str]:
     st_list = []
@@ -149,7 +152,7 @@ EO_SENT_CHARS = set(['.', '?', '!', ':', ';', '_'])
 def is_separate_line_text(doc_text: str) -> bool:
     lines = doc_text.split('\n')
     num_lines = len(lines)
-    num_zerio, num_gt_110, num_gt_120, num_le_110 = 0, 0, 0, 0
+    num_gt_110, num_gt_120, num_le_110 = 0, 0, 0
     num_empty_line, num_start_lc, num_end_period = 0, 0, 0
     for line in lines:
         line = line.strip()
@@ -171,7 +174,8 @@ def is_separate_line_text(doc_text: str) -> bool:
 
     num_not_empty_line = num_lines - num_empty_line
     # print('num_start_lc= {}, perc= {}'.format(num_start_lc, num_start_lc / num_not_empty_line))
-    # print('num_end_period= {}, perc= {}'.format(num_end_period, num_end_period / num_not_empty_line))
+    # print('num_end_period= {}, perc= {}'.format(num_end_period,
+    #                                             num_end_period / num_not_empty_line))
 
     if num_empty_line / num_lines > 0.4:
         return True
@@ -187,20 +191,8 @@ def is_separate_line_text(doc_text: str) -> bool:
 
     return False
 
-# this is not deployed in the code yet
-"""
-atext = txtreader.loads('seplines.txt')
-print("is_separate_line_text = {}".format(txtreader.is_separate_line_text(atext)))
 
-blines, doc_text = txtreader.de_separate_lines(atext)
-txtreader.dumps(doc_text, 'seplines.not.txt')
-for xline in blines:
-    xstart, xend, line = xline
-    if line:
-        print("{}\t{}\t[{}]".format(xstart, xend, line))
-    else:
-        print()
-"""
+# pylint: disable=too-many-locals
 def de_separate_lines(atext: str) -> Tuple[List[Tuple[Tuple[int, int],
                                                       Tuple[int, int],
                                                       str]],
@@ -217,12 +209,13 @@ def de_separate_lines(atext: str) -> Tuple[List[Tuple[Tuple[int, int],
 
         if new_line.strip():
             mat = BE_SPACE_PAT.match(new_line)
-            no_be_space_line = mat.group(2).strip()
-            len_no_be_space_line = len(no_be_space_line)
+            if mat:
+                no_be_space_line = mat.group(2).strip()
+                len_no_be_space_line = len(no_be_space_line)
 
-            from_start = from_offset + len(mat.group(1))
-            from_end = from_start + len_no_be_space_line
-            all_lines.append((from_start, from_end, no_be_space_line))
+                from_start = from_offset + len(mat.group(1))
+                from_end = from_start + len_no_be_space_line
+                all_lines.append((from_start, from_end, no_be_space_line))
         else:
             all_lines.append((from_offset, from_offset, ''))
 

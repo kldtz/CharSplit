@@ -5,15 +5,21 @@ import traceback
 
 from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
-from kirke.utils import ebantdoc2, evalutils, strutils
+from kirke.utils import ebantdoc4, evalutils, strutils
+
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 class ProvisionAnnotator:
 
-    def __init__(self, prov_classifier, work_dir, threshold=None):
+    def __init__(self, prov_classifier, work_dir, threshold=None, nbest=-1):
         self.provision_classifier = prov_classifier
         self.provision = prov_classifier.provision
+        self.nbest = nbest
         if threshold is not None:  # allow overrides from provclassifier.py
             self.threshold = threshold
         else:
@@ -30,10 +36,11 @@ class ProvisionAnnotator:
     #    pass
     # pylint: disable=R0914
     def test_antdoc_list(self,
-                         ebantdoc_list: List[ebantdoc2.EbAnnotatedDoc2],
-                         threshold: Optional[float] = None) -> Tuple[Dict[str, Any],
-                                                                     Dict[str, Dict]]:
-        logging.debug('test_document_list')
+                         ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                         threshold: Optional[float] = None) \
+                         -> Tuple[Dict[str, Any],
+                                  Dict[str, Dict]]:
+        logger.debug('test_document_list')
         if not threshold:
             threshold = self.threshold
         # pylint: disable=C0103
@@ -50,13 +57,13 @@ class ProvisionAnnotator:
                                                            prov_human_ant_list=prov_human_ant_list)
             # pylint: disable=broad-except, unused-variable
             except Exception as e:
-                logging.warning('Faile to annotat_antdoc(%s) in test_antdoc_list.',
-                                ebantdoc.file_id)
+                logger.warning('Faile to annotat_antdoc(%s) in test_antdoc_list.',
+                               ebantdoc.file_id)
                 raise
             # pylint: disable=unreachable, pointless-string-statement
             """
                 # retry all the operations, except for loading the cache
-                ebantdoc = ebantdoc2.text_to_ebantdoc2(ebantdoc.file_id,
+                ebantdoc = ebantdoc4.text_to_ebantdoc4(ebantdoc.file_id,
                                                        work_dir=None,
                                                        is_cache_enabled=False,
                                                        is_bespoke_mode=False,
@@ -120,6 +127,16 @@ class ProvisionAnnotator:
                 ant_result.append(fn_ant)
         return ant_result
 
+    def get_nbest(self) -> int:
+        """Return nbest.
+
+        If old bespoke model, this field won't be there.  We will create one then.
+        """
+        if not hasattr(self.provision_classifier, 'nbest'):
+            self.provision_classifier.nbest = -1
+        return self.provision_classifier.nbest
+
+
     def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None) \
         -> Tuple[List[Dict], float]:
         # attrvec_list = eb_antdoc.get_attrvec_list()
@@ -139,32 +156,32 @@ class ProvisionAnnotator:
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
-        logging.debug("annotate_antdoc(%s, %s) took %.0f msec",
-                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.debug('annotate_antdoc(%s, %s) took %.0f msec',
+                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         try:
             # mapping the offsets in prov_human_ant_list from raw_text to nlp_text
             fromto_mapper = fromtomapper.FromToMapper('raw_text to nlp_text offset mapper',
-                                                      eb_antdoc.origin_sx_lnpos_list,
-                                                      eb_antdoc.nlp_sx_lnpos_list)
+                                                      eb_antdoc.get_origin_sx_lnpos_list(),
+                                                      eb_antdoc.get_nlp_sx_lnpos_list())
             adj_prov_human_ant_list = \
                 fromto_mapper.adjust_provants_fromto_offsets(prov_human_ant_list)
         except IndexError:
             error = traceback.format_exc()
-            logging.warning("IndexError, adj_prov_human_ant_list, %s", eb_antdoc.file_id)
-            logging.warning(error)
+            logger.warning("IndexError, adj_prov_human_ant_list, %s", eb_antdoc.file_id)
+            logger.warning(error)
             # move on, probably because there is no input
             adj_prov_human_ant_list = prov_human_ant_list
-
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
         prov_annotations, threshold = \
-            ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.nlp_text,
+            ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
                                                           threshold,
+                                                          nbest=self.get_nbest(),
                                                           provision=prov,
-                                                          prov_human_ant_list=\
-                                                              adj_prov_human_ant_list)
+                                                          # pylint: disable=line-too-long
+                                                          prov_human_ant_list=adj_prov_human_ant_list)
 
         # print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
         # print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
@@ -174,14 +191,14 @@ class ProvisionAnnotator:
 
         try:
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
-                                                      eb_antdoc.nlp_sx_lnpos_list,
-                                                      eb_antdoc.origin_sx_lnpos_list)
+                                                      eb_antdoc.get_nlp_sx_lnpos_list(),
+                                                      eb_antdoc.get_origin_sx_lnpos_list())
             # this is an in-place modification
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
         except IndexError:
             error = traceback.format_exc()
-            logging.warning("IndexError, adj_fromto_offsets, %s", eb_antdoc.file_id)
-            logging.warning(error)
+            logger.warning("IndexError, adj_fromto_offsets, %s", eb_antdoc.file_id)
+            logger.warning(error)
             # move on, probably because there is no input
 
         update_text_with_span_list(prov_annotations, eb_antdoc.text)

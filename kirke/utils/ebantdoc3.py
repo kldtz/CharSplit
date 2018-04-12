@@ -1,3 +1,5 @@
+import array
+from array import ArrayType
 import concurrent.futures
 from enum import Enum
 import json
@@ -11,7 +13,7 @@ from typing import Any, DefaultDict, Dict, List, Set, Tuple
 
 from sklearn.externals import joblib
 
-from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdfoffsets, pdftxtparser
+from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdfoffsets, pdftxtparser
 from kirke.utils import corenlputils, strutils, osutils, textoffset, txtreader, ebsentutils
 
 
@@ -54,9 +56,11 @@ class EbAnnotatedDoc3:
                  origin_sx_lnpos_list,
                  nlp_sx_lnpos_list,
                  gap_span_list,  # TODO, jshaw, maybe del in future
-                 nl_text='',
+                 # nl_text='',
+                 linebreak_arr: ArrayType,
                  page_offsets_list=None,
-                 paraline_text='',
+                 # paraline_text='',
+                 para_not_linebreak_arr: ArrayType,
                  doc_lang='en') -> None:
         self.file_id = file_name
         self.doc_format = doc_format
@@ -78,8 +82,10 @@ class EbAnnotatedDoc3:
         self.origin_sx_lnpos_list = origin_sx_lnpos_list
         self.gap_span_list = gap_span_list
 
-        self.nl_text = nl_text
-        self.paraline_text = paraline_text
+        # self.nl_text = nl_text
+        # self.paraline_text = paraline_text
+        self.linebreak_arr = linebreak_arr
+        self.para_not_linebreak_arr = para_not_linebreak_arr
         self.page_offsets_list = page_offsets_list
 
         self.table_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
@@ -115,14 +121,32 @@ class EbAnnotatedDoc3:
     def get_text(self) -> str:
         return self.text
 
+    def get_nl_text(self):
+        ch_list = list(self.text)
+        for offset in self.linebreak_arr:
+            ch_list[offset] = '\n'
+        return ''.join(ch_list)
+
+    def get_paraline_text(self):
+        ch_list = list(self.get_nl_text())
+        for offset in self.para_not_linebreak_arr:
+            ch_list[offset] = ' '
+        return ''.join(ch_list)
+
+    def get_nlp_text(self) -> str:
+        return self.nlp_text
+
     def has_same_prov_ant_list(self, prov_ant_list2) -> bool:
         return self.prov_annotation_list == prov_ant_list2
 
     def get_doc_format(self) -> EbDocFormat:
         return self.doc_format
 
-    def get_nlp_text(self) -> str:
-        return self.nlp_text
+    def get_nlp_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
+        return self.nlp_sx_lnpos_list
+
+    def get_origin_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
+        return self.origin_sx_lnpos_list
 
 
 def remove_prov_greater_offset(prov_annotation_list, max_offset: int):
@@ -176,7 +200,6 @@ def nlptxt_to_attrvec_list(para_doc_text,
 
             nlp_prov_ant_list.append(ebsentutils.ProvisionAnnotation(xstart, xend, orig_label))
     else:
-        fromto_mapper = None
         nlp_prov_ant_list = prov_annotation_list
 
     # print("prov_annotation: {}".format(prov_annotation))
@@ -233,6 +256,8 @@ def html_no_docstruct_to_ebantdoc3(txt_file_name,
                                 # there is no nl_text
                                 # page_offsets_list
                                 # paraline_text
+                                linebreak_arr=array.array('i'),
+                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
                                 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
@@ -335,6 +360,8 @@ def html_to_ebantdoc3(txt_file_name,
                                 # there is no nl_text
                                 # page_offsets_list
                                 # paraline_text
+                                linebreak_arr=array.array('i'),
+                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
                                 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
@@ -389,8 +416,9 @@ def pdf_to_ebantdoc3(txt_file_name,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
-    doc_text, nl_text, paraline_text, nl_fname, paraline_fname, cpoint_cunit_mapper = \
-        pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
+    doc_text, nl_text, linebreak_arr, \
+        paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
+            pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
 
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper)
 
@@ -436,9 +464,11 @@ def pdf_to_ebantdoc3(txt_file_name,
                                 origin_sx_lnpos_list=origin_sx_lnpos_list,
                                 nlp_sx_lnpos_list=nlp_sx_lnpos_list,
                                 gap_span_list=gap2_span_list,
-                                nl_text=nl_text,
+                                # nl_text=nl_text,
+                                linebreak_arr=linebreak_arr,
                                 page_offsets_list=pdf_text_doc.get_page_offsets(),
-                                paraline_text=paraline_text,
+                                # paraline_text=paraline_text,
+                                para_not_linebreak_arr=para_not_linebreak_arr,
                                 doc_lang=doc_lang)
                                 # paraline_text=paraline2_text)
 

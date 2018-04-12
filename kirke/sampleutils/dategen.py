@@ -2,7 +2,10 @@ import logging
 from typing import Dict, List, Tuple
 
 from kirke.ebrules import dates
-from kirke.utils import ebantdoc3, ebsentutils, strutils
+from kirke.utils import ebantdoc4, ebsentutils, strutils
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 # pylint: disable=too-few-public-methods
@@ -15,13 +18,13 @@ class DateSpanGenerator:
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: str = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                             label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                                               List[Dict],
                                                               List[bool],
                                                               List[int]]]:
         # pylint: disable=line-too-long
-        result = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
+        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):
 
             candidates = []  # type: List[Dict]
@@ -36,15 +39,15 @@ class DateSpanGenerator:
                     label_ant_list.append(ant)
 
             #gets text based on document type
-            if antdoc.doc_format in set([ebantdoc3.EbDocFormat.html,
-                                         ebantdoc3.EbDocFormat.html_nodocstruct,
-                                         ebantdoc3.EbDocFormat.other]):
+            if antdoc.doc_format in set([ebantdoc4.EbDocFormat.html,
+                                         ebantdoc4.EbDocFormat.html_nodocstruct,
+                                         ebantdoc4.EbDocFormat.other]):
                 nl_text = antdoc.text
             else:
-                nl_text = antdoc.nl_text
+                nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logging.info('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
+                logger.debug('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
 
 
             # Finds all matches in the text and adds window around each as a candidate
@@ -70,19 +73,22 @@ class DateSpanGenerator:
                 prev_n_words, prev_spans = \
                     strutils.get_prev_n_clx_tokens(nl_text,
                                                    match_start,
-                                                   self.num_prev_words-1)
+                                                   self.num_prev_words)
                 post_n_words, post_spans = \
                     strutils.get_post_n_clx_tokens(nl_text,
                                                    match_end,
-                                                   self.num_post_words-1)
+                                                   self.num_post_words)
 
-                # add first 4 words surround as addition features.  Improved.  :-)
-                prev_4_words = ['PV4_' + wd for wd in prev_n_words[-4:]]
-                post_4_words = ['PS4_' + wd for wd in post_n_words[:4]]
-                # to deal with n-gram of 2, added 'EOLN' to not mix
-                # prev_4_words with others
-                prev_n_words_plus = prev_n_words + ['EOLN'] + prev_4_words
-                post_n_words_plus = post_n_words + ['EOLN'] + post_4_words
+                prev_15_words = ['PV15_' + wd for wd in prev_n_words[-15:]]
+                post_15_words = ['PS15_' + wd for wd in post_n_words[:15]]
+                prev_10_words = ['PV10_' + wd for wd in prev_n_words[-10:]]
+                post_10_words = ['PS10_' + wd for wd in post_n_words[:10]]
+                prev_5_words = ['PV5_' + wd for wd in prev_n_words[-5:]]
+                post_5_words = ['PS5_' + wd for wd in post_n_words[:5]]
+                prev_2_words = ['PV2_' + wd for wd in prev_n_words[-2:]]
+                post_2_words = ['PS2_' + wd for wd in post_n_words[:2]]
+                prev_n_words_plus = prev_n_words + ['EOLN'] + prev_15_words + ['EOLN'] + prev_10_words + ['EOLN'] + prev_5_words + ['EOLN'] + prev_2_words
+                post_n_words_plus = post_n_words + ['EOLN'] + post_15_words + ['EOLN'] + post_10_words + ['EOLN'] + post_5_words + ['EOLN'] + post_2_words
 
                 new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                             match_str,

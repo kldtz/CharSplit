@@ -1,8 +1,10 @@
 import logging
 from typing import Dict, List, Tuple
 from kirke.ebrules import addresses
-from kirke.utils import ebantdoc3, ebsentutils, strutils
+from kirke.utils import ebantdoc4, ebsentutils, strutils
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # loads address keywords
 ALL_KEYWORDS = addresses.addr_keywords()
@@ -17,15 +19,15 @@ class AddrContextGenerator:
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc3.EbAnnotatedDoc3],
-                             label: str = None) -> List[Tuple[ebantdoc3.EbAnnotatedDoc3,
+                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                             label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                                               List[Dict],
                                                               List[bool],
                                                               List[int]]]:
 
         # pylint: disable=line-too-long
-        result = []  # type: List[Tuple[ebantdoc3.EbAnnotatedDoc3, List[Dict], List[bool], List[int]]]
-        for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc3
+        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+        for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc4
             candidates = []  # type: List[Dict]
             label_list = []   # type: List[bool]
             group_id_list = []  # type: List[int]
@@ -38,15 +40,15 @@ class AddrContextGenerator:
                     label_ant_list.append(ant)
 
             #gets text based on document type
-            if antdoc.doc_format in set([ebantdoc3.EbDocFormat.html,
-                                         ebantdoc3.EbDocFormat.html_nodocstruct,
-                                         ebantdoc3.EbDocFormat.other]):
+            if antdoc.doc_format in set([ebantdoc4.EbDocFormat.html,
+                                         ebantdoc4.EbDocFormat.html_nodocstruct,
+                                         ebantdoc4.EbDocFormat.other]):
                 nl_text = antdoc.text
             else:
-                nl_text = antdoc.nl_text
+                nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logging.info('AddrContextGenerator.documents_to_candidates(), group_id = %d', group_id)
+                logger.debug('AddrContextGenerator.documents_to_candidates(), group_id = %d', group_id)
 
             #finds all addresses in the text and adds window around each as a candidate
             for addr in addresses.find_addresses(nl_text, ALL_KEYWORDS):
@@ -66,6 +68,18 @@ class AddrContextGenerator:
                 bow_start = addr_start
                 bow_end = addr_end
 
+                prev_15_words = ['PV15_' + wd for wd in prev_n_words[-15:]]
+                post_15_words = ['PS15_' + wd for wd in post_n_words[:15]]
+                prev_10_words = ['PV10_' + wd for wd in prev_n_words[-10:]]
+                post_10_words = ['PS10_' + wd for wd in post_n_words[:10]]
+                prev_5_words = ['PV5_' + wd for wd in prev_n_words[-5:]]
+                post_5_words = ['PS5_' + wd for wd in post_n_words[:5]]
+                prev_2_words = ['PV2_' + wd for wd in prev_n_words[-2:]]
+                post_2_words = ['PS2_' + wd for wd in post_n_words[:2]]
+                # to deal with n-gram of 2, added 'EOLN' to not mix
+                # prev_4_words with others
+                prev_n_words_plus = prev_n_words + ['EOLN'] + prev_15_words + ['EOLN'] + prev_10_words + ['EOLN'] + prev_5_words + ['EOLN'] + prev_2_words
+                post_n_words_plus = post_n_words + ['EOLN'] + post_15_words + ['EOLN'] + post_10_words + ['EOLN'] + post_5_words + ['EOLN'] + post_2_words
                 #update span based on window size
                 if prev_spans:
                     bow_start = prev_spans[0][0]
@@ -78,8 +92,8 @@ class AddrContextGenerator:
                             'text': new_bow,
                             'start': addr_start,
                             'end': addr_end,
-                            'prev_n_words': ' '.join(prev_n_words),
-                            'post_n_words': ' '.join(post_n_words),
+                            'prev_n_words': ' '.join(prev_n_words_plus),
+                            'post_n_words': ' '.join(post_n_words_plus),
                             'has_addr': True}
                 candidates.append(a_candidate)
 
