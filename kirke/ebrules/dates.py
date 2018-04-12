@@ -459,7 +459,7 @@ class DateNormalizer(DocCandidatesTransformer):
             month_st = '{:02d}'.format(month_val)
         if day_val:
             day_st = '{:02d}'.format(day_val)
-        norm_st = {"norm": 'date:{}-{}-{}'.format(year_st, month_st, day_st)}
+        norm_st = {"norm": {'date':{}-{}-{}'.format(year_st, month_st, day_st)}}
         return norm_st
 
 
