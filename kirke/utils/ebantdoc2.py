@@ -583,19 +583,23 @@ def text_to_ebantdoc2(txt_fname,
             # files.
             # is_cache_enabled = False
         if is_cache_enabled:
-            # check if file exist, if it is, load it and return
-            # regarless of the existing PDF or HtML or is_doc_structure
-            eb_antdoc = load_cached_ebantdoc2(eb_antdoc_fn)
-            if is_bespoke_mode and eb_antdoc:
-                tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
-                                                                                   eb_antdoc.codepoint_to_cunit_mapper)
-                if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
+            try:
+                # check if file exist, if it is, load it and return
+                # regarless of the existing PDF or HtML or is_doc_structure
+                eb_antdoc = load_cached_ebantdoc2(eb_antdoc_fn)
+                if is_bespoke_mode and eb_antdoc:
+                    tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
+                                                                                       eb_antdoc.codepoint_to_cunit_mapper)
+                    if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
+                        eb_antdoc.file_id = txt_fname
+                        return eb_antdoc
+                    eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
+                if eb_antdoc:
                     eb_antdoc.file_id = txt_fname
                     return eb_antdoc
-                eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
-            if eb_antdoc:
-                eb_antdoc.file_id = txt_fname
-                return eb_antdoc
+            except Exception:
+                logging.error("failed to load ebandoc2 cache file: [%s].  Load without cache.", eb_antdoc_fn)
+                # simply fall through to load the document without the loading cache file
 
         pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
         # if no doc_structure, simply do the simplest
