@@ -9,6 +9,7 @@ import os.path
 import re
 import shutil
 import tempfile
+import traceback
 import zipfile
 # pylint: disable=unused-import
 from typing import DefaultDict, Dict, List, Optional, Tuple
@@ -60,108 +61,132 @@ if not eb_runner:
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def annotate_uploaded_document():
 
-    # verify if the request is for document classification or language detection only
-    provisions_st = request.form.get('types')
-    provision_set = set(provisions_st.split(',') if provisions_st else [])
-    is_classify_doc = request.form.get('classify-doc')
-    is_detect_lang = request.form.get('detect-lang')
+    # in case there is an exception being thrown, following
+    # variable might be passed back
+    file_title = ''
+    txt_file_name = ''
 
-    ebannotations = {}
+    try:
+        # verify if the request is for document classification or language detection only
+        provisions_st = request.form.get('types')
+        provision_set = set(provisions_st.split(',') if provisions_st else [])
+        is_classify_doc = request.form.get('classify-doc')
+        is_detect_lang = request.form.get('detect-lang')
 
-    request_work_dir = request.form.get('workdir')
-    file_title = request.form.get('fileName')
-    if request_work_dir:
-        work_dir = request_work_dir
-        print("work_dir = {}".format(work_dir))
-        osutils.mkpath(work_dir)
-    else:
-        work_dir = WORK_DIR
+        ebannotations = {}
 
-    fn_list = request.files.getlist('file')
-    for fstorage in fn_list:
-        fn = '{}/{}'.format(work_dir, fstorage.filename)
-        print("saving file '{}'".format(fn))
-        fstorage.save(fn)
-
-        if fn.endswith('.offsets.json'):
-            # pdf_offsets_file_name = fn
-            pass
-        elif fn.endswith('.txt'):
-            txt_file_name = fn
-
-            # save the file name
-            meta_fn = '{}/{}'.format(work_dir,
-                                     fstorage.filename.replace('.txt', '.meta'))
-            # print("wrote meta_fn: '{}'".format(meta_fn))
-            # print("doc title: '{}'".format(file_title))
-            with open(meta_fn, 'wt') as meta_out:
-                print('pdf_file\t{}'.format(file_title), file=meta_out)
-                print('txt_file\t{}'.format(fstorage.filename), file=meta_out)
+        request_work_dir = request.form.get('workdir')
+        file_title = request.form.get('fileName')
+        if request_work_dir:
+            work_dir = request_work_dir
+            print("work_dir = {}".format(work_dir))
+            osutils.mkpath(work_dir)
         else:
-            logging.warning('unknown file extension in annotate_uploaded_document(%s)', fn)
+            work_dir = WORK_DIR
 
-    # cannot just access the request.files['file'].read() earlier, which
-    # make it unavailable to the rest of the code.
+        fn_list = request.files.getlist('file')
+        for fstorage in fn_list:
+            fn = '{}/{}'.format(work_dir, fstorage.filename)
+            print("saving file '{}'".format(fn))
+            fstorage.save(fn)
 
-    atext = strutils.loads(txt_file_name)
-    doc_lang = eb_langdetect_runner.detect_lang(atext)
-    logging.info("detected language '%s'", doc_lang)
-    if doc_lang is None:
-        ebannotations['lang'] = doc_lang
-        ebannotations['ebannotations'] = {}
-        ebannotations['tags'] = []
-        return json.dumps(ebannotations)
-    if is_detect_lang:
-        ebannotations['lang'] = doc_lang
+            if fn.endswith('.offsets.json'):
+                # pdf_offsets_file_name = fn
+                pass
+            elif fn.endswith('.txt'):
+                txt_file_name = fn
 
-    # if no other classification is specified, return early
-    if not provision_set and not is_classify_doc:
-        return json.dumps(ebannotations)
+                # save the file name
+                meta_fn = '{}/{}'.format(work_dir,
+                                         fstorage.filename.replace('.txt', '.meta'))
+                # print("wrote meta_fn: '{}'".format(meta_fn))
+                # print("doc title: '{}'".format(file_title))
+                with open(meta_fn, 'wt') as meta_out:
+                    print('pdf_file\t{}'.format(file_title), file=meta_out)
+                    print('txt_file\t{}'.format(fstorage.filename), file=meta_out)
+            else:
+                logging.warning('unknown file extension in annotate_uploaded_document(%s)', fn)
 
-    if is_classify_doc:
-        if eb_doccat_runner.is_initialized:
-            logging.info("classify document '%s'", txt_file_name)
-            doc_catnames = eb_doccat_runner.classify_document(txt_file_name)
-            ebannotations['tags'] = doc_catnames
-        else:
-            logging.warning('is_classify_doc is True, but no model exists for eb_doccat_runner')
+        # cannot just access the request.files['file'].read() earlier, which
+        # make it unavailable to the rest of the code.
+
+        atext = strutils.loads(txt_file_name)
+        doc_lang = eb_langdetect_runner.detect_lang(atext)
+        logging.info("detected language '%s'", doc_lang)
+        if doc_lang is None:
+            ebannotations['lang'] = doc_lang
+            ebannotations['ebannotations'] = {}
             ebannotations['tags'] = []
+            return json.dumps(ebannotations)
+        if is_detect_lang:
+            ebannotations['lang'] = doc_lang
 
-    if provision_set:
-        # print("got provision_set: {}".format(sorted(provision_set)))
-        provision_set.add('date')
-        provision_set.add('sigdate')
-        provision_set.add('effectivedate')
-        if "effectivedate_auto" in provision_set:
-            provision_set.remove('effectivedate_auto')
-        # make sure these are removed due to low accuracy
-        if "lic_licensee" in provision_set:
-            provision_set.remove('lic_licensee')
-        if "lic_licensor" in provision_set:
-            provision_set.remove('lic_licensor')
-        # 'rate_table' is a special provision, with only rule-based model
-        # avoid apploying the normal ML model
-        if "rate_table" in provision_set:
-            provision_set.remove('rate_table')
+        # if no other classification is specified, return early
+        if not provision_set and not is_classify_doc:
+            return json.dumps(ebannotations)
 
-    provision_set = [x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
-                     for x in provision_set]
-    # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
-    prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
-                                                     provision_set=provision_set,
-                                                     work_dir=work_dir,
-                                                     doc_lang=doc_lang)
+        if is_classify_doc:
+            if eb_doccat_runner.is_initialized:
+                logging.info("classify document '%s'", txt_file_name)
+                doc_catnames = eb_doccat_runner.classify_document(txt_file_name)
+                ebannotations['tags'] = doc_catnames
+            else:
+                logging.warning('is_classify_doc is True, but no model exists for eb_doccat_runner')
+                ebannotations['tags'] = []
 
-    # because special case of 'effectivdate_auto'
-    if prov_labels_map.get('effectivedate'):
-        effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
-        for eff_ant in effectivedate_annotations:
-            eff_ant['label'] = 'effectivedate_auto'
-        prov_labels_map['effectivedate_auto'] = effectivedate_annotations
-        del prov_labels_map['effectivedate']
+        if provision_set:
+            # print("got provision_set: {}".format(sorted(provision_set)))
+            provision_set.add('date')
+            provision_set.add('sigdate')
+            provision_set.add('effectivedate')
+            if "effectivedate_auto" in provision_set:
+                provision_set.remove('effectivedate_auto')
+            # make sure these are removed due to low accuracy
+            if "lic_licensee" in provision_set:
+                provision_set.remove('lic_licensee')
+            if "lic_licensor" in provision_set:
+                provision_set.remove('lic_licensor')
+            # 'rate_table' is a special provision, with only rule-based model
+            # avoid apploying the normal ML model
+            if "rate_table" in provision_set:
+                provision_set.remove('rate_table')
 
-    ebannotations['ebannotations'] = prov_labels_map
-    return json.dumps(ebannotations)
+        provision_set = [x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
+                         for x in provision_set]
+        # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
+        prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
+                                                         provision_set=provision_set,
+                                                         work_dir=work_dir,
+                                                         doc_lang=doc_lang)
+
+        # because special case of 'effectivdate_auto'
+        if prov_labels_map.get('effectivedate'):
+            effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
+            for eff_ant in effectivedate_annotations:
+                eff_ant['label'] = 'effectivedate_auto'
+            prov_labels_map['effectivedate_auto'] = effectivedate_annotations
+            del prov_labels_map['effectivedate']
+
+        ebannotations['ebannotations'] = prov_labels_map
+        return json.dumps(ebannotations)
+    except Exception as e:  # pylint: disable=broad-except
+        error = traceback.format_exc()
+        logging.warning("error encountered in annotate_uploaded_document()")
+        logging.warning(error)
+
+        data = {'source': 'annotate_uploaded_document({})'.format(txt_file_name),
+                'file': file_title,
+                'filename': txt_file_name,
+                'traceback': error}
+        if hasattr(e, 'user_message'):
+            # pylint: disable=no-member
+            data['user_message'] = e.user_message
+        data_st = json.dumps(data)
+        status = 500
+        response_headers = [
+            ('Content-type', 'application/json')
+        ]
+        return data_st, status, response_headers
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -219,7 +244,7 @@ def custom_train_import():
     except zipfile.BadZipFile:
         result_json['error'] = 'Bad ZIP file'
         return jsonify(result_json)
-    except:
+    except:  # pylint: disable=bare-except
         result_json['error'] = 'Bad ZIP file'
         return jsonify(result_json)
     provision = None
@@ -247,146 +272,167 @@ def custom_train_import():
 # pylint: disable=too-many-locals
 @app.route('/custom-train/<cust_id>', methods=['POST'])
 def custom_train(cust_id: str):
-    request_work_dir = request.form.get('workdir')
-    if request_work_dir:
-        work_dir = request_work_dir
-        logging.info("work_dir = '%s'", work_dir)
-        osutils.mkpath(work_dir)
-    else:
-        work_dir = WORK_DIR
-
-    candidate_type = request.form.get('candidate_type')
-    if not candidate_type:
-        candidate_type = 'SENTENCE'
-    nbest = request.form.get('nbest')
-    if not nbest:
-        nbest = -1
-    else:
-        nbest = int(nbest)
-
-    # to ensure that no accidental file name overlap
-    logging.info("cust_id = '%s'", cust_id)
-    provision = 'cust_{}'.format(cust_id)
-    tmp_dir = '{}/{}'.format(work_dir, provision)
-    osutils.mkpath(tmp_dir)
-    fn_list = request.files.getlist('file')
-
-    # save all the uploaded files in a location
-    for fstorage in fn_list:
-        fn = '{}/{}'.format(tmp_dir, fstorage.filename)
-        # print("saving file '{}'".format(fn))
-        fstorage.save(fn)
-
-    fname_provtypes_map = {}
-    txt_fnames = []
-    # dict of lang, with list of file in that lang
     full_txt_fnames = defaultdict(list)  # type: DefaultDict[str, List[str]]
-    txt_offsets_fn_map = {}
-    for name in [fstorage.filename for fstorage in fn_list]:
-        file_id = name.split('.')[0]
-        full_path = '{}/{}'.format(tmp_dir, name)
-        if name.endswith('.ant'):
-            ants_map = json.loads(strutils.loads(full_path))
-            ants = [x['type'] for x in ants_map]
-            fname_provtypes_map[file_id] = ants
-        elif name.endswith('.txt'):
-            txt_fnames.append(name)
-            atext = strutils.loads(full_path)
-            doc_lang = eb_langdetect_runner.detect_lang(atext)
-            if not doc_lang:
-                # if we don't know what language it is, skip such document
-                continue
-            full_txt_fnames[doc_lang].append(file_id)
-        elif name.endswith('.offsets.json'):
-            # create txt -> offsets.json map in order to do sent4nlp processing
-            tmp_txt_fn = name.replace(".offsets.json", ".txt")
-            txt_offsets_fn_map[tmp_txt_fn] = name
+    try:
+        request_work_dir = request.form.get('workdir')
+        if request_work_dir:
+            work_dir = request_work_dir
+            logging.info("work_dir = '%s'", work_dir)
+            osutils.mkpath(work_dir)
         else:
-            logging.warning('unknown file extension in custom_train(%s)', fn)
+            work_dir = WORK_DIR
 
+        candidate_type = request.form.get('candidate_type')
+        if not candidate_type:
+            candidate_type = 'SENTENCE'
+        nbest = request.form.get('nbest')
+        if not nbest:
+            nbest = -1
+        else:
+            nbest = int(nbest)
 
-    next_model_num = osutils.increment_model_version(model_dir=CUSTOM_MODEL_DIR)
-    # print("next model number: {}".format(next_model_num))
+        # to ensure that no accidental file name overlap
+        logging.info("cust_id = '%s'", cust_id)
+        provision = 'cust_{}'.format(cust_id)
+        tmp_dir = '{}/{}'.format(work_dir, provision)
+        osutils.mkpath(tmp_dir)
+        fn_list = request.files.getlist('file')
 
-    #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
-    all_stats = {}
-    for doc_lang, names_per_lang in full_txt_fnames.items():
-        if not doc_lang:  # if a document has no text, its langid can be None
-            continue
-        ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
-        logging.info('Number of annotations for %s: %d', doc_lang, ant_count)
-        if ant_count >= 6:
-            txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
-            fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
-            strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-            if candidate_type == 'SENTENCE':
-                base_model_fname = '{}.{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                         next_model_num,
-                                                                         SCUT_CLF_VERSION)
-                if doc_lang != "en":
-                    base_model_fname = '{}.{}_{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                                next_model_num,
-                                                                                doc_lang,
-                                                                                SCUT_CLF_VERSION)
+        # save all the uploaded files in a location
+        for fstorage in fn_list:
+            fn = '{}/{}'.format(tmp_dir, fstorage.filename)
+            # print("saving file '{}'".format(fn))
+            fstorage.save(fn)
+
+        fname_provtypes_map = {}
+        txt_fnames = []
+        # dict of lang, with list of file in that lang
+        full_txt_fnames = defaultdict(list)  # type: DefaultDict[str, List[str]]
+        txt_offsets_fn_map = {}
+        for name in [fstorage.filename for fstorage in fn_list]:
+            file_id = name.split('.')[0]
+            full_path = '{}/{}'.format(tmp_dir, name)
+            if name.endswith('.ant'):
+                ants_map = json.loads(strutils.loads(full_path))
+                ants = [x['type'] for x in ants_map]
+                fname_provtypes_map[file_id] = ants
+            elif name.endswith('.txt'):
+                txt_fnames.append(name)
+                atext = strutils.loads(full_path)
+                doc_lang = eb_langdetect_runner.detect_lang(atext)
+                if not doc_lang:
+                    # if we don't know what language it is, skip such document
+                    continue
+                full_txt_fnames[doc_lang].append(file_id)
+            elif name.endswith('.offsets.json'):
+                # create txt -> offsets.json map in order to do sent4nlp processing
+                tmp_txt_fn = name.replace(".offsets.json", ".txt")
+                txt_offsets_fn_map[tmp_txt_fn] = name
             else:
-                base_model_fname = '{}.{}_{}_annotator.v{}.pkl'.format(provision,
-                                                                       next_model_num,
-                                                                       candidate_type,
-                                                                       CANDG_CLF_VERSION)
-                if doc_lang != "en":
-                    base_model_fname = '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
-                                                                              next_model_num,
-                                                                              doc_lang,
-                                                                              candidate_type,
-                                                                              CANDG_CLF_VERSION)
+                logging.warning('unknown file extension in custom_train(%s)', fn)
 
-            # Following the logic in the original code.
-            eval_status, log_json = \
-                eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
-                                                              provision,
-                                                              CUSTOM_MODEL_DIR,
-                                                              base_model_fname,
-                                                              candidate_type,
-                                                              nbest,
-                                                              model_num=next_model_num,
-                                                              is_doc_structure=True,
-                                                              work_dir=work_dir,
-                                                              doc_lang=doc_lang)
 
-            # copy the result into the expected format for client
-            ant_status = eval_status['ant_status']
-            cf = ant_status['confusion_matrix']
-            status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
-                      'fscore': ant_status['f1'],
-                      'precision': ant_status['prec'],
-                      'recall': ant_status['recall'],
-                      'provision': provision,
-                      'model_number': next_model_num}
+        next_model_num = osutils.increment_model_version(model_dir=CUSTOM_MODEL_DIR)
+        # print("next model number: {}".format(next_model_num))
 
-            logging.info("status: %r", status)
+        #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
+        all_stats = {}
+        for doc_lang, names_per_lang in full_txt_fnames.items():
+            if not doc_lang:  # if a document has no text, its langid can be None
+                continue
+            ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
+            logging.info('Number of annotations for %s: %d', doc_lang, ant_count)
+            if ant_count >= 6:
+                txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
+                fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
+                strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
+                if candidate_type == 'SENTENCE':
+                    base_model_fname = '{}.{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                             next_model_num,
+                                                                             SCUT_CLF_VERSION)
+                    if doc_lang != "en":
+                        base_model_fname = '{}.{}_{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                                    next_model_num,
+                                                                                    doc_lang,
+                                                                                    SCUT_CLF_VERSION)
+                else:
+                    base_model_fname = '{}.{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                           next_model_num,
+                                                                           candidate_type,
+                                                                           CANDG_CLF_VERSION)
+                    if doc_lang != "en":
+                        base_model_fname = '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                                  next_model_num,
+                                                                                  doc_lang,
+                                                                                  candidate_type,
+                                                                                  CANDG_CLF_VERSION)
 
-            # return some json accuracy info
-            # TODO add eval_log back in when PR 408 is merged and the front end is ready
-            # to accept it
-            # status_and_antana = {'status': stats,
-            #                      'eval_log': log_json}
-            # all_stats[doc_lang] = status_and_antana
+                # Following the logic in the original code.
+                eval_status, log_json = \
+                    eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
+                                                                  provision,
+                                                                  CUSTOM_MODEL_DIR,
+                                                                  base_model_fname,
+                                                                  candidate_type,
+                                                                  nbest,
+                                                                  model_num=next_model_num,
+                                                                  is_doc_structure=True,
+                                                                  work_dir=work_dir,
+                                                                  doc_lang=doc_lang)
 
-            all_stats[doc_lang] = status
-        else:
-            # TODO, remove disabling log output until frontend is ready
-            # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
-            #                                 'fscore': -1.0,
-            #                                 'precision': -1.0,
-            #                                 'recall': -1.0}
-            #                       'eval_log': {}}
-            all_stats[doc_lang] = {'confusion_matrix': [[]],
-                                   'fscore': -1.0,
-                                   'precision': -1.0,
-                                   'provision': provision,
-                                   'model_number': -1,
-                                   'recall': -1.0}
-    return jsonify(all_stats)
+                # copy the result into the expected format for client
+                ant_status = eval_status['ant_status']
+                cf = ant_status['confusion_matrix']
+                status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
+                          'fscore': ant_status['f1'],
+                          'precision': ant_status['prec'],
+                          'recall': ant_status['recall'],
+                          'provision': provision,
+                          'model_number': next_model_num}
+
+                logging.info("status: %r", status)
+
+                # return some json accuracy info
+                # TODO add eval_log back in when PR 408 is merged and the front end is ready
+                # to accept it
+                # status_and_antana = {'status': stats,
+                #                      'eval_log': log_json}
+                # all_stats[doc_lang] = status_and_antana
+
+                all_stats[doc_lang] = status
+            else:
+                # TODO, remove disabling log output until frontend is ready
+                # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
+                #                                 'fscore': -1.0,
+                #                                 'precision': -1.0,
+                #                                 'recall': -1.0}
+                #                       'eval_log': {}}
+                all_stats[doc_lang] = {'confusion_matrix': [[]],
+                                       'fscore': -1.0,
+                                       'precision': -1.0,
+                                       'provision': provision,
+                                       'model_number': -1,
+                                       'recall': -1.0}
+        return jsonify(all_stats)
+    except Exception as e:  # pylint: disable=broad-except
+        error = traceback.format_exc()
+        logging.warning('error encountered in custom_train(%s)', cust_id)
+        logging.warning(error)
+
+        data = {'source': 'custom_train({})'.format(cust_id),
+                'traceback': error}
+        if hasattr(e, 'user_message'):
+            # pylint: disable=no-member
+            data['user_message'] = e.user_message
+        if hasattr(e, 'filename'):
+            # pylint: disable=no-member
+            data['filename'] = e.filename
+        data_st = json.dumps(data)
+        status = 500
+        response_headers = [
+            ('Content-type', 'application/json')
+        ]
+        return data_st, status, response_headers
 
 
 # https://github.com/Mimino666/langdetect

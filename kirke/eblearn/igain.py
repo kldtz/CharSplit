@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+from collections import defaultdict, namedtuple
 import csv
 import logging
 import math
-import time
-from collections import defaultdict, namedtuple
 import operator
+import sys
+import time
 
 from kirke.utils import stopwordutils, strutils
 
@@ -80,28 +81,34 @@ def to_cond_count_map(true_count_map,
 def to_cond_count_tuple(true_count_map,
                         false_count_map,
                         cond_dist):
-    cond_count_map = {}
-    # print("\ntrue_count_map = {}".format(true_count_map))
-    # print("false_count_map = {}".format(false_count_map))
-    # print("cond_dist = {}".format(cond_dist))
-    for cond, cond_count in cond_dist.items():
-        # print("cond=[{}], count= {}".format(cond, cond_count))
-        if cond:
-            label_count = true_count_map
-        else:
-            label_count = false_count_map
+    try:
+        cond_count_map = {}
+        # print("\ntrue_count_map = {}".format(true_count_map))
+        # print("false_count_map = {}".format(false_count_map))
+        # print("cond_dist = {}".format(cond_dist))
+        for cond, cond_count in cond_dist.items():
+            # print("cond=[{}], count= {}".format(cond, cond_count))
+            if cond:
+                label_count = true_count_map
+            else:
+                label_count = false_count_map
 
-        if label_count != 0:
-            cond_count_map[cond] = (label_count, cond_count - label_count)
-        else:
-            cond_count_map[cond] = (0, cond_count - label_count)
-    # print("cond_count_map = {}".format(cond_count_map))
-    result = CondCountTuple(cond_count_map[True][0],
-                            cond_count_map[True][1],
-                            cond_count_map[False][0],
-                            cond_count_map[False][1])
-    # print("resut = {}".format(result))
-    return result
+            if label_count != 0:
+                cond_count_map[cond] = (label_count, cond_count - label_count)
+            else:
+                cond_count_map[cond] = (0, cond_count - label_count)
+        # print("cond_count_map = {}".format(cond_count_map))
+        result = CondCountTuple(cond_count_map[True][0],
+                                cond_count_map[True][1],
+                                cond_count_map[False][0],
+                                cond_count_map[False][1])
+        # print("resut = {}".format(result))
+        return result
+    except KeyError:
+        unused_error_type, error_instance, traceback  = sys.exc_info()
+        error_instance.user_message = 'No positive examples found during training.'
+        error_instance.__traceback__ = traceback
+        raise error_instance
 
 
 def info_gain(cond_count_map, entropy_class):
