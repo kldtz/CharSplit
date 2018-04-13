@@ -118,6 +118,7 @@ def train_annotator(provision: str,
                                              is_doc_structure=is_doc_structure)
 
 def train_span_annotator(label: str,
+                         nbest: int,
                          candidate_type: str,
                          work_dir: str,
                          model_dir: str) -> None:
@@ -125,6 +126,7 @@ def train_span_annotator(label: str,
         ebtrainer.train_eval_span_annotator(label,
                                             383838,
                                             'en',
+                                            nbest,
                                             candidate_type,
                                             work_dir,
                                             model_dir)
@@ -360,6 +362,7 @@ def main():
                         is_doc_structure=True)
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,
+                             args.nbest,
                              candidate_type=args.candidate_type,
                              work_dir=work_dir,
                              model_dir=model_dir)
