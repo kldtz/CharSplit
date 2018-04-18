@@ -97,7 +97,9 @@ class EbAnnotatedDoc4:
         # self.nlp_text = para_doc_text
         self.para_prov_ant_list = para_prov_ant_list
         self.attrvec_list = attrvec_list
-        self.paras_with_attrs = paras_with_attrs
+        self.para_with_attrs = para_with_attrs
+        self.para_indices = [x[0] for x in paras_with_attrs] # para_indices and para_attrs should be the same length
+        self.para_attrs = [x[1] for x in paras_with_attrs]
         # to map to original offsets
         self.nlp_lnpos_list = nlp_lnpos_list
         self.origin_lnpos_list = origin_lnpos_list
@@ -146,8 +148,11 @@ class EbAnnotatedDoc4:
     def get_attrvec_list(self) -> List[ebattrvec.EbAttrVec]:
         return self.attrvec_list
 
-    def get_text(self) -> str:
-        return self.text
+    def get_text(self, text_type='text') -> str:
+        if text_type == 'text':
+            return self.text
+        elif text_type == 'nlp_text':
+            return self.get_nlp_text()
 
     def get_nl_text(self) -> str:
         ch_list = list(self.text)
@@ -795,6 +800,7 @@ def doclist_to_ebantdoc_list_linear(doclist_file: str,
 
 def doclist_to_ebantdoc_list(doclist_file: str,
                              work_dir: str,
+                             is_cache_enabled: bool = True,
                              is_bespoke_mode: bool = False,
                              is_doc_structure: bool = False,
                              doc_lang: str = 'en',
@@ -813,6 +819,7 @@ def doclist_to_ebantdoc_list(doclist_file: str,
         future_to_antdoc = {executor.submit(text_to_ebantdoc4,
                                             txt_fn,
                                             work_dir,
+                                            is_cache_enabled=is_cache_enabled,
                                             is_bespoke_mode=is_bespoke_mode,
                                             is_doc_structure=is_doc_structure,
                                             doc_lang=doc_lang,

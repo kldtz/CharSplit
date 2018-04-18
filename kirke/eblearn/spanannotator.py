@@ -92,6 +92,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  candidate_type: str,
                  version: str,
                  nbest: int,
+                 text_type: str,
                  *,
                  doclist_to_antdoc_list,
                  is_use_corenlp: bool,
@@ -108,6 +109,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.candidate_type = candidate_type
         self.version = version
         self.nbest = nbest
+        self.text_type = text_type
 
         # used for training
         self.doclist_to_antdoc_list = doclist_to_antdoc_list
@@ -210,7 +212,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                        threshold=threshold,
                                                        prov_human_ant_list=prov_human_ant_list,
                                                        work_dir=work_dir)
-
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -288,7 +289,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         x_threshold = threshold
         
         prov_annotations = recover_false_negatives(prov_human_ant_list,
-                                                   eb_antdoc.text,
+                                                   eb_antdoc.get_text(),
                                                    self.provision,
                                                    prov_annotations)
         # If there is no human annotation, must be normal annotation.
@@ -336,7 +337,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                        eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
         # logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
-        text = eb_antdoc.text
+        text = eb_antdoc.get_text()
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
         candidates, unused_label_list, unused_group_ids = \

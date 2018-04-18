@@ -128,6 +128,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
      ('PARAGRAPH', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                            'is_use_corenlp': True,
+                           'text_type': 'nlp_text',
                            'doc_to_candidates': paragen.ParagraphGenerator('PARAGRAPH'),
                            'version': "1.0",
                            'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -146,6 +147,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                            'kfold': 3}),
      ('SECTION', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                          'is_use_corenlp': True,
+                         'text_type': 'nlp_text',
                          'doc_to_candidates': sectiongen.SectionGenerator('SECTION'),
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
