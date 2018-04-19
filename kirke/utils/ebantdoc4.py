@@ -97,7 +97,7 @@ class EbAnnotatedDoc4:
         # self.nlp_text = para_doc_text
         self.para_prov_ant_list = para_prov_ant_list
         self.attrvec_list = attrvec_list
-        self.para_with_attrs = para_with_attrs
+        self.paras_with_attrs = paras_with_attrs
         self.para_indices = [x[0] for x in paras_with_attrs] # para_indices and para_attrs should be the same length
         self.para_attrs = [x[1] for x in paras_with_attrs]
         # to map to original offsets

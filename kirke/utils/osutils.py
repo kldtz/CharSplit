@@ -29,7 +29,8 @@ def get_model_files(dir_name: str) -> List[str]:
     return [fname for fname in os.listdir(dir_name)
             if (os.path.isfile(os.path.join(dir_name, fname))
                 and 'docclassifier' not in fname
-                and 'classifier' in fname and fname.endswith('.pkl'))]
+                and ('classifier' in fname or 'annotator' in fname)
+                and fname.endswith('.pkl'))]
 
 
 def _find_fname_with_lang(lang: str, lang_fname_list: List[Tuple[str, str]]) -> Optional[str]:
