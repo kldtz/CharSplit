@@ -165,17 +165,19 @@ class LineAnnotator:
 
         elif self.provision == 'date':
             paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs)
+
             # prov_type can be 'date', 'effective-date', 'signature-date'
             date_list = self.provision_annotator.extract_provision_offsets(paras_attr_list,
                                                                            paras_text)
 
             if date_list:
                 for i, date_ox in enumerate(date_list, 1):
-                    start_offset, end_offset, prov_type = date_ox
+                    start_offset, end_offset, unused_date_st, prov_type, date_norm = date_ox
                     prov_annotations.append({'end': end_offset,
                                              'label': prov_type,
                                              'start': start_offset,
                                              'prob': 0.91,
+                                             'norm': date_norm,
                                              'text': paras_text[start_offset:end_offset]})
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
 
