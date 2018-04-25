@@ -7,7 +7,7 @@ import re
 import shutil
 import sys
 import time
-from typing import Any, DefaultDict, Dict, List, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 from sklearn.externals import joblib
 
@@ -148,20 +148,24 @@ def remove_prov_greater_offset(prov_annotation_list, max_offset):
             if prov_ant.start < max_offset]
 
 
-def load_cached_ebantdoc2(eb_antdoc_fn: str):
+def load_cached_ebantdoc2(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc2]:
     """Load from pickled file if file exist, otherwise None"""
 
     # if cache version exists, load that and return
     if os.path.exists(eb_antdoc_fn):
         start_time = time.time()
-        # print("before loading\t{}".format(eb_antdoc_fn))
-        eb_antdoc = joblib.load(eb_antdoc_fn)
-        # print("done loading\t{}".format(eb_antdoc_fn))
-        end_time = time.time()
-        logging.info("loading from cache: %s, took %.0f msec",
-                     eb_antdoc_fn, (end_time - start_time) * 1000)
+        try:
+            # print("before loading\t{}".format(eb_antdoc_fn))
+            eb_antdoc = joblib.load(eb_antdoc_fn)  # type: EbAnnotatedDoc2
+            # print("done loading\t{}".format(eb_antdoc_fn))
+            end_time = time.time()
+            logging.info("loading from cache: %s, took %.0f msec",
+                         eb_antdoc_fn, (end_time - start_time) * 1000)
 
-        return eb_antdoc
+            return eb_antdoc
+        except:  # failed to load cache using joblib.load()
+            logging.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.", eb_antdoc_fn)
+            return None
 
     return None
 
