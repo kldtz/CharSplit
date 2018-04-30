@@ -1,0 +1,103 @@
+import logging
+import re
+from typing import Dict, List, Pattern, Tuple
+
+from kirke.utils import ebantdoc4, ebsentutils, strutils
+
+# pylint: disable=too-few-public-methods
+class ParagraphGenerator:
+
+    def __init__(self,
+                 candidate_type: str) -> None:
+        self.candidate_type = candidate_type
+
+    # pylint: disable=too-many-locals
+    def documents_to_candidates(self,
+                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                             label: str = None)  -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                                               List[Dict],
+                                                               List[bool],
+                                                               List[int]]]:
+
+        # pylint: disable=line-too-long
+        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+        for group_id, antdoc in enumerate(antdoc_list):
+            candidates = []  # type: List[Dict]
+            label_list = []   # type: List[bool]
+            group_id_list = []  # type: List[int]
+
+            #creates list of ants for a specific provision
+            ant_list = antdoc.prov_annotation_list
+            label_ant_list = []
+            for ant in ant_list:
+                if ant.label == label:
+                    label_ant_list.append(ant)
+            nl_text = antdoc.get_nlp_text()
+
+            if group_id % 10 == 0:
+                logging.info('ContextGenerator.documents_to_candidates(), group_id = %d',
+                             group_id)
+            #finds all matches in the text and adds window around each as a candidate
+            i = 0
+            print([x[0][1] for x in antdoc.para_indices])
+            while i < len(antdoc.para_indices):
+                para = antdoc.para_indices[i]
+                match_start = para[0][1].start
+                match_end = para[-1][1].end
+                raw_start = para[0][0].start
+                raw_end = para[-1][0].end
+                para_text = nl_text[match_start:match_end].strip()
+                #print("\t>>>", para_text, "\n")
+                skipping = True
+                span_list = [x[0] for x in para]
+                while skipping and i+1 < len(antdoc.para_indices):
+                    print(antdoc.para_indices[i+1], antdoc.para_indices[i][0][1].line_num, antdoc.para_indices[i+1][0][1].line_num)
+                    next_start = antdoc.para_indices[i+1][0][1].start
+                    next_end = antdoc.para_indices[i+1][-1][1].end
+                    next_raw_end = antdoc.para_indices[i+1][-1][0].end
+                    next_text = nl_text[next_start:next_end].strip()
+                    para_end_punct = re.search(r'[;:,]', para_text[-10:])
+                    next_end_punct = re.search(r'[;,\.]', next_text[-10:])
+                    preamble = re.search(r'(now,? therefore)|(definitions)', para_text[:50], re.I)
+                    print(preamble)
+                    try:
+                        next_start_punct = re.search(r'[A-z]', next_text).group().islower()
+                    except AttributeError:
+                        next_start_punct = False
+                    print('PARA', para_text, "\n")
+                    print('NEXT', next_text, "\n")
+                    print(para_end_punct, next_end_punct, len(para_text.split()), len(next_text), next_start_punct, "\n")
+                    if (preamble == None and para_end_punct and next_end_punct and len(para_text.split()) > 1) or (not next_text) or next_start_punct:
+                        print("ADDED")
+                        para_text = para_text + " " + next_text
+                        match_end = next_end
+                        raw_end = next_raw_end
+                        span_list.extend([x[0] for x in antdoc.para_indices[i+1]])
+                        i += 1
+                    else:
+                        skipping = False
+                print("\t DONE", (match_end - match_start), (raw_end - raw_start), antdoc.get_text()[raw_start:raw_end])
+                if len(para_text.split()) > 5:
+                    is_label = ebsentutils.check_start_end_overlap(raw_start,
+                                                                   raw_end,
+                                                                   label_ant_list)
+                    #update span based on window size
+                    #print(">>>", para_text, ">>>\n")
+                    #print(">>>", antdoc.get_text()[raw_start:raw_end], "\n")
+                    a_candidate = {'candidate_type': self.candidate_type,
+                                   'bow_start': match_start,
+                                   'bow_end': match_end,
+                                   'text': para_text,
+                                   'start': raw_start,
+                                   'end': raw_end,
+                                   'unused_span_list':span_list}
+                    candidates.append(a_candidate)
+                    group_id_list.append(group_id)
+                    if is_label:
+                        a_candidate['label_human'] = label
+                        label_list.append(True)
+                    else:
+                        label_list.append(False)
+                i += 1
+            result.append((antdoc, candidates, label_list, group_id_list))
+        return result
