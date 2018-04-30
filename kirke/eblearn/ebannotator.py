@@ -193,9 +193,10 @@ class ProvisionAnnotator:
 def update_text_with_span_list(prov_annotations, doc_text):
     # print("prov_annotations: {}".format(prov_annotations))
     for ant in prov_annotations:
-        tmp_span_text_list = []
-        for span in ant['span_list']:
-            start = span['start']
-            end = span['end']
-            tmp_span_text_list.append(doc_text[start:end])
-        ant['text'] = ' '.join(tmp_span_text_list)
+        if ant.get('span_list'):  # check if the cached version is very old
+            tmp_span_text_list = []
+            for span in ant['span_list']:
+                start = span['start']
+                end = span['end']
+                tmp_span_text_list.append(doc_text[start:end])
+            ant['text'] = ' '.join(tmp_span_text_list)

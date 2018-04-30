@@ -445,7 +445,7 @@ def train_eval_annotator(provision: str,
     # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
     # using generator, instead of all loaded at once.
     X_test_antdoc_list = ebantdoc2.traindoc_list_to_antdoc_list(X_test, work_dir)
-    ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list, nbest=nbest)
+    ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
 
 
     #prints evaluation results and saves status

@@ -234,7 +234,8 @@ class EbRunner:
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         num_model = 0
 
-        cust_prov_set = set([provision for provision in provision_set if provision.startswith('cust_')])
+        cust_prov_set = set([provision for provision in provision_set
+                             if provision.startswith('cust_')])
 
         start_time_1 = time.time()
 
@@ -288,6 +289,7 @@ class EbRunner:
                 pclassifier = provision_classifier_map[provision]
                 # Make sure all xxx_annotators are really annotator, not scut_classifier
                 if isinstance(pclassifier, spanannotator.SpanAnnotator):
+                    # pylint: disable=line-too-long
                     xxx_annotator = pclassifier  # type: Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator]
                 else:
                     prov_threshold = provclassifier.get_provision_threshold(provision)
@@ -415,8 +417,11 @@ class EbRunner:
                 fromtomapper.paras_to_fromto_lists(paras_with_attrs)
 
             # there is no offset map because paraline is the same
-            self.apply_line_annotators_aux(prov_labels_map, paras_with_attrs, para_doc_text,
-                                           nlp_sx_lnpos_list, origin_sx_lnpos_list,
+            self.apply_line_annotators_aux(prov_labels_map,
+                                           paras_with_attrs,
+                                           para_doc_text,
+                                           nlp_sx_lnpos_list,
+                                           origin_sx_lnpos_list,
                                            eb_antdoc.nl_text)
         else:
             self.apply_line_annotators_aux(prov_labels_map,
@@ -562,7 +567,7 @@ class EbRunner:
                                                full_model_fname,
                                                eb_classifier,
                                                is_doc_structure=is_doc_structure,
-                                               custom_training_mode=True)
+                                               custom_training_mode=True)  # type: Tuple[Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator], Dict[str, Any]]
 
         else:
             # It is know that 'eb_annotator' is SpanAnnotator, mypy.

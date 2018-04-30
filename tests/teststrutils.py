@@ -84,5 +84,57 @@ class TestStrUtils(unittest.TestCase):
                           (75, 87, 'Partnership”'),
                           (87, 88, ')')])
 
+    def test_get_consecutive_one_char_parens_mats(self):
+        # pylint: disable=line-too-long
+        line = '1) aba bd (b) a2df'
+        mat_list = strutils.get_consecutive_one_char_parens_mats(line)
+        print("mat_list = {}".format(mat_list))
+        self.assertEqual(len(mat_list), 2)
+
+        line2 = '(a) aba bd ii) a2df'
+        mat_list2 = strutils.get_consecutive_one_char_parens_mats(line2)
+        print("mat_list2 = {}".format(mat_list2))
+        self.assertEqual(len(mat_list2), 2)
+
+        line2 = '(toma) aba bd ii) a2df'
+        mat_list2 = strutils.get_consecutive_one_char_parens_mats(line2)
+        print("mat_list2 = {}".format(mat_list2))
+        self.assertEqual(len(mat_list2), 0)
+
+    def test_nltk_span_tokenizer(self):
+        line = '1) aba Bd (b) a2df.'
+        se_tok_list = list(strutils.nltk_span_tokenize(line))
+        self.assertEqual(se_tok_list, [(0, 1, '1'), (3, 6, 'aba'), (7, 9, 'Bd'), (11, 12, 'b'), (14, 18, 'a2df')])
+
+
+    def test_find_previous_word(self):
+        line = '1) aba bd (b) a2df'
+        start, end, word = strutils.find_previous_word(line, 3)
+        self.assertEqual(word, '1')
+
+        start, end, word = strutils.find_previous_word(line, 2)
+        self.assertEqual(word, '1')
+
+        start, end, word = strutils.find_previous_word(line, 1)
+        self.assertEqual(word, '1')
+
+        start, end, word = strutils.find_previous_word(line, 0)
+        self.assertEqual(start, -1)
+
+        start, end, word = strutils.find_previous_word(line, 30)
+        self.assertEqual(start, -1)
+
+        start, end, word = strutils.find_previous_word(line, 11)
+        self.assertEqual(word, 'bd')
+
+        start, end, word = strutils.find_previous_word(line, 15)
+        self.assertEqual(word, 'b')
+
+        start, end, word = strutils.find_previous_word(line, 6)
+        self.assertEqual(word, 'aba')
+
+
+
+
 if __name__ == "__main__":
     unittest.main()

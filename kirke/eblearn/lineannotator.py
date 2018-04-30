@@ -1,8 +1,10 @@
 import logging
+from typing import Any, List, Tuple
 
-from kirke.utils import evalutils
 
-from kirke.docstruct import fromtomapper, htmltxtparser
+from kirke.utils import ebantdoc2, evalutils
+
+from kirke.docstruct import fromtomapper, htmltxtparser, linepos
 from kirke.ebrules import parties
 
 
@@ -24,7 +26,7 @@ class LineAnnotator:
     # def train(self):
     #    pass
     # pylint: disable=R0914
-    def test_antdoc_list(self, ebantdoc_list):
+    def test_antdoc_list(self, ebantdoc_list: List[ebantdoc2.EbAnnotatedDoc2]):
         logging.debug('lineannotator.test_antdoc_list')
 
         # pylint: disable=C0103
@@ -126,7 +128,9 @@ class LineAnnotator:
 
     # pylint: disable=too-many-branches
     def annotate_antdoc(self,
-                        paras_with_attrs,
+                        paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                                     str,
+                                                     List[Any]]],
                         paras_text: str,
                         fromto_mapper: fromtomapper.FromToMapper,
                         nl_text: str):

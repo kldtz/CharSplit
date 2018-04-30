@@ -4,12 +4,12 @@ import argparse
 import logging
 import re
 
-from typing import List, Match
+from typing import List, Match, Optional, Tuple
 
-from kirke.utils import engutils, strutils
+from kirke.utils import engutils, regexutils, strutils
 
 
-IS_DEBUG_MODE = False
+IS_DEBUG_MODE = True
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s : %(levelname)s : %(message)s')
 
@@ -35,39 +35,59 @@ ST_PAT_LIST = ['is made and entered into by and between',
 
 PARTY_PAT = re.compile(r'\b({})\b'.format('|'.join(ST_PAT_LIST)), re.IGNORECASE)
 
-MADE_BY_PAT = re.compile(r'\bmade.*by\b', re.IGNORECASE)
+MADE_BY_PAT = re.compile(r'\bmade(.*)by\b', re.IGNORECASE)
 CONCLUDED_PAT = re.compile(r'\bhave concluded.*agreement\b', re.IGNORECASE)
 
 THIS_AGREEMENT_PAT = re.compile(r'this.*agreement\b', re.IGNORECASE)
 
 REGISTERED_PAT = re.compile(r'\bregistered\b', re.I)
 
-ORG_SUFFIX_ST = (r' ('
-                 r'branch|ag|company|co|corp|corporation|d\.\s*a\.\s*c|inc|incorporated|llc|'
-                 r'gmbh|'
-                 r'l\.\s*l\.\s*c|ulc|'
-                 r'ltd|limited|lp|l\.\s*p|limited partnership|n\.\s*a|plc|'
-                 r'pca|pty|holdings?|'
-                 r'bank|trust|association|group|sas|s\.\s*a|sa|c\.\s*v|cv'
-                 r')\b\.?')
+def is_made_by_check(line: str) -> bool:
+    mat = MADE_BY_PAT.search(line)
+    return mat and len(mat.group(1)) < 20
+
+
+# bank is after 'n.a.' because 'bank, n.a.' is more desirable
+# 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
+# TODO, handle "The bank of Nova Scotia", this is NOT org suffix case
+# TODO, not handling 'real estate holdings fiv'
+# TODO, remove 'AS AMENDED' as a party, 'the customer'?
+# TODO, 'seller, seller' the context?
+ORG_SUFFIX_LIST = strutils.load_non_empty_str_list('dict/parties/organization.suffix.list')
+PERS_SUFFIX_LIST = strutils.load_non_empty_str_list('dict/parties/person.suffix.list')
+
+ORG_PERSON_SUFFIX_LIST = list(ORG_SUFFIX_LIST)
+ORG_PERSON_SUFFIX_LIST.extend(PERS_SUFFIX_LIST)
 
 # copied from kirke/ebrules/parties.py on 2/4/2016
-ORG_SUFFIX_PAT = re.compile(ORG_SUFFIX_ST, re.I)
-ORG_SUFFIX_END_PAT = re.compile(ORG_SUFFIX_ST + r'\s*$', re.I)
+ORG_PERSON_SUFFIX_PAT = regexutils.phrases_to_igs_pattern(ORG_PERSON_SUFFIX_LIST, re.I)
+ORG_PERSON_SUFFIX_END_PAT = \
+    re.compile(regexutils.phrases_to_igs_pattern_st(ORG_PERSON_SUFFIX_LIST) + r'\s*$', re.I)
+
+# print("org_person_suffix_pattern_st:")
+# print(regexutils.phrases_to_igs_pattern_st(ORG_PERSON_SUFFIX_LIST))
+
+def is_org_suffix(line: str) -> bool:
+    # print("is_org_suffix({})".format(line))
+    return bool(ORG_PERSON_SUFFIX_END_PAT.match(line))
+
 
 def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     """Get all org suffix matching mat extracted from line.
 
-     Because of capitalization concerns, we are making
-     a pass to make sure, it is not just 'a limited company'"""
+    Because of capitalization concerns, we are making
+    a pass to make sure, it is not just 'a limited company'
+    """
 
-    lc_mat_list = list(ORG_SUFFIX_PAT.finditer(line))
-    # print("2342 lc_mat_list = {}".format(lc_mat_list))
+    lc_mat_list = list(ORG_PERSON_SUFFIX_PAT.finditer(line))
     result = []  # type: List[Match[str]]
     for lc_mat in lc_mat_list:
-        # we need the strip because we might have prefix space
-        if lc_mat.group().strip()[0].isupper():
-            result.append(lc_mat)
+        prev_space_idx = lc_mat.start() -1
+        # the previous word must be capitalized
+        pword_start, pword_end, pword = strutils.find_previous_word(line, prev_space_idx)
+        if pword_start != -1:
+            if pword[0].isupper():
+                result.append(lc_mat)
 
     # when there is adjcent ones, take the last one
     # 'xxx Group, Ltd.', will return 'ltd'
@@ -77,20 +97,103 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     # the previous mat, we can add previous mat.
     # Remember the last one.
     for amat in result:
-        # print('amt = ({}, {}) {}'.format(amat.start(), amat.end(), amat.group()))
         # 2 is chosen, just in case, normally the diff is 1
         if prev_mat and amat.start() - prev_mat.end() > 2:
             result2.append(prev_mat)
         prev_mat = amat
     if prev_mat:
         result2.append(prev_mat)
-
-    #if IS_DEBUG_MODE:
-    #    print()
-    #    for i, mat in enumerate(result2):
-    #        print("mat #{}: {}".format(i, mat))
-    #    print()
     return result2
+
+
+def find_uppercase_party_name(line: str) \
+    -> Optional[Tuple[Tuple[int, int], int]]:
+    found_party_se_other = find_first_non_title_and_org(line)
+    if found_party_se_other:
+        (party_start, party_end), other_start = found_party_se_other
+        party_st = line[party_start:party_end]
+        # sometimes the party_st might have address info, so remove
+        # if possible
+        org_suffix_mat_list = get_org_suffix_mat_list(party_st)
+        if org_suffix_mat_list:
+            # found an org suffix, chop it off
+            # "Business Marketing Services, Inc, One Broadway Street,", 37231.txt
+            # last_org_suffix_mat = org_suffix_mat_list[-1]
+            # party_end = party_start + last_org_suffix_mat.end()
+            first_org_suffix_mat = org_suffix_mat_list[0]
+            party_end = party_start + first_org_suffix_mat.end()
+            other_start = strutils.find_next_not_space_idx(line, party_end)
+            return (party_start, party_end), other_start
+        else:
+            # 'Johnson & Johnson', without corp suffix, or a person's name
+            return (party_start, party_end), other_start
+
+    return None
+
+
+def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], int]]:
+    """Find the first non-title and non-org word.
+
+    The string might have "and", such as "Johnson and Johnson Inc", or
+    has digit, "Apartment 3 corp".  Needs to jump to the end of both.
+
+    Return the start, end of company name, followed by the start of the rest of the line
+    """
+    prev_end = -1
+    maybe_se_other_start = None
+    other_word_idx, other_word = -1, ''
+    se_word_list = list(strutils.nltk_span_tokenize(line))
+    for i, (start, end, word) in enumerate(se_word_list):
+        if word.islower() and not is_org_suffix(word):
+            maybe_se_other_start = 0, prev_end, start
+            other_word_idx, other_word = i, word
+            break
+        # if this is an abbreviation with a period, we will
+        # take the period
+        if len(word) == 1 and \
+           end < len(line) and \
+           line[end] == '.':
+            prev_end = end + 1
+        else:
+            prev_end = end
+
+    # cannot find begin title
+    if prev_end == -1:
+        return None
+    elif not maybe_se_other_start:  # the whole line has istitle()
+        return (0, prev_end), prev_end
+
+    fx_start, fx_end, other_start = maybe_se_other_start
+
+    if IS_DEBUG_MODE:
+        after_line = line[other_start:]
+        print('after_line = [{}]'.format(after_line))
+
+    if re.match(r'\band\b', other_word, re.I) or strutils.is_digits(other_word):
+        if other_word_idx + 1 < len(se_word_list):
+            other_start = se_word_list[other_word_idx+1][0]  # the start of the first word after 'and'
+
+            prev_end = se_word_list[other_word_idx][1]  # the end of the 'and'
+            for sc_start, sc_end, word in se_word_list[other_word_idx+1:]:
+                if word.islower() and not is_org_suffix(word):
+                    return (0, prev_end), sc_start
+                prev_end = sc_end
+
+            # reaching here means the whole line is istitle()
+            return (0, prev_end), prev_end
+
+        else:  # there is no more words, return everything befefore 'and'
+            return (0, prev_end), prev_end
+    # if want to handle "Citibank, n.a.", can do it here
+    # by regex matching
+    elif ORG_PERSON_SUFFIX_PAT.match(after_line):
+        # do matching again, this will be rare, tolerate the cost
+        mat = ORG_PERSON_SUFFIX_PAT.match(after_line)
+        prev_end = other_start + mat.end()
+        other_start = strutils.find_next_not_space_idx(line, prev_end+1)
+
+    return (0, prev_end), other_start
+
 
 
 # all those heuristics didn't work.
@@ -102,10 +205,11 @@ def is_party_line(line: str,
                   num_long_english_line: int = -1) -> bool:
 
     # print("is_party_line({})".format(line))
-    #print("  ln_nempty_toc = {}, eng = {}, num_sechead = {}, num_date = {}".format(line_notoc_empty,
-    #                                                         num_long_english_line,
-    #                                                         num_sechead,
-    #                                                         num_date))
+    # print("  ln_nempty_toc = {}, eng = {}, num_sechead = {}, num_date = {}"\
+    #       .format(line_notoc_empty,
+    #               num_long_english_line,
+    #               num_sechead,
+    #               num_date))
     if num_long_english_line > 10:
         return False
 
@@ -115,30 +219,23 @@ def is_party_line(line: str,
         print('branch {}, line = [{}]'.format(result, line))
 
     # do some extra verfication
-    # a party line must starts with 1) a) or i) 'l' is for bad OCR 1's
     if result.startswith('T'):   # result:
-        if re.match(r'\(\S\)', line):
-            # (a) EAch three (3)
-            parens1_mat_list = strutils.get_consecutive_one_char_parens_mats(line)
-
-            if parens1_mat_list:
+        mat = re.match(r'\(?(\S)\)', line)
+        if mat:
+            # a party line must starts with 1) a) or i) 'l' is for bad OCR 1's
+            if mat.group(1) in '1ailA':
                 return True
-
-            parens1_mat_list = strutils.get_one_char_parens_mats(line)
-
-            if len(parens1_mat_list) == 1:
-                return bool(re.match(r'\(?\s*(1|a|i|l)\s*\)', line, re.I))
-
-            # if has one than 1 parens1_mat, should have pass the consecutive test before
             return False
 
     if result.startswith('T'):
         return True
+
     return False
-    # return result
+
 
 # pylint: disable=too-many-return-statements, too-many-branches
 # for debug purpose, return str of 'True\d', or 'False\d'
+# pylint: disable=too-many-statements
 def is_party_line_aux(line: str) -> str:
 
     # this is not a party line due to the words used
@@ -157,7 +254,8 @@ def is_party_line_aux(line: str) -> str:
 
     # 2/7/2018
     # only impacted 3 files, but negatively on F1
-    # if re.search(r'\b(i\s+confirm|signing|i\s+acknowledge|following\s+(meaning|definition)s?)\b', line, re.I):
+    # if re.search(r'\b(i\s+confirm|signing|i\s+acknowledge|following\s+(meaning|definition)s?)\b',
+    #              line, re.I):
     #    return 'False3'
 
     # 2/6/2018, uk/file3.txt, multiple parties got mentioned and registered, but not a party line
@@ -175,16 +273,20 @@ def is_party_line_aux(line: str) -> str:
         return 'False4.1'
 
     # PROMISSORY NOTE ... IS SUBJECT TO XXX AGREEMENT
-    if is_all_upper_words and re.search('is\s+subject\s+to', line, re.I):
+    if is_all_upper_words and re.search(r'is\s+subject\s+to', line, re.I):
         return 'False4.2'
 
     if re.search(r'terms?\s+and\s+conditions?', line, re.I):
         return 'False4.3'
 
+    if re.search(r'should have', line, re.I):
+        return 'False4.3.1'
+
     #returns true if bullet type, and a real line
     # if re.match(r'\(?[\div]+\)', line) and len(line) > 60:
-    mat = re.match(r'\(?\s*(1|a|i|l)\s*\)\s*(.*)', line, re.I)
-    if mat and len(line) > 60:
+    # this has too many False positives
+    # mat = re.match(r'\(?\s*(1|a|i|l)\s*\)\s*(.*)', line, re.I)
+    # if mat and len(line) > 60:
         # TODO, jshaw, 36820.txt  Rediculous way of formatting
         # need to pass line number in to disable this aggressive matching
         # will fix later.  Not happening in PDF docs?
@@ -198,7 +300,7 @@ def is_party_line_aux(line: str) -> str:
         #   not (suffix_mat.group(1).startswith('A') or
         #        suffix_mat.group(1).startswith('1')):
         #    return 'False1'
-        return 'True5'
+    #    return 'True5'
 
     # Party A: xxx,
     # Party B:
@@ -210,7 +312,7 @@ def is_party_line_aux(line: str) -> str:
         return 'True7'
 
     # this is from a title line, not a party line
-    if len(line) < 200 and ORG_SUFFIX_END_PAT.search(line) and line.strip()[-1] != '.':
+    if len(line) < 200 and ORG_PERSON_SUFFIX_END_PAT.search(line) and line.strip()[-1] != '.':
         return 'False8'
 
     # Removed.  This turns out to be false for UK document multiple times.
@@ -295,8 +397,8 @@ def is_party_line_aux(line: str) -> str:
     # assigns lease to
     if 'assign' in lc_line and 'lease to' in lc_line:
         return 'True25'
-    if MADE_BY_PAT.search(line) and ('day' in lc_line or
-                                     'date' in lc_line):
+    if is_made_by_check(line) and ('day' in lc_line or
+                                   'date' in lc_line):
         return 'True26'
     if CONCLUDED_PAT.search(line):
         return 'True27'

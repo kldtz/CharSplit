@@ -13,6 +13,14 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
+# pylint: disable=too-few-public-methods
+class NoDefaultDate(object):
+
+    # pylint: disable=no-self-use
+    def replace(self, **fields) -> Dict:
+        return fields
+
+
 class DateNormalizer(DocCandidatesTransformer):
 
     def __init__(self) -> None:
@@ -532,14 +540,6 @@ class DateAnnotator:
                                   paras_with_attrs: List[Tuple[str, List[str]]],
                                   paras_text: str):
         return extract_offsets(paras_with_attrs, paras_text)
-
-
-# pylint: disable=too-few-public-methods
-class NoDefaultDate(object):
-
-    # pylint: disable=no-self-use
-    def replace(self, **fields) -> Dict:
-        return fields
 
 
 def get_last_day_of_month(year: int, month: int) -> int:

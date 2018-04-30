@@ -1,17 +1,39 @@
 import os
 import re
 import sys
-from typing import List
+from typing import Any, List, Tuple
 
-from kirke.docstruct import docstructutils, footerutils, partyutils, secheadutils
-from kirke.utils import ebsentutils, engutils, mathutils, strutils, txtreader
+from kirke.docstruct import footerutils, partyutils, secheadutils
+from kirke.utils import ebsentutils, engutils, strutils, txtreader
 
 from kirke.docstruct import linepos
-                                       
+
 DEBUG_MODE = False
 
-def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_line=True):
-    lineinfo_list = []
+
+# pylint: disable=too-many-locals
+def htmltxt_to_lineinfos_with_attrs(file_name: str,
+                                    # pylint: disable=unused-argument
+                                    lineinfo_fname: str = '',
+                                    is_combine_line: bool = True) \
+                                    -> Tuple[List[Tuple[Tuple[int, int],
+                                                        Tuple[int, int],
+                                                        str,
+                                                        List[Any]]],
+                                             str]:
+    """Convert a text into lineinfos_with_attrs.
+
+    Returns
+       1. lineinfo_list.append(((start, end),
+                                (to_offset, to_offset + len(line)),
+                                line,
+                                attr_list))
+       2. text
+
+    attr_list is usually a 'str', but sometimes (sechead_type, prefix_num, sec_head, split_idx)
+    """
+    # pylint: disable=line-too-long
+    lineinfo_list = []  # type: List[Tuple[Tuple[int, int], Tuple[int, int], str, List[Any]]]
     split_idx = -1
     to_offset = 0
 
@@ -20,7 +42,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
     # But handling this issue causes a lot of complications in extraction section head
     prev_nonempty_line, prev_line_idx = '', -1
     for start, end, line in txtreader.load_normalized_lines_with_offsets(file_name):
-        attr_list = []
+        attr_list = []  # type: List[Any]
         is_pagenum_line = False
         if start != end:
             if footerutils.classify_line_page_number(line):
@@ -30,8 +52,11 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
                 prev_nonempty_line = ''
             else:
                 sechead_type, prefix_num, sec_head, split_idx = \
-                        secheadutils.extract_sechead_v4(line, prev_nonempty_line, prev_line_idx, is_combine_line=is_combine_line)
-
+                    secheadutils.extract_sechead_v4(line,
+                                                    prev_nonempty_line,
+                                                    prev_line_idx,
+                                                    is_combine_line=is_combine_line)
+                # pylint: disable=pointless-string-statement
                 """
                 print("secheadutils.extract_sechead_v4(ln={}, prv={}, prv_idx={}, iscomb={})".format(line,
                                                                                                      prev_nonempty_line,
@@ -85,7 +110,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
                                           second_line,
                                           []))
                     to_offset += len(second_line) + 1
-                    prev_output_line = second_line                    
+                    prev_output_line = second_line
             else:  # no attr_list, but maybe a page number
                 # print("{}\t{}\t[{}]".format(start, end, line))
                 if is_pagenum_line:
@@ -106,7 +131,8 @@ def htmltxt_to_lineinfos_with_attrs(file_name, lineinfo_fname=None, is_combine_l
                 to_offset += 1
                 prev_output_line = ''
 
-    doc_lines = [line for _, _, line, _ in lineinfo_list]
+    doc_lines = [line for unused_fromx, unuused_tox, line, unused_attrlist
+                 in lineinfo_list]
     doc_text = '\n'.join(doc_lines)
 
     return lineinfo_list, doc_text
@@ -136,6 +162,7 @@ def get_sechead_attr(attr_list):
 # and remove pagenum.
 # TODO, Should add footer and header in the future.
 # But such info only available in PDF files.
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def lineinfos_to_paras(lineinfos):
     # make a list of iterators,
     # will be easier to remove pagenum
@@ -149,6 +176,7 @@ def lineinfos_to_paras(lineinfos):
     prev_notempty_line, prev_attr_list = 'Not Empty Line.', []
     gap_span_list = []
     prefix = 'fake_prefix'
+    # pylint: disable=too-many-nested-blocks
     for i, linfo in enumerate(tmp_list):
         (start, end), (_, _), line, attr_list = linfo
         # print('line #{}\t[{}]'.format(i, line))
@@ -175,11 +203,11 @@ def lineinfos_to_paras(lineinfos):
                     if i + 1 < len_tmp_list:
                         _, _, next_line, _ = tmp_list[i+1]
                         if next_line:
-                            next_notempty_line = next_line
+                            unused_next_notempty_line = next_line
                         else:
                             omit_list.append(i+1)
                             if i + 2 < len_tmp_list:
-                                _, _, next_notempty_line, _ = tmp_list[i+2]
+                                _, _, unused_next_notempty_line, _ = tmp_list[i+2]
                         ## if really end of sentence and have any line break
                         ## leave 1 empty line break in.
                         #if prev_notempty_line[-1] in set(['.', '?', '!', '_', ':']) and omit_list:
@@ -189,11 +217,12 @@ def lineinfos_to_paras(lineinfos):
                         # print('prev_notempty_line = [{}]'.format(prev_notempty_line))
                         # scccccc
                         # xxx failed
+                        # pylint: disable=line-too-long
                         # diff dir-data/40213.clean.txt.lineinfo.paras /tmp/40213.clean.txt.lineinfo.paras
                         if omit_list and has_sechead_attr(prev_attr_list):
                             omit_line_set.add(omit_list[0])
-                        elif (strutils.is_all_alphas(prev_notempty_line[-1]) or
-                            prev_notempty_line[-1] in set([',', '-'])):
+                        elif strutils.is_all_alphas(prev_notempty_line[-1]) or \
+                             prev_notempty_line[-1] in set([',', '-']):
                             omit_line_set |= set(omit_list)
                         elif omit_list:
                             omit_line_set.add(omit_list[0])
@@ -201,19 +230,22 @@ def lineinfos_to_paras(lineinfos):
                     pass
                 else:
                     # "cur_attr" is how sechead info is distribute to the lines below it.
-                    sec_type, prefix, head, _ = attr
+                    unused_sec_type, prefix, unused_head, _ = attr
                     cur_attr = [attr]
                     # omit_line_set.add(i)
         else:  # attr_list is empty
-            # "interactive Intell SOW CNG 000 Child.pdf" failed the "not prev_line" test.
-            # need to compute the ydiff, and somehow add line breaks to lineinfos (not in file, but only in memory).
-            # if not prev_line and prefix == 'toc':  # we don't continue TOC, if previous prefix is toc
+            # "interactive Intell SOW CNG 000 Child.pdf" failed the "not prev_line"
+            # test.
+            # need to compute the ydiff, and somehow add line breaks to lineinfos
+            # (not in file, but only in memory).
+            # if not prev_line and prefix == 'toc':  # we don't continue TOC, if
+            # previous prefix is toc
             if prefix == 'toc':  # there is no attribute, we don't continue 'toc'
                 cur_attr = []
 
         if not prev_line and not line:
             omit_line_set.add(i)
-            
+
         tmp2_list.append((start, end, line, cur_attr))
         prev_line = line
         prev_attr_list = attr_list
@@ -232,7 +264,8 @@ def lineinfos_to_paras(lineinfos):
             # the same as in pdftxtparser.  In pdftxtparser, not_empty_line_num
             # always increases even for page_num, which is a gap line.
             # In here, that seems to be not true.  When there is a gap line,
-            # the result should still add it, with (same start, end=start, line_num=prev_line_num+1, gap=True)
+            # the result should still add it, with
+            # (same start, end=start, line_num=prev_line_num+1, gap=True)
             from_lpos = linepos.LnPos(start, end, non_empty_line_num)
             to_lpos = linepos.LnPos(out_offset, out_offset + len(line), non_empty_line_num)
             if line:
@@ -249,16 +282,18 @@ def lineinfos_to_paras(lineinfos):
                 # result.append(((start, end), (out_offset, out_offset + len(line)), line, []))
                 result.append((span_frto_list, line, []))
             out_offset += len(line) + 1
-            
+
     doc_lines = [line for _, line, _ in result]
     doc_text = '\n'.join(doc_lines)
 
     return result, doc_text, gap_span_list
 
 
-witness_pat = re.compile(r'(w i t n e s s e t h|witnesseth|recitals?\:?|r e c i t a l( s)?(\s*\:)?)', re.IGNORECASE)
+# pylint: disable=line-too-long
+WITNESS_PAT = re.compile(r'(w i t n e s s e t h|witnesseth|recitals?\:?|r e c i t a l( s)?(\s*\:)?)',
+                         re.IGNORECASE)
 # 'background statement'
-whereas_pat = re.compile(r'^\s*(whereas|background)', re.IGNORECASE)
+WHEREAS_PAT = re.compile(r'^\s*(whereas|background)', re.IGNORECASE)
 
 def mark_attrs(para_attr_list, begin_idx, end_idx, attr, ignore_if_tag=None):
     if end_idx <= begin_idx:
@@ -275,7 +310,7 @@ def mark_title_attrs(para_attr_list, begin_idx, end_idx, lc_party_line):
         return
     for i, (line, attr_list) in enumerate(para_attr_list):
         if i >= begin_idx and i < end_idx:
-            if line and re.sub(r'\s+', ' ', line.lower()) in re.sub(r'\s+', ' ',lc_party_line):
+            if line and re.sub(r'\s+', ' ', line.lower()) in re.sub(r'\s+', ' ', lc_party_line):
                 attr_list.append('title')
         elif i >= end_idx:
             return
@@ -331,7 +366,7 @@ def mark_toc_aux(para_attr_list):
 
 
 def mark_toc(para_attr_list):
-    for i, (line, attr_list) in enumerate(para_attr_list):
+    for i, (unused_line, attr_list) in enumerate(para_attr_list):
         if 'toc' in attr_list:
             toc_start_idx = i
             toc_last_idx = mark_toc_aux(para_attr_list[i+1:])
@@ -339,26 +374,30 @@ def mark_toc(para_attr_list):
     return -1, -1
 
 
-def find_previous_sechead(para_attr_list, idx):
+def find_previous_sechead(para_attr_list: List[Tuple[str, List[str]]],
+                          idx: int) \
+                          -> int:
     while idx >= 0:
-        line, attr_list = para_attr_list[idx]
+        unused_line, attr_list = para_attr_list[idx]
         if 'sechead' in attr_list:
             return idx
         idx -= 1
     return -1
 
 
-def find_previous_notempty_line(para_attr_list, idx):
+def find_previous_notempty_line(para_attr_list: List[Tuple[str, List[str]]],
+                                idx: int) \
+                                -> int:
     idx -= 1
     while idx >= 0:
-        line, attr_list = para_attr_list[idx]
+        line, unused_attr_list = para_attr_list[idx]
         if line:
             return idx
         idx -= 1
     return -1
 
 
-def maybe_adjust_toc_last_recital(para_attr_list, toc_last_idx,  party_line_idx):
+def maybe_adjust_toc_last_recital(para_attr_list, toc_last_idx, party_line_idx):
     prev_sechead_idx = find_previous_notempty_line(para_attr_list, party_line_idx)
     if prev_sechead_idx != -1:
         line, attr_list = para_attr_list[prev_sechead_idx]
@@ -372,11 +411,12 @@ def maybe_adjust_toc_last_recital(para_attr_list, toc_last_idx,  party_line_idx)
     return toc_last_idx
 
 
-# toc_last_idx = mabye_adjust_toc_last(para_attr_list, toc_last_idx + 1,  party_line_idx)
+# toc_last_idx = mabye_adjust_toc_last(para_attr_list, toc_last_idx + 1, party_line_idx)
 def maybe_adjust_toc_last(para_attr_list, toc_last_idx, party_line_idx):
 
     prev_sechead_idx = find_previous_notempty_line(para_attr_list, party_line_idx)
 
+    # pylint: disable=too-many-nested-blocks
     if prev_sechead_idx != -1:
         line, attr_list = para_attr_list[prev_sechead_idx]
         party_line, _ = para_attr_list[party_line_idx]
@@ -417,6 +457,7 @@ def find_sechead_toc(para_attr_list):
     num_consecutive_sechead = 0
     max_consecutive_sechead = 0
     max_consecutive_start_idx = -1
+    consecutive_start_idx = -1
     for line_idx, (line, attr_list) in enumerate(para_attr_list):
         if line:
             if 'sechead' in attr_list:
@@ -449,10 +490,13 @@ def find_sechead_toc(para_attr_list):
     return -1, -1
 
 # this is called by eblearn/lineannotator.py
-def lineinfos_paras_to_attr_list(lineinfos_paras):
-    para_attr_list = []
+def lineinfos_paras_to_attr_list(lineinfos_paras: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                                             str,
+                                                             List[Any]]]) \
+    -> List[Tuple[str, List[str]]]:
+    para_attr_list = []  # type: List[Tuple[str, List[str]]]
     prev_out_line = ''
-    found_witness = False   # never changed.
+    # found_witness = False   # never changed.
     found_toc = False
     toc_last_idx, party_line_idx, witness_start_idx = -1, -1, -1
     date_line_idx, first_eng_para_idx = -1, -1
@@ -490,24 +534,29 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
 
         if first_eng_para_idx == -1 and \
            'yes_eng' in attr2_list and \
-           not 'skip_as_template' in attr2_list and \
+           'skip_as_template' not in attr2_list and \
            not re.search(r'the\s+Securities\s+and\s+Exchange\s+Commission',
                          line, re.I) and \
            len(line) > 110:
             attr2_list.append('first_eng_para')
             first_eng_para_idx = line_idx
 
+        if partyutils.is_party_line(line, num_long_english_line):
+            print("iiiiiiiiiiiiiiiiiii is_party_line")
+        else:
+            print("jjj not is_party_line")
         #print('num_english_line = {}, nun_sechead = {}'.format(num_english_line,
         #                                                       num_sechead), end='')
         # print("num_date = {}".format(num_date))
-        if (party_line_idx == -1 and
-            not 'skip_as_template' in attr2_list and
-            partyutils.is_party_line(line,
-                                     num_long_english_line) and
-            (first_eng_para_idx == -1 or
-             found_toc or
-             # it was 10 before
-             abs(first_eng_para_idx - line_idx) < 40)):
+        # pylint: disable=too-many-boolean-expressions
+        if party_line_idx == -1 and \
+           'skip_as_template' not in attr2_list and \
+           partyutils.is_party_line(line, num_long_english_line) and \
+           (first_eng_para_idx == -1 or \
+            num_long_english_line < 2 or  # add some breadthing room for cover page
+            found_toc or \
+            # it was 10 before
+            abs(first_eng_para_idx - line_idx) < 40):
 
             # print("adding party line jjjjj, [{}]".format(line))
             # print("is party? {}".format(partyutils.is_party_line(line)))
@@ -517,7 +566,7 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
 
         sechead_attr = ebsentutils.get_sechead_attr(attr_list)
         if sechead_attr:
-            sechead_type, prefix_num, head, split_idx = sechead_attr
+            unused_sechead_type, prefix_num, head, unused_split_idx = sechead_attr
             tmp_outline = '[{}]\t[{}]'.format(prefix_num, head)
             if tmp_outline != prev_out_line:
                 if prefix_num == 'toc':
@@ -526,11 +575,12 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
                     toc_idx = line_idx
                 attr2_list.append('sechead')
                 prev_out_line = tmp_outline
-            elif tmp_outline == prev_out_line and prefix_num == 'toc':  # it's possible to have mutlipe adjacents toc lines
+            # it's possible to have mutlipe adjacents toc lines
+            elif tmp_outline == prev_out_line and prefix_num == 'toc':
                 attr2_list.append('toc')
 
         #if not found_witness:
-        if witness_pat.match(line) or whereas_pat.search(line):
+        if WITNESS_PAT.match(line) or WHEREAS_PAT.search(line):
             attr2_list.append('preamble')
             if witness_start_idx == -1:
                 witness_start_idx = line_idx
@@ -552,15 +602,18 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
     # print('party_line_idx = {}'.format(party_line_idx))
     # print('first_eng_para_idx = {}'.format(first_eng_para_idx))
 
-    # in case there the last line of TOC, 'xxx agreement" is a part of the party_line, "This xxx agreement"
+    # in case there the last line of TOC, 'xxx agreement" is a part of the party_line,
+    # "This xxx agreement"
     if party_line_idx != -1:
-        toc_last_idx = maybe_adjust_toc_last(para_attr_list, toc_last_idx,  party_line_idx)
+        toc_last_idx = maybe_adjust_toc_last(para_attr_list, toc_last_idx, party_line_idx)
 
     # adjust toc_last_idx iff previous line is 'preamble'
     if party_line_idx != -1:
-        toc_last_idx = maybe_adjust_toc_last_recital(para_attr_list, toc_last_idx,  party_line_idx)
+        toc_last_idx = maybe_adjust_toc_last_recital(para_attr_list, toc_last_idx, party_line_idx)
     elif first_eng_para_idx != -1:
-        toc_last_idx = maybe_adjust_toc_last_recital(para_attr_list, toc_last_idx,  first_eng_para_idx)
+        toc_last_idx = maybe_adjust_toc_last_recital(para_attr_list,
+                                                     toc_last_idx,
+                                                     first_eng_para_idx)
 
     if toc_last_idx != -1 and party_line_idx != -1:
         mark_attrs(para_attr_list, toc_last_idx + 1, party_line_idx, 'maybe_title')
@@ -577,13 +630,15 @@ def lineinfos_paras_to_attr_list(lineinfos_paras):
 
 # 'is_combine_line' indicates if the system combines line when doing sechead identification
 # for HTML docs, this shoulbe True.  For PDF documents, this should be False.
+# pylint: disable=too-many-locals
 def parse_document(file_name, work_dir, is_combine_line=True):
     debug_mode = False
 
     base_fname = os.path.basename(file_name)
     orig_doc_text = txtreader.loads(file_name)
 
-    lineinfos_with_attrs, lineinfo_doc_text = htmltxt_to_lineinfos_with_attrs(file_name, is_combine_line=is_combine_line)
+    lineinfos_with_attrs, unused_lineinfo_doc_text = \
+        htmltxt_to_lineinfos_with_attrs(file_name, is_combine_line=is_combine_line)
     if debug_mode:
         lineinfo_fname = '{}/{}.lineinfo.v1'.format(work_dir, base_fname).replace('.txt', '')
         with open(lineinfo_fname, 'wt') as fout:
@@ -594,7 +649,7 @@ def parse_document(file_name, work_dir, is_combine_line=True):
 
     lineinfos_paras, paras_doc_text, gap_span_list = \
              lineinfos_to_paras(lineinfos_with_attrs)
-
+    # pylint: disable=pointless-string-statement
     """
     tmp_lineinfo_fname = '{}/{}.lineinfo.tmp_paras'.format(work_dir, base_fname).replace('.txt', '')
     with open(tmp_lineinfo_fname, 'wt') as fout:
@@ -640,7 +695,7 @@ def parse_document(file_name, work_dir, is_combine_line=True):
                 if sechead_attr:
                     # sechead_attr = attr_list[0]
                     to_sechead_st = paras_doc_text[to_start:to_end]
-                    sechead_type, prefix_num, head, split_idx = sechead_attr
+                    unused_sechead_type, prefix_num, head, split_idx = sechead_attr
                     out_line = '<{}>\t{}\t{}\t{}'.format(to_sechead_st, prefix_num, head, split_idx)
                     tmp_outline = '[{}]\t[{}]'.format(prefix_num, head)
                     if tmp_outline != prev_out_line:

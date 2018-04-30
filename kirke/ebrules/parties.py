@@ -1,16 +1,24 @@
 # pylint: disable=too-many-lines
 import itertools
+import logging
 import re
 import string
 from typing import List, Match, Optional, Tuple
 
 # from nltk.tokenize import sent_tokenize
 
+from kirke.docstruct import partyutils
 from kirke.ebrules import titlesold, addresses
 from kirke.utils import strutils
 
+
 IS_DEBUG_DISPLAY_TEXT = False
-IS_DEBUG_MODE = False
+IS_DEBUG_MODE = True
+
+
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # IS_DEBUG_DISPLAY_TEXT = True
 # IS_DEBUG_MODE = True
@@ -45,7 +53,6 @@ DOT_SPACE = re.compile(r'[\.\s]+')
 def cap_rm_dot_space(astr: str) -> str:
     """Allows comparison between different cases (e.g. L.L.C. and Llc)."""
     return DOT_SPACE.sub('', astr.strip().upper())
-
 
 with open(DATA_DIR + 'states.list') as f:
     STATES = [cap_rm_dot_space(state) for state in f.read().splitlines()]
@@ -196,10 +203,11 @@ def zipcode_remove(grps):
             grps[i] = terms_before + new_parts
     return grps
 
-# returns: [['TUP, LLC', '(hereinafter called "Landlord”)'], ['CERTIFIED DIABETIC SERWCES, INC.',
-#                                                             '(hereinafter called "Tenant”)']]
+# returns: [['TUP, LLC', '(hereinafter called "Landlord”)'],
+#           ['CERTIFIED DIABETIC SERWCES, INC.', '(hereinafter called "Tenant”)']]
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-def extract_between_among(astr: str, is_party: bool = True) -> List[List[str]]:
+def extract_between_among(astr: str, is_party: bool = True) \
+    -> List[List[str]]:
     """Return parties for party lines containing either 'between' o[List[str]]r 'among'."""
     astr = astr.split('between')[-1].split('among')[-1]
 
@@ -320,62 +328,11 @@ A_COMPANY_PAT = re.compile(r',? ((an?\s+(company|individual|business))|whose) ',
 AND_PAT = re.compile(r' and,? ', re.I)
 PARENS_PAT = re.compile(r'\(([^\(]+)\)')
 
-# bank is after 'n.a.' because 'bank, n.a.' is more desirable
-# 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
-# TODO, handle "The bank of Nova Scotia", this is NOT org suffix case
-# TODO, not handling 'real estate holdings fiv'
-# TODO, remove 'AS AMENDED' as a party, 'the customer'?
-# TODO, 'seller, seller' the context?
-ORG_SUFFIX_PAT = re.compile(r' ('
-                            r'branch|ag|company|co|corp|corporation|d\.\s*a\.\s*c|inc|'
-                            r'incorporated|llc|gmbh|foundation|enterprises?|'
-                            r'l\.\s*l\.\s*c|ulc|'
-                            r'ltd|limited|lp|l\.\s*p|limited partnership|n\.\s*a|plc|'
-                            r's\.\s*r\.\s*l|'
-                            r'pca|pty|holdings?|hospital|'
-                            r'bank|trust|association|group|sas|s\.\s*a|sa|c\.\s*v|cv'
-                            r')\b\.?',
-                            re.I)
-
 # for Spanish org names
 ORG_PREFIX_PAT = re.compile(r'\b(asociacion|hospital)\.?', re.I)
 
-def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
-    """Get all org suffix matching mat extracted from line.
 
-     Because of capitalization concerns, we are making
-     a pass to make sure, it is not just 'a limited company'"""
 
-    lc_mat_list = list(ORG_SUFFIX_PAT.finditer(line))
-    # print("2342 lc_mat_list = {}".format(lc_mat_list))
-    result = []  # type: List[Match[str]]
-    for lc_mat in lc_mat_list:
-        # we need the strip because we might have prefix space
-        if lc_mat.group().strip()[0].isupper():
-            result.append(lc_mat)
-
-    # when there is adjcent ones, take the last one
-    # 'xxx Group, Ltd.', will return 'ltd'
-    prev_mat = None
-    result2 = [] # type: List[Match[str]]
-    # Only if we now that the current mat is not adjacent to
-    # the previous mat, we can add previous mat.
-    # Remember the last one.
-    for amat in result:
-        # print('amt = ({}, {}) {}'.format(amat.start(), amat.end(), amat.group()))
-        # 2 is chosen, just in case, normally the diff is 1
-        if prev_mat and amat.start() - prev_mat.end() > 2:
-            result2.append(prev_mat)
-        prev_mat = amat
-    if prev_mat:
-        result2.append(prev_mat)
-
-    #if IS_DEBUG_MODE:
-    #    print()
-    #    for i, mat in enumerate(result2):
-    #        print("mat #{}: {}".format(i, mat))
-    #    print()
-    return result2
 
 def is_all_less_3char_words(term: str) -> bool:
     words = list(re.findall(r'\w+', term))
@@ -460,7 +417,7 @@ def get_title_phrase_list(line: str,
     # There might be other cases, with all personal names in title_phrases
     # where this check is not useful.  Might need to explore further about
     # checking for all_upper_case
-    num_org_suffix = len(get_org_suffix_mat_list(line))
+    num_org_suffix = len(partyutils.get_org_suffix_mat_list(line))
     if is_all_upper and len(title_phrase_list) < num_org_suffix:
         return []
 
@@ -486,6 +443,7 @@ def get_title_phrase_list(line: str,
 
 def get_itemized_entity_span_list(line: str) -> List[Tuple[Tuple[int, int, str],
                                                            Tuple[int, int, str]]]:
+    print("get_itemized_entity_span_list({})".format(line))
     parens1_mat_list = strutils.get_consecutive_one_char_parens_mats(line)
 
     len_line = len(line)
@@ -888,7 +846,7 @@ def select_highly_likely_parties(entities: List[Tuple[int, int, str]],
         # anything that's has org suffix, add it
         if re.search(r'\b(law|code)$', entity_st, re.I):
             pass
-        elif ORG_SUFFIX_PAT.search(entity_st):
+        elif partyutils.ORG_PERSON_SUFFIX_PAT.search(entity_st):
             # print('last word = [{}], entity_st = [{}]'.format(last_word, entity_st))
             # a Delaware Corporation (bad capitalization),
             # a Limited Liability company (bad capitalization also?)
@@ -955,7 +913,7 @@ def extract_party_defined_term_list(line: str) \
     else:
         # try with all entities in upper()
         entities = get_title_phrase_list(line, is_all_upper=True)
-        num_org_suffix = len(get_org_suffix_mat_list(line))
+        num_org_suffix = len(partyutils.get_org_suffix_mat_list(line))
 
         if IS_DEBUG_MODE:
             print_debug_list(entities, 'zz', title='before_remove_invalid')
@@ -1230,12 +1188,48 @@ def is_end_party_list(line: str, attrs: List[str]) -> bool:
 
 # pylint: disable=invalid-name
 def get_next_not_empty_se_paras_list(se_paras_attr_list: List[Tuple[int, int, str, List[str]]],
-                                     i: int) -> Optional[Tuple[int,
-                                                               Tuple[int, int, str, List[str]]]]:
+                                     i: int) \
+                                     -> Optional[Tuple[int,
+                                                       Tuple[int, int, str, List[str]]]]:
     if i < len(se_paras_attr_list):
         for jnum, se_paras_attr in enumerate(se_paras_attr_list[i+1:], i+1):
-            _, _, line_st, unused_para_attrs = se_paras_attr
+            _, _, line_st, para_attrs = se_paras_attr
             if line_st.strip():
+                words = strutils.get_regex_wwplus(line_st)
+                print("words = [{}]".format(words))
+
+                if len(words) <= 2 and set(words).issubset(set(['the', 'The', 'THE',
+                                                                'this', 'This', 'THIS',
+                                                                'Agreement', 'AGREEMENT'])):
+                    continue
+
+                return jnum, se_paras_attr
+    return None
+
+def skip_non_english_line(se_paras_attr_list: List[Tuple[int, int, str, List[str]]],
+                                     i: int) \
+                                     -> Optional[Tuple[int,
+                                                       Tuple[int, int, str, List[str]]]]:
+    first_time = True
+    if i < len(se_paras_attr_list):
+        for jnum, se_paras_attr in enumerate(se_paras_attr_list[i+1:], i+1):
+            _, _, line_st, para_attrs = se_paras_attr
+            if line_st.strip():
+                words = strutils.get_regex_wwplus(line_st)
+                print("words2 = [{}]".format(words))
+
+                # THIS AGREEMENT is made on the  “Agreement")
+                # BETW EEN:
+                # 20 16 (thedav of
+                # (1) XXX Limited xxx
+                # (2) XXX Bank Plc xxx as lender (the "Lender")
+                # there are some bad cases which warrant skpping
+                if len(words) < 5 and 'not_eng' in para_attrs:
+                    if first_time:
+                        continue
+                    else:
+                        return jnum, se_paras_attr
+
                 return jnum, se_paras_attr
     return None
 
@@ -1243,7 +1237,19 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
     -> Optional[Tuple[Tuple[int, int, str],
                       bool,
                       List[Tuple[int, int, str, List[str]]]]]:
+    """Extract party line.
 
+    'party_line' detection is already performed and stored in paras_attr_list.
+    Such detection is happening in htmltxtparser or pdftxtparser
+
+    Returns: start-end-of-party-line: Tuple[start, end, party-line]
+             is-party-list: bool
+             list of start-end-line-attrs:
+                  if is-party-list == True:
+                     the lines containing the list
+                  else:
+                     whatever after the party line
+    """
     offset = 0
     # we want to know the start ane end of each line
     se_paras_attr_list = []  # type: List[Tuple[int, int, str, List[str]]]
@@ -1256,6 +1262,7 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
     # pylint: disable=invalid-name
     for i, (sx, ex, line_st, para_attrs) in enumerate(se_paras_attr_list):
         # print display party_line here
+        IS_DEBUG_DISPLAY_TEXT = True
         if IS_DEBUG_DISPLAY_TEXT:
             attrs_st = '|'.join([str(attr) for attr in para_attrs])
             print(i, '\t'.join([attrs_st, '[{}]'.format(line_st)]))
@@ -1285,21 +1292,33 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
             maybe_next_line = get_next_not_empty_se_paras_list(se_paras_attr_list, i)
             if maybe_next_line:
                 next_i, (next_sx, next_ex, next_line_st, unused_next_para_attrs) = \
-                maybe_next_line
+                        maybe_next_line
                 # if the next line has only 'among' or 'between, the party groups are
                 # after.  38608.txt
                 if IS_DEBUG_MODE:
                     print("checking next line: [{}]".format(next_line_st))
+
                 # this is a "match" not "search", ignore ";" if there is one
-                if re.match(r'(between|among|by and between|by)', next_line_st, re.I):
+                if re.match(r'(betw\s*een|among|by and between|by)', next_line_st, re.I):
                     is_party_list = True
                     # skip some blank lines
-                    maybe_nx2 = get_next_not_empty_se_paras_list(se_paras_attr_list, next_i)
+                    maybe_nx2 = skip_non_english_line(se_paras_attr_list, next_i)
+                    print("maybe_nx2: {}".format(maybe_nx2))
                     if maybe_nx2:
-                        nx2_i, (unused_nx2_sx, unused_nx2_ex,
-                                unused_nx2_line_st, unused_nx2_para_attrs) = maybe_nx2
+                        nx2_i, (nx2_sx, nx2_ex,
+                                nx2_line_st, unused_nx2_para_attrs) = maybe_nx2
+                        """
                         return ((next_sx, next_ex, next_line_st),
                                 is_party_list, se_paras_attr_list[nx2_i:])
+                        """
+                        # (nx2_sx, nx2_ex, nx2_line_st),
+                        return ((sx, ex, line_st),
+                                is_party_list, se_paras_attr_list[nx2_i:])
+                    else:
+                        # (next_sx, next_ex, next_line_st),
+                        return ((sx, ex, line_st),
+                                is_party_list, se_paras_attr_list[next_i+1:])
+
 
             # is_party_list = bool(re.search(r'(:|among|between)\s*$', line_st))
             is_party_list = is_list_party_line(line_st)
@@ -1335,30 +1354,6 @@ def tabled_party_line_group_to_party_terms(party_line_group_list:
         out_list.append((party, dterm))
     return out_list
 
-def find_first_non_title_word_mat(line: str) -> Optional[Tuple[Match[str], int]]:
-    # some companies, such as 'eBrevia' is not title_case
-    # we also want to handle single letter, such as 'a' in 'a compny'
-    maybe_mat = re.search(r' ([a-z\d]|[a-z\d][a-z\d]\S*)\b', line)  # no re.I here
-
-    if not maybe_mat:
-        return None
-
-    # run into and "and" of multiple party
-    if IS_DEBUG_MODE:
-        print('find_first_non_title_word_mat, maybe_mat = [{}]'.format(maybe_mat.group()))
-    if maybe_mat.group() == ' and' or strutils.is_digits(maybe_mat.group()):
-        after_line = line[maybe_mat.end():]
-        if IS_DEBUG_MODE:
-            print('after_line = [{}]'.format(after_line))
-
-        maybe_mat2 = re.search(r' ([a-z\d]|[a-z\d][a-z\d]\S*)\b', after_line)  # no re.I here
-
-        if not maybe_mat2:
-            return None
-
-        return maybe_mat2, maybe_mat.end() + maybe_mat2.start()
-    return maybe_mat, maybe_mat.start()
-
 
 def is_all_english_title_case(line: str) -> bool:
     words = strutils.get_alpha_words(line, is_lower=False)
@@ -1369,7 +1364,8 @@ def is_all_english_title_case(line: str) -> bool:
         if not (word.istitle() or
                 word.isupper() or
                 word in set(['of', 'the', 'as', 'from', 'to',
-                             'between', 'among', 'de', 'and', 'or'])):
+                             'between', 'among', 'de', # 'of' in Spanish
+                             'and', 'or'])):
             # print("failed tt: [{}]".format(word))
             return False
     return True
@@ -1448,30 +1444,14 @@ def party_line_group_to_party_term(party_line_list:
             return ((fstart + party_start + pstart, fstart + party_start + pend),
                     None)
 
-        # find first non-title words
-        # mat = re.search(r' [a-z]', party_st)  # no re.I here
-        mat_with_start = find_first_non_title_word_mat(party_st)
+        mat_with_start = partyutils.find_uppercase_party_name(party_st)
 
         # print("mat_with_start = {}".format(mat_with_start))
         if mat_with_start:
-            mat, mat_start = mat_with_start
-            party_end = party_start + mat_start
+            (mat_start, mat_end), other_start = mat_with_start
+            party_end = party_start + mat_end
             party_st = first_line[party_start:party_end]
 
-            # print("bbbb232 party_st = [{}]".format(party_st))
-            # sometimes the party_st might have address info, so remove
-            # if possible
-            org_suffix_mat_list = get_org_suffix_mat_list(party_st)
-
-            # print("bbbb23333 org_suffix_mat_list = [{}]".format(org_suffix_mat_list))
-            if org_suffix_mat_list:
-                # found an org suffix, chop it off
-                # "Business Marketing Services, Inc, One Broadway Street,", 37231.txt
-                last_org_suffix_mat = org_suffix_mat_list[-1]
-                party_end = party_start + last_org_suffix_mat.end()
-                party_st = first_line[party_start:party_end]
-                # print("final party_st: [{}]".format(party_st))
-            # if not found org_suffix, keep the original
     elif first_line.startswith('('):
         pass
     else:
@@ -1490,45 +1470,14 @@ def party_line_group_to_party_term(party_line_list:
             return ((fstart + party_start + pstart, fstart + party_start + pend),
                     None)
 
-        # find first non-title words
-        # mat = re.search(r' [a-z]', party_st)  # no re.I here
-        mat_with_start = find_first_non_title_word_mat(first_line)
+        mat_with_start = partyutils.find_uppercase_party_name(first_line)
+
         # print("mat_with_start = {}".format(mat_with_start))
         if mat_with_start:
             party_start = 0
-            mat, mat_start = mat_with_start
-            party_end = party_start + mat_start
+            (mat_start, mat_end), other_start = mat_with_start
+            party_end = party_start + mat_end
             party_st = first_line[party_start:party_end]
-
-            # print('party_st = [{}]'.format(party_st))
-
-            # sometimes the party_st might have address info, so remove
-            # if possible
-            org_suffix_mat_list = get_org_suffix_mat_list(party_st)
-            if org_suffix_mat_list:
-                # found an org suffix, chop it off
-                # "Business Marketing Services, Inc, One Broadway Street,", 37231.txt
-                last_org_suffix_mat = org_suffix_mat_list[-1]
-                party_end = party_start + last_org_suffix_mat.end()
-                party_st = first_line[party_start:party_end]
-                # print("final party_st: [{}]".format(party_st))
-            # if not found org_suffix, keep the original
-        # if failed to find title words, mat is already None, do nothing
-
-        """
-        org_suffix_mat = ORG_SUFFIX_PAT.search(first_line)
-        company_mat = A_COMPANY_PAT.search(first_line)
-        if org_suffix_mat:
-            party_start = 0
-            party_end = party_start + org_suffix_mat.end()
-            party_st = first_line[party_start:party_end]
-            mat = org_suffix_mat  # value inside is ignore
-        elif company_mat:
-            party_start = 0
-            party_end = party_start + company_mat.start()
-            party_st = first_line[party_start:party_end]
-            mat = company_mat  # value inside is ignore
-        """
 
     # re.search(r'\(([^\(]+)\)\s*[\.;]?\s*(and|or)?\s*$', first_line)
     term_mat_list = list(re.finditer(r'\(([^\(]+)\)', first_line))
@@ -1548,12 +1497,12 @@ def party_line_group_to_party_term(party_line_list:
             if espace_mat:
                 party_end -= len(espace_mat.group())
 
-    if mat and term_mat:
+    if mat_with_start and term_mat:
         return ((fstart + party_start, fstart + party_end),
                 (fstart + term_start, fstart + term_end))
-    if not mat and term_mat:
+    if not mat_with_start and term_mat:
         return (None, (fstart + term_start, fstart + term_end))
-    if mat and not term_mat:
+    if mat_with_start and not term_mat:
         return ((fstart + party_start, fstart + party_end), None)
 
     return (None, None)
@@ -1717,7 +1666,7 @@ def extract_parties_from_list_lines(se_after_paras_attr_list: List[Tuple[int, in
 # bool(re.search,(r'(:|among|between)\s*$', line_st))
 def is_list_party_line(line: str) -> bool:
     # any party_line ends with ':' is considered a list party prefix
-    org_suffix_list = get_org_suffix_mat_list(line)
+    org_suffix_list = partyutils.get_org_suffix_mat_list(line)
     # print("org_suffix_list 32523: {}".format(org_suffix_list))
     # xxx, yyy, and my confirms its agreements as follow:
     if len(org_suffix_list) > 1:

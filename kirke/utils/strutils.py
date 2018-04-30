@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from nltk.tokenize import TreebankWordTokenizer 
 import collections
 import json
 import logging
@@ -10,6 +9,10 @@ from typing import (Any, Dict, Generator, List, Match, Pattern,
                     Set, Tuple, Union)
 import unicodedata
 import urllib.parse
+
+from nltk.tokenize import TreebankWordTokenizer
+from nltk.tokenize.regexp import RegexpTokenizer
+
 
 # https://github.com/python/typing/issues/182
 # JSONType = Union[Dict[str, Any], List[Any]]
@@ -87,6 +90,16 @@ def load_str_list(file_name: str) -> List[str]:
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
             st_list.append(line.strip())
+    return st_list
+
+
+def load_non_empty_str_list(file_name: str) -> List[str]:
+    st_list = []
+    with open(file_name, 'rt', newline='') as fin:
+        for line in fin:
+            xline = line.strip()
+            if xline:  # add only if not empty
+                st_list.append(xline)
     return st_list
 
 
@@ -606,6 +619,57 @@ NEXT_TOKEN_PAT = re.compile(r'\s*\S+')  # type: Pattern[str]
 def find_next_token(line: str) -> Match[str]:
     return NEXT_TOKEN_PAT.match(line)
 
+def find_next_not_space_idx(line: str, idx: int) -> int:
+    """Find the index of the start of next non-space char.
+
+    Assume we are after end of a word, maybe a space, or a ','
+    """
+    if idx < 0 or idx >= len(line):
+        return len(line)
+
+    # if not line[idx].isspace():  # such as comma
+    #    return idx
+
+    for i in range(idx + 1, len(line)):
+        if not line[i].isspace():
+            return i
+    # reached the end of line without find a space
+    # return current position
+    return idx
+
+
+def find_previous_word(line: str, idx: int) -> Tuple[int, int, str]:
+    """Find previous word.
+    
+    If the current index is an alphanum, it will get the previous word,
+    not the current one.
+    """
+    if idx < 0 or idx >= len(line):
+        return -1, -1, ''
+    found_space = False  # in the middle of a word
+    for i in range(idx, -1, -1):
+        ch = line[i]
+        if ch.isspace():
+            found_space = True  # found end of a word
+        elif ch.isalnum():
+            if not found_space:
+                continue
+            end_idx = i + 1
+            # go find the begin of a word
+            for j in range(i-1, -1, -1):
+                ch2 = line[j]
+                if ch2.isspace():
+                    return j+1, end_idx, line[j+1:end_idx]
+                elif ch2.isalnum():
+                    continue
+                else:  # punctuation or anything else
+                    return j+1, end_idx, line[j+1:end_idx]
+            # this can only be reached if j == -1
+            return 0, end_idx, line[0:end_idx]
+        else:
+            found_space = True  # any non-alphanum is a space
+    return -1, -1, ''
+
 
 # primitive version of getting words using regex
 
@@ -684,7 +748,7 @@ def get_simple_words_with_quote(text: str,
         elif word == '\n':
             word = 'WxxNL'
         elif re.match(r'[\d\.,]+', word):
-            word = 'WxxDIGIT'            
+            word = 'WxxDIGIT'
         # elif word == '.':
         #    word = 'WxxPD'
         spans.append((mat.start(), mat.end(), word))
@@ -762,6 +826,15 @@ def remove_ignorable_token(se_word_list: List[Tuple[int, int, str]]) \
         prev_token = token
     return result
 
+WWPLUS_PAT = re.compile(r'\w\w+')
+
+def get_regex_wwplus(line: str) -> List[str]:
+    return WWPLUS_PAT.findall(line)
+
+def nltk_span_tokenize(line: str) -> Generator[Tuple[int, int, str], None, None]:
+    for start, end in NLTK_TOKENIZER.span_tokenize(line):
+        yield start, end, line[start:end]
+
 
 # For digits, we take , and .
 # we take multiple \n as one
@@ -773,6 +846,11 @@ def remove_ignorable_token(se_word_list: List[Tuple[int, int, str]]) \
 #    remove len(1) characters, and 'the', but kept the prepositions
 
 SIMPLE_WORD_TOKEN_PAT = re.compile(r'([“"”:;\(\)]|\n+|\b[\d,\.]+\b|(\w\.)+|\w+)')
+
+TREEBANK_WORD_TOKENIZER = TreebankWordTokenizer()
+# NLTK_TOKENIZER = WhitespaceTokenizer()
+# This doesn't handle number correctly
+NLTK_TOKENIZER = RegexpTokenizer(r'\w+|(\$|\#)?[\d]+')
 
 # please note that because CountVectorizer does some word filtering,
 # we must transform 1 char punctuations to alphabetized words, otherwise
@@ -790,7 +868,7 @@ def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
     '''
     spans = []  # type: List[Tuple[int, int, str]]
     text = text.replace('"', '``')
-    tok_spans = TreebankWordTokenizer().span_tokenize(text)
+    tok_spans = TREEBANK_WORD_TOKENIZER.span_tokenize(text)
     for start, end in tok_spans:
         word = text[start:end]
         if word in '``“"”':
@@ -918,32 +996,21 @@ def split_with_offsets_xparens(line: str) -> List[Tuple[int, int, str]]:
 
 def get_consecutive_one_char_parens_mats(line: str) -> List[Match[str]]:
     """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
+       Makes sure they start with 1, 2 or a, b.
 
-    Makes sure they start with 1, 2 or a, b.
+       Return a list of them if there more than 1 of those.
+       Else an emply list.
     """
-    result = list(re.finditer(r'\(?\S\)\s*', line))
+    result = list(re.finditer(r'\b\(?\S\S?\)\s*', line))
 
     if len(result) > 1:
         # check if first and 2nd are valid indexes
         first = result[0].group()
         second = result[1].group()
-        # print("first = [{}]".format(first))
-        # print("second = [{}]".format(second))
-        # print("    matched 1 = {}".format(re.match(r'\((1|a|i)\)', first, re.I)))
-        # print("    matched 2 = {}".format(re.match(r'\((2|b|ii)\)', second, re.I)))
         if re.match(r'\(?(1|a|i)\)', first, re.I) and \
            re.match(r'\(?(2|b|ii)\)', second, re.I):
             return result
     return []
-
-def get_one_char_parens_mats(line: str) -> List[Match[str]]:
-    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
-
-    No check to make sure they start with 1, 2 or a, b.
-    """
-    result = list(re.finditer(r'\(?\S\)\s*', line))
-    return result
-
 
 
 if __name__ == '__main__':
