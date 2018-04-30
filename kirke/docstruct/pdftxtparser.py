@@ -412,6 +412,45 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     sechead_context = []  # type: List[Any]
     not_gapped_line_nums = set([])  # type: Set[int]
 
+    # print all the blocks
+    # not_empty_line_num = 0
+    # pylint: disable=too-many-nested-blocks
+    tmp_line_num = 0
+    for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
+        apage = pdf_text_doc.page_list[page_num - 1]
+        # page_attr_list = sorted(apage.attrs.items())
+
+        # because we merge lines across pages, we should do this gap span identification at
+        # global level
+        for grouped_block in grouped_block_list:
+
+            is_multi_line = is_block_multi_line(grouped_block.line_list)
+
+            if is_multi_line:
+                # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
+                # It should similar to the code for not is_multi-line
+                for linex in grouped_block.line_list:
+                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    # sorted(linex.attrs.items())
+                    attr_list = linex.to_para_attrvals()  # type: List[Any]
+
+                    tmp_line_num += 1
+                    print("{}\tmulti_line\t[{}]\tattr={}".format(tmp_line_num,
+                                                                 out_line,
+                                                                 attr_list))
+            else:
+                for linex in grouped_block.line_list:
+                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    # sorted(linex.attrs.items())
+                    attr_list = linex.to_para_attrvals()  # type: List[Any]
+
+                    tmp_line_num += 1
+                    print("{}\tnotmu_line\t{}\t[{}]\tattr={}".format(tmp_line_num,
+                                                                     linex.ydiff,
+                                                                     out_line,
+                                                                     attr_list))
+
+
     # not_empty_line_num = 0
     # pylint: disable=too-many-nested-blocks
     for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
