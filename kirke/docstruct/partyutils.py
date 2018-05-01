@@ -9,7 +9,7 @@ from typing import List, Match, Optional, Tuple
 from kirke.utils import engutils, regexutils, strutils
 
 
-IS_DEBUG_MODE = True
+IS_DEBUG_MODE = False
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s : %(levelname)s : %(message)s')
 
@@ -120,9 +120,20 @@ def find_uppercase_party_name(line: str) \
             # "Business Marketing Services, Inc, One Broadway Street,", 37231.txt
             # last_org_suffix_mat = org_suffix_mat_list[-1]
             # party_end = party_start + last_org_suffix_mat.end()
-            first_org_suffix_mat = org_suffix_mat_list[0]
-            party_end = party_start + first_org_suffix_mat.end()
-            other_start = strutils.find_next_not_space_idx(line, party_end)
+
+            # find a org suffix that's less than 40
+            org_suffix_mat_list_less_40 = [mat for mat in org_suffix_mat_list
+                                           if mat.start() < 40]
+
+            if org_suffix_mat_list_less_40:
+                last_org_suffix_mat = org_suffix_mat_list_less_40[-1]
+                party_end = party_start + last_org_suffix_mat.end()
+                other_start = strutils.find_next_not_space_idx(line, party_end)
+            else:
+                # cannot find the org suffix in the first 40 chars
+                first_org_suffix_mat = org_suffix_mat_list[0]
+                party_end = party_start + first_org_suffix_mat.end()
+                other_start = strutils.find_next_not_space_idx(line, party_end)
             return (party_start, party_end), other_start
         else:
             # 'Johnson & Johnson', without corp suffix, or a person's name
@@ -165,8 +176,8 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
 
     fx_start, fx_end, other_start = maybe_se_other_start
 
+    after_line = line[other_start:]
     if IS_DEBUG_MODE:
-        after_line = line[other_start:]
         print('after_line = [{}]'.format(after_line))
 
     if re.match(r'\band\b', other_word, re.I) or strutils.is_digits(other_word):
@@ -252,6 +263,8 @@ def is_party_line_aux(line: str) -> str:
     if re.search(r'\b(engages?|made\s+available|subordinate\s+to|all\s+liens)\b', line, re.I):
         return 'False2'
 
+    if '.....' in line:
+        return 'False2.2'
     # 2/7/2018
     # only impacted 3 files, but negatively on F1
     # if re.search(r'\b(i\s+confirm|signing|i\s+acknowledge|following\s+(meaning|definition)s?)\b',

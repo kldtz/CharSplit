@@ -715,6 +715,9 @@ def get_lc_post_n_words(text: str, end: int, num_words: int) \
     return [word.lower() for word in words], spans
 
 
+def has_quote(line: str) -> bool:
+    return bool(re.search('[“"”]', line))
+
 # adding period to tokens reduced 0.004 in F1 for effective_date.
 # period by itself is also dangerous because it can be a part of abbreviation or
 # floating point number.  Maybe better tokenizer in future.

@@ -320,11 +320,19 @@ def mark_title_attrs(para_attr_list, begin_idx, end_idx, lc_party_line):
 def mark_toc_aux(para_attr_list):
     found_eng_i = -1
     num_sechead = 0
+    found_party_line_i = -1
     num_line = len(para_attr_list)
     for i, (line, attr_list) in enumerate(para_attr_list):
 
         if i == num_line -1:  # last line, when toc is at the end
             found_eng_i = i
+            break
+
+        # maybe party line
+        if 'party_line' in attr_list or \
+           ('yes_eng' in attr_list and \
+            'date_line' in attr_list):
+            found_party_line_i = i
             break
 
         # TODO, jshaw, still not sure if this is needed.
@@ -345,6 +353,12 @@ def mark_toc_aux(para_attr_list):
         if 'yes_eng' in attr_list and len(line) > 120:
             found_eng_i = i
             break
+
+    if found_party_line_i >= 0:
+        for i, (line, attr_list) in enumerate(para_attr_list):
+            if i < found_party_line_i:
+                attr_list.append('toc70')
+        return found_party_line_i
 
     if found_eng_i > 0 and num_sechead / float(found_eng_i) > 0.9:
         # now go find the last sechead
@@ -541,10 +555,6 @@ def lineinfos_paras_to_attr_list(lineinfos_paras: List[Tuple[List[Tuple[linepos.
             attr2_list.append('first_eng_para')
             first_eng_para_idx = line_idx
 
-        if partyutils.is_party_line(line, num_long_english_line):
-            print("iiiiiiiiiiiiiiiiiii is_party_line")
-        else:
-            print("jjj not is_party_line")
         #print('num_english_line = {}, nun_sechead = {}'.format(num_english_line,
         #                                                       num_sechead), end='')
         # print("num_date = {}".format(num_date))
