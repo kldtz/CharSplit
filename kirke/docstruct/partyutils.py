@@ -106,40 +106,79 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     return result2
 
 
+def is_valid_uppercase_party_name(line: str) -> bool:
+    """Verify a name is a party name.
+
+    'london branch' is invalid
+    'acting xxx' is invalid
+    """
+    words = line.split()
+    if words[-1].lower() == 'branch' and len(words) < 3:
+        return False
+    if words[0].lower() == 'acting':
+        return False
+    return True
+
+
 def find_uppercase_party_name(line: str) \
-    -> Optional[Tuple[Tuple[int, int], int]]:
+    -> Optional[Tuple[Tuple[int, int], int, bool]]:
     found_party_se_other = find_first_non_title_and_org(line)
     if found_party_se_other:
         (party_start, party_end), other_start = found_party_se_other
         party_st = line[party_start:party_end]
-        # sometimes the party_st might have address info, so remove
-        # if possible
-        org_suffix_mat_list = get_org_suffix_mat_list(party_st)
-        if org_suffix_mat_list:
-            # found an org suffix, chop it off
-            # "Business Marketing Services, Inc, One Broadway Street,", 37231.txt
-            # last_org_suffix_mat = org_suffix_mat_list[-1]
-            # party_end = party_start + last_org_suffix_mat.end()
-
-            # find a org suffix that's less than 40
-            org_suffix_mat_list_less_40 = [mat for mat in org_suffix_mat_list
-                                           if mat.start() < 40]
-
-            if org_suffix_mat_list_less_40:
-                last_org_suffix_mat = org_suffix_mat_list_less_40[-1]
-                party_end = party_start + last_org_suffix_mat.end()
-                other_start = strutils.find_next_not_space_idx(line, party_end)
-            else:
-                # cannot find the org suffix in the first 40 chars
-                first_org_suffix_mat = org_suffix_mat_list[0]
-                party_end = party_start + first_org_suffix_mat.end()
-                other_start = strutils.find_next_not_space_idx(line, party_end)
-            return (party_start, party_end), other_start
-        else:
-            # 'Johnson & Johnson', without corp suffix, or a person's name
-            return (party_start, party_end), other_start
-
+        return (party_start, party_end), other_start, is_valid_uppercase_party_name(party_st)
     return None
+
+
+# This is different from another similar function
+# extract_parties_from_party_line(line: str)
+def find_uppercase_party_name_list(line: str) \
+    -> List[Tuple[int, int]]:
+
+    """Extract all party names from line.
+
+    The party has to satisfy the following 3 criteria
+       - mostly capitalized words, with some exception such as 'eBrevia', 'plc', or 'pic'
+       - ',' can be used to separate parties
+       - normally would have org_person suffix
+       - more likely after 'and'
+    """
+    result = []
+    offset = 0
+    party_se_other_idx = find_uppercase_party_name(line)
+    while party_se_other_idx:
+        # print("party_se_other_idx: {}".format(party_se_other_idx))
+        (pstart, pend), other_start, is_valid = party_se_other_idx
+        # print("party_st = [{}]".format(line[offset + pstart:offset+pend]))
+        if is_valid:
+            result.append((offset + pstart, offset + pend))
+
+        offset += other_start
+        after_line = line[offset:]
+        # print("after_line = [{}]".format(after_line))
+
+        and_mat = re.match(r'and\s+', after_line)
+        if and_mat:
+            and_mat_len = len(and_mat.group())
+            offset += and_mat_len
+            after_line = after_line[and_mat_len:]
+            # print("after_line2 = [{}]".format(after_line))
+
+        party_se_other_idx = find_uppercase_party_name(after_line)
+    return result
+
+
+def find_not_title_idx(line: str) -> int:
+    comma_idx = line.index(',')
+    if comma_idx != -1:
+        line = line[:comma_idx]
+    se_word_list = list(strutils.word_comma_tokenize(line))
+    for wstart, wend, word in se_word_list:
+        if re.match('(of|de)\b', word, re.I):
+            continue
+        if not word[0].isupper():
+            return wend
+    return -1
 
 
 def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], int]]:
@@ -153,11 +192,45 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
     prev_end = -1
     maybe_se_other_start = None
     other_word_idx, other_word = -1, ''
-    se_word_list = list(strutils.nltk_span_tokenize(line))
-    for i, (start, end, word) in enumerate(se_word_list):
-        if word.islower() and not is_org_suffix(word):
+    se_word_list = list(strutils.word_comma_tokenize(line))
+    # print("se_word_list = {}".format(se_word_list))
+    word_i = 0
+    for start, end, word in se_word_list:
+        if word == ',':
+            prev_aft_end = -1
+            word_j = word_i + 1
+
+            if word_j < len(se_word_list):
+                aft_start, aft_end, aft_word = se_word_list[word_j]
+
+                tmp_org_mat = ORG_PERSON_SUFFIX_PAT.match(line[aft_start:])
+                if tmp_org_mat:
+                    prev_aft_end = aft_start + tmp_org_mat.end()
+                    other_start = strutils.find_next_not_space_idx(line, prev_aft_end)
+                    prev_end = prev_aft_end
+                    maybe_se_other_start = 0, prev_end, other_start
+
+                    other_word_idx = word_j
+                    # now set the other_word_idx to the right one
+                    for tmp2_wstart, tmp2_wend, tmp2_word in se_word_list[word_j:]:
+                        if tmp2_wstart > prev_aft_end:
+                            other_word = tmp2_word
+                            break
+                        other_word_idx += 1
+                    break
+                # there is no org after comma
+                maybe_se_other_start = 0, prev_end, aft_start
+                other_word_idx, other_word = word_i+1, aft_word
+            else:
+                # exactly as found a lowercase word
+                maybe_se_other_start = 0, prev_end, start
+                other_word_idx, other_word = word_i, word
+            # break one way or the other
+            break
+        elif word.islower() and not is_org_suffix(word):
+            # found a lowercase word
             maybe_se_other_start = 0, prev_end, start
-            other_word_idx, other_word = i, word
+            other_word_idx, other_word = word_i, word
             break
         # if this is an abbreviation with a period, we will
         # take the period
@@ -168,6 +241,8 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
         else:
             prev_end = end
 
+        word_i += 1
+
     # cannot find begin title
     if prev_end == -1:
         return None
@@ -177,16 +252,20 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
     fx_start, fx_end, other_start = maybe_se_other_start
 
     after_line = line[other_start:]
-    if IS_DEBUG_MODE:
-        print('after_line = [{}]'.format(after_line))
 
-    if re.match(r'\band\b', other_word, re.I) or strutils.is_digits(other_word):
+    # handle 'Johnson and Johnson'
+    if strutils.is_digits(other_word) or \
+       ((word_i < 2) and \
+        other_word.lower() == 'and'):
         if other_word_idx + 1 < len(se_word_list):
             other_start = se_word_list[other_word_idx+1][0]  # the start of the first word after 'and'
 
             prev_end = se_word_list[other_word_idx][1]  # the end of the 'and'
             for sc_start, sc_end, word in se_word_list[other_word_idx+1:]:
-                if word.islower() and not is_org_suffix(word):
+                if word == ',':
+                    tmp_other_start = strutils.find_next_not_space_idx(line, sc_end)
+                    return (0, prev_end), tmp_other_start
+                elif word.islower() and not is_org_suffix(word):
                     return (0, prev_end), sc_start
                 prev_end = sc_end
 
@@ -195,6 +274,13 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
 
         else:  # there is no more words, return everything befefore 'and'
             return (0, prev_end), prev_end
+    elif re.match('r\b(of|de)\b', other_word, re.I):
+        # Royal Bank of Canada
+        tmp_idx = find_not_title_idx(after_line)
+        if tmp_idx != -1:
+            prev_end = other_start + tmp_idx
+            other_start = strutils.find_next_not_space_idx(line, prev_end+1)
+
     # if want to handle "Citibank, n.a.", can do it here
     # by regex matching
     elif ORG_PERSON_SUFFIX_PAT.match(after_line):
@@ -554,6 +640,32 @@ def extract_name_parties(line):
             print('\nmm3 = [{}]'.format(after_sep[mm3.start():mm3.end()]))
 
     return []
+
+
+# Note: I have seen up to 13 companies
+def match_list_prefix(line: str) -> Match[str]:
+    """This return the match of whatever is AFTER the prefix as group(1)."""
+    return re.match(r'\(?\s*[\divx]+\s*\)\s*(.*)', line, re.I)
+
+
+# I have seen up to 13 companies
+def match_party_list_prefix(line: str) -> Match[str]:
+    """This return the match of whatever is AFTER the prefix as group(1)."""
+    num_mat = re.match(r'\(?\s*[\divx]+\s*\)\s*(.*)', line, re.I)
+    if num_mat:
+        return num_mat
+
+    # now try "Party A:"
+    mat = re.match(r'Party\s*\S+\s*:\s*(.*)', line, re.I)
+    return mat
+
+
+def is_party_list_prefix_with_validation(line: str) -> bool:
+    if match_party_list_prefix(line):
+        if re.search(r'\b(engages?|product)\b', line, re.I):
+            return False
+        return True
+    return False
 
 
 if __name__ == '__main__':

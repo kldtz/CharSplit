@@ -834,11 +834,6 @@ WWPLUS_PAT = re.compile(r'\w\w+')
 def get_regex_wwplus(line: str) -> List[str]:
     return WWPLUS_PAT.findall(line)
 
-def nltk_span_tokenize(line: str) -> Generator[Tuple[int, int, str], None, None]:
-    for start, end in NLTK_TOKENIZER.span_tokenize(line):
-        yield start, end, line[start:end]
-
-
 # For digits, we take , and .
 # we take multiple \n as one
 # patterns:
@@ -853,7 +848,29 @@ SIMPLE_WORD_TOKEN_PAT = re.compile(r'([“"”:;\(\)]|\n+|\b[\d,\.]+\b|(\w\.)+|\
 TREEBANK_WORD_TOKENIZER = TreebankWordTokenizer()
 # NLTK_TOKENIZER = WhitespaceTokenizer()
 # This doesn't handle number correctly
-NLTK_TOKENIZER = RegexpTokenizer(r'\w+|(\$|\#)?[\d]+')
+NLTK_TOKENIZER = RegexpTokenizer(r'\w[\w\.]+|(\$|\#)?[\d\.]+|\S')
+
+def word_comma_tokenize(line: str) -> Generator[Tuple[int, int, str], None, None]:
+    """Return a list of word, with comma.
+
+    Note: all periods,include those for abbreviation, "I.B.M.", and end of sentence
+    ending, "war." are a part of the word.  We assume the line is already a string
+    """
+    for start, end in NLTK_TOKENIZER.span_tokenize(line):
+        word = line[start:end]
+        if word[0].isalnum():
+            if word[-1] == '.' and not word[0].isupper():  # end of sentence
+                yield start, end-1, word[:-1]
+            else:
+                yield start, end, word
+        elif re.search(r'\d', word):
+            yield start, end, word
+        else:
+            if word == ',' or \
+               word == '?' or \
+               word == '!':
+                yield start, end, word
+            # otherwise, just ignore all other punctuations
 
 # please note that because CountVectorizer does some word filtering,
 # we must transform 1 char punctuations to alphabetized words, otherwise
