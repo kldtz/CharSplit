@@ -117,6 +117,7 @@ def train_span_annotator(label: str,
         ebtrainer.train_eval_span_annotator(label,
                                             383838,
                                             'en',
+                                            -1,
                                             candidate_type,
                                             work_dir,
                                             model_dir)
