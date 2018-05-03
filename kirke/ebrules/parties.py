@@ -3,7 +3,7 @@ import itertools
 import logging
 import re
 import string
-from typing import List, Match, Optional, Tuple
+from typing import List, Optional, Tuple
 
 # from nltk.tokenize import sent_tokenize
 
@@ -13,7 +13,7 @@ from kirke.utils import strutils
 
 
 IS_DEBUG_DISPLAY_TEXT = False
-IS_DEBUG_MODE = True
+IS_DEBUG_MODE = False
 
 
 # pylint: disable=invalid-name
@@ -164,7 +164,7 @@ def load_us_state_end_pat():
 US_STATE_END_PAT = load_us_state_end_pat()
 
 def is_ending_in_us_state(line: str) -> bool:
-    return re.search(US_STATE_END_PAT, line, re.I)
+    return bool(re.search(US_STATE_END_PAT, line, re.I))
 
 SENTENCE_DOES_NOT_CONTINUE = r'(?=\s+(?:[A-Z0-9].|[a-z][A-Z0-9]))'
 NOT_FEW_LETTERS = r'(?<!\b[A-Za-z]\.)(?<!\b[A-Za-z]{2}\.)'
@@ -424,14 +424,14 @@ def get_title_phrase_list(line: str,
     # When is_all_upper, remove all entries with < 3 characters.
     # They are likely to be states, such as 'VA.'
     if is_all_upper:
-        tmp_title_phrase = []
+        tmp_title_phrase_list = []  # type: List[List[Tuple[int, int, str]]]
         for title_phrase in title_phrase_list:
             fstart, unused_fend, unused_first_word = title_phrase[0]
             unused_lstart, lend, unused_last_word = title_phrase[-1]
-            term = line[fstart:lend]
-            if not is_all_less_3char_words(term):
-                tmp_title_phrase.append(title_phrase)
-        title_phrase = tmp_title_phrase
+            tmp_term = line[fstart:lend]
+            if not is_all_less_3char_words(tmp_term):
+                tmp_title_phrase_list.append(title_phrase)
+        title_phrase_list = tmp_title_phrase_list
 
     out_list = []  # type: List[Tuple[int, int, str]]
     for title_phrase in title_phrase_list:
@@ -898,7 +898,10 @@ def select_highly_likely_parties(entities: List[Tuple[int, int, str]],
 def extract_party_defined_term_list(line: str) \
     -> List[Tuple[Optional[Tuple[int, int, str, str]],
                   Optional[Tuple[int, int, str, str]]]]:
-    """Extract all the party and its defined term from party_line."""
+    """Extract all the party and its defined term from party_line.
+
+    line is expected to be party_line.
+    """
 
     start_offset = 0
     tmp_mat = re.match(r'for\s+value\s+received,?\s+(.*)$', line, re.I)
@@ -920,7 +923,7 @@ def extract_party_defined_term_list(line: str) \
         print("chopped party_line = [{}]".format(line))
 
     # first try this aggressive itemize match inside party_line
-    if re.match(r'\(\S\)', line) and len(strutils.get_consecutive_one_char_parens_mats(line)) > 1:
+    if re.match(r'\(?\S\)', line) and len(strutils.get_consecutive_one_char_parens_mats(line)) > 1:
         entity_span_list = get_itemized_entity_span_list(line)
     else:
         # try with all entities in upper()
@@ -1066,10 +1069,16 @@ def extract_parties(filepath: str) -> List[List[Tuple[int, int]]]:
 
 
 def is_end_party_list(line: str, attrs: List[str]) -> bool:
+    # IT IS AGREED
+    if re.search(r'\b(background|whereas|definitions?|interpretation|it is)\b', line, re.I):
+        return True
+    # if there is 1)
+    if partyutils.is_party_list_prefix_with_validation(line):
+        return False
     if 'sechead' in attrs:  # sechead ends party lines
         return True
     # check for non-party words, section headings
-    if re.search(r'\b(background|whereas|agreed\s+as\s+follows)\b', line, re.I):
+    if re.search('(agreed\s+as\s+follows)\b', line, re.I):
         return True
     words = line.split(line)
     if len(words) > 2 and words[0].isupper() and words[1].isupper():
@@ -1087,10 +1096,9 @@ def get_next_not_empty_se_paras_list(se_paras_attr_list: List[Tuple[int, int, st
                                                        Tuple[int, int, str, List[str]]]]:
     if i < len(se_paras_attr_list):
         for jnum, se_paras_attr in enumerate(se_paras_attr_list[i+1:], i+1):
-            _, _, line_st, para_attrs = se_paras_attr
+            _, _, line_st, unused_para_attrs = se_paras_attr
             if line_st.strip():
                 words = strutils.get_regex_wwplus(line_st)
-                print("words = [{}]".format(words))
 
                 if len(words) <= 2 and set(words).issubset(set(['the', 'The', 'THE',
                                                                 'this', 'This', 'THIS',
@@ -1101,16 +1109,15 @@ def get_next_not_empty_se_paras_list(se_paras_attr_list: List[Tuple[int, int, st
     return None
 
 def skip_non_english_line(se_paras_attr_list: List[Tuple[int, int, str, List[str]]],
-                                     i: int) \
-                                     -> Optional[Tuple[int,
-                                                       Tuple[int, int, str, List[str]]]]:
+                          i: int) \
+                          -> Optional[Tuple[int,
+                                            Tuple[int, int, str, List[str]]]]:
     first_time = True
     if i < len(se_paras_attr_list):
         for jnum, se_paras_attr in enumerate(se_paras_attr_list[i+1:], i+1):
             _, _, line_st, para_attrs = se_paras_attr
             if line_st.strip():
                 words = strutils.get_regex_wwplus(line_st)
-                print("words2 = [{}]".format(words))
 
                 # THIS AGREEMENT is made on the  “Agreement")
                 # BETW EEN:
@@ -1127,7 +1134,42 @@ def skip_non_english_line(se_paras_attr_list: List[Tuple[int, int, str, List[str
                 return jnum, se_paras_attr
     return None
 
-def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
+# mytest/doc101.txt
+def extract_party_line_as_date_between(se_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
+    -> Optional[Tuple[Tuple[int, int, str],
+                      bool,
+                      List[Tuple[int, int, str, List[str]]]]]:
+    """Extract 2 lines with just "DATED XXXX\nBetween\n"""
+
+    nempty_se_paras_attr_list = []  # type: List[Tuple[int, int, str, List[str]]]
+    # remember where in the original list is
+    nempty_idx_list = []  # type: List[int]
+    nempty_line_st_list = []  # type: List[str]
+    count = 0
+    for i, se_para_attr in enumerate(se_paras_attr_list):
+        (sx, ex, line_st, para_attrs) = se_para_attr
+        if not line_st.strip():
+            continue
+        nempty_se_paras_attr_list.append(se_para_attr)
+        nempty_line_st_list.append(line_st)
+        nempty_idx_list.append(i)
+        count += 1
+        if count > 500:
+            break
+
+    len_try_match = len(nempty_se_paras_attr_list)
+    for j, nempty_se_paras_attr in enumerate(nempty_se_paras_attr_list):
+        if j+2 < len_try_match:
+            if re.match(r'(date|dated)\b', nempty_line_st_list[j], re.I) and \
+               re.match(r'(between)\b', nempty_line_st_list[j+1], re.I):
+                sx, ex, party_line_st, _ = nempty_se_paras_attr_list[j+1]  # between
+                is_party_list = True
+                orig_idx = nempty_idx_list[j+2]
+                return (sx, ex, party_line_st), is_party_list, se_paras_attr_list[orig_idx:]
+    return None
+
+
+def extract_party_line(se_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
     -> Optional[Tuple[Tuple[int, int, str],
                       bool,
                       List[Tuple[int, int, str, List[str]]]]]:
@@ -1144,13 +1186,6 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
                   else:
                      whatever after the party line
     """
-    offset = 0
-    # we want to know the start ane end of each line
-    se_paras_attr_list = []  # type: List[Tuple[int, int, str, List[str]]]
-    for line_st, para_attrs in paras_attr_list:
-        line_st_len = len(line_st)
-        se_paras_attr_list.append((offset, offset + line_st_len, line_st, para_attrs))
-        offset += line_st_len + 1
 
     # prev_line_st = ''
     # pylint: disable=invalid-name
@@ -1180,11 +1215,18 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
                 is_party_list = True
                 # include this line as a list
                 return (sx, ex, line_st), is_party_list, se_paras_attr_list[i:]
+            elif partyutils.is_party_list_with_end_between(line_st):
+                between_and_mat = re.search(r'\b(between\s+(.*)\s*and)\s*$', line_st, re.I)
+                between_mat = re.search(r'\b(between)\s*$', line_st, re.I)
+                if between_mat or between_and_mat:
+                    is_party_list = True
+                    return (sx, ex, line_st), is_party_list, se_paras_attr_list[i+1:]
+
 
             # peek at the next line
             maybe_next_line = get_next_not_empty_se_paras_list(se_paras_attr_list, i)
             if maybe_next_line:
-                next_i, (next_sx, next_ex, next_line_st, unused_next_para_attrs) = \
+                next_i, (unused_next_sx, unused_next_ex, next_line_st, unused_next_para_attrs) = \
                         maybe_next_line
                 # if the next line has only 'among' or 'between, the party groups are
                 # after.  38608.txt
@@ -1196,10 +1238,10 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
                     is_party_list = True
                     # skip some blank lines
                     maybe_nx2 = skip_non_english_line(se_paras_attr_list, next_i)
-                    print("maybe_nx2: {}".format(maybe_nx2))
+                    # print("maybe_nx2: {}".format(maybe_nx2))
                     if maybe_nx2:
-                        nx2_i, (nx2_sx, nx2_ex,
-                                nx2_line_st, unused_nx2_para_attrs) = maybe_nx2
+                        nx2_i, (unused_nx2_sx, unused_nx2_ex,
+                                unused_nx2_line_st, unused_nx2_para_attrs) = maybe_nx2
                         """
                         return ((next_sx, next_ex, next_line_st),
                                 is_party_list, se_paras_attr_list[nx2_i:])
@@ -1207,10 +1249,10 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
                         # (nx2_sx, nx2_ex, nx2_line_st),
                         return ((sx, ex, line_st),
                                 is_party_list, se_paras_attr_list[nx2_i:])
-                    else:
-                        # (next_sx, next_ex, next_line_st),
-                        return ((sx, ex, line_st),
-                                is_party_list, se_paras_attr_list[next_i+1:])
+
+                    # (next_sx, next_ex, next_line_st),
+                    return ((sx, ex, line_st),
+                            is_party_list, se_paras_attr_list[next_i+1:])
 
 
             # is_party_list = bool(re.search(r'(:|among|between)\s*$', line_st))
@@ -1226,48 +1268,86 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
             return None
     return None
 
-def tabled_party_line_group_to_party_terms(party_line_group_list:
-                                           List[List[Tuple[int, int, str, List[str]]]]) \
-    -> List[Tuple[Optional[Tuple[int, int]],
-                  Optional[Tuple[int, int]]]]:
-    dterm_list = []
-    party_list = []
-    for party_line_group in party_line_group_list:
-        fstart, fend, first_line, _ = party_line_group[0]
-        colon_mat = re.search(r'\s*:\s*$', first_line)
-        if colon_mat:  # we remove the column, such as from '"Purchase":'
-            fend -= len(colon_mat.group())
-        if first_line[0] in '“"”':
-            dterm_list.append((fstart, fend))
-        else:
-            party_list.append((fstart, fend))
+# only for export-train/37320.txt
+# This Stock Purchase Agreement is entered into as of April 26, 2011, by and between
+#
+# “SAFEDOX”:
 
+# “PURCHASER”:
+#
+# SafedoX, Inc.
+#
+# New Beginnings Life Center, LLC
+def seline_attrs_to_tabled_party_list_terms(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]],
+                                            se_curline_idx: int) \
+                                            -> List[Tuple[List[Tuple[int, int]],
+                                                          Optional[Tuple[int, int]]]]:
+    dterm_list = []  # type: List[Tuple[int, int]]
+    party_list = []  # type: List[Tuple[int, int]]
+    party_st_list = []  # type: List[str]
+    len_doc_lines = len(se_after_paras_attr_list)
+
+    while se_curline_idx < len_doc_lines:
+        se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+        fstart, fend, linex, attr_list = se_line_attrs
+
+        colon_mat = re.search(r':\s*', linex)
+        if colon_mat:
+            fend = fstart + colon_mat.start()
+            party_st = linex[colon_mat.end():].strip()
+            if party_st:
+                party_list.append((colon_mat.end(), len(linex)))
+                party_st_list.append(party_st)
+
+        if linex[0] in '“"”':
+            dterm_list.append((fstart, fend))
+            se_curline_idx = move_next_non_empty_se_after_list(se_after_paras_attr_list,
+                                                             se_curline_idx)
+        else:
+            break
+
+    # cannot be just one party
+    if len(dterm_list) < 2:
+        return []
+
+    if not party_list:
+        # now capture the parties corresponding to those terms
+        while se_curline_idx < len_doc_lines:
+            se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+            fstart, fend, linex, attr_list = se_line_attrs
+            party_list.append((fstart, fend))
+            party_st_list.append(linex)
+            se_curline_idx = move_next_non_empty_se_after_list(se_after_paras_attr_list,
+                                                                se_curline_idx)
+
+    has_valid_person_or_org = False
     out_list = []
-    for party, dterm in itertools.zip_longest(party_list, dterm_list):
-        out_list.append((party, dterm))
+    for i in range(len(dterm_list)):
+        if i > len(party_list):
+            break
+        dterm = dterm_list[i]
+        party = party_list[i]
+        if party:
+            party_se_other = partyutils.find_uppercase_party_name(party_st_list[i])
+            if party_se_other:
+                (unused_party_start, unused_party_end), other_start, is_valid = party_se_other
+                if is_valid:
+                    has_valid_person_or_org = True
+            out_list.append(([party], dterm))
+        else:
+            out_list.append(([], dterm))
+
+    # verified there is party or person found
+    if not has_valid_person_or_org:
+        return []
+
     return out_list
 
 
-def is_all_english_title_case(line: str) -> bool:
-    words = strutils.get_alpha_words(line, is_lower=False)
-    if not words:
-        return False
-    for word in words:
-        # check if preposition, lc
-        if not (word.istitle() or
-                word.isupper() or
-                word in set(['of', 'the', 'as', 'from', 'to',
-                             'between', 'among', 'de', # 'of' in Spanish
-                             'and', 'or'])):
-            # print("failed tt: [{}]".format(word))
-            return False
-    return True
-
-
-# (2) HSBC BANK PLC acting through its office at 8 Canada Square. 1 ondon LI4 5HQ as  lender (the “Lender")
+# (2) HSBC BANK PLC acting through its office at 8 Canada Square. 1 ondon LI4 5HQ as
+# lender (the “Lender")
 # it seems taking the last "as" or "paren" is the best heuristic
-def extract_term_in_party_term(after_line: str,
-                               index: int ) \
+def extract_term_in_party_term(after_line: str, index: int) \
                                -> Optional[Tuple[int, int, str]]:
     """Try to find the term after party_name is found.
 
@@ -1320,15 +1400,15 @@ def extract_term_in_party_term(after_line: str,
     return None
 
 
-def extract_and_parties_in_party_term(after_line: str,
-                                      index: int ) \
-                                      -> List[Tuple[int, int, str]]:
+def extract_and_parties_in_party_term(after_line: str, index: int) \
+                                      -> List[Tuple[int, int]]:
     """Try to find the "and" parties after party_name is found.
 
-    # (2) XXX International Insurance Limited, registered in England under...  and XXX Insurance  Limited, registered in...
+    # (2) XXX International Insurance Limited, registered in England under...
+    # and XXX Insurance  Limited, registered in...
     """
 
-    result = []
+    result = []  # type: List[Tuple[int, int]]
     and_mat_list = list(re.finditer(r'\band\s+', after_line, re.I))
     for and_mat in and_mat_list:
 
@@ -1341,41 +1421,30 @@ def extract_and_parties_in_party_term(after_line: str,
         # print("mat_with_start = {}".format(mat_with_start))
         if mat_with_start:
             offset = index + and_mat.end()
-            (party_start, party_end), other_start, is_valid = mat_with_start
-            party_st = after_and_st[party_start:party_end]
-            print("party_st: [{}]".format(party_st))
-            result.append(((offset + party_start, offset + party_end), None))
+            (party_start, party_end), unused_other_start, is_valid = mat_with_start
+            if is_valid:
+                party_st = after_and_st[party_start:party_end]
+                print("party_st: [{}]".format(party_st))
+                result.append((offset + party_start, offset + party_end))
 
     return result
 
+def seline_attrs_to_party_list_term(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]],
+                                    se_curline_idx: int) \
+                                    -> Tuple[Optional[Tuple[List[Tuple[int, int]],
+                                                            Optional[Tuple[int, int]]]],
+                                             int]:
+    """Find party_list_term from a list of se_line_attrs.
 
+    Returns
+       1. None or (party_list, term)
+       2. next_idx into se_after_paras_attr_list
+    """
+    if se_curline_idx >= len(se_after_paras_attr_list):
+        return [], se_curline_idx
 
-# this is for party list
-def party_line_group_to_party_term_list(party_line_list:
-                                        List[Tuple[int, int, str, List[str]]]) \
-    -> List[Tuple[List[Tuple[int, int]],
-                  Optional[Tuple[int, int]]]]:
-
-    if IS_DEBUG_MODE:
-        fstart, unused_fend, first_line, _ = party_line_list[0]
-        print()
-        print('party_line_group_to_party_term_list({})'.format(first_line))
-        for i, party_linex in enumerate(party_line_list):
-            unused_z1_start, unused_z2_end, z2_line, _ = party_linex
-            print("  z2_line #{}: [{}]".format(i, z2_line))
-
-    # this seems to get the whole paragraph?
-    p0_start, p0_end, p0_line, _ = party_line_list[0]
-    line_buf = p0_line
-    prev_end = p0_end
-    for party_linex in party_line_list[1:]:
-        pstart, pend, pline, _ = party_linex
-        pad_line = ' ' * (pstart - prev_end)
-        line_buf += pad_line
-        line_buf += pline
-    # jshaw, TODO, everything above are optional?
-
-    fstart, first_line = p0_start, line_buf
+    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+    fstart, _, first_line, attr_list = se_line_attrs
 
     # re.match(r'\(?[\div]\)\s*(.*)', first_line)
     party_or_term_st = first_line
@@ -1387,17 +1456,24 @@ def party_line_group_to_party_term_list(party_line_list:
 
     fstart += offset
 
-    # try to find term
-    mat_with_start = partyutils.find_uppercase_party_name(party_or_term_st)
+    # try to find party
+    party_se_list = partyutils.find_uppercase_party_name_list(party_or_term_st)
 
-    party_start, party_end, party_st = -1, -1, ''
-    # print("mat_with_start = {}".format(mat_with_start))
-    if mat_with_start:
-        (party_start, party_end), other_start, is_valid = mat_with_start
-        party_st = party_or_term_st[party_start:party_end]
+    if not party_se_list:
+        return (None, se_curline_idx + 1)  # move toward next line
 
-    if mat_with_start:
-        term_start_idx = other_start
+    result_party_se_list = []
+    last_party_end = -1
+    for party_se in party_se_list:
+        pstart, pend = party_se
+        if IS_DEBUG_MODE:
+            party_st = party_or_term_st[pstart:pend]
+            print('found party in group list: [{}]'.format(party_st))
+        result_party_se_list.append((fstart + pstart, fstart + pend))
+        last_party_end = pend
+
+    if last_party_end != -1:
+        term_start_idx = strutils.find_next_not_space_idx(party_or_term_st, last_party_end)
     else:
         term_start_idx = 0
 
@@ -1405,82 +1481,85 @@ def party_line_group_to_party_term_list(party_line_list:
                                             term_start_idx)
     term_start, term_end = 0, 0
     if term_semat:
-        term_start, term_end, term_st = term_semat
-
-    result = []
-    if mat_with_start and term_semat:
-        result.append(((fstart + party_start, fstart + party_end),
-                       (fstart + term_start, fstart + term_end)))
-    if not mat_with_start and term_semat:
-        result.append((None, (fstart + term_start, fstart + term_end)))
-    if mat_with_start and not term_semat:
-        result.append(((fstart + party_start, fstart + party_end), None))
-
-    print("hererererererere")
+        term_start, term_end, unused_term_st = term_semat
+        result_term = (fstart + term_start, fstart + term_end)  # type: Optional[Tuple[int, int]]
+    else:
+        result_term = None
 
     # now see if there is any extra parties involved in that line group
-    # (2) XXX International Insurance Limited, registered in England under...  and XXX Insurance  Limited, registered in...
-    extra_party_list = extract_and_parties_in_party_term(party_or_term_st[term_start_idx:],
-                                                         term_start_idx)
-    for extra_party_se_pair in extra_party_list:
-        (pstart, pend), ignore_term_se = extra_party_se_pair
-        result.append(((fstart + pstart, fstart + pend), None))
+    # (2) XXX International Insurance Limited, registered in England under...
+    # and XXX Insurance  Limited, registered in...
+    extra_party_se_list = extract_and_parties_in_party_term(party_or_term_st[term_start_idx:],
+                                                            term_start_idx)
+    for extra_party_se in extra_party_se_list:
+        estart, eend = extra_party_se
+        result_party_se_list.append((fstart + estart, fstart + eend))
 
-    return result
+    return (result_party_se_list, result_term), se_curline_idx + 1
 
 
-
-def is_one_party_line(line: str) -> bool:
-    words = line.split()
-    words10 = ' '.join(words[:10])
-    # 38668.txt
-    if re.search(r' (ltd|registered|incorporated|established|hereinafter|(having|with).*address|'
-                 r'a .*(corporation|company))\b',
-                 words10, re.I):
-        return True
-    return False
-
-def is_one_party_line_no_other(line: str) -> bool:
-    if len(line) > 100:
-        return False
-    # if there is verb, then it is NOT one_party_line_no_other
-    if re.search(r'\b(are|registered)\b', line, re.I):
-        return False
-    if re.search(r'\s*[“"”][^“"”]+[“"”]\s*:?\s*', line):
-        return True
-    if ORG_SUFFIX_PAT.search(line):
-        return True
-
-    if is_likely_person_name(line):
+def table_formatted_quote_list_org_list(line: str) -> bool:
+    if re.match(r'\s*[“"”][^“"”]+[“"”]\s*:?\s*', line):
         return True
     return False
 
 
-def is_likely_person_name(line: str) -> bool:
-    """Return if line is likely a person name.
+def move_next_if_is_empty_se_after_list(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]],
+                                      se_curline_idx: int) \
+                                      -> int:
+    """Move to the next line if the current line is empty.
 
-    This can be make more robust by using name DB or ML
+    Line with just 'and' are skipped also.
     """
-    words = line.split()
-    if len(words) <= 4:
-        for word in words:
-            # abbreviation
-            if re.search(r'^[a-z]\.?$', word, re.I):
-                return True
-    return False
+    len_doc_lines = len(se_after_paras_attr_list)
+    if se_curline_idx >= len_doc_lines:
+        return se_curline_idx
+
+    # move to next non-empty line
+    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+    _, _, linex, attr_list = se_line_attrs
+    while not linex or linex.lower() == 'and':
+        se_curline_idx += 1
+        if se_curline_idx >= len_doc_lines:
+            return se_curline_idx
+        se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+        _, _, linex, attr_list = se_line_attrs
+    return se_curline_idx
+
+
+def move_next_non_empty_se_after_list(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]],
+                                      se_curline_idx: int) \
+                                      -> int:
+    """Move to next non-empty line.
+
+    Line with just 'and' are skipped also.
+    """
+    len_doc_lines = len(se_after_paras_attr_list)
+    se_curline_idx += 1
+    if se_curline_idx >= len_doc_lines:
+        return se_curline_idx
+
+    # move to next non-empty line
+    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+    _, _, linex, attr_list = se_line_attrs
+    while not linex or linex.lower() == 'and':
+        se_curline_idx += 1
+        if se_curline_idx >= len_doc_lines:
+            return se_curline_idx
+        se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+        _, _, linex, attr_list = se_line_attrs
+    return se_curline_idx
+
 
 # pylint: disable=line-too-long
 def extract_parties_from_list_lines(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
-                                    -> List[Tuple[Optional[Tuple[int, int]],
+                                    -> List[Tuple[List[Tuple[int, int]],
                                                   Optional[Tuple[int, int]]]]:
-    result = []
+    if not se_after_paras_attr_list:
+        return []
+
     count_other_line = 0
     is_last_char_lower = False
-
-    # To capture lines for each party.  Sometime lines in a group can be broken for
-    # whatever reason (change of font, too much spaces between lines, etc).
-    cur_party_group = []  # type: List[Tuple[int, int, str, List[str]]]
-    party_line_group_list = []  # type: List[List[Tuple[int, int, str, List[str]]]]
 
     # sometime, lines with only list prefix, such as '(1)' might get
     # deleted because they were considered as page numbers.  HTML specific
@@ -1493,98 +1572,99 @@ def extract_parties_from_list_lines(se_after_paras_attr_list: List[Tuple[int, in
             print("  list_line #{}: {}".format(i, se_after_paras_attr_list[i]))
         print()
 
-    is_prev_line_all_caps = False
-    is_list_party_mode = False
-    is_one_line_party_mode = False
-    is_one_line_party_no_other_mode = False
-    for i in range(min(100, len(se_after_paras_attr_list))):
-        se_line_attrs = se_after_paras_attr_list[i]
+    result = []  # type: List[Tuple[List[Tuple[int, int]], Optional[Tuple[int, int]]]]:
+    se_curline_idx = 0
+    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+    _, _, linex, attr_list = se_line_attrs
+    len_doc_lines = len(se_after_paras_attr_list)
+
+    while not linex:
+        se_curline_idx += 1
+        if se_curline_idx >= len_doc_lines:
+            return []
+        se_line_attrs = se_after_paras_attr_list[se_curline_idx]
         _, _, linex, attr_list = se_line_attrs
-        if linex:
 
-            if partyutils.is_party_list_prefix_with_validation(linex):
-                if IS_DEBUG_MODE:
-                    print("\nextract_parties_from_list_lines")
-                    print("is_party_list_prefix: [{}]".format(linex))
-                if cur_party_group:
-                    party_line_group_list.append(cur_party_group)
-                    cur_party_group = []
-                cur_party_group.append(se_line_attrs)
-                # print("\n     count_other_line: {}".format(count_other_line))
-                # print("     after_para: {}".format(se_after_paras_attr_list[i]))
-                count_other_line = 0
-                is_list_party_mode = True
-            # one_line_party_mode and one_line_party_no_other_mode doesn't mix
-            elif not is_one_line_party_mode and not is_list_party_mode and is_one_party_line_no_other(linex):
-                if IS_DEBUG_MODE:
-                    print("\nextract_parties_from_list_lines")
-                    print("is_one_party_line_no_other: [{}]".format(linex))
-                is_one_line_party_no_other_mode = True
-                if cur_party_group:
-                    party_line_group_list.append(cur_party_group)
-                    cur_party_group = []
-                cur_party_group.append(se_line_attrs)
-                # print("\n     count_other_line: {}".format(count_other_line))
-                # print("     after_para: {}".format(se_after_paras_attr_list[i]))
-                count_other_line = 0
-            # TODO, jshaw, maybe should check for 'is_one_line_party_no_other_mode'?
-            elif not is_list_party_mode and is_one_party_line(linex):
-                if IS_DEBUG_MODE:
-                    print("\nextract_parties_from_list_lines")
-                    print("is_one_party_line: [{}]".format(linex))
-                is_one_line_party_mode = True
-                if cur_party_group:
-                    party_line_group_list.append(cur_party_group)
-                    cur_party_group = []
-                cur_party_group.append(se_line_attrs)
-                # print("\n     count_other_line: {}".format(count_other_line))
-                # print("     after_para: {}".format(se_after_paras_attr_list[i]))
-                count_other_line = 0
-            elif is_end_party_list(linex, attr_list):
-                # print("break end_party_list: {}".format(linex))
+    # now linex is not empty
+
+    if partyutils.is_party_list_prefix_with_validation(linex):
+        party_list_term, se_curline_idx = \
+            seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+        while party_list_term:
+            result.append(party_list_term)
+
+            # should be next non-empty line, but if empty, move on
+            se_curline_idx = move_next_if_is_empty_se_after_list(se_after_paras_attr_list,
+                                                                 se_curline_idx)
+            if se_curline_idx >= len_doc_lines:
                 break
-            elif is_last_char_lower:
-                # print("skipping last char lower: {}".format(linex))
-                cur_party_group.append(se_line_attrs)
-            elif is_prev_line_all_caps:
-                # print("skipping prev_line_all_caps: {}".format(linex))
-                cur_party_group.append(se_line_attrs)
-            else:
-                # print("count other line: {}".format(linex))
-                count_other_line += 1
 
-            if count_other_line >= 3:
-                # print("break count_other_line >= 3")
+            # settled on the next non-empty line
+            se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+            _, _, linex, attr_list = se_line_attrs
+            # if no longer in found good list line
+            if is_end_party_list(linex, attr_list):
+                se_curline_idx += 1
                 break
-            is_last_char_lower = linex[-1].islower()
-            is_prev_line_all_caps = is_all_english_title_case(linex)
 
-    if cur_party_group:
-        party_line_group_list.append(cur_party_group)
-
-
-    if is_one_line_party_no_other_mode:
-        # 37320.txt
-        # “SAFEDOX”:
-        # “PURCHASER”:
-        # SafedoX, Inc.
-        # New Beginnings Life Center, LLC
-        result.extend(tabled_party_line_group_to_party_terms(party_line_group_list))
+            party_list_term, se_curline_idx = \
+                seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+    elif table_formatted_quote_list_org_list(linex):
+        result.extend(seline_attrs_to_tabled_party_list_terms(se_after_paras_attr_list,
+                                                              se_curline_idx))
     else:
-        # now process each group into a party
-        for i, party_line_group in enumerate(party_line_group_list):
-            # print('party group #{}:'.format(i))
-            # for se_line_attrs in party_line_group:
-            #     print('253     {}'.format(se_line_attrs))
-            result.extend(party_line_group_to_party_term_list(party_line_group))
+        # try to match party_name at beginning of a line, try twice
+        # if the intervening line is short or of some patterns.
+        num_attempt = 0
+        if num_attempt < 3:
+            party_name_sentinel = partyutils.find_uppercase_party_name(linex)
+            if party_name_sentinel:
+
+                party_list_term, se_curline_idx = \
+                    seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+                while party_list_term:
+                    result.append(party_list_term)
+
+                    # should be next non-empty line, but if empty, move on
+                    se_curline_idx = move_next_if_is_empty_se_after_list(se_after_paras_attr_list,
+                                                                         se_curline_idx)
+
+                    if se_curline_idx >= len_doc_lines:
+                        break
+
+                    # settled on the next non-empty line
+                    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+                    _, _, linex, attr_list = se_line_attrs
+                    # if no longer in found good list line
+                    if is_end_party_list(linex, attr_list):
+                        se_curline_idx += 1
+                        num_attempt = 3
+                        break
+
+                    party_list_term, se_curline_idx = \
+                        seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+            else:
+                if len(linex) < 40:
+                    se_curline_idx = move_next_non_empty_se_after_list(se_after_paras_attr_list,
+                                                                       se_curline_idx)
+                    if se_curline_idx >= len_doc_lines:
+                        return []
+                    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+                    _, _, linex, attr_list = se_line_attrs
+                else:
+                    # a long line, but has no uppercase party name prefix
+                    return []
+            num_attempt += 1
 
     if IS_DEBUG_MODE:
         print()
         for offsets_pair in result:
-            print("offsets_pair: {}".format(offsets_pair))
+            print("7342 offsets_pair: {}".format(offsets_pair))
         print()
 
     return result
+
+
 
 # bool(re.search,(r'(:|among|between)\s*$', line_st))
 def is_list_party_line(line: str) -> bool:
@@ -1609,15 +1689,26 @@ def is_list_party_line(line: str) -> bool:
 # The first Tuple[int, int] is the party offset
 # the Optional[Tuple[int, int]] is the defined term offsets
 def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
-                    unused_para_text: str) \
-    -> List[Tuple[Tuple[int, int],
+                    para_text: str) \
+    -> List[Tuple[Optional[Tuple[int, int]],
                   Optional[Tuple[int, int]]]]:
     """Return list of parties (lists of (start, inclusive-end) offsets)."""
 
     out_list = []  # type: List[Tuple[Tuple[int, int], Optional[Tuple[int, int]]]]
 
-    # Grab lines from the file
-    pline_after_lines = extract_party_line(paras_attr_list)
+    # transform para_attr_list to se_paras_attr_list
+    offset = 0
+    # we want to know the start ane end of each line
+    se_paras_attr_list = []  # type: List[Tuple[int, int, str, List[str]]]
+    for line_st, para_attrs in paras_attr_list:
+        line_st_len = len(line_st)
+        se_paras_attr_list.append((offset, offset + line_st_len, line_st, para_attrs))
+        offset += line_st_len + 1
+
+    pline_after_lines = extract_party_line(se_paras_attr_list)
+    if not pline_after_lines:
+        pline_after_lines = extract_party_line_as_date_between(se_paras_attr_list)
+    # pylint: disable=too-many-nested-blocks
     if pline_after_lines:
         start_end_partyline, is_list_party, after_se_paras_attr_list = pline_after_lines
         start, unused_end, party_line = start_end_partyline
@@ -1626,7 +1717,6 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
             print('\nparty_line: (%d, %d)' % (start, unused_end))
             print(party_line)
             print("is_list_party = {}".format(is_list_party))
-
 
         # Sometimes if is_list_party, still have parties in party line only.
         # So, try that first.  If found parties, don't bother with the is_party list
@@ -1652,85 +1742,37 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
 
             if is_list_party:
                 # all the parties are in after_se_paras_attr_list
-                party_term_offsets_list = extract_parties_from_list_lines(after_se_paras_attr_list)
-                for party_term_offsets in party_term_offsets_list:
-                    party_offset_pair, term_offset_pair = party_term_offsets
-                    if party_offset_pair and term_offset_pair:
-                        # print("xxx {},,,, {}".format(party_offset_pair, term_offset_pair))
-                        out_list.append((party_offset_pair, term_offset_pair))
-                    if party_offset_pair and not term_offset_pair:
-                        # print("xxx111 {}".format(party_offset_pair))
-                        out_list.append((party_offset_pair, None))
-                    if not party_offset_pair and term_offset_pair:
-                        # print("found defined_term, but not party: {}".format(term_offset_pair))
-                        # print("xxx222 {}".format(term_offset_pair))
-                        out_list.append((term_offset_pair, None))
-            else:  # normal party line
-                """
-                # Extract parties and return their offsets
-                parties = extract_parties_from_party_line(party_line)
 
-                # for ppart in parties:
-                #     print("ppart: {}".format(ppart))
-                offset_pair_list = parties_to_offsets(parties, party_line)
-                # for ppart in offset_pair_list:
-                #     print("ppart 22: {}".format(ppart))
-                # logging.info("offset_pair_list: {}".format(offset_pair_list))
-                for party_term_ox_list in offset_pair_list:
-                    if len(party_term_ox_list) == 2:
-                        party_start, party_end = party_term_ox_list[0]
-                        defined_term_start, defined_term_end = party_term_ox_list[1]
-                        out_list.append(((start + party_start, start + party_end),
-                                         (start + defined_term_start, start + defined_term_end)))
-                    else:
-                        party_start, party_end = party_term_ox_list[0]
-                        out_list.append(((start + party_start, start + party_end),
-                                         None))
-                """
-
-                # there still can be multiple sentences in the paragraph containing
-                # the party line.  Use NLTK to take care of this.
-                """
-                sent_tokenize_list = sent_tokenize(party_line)
-                if IS_DEBUG_MODE:
-                    for sent in sent_tokenize_list:
-                        print("found sent: {}".format(sent))
-                party_line = sent_tokenize_list[0]
-                """
-
-                # party_dterm_list = extract_party_defined_term_list(party_line)
-                party_dterm_list = extract_party_defined_term_list(first_sentence(party_line))
-                for party_dterm in party_dterm_list:
-                    party_x, dterm_x = party_dterm
-                    if party_x and dterm_x:
-                        pstart, pend, _, _ = party_x
-                        tstart, tend, _, _ = dterm_x
-                        out_list.append(((start + pstart, start + pend),
-                                         (start + tstart, start + tend)))
-                    elif party_x:
-                        pstart, pend, _, _ = party_x
-                        out_list.append(((start + pstart, start + pend), None))
-                    elif dterm_x:
-                        tstart, tend, _, _ = dterm_x
-                        out_list.append(((start + tstart, start + tend), None))
+                party_list_term_offsets_list = extract_parties_from_list_lines(after_se_paras_attr_list)
+                if party_list_term_offsets_list:
+                    for party_pair_list, term_pair in party_list_term_offsets_list:
+                        # last_party_term = party_pair_list[-1], term_pair
+                        # all except for the last one
+                        for party_pair in party_pair_list[:-1]:
+                            out_list.append((party_pair, None))
+                        # last party_pair and term_pair
+                        if party_pair_list:
+                            out_list.append((party_pair_list[-1], term_pair))
+                        else:
+                            out_list.append((None, term_pair))
 
     if IS_DEBUG_MODE:
         print()
         for i, (party_y, term_y) in enumerate(out_list):
             if party_y:
                 start, end = party_y
-                print("  #{} found party: [{}]".format(i, unused_para_text[start:end]))
+                print("  #{} found party: [{}]".format(i, para_text[start:end]))
             if term_y:
                 start, end = term_y
-                print("  #{} found dterm: [{}]".format(i, unused_para_text[start:end]))
+                print("  #{} found dterm: [{}]".format(i, para_text[start:end]))
         print()
 
-    filtered_out_list = []
+    filtered_out_list = []  # type: List[Tuple[Optional[Tuple[int, int]], Optional[Tuple[int, int]]]]
     # filter bad party or terms right before returning the result
     for party_y, term_y in out_list:
         if party_y:
             start, end = party_y
-            party_y_text = unused_para_text[start:end]
+            party_y_text = para_text[start:end]
             if re.match(r'^(the|each)$', party_y_text, re.I):
                 # party_y = None
                 # term_y = None
@@ -1743,12 +1785,12 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
             tmp_mat = re.match(r'for\s+value\s+received,?\s+', party_y_text, re.I)
             if tmp_mat:
                 start = start + tmp_mat.end()
-                # part_y_text = unused_para_text[start:]
+                # part_y_text = para_text[start:]
                 party_y = start, end
             # there is no bad parties for now
         if term_y:
             start, end = term_y
-            term_y_text = unused_para_text[start:end]
+            term_y_text = para_text[start:end]
             if re.search(r'\b(as\s+defined\s+below|amount)\b', term_y_text, re.I):
                 term_y = None
         filtered_out_list.append((party_y, term_y))
@@ -1767,6 +1809,6 @@ class PartyAnnotator:
     def extract_provision_offsets(self,
                                   paras_with_attrs: List[Tuple[str, List[str]]],
                                   paras_text: str) \
-        -> List[Tuple[Tuple[int, int],
+        -> List[Tuple[Optional[Tuple[int, int]],
                       Optional[Tuple[int, int]]]]:
         return extract_offsets(paras_with_attrs, paras_text)

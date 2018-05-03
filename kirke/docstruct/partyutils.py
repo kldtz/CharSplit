@@ -44,7 +44,7 @@ REGISTERED_PAT = re.compile(r'\bregistered\b', re.I)
 
 def is_made_by_check(line: str) -> bool:
     mat = MADE_BY_PAT.search(line)
-    return mat and len(mat.group(1)) < 20
+    return bool(mat) and len(mat.group(1)) < 20
 
 
 # bank is after 'n.a.' because 'bank, n.a.' is more desirable
@@ -126,6 +126,23 @@ def find_uppercase_party_name(line: str) \
     if found_party_se_other:
         (party_start, party_end), other_start = found_party_se_other
         party_st = line[party_start:party_end]
+        # 'Johnson & Johnson Medikal Sanayi Ve Ticaret Limited Sirketi'
+        if len(party_st) > 50:
+            # find the end org
+            org_mat_list = get_org_suffix_mat_list(party_st)
+            if org_mat_list:
+                last_org_mat = org_mat_list[-1]
+                party_end = party_start + last_org_mat.end()
+                party_st = line[party_start:party_end]
+                other_start = strutils.find_next_not_space_idx(line, party_end)
+        elif len(list(re.finditer(r'\b(of|de|du)\b', party_st, re.I))) > 1:
+            of_mat_list = re.finditer(r'\b(of|de|du)\b', party_st, re.I)
+            # there should be only 1 "of", otherwise, likely an address
+            last_of_mat = of_mat_list[1]
+            party_end = party_start + last_of_mat.end()
+            party_st = line[party_start:party_end]
+            other_start = strutils.find_next_not_space_idx(line, party_end)
+
         return (party_start, party_end), other_start, is_valid_uppercase_party_name(party_st)
     return None
 
@@ -443,6 +460,13 @@ def is_party_line_aux(line: str) -> str:
        re.search(r'\b(entered\s+into)\b', line, re.I):
         return 'True9.1'
 
+    # mytest/doc1.txt fail on this
+    """
+    if re.search(r'\b(agreement|contract)\b', line, re.I) and \
+       re.search(r'\b(dated)\b', line, re.I):
+        return 'True9.2'
+    """
+
     # TODO, jshaw, look into this
     # [tn=0, fp=1347], [fn=2877, tp=8034]], f1=0.7918
     # => [[tn=0, fp=1335], [fn=2877, tp=8034]] f1= 0.7923
@@ -521,10 +545,15 @@ def is_party_line_aux(line: str) -> str:
         return 'True32'
     if 'confirm' in lc_line and 'agree' in lc_line:
         return 'True33'
+    # NOW, THEREFORE, in consideration of the premises and the mutual covenants contained in this Agreement,  the Parties hereto agree as follows:
+    if re.search(r'\b(now|therefore|in cosideration)\b', line, re.I):
+        return 'False33.1'
     #"""In this Agreement (unless the context requires otherwise) the following words
     # shall have the following meanings"""
-    if 'agree' in lc_line and 'follow' in lc_line and not "meaning" in lc_line:
-        return 'True34'
+    # if 'agree' in lc_line and 'follow' in lc_line and not "meaning" in lc_line:
+    #    return 'True34'
+
+
     if 'follow' in lc_line and 'between' in lc_line:
         return 'True35'
     # for warrants, 'the Lenders from time to time party thereto,'
@@ -645,13 +674,14 @@ def extract_name_parties(line):
 # Note: I have seen up to 13 companies
 def match_list_prefix(line: str) -> Match[str]:
     """This return the match of whatever is AFTER the prefix as group(1)."""
-    return re.match(r'\(?\s*[\divx]+\s*\)\s*(.*)', line, re.I)
+    # the first ' is due to some OCR error, mytest/doc16.txt
+    return re.match(r"'?\(?\s*[\divx]+\s*\)\s*(.*)", line, re.I)
 
 
 # I have seen up to 13 companies
 def match_party_list_prefix(line: str) -> Match[str]:
     """This return the match of whatever is AFTER the prefix as group(1)."""
-    num_mat = re.match(r'\(?\s*[\divx]+\s*\)\s*(.*)', line, re.I)
+    num_mat = re.match(r"'?\(?\s*[\divx]+\s*\)\s*(.*)", line, re.I)
     if num_mat:
         return num_mat
 
@@ -666,6 +696,34 @@ def is_party_list_prefix_with_validation(line: str) -> bool:
             return False
         return True
     return False
+
+def is_party_list_with_end_between(line: str) -> bool:
+    words = line.lower().split()
+    last_8_words = words[-8:]
+    # print("last_8_words = {}".format(last_8_words))
+    if 'between' in last_8_words and \
+       words[-1] == 'and':
+        return True
+    elif 'between' == words[-1]:
+        return True
+    return False
+
+
+def is_all_english_title_case(line: str) -> bool:
+    words = strutils.get_alpha_words(line, is_lower=False)
+    if not words:
+        return False
+    for word in words:
+        # check if preposition, lc
+        if not (word.istitle() or
+                word.isupper() or
+                word in set(['of', 'the', 'as', 'from', 'to',
+                             'between', 'among', 'de', # 'of' in Spanish
+                             'and', 'or'])):
+            # print("failed tt: [{}]".format(word))
+            return False
+    return True
+
 
 
 if __name__ == '__main__':

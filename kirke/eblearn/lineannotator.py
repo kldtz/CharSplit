@@ -40,6 +40,7 @@ class LineAnnotator:
                                                       ebantdoc.nlp_sx_lnpos_list,
                                                       ebantdoc.origin_sx_lnpos_list)
 
+            # print("test_antdoc_list(), at {}".format(ebantdoc.file_id))
             ant_list = self.annotate_antdoc(paras_with_attrs,
                                             paras_text,
                                             fromto_mapper,
@@ -143,18 +144,20 @@ class LineAnnotator:
 
             if party_offset_pair_list:
                 for i, party_offset_pair in enumerate(party_offset_pair_list, 1):
-                    (party_start, party_end), term_ox = party_offset_pair
-                    party_st = paras_text[party_start:party_end]
-                    num_words = len(party_st.split())
-                    if not parties.is_invalid_party(party_st) and \
-                       (num_words > 1 or \
-                        (num_words == 1 and parties.is_valid_1word_party(party_st))):
-                        prov_annotations.append({'end': party_end,
-                                                 'label': self.provision,
-                                                 'id': i,
-                                                 'start': party_start,
-                                                 'prob': 0.91,
-                                                 'text': paras_text[party_start:party_end]})
+                    party_ox, term_ox = party_offset_pair
+                    if party_ox:
+                        party_start, party_end = party_ox
+                        party_st = paras_text[party_start:party_end]
+                        num_words = len(party_st.split())
+                        if not parties.is_invalid_party(party_st) and \
+                           (num_words > 1 or \
+                            (num_words == 1 and parties.is_valid_1word_party(party_st))):
+                            prov_annotations.append({'end': party_end,
+                                                     'label': self.provision,
+                                                     'id': i,
+                                                     'start': party_start,
+                                                     'prob': 0.91,
+                                                     'text': paras_text[party_start:party_end]})
                     if term_ox:
                         term_start, term_end = term_ox
                         party_st = paras_text[term_start:term_end]

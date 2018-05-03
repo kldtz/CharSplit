@@ -102,8 +102,8 @@ def phrase_to_igs_pattern(phrase: str,
 def phrases_to_igs_pattern(phrase_list: List[str],
                            flags: int = 0) \
                            -> Pattern[str]:
-    if not phrase_list:
-        return []
+    # if not phrase_list:
+    #     return []
     igs_pat_st = phrases_to_igs_pattern_st(phrase_list)
     return re.compile(igs_pat_st, flags)
 
