@@ -6,10 +6,10 @@ import re
 
 from typing import List, Match, Optional, Tuple
 
-from kirke.utils import engutils, regexutils, strutils
+from kirke.utils import engutils, nlputils, regexutils, strutils
 
 
-IS_DEBUG_MODE = False
+IS_DEBUG_MODE = True
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s : %(levelname)s : %(message)s')
 
@@ -326,6 +326,9 @@ def is_party_line(line: str,
     #               num_date))
     if num_long_english_line > 10:
         return False
+
+    # only get the first sentence of the line, otherwise too much junk
+    line = nlputils.first_sentence(line)
 
     result = is_party_line_aux(line)
 

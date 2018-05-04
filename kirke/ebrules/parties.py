@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 
 from kirke.docstruct import partyutils
 from kirke.ebrules import titlesold, addresses
-from kirke.utils import strutils
+from kirke.utils import nlputils, strutils
 
 
 IS_DEBUG_DISPLAY_TEXT = False
@@ -165,18 +165,6 @@ US_STATE_END_PAT = load_us_state_end_pat()
 
 def is_ending_in_us_state(line: str) -> bool:
     return bool(re.search(US_STATE_END_PAT, line, re.I))
-
-SENTENCE_DOES_NOT_CONTINUE = r'(?=\s+(?:[A-Z0-9].|[a-z][A-Z0-9]))'
-NOT_FEW_LETTERS = r'(?<!\b[A-Za-z]\.)(?<!\b[A-Za-z]{2}\.)'
-NOT_NUMBER = r'(?<!\bN(O|o)\.)(?<!\bN(O|o)(S|s)\.)'
-REAL_PERIOD = r'\.' + SENTENCE_DOES_NOT_CONTINUE + NOT_FEW_LETTERS + NOT_NUMBER
-FIRST_SENT = re.compile(r'(.*?' + REAL_PERIOD + ')')
-
-
-def first_sentence(astr: str) -> str:
-    """Trying to avoid sentence tokenizing since occurs before CoreNLP."""
-    match = FIRST_SENT.search(astr)
-    return match.group() if match else astr
 
 
 # """Extract parties from party line"""
@@ -1006,7 +994,7 @@ def extract_parties_from_party_line(astr: str, is_party: bool = True) -> List[Li
     is_party flag should be true for party provision but false for landlord / tenant provisions
     when is_party is false it will keep address-like extractions
     """
-    astr = first_sentence(astr)
+    astr = nlputils.first_sentence(astr)
 
     #bullet type parties won't contain between / among, extract anyway
     if partyutils.is_party_list_prefix_with_validation(astr):
@@ -1682,8 +1670,6 @@ def extract_parties_from_list_lines(se_after_paras_attr_list: List[Tuple[int, in
     return result
 
 
-
-# bool(re.search,(r'(:|among|between)\s*$', line_st))
 def is_list_party_line(line: str) -> bool:
     # any party_line ends with ':' is considered a list party prefix
     org_suffix_list = partyutils.get_org_suffix_mat_list(line)
@@ -1726,8 +1712,8 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
 
         # Sometimes if is_list_party, still have parties in party line only.
         # So, try that first.  If found parties, don't bother with the is_party list
-        # print("ok, party_line: [{}]".format(first_sentence(party_line)))
-        party_dterm_list = extract_party_defined_term_list(first_sentence(party_line))
+        # print("ok, party_line: [{}]".format(nlputils.first_sentence(party_line)))
+        party_dterm_list = extract_party_defined_term_list(nlputils.first_sentence(party_line))
         if party_dterm_list:
             for party_dterm in party_dterm_list:
                 party_x, dterm_x = party_dterm
