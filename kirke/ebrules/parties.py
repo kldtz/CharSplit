@@ -1134,6 +1134,7 @@ def skip_non_english_line(se_paras_attr_list: List[Tuple[int, int, str, List[str
                 return jnum, se_paras_attr
     return None
 
+
 # mytest/doc101.txt
 def extract_party_line_as_date_between(se_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
     -> Optional[Tuple[Tuple[int, int, str],
@@ -1159,17 +1160,18 @@ def extract_party_line_as_date_between(se_paras_attr_list: List[Tuple[int, int, 
 
     len_try_match = len(nempty_se_paras_attr_list)
     for j, nempty_se_paras_attr in enumerate(nempty_se_paras_attr_list):
-        if j+2 < len_try_match:
-            if re.match(r'(date|dated)\b', nempty_line_st_list[j], re.I) and \
-               re.match(r'(between)\b', nempty_line_st_list[j+1], re.I):
-                sx, ex, party_line_st, _ = nempty_se_paras_attr_list[j+1]  # between
+        if j+3 < len_try_match:
+            if re.search(r'\b(agreement|contract)\b', nempty_line_st_list[j], re.I) and \
+               re.match(r'(date|dated)\b', nempty_line_st_list[j+1], re.I) and \
+               re.match(r'(between|among)\b', nempty_line_st_list[j+2], re.I):
+                sx, ex, party_line_st, _ = nempty_se_paras_attr_list[j+2]  # between
                 is_party_list = True
-                orig_idx = nempty_idx_list[j+2]
+                orig_idx = nempty_idx_list[j+3]
                 return (sx, ex, party_line_st), is_party_list, se_paras_attr_list[orig_idx:]
     return None
 
 
-def extract_party_line(se_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
+def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
     -> Optional[Tuple[Tuple[int, int, str],
                       bool,
                       List[Tuple[int, int, str, List[str]]]]]:
@@ -1186,6 +1188,21 @@ def extract_party_line(se_paras_attr_list: List[Tuple[int, int, str, List[str]]]
                   else:
                      whatever after the party line
     """
+
+    # transform para_attr_list to se_paras_attr_list
+    offset = 0
+    # we want to know the start ane end of each line
+    se_paras_attr_list = []  # type: List[Tuple[int, int, str, List[str]]]
+    for line_st, para_attrs in paras_attr_list:
+        line_st_len = len(line_st)
+        se_paras_attr_list.append((offset, offset + line_st_len, line_st, para_attrs))
+        offset += line_st_len + 1
+
+    # try to detect 'agreement...\ndated xxx\namong\n'
+    # if found, simply return the result
+    pline_after_lines = extract_party_line_as_date_between(se_paras_attr_list)
+    if pline_after_lines:
+        return pline_after_lines
 
     # prev_line_st = ''
     # pylint: disable=invalid-name
@@ -1696,18 +1713,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
 
     out_list = []  # type: List[Tuple[Tuple[int, int], Optional[Tuple[int, int]]]]
 
-    # transform para_attr_list to se_paras_attr_list
-    offset = 0
-    # we want to know the start ane end of each line
-    se_paras_attr_list = []  # type: List[Tuple[int, int, str, List[str]]]
-    for line_st, para_attrs in paras_attr_list:
-        line_st_len = len(line_st)
-        se_paras_attr_list.append((offset, offset + line_st_len, line_st, para_attrs))
-        offset += line_st_len + 1
-
-    pline_after_lines = extract_party_line(se_paras_attr_list)
-    if not pline_after_lines:
-        pline_after_lines = extract_party_line_as_date_between(se_paras_attr_list)
+    pline_after_lines = extract_party_line(paras_attr_list)
     # pylint: disable=too-many-nested-blocks
     if pline_after_lines:
         start_end_partyline, is_list_party, after_se_paras_attr_list = pline_after_lines
