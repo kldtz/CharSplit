@@ -166,8 +166,8 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
     return result
 
 
-# CoreNLP treats non-breaking space as a character, so things are kind of messed up with offsets.
-# We align the first word instead.
+# CoreNLP treats non-breaking space as a character, so things are kind
+# of messed up with offsets.  We align the first word instead.
 def align_first_word_offset(json_sent_list, atext):
     # get first word
     if not json_sent_list:
@@ -175,7 +175,14 @@ def align_first_word_offset(json_sent_list, atext):
     first_word_json = json_sent_list[0]['tokens'][0]
     first_word = first_word_json['word']
     first_word_start = first_word_json['characterOffsetBegin']
-    return atext.find(first_word) - first_word_start
+
+    adjust = 0
+    for i in range(len(first_word)):
+        if first_word[i].isspace():  # verified nbsp.isspace() == True
+            adjust += 1
+        else:
+            break
+    return adjust
 
 
 # ajson is result from corenlp
