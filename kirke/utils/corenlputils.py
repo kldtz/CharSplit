@@ -176,9 +176,13 @@ def align_first_word_offset(json_sent_list, atext):
     first_word = first_word_json['word']
     first_word_start = first_word_json['characterOffsetBegin']
 
+
+    # ' &nbsp a' corenlp matches to start=2, end=3
+    # we want start = 3, end =4
+    # verified nbsp.isspace() == True, so cannot use this
     adjust = 0
-    for i in range(len(first_word)):
-        if first_word[i].isspace():  # verified nbsp.isspace() == True
+    for i in range(len(atext)):
+        if atext[i] == ' ':
             adjust += 1
         else:
             break
