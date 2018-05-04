@@ -17,8 +17,8 @@ from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
 from kirke.utils.textoffset import TextCpointCunitMapper
 
 
-CORENLP_JSON_VERSION = '1.4'
-EBANTDOC_VERSION = '1.4'
+CORENLP_JSON_VERSION = '1.6'
+EBANTDOC_VERSION = '1.6'
 
 def get_corenlp_json_fname(txt_basename, work_dir):
     base_fn = txt_basename.replace('.txt',
