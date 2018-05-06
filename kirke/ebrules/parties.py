@@ -405,7 +405,7 @@ def get_title_phrase_list(line: str,
     # There might be other cases, with all personal names in title_phrases
     # where this check is not useful.  Might need to explore further about
     # checking for all_upper_case
-    num_org_suffix = len(partyutils.get_org_suffix_mat_list(line))
+    num_org_suffix = len(nlputils.get_org_suffix_mat_list(line))
     if is_all_upper and len(title_phrase_list) < num_org_suffix:
         return []
 
@@ -845,7 +845,7 @@ def select_highly_likely_parties(entities: List[Tuple[int, int, str]],
         # anything that's has org suffix, add it
         if re.search(r'\b(law|code)$', entity_st, re.I):
             pass
-        elif partyutils.ORG_PERSON_SUFFIX_PAT.search(entity_st):
+        elif nlputils.org_person_suffix_search(entity_st):
             # print('last word = [{}], entity_st = [{}]'.format(last_word, entity_st))
             # a Delaware Corporation (bad capitalization),
             # a Limited Liability company (bad capitalization also?)
@@ -916,7 +916,7 @@ def extract_party_defined_term_list(line: str) \
     else:
         # try with all entities in upper()
         entities = get_title_phrase_list(line, is_all_upper=True)
-        num_org_suffix = len(partyutils.get_org_suffix_mat_list(line))
+        num_org_suffix = len(nlputils.get_org_suffix_mat_list(line))
 
         if IS_DEBUG_MODE:
             print_debug_list(entities, 'zz', title='before_remove_invalid')
@@ -1557,9 +1557,9 @@ def move_next_non_empty_se_after_list(se_after_paras_attr_list: List[Tuple[int, 
 
 
 # pylint: disable=line-too-long
-def extract_parties_from_list_lines(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
-                                    -> List[Tuple[List[Tuple[int, int]],
-                                                  Optional[Tuple[int, int]]]]:
+def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
+    -> List[Tuple[List[Tuple[int, int]],
+                  Optional[Tuple[int, int]]]]:
     if not se_after_paras_attr_list:
         return []
 
@@ -1672,7 +1672,7 @@ def extract_parties_from_list_lines(se_after_paras_attr_list: List[Tuple[int, in
 
 def is_list_party_line(line: str) -> bool:
     # any party_line ends with ':' is considered a list party prefix
-    org_suffix_list = partyutils.get_org_suffix_mat_list(line)
+    org_suffix_list = nlputils.get_org_suffix_mat_list(line)
     # print("org_suffix_list 32523: {}".format(org_suffix_list))
     # xxx, yyy, and my confirms its agreements as follow:
     if len(org_suffix_list) > 1:
@@ -1735,7 +1735,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
             if is_list_party:
                 # all the parties are in after_se_paras_attr_list
 
-                party_list_term_offsets_list = extract_parties_from_list_lines(after_se_paras_attr_list)
+                party_list_term_offsets_list = extract_parties_term_list_from_list_lines(after_se_paras_attr_list)
                 if party_list_term_offsets_list:
                     for party_pair_list, term_pair in party_list_term_offsets_list:
                         # last_party_term = party_pair_list[-1], term_pair

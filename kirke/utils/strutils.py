@@ -640,7 +640,7 @@ def find_next_not_space_idx(line: str, idx: int) -> int:
 
 def find_previous_word(line: str, idx: int) -> Tuple[int, int, str]:
     """Find previous word.
-    
+
     If the current index is an alphanum, it will get the previous word,
     not the current one.
     """
@@ -845,33 +845,6 @@ def get_regex_wwplus(line: str) -> List[str]:
 
 SIMPLE_WORD_TOKEN_PAT = re.compile(r'([“"”:;\(\)]|\n+|\b[\d,\.]+\b|(\w\.)+|\w+)')
 
-TREEBANK_WORD_TOKENIZER = TreebankWordTokenizer()
-# NLTK_TOKENIZER = WhitespaceTokenizer()
-# This doesn't handle number correctly
-NLTK_TOKENIZER = RegexpTokenizer(r'\w[\w\.]+|(\$|\#)?[\d\.]+|\S')
-
-def word_comma_tokenize(line: str) -> Generator[Tuple[int, int, str], None, None]:
-    """Return a list of word, with comma.
-
-    Note: all periods,include those for abbreviation, "I.B.M.", and end of sentence
-    ending, "war." are a part of the word.  We assume the line is already a string
-    """
-    for start, end in NLTK_TOKENIZER.span_tokenize(line):
-        word = line[start:end]
-        if word[0].isalnum():
-            if word[-1] == '.' and not word[0].isupper():  # end of sentence
-                yield start, end-1, word[:-1]
-            else:
-                yield start, end, word
-        elif re.search(r'\d', word):
-            yield start, end, word
-        else:
-            if word == ',' or \
-               word == '?' or \
-               word == '!':
-                yield start, end, word
-            # otherwise, just ignore all other punctuations
-
 # please note that because CountVectorizer does some word filtering,
 # we must transform 1 char punctuations to alphabetized words, otherwise
 # CountVectorizer just ignore them
@@ -1031,6 +1004,22 @@ def get_consecutive_one_char_parens_mats(line: str) -> List[Match[str]]:
            re.match(r'\(?(2|b|ii)\)', second, re.I):
             return result
     return []
+
+
+def find_non_space_index(line: str) -> int:
+    """Return index of the first non-space character in line.
+
+    This handles non-breaking spaces because of isspace()
+    """
+    if not line:
+        return -1
+    idx = 0
+    line_len = len(line)
+    while line[idx].isspace():
+        idx += 1
+        if idx >= line_len:
+            return -1
+    return idx
 
 
 if __name__ == '__main__':

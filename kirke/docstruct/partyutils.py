@@ -47,65 +47,6 @@ def is_made_by_check(line: str) -> bool:
     return bool(mat) and len(mat.group(1)) < 20
 
 
-# bank is after 'n.a.' because 'bank, n.a.' is more desirable
-# 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
-# TODO, handle "The bank of Nova Scotia", this is NOT org suffix case
-# TODO, not handling 'real estate holdings fiv'
-# TODO, remove 'AS AMENDED' as a party, 'the customer'?
-# TODO, 'seller, seller' the context?
-ORG_SUFFIX_LIST = strutils.load_non_empty_str_list('dict/parties/organization.suffix.list')
-PERS_SUFFIX_LIST = strutils.load_non_empty_str_list('dict/parties/person.suffix.list')
-
-ORG_PERSON_SUFFIX_LIST = list(ORG_SUFFIX_LIST)
-ORG_PERSON_SUFFIX_LIST.extend(PERS_SUFFIX_LIST)
-
-# copied from kirke/ebrules/parties.py on 2/4/2016
-ORG_PERSON_SUFFIX_PAT = regexutils.phrases_to_igs_pattern(ORG_PERSON_SUFFIX_LIST, re.I)
-ORG_PERSON_SUFFIX_END_PAT = \
-    re.compile(regexutils.phrases_to_igs_pattern_st(ORG_PERSON_SUFFIX_LIST) + r'\s*$', re.I)
-
-# print("org_person_suffix_pattern_st:")
-# print(regexutils.phrases_to_igs_pattern_st(ORG_PERSON_SUFFIX_LIST))
-
-def is_org_suffix(line: str) -> bool:
-    # print("is_org_suffix({})".format(line))
-    return bool(ORG_PERSON_SUFFIX_END_PAT.match(line))
-
-
-def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
-    """Get all org suffix matching mat extracted from line.
-
-    Because of capitalization concerns, we are making
-    a pass to make sure, it is not just 'a limited company'
-    """
-
-    lc_mat_list = list(ORG_PERSON_SUFFIX_PAT.finditer(line))
-    result = []  # type: List[Match[str]]
-    for lc_mat in lc_mat_list:
-        prev_space_idx = lc_mat.start() -1
-        # the previous word must be capitalized
-        pword_start, pword_end, pword = strutils.find_previous_word(line, prev_space_idx)
-        if pword_start != -1:
-            if pword[0].isupper():
-                result.append(lc_mat)
-
-    # when there is adjcent ones, take the last one
-    # 'xxx Group, Ltd.', will return 'ltd'
-    prev_mat = None
-    result2 = [] # type: List[Match[str]]
-    # Only if we now that the current mat is not adjacent to
-    # the previous mat, we can add previous mat.
-    # Remember the last one.
-    for amat in result:
-        # 2 is chosen, just in case, normally the diff is 1
-        if prev_mat and amat.start() - prev_mat.end() > 2:
-            result2.append(prev_mat)
-        prev_mat = amat
-    if prev_mat:
-        result2.append(prev_mat)
-    return result2
-
-
 def is_valid_uppercase_party_name(line: str) -> bool:
     """Verify a name is a party name.
 
@@ -129,7 +70,7 @@ def find_uppercase_party_name(line: str) \
         # 'Johnson & Johnson Medikal Sanayi Ve Ticaret Limited Sirketi'
         if len(party_st) > 50:
             # find the end org
-            org_mat_list = get_org_suffix_mat_list(party_st)
+            org_mat_list = nlputils.get_org_suffix_mat_list(party_st)
             if org_mat_list:
                 last_org_mat = org_mat_list[-1]
                 party_end = party_start + last_org_mat.end()
@@ -220,7 +161,7 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
             if word_j < len(se_word_list):
                 aft_start, aft_end, aft_word = se_word_list[word_j]
 
-                tmp_org_mat = ORG_PERSON_SUFFIX_PAT.match(line[aft_start:])
+                tmp_org_mat = nlputils.ORG_PERSON_SUFFIX_PAT.match(line[aft_start:])
                 if tmp_org_mat:
                     prev_aft_end = aft_start + tmp_org_mat.end()
                     other_start = strutils.find_next_not_space_idx(line, prev_aft_end)
@@ -300,9 +241,9 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
 
     # if want to handle "Citibank, n.a.", can do it here
     # by regex matching
-    elif ORG_PERSON_SUFFIX_PAT.match(after_line):
+    elif nlputils.ORG_PERSON_SUFFIX_PAT.match(after_line):
         # do matching again, this will be rare, tolerate the cost
-        mat = ORG_PERSON_SUFFIX_PAT.match(after_line)
+        mat = nlputils.ORG_PERSON_SUFFIX_PAT.match(after_line)
         prev_end = other_start + mat.end()
         other_start = strutils.find_next_not_space_idx(line, prev_end+1)
 
@@ -426,12 +367,12 @@ def is_party_line_aux(line: str) -> str:
     if re.match(r'Party \S+\s*:', line, re.I) and line[0].isupper():
         return 'True6'
 
-    num_org_suffix = len(get_org_suffix_mat_list(line))
+    num_org_suffix = len(nlputils.get_org_suffix_mat_list(line))
     if 'among' in line and ' dated ' in line and num_org_suffix > 2:
         return 'True7'
 
     # this is from a title line, not a party line
-    if len(line) < 200 and ORG_PERSON_SUFFIX_END_PAT.search(line) and line.strip()[-1] != '.':
+    if len(line) < 200 and nlputils.ORG_PERSON_SUFFIX_END_PAT.search(line) and line.strip()[-1] != '.':
         return 'False8'
 
     # Removed.  This turns out to be false for UK document multiple times.
