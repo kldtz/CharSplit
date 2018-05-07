@@ -127,6 +127,7 @@ def train_span_annotator(label: str,
                                             383838,
                                             'en',
                                             nbest,
+                                            -1,
                                             candidate_type,
                                             work_dir,
                                             model_dir)

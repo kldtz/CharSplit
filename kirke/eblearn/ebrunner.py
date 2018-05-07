@@ -72,15 +72,14 @@ def update_dates_by_domain_rules(ant_result_dict):
                 eff_ant['label'] = 'date'
             ant_result_dict['date'] = effectivedate_annotations
         else:
+            # update 'date' with 'sigdate' if 'date' is empty
             sigdate_annotations = ant_result_dict.get('sigdate')
-            if sigdate_annotations:
+            if not ant_result_dict.get('date') and sigdate_annotations:
                 # make a copy to preserve original list
                 sigdate_annotations = copy.deepcopy(sigdate_annotations)
                 for sig_ant in sigdate_annotations:
                     sig_ant['label'] = 'date'
                 ant_result_dict['date'] = sigdate_annotations
-    # user never want to see sigdate
-    ant_result_dict['sigdate'] = []
 
     # if 'l_execution_date' is being annotated, replace it with 'date'
     l_execution_dates = ant_result_dict.get('l_execution_date')

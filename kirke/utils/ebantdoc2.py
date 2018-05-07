@@ -728,7 +728,7 @@ def fnlist_to_fn_ebantdoc_provset_map(fn_list: List[str],
     fn_ebantdoc_map = {}
     for i, txt_file_name in enumerate(fn_list, 1):
         # if i % 10 == 0:
-        logging.info("loaded #{} ebantdoc: {}".format(i, txt_file_name))
+        logging.info("loading #{} ebantdoc: {}".format(i, txt_file_name))
 
         eb_antdoc = text_to_ebantdoc2(txt_file_name,
                                       work_dir,
