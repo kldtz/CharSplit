@@ -39,7 +39,6 @@ class ParagraphGenerator:
                              group_id)
             #finds all matches in the text and adds window around each as a candidate
             i = 0
-            print([x[0][1] for x in antdoc.para_indices])
             while i < len(antdoc.para_indices):
                 para = antdoc.para_indices[i]
                 match_start = para[0][1].start
@@ -47,28 +46,23 @@ class ParagraphGenerator:
                 raw_start = para[0][0].start
                 raw_end = para[-1][0].end
                 para_text = nl_text[match_start:match_end].strip()
-                #print("\t>>>", para_text, "\n")
                 skipping = True
                 span_list = [x[0] for x in para]
                 while skipping and i+1 < len(antdoc.para_indices):
-                    print(antdoc.para_indices[i+1], antdoc.para_indices[i][0][1].line_num, antdoc.para_indices[i+1][0][1].line_num)
                     next_start = antdoc.para_indices[i+1][0][1].start
                     next_end = antdoc.para_indices[i+1][-1][1].end
                     next_raw_end = antdoc.para_indices[i+1][-1][0].end
                     next_text = nl_text[next_start:next_end].strip()
-                    para_end_punct = re.search(r'[;:,]', para_text[-10:])
-                    next_end_punct = re.search(r'[;,\.]', next_text[-10:])
-                    preamble = re.search(r'(now,? therefore)|(definitions)', para_text[:50], re.I)
-                    print(preamble)
+                    para_end_punct = re.search(r'[;:]', para_text[-10:])
+                    next_end_punct = re.search(r'[;\.A-z]', next_text[-10:])
+                    preamble = re.search(r'(now,? +therefore)|(definitions)', para_text[:50], re.I)
+                    if not preamble:
+                        preamble = re.search(r'(as +follows[:;])|(defined +terms)', para_text, re.I)
                     try:
-                        next_start_punct = re.search(r'[A-z]', next_text).group().islower()
+                        next_start_punct = re.search(r'[^\(][A-z]', next_text).group().islower()
                     except AttributeError:
                         next_start_punct = False
-                    print('PARA', para_text, "\n")
-                    print('NEXT', next_text, "\n")
-                    print(para_end_punct, next_end_punct, len(para_text.split()), len(next_text), next_start_punct, "\n")
-                    if (preamble == None and para_end_punct and next_end_punct and len(para_text.split()) > 1) or (not next_text) or next_start_punct:
-                        print("ADDED")
+                    if ((not preamble) and para_end_punct and next_end_punct and len(para_text.split()) > 1) or (not next_text) or next_start_punct:
                         para_text = para_text + " " + next_text
                         match_end = next_end
                         raw_end = next_raw_end
@@ -76,14 +70,11 @@ class ParagraphGenerator:
                         i += 1
                     else:
                         skipping = False
-                print("\t DONE", (match_end - match_start), (raw_end - raw_start), antdoc.get_text()[raw_start:raw_end])
                 if len(para_text.split()) > 5:
                     is_label = ebsentutils.check_start_end_overlap(raw_start,
                                                                    raw_end,
                                                                    label_ant_list)
                     #update span based on window size
-                    #print(">>>", para_text, ">>>\n")
-                    #print(">>>", antdoc.get_text()[raw_start:raw_end], "\n")
                     a_candidate = {'candidate_type': self.candidate_type,
                                    'bow_start': match_start,
                                    'bow_end': match_end,
