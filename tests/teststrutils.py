@@ -84,6 +84,7 @@ class TestStrUtils(unittest.TestCase):
                           (75, 87, 'Partnership”'),
                           (87, 88, ')')])
 
+    """
     def test_get_consecutive_one_char_parens_mats(self):
         # pylint: disable=line-too-long
         line = '1) aba bd (b) a2df'
@@ -100,19 +101,28 @@ class TestStrUtils(unittest.TestCase):
         mat_list2 = strutils.get_consecutive_one_char_parens_mats(line2)
         print("mat_list2 = {}".format(mat_list2))
         self.assertEqual(len(mat_list2), 0)
+    """
 
-    def test_word_comma_tokenizer(self):
-        line = '1) aba Bd (b) a2df.'
-        se_tok_list = list(strutils.word_comma_tokenize(line))
-        self.assertEqual(se_tok_list, [(0, 1, '1'), (3, 6, 'aba'), (7, 9, 'Bd'), (11, 12, 'b'), (14, 18, 'a2df')])
 
-        line = 'I.B.M. and Dell Inc., are in a war, battle, and cold-war.'
-        se_tok_list = list(strutils.word_comma_tokenize(line))
-        self.assertEqual(se_tok_list, [(0, 6, 'I.B.M.'), (7, 10, 'and'), (11, 15, 'Dell'),
-                                       (16, 20, 'Inc.'), (20, 21, ','), (22, 25, 'are'),
-                                       (26, 28, 'in'), (29, 30, 'a'), (31, 34, 'war'),
-                                       (34, 35, ','), (36, 42, 'battle'), (42, 43, ','),
-                                       (44, 47, 'and'), (48, 52, 'cold'), (53, 56, 'war')])
+    def test_find_one_char_paren_mats(self):
+        line = '(a) The Princeton Review, Inc. (the “Issuer”), (b) the Collateral Agent ' \
+               '(c) the Purchasers party hereto and (d) the Guarantors party hereto.'
+        mat_list = strutils.find_one_char_paren_mats(line)
+        st_list = []
+        for mat in mat_list:
+            st_list.append(line[mat.start():mat.end()])
+        self.assertEqual(st_list,
+                         ['(a) ', '(b) ', '(c) ', '(d) '])
+
+        line = 'a) The Princeton Review, Inc. (the “Issuer”), b) the Collateral Agent ' \
+               'c) the Purchasers party hereto and d) the Guarantors party hereto.'
+        mat_list = strutils.find_one_char_paren_mats(line)
+        st_list = []
+        for mat in mat_list:
+            st_list.append(line[mat.start():mat.end()])
+        self.assertEqual(st_list,
+                         ['a) ', 'b) ', 'c) ', 'd) '])
+
 
 
     def test_find_previous_word(self):

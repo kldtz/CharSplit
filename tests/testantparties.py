@@ -272,12 +272,43 @@ class TestParties(unittest.TestCase):
                            (483, 499, 'Box.com (UK) Ltd'),
                            (601, 607, '"Box "')])
 
-        """
+
         prov_labels_map = annotate_doc('mytest/doc102.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
-                          [])
-        """
+                          [(306, 320, 'Partner 4, LLC'),
+                           (479, 499, '(collectively, “P4”)'),
+                           (505, 514, 'Box, Inc.'),
+                           (676, 702, '(collectively, “Supplier”)')])
+
+        prov_labels_map = annotate_doc('mytest/doc103.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(221, 242, 'ContentX Technologies'),
+                           (351, 363, '(“ContentX”!'),
+                           (368, 405, 'Cybeitnesh International  Corporation'),
+                           (507, 576, '(Cybermesh and together with ContentX, the “Members" each a “Member”)')])
+
+        prov_labels_map = annotate_doc('mytest/doc104.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(118, 172, 'Hadasit Medical Research  Services and Development Ltd'),
+                           (228, 239, '(“Hadasit”)'),
+                           (244, 273, 'Cell  Cure Neurosctcnccs Ltd.'),
+                           (328, 343, '(the “Company”)')])
+
+        prov_labels_map = annotate_doc('mytest/doc105.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(296, 312, 'Box.com (UK) Ltd')])
+
+        prov_labels_map = annotate_doc('mytest/doc106.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(185, 211, 'LipimetiX Development, LLC'),
+                           (251, 266, '(the "Company")'),
+                           (271, 298, 'Capstone Therapeutics Corp.'),
+                           (324, 337, '("Capstone11)')])
 
 
 if __name__ == "__main__":

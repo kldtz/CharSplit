@@ -9,7 +9,7 @@ from typing import List, Match, Optional, Tuple
 from kirke.utils import engutils, nlputils, regexutils, strutils
 
 
-IS_DEBUG_MODE = True
+IS_DEBUG_MODE = False
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s : %(levelname)s : %(message)s')
 
@@ -130,7 +130,7 @@ def find_not_title_idx(line: str) -> int:
     comma_idx = line.index(',')
     if comma_idx != -1:
         line = line[:comma_idx]
-    se_word_list = list(strutils.word_comma_tokenize(line))
+    se_word_list = list(nlputils.word_comma_tokenize(line))
     for wstart, wend, word in se_word_list:
         if re.match('(of|de)\b', word, re.I):
             continue
@@ -150,7 +150,7 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
     prev_end = -1
     maybe_se_other_start = None
     other_word_idx, other_word = -1, ''
-    se_word_list = list(strutils.word_comma_tokenize(line))
+    se_word_list = list(nlputils.word_comma_tokenize(line))
     # print("se_word_list = {}".format(se_word_list))
     word_i = 0
     for start, end, word in se_word_list:
@@ -185,7 +185,7 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
                 other_word_idx, other_word = word_i, word
             # break one way or the other
             break
-        elif word.islower() and not is_org_suffix(word):
+        elif word.islower() and not nlputils.is_org_suffix(word):
             # found a lowercase word
             maybe_se_other_start = 0, prev_end, start
             other_word_idx, other_word = word_i, word
@@ -223,7 +223,7 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
                 if word == ',':
                     tmp_other_start = strutils.find_next_not_space_idx(line, sc_end)
                     return (0, prev_end), tmp_other_start
-                elif word.islower() and not is_org_suffix(word):
+                elif word.islower() and not nlputils.is_org_suffix(word):
                     return (0, prev_end), sc_start
                 prev_end = sc_end
 

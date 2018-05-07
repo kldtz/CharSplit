@@ -24,7 +24,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
-    # line = '1) aba bd (b) a2df'    
+    # line = '1) aba bd (b) a2df'
     # start, end, word = strutils.find_previous_word(line, 6)
 
     """
@@ -60,18 +60,18 @@ if __name__ == '__main__':
     """
 
     """
-    line = 'Business Marketing Services, Inc. One Broadway Street,'    
+    line = 'Business Marketing Services, Inc. One Broadway Street,'
     result = partyutils.find_non_lc_party_name(line)
     print("org: {}".format(result))
     print("org2: [{}]".format(line[result[0][0]:result[0][1]]))
 
 
-    line = 'Business Marketing Services, Inc, One Broadway Street,'    
+    line = 'Business Marketing Services, Inc, One Broadway Street,'
     result = partyutils.find_non_lc_party_name(line)
     print("org: {}".format(result))
     print("org2: [{}]".format(line[result[0][0]:result[0][1]]))
 
-    line = 'Business Marketing Services, Inc., One Broadway Street,'    
+    line = 'Business Marketing Services, Inc., One Broadway Street,'
     result = partyutils.find_non_lc_party_name(line)
     print("org: {}".format(result))
     print("org2: [{}]".format(line[result[0][0]:result[0][1]]))
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     print("org: {}".format(result))
     print("org2: [{}]".format(line[result[0][0]:result[0][1]]))
 
-    line = 'Business Marketing Services, Inc,. One Broadway Street,'    
+    line = 'Business Marketing Services, Inc,. One Broadway Street,'
     result = partyutils.find_non_lc_party_name(line)
     print("org: {}".format(result))
     print("org2: [{}]".format(line[result[0][0]:result[0][1]]))
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     line = 'Johnson and Johnson, a bank incorporated under'
     result = partyutils.find_uppercase_party_name_list(line)
     for i, party_se in enumerate(result):
-        print("party #{}: [{}]".format(i, line[party_se[0]:party_se[1]]))    
+        print("party #{}: [{}]".format(i, line[party_se[0]:party_se[1]]))
     """
 
     """
@@ -138,12 +138,12 @@ if __name__ == '__main__':
     print("party_st: [{}]".format(line[result[0][0]:result[0][1]]))
     print("after_line: [{}]".format(line[result[1]:]))
     """
-    
+
     """
     result = partyutils.find_uppercase_party_name_list(line)
     print("result: {}".format(result))
     for i, party_se in enumerate(result):
-        print("party #{}: [{}]".format(i, line[party_se[0]:party_se[1]])) 
+        print("party #{}: [{}]".format(i, line[party_se[0]:party_se[1]]))
     """
 
     """
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     """
 
     """
-    line = '(2) Aviva International Insurance Limited, registered in England under no. 21487 and having  its registered office at St. Helen’s, 1 Undershaft, London EC3P 3DQ and Aviva Insurance  Limited, registered in Scotland under no. 2116 and having its registered office at Pitheavlis,  Perth PH2 ONH (together “the Guarantor”)'        
+    line = '(2) Aviva International Insurance Limited, registered in England under no. 21487 and having  its registered office at St. Helen’s, 1 Undershaft, London EC3P 3DQ and Aviva Insurance  Limited, registered in Scotland under no. 2116 and having its registered office at Pitheavlis,  Perth PH2 ONH (together “the Guarantor”)'
     parties, term = parties.party_line_group_to_party_list_term([(0, len(line), line, [])])
     for i, party_se in enumerate(parties):
         print("party #{}: [{}]".format(i, line[party_se[0]:party_se[1]]))
@@ -176,7 +176,7 @@ if __name__ == '__main__':
         print("token #{}\t[{}]".format(i, token))
 
     line = 'Good muffins cost $3.88\nin New (York).  Please (buy) me\ntwo of them.\n(Thanks).'
-    print('\nline = [{}]'.format(line))    
+    print('\nline = [{}]'.format(line))
     # print("first_line = [{}]".format(nlputils.first_sentence(line)))
     print("first_line = [{}]".format(nlputils.first_sentence(line)))
 
@@ -184,28 +184,28 @@ if __name__ == '__main__':
     for i, token in enumerate(tokens):
         print("token #{}\t[{}]".format(i, token))
 
-    print('\nline = [{}]'.format(line))            
+    print('\nline = [{}]'.format(line))
     tokens = nlputils.span_tokenize(line)
     for i, span_token in enumerate(tokens):
         tstart, tend = span_token
         print("span_token #{}\t{}\t[{}]".format(i, span_token, line[tstart:tend]))
 
 
-    print('\nline = [{}]'.format(line))        
+    print('\nline = [{}]'.format(line))
     tokens = nlputils.word_punct_tokenize(line)
     for i, token in enumerate(tokens):
         print("wpunct_token #{}\t[{}]".format(i, token))
 
 
-    print('\nline = [{}]'.format(line))        
+    print('\nline = [{}]'.format(line))
     tokens = nlputils.jm_sent_tokenize(line)
     for i, span_token in enumerate(tokens):
         tstart, tend = span_token
         print("span_token #{}\t{}\t[{}]".format(i, span_token, line[tstart:tend]))
-    
+
 
     line = 'Good muffins cost $3.88\nin New (York).  Please (buy) me\ntwo of them.\n(Thanks).  James'
-    print('\nline = [{}]'.format(line))            
+    print('\nline = [{}]'.format(line))
     tokens = nlputils.sent_tokenize(line)
     for i, span_token in enumerate(tokens):
         tstart, tend = span_token
@@ -213,7 +213,7 @@ if __name__ == '__main__':
 
 
     line = 'Good muffins cost $3.88\nin New (York).  Please (buy) me\ntwo of them.\n(Thanks).  James'
-    print('\nline = [{}]'.format(line))            
+    print('\nline = [{}]'.format(line))
     tokens = nlputils.span_tokenize(line)
     for i, span_token in enumerate(tokens):
         tstart, tend = span_token
@@ -221,11 +221,11 @@ if __name__ == '__main__':
 
 
     line = 'Good muffins cost $3.88\nin New (York).  Please (buy) me\ntwo of them.\n(Thanks).  James'
-    print('\nline = [{}]'.format(line))            
+    print('\nline = [{}]'.format(line))
     tokens = nlputils.text_span_tokenize(line)
     for i, span_token in enumerate(tokens):
         tstart, tend = span_token
-        print("span_token #{}\t{}\t[{}]".format(i, span_token, line[tstart:tend]))                
+        print("span_token #{}\t{}\t[{}]".format(i, span_token, line[tstart:tend]))
 
     """
 
@@ -255,11 +255,11 @@ if __name__ == '__main__':
 nouns = nlputils.get_nouns(line)
 for i, noun in enumerate(nouns):
     print("noun #{}\t{}".format(i, noun))
-    
+
 proper_nouns = nlputils.get_proper_nouns(line)
 for i, pnoun in enumerate(proper_nouns):
     print("proper noun #{}\t{}".format(i, pnoun))
-    
+
 proper_nouns = nlputils.get_better_nouns(line)
 for i, pnoun in enumerate(proper_nouns):
     print("better noun #{}\t{}".format(i, pnoun))
@@ -270,7 +270,8 @@ nlputils.find_nouns(line)
 
 """
 
-phrase_sent = nlputils.PhrasedSent(line)
+"""
+phrase_sent = nlputils.PhrasedSent(line, is_chopped=False)
 
 # phrase_sent.print_parsed()
 
@@ -282,12 +283,43 @@ for i, orgs_term in enumerate(orgs_term_list):
     print("    orgs:")
     for j, org in enumerate(orgs):
         print("      #{} {}".format(j, org))
-    print("    term:")
-    print("         {}".format(term))
-    
+    if term:
+        print("    term:")
+        print("         {}".format(term))
 
-    
-"""            
+
+orgs_term_list = phrase_sent.extract_orgs_term_offset_list()
+
+for i, orgs_term_offset in enumerate(orgs_term_list):
+    orgs, term = orgs_term_offset
+    print("orgs_term #{}:".format(i))
+    print("    orgs:")
+    for j, org in enumerate(orgs):
+        print("      #{} {}".format(j, line[org[0]:org[1]]))
+    if term:
+        print("    term:")
+        print("         {}".format(line[term[0]:term[1]]))
+
+"""
+line = '(a) The Princeton Review, Inc. (the “Issuer”), (b) the Collateral Agent (c) the Purchasers party hereto and (d) the Guarantors party hereto.'
+
+line = 'The Princeton Review, Inc. (the “Issuer”), '
+
+phrased_sent = nlputils.PhrasedSent(line, is_chopped=True)
+parties_term_offset = phrased_sent.extract_orgs_term_offset()
+st_list = []
+if parties_term_offset:
+    parties_offset, term_offset = parties_term_offset
+    for party_offset in parties_offset:
+        start, end = party_offset
+        st_list.append(line[start:end])
+    if term_offset:
+        st_list.append(line[term_offset[0]:term_offset[1]])
+for i, astr in enumerate(st_list):
+    print("party #{}\t[{}]".format(i, astr))
+
+
+"""
 from nltk.chunk import *
 from nltk.chunk.util import *
 from nltk.chunk.regexp import *
@@ -302,4 +334,4 @@ print("\nunchunked_text")
 print(unchunked_text)
 """
 
-    
+

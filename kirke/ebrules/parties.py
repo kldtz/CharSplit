@@ -432,7 +432,7 @@ def get_title_phrase_list(line: str,
 def get_itemized_entity_span_list(line: str) -> List[Tuple[Tuple[int, int, str],
                                                            Tuple[int, int, str]]]:
     print("get_itemized_entity_span_list({})".format(line))
-    parens1_mat_list = strutils.get_consecutive_one_char_parens_mats(line)
+    parens1_mat_list = strutils.find_one_char_paren_mats(line)
 
     len_line = len(line)
     span_list = []
@@ -883,6 +883,131 @@ def select_highly_likely_parties(entities: List[Tuple[int, int, str]],
 
 
 
+def extract_parties_term_list_from_itemized_line(line: str) -> List[Tuple[List[Tuple[int, int]],
+                                                                          Optional[Tuple[int, int]]]]:
+    print("extract_parties_term_list_from_itemized_line({})".format(line))
+    paren1_mat_list = strutils.find_one_char_paren_mats(line)
+
+    len_line = len(line)
+    span_list = []
+    prev_span_start = paren1_mat_list[0].end()
+    for paren1_mat in paren1_mat_list[1:]:
+        mstart, mend, unused_mat_st = paren1_mat.start(), paren1_mat.end(), paren1_mat.group()
+        start = prev_span_start
+        span_list.append((start, mstart, line[start:mstart]))
+        prev_span_start = mend
+    if prev_span_start != len_line:
+        span_list.append((prev_span_start, len_line, line[prev_span_start:len_line]))
+
+    for i, span in enumerate(span_list):
+       print("  spantext[{}] = [{}]".format(i, span))
+
+    result = []  # type: List[Tuple[List[Tuple[int, int]], Optional[Tuple[int, int]]]]
+    # will try 39811.txt, 39014.txt
+    for start, end, span_st in span_list:
+        parsed_sent = nlputils.PhrasedSent(span_st, is_chopped=True)
+        parties_term_offset = parsed_sent.extract_orgs_term_offset()
+        if parties_term_offset:
+            parties_offset, term_offset = parties_term_offset
+
+            parties_offset_out = []  # List[Tuple[int, int]]
+            for pstart, pend in parties_offset:
+                parties_offset_out.append((start + pstart, start + pend))
+                print("234 party: [{}]".format(line[start + pstart: start + pend]))
+            term_offset_out = None
+            if term_offset:
+                term_offset_out = (start + term_offset[0], start + term_offset[1])
+                print("234 term: [{}]".format(line[term_offset_out[0]:term_offset_out[1]]))
+            if parties_offset_out or term_offset:
+                result.append((parties_offset_out, term_offset_out))
+
+    return result
+
+
+def extract_parties_term_list_from_party_line(line: str) \
+    -> List[Tuple[List[Tuple[int, int]],
+                  Optional[Tuple[int, int]]]]:
+    """Extract all the party and its defined term from party_line.
+
+    line is expected to be party_line.
+    """
+
+    start_offset = 0
+    tmp_mat = re.match(r'for\s+value\s+received,?\s+(.*)$', line, re.I)
+    if tmp_mat:
+        start_offset = tmp_mat.start(1)
+        line = line[start_offset:]
+    else:
+        between_list = list(BTWN_AMONG_PAT.finditer(line))
+        # chop at first xxx entered ... by and between (wanted)
+        if between_list:
+            # last_between = between_list[-1]
+            last_between = between_list[0]
+            start_offset = last_between.end()
+            line = line[start_offset:]
+            # everything afterward is based on this line
+            # need to set it back right before returning
+    if IS_DEBUG_MODE:
+        print("\nextract_parties_term_list_from_party_line()")
+        print("chopped party_line = [{}]".format(line))
+
+    # sometimes, a line can be chopped by accident before of form filling
+    # in pdf docs.
+    # 'Box.com (UK) Ltd, a company registered in England and Wales (company number'
+    num_org_suffix = len(nlputils.get_org_suffix_mat_list(line))
+    if len(line) < 100 and num_org_suffix == 0:
+        return []
+
+    # first try this aggressive itemize match inside party_line
+    if re.match(r'\(?\S\)', line) and len(strutils.find_one_char_paren_mats(line)) > 1:
+        parties_term_offset_list = extract_parties_term_list_from_itemized_line(line)
+    else:
+        # now find the verb, such as 'is entered', the 2nd 'agree' is just a guess
+        entered_mat = re.search(r'( is\s+entered\s+into| agreed?\b)', line, re.I)
+        if entered_mat:  # we don't try to find party across verb in party_line
+            line = line[:entered_mat.start()]
+        phrased_sent = nlputils.PhrasedSent(line, is_chopped=True)
+        # phrased_sent.print_parsed()
+        parties_term_offset_list = phrased_sent.extract_orgs_term_offset_list()
+
+    if IS_DEBUG_MODE:
+        for i, orgs_term_offset in enumerate(parties_term_offset_list):
+            orgs, term = orgs_term_offset
+            print("634 orgs_term #{}:".format(i))
+            print("    orgs:")
+            for j, org in enumerate(orgs):
+                print("      #{} {}".format(j, line[org[0]:org[1]]))
+            if term:
+                print("    term:")
+                print("         {}".format(line[term[0]:term[1]]))
+
+    parties_term_offset_list = adjust_start_offset_ptoffset_list(parties_term_offset_list,
+                                                                 start_offset)
+
+    return parties_term_offset_list
+
+
+def adjust_start_offset_ptoffset_list(parties_term_offset_list: List[Tuple[List[Tuple[int, int]],
+                                                                           Optional[Tuple[int, int]]]],
+                                      start: int) \
+                                      -> List[Tuple[List[Tuple[int, int]],
+                                                    Optional[Tuple[int, int]]]]:
+    adj_parties_term_offset_list = []  # type: List[Tuple[List[Tuple[int, int]], Optional[Tuple[int, int]]]]
+    for parties_term_offset in parties_term_offset_list:
+        parties_offset, term_offset = parties_term_offset
+        adj_parties_offset = []  # List[Tuple[int, int]]
+        for party_offset in parties_offset:
+            pstart, pend = party_offset
+            adj_parties_offset.append((start + pstart, start + pend))
+        term_out = None
+        if term_offset:
+            term_out = (start + term_offset[0], start + term_offset[1])
+
+        adj_parties_term_offset_list.append((adj_parties_offset, term_out))
+    return adj_parties_term_offset_list
+
+
+
 def extract_party_defined_term_list(line: str) \
     -> List[Tuple[Optional[Tuple[int, int, str, str]],
                   Optional[Tuple[int, int, str, str]]]]:
@@ -911,7 +1036,7 @@ def extract_party_defined_term_list(line: str) \
         print("chopped party_line = [{}]".format(line))
 
     # first try this aggressive itemize match inside party_line
-    if re.match(r'\(?\S\)', line) and len(strutils.get_consecutive_one_char_parens_mats(line)) > 1:
+    if re.match(r'\(?\S\)', line) and len(strutils.find_one_char_paren_mats(line)) > 1:
         entity_span_list = get_itemized_entity_span_list(line)
     else:
         # try with all entities in upper()
@@ -1713,40 +1838,29 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
         # Sometimes if is_list_party, still have parties in party line only.
         # So, try that first.  If found parties, don't bother with the is_party list
         # print("ok, party_line: [{}]".format(nlputils.first_sentence(party_line)))
-        party_dterm_list = extract_party_defined_term_list(nlputils.first_sentence(party_line))
-        if party_dterm_list:
-            for party_dterm in party_dterm_list:
-                party_x, dterm_x = party_dterm
-                if party_x and dterm_x:
-                    pstart, pend, _, _ = party_x
-                    tstart, tend, _, _ = dterm_x
-                    out_list.append(((start + pstart, start + pend),
-                                     (start + tstart, start + tend)))
-                elif party_x:
-                    pstart, pend, _, _ = party_x
-                    out_list.append(((start + pstart, start + pend), None))
-                elif dterm_x:
-                    tstart, tend, _, _ = dterm_x
-                    out_list.append(((start + tstart, start + tend), None))
-        else:
-            # ok, now, we have tries to find parties in party line already.
-            # let's try is_list_party logic
+        first_sent = nlputils.first_sentence(party_line)
+        parties_term_offset_list = extract_parties_term_list_from_party_line(first_sent)
+        if parties_term_offset_list:
+            # need to adjust the offset because used first_sent
+            parties_term_offset_list = adjust_start_offset_ptoffset_list(parties_term_offset_list, start)
+        elif is_list_party:
+            # all the parties are in after_se_paras_attr_list
+            parties_term_offset_list = extract_parties_term_list_from_list_lines(after_se_paras_attr_list)
 
-            if is_list_party:
-                # all the parties are in after_se_paras_attr_list
+        # print('parties_term_offset_list: {}'.format(parties_term_offset_list))
 
-                party_list_term_offsets_list = extract_parties_term_list_from_list_lines(after_se_paras_attr_list)
-                if party_list_term_offsets_list:
-                    for party_pair_list, term_pair in party_list_term_offsets_list:
-                        # last_party_term = party_pair_list[-1], term_pair
-                        # all except for the last one
-                        for party_pair in party_pair_list[:-1]:
-                            out_list.append((party_pair, None))
-                        # last party_pair and term_pair
-                        if party_pair_list:
-                            out_list.append((party_pair_list[-1], term_pair))
-                        else:
-                            out_list.append((None, term_pair))
+        for parties_term_offset in parties_term_offset_list:
+            parties_offset, term_offset = parties_term_offset
+            if len(parties_offset) > 1:
+                for party_offset in parties_offset[:-1]:
+                    # print('party_offset: {}'.format(party_offset))
+                    out_list.append((party_offset, None))
+
+            if parties_offset:  # there must be some parties
+                out_list.append((parties_offset[-1],
+                                 term_offset))
+            else:
+                out_list.append((None, term_offset))
 
     if IS_DEBUG_MODE:
         print()

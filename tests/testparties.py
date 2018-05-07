@@ -8,17 +8,6 @@ from kirke.docstruct import partyutils
 
 class TestParties(unittest.TestCase):
 
-    def test_is_org_suffix(self):
-        line = 'pic'
-        self.assertTrue(partyutils.is_org_suffix(line))
-
-        line = 'n.a.'
-        self.assertTrue(partyutils.is_org_suffix(line))
-
-        line = 'n.a'
-        self.assertTrue(partyutils.is_org_suffix(line))                
-
-
     def test_find_uppercase_party_name(self):
         line = 'Volkswagen Bank GmbH, a company incorporated under'
         result = partyutils.find_uppercase_party_name(line)
@@ -93,7 +82,7 @@ class TestParties(unittest.TestCase):
                          ((0, 14), 15, True))
         (start, end), other_start, is_valid = result
         self.assertEqual(line[start:end],
-                         'Citibank, N.A.')                
+                         'Citibank, N.A.')
 
         line = 'Citibank Bank, N.A. is smaller'
         result = partyutils.find_uppercase_party_name(line)
@@ -109,7 +98,7 @@ class TestParties(unittest.TestCase):
                          ((0, 19), 20, True))
         (start, end), other_start, is_valid = result
         self.assertEqual(line[start:end],
-                         'Citibank Bank, n.a.')                
+                         'Citibank Bank, n.a.')
 
         line = 'Business Marketing Services, Inc, One Broadway Street,'
         result = partyutils.find_uppercase_party_name(line)
@@ -120,7 +109,7 @@ class TestParties(unittest.TestCase):
                          'Business Marketing Services, Inc')
 
 
-        line = 'Business Marketing Services, Inc. One Broadway Street,'    
+        line = 'Business Marketing Services, Inc. One Broadway Street,'
         result = partyutils.find_uppercase_party_name(line)
         self.assertEqual(result,
                          ((0, 33), 34, True))
@@ -129,7 +118,7 @@ class TestParties(unittest.TestCase):
                          'Business Marketing Services, Inc.')
 
 
-        line = 'Business Marketing Services, Inc., One Broadway Street,'    
+        line = 'Business Marketing Services, Inc., One Broadway Street,'
         result = partyutils.find_uppercase_party_name(line)
         self.assertEqual(result,
                          ((0, 33), 35, True))
@@ -137,7 +126,7 @@ class TestParties(unittest.TestCase):
         self.assertEqual(line[start:end],
                          'Business Marketing Services, Inc.')
 
-        line = 'Business Marketing Services, Inc,. One Broadway Street,'    
+        line = 'Business Marketing Services, Inc,. One Broadway Street,'
         result = partyutils.find_uppercase_party_name(line)
         # we stop at ". One ..."
         self.assertEqual(result,
@@ -161,29 +150,13 @@ class TestParties(unittest.TestCase):
         (start, end), other_start, is_valid = result
         self.assertEqual(line[start:end],
                          'Business Marketing Services')
-        
+
 
 
 class TestPartyUtils(unittest.TestCase):
 
-    def test_get_suffix_mat_list(self):
-        line = 'Volkswagen Bank GmbH, a company incorporated under'
-        mat_list = partyutils.get_org_suffix_mat_list(line)
-        st_list = [line[mat.start():mat.end()] for mat in mat_list]
-        self.assertEqual(st_list,
-                         ['GmbH'])
-
-        line = 'Volkswagen Bank GmbH, a company incorporated under mgm from I.B.M. Corp.'
-        mat_list = partyutils.get_org_suffix_mat_list(line)
-        st_list = [line[mat.start():mat.end()] for mat in mat_list]
-        self.assertEqual(st_list,
-                         ['GmbH', 'Corp.'])
-
-        line = 'visiting xxx Group, Ltd.'
-        mat_list = partyutils.get_org_suffix_mat_list(line)
-        st_list = [line[mat.start():mat.end()] for mat in mat_list]
-        self.assertEqual(st_list,
-                         ['Ltd.'])        
+    def test_empty(self):
+        pass
 
 
 if __name__ == "__main__":

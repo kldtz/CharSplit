@@ -322,9 +322,8 @@ class EbRunner:
             provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
             provision_set.update(self.provisions)
             # also get ALL custom provision set, since we are doing testing
-            print("custom_model_dir: {}".format(self.custom_model_dir))
-            print("provision_set: {}".format(provision_set))
-
+            logging.info("custom_model_dir: %s", self.custom_model_dir)
+            logging.info("provision_set: %r", provision_set)
 
         #else:
         #    logging.info('user specified provision list: %s', provision_set)

@@ -987,23 +987,9 @@ def split_with_offsets_xparens(line: str) -> List[Tuple[int, int, str]]:
     return out_list
 
 
-def get_consecutive_one_char_parens_mats(line: str) -> List[Match[str]]:
-    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
-       Makes sure they start with 1, 2 or a, b.
-
-       Return a list of them if there more than 1 of those.
-       Else an emply list.
-    """
-    result = list(re.finditer(r'\b\(?\S\S?\)\s*', line))
-
-    if len(result) > 1:
-        # check if first and 2nd are valid indexes
-        first = result[0].group()
-        second = result[1].group()
-        if re.match(r'\(?(1|a|i)\)', first, re.I) and \
-           re.match(r'\(?(2|b|ii)\)', second, re.I):
-            return result
-    return []
+def find_one_char_paren_mats(line: str) -> List[Match[str]]:
+    result = list(re.finditer(r'(\b|\(?)\w\)\s*', line))
+    return result
 
 
 def find_non_space_index(line: str) -> int:
