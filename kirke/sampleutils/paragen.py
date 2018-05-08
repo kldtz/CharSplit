@@ -70,7 +70,7 @@ class ParagraphGenerator:
                         i += 1
                     else:
                         skipping = False
-                if len(para_text.split()) > 5:
+                if len(para_text.split()) > 5 and raw_end > raw_start:
                     is_label = ebsentutils.check_start_end_overlap(raw_start,
                                                                    raw_end,
                                                                    label_ant_list)
