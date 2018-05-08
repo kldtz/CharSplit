@@ -311,5 +311,37 @@ class TestParties(unittest.TestCase):
                            (324, 337, '("Capstone11)')])
 
 
+    def test_export_train_party(self):
+
+        self.maxDiff = None
+
+        prov_labels_map = annotate_doc('export-train/39811.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(235, 261, 'The Princeton Review, Inc.'),
+                           (262, 276, '(the “Issuer”)'),
+                           (282, 302, 'the Collateral Agent'),
+                           (307, 327, 'the Purchasers party'),
+                           (343, 363, 'the Guarantors party')])
+
+
+        prov_labels_map = annotate_doc('export-train/44090.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(80, 100, 'LORRAINE SALCICCIOLI'),
+                           (180, 195, 'the “Landlord”)'),
+                           (206, 230, 'PRINTING COMPONENTS INC.'),
+                           (332, 345, 'the “Tenant”)')])
+
+        prov_labels_map = annotate_doc('export-train/39074.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(6316, 6328, 'HASBRO, INC.'),
+                            (6357, 6372, '(the “Company”)'),
+                            (6374, 6383, 'HASBRO SA'),
+                            (6634, 6692, '(collectively, the “Lenders” and individually, a “Lender”)'),
+                            (6698, 6719, 'BANK OF AMERICA, N.A.'),
+                            (6724, 6779, 'Administrative Agent, Swing Line Lender and L/C Issuer.')])
+
 if __name__ == "__main__":
     unittest.main()

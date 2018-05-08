@@ -987,25 +987,29 @@ def extract_parties_term_list_from_party_line(line: str) \
     return parties_term_offset_list
 
 
+def adjust_start_offset_ptoffset(parties_term_offset: Tuple[List[Tuple[int, int]],
+                                                            Optional[Tuple[int, int]]],
+                                 start: int) \
+                                 -> Tuple[List[Tuple[int, int]],
+                                          Optional[Tuple[int, int]]]:
+    parties_offset, term_offset = parties_term_offset
+    adj_parties_offset = []  # List[Tuple[int, int]]
+    for party_offset in parties_offset:
+        pstart, pend = party_offset
+        adj_parties_offset.append((start + pstart, start + pend))
+    term_out = None
+    if term_offset:
+        term_out = (start + term_offset[0], start + term_offset[1])
+    return adj_parties_offset, term_out
+
 def adjust_start_offset_ptoffset_list(parties_term_offset_list: List[Tuple[List[Tuple[int, int]],
                                                                            Optional[Tuple[int, int]]]],
                                       start: int) \
                                       -> List[Tuple[List[Tuple[int, int]],
                                                     Optional[Tuple[int, int]]]]:
-    adj_parties_term_offset_list = []  # type: List[Tuple[List[Tuple[int, int]], Optional[Tuple[int, int]]]]
-    for parties_term_offset in parties_term_offset_list:
-        parties_offset, term_offset = parties_term_offset
-        adj_parties_offset = []  # List[Tuple[int, int]]
-        for party_offset in parties_offset:
-            pstart, pend = party_offset
-            adj_parties_offset.append((start + pstart, start + pend))
-        term_out = None
-        if term_offset:
-            term_out = (start + term_offset[0], start + term_offset[1])
-
-        adj_parties_term_offset_list.append((adj_parties_offset, term_out))
+    adj_parties_term_offset_list = [adjust_start_offset_ptoffset(parties_term_offset, start)
+                                    for parties_term_offset in parties_term_offset_list]
     return adj_parties_term_offset_list
-
 
 
 def extract_party_defined_term_list(line: str) \
@@ -1253,7 +1257,7 @@ def extract_party_line_as_date_between(se_paras_attr_list: List[Tuple[int, int, 
     -> Optional[Tuple[Tuple[int, int, str],
                       bool,
                       List[Tuple[int, int, str, List[str]]]]]:
-    """Extract 2 lines with just "DATED XXXX\nBetween\n"""
+    """Extract 3 lines with just "...Agreement\nDATED XXXX\nBetween\n"""
 
     nempty_se_paras_attr_list = []  # type: List[Tuple[int, int, str, List[str]]]
     # remember where in the original list is
@@ -1274,9 +1278,25 @@ def extract_party_line_as_date_between(se_paras_attr_list: List[Tuple[int, int, 
     len_try_match = len(nempty_se_paras_attr_list)
     for j, nempty_se_paras_attr in enumerate(nempty_se_paras_attr_list):
         if j+3 < len_try_match:
-            if re.search(r'\b(agreement|contract)\b', nempty_line_st_list[j], re.I) and \
+            if re.search(r'\b(agreement|contract|lease)\b', nempty_line_st_list[j], re.I) and \
                re.match(r'(date|dated)\b', nempty_line_st_list[j+1], re.I) and \
                re.match(r'(between|among)\b', nempty_line_st_list[j+2], re.I):
+
+                # make sure we are not in the title page.  Too diffiult to parse
+                # a list of names without context
+                num_and = 0
+                num_as = 0
+                for tmp_i in range(j+3, min(j+3+25, len(nempty_line_st_list))):
+                    tmp_st = nempty_line_st_list[tmp_i]
+                    if len(tmp_st) < 40 and \
+                        re.search(r'\band\b', tmp_st, re.I):
+                        num_and += 1
+                    if len(tmp_st) < 60 and \
+                        re.search(r'\bas\b', tmp_st, re.I):
+                        num_as += 1
+                    if num_and >= 3 or num_as >= 3:
+                        return None
+
                 sx, ex, party_line_st, _ = nempty_se_paras_attr_list[j+2]  # between
                 is_party_list = True
                 orig_idx = nempty_idx_list[j+3]
@@ -1648,7 +1668,8 @@ def move_next_if_is_empty_se_after_list(se_after_paras_attr_list: List[Tuple[int
     # move to next non-empty line
     se_line_attrs = se_after_paras_attr_list[se_curline_idx]
     _, _, linex, attr_list = se_line_attrs
-    while not linex or linex.lower() == 'and':
+    # 'and' or '- and -'
+    while not linex or (len(linex) < 10 and re.search(r'\band\b', linex, re.I)):
         se_curline_idx += 1
         if se_curline_idx >= len_doc_lines:
             return se_curline_idx
@@ -1679,6 +1700,128 @@ def move_next_non_empty_se_after_list(se_after_paras_attr_list: List[Tuple[int, 
         se_line_attrs = se_after_paras_attr_list[se_curline_idx]
         _, _, linex, attr_list = se_line_attrs
     return se_curline_idx
+
+
+
+# pylint: disable=line-too-long
+def extract_parties_term_list_from_list_lines_too_new(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
+    -> List[Tuple[List[Tuple[int, int]],
+                  Optional[Tuple[int, int]]]]:
+    if not se_after_paras_attr_list:
+        return []
+
+    count_other_line = 0
+    is_last_char_lower = False
+
+    # sometime, lines with only list prefix, such as '(1)' might get
+    # deleted because they were considered as page numbers.  HTML specific
+    # issue.  Why are such thing on a separate line?  Table in HTML?
+    # for debug purpose
+    if IS_DEBUG_MODE:
+        print()
+        print("\nextract_parties_from_list_lines()")
+        for i in range(min(10, len(se_after_paras_attr_list))):
+            print("  list_line #{}: {}".format(i, se_after_paras_attr_list[i]))
+        print()
+
+    result = []  # type: List[Tuple[List[Tuple[int, int]], Optional[Tuple[int, int]]]]:
+    se_curline_idx = 0
+    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+    _, _, linex, attr_list = se_line_attrs
+    len_doc_lines = len(se_after_paras_attr_list)
+
+    while not linex:
+        se_curline_idx += 1
+        if se_curline_idx >= len_doc_lines:
+            return []
+        se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+        _, _, linex, attr_list = se_line_attrs
+
+    # now linex is not empty
+
+    if partyutils.is_party_list_prefix_with_validation(linex):
+        party_list_term, se_curline_idx = \
+            seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+        while party_list_term:
+            result.append(party_list_term)
+
+            # should be next non-empty line, but if empty, move on
+            se_curline_idx = move_next_if_is_empty_se_after_list(se_after_paras_attr_list,
+                                                                 se_curline_idx)
+            if se_curline_idx >= len_doc_lines:
+                break
+
+            # settled on the next non-empty line
+            se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+            _, _, linex, attr_list = se_line_attrs
+            # if no longer in found good list line
+            if is_end_party_list(linex, attr_list):
+                se_curline_idx += 1
+                break
+
+            party_list_term, se_curline_idx = \
+                seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+    elif table_formatted_quote_list_org_list(linex):
+        result.extend(seline_attrs_to_tabled_party_list_terms(se_after_paras_attr_list,
+                                                              se_curline_idx))
+    else:
+        # try to match party_name at beginning of a line, try twice
+        # if the intervening line is short or of some patterns.
+        num_attempt = 0
+        if num_attempt < 3:
+            
+            phrased_sent = nlputils.PhrasedSent(linex, is_chopped=True)
+            tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
+            print("tmp_parties_term_offset = {}".format(tmp_parties_term_offset))
+            # party_name_sentinel = partyutils.find_uppercase_party_name(linex)
+            if tmp_parties_term_offset:
+
+                while tmp_parties_term_offset:
+                    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+                    fstart, _, first_line, attr_list = se_line_attrs
+                    party_list_term = adjust_start_offset_ptoffset(tmp_parties_term_offset, fstart)
+
+                    result.append(party_list_term)
+
+                    # should be next non-empty line, but if empty, move on
+                    se_curline_idx = move_next_if_is_empty_se_after_list(se_after_paras_attr_list,
+                                                                         se_curline_idx)
+
+                    if se_curline_idx >= len_doc_lines:
+                        break
+
+                    # settled on the next non-empty line
+                    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+                    _, _, linex, attr_list = se_line_attrs
+                    # if no longer in found good list line
+                    if is_end_party_list(linex, attr_list):
+                        se_curline_idx += 1
+                        num_attempt = 3
+                        break
+
+                    phrased_sent = nlputils.PhrasedSent(linex, is_chopped=True)
+                    tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
+                    print("tmp_parties_term_offset222 = {}".format(tmp_parties_term_offset))
+            else:
+                if len(linex) < 40:
+                    se_curline_idx = move_next_non_empty_se_after_list(se_after_paras_attr_list,
+                                                                       se_curline_idx)
+                    if se_curline_idx >= len_doc_lines:
+                        return []
+                    se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+                    _, _, linex, attr_list = se_line_attrs
+                else:
+                    # a long line, but has no uppercase party name prefix
+                    return []
+            num_attempt += 1
+
+    if IS_DEBUG_MODE:
+        print()
+        for offsets_pair in result:
+            print("7342 offsets_pair: {}".format(offsets_pair))
+        print()
+
+    return result
 
 
 # pylint: disable=line-too-long
@@ -1747,6 +1890,9 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
         # if the intervening line is short or of some patterns.
         num_attempt = 0
         if num_attempt < 3:
+            phrased_sent = nlputils.PhrasedSent(linex, is_chopped=True)
+            tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
+            print("tmp_parties_term_offset = {}".format(tmp_parties_term_offset))
             party_name_sentinel = partyutils.find_uppercase_party_name(linex)
             if party_name_sentinel:
 

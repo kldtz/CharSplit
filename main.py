@@ -7,7 +7,7 @@ import logging
 import os
 import pprint
 import sys
-from typing import Optional, Set
+from typing import Any, Dict, Optional, Set
 
 # pylint: disable=import-error
 from sklearn.externals import joblib
@@ -257,7 +257,7 @@ def annotate_document(file_name: str,
                       model_dir: str,
                       custom_model_dir: str,
                       provision_set: Optional[Set[str]] = None,
-                      is_doc_structure: bool = True) -> None:
+                      is_doc_structure: bool = True) -> Dict[str, Any]:
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
     eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
@@ -302,6 +302,8 @@ def annotate_document(file_name: str,
     if eb_doccat_runner:
         doc_catnames = eb_doccat_runner.classify_document(file_name)
         pprint.pprint({'tags': doc_catnames})
+
+    return prov_labels_map
 
 
 # pylint: disable=too-many-branches, too-many-statements
@@ -382,6 +384,19 @@ def main():
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+    elif cmd == 'print_doc_parties':
+        if not args.doc:
+            print('please specify --doc', file=sys.stderr)
+            sys.exit(1)
+        ajson = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        party_ant_list = ajson['party']
+        result = []
+        for party_ant in party_ant_list:
+            result.append((party_ant['start'],
+                           party_ant['end'],
+                           party_ant['text']))
+        print('\nparties:')
+        pprint.pprint(result)
     elif cmd == 'eval_line_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)

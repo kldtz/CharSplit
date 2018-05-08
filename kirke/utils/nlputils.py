@@ -287,7 +287,43 @@ def chunkize(sent_line: str):
     tok_pos_list = pos_tag(tokens)
     # for i, tok_pos in enumerate(tok_pos_list):
     #     print('pos_tok #{}\t{}'.format(i, tok_pos))
-    return chunker.parse(tok_pos_list)
+    chunk_list = chunker.parse(tok_pos_list)
+    # extract 'ABN ID+' as an apposition
+    chunk_list = rechunk_known_terms(chunk_list)
+    return chunk_list
+
+
+# def get_chunk_postag_list(chunk: Tree) -> List[Tuple[int, int]]:
+#    return [postag for postag in chunk]
+
+def rechunk_known_terms(chunk_list: List[Union[Tree, Tuple[int, int]]]) \
+    -> List[Union[Tree, Tuple[int, int]]]:
+    result = []  # List[Union[Tree, Tuple[int, int]]]
+    idx = 0
+    while idx < len(chunk_list):
+        chunk = chunk_list[idx]
+        next_chunk = get_next_chunk(chunk_list, idx)
+        if is_chunk_tree(chunk):
+            postag_list = chunk_to_postag_list(chunk)
+            if postag_word(postag_list[-1]) == 'ABN' and \
+                next_chunk and is_chunk_digit(next_chunk):
+                abn_tok_list = [postag_list[-1], next_chunk]
+                tmp_i = idx + 1  # this is next chunk idx
+                tmp_next_chunk = get_next_chunk(chunk_list, tmp_i)
+                while tmp_next_chunk and is_chunk_digit(tmp_next_chunk):
+                    abn_tok_list.append(tmp_next_chunk)
+                    tmp_i += 1
+                    tmp_next_chunk = get_next_chunk(chunk_list, tmp_i)
+                result.append(Tree(chunk.label(), postag_list[:-1]))
+                result.append(Tree('ABN_NUM', abn_tok_list))
+                idx = tmp_i
+            else:
+                result.append(chunk)
+        else:
+            result.append(chunk)
+        idx += 1
+    return result
+
 
 def get_nouns(sent_line: str):
     chunk_list = chunkize(sent_line)
@@ -388,11 +424,7 @@ def chunk_is_postag(obj):
 
 def chunk_to_postag_list(chunk: Union[Tree, Tuple[str, str]]) -> List[Tuple[str, str]]:
     if isinstance(chunk, Tree):
-        postag_list = []
-        for postag in chunk:
-            postag_list.append(postag)
-            # postag_list.extend(chunk_to_postag_list)
-        return postag_list
+        return [postag for postag in chunk]
     return [chunk]
 
 # def chunks_to_postag_list(chunk_list: List[Union[Tree, Tuple[str, str]]]) -> List[Tuple[str, str]]:
@@ -492,7 +524,13 @@ def update_with_org_person(chunks_result,
     while i > chunk_taken_idx:
         chunk = chunk_list[i]
         prev_chunk = get_prev_chunk(chunk_list, i)
-        if has_pos_article(chunk):
+        if is_chunk_label(chunk, 'PAREN'):
+            if i == chunk_idx -1:  # right before org, 'Kodak (UK) Ltd'
+                prefix_chunk_list.append(chunk)
+                i -= 1
+            else:
+                break
+        elif has_pos_article(chunk):
             prefix_chunk_list.append(chunk)
             i -= 1
             break
@@ -540,8 +578,14 @@ def update_with_org_person(chunks_result,
     org_chunk_list = list(reversed(prefix_chunk_list))
     org_chunk_list.append(chunk_list[chunk_idx])
     org_chunk_list.extend(suffix_chunk_list)
+    flatten_chunk_list = flatten_chunks(org_chunk_list)
+    # 'the Company', 'a Company'
+    if len(flatten_chunk_list) == 2 and \
+        flatten_chunk_list[0][1] == 'DT':
+       chunks_result.append(cur_chunk)
+       return chunk_idx
 
-    org_chunk = Tree('ORG_PERSON', flatten_chunks(org_chunk_list))
+    org_chunk = Tree('ORG_PERSON', flatten_chunk_list)
     # print("org_chunk = {}".format(org_chunk))
 
     # current chunk is not added yet
@@ -702,6 +746,31 @@ class SpanChunk:
             raise ValueError
         return postag_word(self.chunk).lower()
 
+    def is_lc_word(self, word: str) -> bool:
+        if is_chunk_tree(self.chunk):
+            return False
+        return postag_word(self.chunk).lower() == word
+
+    def is_comma(self) -> bool:
+        # no need to lc(), but to keep code small
+        return self.is_lc_word(',')
+
+    def is_word_and(self) -> bool:
+        return self.is_lc_word('and')
+
+    def is_word_between(self) -> bool:
+        return not self.is_phrase() and \
+            self.get_lc_word() in set(['and', 'among'])
+
+    def is_org(self) -> bool:
+        return self.has_label('ORG_PERSON')
+
+    def is_paren(self) -> bool:
+        return self.has_label('PAREN')
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
     def __str__(self) -> str:
         if is_chunk_tree(self.chunk):
             return "{} ({:3d}, {:3d})\tidx={}, nidx={}\t{}".format('   Phrase',
@@ -776,12 +845,12 @@ class PhrasedSent:
                 orgs_offset.append((org.start, org.end))
             term_offset = None
             if term:
-                term_offset = (term.start, term.end)
+                term_offset = (term[0].start, term[-1].end)
             result.append((orgs_offset, term_offset))
         return result
 
     def extract_orgs_term_list(self) \
-        -> List[Tuple[List[SpanChunk], Optional[SpanChunk]]]:
+        -> List[Tuple[List[SpanChunk], List[SpanChunk]]]:
         """Find the list of org_person_term groups.
 
         There can be multiple org per term.
@@ -797,9 +866,13 @@ class PhrasedSent:
             print("betwen_tok_idx: ", between_tok_idx)
             print("and_org_tok_idx_list: {}".format(and_org_tok_idx_list))
 
+        paren_org_tok_idx_list = find_paren_org_tok_indices(self.span_chunk_list)
+
         sep_idx_list = [between_tok_idx]
         sep_idx_list.extend(and_org_tok_idx_list)
+        sep_idx_list.extend(paren_org_tok_idx_list)
         sep_idx_list.append(len(self.span_chunk_list))
+        sep_idx_list.sort()
 
         if DEBUG:
             print("sep_idx_list: {}".format(sep_idx_list))
@@ -823,7 +896,7 @@ class PhrasedSent:
         return result
 
     def extract_orgs_term(self) \
-        -> Optional[Tuple[List[SpanChunk], Optional[SpanChunk]]]:
+        -> Optional[Tuple[List[SpanChunk], List[SpanChunk]]]:
         """Find the org_person_term groups.
 
         There can be multiple org per term.
@@ -848,13 +921,35 @@ class PhrasedSent:
             orgs_offset.append((org.start, org.end))
         term_offset = None
         if term:
-            term_offset = (term.start, term.end)
+            # term is a list of SpanList
+            term_offset = (term[0].start, term[-1].end)
 
         return orgs_offset, term_offset
 
 
+def find_as_span_chunks(span_chunk_list: List[SpanChunk]) \
+        -> List[List[SpanChunk]]:
+    as_idx_list = []  # type: List[int]
+    for i, span_chunk in enumerate(span_chunk_list):
+        if span_chunk.is_lc_word('as'):
+            as_idx_list.append(i)
+
+    if as_idx_list:
+        result = []  # type: List[List[SpanChunk]]
+        prev_as_idx = as_idx_list[0]
+        for as_idx in as_idx_list[1:]:
+            # skip the word 'as'
+            result.append(span_chunk_list[prev_as_idx+1:as_idx])
+            prev_as_idx = as_idx
+        result.append(span_chunk_list[prev_as_idx+1:])
+        # return only non-empty list in this list
+        return [x for x in result if x != []]
+    return []
+
+
+# because of 'term' can be a list of words in "as xxx xxx", so it is a list
 def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
-    -> Optional[Tuple[List[SpanChunk], Optional[SpanChunk]]]:
+    -> Optional[Tuple[List[SpanChunk], List[SpanChunk]]]:
     paren_list = [span_chunk for span_chunk in span_chunk_list if span_chunk.has_label('PAREN')]
     org_list = [span_chunk for span_chunk in span_chunk_list if span_chunk.has_label('ORG_PERSON')]
 
@@ -868,17 +963,16 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
                 break
             break
 
-
     # don't handle 'as' phrase yet
-    as_list = []
+    as_list = find_as_span_chunks(span_chunk_list)
 
-    term = None
+    term = []
     if paren_list:
         if len(paren_list) == 1:
-            term = paren_list[0]
+            term = [paren_list[0]]
         else:  # there are multiple
             last_paren = paren_list[-1]
-            term = last_paren
+            term = [last_paren]
             # in future, might check if term/paren doesn't overlap with org
             """
             if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:  # parent is really at the end of phrase
@@ -886,6 +980,11 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             else:
                 term = paren_list[0]
             """
+    elif as_list:
+        if len(paren_list) == 1:
+            term = as_list[0]  # List[SpanChunk]
+        else:  # there are multiple, take the first one
+            term = as_list[0]
     if not org_list and not term:
         return None
     return org_list, term
@@ -897,17 +996,6 @@ def phrase_to_str(chunk: Tree) -> str:
     for postag in chunk:
         postag_st_list.append('{}/{}'.format(postag[0], postag[1]))
     return '({} {})'.format(chunk.label(), ' '.join(postag_st_list))
-
-def is_span_chunk_and(span_chunk: SpanChunk) -> bool:
-    return not span_chunk.is_phrase() and span_chunk.get_lc_word() == 'and'
-
-def is_span_chunk_between(span_chunk: SpanChunk) -> bool:
-    return not span_chunk.is_phrase() and \
-        span_chunk.get_lc_word() in set(['and', 'among'])
-
-def is_span_chunk_org(span_chunk: SpanChunk) -> bool:
-    return span_chunk.is_phrase() and span_chunk.label() == 'ORG_PERSON'
-
 
 def next_span_chunk(span_chunk_list: List[SpanChunk], idx: int) -> Optional[SpanChunk]:
     if idx + 1 < len(span_chunk_list):
@@ -926,10 +1014,27 @@ def find_and_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
     for idx in range(len(span_chunk_list)):
         spchunk = span_chunk_list[idx]
         next_spchunk = next_span_chunk(span_chunk_list, idx)
-        if is_span_chunk_and(spchunk) and \
-           next_spchunk and is_span_chunk_org(next_spchunk):
+        if spchunk.is_word_and() and \
+           next_spchunk and next_spchunk.is_org():
             result.append(next_spchunk.tok_idx)
             idx += 1
+        idx += 1
+    return result
+
+
+def find_paren_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
+    """Find the list of tok_idx of '), org'.
+    """
+    result = []  # type: List[int]
+    for idx in range(len(span_chunk_list)):
+        spchunk = span_chunk_list[idx]
+        next_spchunk = next_span_chunk(span_chunk_list, idx)
+        next2_spchunk = next_span_chunk(span_chunk_list, idx + 1)
+        if spchunk.is_paren() and \
+            next_spchunk and next_spchunk.is_comma() and \
+           next2_spchunk and next2_spchunk.is_org():
+            result.append(next_spchunk.tok_idx)
+            idx += 2
         idx += 1
     return result
 
@@ -939,7 +1044,7 @@ def find_between_tok_index(span_chunk_list: List[SpanChunk]) -> int:
     for idx in range(len(span_chunk_list)):
         spchunk = span_chunk_list[idx]
         if not spchunk.is_phrase() and \
-           spchunk.get_lc_word() in set(['between', 'among']):
+           spchunk.is_word_between():
             next_spchunk = next_span_chunk(span_chunk_list, idx)
             if next_spchunk:
                 return next_spchunk.tok_idx
@@ -955,8 +1060,8 @@ def tokenize_to_span_chunks(sent_line: str) -> List[SpanChunk]:
     chunk_list = get_better_nouns(sent_line)
     se_tok_list = span_tokenize(sent_line)
 
-    for i, chunk in enumerate(chunk_list):
-        print("2534 chunk #{} {}".format(i, chunk))
+    # for i, chunk in enumerate(chunk_list):
+    #     print("2534 chunk #{} {}".format(i, chunk))
 
     span_chunk_list = []  # List[SpanChunk]
     tok_idx = 0

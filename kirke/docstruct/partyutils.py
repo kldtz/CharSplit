@@ -11,6 +11,8 @@ from kirke.utils import engutils, nlputils, regexutils, strutils
 
 IS_DEBUG_MODE = False
 
+IS_DEBUG_PARTY_LINE = False
+
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s : %(levelname)s : %(message)s')
 
 ST_PAT_LIST = ['is made and entered into by and between',
@@ -62,7 +64,7 @@ def is_valid_uppercase_party_name(line: str) -> bool:
 
 
 def find_uppercase_party_name(line: str) \
-    -> Optional[Tuple[Tuple[int, int], int, bool]]:
+-> Optional[Tuple[Tuple[int, int], int, bool]]:
     found_party_se_other = find_first_non_title_and_org(line)
     if found_party_se_other:
         (party_start, party_end), other_start = found_party_se_other
@@ -273,7 +275,7 @@ def is_party_line(line: str,
 
     result = is_party_line_aux(line)
 
-    if IS_DEBUG_MODE:
+    if IS_DEBUG_PARTY_LINE:
         print('branch {}, line = [{}]'.format(result, line))
 
     # do some extra verfication
@@ -436,7 +438,7 @@ def is_party_line_aux(line: str) -> str:
         return 'True14'
 
     if line.startswith('T') and \
-       re.match('(this|the).*contract.*is made on', line, re.I):
+       re.match('(this|the).*(contract|lease|agreement).*is made', line, re.I):
         return 'True15'
     if len(line) < 40:  # don't want to match line "BY AND BETWEEN" in title page
         return 'False16'
