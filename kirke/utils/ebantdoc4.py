@@ -414,6 +414,7 @@ def chop_at_exhibit_complete(txt_file_name: str,
                              -> Tuple[str, str, List[ProvisionAnnotation], bool,
                                       TextCpointCunitMapper]:
     doc_text = txtreader.loads(txt_file_name)
+    # sub single newlines for spaces to preserve paragraphs in text documents
     doc_text = re.sub('(?<![\r\n])(\n)(?! *[\r\n])', ' ', doc_text)
     cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
