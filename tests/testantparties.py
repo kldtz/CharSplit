@@ -20,6 +20,11 @@ EB_RUNNER = ebrunner.EbRunner(MODEL_DIR,
                               WORK_DIR,
                               CUSTOM_MODEL_DIR)
 
+# TODO, NOT YET HANDLED
+# 37320.txt, tabled
+# 35457.txt??
+# 37352.txt, warrant, no party found
+# 44085.txt, lease, but in table format, no party found
 
 def annotate_doc(file_name: str) -> Dict[str, Any]:
     doc_lang = 'en'
@@ -211,6 +216,7 @@ class TestParties(unittest.TestCase):
                             (2382, 2395, 'HSBC BANK PLC'),
                             (2434, 2444, 'the “Bank”')])
 
+
         prov_labels_map = annotate_doc('mytest/doc13.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
@@ -219,6 +225,7 @@ class TestParties(unittest.TestCase):
                            (632, 645, 'HSBC BANK PLC'),
                            (683, 693, 'the “Bank”')])
 
+        # TODO
         prov_labels_map = annotate_doc('mytest/doc14.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
@@ -253,7 +260,6 @@ class TestParties(unittest.TestCase):
                            (124, 137, 'HSBC BANK PLC'),
                            (139, 149, 'the "Bank"')])
 
-
         # box
         prov_labels_map = annotate_doc('mytest/doc100.txt')
         party_list = get_party_list(prov_labels_map)
@@ -262,7 +268,7 @@ class TestParties(unittest.TestCase):
                           [(224, 238, 'Documents Inc.'),
                            (266, 275, '”Partner”'),
                            (367, 382, 'Box and Partner'),
-                           (419, 428, 'a “Party”')])
+                           (419, 459, 'a “Party” and together as the “Parties”.')])
 
         prov_labels_map = annotate_doc('mytest/doc101.txt')
         party_list = get_party_list(prov_labels_map)
@@ -277,25 +283,25 @@ class TestParties(unittest.TestCase):
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(306, 320, 'Partner 4, LLC'),
-                           (479, 499, '(collectively, “P4”)'),
+                           (480, 498, 'collectively, “P4”'),
                            (505, 514, 'Box, Inc.'),
-                           (676, 702, '(collectively, “Supplier”)')])
+                           (677, 701, 'collectively, “Supplier”')])
 
         prov_labels_map = annotate_doc('mytest/doc103.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(221, 242, 'ContentX Technologies'),
-                           (351, 363, '(“ContentX”!'),
+                           (352, 362, '“ContentX”'),
                            (368, 405, 'Cybeitnesh International  Corporation'),
-                           (507, 576, '(Cybermesh and together with ContentX, the “Members" each a “Member”)')])
+                           (508, 575, 'Cybermesh and together with ContentX, the “Members" each a “Member”')])
 
         prov_labels_map = annotate_doc('mytest/doc104.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(118, 172, 'Hadasit Medical Research  Services and Development Ltd'),
-                           (228, 239, '(“Hadasit”)'),
+                           (229, 238, '“Hadasit”'),
                            (244, 273, 'Cell  Cure Neurosctcnccs Ltd.'),
-                           (328, 343, '(the “Company”)')])
+                           (329, 342, 'the “Company”')])
 
         prov_labels_map = annotate_doc('mytest/doc105.txt')
         party_list = get_party_list(prov_labels_map)
@@ -306,9 +312,134 @@ class TestParties(unittest.TestCase):
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(185, 211, 'LipimetiX Development, LLC'),
-                           (251, 266, '(the "Company")'),
+                           (252, 265, 'the "Company"'),
                            (271, 298, 'Capstone Therapeutics Corp.'),
-                           (324, 337, '("Capstone11)')])
+                           (325, 336, '"Capstone11')])
+
+        # missing 'Customer One, LLC___..., TX 99223               (jointly' at end of
+        # page.  OCR issue.
+        prov_labels_map = annotate_doc('mytest/doc107.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(279, 288, 'Box, Inc.'),
+                           (380, 393, '“Participant”')])
+
+        prov_labels_map = annotate_doc('mytest/doc108.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(3055, 3076, 'TriLinc Advisors, LLC'),
+                           (3121, 3152, 'TriLinc Global Impact Fund, LLC')])
+
+        prov_labels_map = annotate_doc('mytest/doc109.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(157, 176, 'BIOPURE CORPORATION'),
+                           (276, 284, '“Seller”'),
+                           (291, 308, 'SPEAR REALTY, LLC'),
+                           (435, 446, '“Purchaser”')])
+
+        # this is not a contract, a letter
+        prov_labels_map = annotate_doc('mytest/doc110.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [])
+
+        prov_labels_map = annotate_doc('mytest/doc111.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(126, 145, 'Arrayit Corporation'),
+                           (170, 179, '“Arrayit”'),
+                           (182, 209, 'Ovarian Cancer Testing, LLP'),
+                           (260, 277, 'the “Partnership”'),
+                           (283, 302, 'Arrayit Diagnostics'),
+                           (398, 465,
+                            'individually, a  “Royalty holder” or collectively “Royalty holders”')])
+
+        # TODO
+        # This is problematic due to each line is a separate paragraph
+        # Need to fix paragraph understanding part in pdftxtparser
+        prov_labels_map = annotate_doc('mytest/doc112.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [])
+
+        prov_labels_map = annotate_doc('mytest/doc113.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(244, 253, 'Box, Inc.'),
+                           (274, 279, '“Box”'),
+                           (375, 388, '“Participant”')])
+
+        prov_labels_map = annotate_doc('mytest/doc114.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(197, 214, 'ADVANTENNIS CORP.'),
+                            (241, 254, '“ADVANTENNIS”'),
+                            (260, 292, 'WORLD TEAMTENNIS FRANCHISE, INC.'),
+                            (320, 326, '“WTTF”')])
+
+
+                          [(117, 134, 'Johanna Templeton'),
+                           (136, 144, '"Tenant"'),
+                           (151, 165, 'Ravneet Uberoi'),
+                           (167, 178, '"Subtenant"')])
+
+        prov_labels_map = annotate_doc('mytest/doc116.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(879, 928, 'Oriental Intra-Asia Entertainment (China) Limited'),
+                            (931, 941, '“Oriental”'),
+                            (944, 986, 'China TransInfo Technology Group Co., Ltd.'),
+                            (988, 1003, '“Group Company”'),
+                            (1006, 1055, 'Beijing PKU Chinafront  High Technology Co., Ltd.'),
+                            (1057, 1062, '“PKU”'),
+                            (1065, 1123, 'Beijing Tian Hao Ding Xin Science and Technology Co., Ltd.'),
+                            (1126, 1143, '“Bejing Tian Hao”'),
+                            (1146, 1192, 'Beijing Zhangcheng Culture and Media Co., Ltd.'),
+                            (1194, 1214, '“Zhangcheng Culture”'),
+                            (1217, 1268, 'Bejing  Zhangcheng Science and Technology Co., Ltd.'),
+                            (1270, 1290, '“Zhangcheng Science”'),
+                            (1293, 1344, 'China TranWiseway Information  Technology Co., Ltd.'),
+                            (1367, 1419, 'Xinjiang Zhangcheng Science and Technology Co., Ltd.'),
+                            (1422, 1443, '“Xinjiang Zhangcheng”'),
+                            (1446, 1497, 'Dalian Dajian Zhitong Information Service Co., Ltd.'),
+                            (1499, 1514, '“Dalian Dajian”'),
+                            (1521, 1568, 'Shanghai Yootu Information Technology Co., Ltd.'),
+                            (1570,
+                               1761,
+                               '“Shanghai Yootu” and together with Group Company,  PKU, Beijing Tian Hao, '
+                               'Zhangcheng Culture, Zhangcheng Science, China TranWiseway, Xinjiang  '
+                               'Zhangcheng and Dalian Dajian, the “VIE Entities”')])
+
+        prov_labels_map = annotate_doc('mytest/doc117.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(250, 280, 'Apollo Global Management,  LLC'),
+                            (320, 333, 'the “Company"'),
+                            (340, 353, 'Leon D. Black'),
+                            (355, 366, '“Executive"')])
+
+        prov_labels_map = annotate_doc('mytest/doc118.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(102, 122, 'SHBV (Hong Kong) Ltd'),
+                           # missing (shbv)
+                           # missing waste2energy group
+                            (454, 461, '“W2EGH”'),
+                            (464, 496, 'WASTE2ENERGY ENGINEERING LIMITED'),
+                            (659, 665, '“W2EE”'),
+                            (671, 719, 'WASTE2ENERGY  TECHNOLOGIES INTERNATIONAL LIMITED'),
+                            (882, 889, '“W2ETI”')])
+
+
+        # unknown source
+        prov_labels_map = annotate_doc('mytest/kodak1.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(104, 131, 'Kodak (Australasia) Pty Ltd'),
+                            (209, 214, 'Kodak'),
+                            (225, 249, 'Printcraft (QLD) Pty Ltd'),
+                            (333, 341, 'Customer')])
 
 
     def test_export_train_party(self):
@@ -319,7 +450,7 @@ class TestParties(unittest.TestCase):
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(235, 261, 'The Princeton Review, Inc.'),
-                           (262, 276, '(the “Issuer”)'),
+                           (263, 275, 'the “Issuer”'),
                            (282, 302, 'the Collateral Agent'),
                            (307, 327, 'the Purchasers party'),
                            (343, 363, 'the Guarantors party')])
@@ -329,19 +460,61 @@ class TestParties(unittest.TestCase):
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(80, 100, 'LORRAINE SALCICCIOLI'),
-                           (180, 195, 'the “Landlord”)'),
+                           (180, 194, 'the “Landlord”'),
                            (206, 230, 'PRINTING COMPONENTS INC.'),
-                           (332, 345, 'the “Tenant”)')])
+                           (332, 344, 'the “Tenant”')])
 
         prov_labels_map = annotate_doc('export-train/39074.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(6316, 6328, 'HASBRO, INC.'),
-                            (6357, 6372, '(the “Company”)'),
+                            (6358, 6371, 'the “Company”'),
                             (6374, 6383, 'HASBRO SA'),
-                            (6634, 6692, '(collectively, the “Lenders” and individually, a “Lender”)'),
+                            (6635, 6691, 'collectively, the “Lenders” and individually, a “Lender”'),
                             (6698, 6719, 'BANK OF AMERICA, N.A.'),
                             (6724, 6779, 'Administrative Agent, Swing Line Lender and L/C Issuer.')])
+
+
+        prov_labels_map = annotate_doc('export-train/40331.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(4330, 4341, 'ante4, Inc.'),
+                           (4367, 4375, '“Parent”'),
+                           (4382, 4393, 'ante5, Inc.'),
+                           (4476, 4488, '“Subsidiary”')])
+
+        prov_labels_map = annotate_doc('export-train/41305.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(204, 242, 'Holly Refining & Marketing — Tulsa LLC'),
+                           (269, 285, '“Tulsa Refining”'),
+                           (292, 305, 'HEP Tulsa LLC'),
+                           (345, 356, '“HEP Tulsa”')])
+
+        prov_labels_map = annotate_doc('export-train/44102.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(120, 141, 'SCI LA DEFENSE ASTORG'),
+                            (944, 953, '“Lessor”;'),
+                            (999, 1021, 'SEQUANS COMMUNICATIONS'),
+                            (1323, 1332, '“Lessee”;')])
+
+        prov_labels_map = annotate_doc('export-train/39749.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(104, 120, 'US AIRWAYS, INC.'),
+                            (124, 148, 'WILMINGTON TRUST COMPANY'),
+                            (153, 221,
+                             'Pass Through Trustee under each of the Pass Through Trust Agreements'),
+                            (224, 248, 'WILMINGTON TRUST COMPANY'),
+                            (253, 272, 'Subordination Agent'),
+                            (275, 291, 'WELLS FARGO BANK'),
+                            (303, 323, 'NATIONAL ASSOCIATION'),
+                            (328, 340, 'Escrow Agent'),
+                            (349, 373, 'WILMINGTON TRUST COMPANY'),
+                            (378, 390, 'Paying Agent')])
+
+
 
 if __name__ == "__main__":
     unittest.main()

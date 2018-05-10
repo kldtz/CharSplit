@@ -38,6 +38,34 @@ class TestNLPUtils(unittest.TestCase):
         self.assertEqual(st_list,
                          ['Ltd.'])
 
+        line = 'Citibank Bank, N.A. is a bank incorporated under New York Law'
+        se_term_list = nlputils.find_known_terms(line)
+        tag_list = []
+        st_list = []
+        for se_term in se_term_list:
+            start, end, ttype = se_term
+            st_list.append(line[start:end])
+            tag_list.append(ttype)
+        self.assertEqual(st_list,
+                         ['N.A.'])
+        self.assertEqual(tag_list,
+                         ['xORGP'])
+
+
+        line = 'Citibank Bank, N.A. is a Bank incorporated under New York Law'
+        se_term_list = nlputils.find_known_terms(line)
+        tag_list = []
+        st_list = []
+        for se_term in se_term_list:
+            start, end, ttype = se_term
+            st_list.append(line[start:end])
+            tag_list.append(ttype)
+        self.assertEqual(st_list,
+                         ['N.A.', 'incorporated'])
+        self.assertEqual(tag_list,
+                         ['xORGP', 'xORGP'])
+
+
 
     def test_is_org_suffix(self):
         line = 'pic'
@@ -48,6 +76,19 @@ class TestNLPUtils(unittest.TestCase):
 
         line = 'n.a'
         self.assertTrue(nlputils.is_org_suffix(line))
+
+        line = 'Limited'
+        self.assertTrue(nlputils.is_org_suffix(line))
+
+        line = 'limited'
+        self.assertTrue(nlputils.is_org_suffix(line))
+
+        line = 'limited.'
+        self.assertFalse(nlputils.is_org_suffix(line))
+
+        line = 'Limited.'
+        self.assertFalse(nlputils.is_org_suffix(line))
+
 
 
     def test_first_sentence(self):
@@ -253,7 +294,7 @@ class TestNLPUtils(unittest.TestCase):
         #for i, astr in enumerate(st_list):
         #    print("party #{}\t[{}]".format(i, astr))
         self.assertEqual(st_list,
-                         ['The Princeton Review, Inc.', '(the “Issuer”)'])
+                         ['The Princeton Review, Inc.', 'the “Issuer”'])
 
 if __name__ == "__main__":
     unittest.main()

@@ -954,8 +954,9 @@ def extract_parties_term_list_from_party_line(line: str) \
     # sometimes, a line can be chopped by accident before of form filling
     # in pdf docs.
     # 'Box.com (UK) Ltd, a company registered in England and Wales (company number'
-    num_org_suffix = len(nlputils.get_org_suffix_mat_list(line))
-    if len(line) < 100 and num_org_suffix == 0:
+    # We don't want to parse 'THIS AGREEMENT is dated 24th March 2015 and made between:'
+    # which has no parties
+    if partyutils.is_party_line_prefix_without_parties(line):
         return []
 
     # first try this aggressive itemize match inside party_line
@@ -1193,6 +1194,9 @@ def is_end_party_list(line: str, attrs: List[str]) -> bool:
     if partyutils.is_party_list_prefix_with_validation(line):
         return False
     if 'sechead' in attrs:  # sechead ends party lines
+        return True
+    # 'INDEX TO NOTE PURCHASE AGREEMENT', 39749.txt
+    if re.search(r'\b(agreement|contract|lease)\b', line, re.I):
         return True
     # check for non-party words, section headings
     if re.search('(agreed\s+as\s+follows)\b', line, re.I):
@@ -1693,7 +1697,7 @@ def move_next_non_empty_se_after_list(se_after_paras_attr_list: List[Tuple[int, 
     # move to next non-empty line
     se_line_attrs = se_after_paras_attr_list[se_curline_idx]
     _, _, linex, attr_list = se_line_attrs
-    while not linex or linex.lower() == 'and':
+    while not linex or (len(linex) < 10 and re.search(r'\band\b', linex, re.I)):
         se_curline_idx += 1
         if se_curline_idx >= len_doc_lines:
             return se_curline_idx
@@ -1704,7 +1708,7 @@ def move_next_non_empty_se_after_list(se_after_paras_attr_list: List[Tuple[int, 
 
 
 # pylint: disable=line-too-long
-def extract_parties_term_list_from_list_lines_too_new(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
+def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
     -> List[Tuple[List[Tuple[int, int]],
                   Optional[Tuple[int, int]]]]:
     if not se_after_paras_attr_list:
@@ -1768,8 +1772,8 @@ def extract_parties_term_list_from_list_lines_too_new(se_after_paras_attr_list: 
         # try to match party_name at beginning of a line, try twice
         # if the intervening line is short or of some patterns.
         num_attempt = 0
-        if num_attempt < 3:
-            
+        while num_attempt < 3:
+
             phrased_sent = nlputils.PhrasedSent(linex, is_chopped=True)
             tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
             print("tmp_parties_term_offset = {}".format(tmp_parties_term_offset))
@@ -1784,7 +1788,7 @@ def extract_parties_term_list_from_list_lines_too_new(se_after_paras_attr_list: 
                     result.append(party_list_term)
 
                     # should be next non-empty line, but if empty, move on
-                    se_curline_idx = move_next_if_is_empty_se_after_list(se_after_paras_attr_list,
+                    se_curline_idx = move_next_non_empty_se_after_list(se_after_paras_attr_list,
                                                                          se_curline_idx)
 
                     if se_curline_idx >= len_doc_lines:
@@ -1792,12 +1796,27 @@ def extract_parties_term_list_from_list_lines_too_new(se_after_paras_attr_list: 
 
                     # settled on the next non-empty line
                     se_line_attrs = se_after_paras_attr_list[se_curline_idx]
-                    _, _, linex, attr_list = se_line_attrs
+                    start_linex, end_linex, linex, attr_list = se_line_attrs
                     # if no longer in found good list line
                     if is_end_party_list(linex, attr_list):
                         se_curline_idx += 1
                         num_attempt = 3
                         break
+
+                    maybe_term_mat = re.match(r'hereinafter\s*', linex, re.I)
+                    if maybe_term_mat:
+                        term_line = linex[maybe_term_mat.end():]
+                        last_parties_term = result[-1]
+                        last_parties, _ = last_parties_term
+                        result[-1] = (last_parties, (start_linex + maybe_term_mat.end(), end_linex))
+                        # now move to next line
+                        se_curline_idx = move_next_non_empty_se_after_list(se_after_paras_attr_list,
+                                                                           se_curline_idx)
+                        if se_curline_idx >= len_doc_lines:
+                            break
+                        # settled on the next non-empty line
+                        se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+                        start_linex, end_linex, linex, attr_list = se_line_attrs
 
                     phrased_sent = nlputils.PhrasedSent(linex, is_chopped=True)
                     tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
@@ -1825,7 +1844,7 @@ def extract_parties_term_list_from_list_lines_too_new(se_after_paras_attr_list: 
 
 
 # pylint: disable=line-too-long
-def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
+def extract_parties_term_list_from_list_lines_backup(se_after_paras_attr_list: List[Tuple[int, int, str, List[str]]]) \
     -> List[Tuple[List[Tuple[int, int]],
                   Optional[Tuple[int, int]]]]:
     if not se_after_paras_attr_list:

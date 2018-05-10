@@ -291,7 +291,7 @@ def annotate_document(file_name: str,
     #                                                              'indemnify', 'jurisdiction',
     #                                                              'party', 'warranty',
     #                                                              'termination', 'term']))
-    pprint.pprint(prov_labels_map)
+    # pprint.pprint(prov_labels_map)
 
     eb_doccat_runner = None
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists('{}/{}'.format(model_dir,
@@ -383,13 +383,17 @@ def main():
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        print("\nannotate_document() result:")
+        prov_ants_map = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        pprint.pprint(dict(prov_ants_map))
     elif cmd == 'print_doc_parties':
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        ajson = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
-        party_ant_list = ajson['party']
+        print("\nannotate_document() result:")
+        prov_ants_map = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        pprint.pprint(dict(prov_ants_map))
+        party_ant_list = prov_ants_map['party']
         result = []
         for party_ant in party_ant_list:
             result.append((party_ant['start'],

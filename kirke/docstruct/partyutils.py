@@ -327,6 +327,10 @@ def is_party_line_aux(line: str) -> str:
     if re.match(r'\d+\-\d+', line) and is_all_upper_words:
         return 'False4'
 
+    # must be before False4.1
+    if re.match(r'by\s+and\s+between\b', line, re.I):
+        return 'True28.1'
+
     # this is a title
     if is_all_upper_words and \
        len(alpha_words) < 20 and \
@@ -528,6 +532,43 @@ def is_party_line_aux(line: str) -> str:
        'following parties' in lc_line:
         return 'True40'
     return 'False41'
+
+
+def is_party_line_prefix_without_parties(line: str) -> bool:
+    """Detect if a line have no party, we don't want to detect 'The Agreement ... as
+       a party.
+
+    This is whatever is after "between" and end of sentence.
+    """
+    if len(line) >= 100:  # it's not obvious that it has no party
+        return False
+
+    between_mat = re.search(r'\b(between|among)\b', line, re.I)
+    if between_mat and between_mat.end() < len(line) - 10:
+        return True
+
+    org_suffix_list = nlputils.get_org_suffix_mat_list(line)
+    num_org_suffix = len(org_suffix_list)
+
+    # num_and = len(list(re.finditer(r'\band\b', line, re.I)))
+    num_parens = len(list(re.finditer(r'\([^\)]+\)', line, re.I)))
+    # need to skip first 'the agreement is'
+    maybe_org_st_list = []
+    for multi_cap_mat in re.finditer(r'\b[A-Z]\w+( [A-Z]\w+)+\b', line, re.I):
+      multi_cap_st = line[multi_cap_mat.start():multi_cap_mat.end()]
+      if re.search(r'\bdate\b', multi_cap_st, re.I) or \
+         re.search(r'\b(agreement|lease|contract)\b', multi_cap_st, re.I):
+          pass
+      else:
+          maybe_org_st_list.append(multi_cap_st)
+
+    if num_parens >= 2:
+        return False
+    if (num_org_suffix == 0 and
+        len(maybe_org_st_list) <= 1):
+        return True
+
+    return False
 
 
 def find_first_party_lead(line):

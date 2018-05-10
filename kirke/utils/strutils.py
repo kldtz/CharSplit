@@ -263,8 +263,10 @@ def is_all_dash_underline(line: str) -> bool:
             return False
     return True
 
+
 def is_all_caps_space(line: str) -> bool:
     return bool(CAP_SPACE_PAT.match(line))
+
 
 def is_all_lower(line: str) -> bool:
     words = line.split()
@@ -283,6 +285,16 @@ def is_all_upper_words(words: List[str]) -> bool:
         if not word.isupper():
             return False
     return True
+
+def is_cap_not_first_char(line: str) -> bool:
+    if len(line) < 2:
+        return False
+    if not line[0].islower():
+        return False
+    for ach in line[1:]:
+        if ach.isupper():
+            return True
+    return False
 
 
 def bool_to_int(bool_val: bool) -> int:
