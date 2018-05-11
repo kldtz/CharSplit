@@ -46,6 +46,16 @@ def is_org_suffix(line: str) -> bool:
     # print("is_org_suffix({})".format(line))
     return bool(ORG_PERSON_SUFFIX_END_PAT.match(line))
 
+def is_valid_org_and_prefix(words: List[str]) -> bool:
+    if len(words) == 1 and \
+       words[0] in set(['Johnson']):
+        return True
+    if words[-1] in set(['Culture', 'Information', 'Light',
+                         # 'Light and Magic'
+                         'Media',
+                         'Science', 'Services', 'Technology']):
+        return True
+    return False
 
 def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     """Get all org suffix matching mat extracted from line.
@@ -220,6 +230,7 @@ def word_punct_tokenize(line: str) -> List[str]:
     se_tokens = WORD_PUNCT_TOKENIZER.tokenize(line)
     return se_tokens
 
+
 def fix_nltk_pos(wpos_list: List[Tuple[str, str]],
                  t2_map: Dict[str, Tuple[str, str]] = None) -> List[Tuple[str, str]]:
     result = []
@@ -230,7 +241,8 @@ def fix_nltk_pos(wpos_list: List[Tuple[str, str]],
             result.append((word, 'IN'))
         elif word.startswith('ZqZ'):
             if t2_map:
-                line, ttype = t2_map[word]
+                # A token can be 'Corporation.' from 'Corporation.,'
+                line, ttype = t2_map[word[:7]]
                 if ttype == 'xABN':
                     # we don't want this to merge with anything
                     result.append((word, 'IN'))
@@ -249,9 +261,12 @@ def fix_nltk_pos(wpos_list: List[Tuple[str, str]],
             result.append((word, tag))
     return result
 
+
 def pos_tag(tokens: List[str], t2_map: Dict[str, Tuple[str, str]] = None) \
     -> List[Tuple[str, str]]:
-    return fix_nltk_pos(nltk.pos_tag(tokens), t2_map)
+    postag_list = nltk.pos_tag(tokens)
+    fixed_list = fix_nltk_pos(postag_list, t2_map)
+    return fixed_list
 
 """
 def get_consecutive_cap_word_phrases(line: str) \
@@ -344,7 +359,7 @@ def sub_known_terms(line: str,
     for se_ttype in se_ttype_list:
         start, end, kt_type = se_ttype
         orig_span = line[start:end]
-        kt_sub = 'ZqZ{:03d}'.format(kt_count)
+        kt_sub = 'ZqZ{:04d}'.format(kt_count)
         kt_count += 1
         known_term_map[kt_sub] = (orig_span, kt_type)
 
@@ -355,36 +370,52 @@ def sub_known_terms(line: str,
 
     return ''.join(parts), known_term_map
 
+def putback_chunk_to_postag_list(chunk: Union[Tree, Tuple[str, str]],
+                                 t2_map: Dict[str, Tuple[str, str]]) \
+    -> Tuple[bool, str, List[Tuple[str, str]]]:
+    postags = chunk_to_postag_list(chunk)
+    postags_out = []  # type: List[Tuple[str, str]]
+    is_triggered = False
+    ttype = None
+    for word_pos in postags:
+        word, pos = word_pos
+        if word.startswith('ZqZ'):
+            # can have extra stuff due to 'Corporation.' in 'Corporation.,'
+            orig_term, ttype = t2_map[word[:7]]
+            term_tok_list = word_tokenize(orig_term)
 
-def putback_kterms(chunk_list: List[Union[Tree, Tuple[int, int]]],
+            # probably 'N.A.' -> 'N.A' '.'
+            # merge the last 2 tokens
+            if len(term_tok_list) > 1 and \
+                            term_tok_list[-1] == '.':
+                term_tok_list[-2] = term_tok_list[-2] + '.'
+                term_tok_list = term_tok_list[:-1]
+            elif len(word) > 7:
+                # can have extra stuff due to 'Corporation.' in 'Corporation.,'
+                term_tok_list[-1] = term_tok_list[-1] + word[7:]
+            # for term_tok in term_tok_list:
+            #     print("fixed term_tok: [{}]".format(term_tok))
+            postags_out.extend([(term_tok, 'NNP') for term_tok in term_tok_list])
+            is_triggered = True
+        else:
+            postags_out.append(word_pos)
+
+    return is_triggered, ttype, postags_out
+
+
+def putback_kterms(chunk_list: List[Union[Tree, Tuple[str, str]]],
                    t2_map: Dict[str, Tuple[str, str]]) -> List[Union[Tree, Tuple[int, int]]]:
     result = []  # type: List[Union[Tree, Tuple[int, int]]]:
     for chunk in chunk_list:
         if is_chunk_label(chunk, 'xNNP'):
-            postags = chunk_to_postag_list(chunk)
-            postags_out = []  # type: List[Tuple[str, str]]
-            is_triggered = False
-            for word_pos in postags:
-                word, pos = word_pos
-                if word.startswith('ZqZ'):
-                    orig_term, ttype = t2_map[word]
-                    term_tok_list = word_tokenize(orig_term)
-
-                    # probably 'N.A.' -> 'N.A' '.'
-                    # merge the last 2 tokens
-                    if len(term_tok_list) > 1 and \
-                       term_tok_list[-1] == '.':
-                        term_tok_list[-2] = term_tok_list[-2] + '.'
-                        term_tok_list = term_tok_list[:-1]
-                    # for term_tok in term_tok_list:
-                    #     print("fixed term_tok: [{}]".format(term_tok))
-                    postags_out.extend([(term_tok, 'NNP') for term_tok in term_tok_list])
-                    is_triggered = True
-                else:
-                    postags_out.append(word_pos)
-
+            is_triggered, ttype, postags_out = putback_chunk_to_postag_list(chunk, t2_map)
             if is_triggered:
                 chunk = Tree(ttype, postags_out)
+        elif is_chunk_label(chunk, 'xPAREN'):
+            # it is possible that zqz is in xPAREN also
+            is_triggered, ttype, postags_out = putback_chunk_to_postag_list(chunk, t2_map)
+            if is_triggered:
+                chunk = Tree(chunk.label(), postags_out)
         elif not is_chunk_tree(chunk):
             word = postag_word(chunk)
             # only for ABN XXX
@@ -410,7 +441,9 @@ def split_chunk_with_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
             found_org_suffix_idx = -1
             for i in range(len(postag_list)-1, -1, -1):
                 word, tag = postag_list[i]
-                if is_org_suffix(word):
+                # 'WASTE2ENERGY GROUP company registed in ...', doc118.txt
+                if is_org_suffix(word) and \
+                        not word in set(['company', 'corporation']):
                     found_org_suffix_idx = i
                     break
 
@@ -542,6 +575,13 @@ def is_chunk_and(chunk: Union[Tree, Tuple[str, str]]) -> bool:
     word = postag_word(chunk)
     return word.lower() == 'and' or word == '&'
 
+def is_chunk_ampersand(chunk: Union[Tree, Tuple[str, str]]) -> bool:
+    if isinstance(chunk, Tree):
+        return False
+    # cannot check for tag == 'CC' because it can be 'or'
+    word = postag_word(chunk)
+    return word == '&'
+
 def is_chunk_paren(chunk: Union[Tree, Tuple[str, str]]) -> bool:
     if isinstance(chunk, Tree):
         return chunk.label() == 'xPAREN'
@@ -581,6 +621,10 @@ def chunk_to_postag_list(chunk: Union[Tree, Tuple[str, str]]) -> List[Tuple[str,
     if isinstance(chunk, Tree):
         return [postag for postag in chunk]
     return [chunk]
+
+def chunk_to_words(chunk: Union[Tree, Tuple[str, str]]) -> List[str]:
+    postag_list = chunk_to_postag_list(chunk)
+    return [postag[0] for postag in postag_list]
 
 # def chunks_to_postag_list(chunk_list: List[Union[Tree, Tuple[str, str]]]) -> List[Tuple[str, str]]:
 
@@ -669,6 +713,12 @@ def update_with_org_person(chunks_result,
             num_comma += 1
         # elif chunk_has_org_person_suffix(chunk):
         elif is_chunk_label(chunk, 'xORGP'):
+            postag_list = chunk_to_postag_list(chunk)
+            # don't want to merge two full comany names together
+            # only merge LLC or Corp.  Just in case an org is made
+            # of 2 words, 'b. v.'
+            if len(postag_list) > 2:
+                break
             suffix_chunk_list.append(chunk)
             i += 1
         else:
@@ -703,11 +753,21 @@ def update_with_org_person(chunks_result,
         elif is_chunk_xnnp(chunk):
             prefix_chunk_list.append(chunk)
             i -= 1
-        elif (is_chunk_and(chunk) or
-              is_chunk_digit(chunk) or
-              is_chunk_paren(chunk)) and \
-             prev_chunk and \
-             is_chunk_xnnp(prev_chunk):
+        elif is_chunk_digit(chunk) and \
+             prev_chunk and is_chunk_xnnp(prev_chunk):
+            # ko
+            prefix_chunk_list.append(chunk)
+            prefix_chunk_list.append(prev_chunk)
+            i -= 2
+        elif prev_chunk and \
+             ((is_chunk_and(chunk) and
+               is_valid_org_and_prefix(chunk_to_words(prev_chunk))) or
+              is_chunk_ampersand(chunk)):
+            # 'and' is only applicable to a subset of nouns
+            # otherwise, we have address Hong Kong and XXX Corp.
+            # Must know Hong Kong is a part of an address.
+            # Probably easier to limit to "Johnson &"
+
             # (xNNP Hadasit/NNP Medical/NNP Research/NNP Services/NNPS)
             # ('and', 'CC')
             # (ORG_PERSON Development/NNP Ltd/NNP)
@@ -718,14 +778,6 @@ def update_with_org_person(chunks_result,
             prefix_chunk_list.append(chunk)
             prefix_chunk_list.append(prev_chunk)
             i -= 2
-            """
-            elif is_chunk_digit(chunk) and \
-                    prev_chunk and \
-                    is_chunk_xnnp(prev_chunk):
-                prefix_chunk_list.append(chunk)
-                prefix_chunk_list.append(prev_chunk)
-                i -= 2
-            """
         else:
             break
 
@@ -952,6 +1004,10 @@ class SpanChunk:
         # no need to lc(), but to keep code small
         return self.is_lc_word(',')
 
+    def get_words(self) -> List[str]:
+        postag_list = self.to_postag_list()
+        return [postag[0] for postag in postag_list]
+
     def is_word_and(self) -> bool:
         return self.is_lc_word('and') or self.is_lc_word('&')
 
@@ -1057,6 +1113,8 @@ class PhrasedSent:
         """
         DEBUG = False
         and_org_tok_idx_list = find_and_org_tok_indices(self.span_chunk_list)
+        if not and_org_tok_idx_list:
+            and_org_tok_idx_list = find_payto_org_tok_indices(self.span_chunk_list)
         between_tok_idx = 0
         if not self.is_chopped:
             between_tok_idx = find_between_tok_index(self.span_chunk_list)
@@ -1241,9 +1299,12 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
     result = []
     for span_chunk in span_chunk_list:
-        if re.search(r'\bagreements?\b', span_chunk.text, re.I):
+        if re.search(r'\b(agreement|note)s?\b', span_chunk.text, re.I):
             pass
-        elif re.search(r'\bdate?\b', span_chunk.text, re.I):
+        elif re.search(r'\bdate\b', span_chunk.text, re.I):
+            # (as effective date)
+            pass
+        elif re.search(r'\b(section|article)\b', span_chunk.text, re.I):
             # (as effective date)
             pass
         else:
@@ -1280,8 +1341,13 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
         if len(paren_list) == 1:
             term = [chop_spanchunk_paren(paren_list[0])]
         else:  # there are multiple
+            # if the 2nd paren has 'each a  "Party", and collectively the "Parties"'
             last_paren = paren_list[-1]
-            term = [chop_spanchunk_paren(last_paren)]
+            if re.search(r'\b(parties)\b', last_paren.text, re.I):
+                # if 'parties' is the last one, now take the first one instead
+                term = [chop_spanchunk_paren(paren_list[0])]
+            else:
+                term = [chop_spanchunk_paren(last_paren)]
             # in future, might check if term/paren doesn't overlap with org
             """
             if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:  # parent is really at the end of phrase
@@ -1344,6 +1410,36 @@ def find_and_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
                # 'and Arrayit Diagnostics', doc111.txt
                maybe_result.append(next_spchunk.tok_idx)
                idx += 1
+
+        idx += 1
+
+    # replace result only if valid and-org is not found
+    if not result and maybe_result:
+        result = maybe_result
+    return result
+
+
+def find_payto_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
+    """Find the list of tok_idx of 'pay to'.
+    """
+    result = []  # type: List[int]
+    # This is for 'and' followed by xNNP, so might or might not be and-org
+    maybe_result = []  # type: List[int]
+    for idx in range(len(span_chunk_list)):
+        spchunk = span_chunk_list[idx]
+        next_spchunk = next_span_chunk(span_chunk_list, idx)
+        next2_spchunk = next_span_chunk(span_chunk_list, idx+1)
+        if spchunk.is_lc_word('pay') and \
+           next_spchunk and \
+           next_spchunk.is_lc_word('to') and\
+           next2_spchunk:
+           if next2_spchunk.is_org():
+               result.append(next2_spchunk.tok_idx)
+               idx += 2
+           elif next2_spchunk.has_label('xNNP'):
+               # 'and Arrayit Diagnostics', doc111.txt
+               maybe_result.append(next2_spchunk.tok_idx)
+               idx += 2
 
         idx += 1
 

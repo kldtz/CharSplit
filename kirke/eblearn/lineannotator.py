@@ -40,7 +40,7 @@ class LineAnnotator:
                                                       ebantdoc.nlp_sx_lnpos_list,
                                                       ebantdoc.origin_sx_lnpos_list)
 
-            # print("test_antdoc_list(), at {}".format(ebantdoc.file_id))
+            print("test_antdoc_list(), at {}".format(ebantdoc.file_id))
             ant_list = self.annotate_antdoc(paras_with_attrs,
                                             paras_text,
                                             fromto_mapper,

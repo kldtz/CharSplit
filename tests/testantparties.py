@@ -374,11 +374,13 @@ class TestParties(unittest.TestCase):
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(197, 214, 'ADVANTENNIS CORP.'),
-                            (241, 254, '“ADVANTENNIS”'),
-                            (260, 292, 'WORLD TEAMTENNIS FRANCHISE, INC.'),
-                            (320, 326, '“WTTF”')])
+                           (241, 254, '“ADVANTENNIS”'),
+                           (260, 292, 'WORLD TEAMTENNIS FRANCHISE, INC.'),
+                           (320, 326, '“WTTF”')])
 
-
+        prov_labels_map = annotate_doc('mytest/doc115.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
                           [(117, 134, 'Johanna Templeton'),
                            (136, 144, '"Tenant"'),
                            (151, 165, 'Ravneet Uberoi'),
@@ -415,21 +417,141 @@ class TestParties(unittest.TestCase):
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(250, 280, 'Apollo Global Management,  LLC'),
-                            (320, 333, 'the “Company"'),
-                            (340, 353, 'Leon D. Black'),
-                            (355, 366, '“Executive"')])
+                           (320, 333, 'the “Company"'),
+                           (340, 353, 'Leon D. Black'),
+                           (355, 366, '“Executive"')])
 
         prov_labels_map = annotate_doc('mytest/doc118.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(102, 122, 'SHBV (Hong Kong) Ltd'),
-                           # missing (shbv)
-                           # missing waste2energy group
-                            (454, 461, '“W2EGH”'),
-                            (464, 496, 'WASTE2ENERGY ENGINEERING LIMITED'),
-                            (659, 665, '“W2EE”'),
-                            (671, 719, 'WASTE2ENERGY  TECHNOLOGIES INTERNATIONAL LIMITED'),
-                            (882, 889, '“W2ETI”')])
+                           (125, 131, '“SHBV”'),
+                           (266, 284, 'WASTE2ENERGY GROUP'),
+                           (454, 461, '“W2EGH”'),
+                           (464, 496, 'WASTE2ENERGY ENGINEERING LIMITED'),
+                           (659, 665, '“W2EE”'),
+                           (671, 719, 'WASTE2ENERGY  TECHNOLOGIES INTERNATIONAL LIMITED'),
+                           (882, 889, '“W2ETI”')])
+
+        # This is not a contract.
+        # The full list of party name is not verified.
+        prov_labels_map = annotate_doc('mytest/doc119.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(796, 805, 'UDR, Inc.'),
+                           (884, 906, 'America Securities LLC'),
+                           (908, 937, 'Citigroup Global Markets Inc.'),
+                           (939, 968, 'Deutsche Bank Securities Inc.'),
+                           (970, 998, 'J.P. Morgan  Securities Inc.'),
+                           (1015, 1050, 'Pierce, Fenner & Smith Incorporated'),
+                           (1052, 1086, 'Morgan Stanley & Co.  Incorporated'),
+                           (831, 844, 'the “Company”'),
+                           (1091, 1118, 'Wells Fargo Securities, LLC'),
+                           (1120, 1164, 'each, an “Agent,” and together, the “Agents”')])
+
+        prov_labels_map = annotate_doc('mytest/doc120.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(183, 205, 'Lincolnway Energy, LLC'),
+                           (207, 217, '"Producer"'),
+                           (260, 288, 'Green Plains Trade Group LLC'),
+                           (328, 334, '"GPTG"')])
+
+        prov_labels_map = annotate_doc('mytest/doc121.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(140, 161, 'NEW YORK AIRCAM CORF.'),
+                           (258, 266, '“Lessor”'),
+                           (273, 292, 'CSC TRANSPORT, INC.'),
+                           (399, 407, '“Lessee”')])
+
+        # very similar to doc113.txt, but slightly different
+        prov_labels_map = annotate_doc('mytest/doc122.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(217, 226, 'Box, Inc.'),
+                           (247, 252, '“Box”'),
+                           (348, 361, '“Participant”')])
+
+        prov_labels_map = annotate_doc('mytest/doc123.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(159, 183, 'Fidelity Funding Company'),
+                            (207, 217, '“Landlord”'),
+                            (225, 244, 'Extend Health, Inc.'),
+                            (270, 278, '“Tenant”')])
+
+        # these are test documents
+        prov_labels_map = annotate_doc('mytest/doc130.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(351, 403, 'THE UNIVERSITY OF TEXAS M. D. ANDERSON CANCER CENTER'),
+                            (406, 415, '"UTMDACC"'),
+                            (457, 487, 'SIGNPATH PHARMACEUTICALS, INC.'),
+                            (612, 622, '"LICENSEE"')])
+
+
+        prov_labels_map = annotate_doc('mytest/doc131.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(244, 253, 'Box, Inc.'),
+                           (274, 279, '“Box”'),
+                           (375, 388, '“Participant”')])
+
+        # doc132 is the same as doc131.txt
+
+        prov_labels_map = annotate_doc('mytest/doc133.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(158, 177, 'Comverse Technology'),
+                           (251, 264, 'the “Company”'),
+                           (270, 280, 'Joel Legon'),
+                           (283, 293, '“Employee”')])
+
+        # TODO, failed
+        """
+        prov_labels_map = annotate_doc('mytest/doc134.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [])
+        """
+
+        prov_labels_map = annotate_doc('mytest/doc135.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(291, 300, 'Box, Inc.'),
+                           (321, 326, '"Box"'),
+                           (390, 409, 'Customer  Six Corp.'),
+                           (411, 424, '"Participant"')])
+
+        prov_labels_map = annotate_doc('mytest/doc136.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(166, 188, 'Trio Resources AG Inc.'),
+                            (243, 300, 'with its affiliated entities, collectively, the “Company”'),
+                            (306, 331, 'Seagel Investment  Corp..'),
+                            (381, 397, 'the “Consultant”')])
+
+
+        # TODO, "hereinafter defined' is wrong
+        prov_labels_map = annotate_doc('mytest/doc137.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(13343, 13351, 'DSW INC.'),
+                           (13374, 13379, '“DSW”'),
+                           (13382, 13407, 'DSW SHOE  WAREHOUSE, INC.'),
+                           (13631, 13650, 'hereinafter defined'),
+                           (13657, 13688, 'PNC BANK,  NATIONAL ASSOCIATION'),
+                           (13813, 13839, 'the “Administrative Agent”')]
+
+
+        prov_labels_map = annotate_doc('mytest/doc138.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(188, 202, 'CRG Finance AG'),
+                            (205, 210, '“CRG”'),
+                            (217, 238, 'Ardent  Mines Limited'),
+                            (240, 253, 'the “Company”')])
 
 
         # unknown source
