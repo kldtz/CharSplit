@@ -1113,8 +1113,9 @@ class PhrasedSent:
         """
         DEBUG = False
         and_org_tok_idx_list = find_and_org_tok_indices(self.span_chunk_list)
-        if not and_org_tok_idx_list:
-            and_org_tok_idx_list = find_payto_org_tok_indices(self.span_chunk_list)
+        # add other breaking possibilities
+        and_org_tok_idx_list.extend(find_payto_org_tok_indices(self.span_chunk_list))
+
         between_tok_idx = 0
         if not self.is_chopped:
             between_tok_idx = find_between_tok_index(self.span_chunk_list)
@@ -1143,7 +1144,7 @@ class PhrasedSent:
 
         result = []  # type: List[Tuple[List[SpanChunk], Optional[SpanChunk]]]
         for i, org_term_spchunk_list in enumerate(org_term_spchunk_list_list):
-            if DEBUG:
+            if True:
                 print("\norg_term_spchunk_list #{}".format(i))
                 for j, spchunk in enumerate(org_term_spchunk_list):
                     print("    chunk #{}\t{}".format(j, spchunk))
@@ -1419,6 +1420,8 @@ def find_and_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
     return result
 
 
+# pay to
+# successor interest to, 36039.txt
 def find_payto_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
     """Find the list of tok_idx of 'pay to'.
     """
@@ -1430,16 +1433,28 @@ def find_payto_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
         next_spchunk = next_span_chunk(span_chunk_list, idx)
         next2_spchunk = next_span_chunk(span_chunk_list, idx+1)
         if spchunk.is_lc_word('pay') and \
-           next_spchunk and \
-           next_spchunk.is_lc_word('to') and\
-           next2_spchunk:
-           if next2_spchunk.is_org():
-               result.append(next2_spchunk.tok_idx)
-               idx += 2
-           elif next2_spchunk.has_label('xNNP'):
-               # 'and Arrayit Diagnostics', doc111.txt
-               maybe_result.append(next2_spchunk.tok_idx)
-               idx += 2
+            next_spchunk and \
+            next_spchunk.is_lc_word('to') and \
+            next2_spchunk:
+            if next2_spchunk.is_org():
+                result.append(next2_spchunk.tok_idx)
+                idx += 2
+            elif next2_spchunk.has_label('xNNP'):
+                # 'and Arrayit Diagnostics', doc111.txt
+                maybe_result.append(next2_spchunk.tok_idx)
+                idx += 2
+        elif spchunk.is_lc_word('to') and \
+            next_spchunk:
+            if next_spchunk.is_org():
+                result.append(next_spchunk.tok_idx)
+                idx += 1
+                # don't want to be too agreesive on all "to"
+                """
+            elif next_spchunk.has_label('xNNP'):
+                # 'and Arrayit Diagnostics', doc111.txt
+                maybe_result.append(next_spchunk.tok_idx)
+                idx += 1
+                """
 
         idx += 1
 
