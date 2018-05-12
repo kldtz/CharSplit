@@ -43,7 +43,9 @@ QUOTE = re.compile(r'[“"”]')
 
 # Supports US (5 or 5-4), UK, Australia (4), Switzerland (4), Shanghai (6)
 UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? +(?:(?![CIKMOV])[0-9O][a-zA-Z]{2})'
-ZIP_CODE_YEAR = re.compile(r'\d{{4}}|\b{}\b'.format(UK_STD))
+# bravo to Jason, figured out to use {{}}.
+# ZIP_CODE_YEAR = re.compile(r'\b\d{{4,5}}\b|\b{}\b'.format(UK_STD))
+ZIP_CODE_YEAR = re.compile(r'\b\d{4,5}\b' + r'|\b{}\b'.format(UK_STD))
 # TODO, jshaw, this is introducing zip code as party names.  Remove for now.
 # 'DELL RECEIVABLES FINANCING 2016 D.A.C", year is valid
 # ZIP_CODE_YEAR = re.compile(r'\b{}\b'.format(UK_STD))
@@ -1744,14 +1746,26 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
     # now linex is not empty
 
     if partyutils.is_party_list_prefix_with_validation(linex):
-        party_list_term, se_curline_idx = \
-            seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
-        while party_list_term:
+        # party_list_term, se_curline_idx = \
+        #     seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+        item_prefix_offset = 0
+        item_prefix_mat = partyutils.match_party_list_prefix(linex)
+        if item_prefix_mat:
+            linex_no_prefix = item_prefix_mat.group(1)
+            item_prefix_offset = item_prefix_mat.start(1)
+        phrased_sent = nlputils.PhrasedSent(linex_no_prefix, is_chopped=True)
+        tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
+        print("tmp_parties_term_offset = {}".format(tmp_parties_term_offset))
+        while tmp_parties_term_offset:
+            se_line_attrs = se_after_paras_attr_list[se_curline_idx]
+            fstart, _, first_line, attr_list = se_line_attrs
+            party_list_term = adjust_start_offset_ptoffset(tmp_parties_term_offset, fstart + item_prefix_offset)
+
             result.append(party_list_term)
 
             # should be next non-empty line, but if empty, move on
-            se_curline_idx = move_next_if_is_empty_se_after_list(se_after_paras_attr_list,
-                                                                 se_curline_idx)
+            se_curline_idx = move_next_non_empty_se_after_list(se_after_paras_attr_list,
+                                                               se_curline_idx)
             if se_curline_idx >= len_doc_lines:
                 break
 
@@ -1763,8 +1777,18 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
                 se_curline_idx += 1
                 break
 
-            party_list_term, se_curline_idx = \
-                seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+            #  party_list_term, se_curline_idx = \
+            #     seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+
+            item_prefix_offset = 0
+            item_prefix_mat = partyutils.match_party_list_prefix(linex)
+            if item_prefix_mat:
+                linex_no_prefix = item_prefix_mat.group(1)
+                item_prefix_offset = item_prefix_mat.start(1)
+            phrased_sent = nlputils.PhrasedSent(linex_no_prefix, is_chopped=True)
+            tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
+            print("tmp_parties_term_offset = {}".format(tmp_parties_term_offset))
+
     elif table_formatted_quote_list_org_list(linex):
         result.extend(seline_attrs_to_tabled_party_list_terms(se_after_paras_attr_list,
                                                               se_curline_idx))

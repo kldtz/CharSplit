@@ -305,6 +305,12 @@ line = '(a) The Princeton Review, Inc. (the “Issuer”), (b) the Collateral Ag
 
 line = 'The Princeton Review, Inc. (the “Issuer”), '
 
+line = 'ABN AMRO BANK N.V., BANC OF AMERICA SECURITIES LIMITED, BARCLAYS CAPITAL,  CITIGROUP GLOBAL MARKETS LIMITED, COÖPERATIEVE CENTRALE RAIFFEISEN- BOERENLEENBANK B.A., DEUTSCHE BANK AG, LONDON BRANCH, HSBC BANK PLC, ING  BANK N.V., JPMORGAN CHASE BANK N.A., MORGAN STANLEY BANK INTERNATIONAL  LIMITED, ROYAL BANK OF CANADA and THE ROYAL  BANK OF SCOTLAND PLC as  mandated lead arrangers (the "Mandated Lead Arrangers");'
+
+# line = 'ABN AMRO BANK N.V., BANC OF AMERICA SECURITIES LIMITED'
+# line = 'BANC OF AMERICA SECURITIES LIMITED, BARCLAYS CAPITAL,'
+
+print("line: [{}]".format(line))
 phrased_sent = nlputils.PhrasedSent(line, is_chopped=True)
 parties_term_offset = phrased_sent.extract_orgs_term_offset()
 st_list = []
@@ -334,4 +340,11 @@ print("\nunchunked_text")
 print(unchunked_text)
 """
 
-
+"""
+nv_pat = re.compile(r'\bn\.*\ *v\.*((?!\S)|(?!\w))', re.I)
+nv_mat = nv_pat.search(line)
+if nv_mat:
+    print("found: [{}]".format(nv_mat.group()))
+else:
+    print("not found")
+"""

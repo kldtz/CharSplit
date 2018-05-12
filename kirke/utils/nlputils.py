@@ -13,8 +13,10 @@ from nltk.tokenize.regexp import RegexpTokenizer
 from nltk.chunk import RegexpParser
 from nltk.tree import Tree
 
-from kirke.utils import regexutils, strutils
+from kirke.utils import mathutils, regexutils, strutils
 
+IS_DEBUG_CHUNK = False
+IS_DEBUG_ORGS_TERM = True
 
 # bank is after 'n.a.' because 'bank, n.a.' is more desirable
 # 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
@@ -32,6 +34,9 @@ ORG_PERSON_SUFFIX_LIST.extend(PERS_SUFFIX_LIST)
 ORG_PERSON_SUFFIX_PAT = regexutils.phrases_to_igs_pattern(ORG_PERSON_SUFFIX_LIST, re.I)
 ORG_PERSON_SUFFIX_END_PAT = \
     re.compile(regexutils.phrases_to_igs_pattern_st(ORG_PERSON_SUFFIX_LIST) + r'\s*$', re.I)
+
+ORG_PREFIX_LIST = strutils.load_non_empty_str_list('dict/parties/organization.prefix.list')
+ORG_PREFIX_PAT = regexutils.phrases_to_igs_pattern(ORG_PREFIX_LIST, re.I)
 
 # print("org_person_suffix_pattern_st:")
 # print(regexutils.phrases_to_igs_pattern_st(ORG_PERSON_SUFFIX_LIST))
@@ -57,6 +62,22 @@ def is_valid_org_and_prefix(words: List[str]) -> bool:
         return True
     return False
 
+def get_org_prefix_mat_list(line: str) -> List[Match[str]]:
+    """Get all org prefix matching mat extracted from line.
+
+    When there are multiple orgs that are consecutive, merge them.
+    """
+
+    lc_mat_list = list(ORG_PREFIX_PAT.finditer(line))
+    result = []  # type: List[Match[str]]
+    for lc_mat in lc_mat_list:
+        mat_st = line[lc_mat.start():lc_mat.end()]
+        if mat_st[0].isupper():
+            result.append(lc_mat)
+
+    return result
+
+
 def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     """Get all org suffix matching mat extracted from line.
 
@@ -67,6 +88,11 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     """
 
     lc_mat_list = list(ORG_PERSON_SUFFIX_PAT.finditer(line))
+
+    #for lc_mat in lc_mat_list:
+    #    mat_st = line[lc_mat.start():lc_mat.end()]
+    #    print("get_org_suffix cand1: [{}]".format(mat_st))
+
     result = []  # type: List[Match[str]]
     for lc_mat in lc_mat_list:
         prev_space_idx = lc_mat.start() -1
@@ -85,6 +111,12 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
                 # 'eBrevia'
                 result.append(lc_mat)
 
+    result_st_list = []
+    for lc_mat in result:
+        mat_st = line[lc_mat.start():lc_mat.end()]
+        result_st_list.append(mat_st.lower())
+        # print("get_org_suffix cand2: [{}]".format(mat_st))
+
     # when there is adjcent ones, take the last one
     # 'xxx Group, Ltd.', will return 'ltd'
     prev_mat = None
@@ -92,13 +124,16 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     # Only if we now that the current mat is not adjacent to
     # the previous mat, we can add previous mat.
     # Remember the last one.
-    for amat in result:
+    for amat, mat_st in zip(result, result_st_list):
         # 2 is chosen, just in case, normally the diff is 1
-        if prev_mat and amat.start() - prev_mat.end() > 2:
+        if prev_mat and \
+           (amat.start() - prev_mat.end() > 2 or \
+            mat_st in set(['bank', 'banco', 'banc'])):
             result2.append(prev_mat)
         prev_mat = amat
     if prev_mat:
         result2.append(prev_mat)
+
     return result2
 
 
@@ -340,6 +375,11 @@ def chunkize(sent_line: str) -> List[Union[Tree, Tuple[int, int]]]:
 
 def find_known_terms(line: str) -> List[Tuple[int, int, str]]:
     result = []  # type: List[Tuple[int, int, str]]:
+
+    mat_list = get_org_prefix_mat_list(line)
+    for mat in mat_list:
+        result.append((mat.start(), mat.end(), 'xPV_ORG'))
+
     mat_list = get_org_suffix_mat_list(line)
     for mat in mat_list:
         result.append((mat.start(), mat.end(), 'xORGP'))
@@ -347,7 +387,19 @@ def find_known_terms(line: str) -> List[Tuple[int, int, str]]:
     mat_list = re.finditer(r'ABN( \d+)+', line, re.I)
     for mat in mat_list:
         result.append((mat.start(), mat.end(), 'xABN'))
-    return result
+
+    # print("find_known_terms before: {}".format(result))
+    # for i, se_term in enumerate(result):
+    #     start, end, term = se_term
+    #    print("before term #{}\t[{}]\t{}".format(i, line[start:end], se_term))
+
+    result = mathutils.remove_subsumed(result)
+    if IS_DEBUG_CHUNK:
+        print("\nfind_known_terms after: {}".format(result))
+        for i, se_term in enumerate(result):
+            start, end, term = se_term
+            print("after term #{}\t[{}]\t{}".format(i, line[start:end], se_term))
+    return sorted(result)
 
 def sub_known_terms(line: str,
                     se_ttype_list: List[Tuple[int, int, str]]) \
@@ -466,8 +518,10 @@ def chunkize2(sent_line: str) -> List[Union[Tree, Tuple[str, str]]]:
     tokens = word_tokenize(sent_line_t2)
     tok_pos_list = pos_tag(tokens, t2_map)
 
-    # for i, tok_pos in enumerate(tok_pos_list):
-    #     print('pos_tok #{}\t{}'.format(i, tok_pos))
+    if IS_DEBUG_CHUNK:
+        for i, tok_pos in enumerate(tok_pos_list):
+            print('pos_tok #{}\t{}'.format(i, tok_pos))
+
     chunk_list = chunker.parse(tok_pos_list)
 
     chunk_list = putback_kterms(chunk_list,
@@ -476,6 +530,10 @@ def chunkize2(sent_line: str) -> List[Union[Tree, Tuple[str, str]]]:
     # split chunks that has org in the middle
     # 'Johnson & Johnson Medikal Sanayi Ve Ticaret Limited Sirketi'
     chunk_list = split_chunk_with_org(chunk_list)
+
+    if IS_DEBUG_CHUNK:
+        for i, chunk in enumerate(chunk_list):
+            print("chunkize2 #{}\t{}".format(i, chunk))
 
     return chunk_list
 
@@ -575,6 +633,13 @@ def is_chunk_and(chunk: Union[Tree, Tuple[str, str]]) -> bool:
     word = postag_word(chunk)
     return word.lower() == 'and' or word == '&'
 
+def is_chunk_of(chunk: Union[Tree, Tuple[str, str]]) -> bool:
+    if isinstance(chunk, Tree):
+        return False
+    # cannot check for tag == 'CC' because it can be 'or'
+    word = postag_word(chunk)
+    return word.lower() == 'of'
+
 def is_chunk_ampersand(chunk: Union[Tree, Tuple[str, str]]) -> bool:
     if isinstance(chunk, Tree):
         return False
@@ -625,6 +690,19 @@ def chunk_to_postag_list(chunk: Union[Tree, Tuple[str, str]]) -> List[Tuple[str,
 def chunk_to_words(chunk: Union[Tree, Tuple[str, str]]) -> List[str]:
     postag_list = chunk_to_postag_list(chunk)
     return [postag[0] for postag in postag_list]
+
+def is_chunk_org_suffix_only(chunk: Union[Tree, Tuple[str, str]]) -> bool:
+    words = chunk_to_words(chunk)
+    term = ' '.join(words)
+    return is_org_suffix(term)
+
+def is_chunk_all_caps(chunk: Union[Tree, Tuple[str, str]]) -> bool:
+    words = chunk_to_words(chunk)
+    if not words:
+        return False
+    return strutils.is_all_upper_words(words)
+
+
 
 # def chunks_to_postag_list(chunk_list: List[Union[Tree, Tuple[str, str]]]) -> List[Tuple[str, str]]:
 
@@ -694,8 +772,17 @@ def update_with_org_person(chunks_result,
     returns new chunk_idx if digested more chunks than before.
     """
 
-    # this is for debug purpose only, can del
     cur_chunk = chunk_list[chunk_idx]
+
+    # previous token cannot be "of".  This is NOT a party with "of"
+    if chunk_idx - 1 > chunk_taken_idx:
+        chunk = chunk_list[chunk_idx - 1]
+        if is_chunk_of(chunk):
+            # remove it from considered being an ORG
+            cur_chunk.set_label('xNNP')
+            chunks_result.append(cur_chunk)
+            return chunk_idx
+
     prefix_chunk_list = []
     suffix_chunk_list = []
     # find the end of the org
@@ -705,20 +792,33 @@ def update_with_org_person(chunks_result,
         chunk = chunk_list[i]
         if is_chunk_label(chunk, 'xPAREN') or has_pos_article(chunk):
             break
+        elif is_chunk_of(chunk):
+            next_chunk = get_next_chunk(chunk_list, i)
+            if is_chunk_org(next_chunk):
+                # try Bank of America, or Banc of America Securities LLC
+                suffix_chunk_list.append(chunk)
+                suffix_chunk_list.append(next_chunk)
+                i += 2
+                break
+            else:
+                break
         elif is_postag_comma(chunk):
             if num_comma >= 1:  # can only have 1 comma in proper name
                 break
             suffix_chunk_list.append(chunk)
             i += 1
             num_comma += 1
-        # elif chunk_has_org_person_suffix(chunk):
-        elif is_chunk_label(chunk, 'xORGP'):
+        elif is_chunk_label(chunk, 'xPV_ORG'):
+            # running into 'Bank of'
+            break
+        elif is_chunk_label(chunk, 'xORGP') and \
+             is_chunk_org_suffix_only(chunk):
+            # elif chunk_has_org_person_suffix(chunk):
             postag_list = chunk_to_postag_list(chunk)
             # don't want to merge two full comany names together
             # only merge LLC or Corp.  Just in case an org is made
             # of 2 words, 'b. v.'
-            if len(postag_list) > 2:
-                break
+
             suffix_chunk_list.append(chunk)
             i += 1
         else:
@@ -729,10 +829,16 @@ def update_with_org_person(chunks_result,
         num_comma -= 1
         del suffix_chunk_list[-1]
 
+    # remember is first word in the cur_chunk is all-caps
+    org_words = chunk_to_words(cur_chunk)
+    is_cur_chunk_all_caps = is_chunk_all_caps(org_words[0])
+
     # find the beginning or the org
     i = chunk_idx - 1
     while i > chunk_taken_idx:
         chunk = chunk_list[i]
+        if not is_postag_comma(chunk):
+            is_this_chunk_all_caps = is_chunk_all_caps(chunk)
         prev_chunk = get_prev_chunk(chunk_list, i)
         if is_chunk_label(chunk, 'xPAREN'):
             if i == chunk_idx -1:  # right before org, 'Kodak (UK) Ltd'
@@ -740,6 +846,11 @@ def update_with_org_person(chunks_result,
                 i -= 1
             else:
                 break
+        elif is_chunk_label(chunk, 'xPV_ORG'):
+           # found the beginning, 'Bank of'
+           prefix_chunk_list.append(chunk)
+           i -= 1
+           break
         elif has_pos_article(chunk):
             prefix_chunk_list.append(chunk)
             i -= 1
@@ -751,6 +862,10 @@ def update_with_org_person(chunks_result,
             i -= 1
             num_comma += 1
         elif is_chunk_xnnp(chunk):
+            # 'in Rotterdam, UNILIVER PLC, ...'
+            if is_cur_chunk_all_caps and \
+               not is_this_chunk_all_caps:
+                break
             prefix_chunk_list.append(chunk)
             i -= 1
         elif is_chunk_digit(chunk) and \
@@ -810,6 +925,61 @@ def update_with_org_person(chunks_result,
     # for i in range(len(org_chunk_list)):
 
     return chunk_idx + len(suffix_chunk_list)
+
+
+def update_with_prefix_org(chunks_result,
+                           chunk_list,
+                           chunk_idx: int,
+                           chunk_taken_idx: int) \
+    -> int:
+    """If found prefix_org, update the result.
+
+    returns new chunk_idx if digested more chunks than before.
+    """
+
+    cur_chunk = chunk_list[chunk_idx]
+
+    suffix_chunk_list = []
+    # find the end of the org
+    i = chunk_idx + 1
+    num_comma = 0
+    while i < len(chunk_list):
+        chunk = chunk_list[i]
+        if is_chunk_label(chunk, 'xPAREN') or has_pos_article(chunk):
+            break
+        elif is_postag_comma(chunk):
+            if num_comma >= 1:  # can only have 1 comma in proper name
+                break
+            suffix_chunk_list.append(chunk)
+            i += 1
+            num_comma += 1
+        elif is_chunk_label(chunk, 'xORGP') or \
+             is_chunk_label(chunk, 'NNP'):
+            suffix_chunk_list.append(chunk)
+            i += 1
+            break
+        else:
+            break
+
+    # if the last chunk is comma, give it back
+    if suffix_chunk_list and is_postag_comma(suffix_chunk_list[-1]):
+        num_comma -= 1
+        del suffix_chunk_list[-1]
+
+    org_chunk_list = [chunk_list[chunk_idx]]
+    org_chunk_list.extend(suffix_chunk_list)
+    flatten_chunk_list = flatten_chunks(org_chunk_list)
+    
+    org_chunk = Tree('xORGP', flatten_chunk_list)
+    # print("org_chunk = {}".format(org_chunk))
+
+    chunks_result.append(org_chunk)
+    # for i, chunk in enumerate(org_chunk_list):
+    # print("address chunk #{}\t{}".format(i, chunk))
+    # for i in range(len(org_chunk_list)):
+
+    return chunk_idx + len(suffix_chunk_list)
+
 
 
 def mark_org_appositions(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
@@ -883,7 +1053,7 @@ def get_better_nouns(sent_line: str):
     while chunk_idx < chunk_list_len:
         chunk = chunk_list[chunk_idx]
         if isinstance(chunk, Tree) and \
-           chunk.label() in set(['xNNP', 'xORGP']):
+           chunk.label() in set(['xNNP', 'xORGP', 'xPV_ORG']):
             next_chunk = get_next_chunk(chunk_list, chunk_idx)
             # try to identify address
             if next_chunk and \
@@ -901,6 +1071,12 @@ def get_better_nouns(sent_line: str):
             # elif chunk_has_org_person_suffix(chunk):
             elif is_chunk_label(chunk, 'xORGP'):
                 chunk_idx = update_with_org_person(result,
+                                                   chunk_list,
+                                                   chunk_idx,
+                                                   chunk_taken_idx)
+                chunk_taken_idx = chunk_idx
+            elif is_chunk_label(chunk, 'xPV_ORG'):
+                chunk_idx = update_with_prefix_org(result,
                                                    chunk_list,
                                                    chunk_idx,
                                                    chunk_taken_idx)
@@ -1144,7 +1320,7 @@ class PhrasedSent:
 
         result = []  # type: List[Tuple[List[SpanChunk], Optional[SpanChunk]]]
         for i, org_term_spchunk_list in enumerate(org_term_spchunk_list_list):
-            if True:
+            if IS_DEBUG_ORGS_TERM:
                 print("\norg_term_spchunk_list #{}".format(i))
                 for j, spchunk in enumerate(org_term_spchunk_list):
                     print("    chunk #{}\t{}".format(j, spchunk))
@@ -1305,7 +1481,24 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
         elif re.search(r'\bdate\b', span_chunk.text, re.I):
             # (as effective date)
             pass
+        elif re.search(r'\b(number)\b', span_chunk.text, re.I):
+            # (registered number SC183333)
+            pass
         elif re.search(r'\b(section|article)\b', span_chunk.text, re.I):
+            # (as effective date)
+            pass
+        else:
+            result.append(span_chunk)
+    return result
+
+
+def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
+    -> List[SpanChunk]:
+    result = []
+    for span_chunk in span_chunk_list:
+        if re.search(r'\b(acting|through)\b', span_chunk.text, re.I):
+            pass
+        elif re.search(r'\bbranch$', span_chunk.text, re.I):
             # (as effective date)
             pass
         else:
@@ -1317,6 +1510,7 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
     -> Optional[Tuple[List[SpanChunk], List[SpanChunk]]]:
     paren_list = [span_chunk for span_chunk in span_chunk_list if span_chunk.has_label('xPAREN')]
     org_list = [span_chunk for span_chunk in span_chunk_list if span_chunk.has_label('xORGP')]
+    org_list = remove_invalid_parties(org_list)
 
     if not org_list:  # didn't find any org based on org_suffix
         # for i, span_chunk in enumerate(span_chunk_list):
@@ -1495,6 +1689,10 @@ def find_between_tok_index(span_chunk_list: List[SpanChunk]) -> int:
 
 
 def tokenize_to_span_chunks(sent_line: str) -> List[SpanChunk]:
+
+    if IS_DEBUG_ORGS_TERM:
+        print("\ntokenize_to_span_chunks({})".format(sent_line))
+
     # please see note in span_tokenize()
     sent_line = re.sub('[“"”]', '“', sent_line)
     # for OCR error ("ContectX"! -> ("ContectX")

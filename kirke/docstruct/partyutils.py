@@ -328,8 +328,9 @@ def is_party_line_aux(line: str) -> str:
         return 'False4'
 
     # must be before False4.1
-    if re.match(r'by\s+and\s+between\b', line, re.I):
-        return 'True28.1'
+    # This often only happend in the title, intentionally not handle
+    # if re.match(r'by\s+and\s+between\b', line, re.I):
+    #    return 'True28.1'
 
     # this is a title
     if is_all_upper_words and \
