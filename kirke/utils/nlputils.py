@@ -15,8 +15,11 @@ from nltk.tree import Tree
 
 from kirke.utils import mathutils, regexutils, strutils
 
-IS_DEBUG_CHUNK = False
+# IS_DEBUG_CHUNK = True
 IS_DEBUG_ORGS_TERM = True
+
+IS_DEBUG_CHUNK = False
+# IS_DEBUG_ORGS_TERM = False
 
 # bank is after 'n.a.' because 'bank, n.a.' is more desirable
 # 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
@@ -773,6 +776,10 @@ def update_with_org_person(chunks_result,
     """
 
     cur_chunk = chunk_list[chunk_idx]
+    # remember is first word in the cur_chunk is all-caps
+    org_words = chunk_to_words(cur_chunk)
+    is_cur_chunk_all_caps = not is_org_suffix(org_words[0]) and \
+                            org_words[0].isupper()
 
     # previous token cannot be "of".  This is NOT a party with "of"
     if chunk_idx - 1 > chunk_taken_idx:
@@ -811,6 +818,16 @@ def update_with_org_person(chunks_result,
         elif is_chunk_label(chunk, 'xPV_ORG'):
             # running into 'Bank of'
             break
+        elif num_comma == 0 and \
+             is_chunk_label(chunk, 'NNP') and \
+             is_cur_chunk_all_caps and \
+             is_chunk_all_caps(chunk):
+            # running into 'Bank of'
+            suffix_chunk_list.append(chunk)
+            i += 1
+            # 'WELLS FARGO BANK NORTHWEST, NATIONAL ASSOCIATION,', 'National Association' is an org_suffix
+            # adding extra words to an org based on capitalization is == has_comma
+            # num_comma += 1
         elif is_chunk_label(chunk, 'xORGP') and \
              is_chunk_org_suffix_only(chunk):
             # elif chunk_has_org_person_suffix(chunk):
@@ -829,14 +846,14 @@ def update_with_org_person(chunks_result,
         num_comma -= 1
         del suffix_chunk_list[-1]
 
-    # remember is first word in the cur_chunk is all-caps
-    org_words = chunk_to_words(cur_chunk)
-    is_cur_chunk_all_caps = is_chunk_all_caps(org_words[0])
-
     # find the beginning or the org
     i = chunk_idx - 1
-    while i > chunk_taken_idx:
+    while i >= chunk_taken_idx:
         chunk = chunk_list[i]
+        # if first word before org suffix
+        if not is_cur_chunk_all_caps and \
+           is_chunk_all_caps(chunk):
+            is_cur_chunk_all_caps = True
         if not is_postag_comma(chunk):
             is_this_chunk_all_caps = is_chunk_all_caps(chunk)
         prev_chunk = get_prev_chunk(chunk_list, i)
@@ -861,7 +878,8 @@ def update_with_org_person(chunks_result,
             prefix_chunk_list.append(chunk)
             i -= 1
             num_comma += 1
-        elif is_chunk_xnnp(chunk):
+        elif is_chunk_xnnp(chunk) or \
+                is_chunk_label(chunk, 'NNP'):
             # 'in Rotterdam, UNILIVER PLC, ...'
             if is_cur_chunk_all_caps and \
                not is_this_chunk_all_caps:
@@ -969,7 +987,7 @@ def update_with_prefix_org(chunks_result,
     org_chunk_list = [chunk_list[chunk_idx]]
     org_chunk_list.extend(suffix_chunk_list)
     flatten_chunk_list = flatten_chunks(org_chunk_list)
-    
+
     org_chunk = Tree('xORGP', flatten_chunk_list)
     # print("org_chunk = {}".format(org_chunk))
 
@@ -1049,7 +1067,7 @@ def get_better_nouns(sent_line: str):
     # cannot go back before this index when doing
     # semantic chunking.  Several party names might
     # next to each other.  Cannot group them all together.
-    chunk_taken_idx = -1
+    chunk_taken_idx = 0
     while chunk_idx < chunk_list_len:
         chunk = chunk_list[chunk_idx]
         if isinstance(chunk, Tree) and \
@@ -1219,6 +1237,8 @@ class SpanChunk:
 class PhrasedSent:
 
     def __init__(self, sent_line: str, is_chopped: bool) -> None:
+        if IS_DEBUG_CHUNK:
+            print('PhrasedSent("{}")'.format(sent_line))
         self.is_chopped = is_chopped
         self.span_chunk_list = tokenize_to_span_chunks(sent_line)
         self.good_cand_list = []  # type: List[SpanChunk]
@@ -1481,8 +1501,10 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
         elif re.search(r'\bdate\b', span_chunk.text, re.I):
             # (as effective date)
             pass
-        elif re.search(r'\b(number)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(number|loan|rate)\b', span_chunk.text, re.I):
             # (registered number SC183333)
+            pass
+        elif re.search(r'(\$\d|\d%)', span_chunk.text, re.I):
             pass
         elif re.search(r'\b(section|article)\b', span_chunk.text, re.I):
             # (as effective date)
@@ -1508,6 +1530,11 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
 # because of 'term' can be a list of words in "as xxx xxx", so it is a list
 def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
     -> Optional[Tuple[List[SpanChunk], List[SpanChunk]]]:
+
+    if not span_chunk_list:
+        print("extract_orgs_term_in_span_chunk_list([]) is called!!!!")
+        return None
+
     paren_list = [span_chunk for span_chunk in span_chunk_list if span_chunk.has_label('xPAREN')]
     org_list = [span_chunk for span_chunk in span_chunk_list if span_chunk.has_label('xORGP')]
     org_list = remove_invalid_parties(org_list)
@@ -1531,7 +1558,11 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
     as_list = find_as_span_chunks(span_chunk_list)
 
     term = []
+    for pprn in paren_list:
+        print("potential paren: {}".format(pprn))
     paren_list = remove_invalid_defined_terms_parens(paren_list)
+    for pprn in paren_list:
+        print("filtered paren: {}".format(pprn))
     if paren_list:
         if len(paren_list) == 1:
             term = [chop_spanchunk_paren(paren_list[0])]
@@ -1625,18 +1656,23 @@ def find_payto_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
     for idx in range(len(span_chunk_list)):
         spchunk = span_chunk_list[idx]
         next_spchunk = next_span_chunk(span_chunk_list, idx)
-        next2_spchunk = next_span_chunk(span_chunk_list, idx+1)
+        # next2_spchunk = next_span_chunk(span_chunk_list, idx+1)
         if spchunk.is_lc_word('pay') and \
             next_spchunk and \
-            next_spchunk.is_lc_word('to') and \
-            next2_spchunk:
-            if next2_spchunk.is_org():
-                result.append(next2_spchunk.tok_idx)
-                idx += 2
-            elif next2_spchunk.has_label('xNNP'):
-                # 'and Arrayit Diagnostics', doc111.txt
-                maybe_result.append(next2_spchunk.tok_idx)
-                idx += 2
+            next_spchunk.is_lc_word('to'):
+            # take the org after 'pay to'
+            # 'to pay to the order of Integrated xxx, Inc.', 35642.txt
+            for j in range(4):
+                next_j_spchunk = next_span_chunk(span_chunk_list, idx+1+j)
+                if next_j_spchunk.is_org():
+                    result.append(next_j_spchunk.tok_idx)
+                    idx += (2 + j)
+                    break
+                elif next_j_spchunk.has_label('xNNP'):
+                    # 'and Arrayit Diagnostics', doc111.txt
+                    maybe_result.append(next_j_spchunk.tok_idx)
+                    idx += (2 + j)
+                    break
         elif spchunk.is_lc_word('to') and \
             next_spchunk:
             if next_spchunk.is_org():

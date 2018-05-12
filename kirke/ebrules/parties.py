@@ -1707,6 +1707,22 @@ def move_next_non_empty_se_after_list(se_after_paras_attr_list: List[Tuple[int, 
         _, _, linex, attr_list = se_line_attrs
     return se_curline_idx
 
+def debug_parties_term_offsets(msg: str,
+                               parties_term_offset: Tuple[List[Tuple[int, int]],
+                                                           Optional[Tuple[int, int]]],
+                               text: str) -> None:
+    print(msg)
+    if not parties_term_offset:
+        print("[]")
+        return
+    parties_se, term_se = parties_term_offset
+    for j, (party_start, party_end) in enumerate(parties_se):
+        print("  party #{}\t({}, {})\t[{}]".format(j, party_start, party_end,
+                                                   text[party_start:party_end]))
+    if term_se:
+        term_start, term_end = term_se
+        print("  term\t({}, {})\t[{}]".format(term_start, term_end,
+                                              text[term_start:term_end]))
 
 
 # pylint: disable=line-too-long
@@ -1715,9 +1731,6 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
                   Optional[Tuple[int, int]]]]:
     if not se_after_paras_attr_list:
         return []
-
-    count_other_line = 0
-    is_last_char_lower = False
 
     # sometime, lines with only list prefix, such as '(1)' might get
     # deleted because they were considered as page numbers.  HTML specific
@@ -1755,7 +1768,9 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
             item_prefix_offset = item_prefix_mat.start(1)
         phrased_sent = nlputils.PhrasedSent(linex_no_prefix, is_chopped=True)
         tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
-        print("tmp_parties_term_offset = {}".format(tmp_parties_term_offset))
+        debug_parties_term_offsets('tmp_parties_term_offset',
+                                   tmp_parties_term_offset,
+                                   linex_no_prefix)
         while tmp_parties_term_offset:
             se_line_attrs = se_after_paras_attr_list[se_curline_idx]
             fstart, _, first_line, attr_list = se_line_attrs
@@ -1785,9 +1800,13 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
             if item_prefix_mat:
                 linex_no_prefix = item_prefix_mat.group(1)
                 item_prefix_offset = item_prefix_mat.start(1)
+            else:
+                linex_no_prefix = linex
             phrased_sent = nlputils.PhrasedSent(linex_no_prefix, is_chopped=True)
             tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
-            print("tmp_parties_term_offset = {}".format(tmp_parties_term_offset))
+            debug_parties_term_offsets('tmp_parties_term_offset',
+                                       tmp_parties_term_offset,
+                                       linex_no_prefix)
 
     elif table_formatted_quote_list_org_list(linex):
         result.extend(seline_attrs_to_tabled_party_list_terms(se_after_paras_attr_list,
