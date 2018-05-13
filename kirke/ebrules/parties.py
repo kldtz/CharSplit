@@ -434,7 +434,7 @@ def get_title_phrase_list(line: str,
 def get_itemized_entity_span_list(line: str) -> List[Tuple[Tuple[int, int, str],
                                                            Tuple[int, int, str]]]:
     print("get_itemized_entity_span_list({})".format(line))
-    parens1_mat_list = strutils.find_one_char_paren_mats(line)
+    parens1_mat_list = strutils.find_itemized_paren_mats(line)
 
     len_line = len(line)
     span_list = []
@@ -898,7 +898,7 @@ def select_highly_likely_parties(entities: List[Tuple[int, int, str]],
 def extract_parties_term_list_from_itemized_line(line: str) -> List[Tuple[List[Tuple[int, int]],
                                                                           Optional[Tuple[int, int]]]]:
     print("extract_parties_term_list_from_itemized_line({})".format(line))
-    paren1_mat_list = strutils.find_one_char_paren_mats(line)
+    paren1_mat_list = strutils.find_itemized_paren_mats(line)
 
     len_line = len(line)
     span_list = []
@@ -972,7 +972,7 @@ def extract_parties_term_list_from_party_line(line: str) \
         return []
 
     # first try this aggressive itemize match inside party_line
-    if re.match(r'\(?\S\)', line) and len(strutils.find_one_char_paren_mats(line)) > 1:
+    if re.match(r'\(?\S\)', line) and len(strutils.find_itemized_paren_mats(line)) > 1:
         parties_term_offset_list = extract_parties_term_list_from_itemized_line(line)
     else:
         # now find the verb, such as 'is entered', the 2nd 'agree' is just a guess
@@ -1054,7 +1054,7 @@ def extract_party_defined_term_list(line: str) \
         print("chopped party_line = [{}]".format(line))
 
     # first try this aggressive itemize match inside party_line
-    if re.match(r'\(?\S\)', line) and len(strutils.find_one_char_paren_mats(line)) > 1:
+    if re.match(r'\(?\S\)', line) and len(strutils.find_itemized_paren_mats(line)) > 1:
         entity_span_list = get_itemized_entity_span_list(line)
     else:
         # try with all entities in upper()
@@ -2061,6 +2061,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                   Optional[Tuple[int, int]]]]:
     """Return list of parties (lists of (start, inclusive-end) offsets)."""
 
+    out_list = []  # type: List[Tuple[Optional[Tuple[int, int]], Optional[Tuple[int, int]]]]
     pline_after_lines = extract_party_line(paras_attr_list)
     # pylint: disable=too-many-nested-blocks
     if pline_after_lines:

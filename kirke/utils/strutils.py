@@ -999,8 +999,8 @@ def split_with_offsets_xparens(line: str) -> List[Tuple[int, int, str]]:
     return out_list
 
 
-def find_one_char_paren_mats(line: str) -> List[Match[str]]:
-    result = list(re.finditer(r'(\b|\(?)\w\)\s*', line))
+def find_itemized_paren_mats(line: str) -> List[Match[str]]:
+    result = list(re.finditer(r'\(?\s*([\divx]+|[a-z])\s*\)\s*', line, re.I))
     return result
 
 

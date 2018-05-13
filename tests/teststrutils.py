@@ -104,10 +104,10 @@ class TestStrUtils(unittest.TestCase):
     """
 
 
-    def test_find_one_char_paren_mats(self):
+    def test_find_itemized_paren_mats(self):
         line = '(a) The Princeton Review, Inc. (the “Issuer”), (b) the Collateral Agent ' \
                '(c) the Purchasers party hereto and (d) the Guarantors party hereto.'
-        mat_list = strutils.find_one_char_paren_mats(line)
+        mat_list = strutils.find_itemized_paren_mats(line)
         st_list = []
         for mat in mat_list:
             st_list.append(line[mat.start():mat.end()])
@@ -116,12 +116,12 @@ class TestStrUtils(unittest.TestCase):
 
         line = 'a) The Princeton Review, Inc. (the “Issuer”), b) the Collateral Agent ' \
                'c) the Purchasers party hereto and d) the Guarantors party hereto.'
-        mat_list = strutils.find_one_char_paren_mats(line)
+        mat_list = strutils.find_itemized_paren_mats(line)
         st_list = []
         for mat in mat_list:
             st_list.append(line[mat.start():mat.end()])
         self.assertEqual(st_list,
-                         ['a) ', 'b) ', 'c) ', 'd) '])
+                         ['a) ', ' b) ', ' c) ', ' d) '])
 
 
 

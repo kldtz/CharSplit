@@ -174,10 +174,10 @@ class TestParties2(unittest.TestCase):
                             (239, 249, '“Licensor”'),
                             (256, 276, 'MY/ZP IP Group, Ltd.'),
                             (307, 317, '“Licensee”')])
-                          
+
         prov_labels_map = annotate_doc('export-train/40228.txt')
         party_list = get_party_list(prov_labels_map)
-        self.assertEquals(party_list,                          
+        self.assertEquals(party_list,
                           [(207, 227, 'SpectraScience, Inc.'),
                            (333, 349, '“SpectraScience”'),
                            (364, 382, 'PENTAX Europe GmbH'),
@@ -190,8 +190,44 @@ class TestParties2(unittest.TestCase):
         self.assertEquals(party_list,
                           [])
         """
-        
-        
+
+        # TODO, somewhat difficult
+        # required full parse to get it
+        prov_labels_map = annotate_doc('export-train/39206.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(6545, 6567, 'CMS ENERGY CORPORATION'),
+                           # missisng
+                           # (the “Company”)
+                           # There is also 'the financial institutions listed on the signature pages'...
+                           # but we don't extract references
+                            (6674, 6740,
+                               'together with their respective successors and assigns, the “Banks”'),
+                            (6746, 6763, 'BARCLAYS BANK PLC'),
+                            (6768, 6774, 'Agent.')])
+
+        # Note:
+        # party line with itemized parties
+        # The system is now using special rules to parse title page.  Result is ok.
+        # The normal mechanism to get party line seems ok, but not triggered.
+        # It is triggered in ebpostproc, but not used because lineannotator took over.
+        # As a result, the evaluation script scores this as 0, but it is OK.
+        prov_labels_map = annotate_doc('export-train/39838.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(101, 122, 'DELTA AIR LINES, INC.'),
+                           (126, 162, 'U.S. BANK TRUST NATIONAL ASSOCIATION'),
+                           (167, 195, 'Class A Pass Through Trustee'),
+                           (198, 234, 'U.S. BANK TRUST NATIONAL ASSOCIATION'),
+                           (239, 258, 'Subordination Agent'),
+                           (261, 291, 'U.S. BANK NATIONAL ASSOCIATION'),
+                           (296, 308, 'Escrow Agent'),
+                           (317, 353, 'U.S. BANK TRUST NATIONAL ASSOCIATION'),
+                           (358, 370, 'Paying Agent')])
+
+
+
+
 
 if __name__ == "__main__":
     unittest.main()
