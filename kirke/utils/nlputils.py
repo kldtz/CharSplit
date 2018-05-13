@@ -19,7 +19,7 @@ from kirke.utils import mathutils, regexutils, strutils
 # IS_DEBUG_ORGS_TERM = True
 
 IS_DEBUG_CHUNK = False
-IS_DEBUG_ORGS_TERM = False
+IS_DEBUG_ORGS_TERM = True
 
 # bank is after 'n.a.' because 'bank, n.a.' is more desirable
 # 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
@@ -1295,12 +1295,24 @@ class PhrasedSent:
         for i, orgs_term in enumerate(orgs_term_list):
             orgs, term = orgs_term
 
-            orgs_offset = []  # type: List[Tuple[int, int]]
-            for org in orgs:
-                orgs_offset.append((org.start, org.end))
             term_offset = None
             if term:
                 term_offset = (term[0].start, term[-1].end)
+
+            # terms sometimes can overlap with org
+            # we prefer terms over org
+            # 'WACHOVIA BANK, NATIONAL ASSOCIATION, a national banking association, in its capacity as Issuing Bank'
+            # both 'Issuing Bank' (party) and 'as Issuing Bank' (defined term) are possible
+
+            orgs_offset = []  # type: List[Tuple[int, int]]
+            for org in orgs:
+                if not term_offset:
+                    orgs_offset.append((org.start, org.end))
+                elif term_offset and \
+                     not mathutils.start_end_subsume(term_offset,
+                                                     (org.start, org.end)):
+                    orgs_offset.append((org.start, org.end))
+
             result.append((orgs_offset, term_offset))
         return result
 
@@ -1385,6 +1397,15 @@ class PhrasedSent:
         return orgs_offset, term_offset
 
 
+def span_chunk_list_to_words(span_chunk_list: List[SpanChunk]) \
+    -> List[str]:
+    all_words = []
+    for span_chunk in span_chunk_list:
+        span_words = span_chunk.get_words()
+        all_words.extend(span_words)
+    return all_words
+
+
 def find_as_span_chunks(span_chunk_list: List[SpanChunk]) \
         -> List[List[SpanChunk]]:
     as_idx_list = []  # type: List[int]
@@ -1433,7 +1454,7 @@ def find_as_in_paren(span_chunk_list: List[SpanChunk]) \
 
         sc_start = cur_span_chunk.se_tok_list[0][0]
         nstart, nend = se_tok_list_out[0][0], se_tok_list_out[-1][1]
-        shorten_text = cur_span_chunk.text[nstart - sc_start:nend - sc_start],
+        shorten_text = cur_span_chunk.text[nstart - sc_start:nend - sc_start]
         shorten_span_chunk = SpanChunk(nstart,
                                        nend,
                                        cur_span_chunk.tok_idx + cur_tok_idx,
@@ -1441,6 +1462,10 @@ def find_as_in_paren(span_chunk_list: List[SpanChunk]) \
                                        Tree('xNNP', postags_out),
                                        shorten_text,
                                        se_tok_list_out)
+        # 'in such capacity, “Agent” as hereinafter further defined'
+        # 37169.txt
+        if shorten_text == 'hereinafter further defined':
+            return []
         return [shorten_span_chunk]
 
     return []
@@ -1495,6 +1520,36 @@ def chop_spanchunk_paren(span_chunk: SpanChunk) -> SpanChunk:
     return shorten_span_chunk
 
 
+"""
+    filtered_out_list = []  # type: List[Tuple[Optional[Tuple[int, int]], Optional[Tuple[int, int]]]]
+    # filter bad party or terms right before returning the result
+    for party_y, term_y in out_list:
+        if party_y:
+            start, end = party_y
+            party_y_text = para_text[start:end]
+            if re.match(r'^(the|each)$', party_y_text, re.I):
+                # party_y = None
+                # term_y = None
+                # skip the append part
+                continue
+            if re.search(r'(date|dollars?|millions?|liability)\s*$', party_y_text, re.I):
+                continue
+            if re.match(r'(for|now)\s+', party_y_text, re.I):
+                continue
+            tmp_mat = re.match(r'for\s+value\s+received,?\s+', party_y_text, re.I)
+            if tmp_mat:
+                start = start + tmp_mat.end()
+                # part_y_text = para_text[start:]
+                party_y = start, end
+            # there is no bad parties for now
+        if term_y:
+            start, end = term_y
+            term_y_text = para_text[start:end]
+            if re.search(r'\b(as\s+defined\s+below|amount)\b', term_y_text, re.I):
+                term_y = None
+        filtered_out_list.append((party_y, term_y))
+"""
+
 def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
     result = []
@@ -1504,17 +1559,30 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
         elif re.search(r'\b(date|amend(ed)?)\b', span_chunk.text, re.I):
             # (as effective date)
             pass
-        elif re.search(r'\b(number|loan|rate)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(number|loan|rate|amount)\b', span_chunk.text, re.I):
             # (registered number SC183333)
             pass
         elif re.search(r'(\$\d|\d%)', span_chunk.text, re.I):
             pass
-        elif re.search(r'\b(section|article|act)\b', span_chunk.text, re.I):
-            # (as effective date)
-            pass
+        elif re.search(r'\b(section|article|act|defined|below)\b', span_chunk.text, re.I):
+            words = span_chunk.get_words()
+            print("words2555: [{}]".format(' '.join(words)))
+            if strutils.has_quote(' '.join(words)):
+                result.append(span_chunk)
+            else:
+                pass
         else:
             result.append(span_chunk)
     return result
+
+# a 'term' might have multiple span_chunk because 'as' defined term might have
+# multiple spanchunk instead of parens
+def remove_invalid_defined_terms_as(span_chunk_list: List[SpanChunk]) \
+    -> List[SpanChunk]:
+    for span_chunk in span_chunk_list:
+        if re.search(r'\b(date|amend(ed)?)\b', span_chunk.text, re.I):
+            return []
+    return span_chunk_list
 
 
 def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
@@ -1563,9 +1631,12 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
 
     as_list = find_as_span_chunks(span_chunk_list)
 
-    term = []
+    term = []  # type: List[SpanChunk]
     for pprn in paren_list:
         print("potential paren: {}".format(pprn))
+    # Apply more specific rules to parens than just
+    # generally to all terms, such as "as ..."
+    # maybe in the future, only have 1
     paren_list = remove_invalid_defined_terms_parens(paren_list)
     for pprn in paren_list:
         print("filtered paren: {}".format(pprn))
@@ -1602,6 +1673,9 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             term.extend(as_list[1])
         else:  # there are multiple, take the first one
             term = as_list[0]
+        # now filtering out any invalid term
+        term = remove_invalid_defined_terms_as(term)
+
     if not org_list and not term:
         return None
     return org_list, term

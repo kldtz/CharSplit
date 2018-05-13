@@ -2092,35 +2092,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                 print("  #{} found dterm: [{}]".format(i, para_text[start:end]))
         print()
 
-    filtered_out_list = []  # type: List[Tuple[Optional[Tuple[int, int]], Optional[Tuple[int, int]]]]
-    # filter bad party or terms right before returning the result
-    for party_y, term_y in out_list:
-        if party_y:
-            start, end = party_y
-            party_y_text = para_text[start:end]
-            if re.match(r'^(the|each)$', party_y_text, re.I):
-                # party_y = None
-                # term_y = None
-                # skip the append part
-                continue
-            if re.search(r'(date|dollars?|millions?|liability)\s*$', party_y_text, re.I):
-                continue
-            if re.match(r'(for|now)\s+', party_y_text, re.I):
-                continue
-            tmp_mat = re.match(r'for\s+value\s+received,?\s+', party_y_text, re.I)
-            if tmp_mat:
-                start = start + tmp_mat.end()
-                # part_y_text = para_text[start:]
-                party_y = start, end
-            # there is no bad parties for now
-        if term_y:
-            start, end = term_y
-            term_y_text = para_text[start:end]
-            if re.search(r'\b(as\s+defined\s+below|amount)\b', term_y_text, re.I):
-                term_y = None
-        filtered_out_list.append((party_y, term_y))
-
-    return filtered_out_list
+    return out_list
 
 
 # pylint: disable=too-few-public-methods
