@@ -15,11 +15,11 @@ from nltk.tree import Tree
 
 from kirke.utils import mathutils, regexutils, strutils
 
+IS_DEBUG_CHUNK = False
+IS_DEBUG_ORGS_TERM = False
+
 # IS_DEBUG_CHUNK = True
 # IS_DEBUG_ORGS_TERM = True
-
-IS_DEBUG_CHUNK = False
-IS_DEBUG_ORGS_TERM = True
 
 # bank is after 'n.a.' because 'bank, n.a.' is more desirable
 # 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
@@ -40,6 +40,17 @@ ORG_PERSON_SUFFIX_END_PAT = \
 
 ORG_PREFIX_LIST = strutils.load_non_empty_str_list('dict/parties/organization.prefix.list')
 ORG_PREFIX_PAT = regexutils.phrases_to_igs_pattern(ORG_PREFIX_LIST, re.I)
+
+LOCATION_LIST = strutils.load_non_empty_str_list('dict/parties/location.list')
+LC_LOCATION_SET = set([loc.lower() for loc in LOCATION_LIST])
+
+def is_a_location(line: str) -> bool:
+    if not line:
+        return False
+    if not line[0].isupper():  # must capitalize
+        return False
+    return line.lower() in LC_LOCATION_SET
+
 
 # print("org_person_suffix_pattern_st:")
 # print(regexutils.phrases_to_igs_pattern_st(ORG_PERSON_SUFFIX_LIST))
@@ -79,6 +90,17 @@ def get_org_prefix_mat_list(line: str) -> List[Match[str]]:
             result.append(lc_mat)
 
     return result
+
+
+def find_org_suffix_mat_list_raw(line: str) -> List[Match[str]]:
+    """
+    Find all the org suffix matches in a string.
+
+    :param line: str
+    :return: List[Match[str]]
+    """
+    lc_mat_list = list(ORG_PERSON_SUFFIX_PAT.finditer(line))
+    return lc_mat_list
 
 
 def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
@@ -358,7 +380,7 @@ xPAREN:
   {<\(.*><[^\(].*>*<\).*>}
 xNNP:
   {<DT>?<JJ.*|CD>*<NN.*>*<NNP>+<NN.*>*}
-xNP:
+xNN:
   {<DT|PRP.*>?<JJ.*|CD>*<NN.*>+}
   }<VB.*>{
   }<,.*>{
@@ -697,7 +719,13 @@ def chunk_to_words(chunk: Union[Tree, Tuple[str, str]]) -> List[str]:
 def is_chunk_org_suffix_only(chunk: Union[Tree, Tuple[str, str]]) -> bool:
     words = chunk_to_words(chunk)
     term = ' '.join(words)
-    return is_org_suffix(term)
+    # assume there is one org suffix
+    if is_org_suffix(term):
+        return True
+    org_term_list = find_org_suffix_mat_list_raw(term)
+    if len(words) == len(org_term_list):
+        return True
+    return False
 
 def is_chunk_all_caps(chunk: Union[Tree, Tuple[str, str]]) -> bool:
     words = chunk_to_words(chunk)
@@ -780,6 +808,7 @@ def update_with_org_person(chunks_result,
     org_words = chunk_to_words(cur_chunk)
     is_cur_chunk_all_caps = not is_org_suffix(org_words[0]) and \
                             org_words[0].isupper()
+    is_cur_chunk_org_suffix = is_chunk_org_suffix_only(cur_chunk)
 
     # previous token cannot be "of".  This is NOT a party with "of"
     if chunk_idx - 1 > chunk_taken_idx:
@@ -848,6 +877,7 @@ def update_with_org_person(chunks_result,
 
     # find the beginning or the org
     i = chunk_idx - 1
+    iplus_chunk = None  # the last process chunk, for merging paren purpose
     while i >= chunk_taken_idx:
         chunk = chunk_list[i]
         # if first word before org suffix
@@ -858,7 +888,13 @@ def update_with_org_person(chunks_result,
             is_this_chunk_all_caps = is_chunk_all_caps(chunk)
         prev_chunk = get_prev_chunk(chunk_list, i)
         if is_chunk_label(chunk, 'xPAREN'):
-            if i == chunk_idx -1:  # right before org, 'Kodak (UK) Ltd'
+            if is_cur_chunk_org_suffix and \
+               i == chunk_idx - 1:  # right before org, 'Kodak (UK) Ltd'
+                prefix_chunk_list.append(chunk)
+                i -= 1
+            elif is_cur_chunk_org_suffix and \
+                 i == chunk_idx - 2 and \
+                 is_postag_comma(iplus_chunk):
                 prefix_chunk_list.append(chunk)
                 i -= 1
             else:
@@ -879,7 +915,9 @@ def update_with_org_person(chunks_result,
             i -= 1
             num_comma += 1
         elif is_chunk_xnnp(chunk) or \
-                is_chunk_label(chunk, 'NNP'):
+                is_chunk_label(chunk, 'NNP') or \
+                is_chunk_label(chunk, 'xNN'):
+                # is_chunk_label(chunk, 'NNP'):
             # 'in Rotterdam, UNILIVER PLC, ...'
             if is_cur_chunk_all_caps and \
                not is_this_chunk_all_caps:
@@ -913,6 +951,10 @@ def update_with_org_person(chunks_result,
             i -= 2
         else:
             break
+        # this remember the last processed chunk
+        # similar to 'prev_chunk', but that means
+        # the chunk before chunk...  very different.
+        iplus_chunk = chunk
 
     # if the first chunk is comma, give it back
     # the list is not reversed yet, so similar to suffix_chunk_list
@@ -1214,6 +1256,11 @@ class SpanChunk:
 
     def is_org(self) -> bool:
         return self.has_label('xORGP')
+
+    def is_org_suffix(self) -> bool:
+        if not self.has_label('xORGP'):
+            return False
+        return is_org_suffix(self.text)
 
     def is_paren(self) -> bool:
         return self.has_label('xPAREN')
@@ -1559,10 +1606,17 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
         elif re.search(r'\b(date|amend(ed)?)\b', span_chunk.text, re.I):
             # (as effective date)
             pass
-        elif re.search(r'\b(number|loan|rate|amount)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(number|loan|rate|amount|principal)\b', span_chunk.text, re.I):
             # (registered number SC183333)
             pass
         elif re.search(r'(\$\d|\d%)', span_chunk.text, re.I):
+            pass
+        elif re.match(r'\d+\)', span_chunk.text, re.I):  # just a number
+            # caused by an itemized list in party_line
+            # 35670.txt
+            # TODO, this is NOT resolved yet
+            pass
+        elif re.match(r'\d+\b', span_chunk.text, re.I):  # just a number
             pass
         elif re.search(r'\b(section|article|act|defined|below)\b', span_chunk.text, re.I):
             words = span_chunk.get_words()
@@ -1580,7 +1634,7 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
 def remove_invalid_defined_terms_as(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
     for span_chunk in span_chunk_list:
-        if re.search(r'\b(date|amend(ed)?)\b', span_chunk.text, re.I):
+        if re.search(r'\b(date|amend(ed)?|follows?)\b', span_chunk.text, re.I):
             return []
     return span_chunk_list
 
@@ -1592,7 +1646,17 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
         if re.search(r'\b(acting|through)\b', span_chunk.text, re.I):
             pass
         elif re.search(r'\bbranch$', span_chunk.text, re.I):
-            # (as effective date)
+            pass
+        elif re.search(r'^\d+$', span_chunk.text, re.I):
+            # just a number
+            pass
+        elif re.match(r'_+$', span_chunk.text):
+            pass
+        elif is_a_location(span_chunk.text):
+            # such as 'Wales' or 'London'
+            pass
+        elif len(span_chunk.text) < 3:  # never happened before
+            # too short
             pass
         else:
             result.append(span_chunk)
@@ -1628,6 +1692,9 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
            span_chunk.has_label('xNNP') and \
            not span_chunk.startswith('this'):
             org_list.append(span_chunk)
+
+    # there can be still bad org in 'and org'
+    org_list = remove_invalid_parties(org_list)
 
     as_list = find_as_span_chunks(span_chunk_list)
 
@@ -1791,9 +1858,14 @@ def find_paren_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
         next2_spchunk = next_span_chunk(span_chunk_list, idx + 1)
         if spchunk.is_paren() and \
             next_spchunk and next_spchunk.is_comma() and \
-           next2_spchunk and next2_spchunk.is_org():
-            result.append(next_spchunk.tok_idx)
-            idx += 2
+           next2_spchunk and \
+           (next2_spchunk.is_org() or
+            next2_spchunk.has_label('xNNP')):
+            # we need to make sure that this is not '(UK), Inc'
+            # or 'XXX Shops Canada (Calgary), Inc'
+            if not next2_spchunk.is_org_suffix():
+                result.append(next_spchunk.tok_idx)
+                idx += 2
         idx += 1
     return result
 

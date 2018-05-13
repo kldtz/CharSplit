@@ -310,6 +310,9 @@ class TestParties(unittest.TestCase):
                            (244, 273, 'Cell  Cure Neurosctcnccs Ltd.'),
                            (329, 342, 'the “Company”')])
 
+        # uses dict/parties/location.list to remove 'Wales'
+        # 'Wales' is originally an issue due to and_org_index,
+        # which captured 'Wales' as a separate party
         prov_labels_map = annotate_doc('mytest/doc105.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
@@ -480,13 +483,16 @@ class TestParties(unittest.TestCase):
                            (247, 252, '“Box”'),
                            (348, 361, '“Participant”')])
 
+        # TODO, missing
         prov_labels_map = annotate_doc('mytest/doc123.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
                           [(159, 183, 'Fidelity Funding Company'),
-                            (207, 217, '“Landlord”'),
-                            (225, 244, 'Extend Health, Inc.'),
-                            (270, 278, '“Tenant”')])
+                           (207, 217, '“Landlord”'),
+                           (225, 244, 'Extend Health, Inc.'),
+                           (270, 278, '“Tenant”'),
+                           # missing "Landlord and Tenant"
+                           (341, 386, 'the “Parties” and individually, as a “Party.”')])
 
         # these are test documents
         # TODO, missing
@@ -554,7 +560,9 @@ class TestParties(unittest.TestCase):
                           [(13343, 13351, 'DSW INC.'),
                            (13374, 13379, '“DSW”'),
                            (13382, 13407, 'DSW SHOE  WAREHOUSE, INC.'),
-                           (13631, 13650, 'hereinafter defined'),
+                           (13433, 13562,
+                            '“DSW Shoe”, and together with DSW, individually, a  “Borrower”, and '
+                            'collectively, the “Borrowers”, as hereinafter further defined'),
                            (13657, 13688, 'PNC BANK,  NATIONAL ASSOCIATION'),
                            (13813, 13839, 'the “Administrative Agent”')])
 
@@ -577,7 +585,7 @@ class TestParties(unittest.TestCase):
                             (225, 249, 'Printcraft (QLD) Pty Ltd'),
                             (333, 341, 'Customer')])
 
-
+        
     def test_export_train_party(self):
 
         self.maxDiff = None
@@ -659,7 +667,8 @@ class TestParties(unittest.TestCase):
         self.assertEquals(party_list,                          
                           [(115, 134, 'Kranem Corporation.'),
                            (162, 175, 'the “Company”'),
-                           (324, 339, 'the “Principal”')])
+                           (197, 205, 'Investco'),
+                           (244, 256, 'the “Holder”')])
 
 
         # 'of' org is ignored

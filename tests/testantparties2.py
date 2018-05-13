@@ -97,7 +97,8 @@ class TestParties2(unittest.TestCase):
                            (4202, 4228, 'World Wide Sportsman, Inc.'),
                            (4260, 4274, '“WW Sportsman”'),
                            (4277, 4304, 'Bass Pro Shops Canada, Inc.'),
-                           (4368, 4375, 'Calgary'),
+                           (4330, 4342, '“BPS Canada”'),
+                           (4345, 4382, 'Bass Pro Shops Canada (Calgary), Inc.'),
                            (4406, 4426, '“BPS Canada Calgary”'),
                            (4429, 4438, 'BPIP, LLC'),
                            (4479, 4485, '“BPIP”'),
@@ -166,10 +167,31 @@ class TestParties2(unittest.TestCase):
                            (266, 280, 'Keith Houlihan'),
                            (315, 323, '"Holder"')])
 
-        prov_labels_map = annotate_doc('export-train/37103.txt')
+        prov_labels_map = annotate_doc('export-train/41207.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEquals(party_list,
+                          [(196, 213, 'Chuy’s Opco, Inc.'),
+                            (239, 249, '“Licensor”'),
+                            (256, 276, 'MY/ZP IP Group, Ltd.'),
+                            (307, 317, '“Licensee”')])
+                          
+        prov_labels_map = annotate_doc('export-train/40228.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,                          
+                          [(207, 227, 'SpectraScience, Inc.'),
+                           (333, 349, '“SpectraScience”'),
+                           (364, 382, 'PENTAX Europe GmbH'),
+                           (489, 502, '“DISTRIBUTOR”')])
 
+        # TODO, not studied
+        """
+        prov_labels_map = annotate_doc('export-train/35670.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [])
+        """
+        
+        
 
 if __name__ == "__main__":
     unittest.main()
