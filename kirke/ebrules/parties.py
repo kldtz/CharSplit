@@ -765,6 +765,16 @@ def is_address(line: str) -> bool:
     return False
 
 
+    """
+                        if not parties.is_invalid_party(party_st) and \
+                           (num_words > 1 or \
+                            (num_words == 1 and parties.is_valid_1word_party(party_st))):
+                        num_words = len(party_st.split())
+
+    """
+
+
+
 # NOTE: jshaw
 # This is called by somebody, so I am not modifying this
 # pylint: disable=too-many-return-statements
@@ -988,6 +998,7 @@ def extract_parties_term_list_from_party_line(line: str) \
                                                                  start_offset)
 
     return parties_term_offset_list
+
 
 
 def adjust_start_offset_ptoffset(parties_term_offset: Tuple[List[Tuple[int, int]],
@@ -2021,6 +2032,26 @@ def is_list_party_line(line: str) -> bool:
         return True
     return False
 
+def parties_term_offset_list_to_partyterm_pairs(parties_term_offset_list: List[Tuple[List[Tuple[int, int]],
+    Optional[Tuple[int, int]]]]) \
+        -> List[Tuple[Optional[Tuple[int, int]],
+                  Optional[Tuple[int, int]]]]:
+    out_list = []  # type: List[Tuple[Optional[Tuple[int, int]], Optional[Tuple[int, int]]]]
+    for parties_term_offset in parties_term_offset_list:
+        parties_offset, term_offset = parties_term_offset
+        if len(parties_offset) > 1:
+            for party_offset in parties_offset[:-1]:
+                # print('party_offset: {}'.format(party_offset))
+                out_list.append((party_offset, None))
+
+        if parties_offset:  # there must be some parties
+            out_list.append((parties_offset[-1],
+                             term_offset))
+        else:
+            out_list.append((None, term_offset))
+    return out_list
+
+
 # paras_text is not used for title right now
 # The first Tuple[int, int] is the party offset
 # the Optional[Tuple[int, int]] is the defined term offsets
@@ -2029,8 +2060,6 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
     -> List[Tuple[Optional[Tuple[int, int]],
                   Optional[Tuple[int, int]]]]:
     """Return list of parties (lists of (start, inclusive-end) offsets)."""
-
-    out_list = []  # type: List[Tuple[Tuple[int, int], Optional[Tuple[int, int]]]]
 
     pline_after_lines = extract_party_line(paras_attr_list)
     # pylint: disable=too-many-nested-blocks
@@ -2067,19 +2096,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
             parties_term_offset_list = extract_parties_term_list_from_list_lines(after_se_paras_attr_list)
 
         # print('parties_term_offset_list: {}'.format(parties_term_offset_list))
-
-        for parties_term_offset in parties_term_offset_list:
-            parties_offset, term_offset = parties_term_offset
-            if len(parties_offset) > 1:
-                for party_offset in parties_offset[:-1]:
-                    # print('party_offset: {}'.format(party_offset))
-                    out_list.append((party_offset, None))
-
-            if parties_offset:  # there must be some parties
-                out_list.append((parties_offset[-1],
-                                 term_offset))
-            else:
-                out_list.append((None, term_offset))
+        out_list = parties_term_offset_list_to_partyterm_pairs(parties_term_offset_list)
 
     if IS_DEBUG_MODE:
         print()
