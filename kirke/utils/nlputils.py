@@ -16,10 +16,10 @@ from nltk.tree import Tree
 from kirke.utils import mathutils, regexutils, strutils
 
 # IS_DEBUG_CHUNK = True
-IS_DEBUG_ORGS_TERM = True
+# IS_DEBUG_ORGS_TERM = True
 
 IS_DEBUG_CHUNK = False
-# IS_DEBUG_ORGS_TERM = False
+IS_DEBUG_ORGS_TERM = False
 
 # bank is after 'n.a.' because 'bank, n.a.' is more desirable
 # 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
@@ -1664,6 +1664,8 @@ def find_payto_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
             # 'to pay to the order of Integrated xxx, Inc.', 35642.txt
             for j in range(4):
                 next_j_spchunk = next_span_chunk(span_chunk_list, idx+1+j)
+                if not next_j_spchunk:
+                    break
                 if next_j_spchunk.is_org():
                     result.append(next_j_spchunk.tok_idx)
                     idx += (2 + j)
