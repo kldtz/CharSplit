@@ -76,7 +76,7 @@ class TestParties2(unittest.TestCase):
                            (679, 712, 'hereinafter called the “Borrower”'),
                            (754, 787, 'Integrated Capital Partners, Inc.'),
                            (811, 823, 'the “Holder”')])
-        
+
 
         # The result not manually verified
         prov_labels_map = annotate_doc('export-train/37028.txt')
@@ -107,9 +107,69 @@ class TestParties2(unittest.TestCase):
                            (4629, 4640, '“Bluegreen”'),
                            (4647, 4681, 'Bluegreen/Big Cedar Vacations, LLC'),
                            (4721, 4734, 'the “Company”')])
-                          
 
-                          
+        prov_labels_map = annotate_doc('export-train/35753.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(184, 206, 'Game Face Gaming, Inc.'),
+                            (231, 244, 'the "Company"'),
+                            (314, 344, 'collectively, the "Purchasers"')])
+
+        prov_labels_map = annotate_doc('export-train/39871.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(6279, 6302, 'AGL Capital Corporation'),
+                           (6326, 6339, 'the “Company”'),
+                           (6346, 6364, 'AGL Resources Inc.'),
+                           (6550, 6605, 'each, a “Purchaser” and, collectively, the “Purchasers”')]
+                          # TODO
+                          # missing, but a little weird
+                          # each of the purchasers whose names appear at the end hereof (each, a “Purchaser” and, collectively, the “Purchasers”)
+        )
+
+        # promissory note, 2nd sentence
+        prov_labels_map = annotate_doc('export-train/35754.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(351, 383, 'Great Essential Investment, Ltd.'),
+                            (429, 446, '“Great Essential”'),
+                            (449, 487, 'Carlyle Asia Growth Partners III, L.P.'),
+                            (559, 565, '“CAGP”'),
+                            (571, 599, 'CAGP III Co-Investment, L.P.'),
+                            (671, 720, '“CAGP III,” and together with CAGP, the “Holders”'),
+                            (726, 760, 'China Recycling Energy Corporation'),
+                            (784, 797, 'the “Company”')])
+
+        # TODO, parties are in 'Definitions'
+        prov_labels_map = annotate_doc('export-train/41296.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          # missing ARS
+                          # the United States Department of Agriculture, Agricultural       Research  Service.
+                          # Viridax Corporation
+                          # ("Viridax")
+                          [])
+
+        # TODO, the input is in a lined format.  The input is probably
+        # a .txt document
+        prov_labels_map = annotate_doc('export-train/37103.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          # missing all parties
+                          [])
+
+        prov_labels_map = annotate_doc('export-train/35667.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(183, 222, 'Sanomedics International Holdings, Inc.'),
+                           (248, 259, 'the “Maker”'),
+                           (266, 280, 'Keith Houlihan'),
+                           (315, 323, '"Holder"')])
+
+        prov_labels_map = annotate_doc('export-train/37103.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+
 
 if __name__ == "__main__":
     unittest.main()

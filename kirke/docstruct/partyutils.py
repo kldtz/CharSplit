@@ -411,6 +411,10 @@ def is_party_line_aux(line: str) -> str:
        re.search(r'\b(entered\s+into)\b', line, re.I):
         return 'True9.1'
 
+    # 39871.txt
+    if re.search(r'\band\b.*\bagree[sd]?\b', line, re.I):
+        return 'True9.1.2'
+
     # mytest/doc1.txt fail on this
     """
     if re.search(r'\b(agreement|contract)\b', line, re.I) and \

@@ -2047,7 +2047,18 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
         # So, try that first.  If found parties, don't bother with the is_party list
         # print("ok, party_line: [{}]".format(nlputils.first_sentence(party_line)))
         first_sent = nlputils.first_sentence(party_line)
+        sec_sent_start = strutils.find_non_space_index(party_line[len(first_sent):])
+        second_sent = party_line[len(first_sent) + sec_sent_start:] if sec_sent_start != -1 else ''
         parties_term_offset_list = extract_parties_term_list_from_party_line(first_sent)
+
+        if not parties_term_offset_list and \
+           not is_list_party and \
+           second_sent:  # didn't find parties in the first sentence
+            # maybe check for number of org_suffix before going into 2nd sent
+            parties_term_offset_list = extract_parties_term_list_from_party_line(second_sent)
+            if parties_term_offset_list:
+                start = start + len(first_sent) + sec_sent_start
+
         if parties_term_offset_list:
             # need to adjust the offset because used first_sent
             parties_term_offset_list = adjust_start_offset_ptoffset_list(parties_term_offset_list, start)

@@ -1031,7 +1031,7 @@ def mark_an_org_not_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
             word, tag = postag_list[0]
             # 'the Pass Through Trust'
             if tag == 'DT' and \
-               (word == 'a' or word == 'an' or word == 'the'):
+               word in set(['a', 'an', 'the']):
                 chunk.set_label('xNN')
                 continue
 
@@ -1201,6 +1201,9 @@ class SpanChunk:
     def get_words(self) -> List[str]:
         postag_list = self.to_postag_list()
         return [postag[0] for postag in postag_list]
+
+    def startswith(self, line: str) -> bool:
+        return self.text.lower().startswith(line)
 
     def is_word_and(self) -> bool:
         return self.is_lc_word('and') or self.is_lc_word('&')
@@ -1498,7 +1501,7 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     for span_chunk in span_chunk_list:
         if re.search(r'\b(agreement|note)s?\b', span_chunk.text, re.I):
             pass
-        elif re.search(r'\bdate\b', span_chunk.text, re.I):
+        elif re.search(r'\b(date|amend(ed)?)\b', span_chunk.text, re.I):
             # (as effective date)
             pass
         elif re.search(r'\b(number|loan|rate)\b', span_chunk.text, re.I):
@@ -1506,7 +1509,7 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
             pass
         elif re.search(r'(\$\d|\d%)', span_chunk.text, re.I):
             pass
-        elif re.search(r'\b(section|article)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(section|article|act)\b', span_chunk.text, re.I):
             # (as effective date)
             pass
         else:
@@ -1539,6 +1542,8 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
     org_list = [span_chunk for span_chunk in span_chunk_list if span_chunk.has_label('xORGP')]
     org_list = remove_invalid_parties(org_list)
 
+    # if no org_list is found, take the first xNNP and make it a party
+    # This handles Person name much better
     if not org_list:  # didn't find any org based on org_suffix
         # for i, span_chunk in enumerate(span_chunk_list):
             # print("5234 #{} span_chunk: {}".format(i, span_chunk))
@@ -1552,7 +1557,8 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             tmp_span_chunk_list = span_chunk_list[0:3]
             org_list.append(make_span_chunk_from_span_chunk_list(tmp_span_chunk_list))
         elif span_chunk.is_phrase() and \
-           span_chunk.has_label('xNNP'):
+           span_chunk.has_label('xNNP') and \
+           not span_chunk.startswith('this'):
             org_list.append(span_chunk)
 
     as_list = find_as_span_chunks(span_chunk_list)
@@ -1629,13 +1635,17 @@ def find_and_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
         next_spchunk = next_span_chunk(span_chunk_list, idx)
         if spchunk.is_word_and() and \
            next_spchunk:
-           if next_spchunk.is_org():
-               result.append(next_spchunk.tok_idx)
-               idx += 1
-           elif next_spchunk.has_label('xNNP'):
-               # 'and Arrayit Diagnostics', doc111.txt
-               maybe_result.append(next_spchunk.tok_idx)
-               idx += 1
+            if next_spchunk.is_org():
+                result.append(next_spchunk.tok_idx)
+                idx += 1
+            elif next_spchunk.has_label('xNNP'):
+                # 'and Arrayit Diagnostics', doc111.txt
+                maybe_result.append(next_spchunk.tok_idx)
+                idx += 1
+            elif next_spchunk.is_lc_word('each'):
+                # 'and each of the investors' 35753.txt
+                maybe_result.append(next_spchunk.tok_idx)
+                idx += 1
 
         idx += 1
 
