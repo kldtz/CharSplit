@@ -1501,7 +1501,7 @@ def seline_attrs_to_tabled_party_list_terms(se_after_paras_attr_list: List[Tuple
     has_valid_person_or_org = False
     out_list = []
     for i in range(len(dterm_list)):
-        if i > len(party_list):
+        if i >= len(party_list):
             break
         dterm = dterm_list[i]
         party = party_list[i]

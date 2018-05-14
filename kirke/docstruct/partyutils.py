@@ -493,6 +493,9 @@ def is_party_line_aux(line: str) -> str:
     if THIS_AGREEMENT_PAT.search(line) and "amendment" in lc_line:
         return 'True28'
 
+    if re.search(r'\b(following\s+meanings?)\b', line, re.I):
+        return 'False33.12'
+
     # termination agreement
     if 'agree that' in lc_line and 'employment at' in lc_line:
         return 'True29'
@@ -500,9 +503,10 @@ def is_party_line_aux(line: str) -> str:
     # ENTERTAINMENT LLC (the “Grantor”), in favor of BANK OF AMERICA, N.A...'
     if 'date' in lc_line and ' by ' in lc_line and 'in favor of' in lc_line:
         return 'True30'
+
     if 'reach an agreement' in lc_line or \
        'the following terms' in lc_line or \
-       'terms and condistions' in lc_line or \
+       'terms and conditions' in lc_line or \
        'enter into this contract' in lc_line:
         return 'True31'
     if 'hereinafter' in lc_line and 'agree' in lc_line:
