@@ -342,11 +342,10 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     # pylint: disable=too-many-nested-blocks
     for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
         apage = pdf_text_doc.page_list[page_num - 1]
-
         # because we merge lines across pages, we should do this gap span identification at
         # global level
         for grouped_block in grouped_block_list:
-
+            # is_multi_line = is_block_multi_line(grouped_block.line_list)
             is_multi_line = False
             if is_multi_line:
                 # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
@@ -384,7 +383,6 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 prev_linex = None
                 span_se_list = []
                 for linex in grouped_block.line_list:
-
                     if not prev_linex:
                         # prev_linex is None is never used due to prev_page_num == 1
                         prev_linex = linex
@@ -395,6 +393,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                                                           apage,
                                                           # page_num is the next page
                                                           pdf_text_doc.page_list[page_num])
+                        # gap_frto_list = False
                         if gap_frto_list:
                             # span_se_list.extend(gap_frto_list)
                             # simply add a break line, the gap will be done correctly elsewhere
@@ -602,19 +601,17 @@ def parse_document(file_name: str,
         # pylint: disable=invalid-name
         yStart = str_offset['yStart']
         y_diff = yStart - prev_y
+
         if y_diff < min_diff and y_diff > 0:
             all_diffs.append(y_diff)    
         prev_y = yStart
-        # some times, empty strx might mix with page_num
-        # don't add them
         str_text = nl_text[start:end]
         if yStart < 100 and not str_text.strip():
             pass
         else:
             page_nums[line_num] = page_num
-            lxid_strinfos_map[line_num].append(StrInfo(start, end,
-                                                       xStart, xEnd, yStart))
-    
+            lxid_strinfos_map[line_num].append(StrInfo(start, end, xStart, xEnd, yStart))
+
     pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]
     bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
     tmp_prev_end = 0
@@ -645,14 +642,14 @@ def parse_document(file_name: str,
             end = tmp_end
             page_num = page_nums[line_num]
             bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, block_num, tmp_strinfos))
-            para_line, is_multi_lines, unused_not_linebreaks = pdfutils.para_to_para_list(nl_text[start:end])
+            para_line, unused_is_multi_lines, unused_not_linebreaks = pdfutils.para_to_para_list(nl_text[start:end])
             block_info = PBlockInfo(start,
                                     end,
                                     block_num,
                                     page_num,
                                     para_line,
                                     bxid_lineinfos_map[block_num],
-                                    is_multi_lines)
+                                    False)
             pgid_pblockinfos_map[page_num].append(block_info)
             block_info_list.append(block_info)
             tmp_strinfos = []
@@ -663,7 +660,6 @@ def parse_document(file_name: str,
             tmp_strinfos.extend(lxid_strinfos_map[line_num])
             
     pageinfo_list = []  # type: List[PageInfo3]
-    # nlp_offset = 0
     for page_offset in page_offsets:
         #id, start, end
         start = page_offset['start']
@@ -822,7 +818,6 @@ def adjust_blocks_in_page(apage,
     for linex in apage.content_line_list:
         if not linex.attrs.get('header'):
             tmp_list.append(linex)
-
     apage.content_line_list = tmp_list
 
 
@@ -834,17 +829,9 @@ def add_doc_structure_to_doc(pdftxt_doc):
     for page in pdftxt_doc.page_list:
         add_doc_structure_to_page(page, pdftxt_doc)
         # break blocks if they are in the middle of header, english sents
-        adjust_blocks_in_page(page, pdftxt_doc)
-
+        # adjust_blocks_in_page(page, pdftxt_doc)
     if DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.bef.merge.tsv')
-
-    # merge paragraphs that are across pages
-    prev_page = pdftxt_doc.page_list[0]
-    for apage in pdftxt_doc.page_list[1:]:
-        merge_if_continue_to_next_page(prev_page, apage)
-        prev_page = apage
-    reset_all_is_english(pdftxt_doc)
 
     if DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.after.merge.tsv')
@@ -852,15 +839,9 @@ def add_doc_structure_to_doc(pdftxt_doc):
     # now we have basic block_group with correct
     # is_english set.  Useful for merging
     # blocks with only 1 lines as table, or signature section
+
     for apage in pdftxt_doc.page_list:
         merge_adjacent_line_with_special_attr(apage)
-
-    for apage in pdftxt_doc.page_list:
-        # TODO, temporary remove this
-        add_sections_to_page(apage, pdftxt_doc)
-
-    # if DEBUG_MODE:
-    #    pdftxt_doc.save_debug_pages(extension='.after.section.tsv')
 
     # Redo block info because they might be in different
     # pages.
@@ -878,13 +859,11 @@ def add_doc_structure_to_doc(pdftxt_doc):
         paged_grouped_block_list[page_num].append(GroupedBlockInfo(page_num,
                                                                    block_num,
                                                                    line_list))
-
     # each page is a list of grouped_block
     pdftxt_doc.paged_grouped_block_list = []
     for page_num in range(1, pdftxt_doc.num_pages + 1):
         grouped_block_list = paged_grouped_block_list[page_num]
         pdftxt_doc.paged_grouped_block_list.append(grouped_block_list)
-
 
 def add_sections_to_page(apage, pdf_txt_doc):
     page_num = apage.page_num
@@ -1092,14 +1071,12 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         prev_line_text = line.line_text
         if not is_skip and line.lineinfo.yStart < footer_yStart:
             content_line_list.append(line)
-
     # if footer is found, set everything afterward as footer
     # if footer_index != -1:
     if footer_yStart != MAX_FOOTER_YSTART:
         for linex in apage.line_list:
             if linex.lineinfo.yStart >= footer_yStart:
                 linex.attrs['footer'] = True
-
     apage.content_line_list = content_line_list
     # now decide if this is a toc page, based on
     # there are more than 4 toc lines
