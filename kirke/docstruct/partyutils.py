@@ -6,7 +6,7 @@ import re
 
 from typing import List, Match, Optional, Tuple
 
-from kirke.utils import engutils, nlputils, regexutils, strutils
+from kirke.utils import engutils, nlputils, strutils
 
 
 IS_DEBUG_MODE = False
@@ -63,6 +63,7 @@ def is_valid_uppercase_party_name(line: str) -> bool:
     return True
 
 
+# used by seline_attrs_to_tabled_party_list_terms()
 def find_uppercase_party_name(line: str) \
 -> Optional[Tuple[Tuple[int, int], int, bool]]:
     found_party_se_other = find_first_non_title_and_org(line)
@@ -79,7 +80,7 @@ def find_uppercase_party_name(line: str) \
                 party_st = line[party_start:party_end]
                 other_start = strutils.find_next_not_space_idx(line, party_end)
         elif len(list(re.finditer(r'\b(of|de|du)\b', party_st, re.I))) > 1:
-            of_mat_list = re.finditer(r'\b(of|de|du)\b', party_st, re.I)
+            of_mat_list = list(re.finditer(r'\b(of|de|du)\b', party_st, re.I))
             # there should be only 1 "of", otherwise, likely an address
             last_of_mat = of_mat_list[1]
             party_end = party_start + last_of_mat.end()
@@ -90,8 +91,7 @@ def find_uppercase_party_name(line: str) \
     return None
 
 
-# This is different from another similar function
-# extract_parties_from_party_line(line: str)
+# used by seline_attrs_to_tabled_party_list_terms()
 def find_uppercase_party_name_list(line: str) \
     -> List[Tuple[int, int]]:
 
@@ -133,7 +133,7 @@ def find_not_title_idx(line: str) -> int:
     if comma_idx != -1:
         line = line[:comma_idx]
     se_word_list = list(nlputils.word_comma_tokenize(line))
-    for wstart, wend, word in se_word_list:
+    for unused_wstart, wend, word in se_word_list:
         if re.match('(of|de)\b', word, re.I):
             continue
         if not word[0].isupper():
@@ -141,6 +141,7 @@ def find_not_title_idx(line: str) -> int:
     return -1
 
 
+# pylint: disable=too-many-locals, too-many-return-statements, too-many-branches, too-many-statements
 def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], int]]:
     """Find the first non-title and non-org word.
 
@@ -155,13 +156,14 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
     se_word_list = list(nlputils.word_comma_tokenize(line))
     # print("se_word_list = {}".format(se_word_list))
     word_i = 0
+    # pylint: disable=too-many-nested-blocks
     for start, end, word in se_word_list:
         if word == ',':
             prev_aft_end = -1
             word_j = word_i + 1
 
             if word_j < len(se_word_list):
-                aft_start, aft_end, aft_word = se_word_list[word_j]
+                aft_start, unused_aft_end, aft_word = se_word_list[word_j]
 
                 tmp_org_mat = nlputils.ORG_PERSON_SUFFIX_PAT.match(line[aft_start:])
                 if tmp_org_mat:
@@ -172,7 +174,7 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
 
                     other_word_idx = word_j
                     # now set the other_word_idx to the right one
-                    for tmp2_wstart, tmp2_wend, tmp2_word in se_word_list[word_j:]:
+                    for tmp2_wstart, unused_tmp2_wend, tmp2_word in se_word_list[word_j:]:
                         if tmp2_wstart > prev_aft_end:
                             other_word = tmp2_word
                             break
@@ -209,7 +211,7 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
     elif not maybe_se_other_start:  # the whole line has istitle()
         return (0, prev_end), prev_end
 
-    fx_start, fx_end, other_start = maybe_se_other_start
+    unused_fx_start, unused_fx_end, other_start = maybe_se_other_start
 
     after_line = line[other_start:]
 
@@ -218,7 +220,8 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
        ((word_i < 2) and \
         other_word.lower() == 'and'):
         if other_word_idx + 1 < len(se_word_list):
-            other_start = se_word_list[other_word_idx+1][0]  # the start of the first word after 'and'
+            # the start of the first word after 'and'
+            other_start = se_word_list[other_word_idx+1][0]
 
             prev_end = se_word_list[other_word_idx][1]  # the end of the 'and'
             for sc_start, sc_end, word in se_word_list[other_word_idx+1:]:
@@ -231,9 +234,8 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
 
             # reaching here means the whole line is istitle()
             return (0, prev_end), prev_end
-
-        else:  # there is no more words, return everything befefore 'and'
-            return (0, prev_end), prev_end
+        # there is no more words, return everything befefore 'and'
+        return (0, prev_end), prev_end
     elif re.match('r\b(of|de)\b', other_word, re.I):
         # Royal Bank of Canada
         tmp_idx = find_not_title_idx(after_line)
@@ -388,7 +390,8 @@ def is_party_line_aux(line: str) -> str:
         return 'True7'
 
     # this is from a title line, not a party line
-    if len(line) < 200 and nlputils.ORG_PERSON_SUFFIX_END_PAT.search(line) and line.strip()[-1] != '.':
+    if len(line) < 200 and nlputils.ORG_PERSON_SUFFIX_END_PAT.search(line) and \
+       line.strip()[-1] != '.':
         return 'False8'
 
     # Removed.  This turns out to be false for UK document multiple times.
@@ -425,6 +428,7 @@ def is_party_line_aux(line: str) -> str:
         return 'True9.1.2'
 
     # mytest/doc1.txt fail on this
+    # pylint: disable=pointless-string-statement
     """
     if re.search(r'\b(agreement|contract)\b', line, re.I) and \
        re.search(r'\b(dated)\b', line, re.I):
@@ -513,7 +517,8 @@ def is_party_line_aux(line: str) -> str:
         return 'True32'
     if 'confirm' in lc_line and 'agree' in lc_line:
         return 'True33'
-    # NOW, THEREFORE, in consideration of the premises and the mutual covenants contained in this Agreement,  the Parties hereto agree as follows:
+    # NOW, THEREFORE, in consideration of the premises and the mutual covenants
+    # contained in this Agreement,  the Parties hereto agree as follows:
     if re.search(r'\b(now|therefore|in cosideration)\b', line, re.I):
         return 'False33.1'
     #"""In this Agreement (unless the context requires otherwise) the following words
@@ -552,6 +557,7 @@ def is_party_line_aux(line: str) -> str:
     return 'False41'
 
 
+# pylint: disable=invalid-name
 def is_party_line_prefix_without_parties(line: str) -> bool:
     """Detect if a line have no party, we don't want to detect 'The Agreement ... as
        a party.
@@ -573,107 +579,20 @@ def is_party_line_prefix_without_parties(line: str) -> bool:
     # need to skip first 'the agreement is'
     maybe_org_st_list = []
     for multi_cap_mat in re.finditer(r'\b[A-Z]\w+( [A-Z]\w+)+\b', line, re.I):
-      multi_cap_st = line[multi_cap_mat.start():multi_cap_mat.end()]
-      if re.search(r'\bdate\b', multi_cap_st, re.I) or \
-         re.search(r'\b(agreement|lease|contract)\b', multi_cap_st, re.I):
-          pass
-      else:
-          maybe_org_st_list.append(multi_cap_st)
+        multi_cap_st = line[multi_cap_mat.start():multi_cap_mat.end()]
+        if re.search(r'\bdate\b', multi_cap_st, re.I) or \
+           re.search(r'\b(agreement|lease|contract)\b', multi_cap_st, re.I):
+            pass
+        else:
+            maybe_org_st_list.append(multi_cap_st)
 
     if num_parens >= 2:
         return False
-    if (num_org_suffix == 0 and
-        len(maybe_org_st_list) <= 1):
+    if num_org_suffix == 0 and \
+       len(maybe_org_st_list) <= 1:
         return True
 
     return False
-
-
-def find_first_party_lead(line):
-    lc_line = line.lower()
-    for st_pat in ST_PAT_LIST:
-        idx = lc_line.find(st_pat)
-        if idx != -1:
-            return idx + len(st_pat)
-    return -1
-
-def find_party_separator(line):
-    pat = re.compile(r'each lender party hereto \([^\)]+\),', re.IGNORECASE)
-    return re.search(pat, line)
-
-def find_party_separator2(line):
-    pat = re.compile(r'(?<=\)) and ', re.IGNORECASE)
-    return re.search(pat, line)
-
-def find_and(line):
-    pat = re.compile(r'\band\b', re.IGNORECASE)
-    return re.search(pat, line)
-
-def find_a_corp(line):
-    pat = re.compile(r'[A-Z\.\, ]+ (AG|LTD|N\.\s*A|Limited|LIMITED)\.?, '
-                     r'(a|as)\b[^\(]+\([^\)]+\)[\.,]?')
-    return re.search(pat, line)
-
-
-def extract_parties(line):
-    index = find_first_party_lead(line)
-    if index != -1:
-        print('after lead [{}]'.format(line[index:]))
-
-        party_separator_match = find_party_separator(line[index:])
-        if party_separator_match:
-            # index2 = party_separator_match.end() + index
-
-            before_sep = line[index:index + party_separator_match.start()]
-            after_sep = line[index + party_separator_match.end():]
-
-            print('\nbefore party_sep [{}]'.format(before_sep))
-            print('\nafter party_sep [{}]'.format(after_sep))
-
-            mm1 = find_a_corp(before_sep)
-            print('\nmm1 = [{}]'.format(before_sep[mm1.start():mm1.end()]))
-
-            before_sep2 = before_sep[mm1.end():]
-            mm2 = find_a_corp(before_sep2)
-            print('\nmm2 = [{}]'.format(before_sep2[mm2.start():mm2.end()]))
-
-            mm3 = find_a_corp(after_sep)
-            print('\nmm3 = [{}]'.format(after_sep[mm3.start():mm3.end()]))
-
-            after_sep2 = after_sep[mm3.end():]
-            mm4 = find_a_corp(after_sep2)
-            print('\nmm4 = [{}]'.format(after_sep2[mm4.start():mm4.end()]))
-
-    return []
-
-
-def find_a_corp2(line):
-    pat = re.compile(r'([A-Z][a-zA-Z\.\, ]*)+ [^\(]+\([^\)]+\)[\.,]?')
-    return re.search(pat, line)
-
-
-def extract_name_parties(line):
-    index = find_first_party_lead(line)
-    if index != -1:
-        print('after lead [{}]'.format(line[index:]))
-
-        party_separator_match = find_party_separator2(line[index:])
-        if party_separator_match:
-            # index2 = party_separator_match.end() + index
-
-            before_sep = line[index:index + party_separator_match.start()]
-            after_sep = line[index + party_separator_match.end():]
-
-            print('\nbefore party_sep [{}]'.format(before_sep))
-            print('\nafter party_sep [{}]'.format(after_sep))
-
-            mm1 = find_a_corp2(before_sep)
-            print('\nmm1 = [{}]'.format(before_sep[mm1.start():mm1.end()]))
-
-            mm3 = find_a_corp2(after_sep)
-            print('\nmm3 = [{}]'.format(after_sep[mm3.start():mm3.end()]))
-
-    return []
 
 
 # Note: I have seen up to 13 companies
@@ -695,6 +614,7 @@ def match_party_list_prefix(line: str) -> Match[str]:
     return mat
 
 
+# pylint: disable=invalid-name
 def is_party_list_prefix_with_validation(line: str) -> bool:
     if match_party_list_prefix(line):
         if re.search(r'\b(engages?|product)\b', line, re.I):
@@ -709,7 +629,7 @@ def is_party_list_with_end_between(line: str) -> bool:
     if 'between' in last_8_words and \
        words[-1] == 'and':
         return True
-    elif 'between' == words[-1]:
+    elif words[-1] == 'between':
         return True
     return False
 
@@ -752,9 +672,9 @@ if __name__ == '__main__':
     # pylint: disable=line-too-long
     st2 = 'THIS REVOLVING LINE OF CREDIT LOAN AGREEMENT (this “Agreement”) is made as of May 29, 2009, by and between Michael Reger having a business address at 777 Glade Road Suite 300, Boca Raton, Florida 33431("Lender") and GelTech Solutions, Inc., a Delaware Coloration (the "Borrower"), having a business address at 1460 Park Lane South Suite 1, Jupiter, Florida 33458 attention, Michael Cordani.'
 
-    party_list = extract_name_parties(st2)
+    # party_list = extract_name_parties(st2)
 
 
     st3 = 'This Executive Employment Agreement (this "Agreement") is made this 21st day of May, 2010 (the "Effective Date"), by and between MOLYCORP, INC., a Delaware corporation ("Employer") and John Burba ("Executive"). '
 
-    party_list = extract_name_parties(st3)
+    # party_list = extract_name_parties(st3)

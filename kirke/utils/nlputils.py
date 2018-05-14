@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 
 from enum import Enum
 import re
@@ -44,6 +45,7 @@ ORG_PREFIX_PAT = regexutils.phrases_to_igs_pattern(ORG_PREFIX_LIST, re.I)
 LOCATION_LIST = strutils.load_non_empty_str_list('dict/parties/location.list')
 LC_LOCATION_SET = set([loc.lower() for loc in LOCATION_LIST])
 
+# pylint: disable=line-too-long
 US_STATE_ABBRV_INCOMPLETE = strutils.load_non_empty_str_list('dict/parties/us_state_abbr.incomplete.list')
 US_STATE_SET = set(US_STATE_ABBRV_INCOMPLETE)
 
@@ -134,7 +136,7 @@ def get_org_suffix_mat_list(line: str) -> List[Match[str]]:
     for lc_mat in lc_mat_list:
         prev_space_idx = lc_mat.start() -1
         # the previous word must be capitalized
-        pword_start, pword_end, pword = strutils.find_previous_word(line, prev_space_idx)
+        pword_start, unused_pword_end, pword = strutils.find_previous_word(line, prev_space_idx)
         if pword_start != -1:
             if pword[0].isupper():
                 result.append(lc_mat)
@@ -206,7 +208,6 @@ def jm_sent_tokenize(text: str) -> List[Tuple[int, int]]:
     if not text.strip():  # if empty or only spaces
         return []
     after_text = text.replace('\n', ' ')
-    sent_start = 0
     text_len = len(after_text)
     result = []
     offset = 0
@@ -227,6 +228,7 @@ def jm_sent_tokenize(text: str) -> List[Tuple[int, int]]:
     return result
 
 # an alias
+# pylint: disable=invalid-name
 sent_tokenize = jm_sent_tokenize
 
 TREEBANK_WORD_TOKENIZER = TreebankWordTokenizer()
@@ -256,6 +258,7 @@ def span_tokenize(sent_line: str) -> List[Tuple[int, int]]:
     # There is a bug in nltk.  Following sentence cause it to fail.
     # tokenze() work, but not span_tokenize().
     # Temporary solution is to replace normal '"' with '“'
+    # pylint: disable=line-too-long
     # line = 'ContentX Technologies, EEC a California limited liability company  with an address at 19700 Fairchild, Ste. 260, Irvine, CA 92612 (“ContentX”! and Cybeitnesh International  Corporation, a Nevada corporation with an address at 2715 Indian Farm Lh NW, Albuquerque NM 87107  (“Cybermesh”) (Cybermesh and together with ContentX, the “Members" each a “Member”), pursuant to  the laws of the State of Nevada.'
 
     # tried it with '"', didn't work.  But this does.
@@ -270,6 +273,7 @@ def tokenize(sent_line: str) -> List[str]:
     """Returns all the span tokens for a sentence."""
     return TREEBANK_WORD_TOKENIZER.tokenize(sent_line)
 
+# pylint: disable=invalid-name
 word_tokenize = tokenize
 
 
@@ -314,7 +318,7 @@ def fix_nltk_pos(wpos_list: List[Tuple[str, str]],
         elif word.startswith('ZqZ'):
             if t2_map:
                 # A token can be 'Corporation.' from 'Corporation.,'
-                line, ttype = t2_map[word[:7]]
+                unused_line, ttype = t2_map[word[:7]]
                 if ttype == 'xABN':
                     # we don't want this to merge with anything
                     result.append((word, 'IN'))
@@ -345,10 +349,6 @@ def pos_tag(tokens: List[str], t2_map: Dict[str, Tuple[str, str]] = None) \
     fixed_list = fix_nltk_pos(postag_list, t2_map)
     return fixed_list
 
-"""
-def get_consecutive_cap_word_phrases(line: str) \
-    -> List[List[Tuple[int, int]]]:
-"""
 
 # TODO: maybe remove in future
 # NLTK_TOKENIZER = WhitespaceTokenizer()
@@ -377,21 +377,6 @@ def word_comma_tokenize(line: str) -> Generator[Tuple[int, int, str], None, None
                 yield start, end, word
             # otherwise, just ignore all other punctuations
 
-"""
-chunker = RegexpParser(r'''
-NP:
-  {<\(.*><[^\(].*>*<\).*>}
-  {<DT><NN.*><.*>*<NN.*>}
-  {<CD><NN.*><.*>*<NN.*>}
-  {<PRP.*><NN.*><.*>*<NN.*>}
-  }<VB.*>{
-  }<,.*>{
-  }<IN.*>{
-  }<CC.*>{
-  }<\(.*>{
-''')
-"""
-
 chunker = RegexpParser(r'''
 xPAREN:
   {<\(.*><[^\(].*>*<\).*>}
@@ -405,18 +390,9 @@ xNN:
   }<CC.*>{
 ''')
 
-def chunkize(sent_line: str) -> List[Union[Tree, Tuple[int, int]]]:
-    tokens = word_tokenize(sent_line)
-    tok_pos_list = pos_tag(tokens)
-    # for i, tok_pos in enumerate(tok_pos_list):
-    #     print('pos_tok #{}\t{}'.format(i, tok_pos))
-    chunk_list = chunker.parse(tok_pos_list)
-    # extract 'ABN ID+' as an apposition
-    chunk_list = rechunk_known_terms(chunk_list)
-    return chunk_list
 
 def find_known_terms(line: str) -> List[Tuple[int, int, str]]:
-    result = []  # type: List[Tuple[int, int, str]]:
+    result = []  # type: List[Tuple[int, int, str]]
 
     mat_list = get_org_prefix_mat_list(line)
     for mat in mat_list:
@@ -426,8 +402,7 @@ def find_known_terms(line: str) -> List[Tuple[int, int, str]]:
     for mat in mat_list:
         result.append((mat.start(), mat.end(), 'xORGP'))
 
-    mat_list = re.finditer(r'ABN( \d+)+', line, re.I)
-    for mat in mat_list:
+    for mat in re.finditer(r'ABN( \d+)+', line, re.I):
         result.append((mat.start(), mat.end(), 'xABN'))
 
     # print("find_known_terms before: {}".format(result))
@@ -439,14 +414,14 @@ def find_known_terms(line: str) -> List[Tuple[int, int, str]]:
     if IS_DEBUG_CHUNK:
         print("\nfind_known_terms after: {}".format(result))
         for i, se_term in enumerate(result):
-            start, end, term = se_term
+            start, end, unused_term = se_term
             print("after term #{}\t[{}]\t{}".format(i, line[start:end], se_term))
     return sorted(result)
 
 def sub_known_terms(line: str,
                     se_ttype_list: List[Tuple[int, int, str]]) \
                     -> Tuple[str, Dict[str, Tuple[str, str]]]:
-    known_term_map = {}  # type: Dict[str, str]:
+    known_term_map = {}  # type: Dict[str, Tuple[str, str]]
     kt_count = 0
     parts = []  # type: List[str]
     offset = 0
@@ -466,13 +441,13 @@ def sub_known_terms(line: str,
 
 def putback_chunk_to_postag_list(chunk: Union[Tree, Tuple[str, str]],
                                  t2_map: Dict[str, Tuple[str, str]]) \
-    -> Tuple[bool, str, List[Tuple[str, str]]]:
+    -> Tuple[bool, Optional[str], List[Tuple[str, str]]]:
     postags = chunk_to_postag_list(chunk)
     postags_out = []  # type: List[Tuple[str, str]]
     is_triggered = False
     ttype = None
     for word_pos in postags:
-        word, pos = word_pos
+        word, unused_pos = word_pos
         if word.startswith('ZqZ'):
             # can have extra stuff due to 'Corporation.' in 'Corporation.,'
             orig_term, ttype = t2_map[word[:7]]
@@ -499,7 +474,7 @@ def putback_chunk_to_postag_list(chunk: Union[Tree, Tuple[str, str]],
 
 def putback_kterms(chunk_list: List[Union[Tree, Tuple[str, str]]],
                    t2_map: Dict[str, Tuple[str, str]]) -> List[Union[Tree, Tuple[int, int]]]:
-    result = []  # type: List[Union[Tree, Tuple[int, int]]]:
+    result = []  # type: List[Union[Tree, Tuple[int, int]]]
     for chunk in chunk_list:
         if is_chunk_label(chunk, 'xNNP'):
             is_triggered, ttype, postags_out = putback_chunk_to_postag_list(chunk, t2_map)
@@ -509,7 +484,9 @@ def putback_kterms(chunk_list: List[Union[Tree, Tuple[str, str]]],
             # it is possible that zqz is in xPAREN also
             is_triggered, ttype, postags_out = putback_chunk_to_postag_list(chunk, t2_map)
             if is_triggered:
-                chunk = Tree(chunk.label(), postags_out)
+                # to make mypy happy for type checking
+                tmp_chunk = chunk # type: Tree
+                chunk = Tree(tmp_chunk.label(), postags_out)
         elif not is_chunk_tree(chunk):
             word = postag_word(chunk)
             # only for ABN XXX
@@ -534,10 +511,10 @@ def split_chunk_with_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
 
             found_org_suffix_idx = -1
             for i in range(len(postag_list)-1, -1, -1):
-                word, tag = postag_list[i]
+                word, unused_tag = postag_list[i]
                 # 'WASTE2ENERGY GROUP company registed in ...', doc118.txt
                 if is_org_suffix(word) and \
-                        not word in set(['company', 'corporation']):
+                   not word in set(['company', 'corporation']):
                     found_org_suffix_idx = i
                     break
 
@@ -545,15 +522,15 @@ def split_chunk_with_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
                 found_org_suffix_idx == len(postag_list) -1:
                 result.append(chunk)
             else:
-                result.append(Tree('xORGP', postag_list[:i+1]))
-                result.append(Tree('NNP', postag_list[i+1:]))
+                result.append(Tree('xORGP', postag_list[:found_org_suffix_idx+1]))
+                result.append(Tree('NNP', postag_list[found_org_suffix_idx+1:]))
         else:
             result.append(chunk)
 
     return result
 
 
-def chunkize2(sent_line: str) -> List[Union[Tree, Tuple[str, str]]]:
+def chunkize(sent_line: str) -> List[Union[Tree, Tuple[str, str]]]:
     se_term_list = find_known_terms(sent_line)
     sent_line_t2, t2_map = sub_known_terms(sent_line,
                                            se_term_list)
@@ -575,7 +552,7 @@ def chunkize2(sent_line: str) -> List[Union[Tree, Tuple[str, str]]]:
 
     if IS_DEBUG_CHUNK:
         for i, chunk in enumerate(chunk_list):
-            print("chunkize2 #{}\t{}".format(i, chunk))
+            print("chunkize #{}\t{}".format(i, chunk))
 
     return chunk_list
 
@@ -601,7 +578,9 @@ def rechunk_known_terms(chunk_list: List[Union[Tree, Tuple[int, int]]]) \
                     abn_tok_list.append(tmp_next_chunk)
                     tmp_i += 1
                     tmp_next_chunk = get_next_chunk(chunk_list, tmp_i)
-                result.append(Tree(chunk.label(), postag_list[:-1]))
+                # to make mypy happy for type checking
+                tmp_chunk = chunk  # type: Tree                    
+                result.append(Tree(tmp_chunk.label(), postag_list[:-1]))
                 result.append(Tree('ABN_NUM', abn_tok_list))
                 idx = tmp_i
             else:
@@ -796,6 +775,7 @@ def update_with_address(chunks_result) -> None:
     address_chunk = Tree('xADDRESS', flatten_chunks(address_chunk_list))
     # print("address_chunk = {}".format(address_chunk))
 
+    # pylint: disable=unused-variable
     for i in range(len(address_chunk_list)):
         del chunks_result[-1]
 
@@ -804,18 +784,7 @@ def update_with_address(chunks_result) -> None:
     # print("address chunk #{}\t{}".format(i, chunk))
     # for i in range(len(address_chunk_list)):
 
-"""
-def chunk_has_org_person_suffix(chunk: Tree) -> bool:
-    if isinstance(chunk, Tree):
-        for postag in chunk:
-            word = postag_word(postag)
-            if is_org_suffix(word):
-                return True
-        return False
-    word = postag_word(chunk)
-    return is_org_suffix(word)
-"""
-
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def update_with_org_person(chunks_result,
                            chunk_list,
                            chunk_idx: int,
@@ -890,7 +859,7 @@ def update_with_org_person(chunks_result,
         elif is_chunk_label(chunk, 'xORGP') and \
              is_chunk_org_suffix_only(chunk):
             # elif chunk_has_org_person_suffix(chunk):
-            postag_list = chunk_to_postag_list(chunk)
+            # postag_list = chunk_to_postag_list(chunk)
             # don't want to merge two full comany names together
             # only merge LLC or Corp.  Just in case an org is made
             # of 2 words, 'b. v.'
@@ -930,10 +899,10 @@ def update_with_org_person(chunks_result,
             else:
                 break
         elif is_chunk_label(chunk, 'xPV_ORG'):
-           # found the beginning, 'Bank of'
-           prefix_chunk_list.append(chunk)
-           i -= 1
-           break
+            # found the beginning, 'Bank of'
+            prefix_chunk_list.append(chunk)
+            i -= 1
+            break
         elif has_pos_article(chunk):
             prefix_chunk_list.append(chunk)
             i -= 1
@@ -998,9 +967,9 @@ def update_with_org_person(chunks_result,
     flatten_chunk_list = flatten_chunks(org_chunk_list)
     # 'the Company', 'a Company'
     if len(flatten_chunk_list) == 2 and \
-        flatten_chunk_list[0][1] == 'DT':
-       chunks_result.append(cur_chunk)
-       return chunk_idx
+       flatten_chunk_list[0][1] == 'DT':
+        chunks_result.append(cur_chunk)
+        return chunk_idx
 
     org_chunk = Tree('xORGP', flatten_chunk_list)
     # print("org_chunk = {}".format(org_chunk))
@@ -1019,15 +988,13 @@ def update_with_org_person(chunks_result,
 
 def update_with_prefix_org(chunks_result,
                            chunk_list,
-                           chunk_idx: int,
-                           chunk_taken_idx: int) \
+                           chunk_idx: int) \
     -> int:
     """If found prefix_org, update the result.
 
     returns new chunk_idx if digested more chunks than before.
     """
-
-    cur_chunk = chunk_list[chunk_idx]
+    # cur_chunk = chunk_list[chunk_idx]
 
     suffix_chunk_list = []
     # find the end of the org
@@ -1104,13 +1071,17 @@ def mark_an_org_not_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
             # 'the Pass Through Trust'
             if tag == 'DT' and \
                word in set(['a', 'an', 'the']):
-                chunk.set_label('xNN')
+                # to make mypy happy for type checking
+                tmp_chunk = chunk  # type: Tree
+                tmp_chunk.set_label('xNN')
                 continue
 
             # "Delaware corporation"
             if len(postag_list) < 3 and \
                 postag_list[-1][0] == 'corporation':
-                chunk.set_label('xNN')
+                # to make mypy happy for type checking
+                tmp_chunk = chunk
+                tmp_chunk.set_label('xNN')
                 continue
 
             # company number
@@ -1120,12 +1091,13 @@ def mark_an_org_not_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
                 if word[0].isupper():
                     is_all_lower = False
             if is_all_lower:
-                chunk.set_label('xNN')
+                # to make mypy happy for type checking
+                tmp_chunk = chunk
+                tmp_chunk.set_label('xNN')
 
 
 def get_better_nouns(sent_line: str):
-    # chunk_list = chunkize(sent_line)
-    chunk_list = chunkize2(sent_line)
+    chunk_list = chunkize(sent_line)
 
     # for i, chunk in enumerate(chunk_list):
     #     print('raw chunk #{}\t{}'.format(i, chunk))
@@ -1168,8 +1140,7 @@ def get_better_nouns(sent_line: str):
             elif is_chunk_label(chunk, 'xPV_ORG'):
                 chunk_idx = update_with_prefix_org(result,
                                                    chunk_list,
-                                                   chunk_idx,
-                                                   chunk_taken_idx)
+                                                   chunk_idx)
                 chunk_taken_idx = chunk_idx
             else:
                 result.append(chunk)
@@ -1184,30 +1155,11 @@ def get_better_nouns(sent_line: str):
 
     return result
 
-
+# not used by anyone
 def extract_proper_names(sent_line: str):
     chunk_list = get_better_nouns(sent_line)
 
     se_tok_list = span_tokenize(sent_line)
-
-    """
-    tok_idx = 0
-    result = []
-    for chunk in chunk_list:
-        postag_list = chunk_to_postag_list(chunk)
-        result.extend(postag_list)
-
-    print("len(se_tok_list) = {}".format(len(se_tok_list)))
-    print("len(chunk_toks) = {}".format(len(result)))
-
-    for i in range(min(len(se_tok_list),
-                       len(result))):
-        start, end = se_tok_list[i]
-        chunk_tok = result[i]
-        print("se_tok_list[{}]: {} {} [{}], chunk_tok = {}".format(i, start, end,
-                                                                   sent_line[start:end],
-                                                                   chunk_tok))
-    """
     result = []
     tok_idx = 0
     for chunk in chunk_list:
@@ -1229,6 +1181,7 @@ def extract_proper_names(sent_line: str):
 
 class SpanChunk:
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  start: int,
                  end: int,
@@ -1236,7 +1189,7 @@ class SpanChunk:
                  nempty_tok_idx: int,
                  chunk: Union[Tree, Tuple[str, str]],
                  text: str,
-                 se_tok_list: List[Tuple[int, int]]):
+                 se_tok_list: List[Tuple[int, int]]) -> None:
         self.start = start
         self.end = end
         self.tok_idx = tok_idx
@@ -1248,10 +1201,16 @@ class SpanChunk:
     def label(self) -> str:
         if not is_chunk_tree(self.chunk):
             raise ValueError
-        return self.chunk.label()
+        # to make mypy happy for type checking
+        tmp_chunk = self.chunk  # type: Tree        
+        return tmp_chunk.label()
 
     def has_label(self, label: str) -> bool:
-        return is_chunk_tree(self.chunk) and self.chunk.label() == label
+        if is_chunk_tree(self.chunk):
+            # to make mypy happy for type checking
+            tmp_chunk = self.chunk  # type: Tree
+            return tmp_chunk.label() == label
+        return False
 
     def is_phrase(self) -> bool:
         return is_chunk_tree(self.chunk)
@@ -1330,7 +1289,7 @@ class PhrasedSent:
         self.parse_nouns()  # populate the above lists
 
     def parse_nouns(self) -> None:
-        for i, span_chunk in enumerate(self.span_chunk_list):
+        for span_chunk in self.span_chunk_list:
             if span_chunk.is_phrase():
                 # print("achunk #{}\t{}\t{}".format(i, chunk.label(), chunk))
                 if span_chunk.label() == 'NP':
@@ -1368,8 +1327,8 @@ class PhrasedSent:
                       Optional[Tuple[int, int]]]]:
         orgs_term_list = self.extract_orgs_term_list()
 
-        result = []  # type: List[Tuple[List[Tuple[int, int]], Optional[Tuple[int, int]]]]:
-        for i, orgs_term in enumerate(orgs_term_list):
+        result = []  # type: List[Tuple[List[Tuple[int, int]], Optional[Tuple[int, int]]]]
+        for orgs_term in orgs_term_list:
             orgs, term = orgs_term
 
             term_offset = None
@@ -1430,7 +1389,7 @@ class PhrasedSent:
             org_term_spchunk_list_list.append(self.span_chunk_list[tok_start:tok_end])
             tok_start = tok_end
 
-        result = []  # type: List[Tuple[List[SpanChunk], Optional[SpanChunk]]]
+        result = []  # type: List[Tuple[List[SpanChunk], List[SpanChunk]]]
         for i, org_term_spchunk_list in enumerate(org_term_spchunk_list_list):
             if IS_DEBUG_ORGS_TERM:
                 print("\norg_term_spchunk_list #{}".format(i))
@@ -1461,7 +1420,6 @@ class PhrasedSent:
         if not orgs_term:
             return None
 
-        result = []  # type: List[Tuple[List[Tuple[int, int]], Optional[Tuple[int, int]]]]:
         orgs, term = orgs_term
         orgs_offset = []  # type: List[Tuple[int, int]]
         for org in orgs:
@@ -1512,7 +1470,7 @@ def find_as_in_paren(span_chunk_list: List[SpanChunk]) \
     as_idx_list = []  # type: List[int]
     postag_list = span_chunk_list[0].to_postag_list()
     for i, postag in enumerate(postag_list):
-        word, tag = postag
+        word, unused_tag = postag
         if word.lower() == 'as':
             as_idx_list.append(i+1)  # take the token after 'as'
 
@@ -1596,36 +1554,6 @@ def chop_spanchunk_paren(span_chunk: SpanChunk) -> SpanChunk:
                                    se_tok_list_out)
     return shorten_span_chunk
 
-
-"""
-    filtered_out_list = []  # type: List[Tuple[Optional[Tuple[int, int]], Optional[Tuple[int, int]]]]
-    # filter bad party or terms right before returning the result
-    for party_y, term_y in out_list:
-        if party_y:
-            start, end = party_y
-            party_y_text = para_text[start:end]
-            if re.match(r'^(the|each)$', party_y_text, re.I):
-                # party_y = None
-                # term_y = None
-                # skip the append part
-                continue
-            if re.search(r'(date|dollars?|millions?|liability)\s*$', party_y_text, re.I):
-                continue
-            if re.match(r'(for|now)\s+', party_y_text, re.I):
-                continue
-            tmp_mat = re.match(r'for\s+value\s+received,?\s+', party_y_text, re.I)
-            if tmp_mat:
-                start = start + tmp_mat.end()
-                # part_y_text = para_text[start:]
-                party_y = start, end
-            # there is no bad parties for now
-        if term_y:
-            start, end = term_y
-            term_y_text = para_text[start:end]
-            if re.search(r'\b(as\s+defined\s+below|amount)\b', term_y_text, re.I):
-                term_y = None
-        filtered_out_list.append((party_y, term_y))
-"""
 
 def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
@@ -1725,6 +1653,7 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
         span_chunk = span_chunk_list[0]
         next1_span_chunk = next_span_chunk(span_chunk_list, 0)
         next2_span_chunk = next_span_chunk(span_chunk_list, 1)
+        # pylint: disable=too-many-boolean-expressions
         if span_chunk.is_phrase() and \
            span_chunk.has_label('xNNP') and \
             next1_span_chunk and next1_span_chunk.is_lc_word('and') and\
@@ -1764,17 +1693,17 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             else:
                 term = [chop_spanchunk_paren(last_paren)]
             # in future, might check if term/paren doesn't overlap with org
-            """
-            if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:  # parent is really at the end of phrase
-                term = last_paren
-            else:
-                term = paren_list[0]
-            """
+            # pylint: disable=line-too-long
+            # if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:  # parent is really at the end of phrase
+            #     term = last_paren
+            # else:
+            #     term = paren_list[0]
+
         # if there is 'as' in this list
-        as_list = find_as_in_paren(term)
-        if as_list:
+        as_in_paren = find_as_in_paren(term)
+        if as_in_paren:
             # remove the last paren
-            term = as_list
+            term = as_in_paren
 
     elif as_list:
         if len(as_list) == 1:
@@ -1816,7 +1745,8 @@ def find_and_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
     result = []  # type: List[int]
     # This is for 'and' followed by xNNP, so might or might not be and-org
     maybe_result = []  # type: List[int]
-    for idx in range(len(span_chunk_list)):
+    idx = 0
+    while idx < len(span_chunk_list):
         spchunk = span_chunk_list[idx]
         next_spchunk = next_span_chunk(span_chunk_list, idx)
         if spchunk.is_word_and() and \
@@ -1849,7 +1779,8 @@ def find_payto_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
     result = []  # type: List[int]
     # This is for 'and' followed by xNNP, so might or might not be and-org
     maybe_result = []  # type: List[int]
-    for idx in range(len(span_chunk_list)):
+    idx = 0
+    while idx < len(span_chunk_list):
         spchunk = span_chunk_list[idx]
         next_spchunk = next_span_chunk(span_chunk_list, idx)
         # next2_spchunk = next_span_chunk(span_chunk_list, idx+1)
@@ -1877,6 +1808,7 @@ def find_payto_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
                 result.append(next_spchunk.tok_idx)
                 idx += 1
                 # don't want to be too agreesive on all "to"
+                # pylint: disable=pointless-string-statement
                 """
             elif next_spchunk.has_label('xNNP'):
                 # 'and Arrayit Diagnostics', doc111.txt
@@ -1897,10 +1829,12 @@ def find_paren_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
     """Find the list of tok_idx of '), org'.
     """
     result = []  # type: List[int]
-    for idx in range(len(span_chunk_list)):
+    idx = 0
+    while idx < len(span_chunk_list):
         spchunk = span_chunk_list[idx]
         next_spchunk = next_span_chunk(span_chunk_list, idx)
         next2_spchunk = next_span_chunk(span_chunk_list, idx + 1)
+        # pylint: disable=too-many-boolean-expressions
         if spchunk.is_paren() and \
             next_spchunk and next_spchunk.is_comma() and \
            next2_spchunk and \
@@ -1914,11 +1848,11 @@ def find_paren_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
         idx += 1
     return result
 
+
 def find_between_tok_index(span_chunk_list: List[SpanChunk]) -> int:
     """Find the list of tok_idx of 'between' or 'among'.
     """
-    for idx in range(len(span_chunk_list)):
-        spchunk = span_chunk_list[idx]
+    for idx, spchunk in enumerate(span_chunk_list):
         if not spchunk.is_phrase() and \
            spchunk.is_word_between():
             next_spchunk = next_span_chunk(span_chunk_list, idx)
@@ -2006,52 +1940,3 @@ def find_span_chunks(sent_line: str):
         #                                        chunk.label() if isinstance(chunk, Tree) else chunk))
         tok_idx += len(postag_list)
     return span_chunk_list
-
-
-def find_nouns(sent_line: str) -> List[Tuple[int, int, Tree]]:
-    span_chunk_list = find_span_chunks(sent_line)
-
-    good_cand_list = []
-    maybe_cand_list = []
-    bad_cand_list = []
-    unknown_cand_list = []
-    not_tree_list = []
-    for i, span_chunk in enumerate(span_chunk_list):
-        cstart, cend, chunk = span_chunk
-        if is_chunk_tree(chunk):
-            print("achunk #{}\t{}\t{}".format(i, chunk.label(), chunk))
-            if chunk.label() == 'NP':
-                bad_cand_list.append(span_chunk)
-            elif chunk.label() in set(['xORGP',
-                                       'xAPPOSITION_ORG_PERSON',
-                                       'xPAREN',
-                                       'xADDRESS']):
-                good_cand_list.append(span_chunk)
-            elif chunk.label() in set(['xNNP']):
-                maybe_cand_list.append(span_chunk)
-            # elif chunk.label() in set('NP'):
-            #     bad_cand_list.append(span_chunk)
-            else:
-                unknown_cand_list.append(span_chunk)
-        else:
-            not_tree_list.append(span_chunk)
-
-    for alist in [('good cand', good_cand_list),
-                  ('maybe cand', maybe_cand_list),
-                  ('unknown cand', unknown_cand_list),
-                  ('bad cand', bad_cand_list),
-                  ('not_tree cand', not_tree_list)]:
-        cat, alist = alist
-        print("{}:".format(cat))
-        for i, span_chunk in enumerate(alist):
-            cstart, cend, chunk = span_chunk
-            if is_chunk_tree(chunk):
-                print("    #{}\t({}, {})\t{}\t{}".format(i, cstart, cend,
-                                                         chunk.label(), chunk))
-            else:
-                print("    #{}\t({}, {})\t{}\t{}".format(i, cstart, cend,
-                                                         'NOT_TREE', chunk))
-
-
-
-

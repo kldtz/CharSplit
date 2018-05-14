@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+# pylint: disable=too-many-lines
+
 import collections
 import json
 import logging
@@ -808,7 +811,7 @@ def get_post_n_words_with_quote(text: str,
     if is_lower:
         post_text = post_text.lower()
     words_and_spans = get_simple_words_with_quote(post_text,
-                                                     is_quote)[:num_words]
+                                                  is_quote)[:num_words]
     words = [x[-1] for x in words_and_spans]
     spans = [(x+end, y+end) for [x, y, z] in words_and_spans]
     return words, spans
@@ -838,9 +841,9 @@ def remove_ignorable_token(se_word_list: List[Tuple[int, int, str]]) \
     Will remove len(token) == 1
     """
     result = []
-    prev_start, prev_end, prev_token = -1, -1, ''
+    prev_token = ''
     for se_token in se_word_list:
-        start, end, token = se_token
+        unused_start, unused_end, token = se_token
         # skip 1 char words, and article 'a' or 'the'
         if len(token) == 1 or token == 'the' or token == 'an':
             pass
@@ -864,6 +867,8 @@ def get_regex_wwplus(line: str) -> List[str]:
 #    remove len(1) characters, and 'the', but kept the prepositions
 
 SIMPLE_WORD_TOKEN_PAT = re.compile(r'([“"”:;\(\)]|\n+|\b[\d,\.]+\b|(\w\.)+|\w+)')
+
+TREEBANK_WORD_TOKENIZER = TreebankWordTokenizer()
 
 # please note that because CountVectorizer does some word filtering,
 # we must transform 1 char punctuations to alphabetized words, otherwise
