@@ -277,7 +277,6 @@ def is_all_lower(line: str) -> bool:
             return False
     return True
 
-
 def is_all_upper_words(words: List[str]) -> bool:
     if not words:
         return False
@@ -285,6 +284,15 @@ def is_all_upper_words(words: List[str]) -> bool:
         if not word.isupper():
             return False
     return True
+
+def count_all_upper_words(line: str) -> int:
+    words = line.split()
+    count = 0
+    for word in words:
+        if word.isupper():
+            count += 1
+    return count
+
 
 def is_cap_not_first_char(line: str) -> bool:
     if len(line) < 2:

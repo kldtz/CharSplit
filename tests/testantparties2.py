@@ -225,9 +225,58 @@ class TestParties2(unittest.TestCase):
                            (317, 353, 'U.S. BANK TRUST NATIONAL ASSOCIATION'),
                            (358, 370, 'Paying Agent')])
 
+        prov_labels_map = annotate_doc('export-train/39829.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(1702, 1726, 'Patrick Industries, Inc.'),
+                            (1752, 1765, 'the “Company”'),
+                            (1768, 1813, 'Tontine Capital Overseas Master Fund II, L.P.'),
+                            (1853, 1862, '“Tontine”'),
+                            (1869, 1902, 'Northcreek Mezzanine Fund I, L.P.'),
+                            (2097, 2115, '“Collateral Agent”')])
+
+        # TODO, this is hard
+        # Backround\nA. B. C.
+        """
+        prov_labels_map = annotate_doc('export-train/35304.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [])
+        """
+
+        # TODO, hard
+        # "Company" and "Consultant", then "part1", "party2"
+        # prov_labels_map = annotate_doc('export-train/35373.txt')
+
+        # TODO, hard
+        # prov_labels_map = annotate_doc('export-train/44126.txt')
+        # lease between 'landlord and tenant',   landlord: party1 ..adress..,
+        # tenant: party2, guarantor:, address
+        
+        # TODO, Hard
+        # '.  And'  Parties in 2 sentences.
+        # 'Forboss  Solar  (ShenZhen)   Co.  Ltd.  And  Shenzhen   Fuwaysun  Technology Company  Limited),'
+        # prov_labels_map = annotate_doc('export-train/40266.txt')
+
+        # TODO, later
+        # HTML format issues, between\n(1)\nparty1\n(2)\nparty2
+        # prov_labels_map = annotate_doc('export-train/38461.txt')
+
+        prov_labels_map = annotate_doc('export-train/38461.txt')
+        party_list = get_party_list(prov_labels_map)
+        self.assertEquals(party_list,
+                          [(222, 247, 'IMAGE ENTERTAINMENT, INC.'),
+                           (273, 280, '“Image”'),
+                           (283, 319, 'IMAGE/MADACY HOME ENTERTAINMENT, LLC'),
+                           (370, 433, 'Image and IMHE, each a “Borrower”, and collectively “Borrowers”'),
+                           (469, 499, 'PNC BANK, NATIONAL ASSOCIATION'),
+                           (621, 655, 'PNC, in such capacity, the “Agent”')])
+
+        # TODO, we don't handle 'Warrant' well at all
+        # prov_labels_map = annotate_doc('export-train/37310.txt')
 
 
-
+        
 
 if __name__ == "__main__":
     unittest.main()

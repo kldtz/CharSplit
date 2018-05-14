@@ -651,8 +651,6 @@ class TestParties(unittest.TestCase):
         self.assertEquals(party_list,
                           [(104, 120, 'US AIRWAYS, INC.'),
                            (124, 148, 'WILMINGTON TRUST COMPANY'),
-                           (153, 221,
-                            'Pass Through Trustee under each of the Pass Through Trust Agreements'),
                            (224, 248, 'WILMINGTON TRUST COMPANY'),
                            (253, 272, 'Subordination Agent'),
                            (275, 323, 'WELLS FARGO BANK NORTHWEST, NATIONAL ASSOCIATION'),

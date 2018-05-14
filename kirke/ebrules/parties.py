@@ -313,7 +313,7 @@ def extract_between_among(astr: str, is_party: bool = True) \
                           for word in xpart)]
     return parties
 
-BTWN_AMONG_PAT = re.compile(r' (between|among) ', re.I)
+BTWN_AMONG_PAT = re.compile(r'\s+(between|among),?\s+', re.I)
 A_COMPANY_PAT = re.compile(r',? ((an?\s+(company|individual|business))|whose) ', re.I)
 AND_PAT = re.compile(r' and,? ', re.I)
 PARENS_PAT = re.compile(r'\(([^\(]+)\)')
@@ -911,8 +911,9 @@ def extract_parties_term_list_from_itemized_line(line: str) -> List[Tuple[List[T
     if prev_span_start != len_line:
         span_list.append((prev_span_start, len_line, line[prev_span_start:len_line]))
 
-    for i, span in enumerate(span_list):
-       print("  spantext[{}] = [{}]".format(i, span))
+    if IS_DEBUG_MODE:
+        for i, span in enumerate(span_list):
+            print("  spantext[{}] = [{}]".format(i, span))
 
     result = []  # type: List[Tuple[List[Tuple[int, int]], Optional[Tuple[int, int]]]]
     # will try 39811.txt, 39014.txt
@@ -925,11 +926,13 @@ def extract_parties_term_list_from_itemized_line(line: str) -> List[Tuple[List[T
             parties_offset_out = []  # List[Tuple[int, int]]
             for pstart, pend in parties_offset:
                 parties_offset_out.append((start + pstart, start + pend))
-                print("234 party: [{}]".format(line[start + pstart: start + pend]))
+                if IS_DEBUG_MODE:
+                    print("234 party: [{}]".format(line[start + pstart: start + pend]))
             term_offset_out = None
             if term_offset:
                 term_offset_out = (start + term_offset[0], start + term_offset[1])
-                print("234 term: [{}]".format(line[term_offset_out[0]:term_offset_out[1]]))
+                if IS_DEBUG_MODE:
+                    print("234 term: [{}]".format(line[term_offset_out[0]:term_offset_out[1]]))
             if parties_offset_out or term_offset:
                 result.append((parties_offset_out, term_offset_out))
 
@@ -944,6 +947,7 @@ def extract_parties_term_list_from_party_line(line: str) \
     line is expected to be party_line.
     """
 
+    is_found_between = False
     start_offset = 0
     tmp_mat = re.match(r'for\s+value\s+received,?\s+(.*)$', line, re.I)
     if tmp_mat:
@@ -957,6 +961,7 @@ def extract_parties_term_list_from_party_line(line: str) \
             last_between = between_list[0]
             start_offset = last_between.end()
             line = line[start_offset:]
+            is_found_between = True
             # everything afterward is based on this line
             # need to set it back right before returning
     if IS_DEBUG_MODE:
@@ -979,6 +984,12 @@ def extract_parties_term_list_from_party_line(line: str) \
         entered_mat = re.search(r'( is\s+entered\s+into| agreed?\b)', line, re.I)
         if entered_mat:  # we don't try to find party across verb in party_line
             line = line[:entered_mat.start()]
+        else:
+            # didn't find 'entered into', maybe promissory note
+            amount_mat = re.search(r'(\s*the\s+principal\s+amount)\b', line, re.I)
+            if amount_mat:
+                line = line[:amount_mat.start()]
+
         phrased_sent = nlputils.PhrasedSent(line, is_chopped=True)
         # phrased_sent.print_parsed()
         parties_term_offset_list = phrased_sent.extract_orgs_term_offset_list()
@@ -1722,18 +1733,19 @@ def debug_parties_term_offsets(msg: str,
                                parties_term_offset: Tuple[List[Tuple[int, int]],
                                                            Optional[Tuple[int, int]]],
                                text: str) -> None:
-    print(msg)
-    if not parties_term_offset:
-        print("[]")
-        return
-    parties_se, term_se = parties_term_offset
-    for j, (party_start, party_end) in enumerate(parties_se):
-        print("  party #{}\t({}, {})\t[{}]".format(j, party_start, party_end,
-                                                   text[party_start:party_end]))
-    if term_se:
-        term_start, term_end = term_se
-        print("  term\t({}, {})\t[{}]".format(term_start, term_end,
-                                              text[term_start:term_end]))
+    if IS_DEBUG_MODE:
+        print(msg)
+        if not parties_term_offset:
+            print("[]")
+            return
+        parties_se, term_se = parties_term_offset
+        for j, (party_start, party_end) in enumerate(parties_se):
+            print("  party #{}\t({}, {})\t[{}]".format(j, party_start, party_end,
+                                                       text[party_start:party_end]))
+        if term_se:
+            term_start, term_end = term_se
+            print("  term\t({}, {})\t[{}]".format(term_start, term_end,
+                                                  text[term_start:term_end]))
 
 
 # pylint: disable=line-too-long

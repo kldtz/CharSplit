@@ -44,11 +44,23 @@ ORG_PREFIX_PAT = regexutils.phrases_to_igs_pattern(ORG_PREFIX_LIST, re.I)
 LOCATION_LIST = strutils.load_non_empty_str_list('dict/parties/location.list')
 LC_LOCATION_SET = set([loc.lower() for loc in LOCATION_LIST])
 
+US_STATE_ABBRV_INCOMPLETE = strutils.load_non_empty_str_list('dict/parties/us_state_abbr.incomplete.list')
+US_STATE_SET = set(US_STATE_ABBRV_INCOMPLETE)
+
+def is_us_state_abbrv(line: str) -> bool:
+    return line in US_STATE_SET
+
+
 def is_a_location(line: str) -> bool:
     if not line:
         return False
     if not line[0].isupper():  # must capitalize
         return False
+
+    words = line.split()
+    if is_us_state_abbrv(words[-1]):
+        # xxxx MA
+        return True
     return line.lower() in LC_LOCATION_SET
 
 
@@ -294,7 +306,7 @@ def word_punct_tokenize(line: str) -> List[str]:
 def fix_nltk_pos(wpos_list: List[Tuple[str, str]],
                  t2_map: Dict[str, Tuple[str, str]] = None) -> List[Tuple[str, str]]:
     result = []
-    for wpos in wpos_list:
+    for widx, wpos in enumerate(wpos_list):
         word, tag = wpos
         lc_word = word.lower()
         if lc_word == 'hereto':
@@ -315,6 +327,11 @@ def fix_nltk_pos(wpos_list: List[Tuple[str, str]],
         elif strutils.is_cap_not_first_char(word):
             # capitalize the first word for now
             result.append((word.capitalize(), 'NNP'))
+        elif word == 'I' and tag == 'PRP' and \
+             widx + 1 < len(wpos_list) and \
+             wpos_list[widx + 1][0] == ',':
+            # 'XXX Fund I, L.P.'
+            result.append((word, 'NNP'))
         # elif is_org_suffix(word):
         #    result.append((word, 'xNNP'))
         else:
@@ -733,6 +750,12 @@ def is_chunk_all_caps(chunk: Union[Tree, Tuple[str, str]]) -> bool:
         return False
     return strutils.is_all_upper_words(words)
 
+def chunk_has_words(chunk: Union[Tree, Tuple[str, str]], word_set: Set[str]) -> bool:
+    words = chunk_to_words(chunk)
+    for word in words:
+        if word.lower() in word_set:
+            return True
+    return False
 
 
 # def chunks_to_postag_list(chunk_list: List[Union[Tree, Tuple[str, str]]]) -> List[Tuple[str, str]]:
@@ -857,6 +880,13 @@ def update_with_org_person(chunks_result,
             # 'WELLS FARGO BANK NORTHWEST, NATIONAL ASSOCIATION,', 'National Association' is an org_suffix
             # adding extra words to an org based on capitalization is == has_comma
             # num_comma += 1
+        elif num_comma == 0 and \
+             is_chunk_label(chunk, 'NNP') and \
+             chunk_has_words(chunk, set(['fund'])):
+            # (xORGP Tontine/NNP Capital/NNP)
+            # (NNP Overseas/NNP Master/NNP Fund/NNP II/NNP)
+            suffix_chunk_list.append(chunk)
+            i += 1
         elif is_chunk_label(chunk, 'xORGP') and \
              is_chunk_org_suffix_only(chunk):
             # elif chunk_has_org_person_suffix(chunk):
@@ -1603,10 +1633,10 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     for span_chunk in span_chunk_list:
         if re.search(r'\b(agreement|note)s?\b', span_chunk.text, re.I):
             pass
-        elif re.search(r'\b(date|amend(ed)?)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(date|day|amend(ed)?)\b', span_chunk.text, re.I):
             # (as effective date)
             pass
-        elif re.search(r'\b(number|loan|rate|amount|principal)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(number|loan|rate|amount|principal|warrant)\b', span_chunk.text, re.I):
             # (registered number SC183333)
             pass
         elif re.search(r'(\$\d|\d%)', span_chunk.text, re.I):
@@ -1620,11 +1650,14 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
             pass
         elif re.search(r'\b(section|article|act|defined|below)\b', span_chunk.text, re.I):
             words = span_chunk.get_words()
-            print("words2555: [{}]".format(' '.join(words)))
+            # print("words2555: [{}]".format(' '.join(words)))
             if strutils.has_quote(' '.join(words)):
                 result.append(span_chunk)
             else:
                 pass
+        elif re.match(r'(this)\b', span_chunk.text, re.I):
+            # cannot be 'this xxx"
+            pass
         else:
             result.append(span_chunk)
     return result
@@ -1635,6 +1668,14 @@ def remove_invalid_defined_terms_as(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
     for span_chunk in span_chunk_list:
         if re.search(r'\b(date|amend(ed)?|follows?)\b', span_chunk.text, re.I):
+            return []
+        elif re.search(r'\b(part)\b', span_chunk.text, re.I):
+            return []
+        elif re.match(r'(this)\b', span_chunk.text, re.I):
+            # cannot be 'this xxx"
+            return []
+        elif re.match(r'(of)\b', span_chunk.text, re.I):
+            # don't like 'as of xxx date'
             return []
     return span_chunk_list
 
@@ -1657,6 +1698,8 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
             pass
         elif len(span_chunk.text) < 3:  # never happened before
             # too short
+            pass
+        elif re.match(r'(this)\b', span_chunk.text, re.I):
             pass
         else:
             result.append(span_chunk)
@@ -1699,14 +1742,16 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
     as_list = find_as_span_chunks(span_chunk_list)
 
     term = []  # type: List[SpanChunk]
-    for pprn in paren_list:
-        print("potential paren: {}".format(pprn))
+    if IS_DEBUG_ORGS_TERM:
+        for pprn in paren_list:
+            print("potential paren: {}".format(pprn))
     # Apply more specific rules to parens than just
     # generally to all terms, such as "as ..."
     # maybe in the future, only have 1
     paren_list = remove_invalid_defined_terms_parens(paren_list)
-    for pprn in paren_list:
-        print("filtered paren: {}".format(pprn))
+    if IS_DEBUG_ORGS_TERM:
+        for pprn in paren_list:
+            print("filtered paren: {}".format(pprn))
     if paren_list:
         if len(paren_list) == 1:
             term = [chop_spanchunk_paren(paren_list[0])]

@@ -303,8 +303,17 @@ def is_party_line_aux(line: str) -> str:
     # if re.search(r'\bif\b', line, re.I) and re.search(r'\bwithout\b', line, re.I):
     #    return False
 
+    num_all_upper_words = strutils.count_all_upper_words(line)
+    if num_all_upper_words >= 40 and \
+       num_all_upper_words / len(line.split()) > 0.8:
+        return 'False1.102'
+
     if re.match(r'this\s+agreement\s+is\s+dated\b', line, re.I):
         return 'True0.1'
+
+    if re.match(r'for\s+(the\s+)?value\s+received\b', line, re.I) and \
+       re.search(r'\b(promise\w*\s+to\s+pay)\b', line, re.I):
+        return 'True0.12'
 
     if len(line) > 5000:  # sometime the whole doc is a line
         return 'False1'
