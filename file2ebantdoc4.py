@@ -48,11 +48,20 @@ def print_obj_fields_size(obj, obj_size: int, prefix_st: str) -> None:
     for attr, val_sz in sorted(attr_size_list, key=operator.itemgetter(1), reverse=True):
         val_sz_acc += val_sz
         print(prefix_st, end='')
+        """
         print("{}\tsize\t{}\t{:.5f}%\tacc\t{}\t{:.3f}%".format(attr,
                                                                val_sz,
                                                                val_sz * 100.0 / obj_size,
                                                                val_sz_acc,
                                                                val_sz_acc * 100.0 / obj_size))
+        """
+        print("| {} | size | {} | {:.5f}% | acc | {} | {:.3f}% |".format(attr,
+                                                               val_sz,
+                                                               val_sz * 100.0 / obj_size,
+                                                               val_sz_acc,
+                                                               val_sz_acc * 100.0 / obj_size))
+
+
 
 
 # pylint: disable=too-many-locals
@@ -72,7 +81,7 @@ def main():
     # ebantdoc4.print_attrvec_list(eb_antdoc)
     # ebantdoc4.print_para_list(eb_antdoc)
 
-    # print(vars(eb_antdoc))
+    print(vars(eb_antdoc))
 
     if IS_DEBUG_MODE:
         paras_with_attrs = eb_antdoc.paras_with_attrs
@@ -101,7 +110,15 @@ def main():
             for attr, val_sz in sorted(attr_size_list, key=operator.itemgetter(1), reverse=True):
                 val_sz_acc += val_sz
                 print(prefix_st, end='')
+                """
                 print("{}\tsize\t{}\t{:.5f}%\tacc\t{}\t{:.3f}%" \
+                      .format(attr,
+                              val_sz,
+                              val_sz * 100.0 / obj_size,
+                              val_sz_acc,
+                              val_sz_acc * 100.0 / obj_size))
+                """
+                print("| {} | size | {} | {:.5f}% | acc | {} | {:.3f}% |" \
                       .format(attr,
                               val_sz,
                               val_sz * 100.0 / obj_size,

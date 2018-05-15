@@ -10,7 +10,6 @@ from sklearn.model_selection import train_test_split
 
 from kirke.utils import splittrte, osutils
 
-x
 def load_provisions_istest_in_ebdata(filename):
     result = []
     is_test_set = False

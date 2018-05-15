@@ -112,6 +112,9 @@ def annotate_uploaded_document():
         if fn.endswith('.offsets.json'):
             # pdf_offsets_file_name = fn
             pass
+        elif fn.endswith('.pdf.xml'):
+            # pdf_offsets_file_name = fn
+            pass
         elif fn.endswith('.txt'):
             txt_file_name = fn
 
@@ -309,6 +312,7 @@ def custom_train(cust_id: str):
     # dict of lang, with list of file in that lang
     full_txt_fnames = defaultdict(list)  # type: DefaultDict[str, List[str]]
     txt_offsets_fn_map = {}
+    txt_xml_fn_map = {}
     for name in [fstorage.filename for fstorage in fn_list]:
         file_id = name.split('.')[0]
         full_path = '{}/{}'.format(tmp_dir, name)
@@ -328,6 +332,10 @@ def custom_train(cust_id: str):
             # create txt -> offsets.json map in order to do sent4nlp processing
             tmp_txt_fn = name.replace(".offsets.json", ".txt")
             txt_offsets_fn_map[tmp_txt_fn] = name
+        elif name.endswith('.pdf.xml'):
+            # create txt -> offsets.json map in order to do sent4nlp processing
+            tmp_txt_fn = name.replace(".pdf.txt", ".txt")
+            txt_xml_fn_map[tmp_txt_fn] = name
         else:
             logger.warning('unknown file extension in custom_train(%s)', fn)
 

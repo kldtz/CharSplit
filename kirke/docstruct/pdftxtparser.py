@@ -399,6 +399,31 @@ def get_gap_frto_list(prev_linex: LineWithAttrs,
     return result
 
 
+def save_str_list(pdf_text_doc: PDFTextDoc,
+                  file_name: str,
+                  work_dir: str) -> None:
+    base_fname = os.path.basename(file_name)
+    out_fname = '{}/{}'.format(work_dir, base_fname)
+
+    doc_text = pdf_text_doc.doc_text
+    with open(out_fname, 'wt') as fout:
+        for page_num, pageinfo in enumerate(pdf_text_doc.page_list, 1):
+            for pblock_num, pblockinfo in enumerate(pageinfo.pblockinfo_list):
+                block_line_num = 0
+                for lineinfo in pblockinfo.lineinfo_list:
+                    block_line_num += 1
+                    for str_num, strinfo in enumerate(lineinfo.strinfo_list):
+                        start = strinfo.start
+                        end = strinfo.end
+                        text = doc_text[start:end]
+                        print("{}\t{}\t{}\t{}\t{}\t[{}]".format(page_num,
+                                                                pblock_num,
+                                                                block_line_num,
+                                                                str_num,
+                                                                str(strinfo),
+                                                                text),
+                              file=fout)
+
 
 # linepos.LnPos = start, end, line_num, is_gap
 # attr_list = List[Any]    # this is very unsatisfying
