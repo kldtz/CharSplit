@@ -16,7 +16,7 @@ import psutil
 from sklearn.externals import joblib
 
 from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
-from kirke.eblearn import (ebannotator, ebtrainer, lineannotator, provclassifier,
+from kirke.eblearn import (ebannotator, ebpostproc, ebtrainer, lineannotator, provclassifier,
                            scutclassifier, spanannotator)
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import ebantdoc2, ebantdoc3, evalutils, lrucache, osutils, strutils
@@ -590,10 +590,10 @@ class EbRunner:
 
     # this function is here because it is a combination of both ML and rule-based annotator
     # pylint: disable=invalid-name
-    def eval_mlxline_annotator_with_trte(self,
-                                         provision: str,
-                                         test_doclist_fn: str,
-                                         work_dir: str = 'dir-work') -> Dict:
+    def eval_mlxline_annotator(self,
+                               provision: str,
+                               test_doclist_fn: str,
+                               work_dir: str = 'dir-work') -> Dict:
         # test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
         num_test_doc = 0
         tp, fn, fp, tn = 0, 0, 0, 0
@@ -605,20 +605,25 @@ class EbRunner:
             for test_fn in testin:
                 num_test_doc += 1
                 test_fn = test_fn.strip()
-                prov_labels_map, ebantdoc = self.annotate_document(test_fn,
-                                                                   provision_set=set([provision]),
-                                                                   work_dir=work_dir)
+                prov_labels_map, eb_antdoc = self.annotate_document(test_fn,
+                                                                    provision_set=set([provision]),
+                                                                    work_dir=work_dir)
                 ant_list = prov_labels_map.get(provision, [])
 
                 print("\ntest_fn = {}".format(test_fn))
                 print("ant_list: {}".format(ant_list))
 
-                print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
+                print('ebantdoc.fileid = {}'.format(eb_antdoc.file_id))
                 # print("ant_list: {}".format(ant_list))
-                prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
+                prov_human_ant_list = [hant for hant in eb_antdoc.prov_annotation_list
                                        if hant.label == provision]
 
-                # print("\nfn: {}".format(ebantdoc.file_id))
+                ant_list = self.recover_false_negatives(prov_human_ant_list,
+                                                        eb_antdoc.text,
+                                                        provision,
+                                                        ant_list)
+
+                # print("\nfn: {}".format(eb_antdoc.file_id))
                 # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
                 # pred_prob_start_end_list, txt)
                 # currently, PROVISION_EVAL_ANYMATCH_SET only has 'title', not 'party' or 'date'
@@ -626,15 +631,15 @@ class EbRunner:
                     xtp, xfn, xfp, xtn, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
-                                                                         ebantdoc.file_id,
-                                                                         ebantdoc.get_text(),
+                                                                         eb_antdoc.file_id,
+                                                                         eb_antdoc.get_text(),
                                                                          diagnose_mode=True)
                 else:
                     xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                 ant_list,
-                                                                ebantdoc.file_id,
-                                                                ebantdoc.get_text(),
+                                                                eb_antdoc.file_id,
+                                                                eb_antdoc.get_text(),
                                                                 threshold,
                                                                 is_raw_mode=False,
                                                                 diagnose_mode=True)
@@ -727,6 +732,20 @@ class EbRunner:
 
         return tmp_eval_status
 
+    # pylint: disable=no-self-use
+    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
+        if not prov_human_ant_list:
+            return ant_result
+        for ant in prov_human_ant_list:
+            if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
+                clean_text = strutils.sub_nltab_with_space(doc_text[ant.start:ant.end])
+                fn_ant = ebpostproc.to_ant_result_dict(label=provision,
+                                                       prob=0.0,
+                                                       start=ant.start,
+                                                       end=ant.end,
+                                                       text=clean_text)
+                ant_result.append(fn_ant)
+        return ant_result
 
 
 # pylint: disable=too-few-public-methods

@@ -158,15 +158,15 @@ def eval_line_annotator_with_trte(provision: str,
                                             is_doc_structure=is_doc_structure)
 
 
-def eval_mlxline_annotator_with_trte(provision: str,
-                                     txt_fn_list_fn: str,
-                                     work_dir: str,
-                                     model_dir: str):
+def eval_mlxline_annotator(provision: str,
+                           txt_fn_list_fn: str,
+                           work_dir: str,
+                           model_dir: str):
     # custom_model_dir is not used
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir='dir-scut-model')
-    eb_runner.eval_mlxline_annotator_with_trte(provision,
-                                               txt_fn_list_fn,
-                                               work_dir=work_dir)
+    eb_runner.eval_mlxline_annotator(provision,
+                                     txt_fn_list_fn,
+                                     work_dir=work_dir)
 
 
 # pylint: disable=too-many-arguments
@@ -419,10 +419,10 @@ def main():
         if not args.docs:
             print('please specify --docs', file=sys.stderr)
             sys.exit(1)
-        eval_mlxline_annotator_with_trte(args.provision,
-                                         txt_fn_list_fn,
-                                         work_dir=work_dir,
-                                         model_dir=model_dir)
+        eval_mlxline_annotator(args.provision,
+                               txt_fn_list_fn,
+                               work_dir=work_dir,
+                               model_dir=model_dir)
     elif cmd == 'split_provision_trte':
         if not args.provfiles_dir:
             print('please specify --provfiles_dir', file=sys.stderr)
