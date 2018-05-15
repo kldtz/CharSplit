@@ -592,7 +592,11 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
     """Extract party line.
 
     'party_line' detection is already performed and stored in paras_attr_list.
-    Such detection is happening in htmltxtparser or pdftxtparser
+    Such detection is happening in htmltxtparser or pdftxtparser.  It's using
+    kirke/docstruct/partyutils.py
+
+    We also added 'party-list-indicator-line' here by detecting lines that might
+    indicator there is a list of parties afterwards.
 
     Returns: start-end-of-party-line: Tuple[start, end, party-line]
              is-party-list: bool

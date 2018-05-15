@@ -530,7 +530,7 @@ def split_chunk_with_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
     return result
 
 
-def chunkize(sent_line: str) -> List[Union[Tree, Tuple[str, str]]]:
+def chunkize_by_regex_grammar(sent_line: str) -> List[Union[Tree, Tuple[str, str]]]:
     se_term_list = find_known_terms(sent_line)
     sent_line_t2, t2_map = sub_known_terms(sent_line,
                                            se_term_list)
@@ -592,7 +592,7 @@ def rechunk_known_terms(chunk_list: List[Union[Tree, Tuple[int, int]]]) \
 
 
 def get_nouns(sent_line: str):
-    chunk_list = chunkize(sent_line)
+    chunk_list = chunkize_by_regex_grammar(sent_line)
     result = []  # List[Tree]
     for chunk in chunk_list:
         if isinstance(chunk, Tree):
@@ -605,7 +605,7 @@ def get_nouns(sent_line: str):
     return result
 
 def get_proper_nouns(sent_line: str):
-    chunk_list = chunkize(sent_line)
+    chunk_list = chunkize_by_regex_grammar(sent_line)
     result = []  # List[Tree]
     for chunk in chunk_list:
         if isinstance(chunk, Tree) and \
@@ -1096,8 +1096,8 @@ def mark_an_org_not_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
                 tmp_chunk.set_label('xNN')
 
 
-def get_better_nouns(sent_line: str):
-    chunk_list = chunkize(sent_line)
+def get_org_aware_chunks(sent_line: str):
+    chunk_list = chunkize_by_regex_grammar(sent_line)
 
     # for i, chunk in enumerate(chunk_list):
     #     print('raw chunk #{}\t{}'.format(i, chunk))
@@ -1157,7 +1157,7 @@ def get_better_nouns(sent_line: str):
 
 # not used by anyone
 def extract_proper_names(sent_line: str):
-    chunk_list = get_better_nouns(sent_line)
+    chunk_list = get_org_aware_chunks(sent_line)
 
     se_tok_list = span_tokenize(sent_line)
     result = []
@@ -1390,13 +1390,13 @@ class PhrasedSent:
             tok_start = tok_end
 
         result = []  # type: List[Tuple[List[SpanChunk], List[SpanChunk]]]
-        for i, org_term_spchunk_list in enumerate(org_term_spchunk_list_list):
+        for i, orgs_term_spchunk_list in enumerate(org_term_spchunk_list_list):
             if IS_DEBUG_ORGS_TERM:
                 print("\norg_term_spchunk_list #{}".format(i))
-                for j, spchunk in enumerate(org_term_spchunk_list):
+                for j, spchunk in enumerate(orgs_term_spchunk_list):
                     print("    chunk #{}\t{}".format(j, spchunk))
 
-            orgs_term = extract_orgs_term_in_span_chunk_list(org_term_spchunk_list)
+            orgs_term = extract_orgs_term_in_span_chunk_list(orgs_term_spchunk_list)
             if orgs_term:
                 result.append(orgs_term)
         return result
@@ -1871,7 +1871,7 @@ def tokenize_to_span_chunks(sent_line: str) -> List[SpanChunk]:
     # for OCR error ("ContectX"! -> ("ContectX")
     sent_line = re.sub(r'(\(“[^\)]+“)!', r'\1)', sent_line)
 
-    chunk_list = get_better_nouns(sent_line)
+    chunk_list = get_org_aware_chunks(sent_line)
     se_tok_list = span_tokenize(sent_line)
 
     # for i, chunk in enumerate(chunk_list):
@@ -1921,7 +1921,7 @@ def tokenize_to_span_chunks(sent_line: str) -> List[SpanChunk]:
 
 
 def find_span_chunks(sent_line: str):
-    chunk_list = get_better_nouns(sent_line)
+    chunk_list = get_org_aware_chunks(sent_line)
 
     se_tok_list = span_tokenize(sent_line)
 

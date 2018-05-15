@@ -626,10 +626,11 @@ def is_party_list_with_end_between(line: str) -> bool:
     words = line.lower().split()
     last_8_words = words[-8:]
     # print("last_8_words = {}".format(last_8_words))
-    if 'between' in last_8_words and \
+    if ('between' in last_8_words or
+        'among' in last_8_words) and \
        words[-1] == 'and':
         return True
-    elif words[-1] == 'between':
+    elif words[-1] in set(['between', 'among']):
         return True
     return False
 
