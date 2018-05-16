@@ -269,6 +269,17 @@ class EbRunner:
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
 
+                # if we loaded this for a particular custom field type ("cust_52")
+                # it must produce annotations with that label, not with whatever is "embedded"
+                # in the saved model file (since the file could have been imported from another server)
+                prov_name = cust_id_ver.split('.')[0]
+                logging.info('updating custom provision model to annotate with %s', prov_name)
+                # print(prov_classifier)
+                logging.info(prov_classifier)
+                prov_classifier.provision = prov_name
+                if hasattr(prov_classifier, 'transformer'):
+                    # only for scut_classifiers
+                    prov_classifier.transformer.provision = prov_name
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))
                 provision_classifier_map[cust_id_ver] = prov_classifier
@@ -295,7 +306,6 @@ class EbRunner:
                                                                    self.work_dir,
                                                                    threshold=prov_threshold)
                 self.custom_annotator_map.set(provision, xxx_annotator)
-
 
             total_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
             avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
