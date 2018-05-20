@@ -25,6 +25,7 @@ logger.setLevel(logging.INFO)
 MAX_FOOTER_YSTART = 10000
 
 DEBUG_MODE = False
+DEBUG_MODE = True
 
 def get_nl_fname(base_fname: str,
                  work_dir: str) -> str:

@@ -297,6 +297,13 @@ class LineInfo3:
     def tostr4(self):
         return 'bid= %d, obid= %d' % (self.bid, self.obid)
 
+    def tostr5(self):
+        multiplier = 300.0 / 72
+        x = int(self.xStart * multiplier)
+        y = int(self.yStart * multiplier)
+
+        return 'se=(%d, %d), xs=%d, ys=%d' % (self.start, self.end, x, y)
+
 
 class LineWithAttrs:
 
