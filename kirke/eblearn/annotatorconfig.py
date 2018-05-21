@@ -126,6 +126,28 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.25,
                         'kfold': 3}),
 
+    ('ID-NUM', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                        'is_use_corenlp': False,
+                        'doc_to_candidates': regexgen.RegexContextGenerator(3,
+                                                                            3,
+                                                                            re.compile(r'(([A-z]*[\d\-#@]+[A-z]*){4,})'), 
+                                                                            'ID-NUM'),
+                        'version': "1.0",
+                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                        'pipeline': Pipeline([('union', FeatureUnion(
+                            # pylint: disable=line-too-long
+                            transformer_list=[('surround_transformer', transformerutils.CharacterTransformer())])),
+                                              ('clf', SGDClassifier(loss='log',
+                                                                    penalty='l2',
+                                                                    n_iter=50,
+                                                                    shuffle=True,
+                                                                    random_state=42,
+                                                                    class_weight={True: 3,
+                                                                                  False: 1}))]),
+                        'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                        'threshold': 0,
+                        'kfold': 3}),
+
      ('PARAGRAPH', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                            'is_use_corenlp': True,
                            'text_type': 'nlp_text',

@@ -79,7 +79,6 @@ class RegexContextGenerator:
                     new_start = prev_spans[0][0]
                 if post_spans:
                     new_end = post_spans[-1][-1]
-
                 a_candidate = {'candidate_type': self.candidate_type,
                             'bow_start': new_start,
                             'bow_end': new_end,
@@ -87,7 +86,8 @@ class RegexContextGenerator:
                             'start': match_start,
                             'end': match_end,
                             'prev_n_words': ' '.join(prev_n_words),
-                            'post_n_words': ' '.join(post_n_words)}
+                            'post_n_words': ' '.join(post_n_words),
+                            'chars': match_str}
                 candidates.append(a_candidate)
                 group_id_list.append(group_id)
                 if is_label:

@@ -92,7 +92,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  candidate_type: str,
                  version: str,
                  nbest: int,
-                 text_type: str,
                  *,
                  doclist_to_antdoc_list,
                  is_use_corenlp: bool,
@@ -103,7 +102,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  gridsearch_parameters,
                  # prefer recall over precision
                  threshold: float = 0.2,
-                 kfold: int = 3) -> None:
+                 kfold: int = 3,
+                 text_type: str = '') -> None:
         super().__init__(provision, 'no description')
         self.provision = provision
         self.candidate_type = candidate_type
