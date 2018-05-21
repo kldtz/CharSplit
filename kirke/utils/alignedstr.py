@@ -9,20 +9,26 @@ def is_space_uline(line: str) -> bool:
 class AlignedStrMapper:
 
     def __init__(self, from_line: str, to_line: str, offset: int = 0) -> None:
-        from_se_list, to_se_list = self.compute_se_list(from_line, to_line, offset)
-        self.from_se_list = from_se_list
-        self.to_se_list = to_se_list
-        self.offset = offset
+        if offset == -1:
+            self.from_se_list = []
+            self.to_se_list = []
+        else:
+            from_se_list, to_se_list = self.compute_se_list(from_line, to_line, offset)
+            self.from_se_list = from_se_list
+            self.to_se_list = to_se_list
 
     # pylint: disable=invalid-name
     def get_to_offset(self, x: int) -> int:
         for i, from_se in enumerate(self.from_se_list):
             fstart, fend = from_se
-            if x < fend:
-                to_se = self.to_se_list[i]
-                tstart, unused_tend = to_se
-                diff = x - fstart
-                return tstart + diff
+            if x <= fend:
+                if x >= fstart:
+                    to_se = self.to_se_list[i]
+                    tstart, unused_tend = to_se
+                    diff = x - fstart
+                    return tstart + diff
+                else:
+                    return -1
         return -1
 
     # pylint: disable=no-self-use
@@ -78,19 +84,52 @@ class AlignedStrMapper:
             if tidx < tlen:
                 while ti2 < tlen and is_space_uline(to_line[ti2]):
                     ti2 += 1
+
             if fi2 == flen and ti2 == tlen:
                 if fidx != fstart:
                     from_se_list.append((fstart, fidx))
                     to_se_list.append((tstart, tidx))
             else:
-                if fidx < flen:
-                    raise Exception("Character diff at %d, char '%s'" %
-                                    (offset + fidx, from_line[fidx]))
+                if fi2 < flen:
+                    # print("flen = {}, fi2 = {}, fidx = {}, fstart= {}".format(flen, fi2, fidx, fstart))
+                    # print("tlen = {}, ti2 = {}, tidx = {}, tstart= {}".format(tlen, ti2, tidx, tstart))
+                    if flen - fidx <= 3 and \
+                       fidx > 10 and \
+                       ti2 == tlen and \
+                       fidx == fstart:
+                        # Probably in toc.  Don't have the number at the end
+                        # Don't add empty spans
+                        # from_se_list.append((fstart, fidx))
+                        # to_se_list.append((tstart, tidx))
+                        pass
+                    else:
+                        raise Exception("Character diff at %d, char '%s'" %
+                                        (offset + fidx, from_line[fidx]))
                 else:
-                    raise Exception("Character diff at %d, eoln" %
-                                    (offset + fidx, ))
+                    # fi2 >= flen
+                    # print("flen = {}, fi2 = {}, fidx = {}, fstart= {}".format(flen, fi2, fidx, fstart))
+                    # print("tlen = {}, ti2 = {}, tidx = {}, tstart= {}".format(tlen, ti2, tidx, tstart))
+                    if tlen - ti2 <= 3 and \
+                       fidx > 10:
+                        pass
+                    else:
+                        raise Exception("Character diff at %d, eoln" %
+                                        (offset + fidx, ))
 
         # print('flen = {}, tlen = {}'.format(flen, tlen))
         # print("from_se_list: {}".format(from_se_list))
         # print("to_se_list: {}".format(to_se_list))
         return self.add_offset(from_se_list, offset), self.add_offset(to_se_list, offset)
+
+
+def make_aligned_str_mapper(fromto_se_pair_list: List[Tuple[Tuple[int, int],
+                                                            Tuple[int, int]]]) \
+                                                            -> AlignedStrMapper:
+    amapper = AlignedStrMapper('', '', offset=-1)
+    for fromto_se_pair in fromto_se_pair_list:
+        from_se, to_se = fromto_se_pair
+        amapper.from_se_list.append(from_se)
+        amapper.to_se_list.append(to_se)
+    return amapper
+
+

@@ -2,7 +2,7 @@ from collections import namedtuple, Counter, defaultdict
 from functools import total_ordering
 import os
 import sys
-from typing import Any, DefaultDict, Dict, List, TextIO, Tuple, Union
+from typing import Any, DefaultDict, Dict, List, Optional, TextIO, Tuple, Union
 
 from kirke.docstruct import jenksutils, docstructutils
 from kirke.utils import engutils, strutils
@@ -27,10 +27,15 @@ class AbbyLine:
 
         # To map from any abby doc to pbox offset.
         # Will be set by synchronizer later
-        self.abby_pbox_offset_mapper = None
+        self.abby_pbox_offset_mapper = None  # type: Optional[AlignedStrMapper]
 
     def __str__(self):
         return '{} [{}]'.format(self.infer_attr_dict, self.text)
+
+    def to_debug_str(self):
+        return '{:80}{}    {}'.format('[' + self.text + ']',
+                                      self.infer_attr_dict,
+                                      self.attr_dict)
 
 
 class AbbyPar:
@@ -57,6 +62,25 @@ class AbbyTextBlock:
         self.infer_attr_dict = {}
 
 
+    def __str__(self) -> str:
+        st_list = []  # type: List[str]
+        st_list.append("block #{:3d} -------- {:95}{}    {}".format(self.num,
+                                                                    '',
+                                                                    self.infer_attr_dict,
+                                                                    self.attr_dict))
+        for ab_par in self.ab_pars:
+            st_list.append("\n  par #{:3d} {:104}{}    {}".format(ab_par.num,
+                                                                  '',
+                                                                  ab_par.infer_attr_dict,
+                                                                  ab_par.attr_dict))
+            for ab_line in ab_par.ab_lines:
+                st_list.append("    line #{} {:100} {}    {}".format(ab_line.num,
+                                                                     '[' + ab_line.text + ']',
+                                                                     ab_line.infer_attr_dict,
+                                                                     ab_line.attr_dict))
+        return '\n'.join(st_list)
+
+
 class AbbyTableBlock:
 
     def __init__(self,
@@ -77,8 +101,17 @@ class AbbyPage:
         self.ab_text_blocks = ab_text_blocks
         self.ab_table_blocks = ab_table_blocks
         self.attr_dict = attr_dict
-
         self.infer_attr_dict = {}
+
+
+class UnmatchedAbbyLine:
+
+    def __init__(self,
+                 ab_line: AbbyLine,
+                 ab_page: AbbyPage) -> None:
+        self.ab_line = ab_line
+        self.ab_page = ab_page
+
 
 def _is_par_centered(attr_dict: Dict) -> bool:
     for attr, val in attr_dict.items():
@@ -143,6 +176,8 @@ class AbbyXmlDoc:
                  ab_pages: List[AbbyPage]) -> None:
         self.file_id = file_name
         self.ab_pages = ab_pages
+        # to store ab_lines that are not found in pdfbox
+        self.unmatched_ab_lines = []  # type: List[UnmatchedAbbyLine]
 
     def print_raw(self):
         for pnum, abby_page in enumerate(self.ab_pages):
@@ -232,3 +267,10 @@ class AbbyXmlDoc:
                                                 indent_level=indent_level,
                                                 is_par_centered=is_par_centered,
                                                 file=file)
+
+        if self.unmatched_ab_lines:
+            print("\n\n========= Unmatched Abby Lines ========", file=file)
+
+            for unmatched_ab_line in self.unmatched_ab_lines:
+                print("  page #{:2}, {}".format(unmatched_ab_line.ab_page.num,
+                                                unmatched_ab_line.ab_line.to_debug_str()), file=file)

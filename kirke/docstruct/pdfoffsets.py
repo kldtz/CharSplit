@@ -2,7 +2,7 @@ from collections import namedtuple, Counter, defaultdict
 from functools import total_ordering
 import os
 import sys
-from typing import Any, DefaultDict, Dict, List, Tuple
+from typing import Any, DefaultDict, Dict, List, TextIO, Tuple
 
 from kirke.docstruct import jenksutils, docstructutils
 from kirke.utils import engutils, strutils
@@ -239,6 +239,28 @@ class PDFTextDoc:
                     prev_block_num = linex.block_num
 
         print('wrote {}'.format(paged_fname), file=sys.stderr)
+
+    def save_str_text(self, file: TextIO) -> None:
+        lineinfo_list = []
+        doc_text = self.doc_text
+        for page_num, page in enumerate(self.page_list):
+            print('pbox page #{} ========================='.format(page_num), file=file)
+            for pblockinfo in page.pblockinfo_list:
+                print('\n    pbox block ---------------------------', file=file)
+                lineinfo_list.extend(pblockinfo.lineinfo_list)
+                for lineinfo in pblockinfo.lineinfo_list:
+                    for strinfo in lineinfo.strinfo_list:
+                        start = strinfo.start
+                        end = strinfo.end
+                        multiplier = 300.0 / 72
+                        x = int(strinfo.xStart * multiplier)
+                        y = int(strinfo.yStart * multiplier)
+                        str_text = doc_text[start:end]
+                        # pylint: disable=line-too-ling
+                        print("        strinfo se={}, x,y={}    [{}]".format((start, end), (x, y), doc_text[start:end]), file=file)
+
+
+
 
 class LineInfo3:
 

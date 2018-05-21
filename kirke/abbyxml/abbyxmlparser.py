@@ -173,9 +173,15 @@ def parse_abby_par(ajson) -> List[AbbyPar]:
                     abby_line = parse_abby_line(val)
                     ab_line_list.append(abby_line)
 
-        abby_par = AbbyPar(ab_line_list, par_attr_dict)
-        abby_par.infer_attr_dict = add_infer_par_attrs(par_attr_dict)
-        ab_par_list.append(abby_par)
+        # it is possible that a par has no line
+        # {'@b': '3425',
+        #  '@blockType': 'Text',
+        #  'region': ...
+        #  'text': {'par': {'@lineSpacing': '-1'}}}
+        if ab_line_list:
+            abby_par = AbbyPar(ab_line_list, par_attr_dict)
+            abby_par.infer_attr_dict = add_infer_par_attrs(par_attr_dict)
+            ab_par_list.append(abby_par)
 
     return ab_par_list
 
@@ -183,6 +189,10 @@ def parse_abby_par(ajson) -> List[AbbyPar]:
 def parse_abby_page(ajson) -> AbbyPage:
     text_block_jsonlist = []
     table_block_list = []
+
+    # print("parse_abby_page")
+    # print(ajson)
+
     if isinstance(ajson, dict):
         page_attr_dict = {}
         for attr, val in sorted(ajson.items()):
@@ -207,28 +217,35 @@ def parse_abby_page(ajson) -> AbbyPage:
                 block_attr_dict[attr] = abbyutils.abby_attr_str_to_val(attr, val)
             # print("attr = [{}], val= [{}]".format(attr, val))
             if attr == '@blockType' and \
-               val not in set(['Text', 'Table']):
+               val not in set(['Text', 'Table', 'Barcode']):
                 continue
 
+            # we will take both 'Text' and 'Barcode', not sure about 'Table' yet
+            # for 'Barcode', all attribute b, t, etc will be 0
             if attr == 'text':
                 # print('\n    text_block ------ {}'.format(block_attr_dict))
 
                 # print('par: {}'.format(val))
                 par_list = parse_abby_par(val)
-                text_block = AbbyTextBlock(par_list, block_attr_dict)
-                text_block.infer_attr_dict = add_infer_header_footer(block_attr_dict)
+                if par_list:
+                    text_block = AbbyTextBlock(par_list, block_attr_dict)
+                    text_block.infer_attr_dict = add_infer_header_footer(block_attr_dict)
 
-                block_battr = block_attr_dict['@b']
-                block_tattr = block_attr_dict['@t']
-                block_ydiff = block_tattr - prev_block_battr
-                if prev_block_battr != -1:
-                    text_block.infer_attr_dict['ydiff'] = block_ydiff
-                prev_block_battr = block_battr
+                    block_battr = block_attr_dict['@b']
+                    block_tattr = block_attr_dict['@t']
+                    block_ydiff = block_tattr - prev_block_battr
+                    if prev_block_battr != -1:
+                        text_block.infer_attr_dict['ydiff'] = block_ydiff
+                    prev_block_battr = block_battr
 
-                add_ydiffs_in_block(text_block)
-                add_infer_text_block_attrs(text_block)
-                ab_text_block_list.append(text_block)
+                    # try:
+                    add_ydiffs_in_block(text_block)
+                    #except Exception as exc:
+                    #    print("text_block ============================")
+                    #    print(text_block)
 
+                    add_infer_text_block_attrs(text_block)
+                    ab_text_block_list.append(text_block)
 
     apage = AbbyPage(ab_text_block_list, ab_table_block_list, page_attr_dict)
     # apage.infer_attr_dict = infer_page_attrs(page_attr_dict)
@@ -247,8 +264,16 @@ def docjson_to_abby_page_list(ajson) -> List[AbbyPage]:
     else:
         pass
 
-    ab_page_list = [parse_abby_page(page_json)
-                    for page_json in page_json_list]
+    # This is the more concse version of lines below.
+    # But, later is easier to print debug info for now.
+    # ab_page_list = [parse_abby_page(page_json)
+    #                 for page_json in page_json_list]
+    ab_page_list = []
+    for pcount, page_json in enumerate(page_json_list):
+        # print("===== page seq: {} =====".format(pcount))
+        # if pcount == 17:
+        #     pprint.pprint(page_json)
+        ab_page_list.append(parse_abby_page(page_json))
 
     return ab_page_list
 
@@ -261,9 +286,19 @@ def parse_document(file_name: str,
     # pprint.pprint(ajson, width=140)
     ajson = abbyutils.abbyxml_to_json(file_name)
 
+    ajson_fname = file_name.replace('.pdf.xml', '.pdf.json')
+    with open(ajson_fname, 'wt') as fout:
+        pprint.pprint(ajson, stream=fout)
+        print('wrote {}'.format(ajson_fname))
+
     abby_page_list = docjson_to_abby_page_list(ajson)
 
     ab_xml_doc = AbbyXmlDoc(file_name, abby_page_list)
+
+    tmp_file = file_name.replace('.pdf.xml', '.tmp')
+    with open(tmp_file, 'wt') as fout:
+        ab_xml_doc.print_debug_text(fout)
+        print('wrote {}'.format(tmp_file))
 
     # adjust the blocks of document according to our interpretation
     # based what we have seen in contracts
@@ -285,7 +320,8 @@ def set_abby_page_numbers(ab_doc: AbbyXmlDoc) -> None:
     block_id = 0
     par_id = 0
     lid = 0
-    for pnum, abby_page in enumerate(ab_doc.ab_pages):
+    # Page number starts with 1, to be consistent with UI.
+    for pnum, abby_page in enumerate(ab_doc.ab_pages, 1):
         # print("\n\npage #{} ========== {}".format(pnum, abby_page.infer_attr_dict))
         abby_page.num = pnum
         for ab_text_block in abby_page.ab_text_blocks:
@@ -424,7 +460,7 @@ if __name__ == '__main__':
     abbydoc = parse_document(fname, work_dir)
 
     # abbydoc.print_raw_lines()
-    abbydoc.print_text()
+    abbydoc.print_text_with_meta()
 
     # abbydoc.print_text()
 
