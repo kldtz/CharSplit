@@ -216,8 +216,8 @@ def custom_train_export(cust_id: str):
                      as_attachment=True)
 
 
-@app.route('/custom-train-import', methods=['POST'])
-def custom_train_import():
+@app.route('/custom-train-import/<cust_id>', methods=['POST'])
+def custom_train_import(cust_id: str):
     # to ensure that no accidental file name overlap
     # logger.info("import a custom train model = {}".format(cust_id))
     logger.info("import a custom train model")
@@ -248,16 +248,14 @@ def custom_train_import():
     except:  # pylint: disable=bare-except
         result_json['error'] = 'Bad ZIP file'
         return jsonify(result_json)
-    provision = None
+    provision = cust_id
     pat = re.compile(r'(cust_\d+)\.\d+_(.*)')
     for filename in os.listdir(tmp_dir):
         mat = pat.match(filename)
         if mat:
-            if not provision:
-                provision = mat.group(1)
             ifname = '{}/{}'.format(tmp_dir, filename)
             ofname = '{}/{}.{}_{}'.format(CUSTOM_MODEL_DIR,
-                                          mat.group(1),
+                                          provision,
                                           next_model_num,
                                           mat.group(2))
             # print('cp {} {}'.format(ifname, ofname))
