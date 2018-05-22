@@ -160,14 +160,18 @@ def load_cached_ebantdoc3(eb_antdoc_fn: str):
     # if cache version exists, load that and return
     if os.path.exists(eb_antdoc_fn):
         start_time = time.time()
-        # print("before loading\t{}".format(eb_antdoc_fn))
-        eb_antdoc = joblib.load(eb_antdoc_fn)
-        # print("done loading\t{}".format(eb_antdoc_fn))
-        end_time = time.time()
-        logging.info("loading from cache: %s, took %.0f msec",
-                     eb_antdoc_fn, (end_time - start_time) * 1000)
+        try:
+            # print("before loading\t{}".format(eb_antdoc_fn))
+            eb_antdoc = joblib.load(eb_antdoc_fn)
+            # print("done loading\t{}".format(eb_antdoc_fn))
+            end_time = time.time()
+            logging.info("loading from cache: %s, took %.0f msec",
+                         eb_antdoc_fn, (end_time - start_time) * 1000)
 
-        return eb_antdoc
+            return eb_antdoc
+        except:  # failed to load cache using joblib.load()
+            logging.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.", eb_antdoc_fn)
+            return None
 
     return None
 

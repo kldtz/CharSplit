@@ -6,8 +6,9 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 import time
-from typing import Any, DefaultDict, Dict, List, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 from sklearn.externals import joblib
 
@@ -154,20 +155,24 @@ def remove_prov_greater_offset(prov_annotation_list, max_offset):
             if prov_ant.start < max_offset]
 
 
-def load_cached_ebantdoc2(eb_antdoc_fn: str):
+def load_cached_ebantdoc2(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc2]:
     """Load from pickled file if file exist, otherwise None"""
 
     # if cache version exists, load that and return
     if os.path.exists(eb_antdoc_fn):
         start_time = time.time()
-        # print("before loading\t{}".format(eb_antdoc_fn))
-        eb_antdoc = joblib.load(eb_antdoc_fn)
-        # print("done loading\t{}".format(eb_antdoc_fn))
-        end_time = time.time()
-        logging.info("loading from cache: %s, took %.0f msec",
-                     eb_antdoc_fn, (end_time - start_time) * 1000)
+        try:
+            # print("before loading\t{}".format(eb_antdoc_fn))
+            eb_antdoc = joblib.load(eb_antdoc_fn)  # type: EbAnnotatedDoc2
+            # print("done loading\t{}".format(eb_antdoc_fn))
+            end_time = time.time()
+            logging.info("loading from cache: %s, took %.0f msec",
+                         eb_antdoc_fn, (end_time - start_time) * 1000)
 
-        return eb_antdoc
+            return eb_antdoc
+        except:  # failed to load cache using joblib.load()
+            logging.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.", eb_antdoc_fn)
+            return None
 
     return None
 
@@ -270,7 +275,7 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
                                    is_cache_enabled=True,
                                    doc_lang="en"):
     debug_mode = False
-    start_time0 = time.time()
+    start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
@@ -309,18 +314,21 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
                                 # page_offsets_list
                                 # paraline_text
                                 doc_lang=doc_lang)
-                                
+
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
-        start_time = time.time()
+        t2_start_time = time.time()
+        tmpFileName = tempfile.NamedTemporaryFile(delete=False)
         joblib.dump(eb_antdoc, eb_antdoc_fn)
-        end_time = time.time()
-        logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-                     eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        t2_end_time = time.time()
+        if (t2_end_time - t2_start_time) * 1000 > 30000:
+            logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                         eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
-    end_time = time.time()
-    logging.info("html_no_docstruct_to_ebantdoc2: %s, took %.0f msec; %d attrvecs",
-                 eb_antdoc_fn, (end_time - start_time) * 1000, len(attrvec_list))    
+    end_time1 = time.time()
+    logging.info("html_no_docstruct_to_ebantdoc2: %s, %d attrvecs, took %.0f msec",
+                 eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
 
@@ -408,18 +416,21 @@ def html_to_ebantdoc2(txt_file_name,
                                 # page_offsets_list
                                 # paraline_text
                                 doc_lang=doc_lang)
-                                
+
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
-        start_time = time.time()
+        t2_start_time = time.time()
+        tmpFileName = tempfile.NamedTemporaryFile(delete=False)
         joblib.dump(eb_antdoc, eb_antdoc_fn)
-        end_time = time.time()
-        #logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-        #             eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        t2_end_time = time.time()
+        if (t2_end_time - t2_start_time) * 1000 > 30000:
+            logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                         eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
     end_time1 = time.time()
-    logging.info("html_to_ebantdoc2: %s, took %.0f msec; %d attrvecs",
-                 eb_antdoc_fn, (end_time1 - start_time1) * 1000, len(attrvec_list))
+    logging.info("html_to_ebantdoc2: %s, %d attrvecs, took %.0f msec",
+                 eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
 def update_special_block_info(eb_antdoc, pdf_txt_doc):
@@ -440,7 +451,7 @@ def pdf_to_ebantdoc2(txt_file_name,
                      is_cache_enabled=True,
                      doc_lang='en'):
     debug_mode = False
-    start_time0 = time.time()
+    start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
     offsets_base_fname = os.path.basename(offsets_file_name)
 
@@ -519,15 +530,20 @@ def pdf_to_ebantdoc2(txt_file_name,
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
-        start_time = time.time()
-        joblib.dump(eb_antdoc, eb_antdoc_fn)
-        end_time = time.time()
-        # logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-        #             eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+        t2_start_time = time.time()
+        # to avoid the possibility ot reading and writing a file at the same
+        # time when multiple bespoke trainings are going on
+        tmpFileName = tempfile.NamedTemporaryFile(delete=False)
+        joblib.dump(eb_antdoc, tmpFileName.name)
+        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        t2_end_time = time.time()
+        if (t2_end_time - t2_start_time) * 1000 > 30000:
+            logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                         eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
     end_time1 = time.time()
-    logging.info("pdf_to_ebantdoc2: %s, took %.0f msec; %d attrvecs",
-                 eb_antdoc_fn, (end_time1 - start_time0) * 1000, len(attrvec_list))
+    logging.info("pdf_to_ebantdoc2: %s, %d attrvecs, took %.0f msec",
+                 eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
 
@@ -539,7 +555,7 @@ def text_to_corenlp_json(doc_text,  # this is what is really processed by corenl
 
     # if cache version exists, load that and return
     start_time = time.time()
-    
+
     if is_cache_enabled:
         json_fn = get_corenlp_json_fname(txt_base_fname, work_dir)
         if os.path.exists(json_fn):
@@ -628,7 +644,7 @@ def doclist_to_ebantdoc_list_linear(doclist_file,
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)
-        
+
     eb_antdoc_list = []
     with open(doclist_file, 'rt') as fin:
         for i, txt_file_name in enumerate(fin, 1):
@@ -712,7 +728,7 @@ class EbAntdocProvSet:
 
     def get_file_id(self):
         return self.file_id
-    
+
     def get_provision_set(self):
         return self.provset
 
