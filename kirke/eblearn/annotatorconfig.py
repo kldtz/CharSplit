@@ -143,7 +143,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                     class_weight={True: 3,
                                                                                   False: 1}))]),
                            'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                           'threshold': 0,
+                           'threshold': 0.25,
                            'kfold': 3})
 ]
 
