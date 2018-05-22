@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.INFO)
 logger.setLevel(logging.DEBUG)
 
-CORENLP_JSON_VERSION = '1.4'
-EBANTDOC_VERSION = '1.6'
+CORENLP_JSON_VERSION = '1.6'
+EBANTDOC_VERSION = '1.8'
 
 def get_corenlp_json_fname(txt_basename, work_dir):
     base_fn = txt_basename.replace('.txt',
@@ -357,7 +357,6 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
-
     paras_with_attrs = []
     attrvec_list, nlp_prov_ant_list, _, _ = nlptxt_to_attrvec_list(doc_text,
                                                                    txt_file_name,
@@ -415,6 +414,8 @@ def chop_at_exhibit_complete(txt_file_name: str,
                              -> Tuple[str, str, List[ProvisionAnnotation], bool,
                                       TextCpointCunitMapper]:
     doc_text = txtreader.loads(txt_file_name)
+    # sub single newlines for spaces to preserve paragraphs in text documents
+    doc_text = re.sub('(?<![\r\n])(\n)(?! *[\r\n])', ' ', doc_text)
     cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
                                                                           cpoint_cunit_mapper)
@@ -465,7 +466,6 @@ def html_to_ebantdoc4(txt_file_name: str,
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
-
     paras_with_attrs, para_doc_text, gap_span_list, _ = \
             htmltxtparser.parse_document(txt_file_name,
                                          work_dir=work_dir,

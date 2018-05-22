@@ -1478,9 +1478,11 @@ def party_line_group_to_party_term(party_line_list:
         split_party_term_offsets = split_party_term_effort_1(first_line)
         # should return correct offsets now
         (pstart, pend), (tstart, tend) = split_party_term_offsets
+        party_start = 0
         if pstart != pend and tstart != tend:
-            # xx_party_st = party_st[pstart:pend]
-            # print("xx party_st: [{}]".format(xx_party_st))
+            # xx_party_st = first_line[pstart:pend]
+            # xx_term_st = first_line[tstart:tend]
+            # print("xx party_st: [{}], term = [{}]".format(xx_party_st, xx_term_st))
             return ((fstart + party_start + pstart, fstart + party_start + pend),
                     (fstart + party_start + tstart, fstart + party_start + tend))
         if pstart == pend and tstart != tend:
@@ -1786,10 +1788,10 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                     if party_offset_pair and term_offset_pair:
                         # print("xxx {},,,, {}".format(party_offset_pair, term_offset_pair))
                         out_list.append((party_offset_pair, term_offset_pair))
-                    if party_offset_pair and not term_offset_pair:
+                    elif party_offset_pair and not term_offset_pair:
                         # print("xxx111 {}".format(party_offset_pair))
                         out_list.append((party_offset_pair, None))
-                    if not party_offset_pair and term_offset_pair:
+                    elif not party_offset_pair and term_offset_pair:
                         # print("found defined_term, but not party: {}".format(term_offset_pair))
                         # print("xxx222 {}".format(term_offset_pair))
                         out_list.append((term_offset_pair, None))

@@ -17,12 +17,12 @@ from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdfo
 from kirke.utils import corenlputils, strutils, osutils, textoffset, txtreader, ebsentutils
 
 
-CORENLP_JSON_VERSION = '1.5'
-EBANTDOC_VERSION = '1.5'
+# CORENLP_JSON_VERSION = '1.7'
+EBANTDOC_VERSION = '1.7'
 
-def get_nlp_fname(txt_basename: str, work_dir: str) -> str:
-    base_fn = txt_basename.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
-    return '{}/{}'.format(work_dir, base_fn)
+# def get_nlp_fname(txt_basename: str, work_dir: str) -> str:
+#     base_fn = txt_basename.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
+#     return '{}/{}'.format(work_dir, base_fn)
 
 
 def get_ebant_fname(txt_basename: str, work_dir: str) -> str:
@@ -330,10 +330,10 @@ def html_to_ebantdoc3(txt_file_name,
                                          work_dir=work_dir,
                                          is_combine_line=True)
 
-    txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
-    txtreader.dumps(para_doc_text, txt4nlp_fname)
-    if debug_mode:
-        print("wrote {}".format(txt4nlp_fname), file=sys.stderr)
+    # txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
+    # txtreader.dumps(para_doc_text, txt4nlp_fname)
+    # if debug_mode:
+    #     print("wrote {}".format(txt4nlp_fname), file=sys.stderr)
 
     nlp_prov_ant_list, origin_sx_lnpos_list, nlp_sx_lnpos_list = \
         nlptxt_to_attrvec_list(para_doc_text,
@@ -437,10 +437,10 @@ def pdf_to_ebantdoc3(txt_file_name,
     paras2_with_attrs, para2_doc_text, gap2_span_list = \
         pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir, debug_mode=False)
 
-    text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
-    txtreader.dumps(para2_doc_text, text4nlp_fn)
-    if debug_mode:
-        print('wrote {}'.format(text4nlp_fn), file=sys.stderr)
+    # text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
+    # txtreader.dumps(para2_doc_text, text4nlp_fn)
+    # if debug_mode:
+    #     print('wrote {}'.format(text4nlp_fn), file=sys.stderr)
 
     nlp_prov_ant_list, origin_sx_lnpos_list, nlp_sx_lnpos_list = \
         nlptxt_to_attrvec_list(para2_doc_text,
