@@ -512,7 +512,7 @@ def train_eval_annotator_with_trte(provision: str,
     # pylint: disable=invalid-name
     X_test = ebantdoc4.doclist_to_ebantdoc_list(test_doclist_fn,
                                                 work_dir,
-                                                is_cache_enable=is_cache_enabled,
+                                                is_cache_enabled=is_cache_enabled,
                                                 is_doc_structure=is_doc_structure)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
