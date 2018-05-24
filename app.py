@@ -50,15 +50,16 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
-
 # pylint: disable=invalid-name
 app = Flask(__name__)
 app.config['PROPAGATE_EXCEPTIONS'] = True
 # app.debug = True
 EB_FILES = os.environ['EB_FILES']
 EB_MODELS = os.environ['EB_MODELS']
-logger.info("eb files is [%s]", EB_FILES)
-logger.info("eb models is [%s]", EB_MODELS)
+KIRKE_TMP_DIR = EB_FILES + config['ebrevia.com']['KIRKE_TMP']
+logger.info('eb files is [%s]', EB_FILES)
+logger.info('eb models is [%s]', EB_MODELS)
+logger.info('kirke_tmp_dir is [%s]', KIRKE_TMP_DIR)
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
@@ -70,6 +71,7 @@ CUSTOM_MODEL_DIR = EB_FILES + 'pymodel'
 osutils.mkpath(WORK_DIR)
 osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
+osutils.mkpath(KIRKE_TMP_DIR)
 
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 
@@ -98,7 +100,11 @@ def annotate_uploaded_document():
     file_title = request.form.get('fileName')
     if request_work_dir:
         work_dir = request_work_dir
-        print("work_dir = {}".format(work_dir))
+        logger.info("work_dir = %s", work_dir)
+        # For security reason,
+        # make sure we don't write to anywhere else other than /eb_files
+        if '..' in work_dir or not work_dir.startswith(EB_FILES):
+            work_dir = KIRKE_TMP_DIR
         osutils.mkpath(work_dir)
     else:
         work_dir = WORK_DIR
@@ -106,7 +112,7 @@ def annotate_uploaded_document():
     fn_list = request.files.getlist('file')
     for fstorage in fn_list:
         fn = '{}/{}'.format(work_dir, fstorage.filename)
-        print("saving file '{}'".format(fn))
+        logger.info("saving file '%s'", fn)
         fstorage.save(fn)
 
         if fn.endswith('.offsets.json'):
@@ -277,6 +283,10 @@ def custom_train(cust_id: str):
     if request_work_dir:
         work_dir = request_work_dir
         logger.info("work_dir = '%s'", work_dir)
+        # For security reason,
+        # make sure we don't write to anywhere else other than /eb_files
+        if '..' in work_dir or not work_dir.startswith(EB_FILES):
+            work_dir = KIRKE_TMP_DIR
         osutils.mkpath(work_dir)
     else:
         work_dir = WORK_DIR

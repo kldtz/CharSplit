@@ -2,6 +2,7 @@
 import array
 from array import ArrayType
 import concurrent.futures
+import configparser
 from enum import Enum
 import json
 import logging
@@ -9,13 +10,13 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 import time
 # pylint: disable=unused-import
-from typing import Any, DefaultDict, Dict, List, Set, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
 # pylint: disable=import-error
 from sklearn.externals import joblib
-
 
 from kirke.eblearn import ebattrvec, sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdftxtparser
@@ -24,13 +25,21 @@ from kirke.utils import corenlputils, ebsentutils, memutils, osutils, strutils, 
 from kirke.utils.textoffset import TextCpointCunitMapper
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
+# pylint: disable=invalid-name
+config = configparser.ConfigParser()
+config.read('kirke.ini')
 
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.INFO)
 logger.setLevel(logging.DEBUG)
 
+EB_FILES = os.environ['EB_FILES']
+KIRKE_TMP_DIR = EB_FILES + config['ebrevia.com']['KIRKE_TMP']
+osutils.mkpath(KIRKE_TMP_DIR)
+
 CORENLP_JSON_VERSION = '1.6'
 EBANTDOC_VERSION = '1.8'
+
 
 def get_corenlp_json_fname(txt_basename, work_dir):
     base_fn = txt_basename.replace('.txt',
@@ -98,7 +107,8 @@ class EbAnnotatedDoc4:
         self.para_prov_ant_list = para_prov_ant_list
         self.attrvec_list = attrvec_list
         self.paras_with_attrs = paras_with_attrs
-        self.para_indices = [x[0] for x in paras_with_attrs] # para_indices and para_attrs should be the same length
+        # para_indices and para_attrs should be the same length
+        self.para_indices = [x[0] for x in paras_with_attrs]
         self.para_attrs = [x[1] for x in paras_with_attrs]
         # to map to original offsets
         self.nlp_lnpos_list = nlp_lnpos_list
@@ -148,11 +158,12 @@ class EbAnnotatedDoc4:
     def get_attrvec_list(self) -> List[ebattrvec.EbAttrVec]:
         return self.attrvec_list
 
-    def get_text(self, text_type='text') -> str:
+    def get_text(self, text_type: str = 'text') -> str:
         if text_type == 'text':
             return self.text
         elif text_type == 'nlp_text':
             return self.get_nlp_text()
+        return self.text
 
     def get_nl_text(self) -> str:
         ch_list = list(self.text)
@@ -215,7 +226,7 @@ def remove_prov_greater_offset(prov_annotation_list, max_offset):
             if prov_ant.start < max_offset]
 
 
-def load_cached_ebantdoc4(eb_antdoc_fn: str):
+def load_cached_ebantdoc4(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc4]:
     """Load from pickled file if file exist, otherwise None"""
 
     # if cache version exists, load that and return
@@ -227,11 +238,13 @@ def load_cached_ebantdoc4(eb_antdoc_fn: str):
             # print("done loading\t{}".format(eb_antdoc_fn))
             end_time = time.time()
             logger.info("loading from cache: %s, took %.0f msec",
-                         eb_antdoc_fn, (end_time - start_time) * 1000)
+                        eb_antdoc_fn, (end_time - start_time) * 1000)
 
             return eb_antdoc
-        except:  # if failed to load cache using joblib.load()
-            logger.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.", eb_antdoc_fn)
+        # pylint: disable=broad-except
+        except Exception:  # if failed to load cache using joblib.load()
+            logger.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.",
+                           eb_antdoc_fn)
             return None
 
     return None
@@ -282,7 +295,7 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
     # maximize reuse of existing code.
 
     if not is_use_corenlp:  # this is for some analyzer in candidate-gen-pipeline
-        attrvec_list = []
+        attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     else:  # all sentence pipeline use this
         # para_doc_text is what is sent, not txt_base_fname
         corenlp_json = text_to_corenlp_json(para_doc_text,
@@ -349,10 +362,10 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                    work_dir,
                                    is_cache_enabled=True,
                                    doc_lang="en",
-                                   is_use_corenlp: bool = True):
-    logging.debug('html_to_ebantdoc4(%s)', txt_file_name)
+                                   is_use_corenlp: bool = True) -> EbAnnotatedDoc4:
+    logger.debug('html_to_ebantdoc4(%s)', txt_file_name)
     debug_mode = False
-    start_time = time.time()
+    start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
@@ -394,15 +407,18 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
-        start_time = time.time()
-        joblib.dump(eb_antdoc, eb_antdoc_fn)
-        end_time = time.time()
-        logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-                     eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+        t2_start_time = time.time()
+        tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
+        joblib.dump(eb_antdoc, tmpFileName.name)
+        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        t2_end_time = time.time()
+        if (t2_end_time - t2_start_time) * 1000 > 30000:
+            logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                        eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
-    end_time = time.time()
-    logger.info("html_no_docstruct_to_ebantdoc4: %s, took %.0f msec; %d attrvecs",
-                 eb_antdoc_fn, (end_time - start_time) * 1000, len(attrvec_list))
+    end_time1 = time.time()
+    logger.info("html_no_docstruct_to_ebantdoc4: %s, %d attrvecs, took %.0f msec",
+                eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
 
@@ -456,8 +472,8 @@ def html_to_ebantdoc4(txt_file_name: str,
                       work_dir: str,
                       is_cache_enabled: bool = True,
                       doc_lang: str = 'en',
-                      is_use_corenlp: bool = True):
-    logging.debug('html_to_ebantdoc4(%s)', txt_file_name)
+                      is_use_corenlp: bool = True) -> EbAnnotatedDoc4:
+    logger.debug('html_to_ebantdoc4(%s)', txt_file_name)
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
@@ -507,15 +523,18 @@ def html_to_ebantdoc4(txt_file_name: str,
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
-        # start_time = time.time()
-        joblib.dump(eb_antdoc, eb_antdoc_fn)
-        # end_time = time.time()
-        # logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-        #              eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+        t2_start_time = time.time()
+        tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
+        joblib.dump(eb_antdoc, tmpFileName.name)
+        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        t2_end_time = time.time()
+        if (t2_end_time - t2_start_time) * 1000 > 30000:
+            logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                        eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
     end_time1 = time.time()
-    logger.info("html_to_ebantdoc4: %s, took %.0f msec; %d attrvecs",
-                 eb_antdoc_fn, (end_time1 - start_time1) * 1000, len(attrvec_list))
+    logger.info("html_to_ebantdoc4: %s, %d attrvecs, took %.0f msec",
+                eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
 def update_special_block_info(eb_antdoc, pdf_txt_doc):
@@ -536,10 +555,10 @@ def pdf_to_ebantdoc4(txt_file_name: str,
                      work_dir: str,
                      is_cache_enabled: bool = True,
                      doc_lang: str = 'en',
-                     is_use_corenlp: bool = True):
-    logging.debug('pdf_to_ebantdoc4(%s)', txt_file_name)
+                     is_use_corenlp: bool = True) -> EbAnnotatedDoc4:
+    logger.debug('pdf_to_ebantdoc4(%s)', txt_file_name)
     debug_mode = False
-    start_time0 = time.time()
+    start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
     offsets_base_fname = os.path.basename(offsets_file_name)
 
@@ -559,8 +578,8 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
-    doc_text, nl_text, linebreak_arr, \
-        paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
+    doc_text, unused_nl_text, linebreak_arr, \
+        unused_paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
             pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
 
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
@@ -589,7 +608,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
     skip_st_list = []
     if not paras2_with_attrs:
-        logger.info("Empty paras2_with_attrs.  Not urgent.  File: {}".format(txt_file_name))
+        logger.info("Empty paras2_with_attrs.  Not urgent.  File: %s", txt_file_name)
         logger.info("  Likely cause: either no text or looked too much like table-of-content.")
     for para_with_attrs in paras2_with_attrs:
         # para_with_attrs = List[Tuple[linepos.LnPos, linepos.LnPos]],
@@ -646,15 +665,18 @@ def pdf_to_ebantdoc4(txt_file_name: str,
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
-        # start_time = time.time()
-        joblib.dump(eb_antdoc, eb_antdoc_fn)
-        # end_time = time.time()
-        # logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-        #             eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+        t2_start_time = time.time()
+        tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
+        joblib.dump(eb_antdoc, tmpFileName.name)
+        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        t2_end_time = time.time()
+        if (t2_end_time - t2_start_time) * 1000 > 30000:
+            logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                        eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
     end_time1 = time.time()
-    logger.info("pdf_to_ebantdoc4: %s, took %.0f msec; %d attrvecs",
-                 eb_antdoc_fn, (end_time1 - start_time0) * 1000, len(attrvec_list))
+    logger.info("pdf_to_ebantdoc4: %s, %d attrvecs, took %.0f msec",
+                eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
 
@@ -674,7 +696,7 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
             corenlp_json = json.loads(strutils.loads(json_fn))
             end_time = time.time()
             logger.info("loading from cache: %s, took %.0f msec",
-                         json_fn, (end_time - start_time) * 1000)
+                        json_fn, (end_time - start_time) * 1000)
 
             if isinstance(corenlp_json, str):
                 # Error in corenlp json file.  Probably caused invalid
@@ -689,7 +711,7 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
                 strutils.dumps(json.dumps(corenlp_json), json_fn)
                 end_time = time.time()
                 logger.info("wrote cache file: %s, took %.0f msec",
-                             json_fn, (end_time - start_time) * 1000)
+                            json_fn, (end_time - start_time) * 1000)
         else:
             logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
                         work_dir, txt_base_fname, doc_lang, len(doc_text))
@@ -697,7 +719,7 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
             strutils.dumps(json.dumps(corenlp_json), json_fn)
             end_time = time.time()
             logger.info("wrote cache file: %s, took %.0f msec",
-                         json_fn, (end_time - start_time) * 1000)
+                        json_fn, (end_time - start_time) * 1000)
     else:
         logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
                     work_dir, txt_base_fname, doc_lang, len(doc_text))
@@ -835,7 +857,7 @@ def doclist_to_ebantdoc_list(doclist_file: str,
         eb_antdoc_list.append(fn_eb_antdoc_map[txt_fn])
 
     logger.debug('Finished doclist_to_ebantdoc_list(%s, %s), len= %d',
-                  doclist_file, work_dir, len(txt_fn_list))
+                 doclist_file, work_dir, len(txt_fn_list))
 
     return eb_antdoc_list
 
