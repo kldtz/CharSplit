@@ -86,7 +86,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'doc_to_candidates': regexgen.RegexContextGenerator(10,
                                                                            10,
                                                                            # pylint: disable=line-too-long
-                                                                           re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
+                                                                           re.compile(r'([\d\-\.,\)]*\d+)'),
                                                                            'NUMBER'),
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -256,3 +256,6 @@ def get_annotator_config(label: str,
                 best_annotator_config = (candg_type, candg_ver, candg_property)
 
     return best_annotator_config
+
+def get_all_candidate_types():
+    return set([x[0] for x in ML_ANNOTATOR_CONFIG_LIST])
