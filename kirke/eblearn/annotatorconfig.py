@@ -64,7 +64,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'doc_to_candidates': regexgen.RegexContextGenerator(20,
                                                                              5,
                                                                              # pylint: disable=line-too-long
-                                                                             re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
+                                                                             re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?\s?(USD|billion|million|thousand|dollars)?[€円]?)'),
                                                                              'CURRENCY'),
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -108,7 +108,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'is_use_corenlp': False,
                         'doc_to_candidates': regexgen.RegexContextGenerator(15,
                                                                             5,
-                                                                            re.compile(r'(\d+%)'),
+                                                                            re.compile(r'([\d\.]+%)'),
                                                                             'PERCENT'),
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
