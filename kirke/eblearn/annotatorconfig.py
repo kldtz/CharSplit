@@ -64,7 +64,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'doc_to_candidates': regexgen.RegexContextGenerator(20,
                                                                              5,
                                                                              # pylint: disable=line-too-long
-                                                                             re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?\s?(USD|billion|million|thousand|dollars)?[€円]?)'),
+                                                                             re.compile(r'((USD|[\$€₹£¥])\s*(\d{1,3},?)+([,\.]\d\d)?\s*([bB]illion|[mM]illion|[tT]housand)?(M|B)?\s*(USD|[dD]ollars)?[€円]?)'),
                                                                              'CURRENCY'),
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
