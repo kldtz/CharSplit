@@ -86,7 +86,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'doc_to_candidates': regexgen.RegexContextGenerator(10,
                                                                            10,
                                                                            # pylint: disable=line-too-long
-                                                                           re.compile(r'([\d\-\.,\)]*\d+)'),
+                                                                           re.compile(r'([/\d\-\.,\)]*\d+)'),
                                                                            'NUMBER'),
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
