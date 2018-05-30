@@ -214,6 +214,7 @@ def test_annotators(provisions,
                     work_dir: str,
                     model_dir: str,
                     custom_model_dir: str,
+                    out_dir: str = '',
                     threshold: Optional[float] = None) -> None:
     provision_set = set([])  # type: Set[str]
     if provisions:
@@ -231,6 +232,16 @@ def test_annotators(provisions,
         pprint.pprint(ant_status)
         print("log_json:")
         pprint.pprint(log_json)
+
+        print("ant_status:")
+        print(ant_status)
+
+        if out_dir:
+            osutils.mkpath(out_dir)
+            out_fname = '{}/{}.status'.format(out_dir, provision)
+            with open(out_fname, 'wt') as fout:
+                print(ant_status, file=fout)
+                print('wrote "{}"'.format(out_fname))
 
 
 # test only 1 annotator
@@ -328,6 +339,7 @@ def main():
     parser.add_argument('--model_dir', help='output directory for trained models')
     parser.add_argument('--model_dirs', help='output directory for trained models')
     parser.add_argument('--custom_model_dir', help='output directory for custom trained models')
+    parser.add_argument('--out_dir', help='output directory for testing annotators')
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
@@ -387,8 +399,14 @@ def main():
                                is_doc_structure=True)
     elif cmd == 'test_annotators':
         # if no --provisions is specified, all annotators are tested
-        test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir,
-                        custom_model_dir, threshold=args.threshold)
+        out_dir = args.out_dir
+        test_annotators(args.provisions,
+                        txt_fn_list_fn,
+                        work_dir,
+                        model_dir,
+                        custom_model_dir,
+                        out_dir=out_dir,
+                        threshold=args.threshold)
     elif cmd == 'test_one_annotator':
         if not args.model_file:
             print('please specify --model_file', file=sys.stderr)

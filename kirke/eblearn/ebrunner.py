@@ -16,7 +16,7 @@ import psutil
 from sklearn.externals import joblib
 
 from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
-from kirke.eblearn import ebannotator, ebtrainer, lineannotator, provclassifier
+from kirke.eblearn import ebannotator, ebpostproc, ebtrainer, lineannotator, provclassifier
 from kirke.eblearn import scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import ebantdoc4, evalutils, lrucache, osutils, strutils
@@ -633,6 +633,11 @@ class EbRunner:
                 prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                        if hant.label == provision]
 
+                ant_list = self.recover_false_negatives(prov_human_ant_list,
+                                                        ebantdoc.get_text(),
+                                                        provision,
+                                                        ant_list)
+
                 # print("\nfn: {}".format(ebantdoc.file_id))
                 # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
                 # pred_prob_start_end_list, txt)
@@ -742,6 +747,21 @@ class EbRunner:
 
         return tmp_eval_status
 
+
+    # pylint: disable=no-self-use
+    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
+        if not prov_human_ant_list:
+            return ant_result
+        for ant in prov_human_ant_list:
+            if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
+                clean_text = strutils.sub_nltab_with_space(doc_text[ant.start:ant.end])
+                fn_ant = ebpostproc.to_ant_result_dict(label=provision,
+                                                       prob=0.0,
+                                                       start=ant.start,
+                                                       end=ant.end,
+                                                       text=clean_text)
+                ant_result.append(fn_ant)
+        return ant_result
 
 
 # pylint: disable=too-few-public-methods
