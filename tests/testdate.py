@@ -7,6 +7,58 @@ from kirke.ebrules import dates
 
 class TestDateUtils(unittest.TestCase):
 
+    def test_extract_dates(self):
+        "Test extract_dates()"
+
+        line = 'Amy is born on January 14, 2011 when it rained'
+        alist = dates.extract_dates_v2(line, 0)
+        start, end, date_st, dtype, norm = alist[0]
+        self.assertEqual(norm,
+                         '2011-01-14')
+        self.assertEqual(date_st,
+                         'January 14, 2011')
+
+        line = 'Amy is born on 13.04.14 when it rained'
+        alist = dates.extract_dates_v2(line, 0)
+        start, end, date_st, dtype, norm = alist[0]
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13.04.14')
+
+        line = 'Amy is born on 13/04/14 when it rained'
+        alist = dates.extract_dates_v2(line, 0)
+        start, end, date_st, dtype, norm = alist[0]
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13/04/14')
+
+        line = 'Amy is born on 13-04-14 when it rained'
+        alist = dates.extract_dates_v2(line, 0)
+        start, end, date_st, dtype, norm = alist[0]
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13-04-14')
+
+        line = 'Amy is born on 13-Apr-14 when it rained'
+        alist = dates.extract_dates_v2(line, 0)
+        start, end, date_st, dtype, norm = alist[0]
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13-Apr-14')
+
+        line = 'Amy is born on 13Apr2014 when it rained'
+        alist = dates.extract_dates_v2(line, 0)
+        start, end, date_st, dtype, norm = alist[0]
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13Apr2014')
+
+
     def test_parse_date(self):
         "Test parse_date()"
 
@@ -15,7 +67,7 @@ class TestDateUtils(unittest.TestCase):
         self.assertEqual(dnorm.parse_date('January 14, 2011'),
                          # {'year': 2011, 'month': 1, 'day': 14}
                          {'norm': {'date': '2011-01-14'}})
-        self.assertEqual(dnorm.parse_date('January 14, 201l'),
+        self.assertEqual(dnorm.parse_date('Jan. 14, 201l'),
                          # {'year': 2011, 'month': 1, 'day': 14}
                          {'norm': {'date': '2011-01-14'}})
         self.assertEqual(dnorm.parse_date('this first day of JUNE, 2011'),
@@ -57,3 +109,69 @@ class TestDateUtils(unittest.TestCase):
                          None)
         self.assertEqual(dnorm.parse_date('3011-12-01'),
                          None)
+
+
+    def test_parse_uk_date(self):
+        "Test parse_date()"
+
+        dnorm = dates.DateNormalizer()
+
+        self.assertEqual(dnorm.parse_date('13.04.14'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('13-04-14'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('13.04.2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('13-04-2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('13Apr2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('13-Apr-14'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('13-Apr-2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('13.Apr.2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        # self.assertEqual(dnorm.parse_date('05.06.2014'),
+        #                 {'norm': {'date': '2014-06-05'}})
+
+
+    def test_parse_us_date(self):
+        "Test parse_date()"
+
+        dnorm = dates.DateNormalizer()
+
+        self.assertEqual(dnorm.parse_date('04.13.14'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('04-13-14'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('04.13.2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('04-13-2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('Apr. 13, 2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('Apr-13-14'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('Apr-13-2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('Apr.13.2014'),
+                         {'norm': {'date': '2014-04-13'}})
+
+        self.assertEqual(dnorm.parse_date('05.06.2014'),
+                         {'norm': {'date': '2014-05-06'}})

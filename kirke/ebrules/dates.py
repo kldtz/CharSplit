@@ -44,6 +44,11 @@ class DateNormalizer(DocCandidatesTransformer):
         if 'o' in line:
             line = re.sub(r'(\d)[oO]', r'\g<1>0', line)
             line = re.sub(r'[oO](\d)', r'0\g<1>', line)
+        # to handle '13Aprl2014'
+        mat = re.match(r'(\d+)([a-zA-Z]+)(\d+)$', line)
+        if mat:
+            line = mat.group(1) + ' ' + mat.group(2) + ' ' + \
+                   mat.group(3)
 
         try:
             # set dayfirst=True for UK dates, revisit later
@@ -312,7 +317,8 @@ DATE_PAT1_2_ST = '(' + ALL_MONTH_PAT + r'|(_+|\[[_•\s]*\])' + r')[,\s]*[oOl\d]
 # DATE_PAT_ST = '(' + ALL_MONTH_PAT + r')'
 # print('DATE_PAT_ST = "{}"'.format(DATE_PAT1_ST))
 
-DATE_PAT1 = re.compile(r'(' + DATE_PAT1_ST + r'|' + DATE_PAT1_1_ST  +
+DATE_PAT1 = re.compile(r'(' +
+                       DATE_PAT1_ST + r'|' + DATE_PAT1_1_ST  +
                        r'|' + DATE_PAT1_2_ST + r')\b', re.IGNORECASE)
 
 
@@ -334,8 +340,14 @@ DATE_PAT3_3_ST = r'((the|this)\s+((day )?(of|o f))\s+[oOl\d]{4})'
 DATE_PAT3 = re.compile(r'(' + DATE_PAT3_ST + r'|' + DATE_PAT3_1_ST + r'|' + DATE_PAT3_2_ST + r'|' +
                        DATE_PAT3_3_ST + r')\b', re.IGNORECASE)
 
+# r'[oOl\d]{1,2}[\-\/\.][oOl\d]{1,2}[\-\/\.][oOl\d]{2,4}|' \
+# r'[oOl\d]{4}[\-\/\.][oOl\d]{1,2}[\-\/\.][oOl\d]{1,2}|' \
 # pylint: disable=line-too-long
-DATE_PAT4_ST = r'\b([oOl\d]{1,2}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{2,4}|[oOl\d]{4}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{1,2})\b'
+DATE_PAT4_ST = r'\b(' \
+               r'[oOl\d]{1,2}[\-\/\.]([oOl\d]{1,2}|(' + ALL_MONTH_PAT + r'))[\-\/\.][oOl\d]{2,4}|' \
+               r'[oOl\d]{1,2}[\-\/\.]?([oOl\d]{1,2}|(' + ALL_MONTH_PAT + r'))[\-\/\.]?[oOl\d]{4}|' \
+               r'[oOl\d]{4}[\-\/\.]([oOl\d]{1,2}|(' + ALL_MONTH_PAT + r'))[\-\/\.][oOl\d]{1,2}' \
+               r')\b'
 DATE_PAT4 = re.compile(DATE_PAT4_ST, re.IGNORECASE)
 
 EFFECTIVE_PAT = re.compile(r'effective', re.IGNORECASE)
@@ -411,7 +423,14 @@ def validate_dates(date_list: List[Tuple[int, int, str, str]]) \
     for date_tuple in date_list:
         start, end, text, date_type = date_tuple
 
-        date_dict = DATE_NORMALIZER_.parse_date(text)
+        # to handle '13Aprl2014'
+        mat = re.match(r'(\d+)([a-zA-Z]+)(\d+)$', text)
+        if mat:
+            tmp_text = mat.group(1) + ' ' + mat.group(2) + ' ' + \
+                   mat.group(3)
+        else:
+            tmp_text = text
+        date_dict = DATE_NORMALIZER_.parse_date(tmp_text)
         if date_dict:
             result.append((start, end, text, date_type, date_dict['norm']['date']))
         else:
