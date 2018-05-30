@@ -11,15 +11,17 @@ import operator
 
 import json
 
-from typing import Any, DefaultDict, Dict, List
+from typing import Any, DefaultDict, Dict, List, Optional
 
 # from kirke.abbyxml import AbbyLine, AbbyPar, AbbyTextBlock, AbbyTableBlock, AbbyXmlDoc
-from kirke.abbyxml.pdfoffsets import AbbyLine, AbbyPar, AbbyTextBlock, AbbyTableBlock, AbbyPage, AbbyXmlDoc
+from kirke.abbyxml.pdfoffsets import AbbyCell, AbbyLine, AbbyPar, AbbyRow
+from kirke.abbyxml.pdfoffsets import AbbyTextBlock, AbbyTableBlock, AbbyPage, AbbyXmlDoc
 
 from kirke.abbyxml import abbyutils
 
 IS_DISPLAY_ATTRS = False
 # IS_DISPLAY_ATTRS = True
+
 
 def add_infer_line_attrs(attr_dict: Dict):
     infer_attr_dict = {}
@@ -31,6 +33,7 @@ def add_infer_line_attrs(attr_dict: Dict):
     infer_attr_dict['x'] = l_attr
     infer_attr_dict['y'] = b_attr
     return infer_attr_dict
+
 
 def add_infer_par_attrs(attr_dict: Dict):
     infer_attr_dict = {}
@@ -61,6 +64,7 @@ def add_infer_par_attrs(attr_dict: Dict):
         if left_val > 18000 and left_val < 21000:
             infer_attr_dict['Center2'] = left_val
     return infer_attr_dict
+
 
 # only applicable to text blocks, not lines
 def add_infer_header_footer(attr_dict: Dict) -> None:
@@ -104,6 +108,10 @@ def add_infer_text_block_attrs(text_block: AbbyTextBlock) -> None:
         text_block.infer_attr_dict['column_blobs'] = perc_indent_pars
 
 
+def add_infer_table_block_attrs(table_block: AbbyTableBlock) -> None:
+    pass
+
+
 def parse_abby_line(ajson) -> AbbyLine:
     line_attr_dict = {}
 
@@ -118,6 +126,68 @@ def parse_abby_line(ajson) -> AbbyLine:
 
     raise ValueError
 
+
+def parse_abby_cell(ajson) -> AbbyCell:
+    cell_attr_dict = {}
+
+    # print("\n\nparse_abby_cell:")
+    # pprint.pprint(ajson)
+
+    for attr, val in sorted(ajson.items()):
+        if attr.startswith('@'):
+            cell_attr_dict[attr] = abbyutils.abby_attr_str_to_val(attr, val)
+
+        if attr == 'text':
+            # print('\n    text_block ------ {}'.format(block_attr_dict))
+
+            if isinstance(val, list):
+                par_list = []
+                for tmp_val in val:
+                    par_list.extend(parse_abby_par(tmp_val))
+            elif isinstance(val, dict):
+                # print('par: {}'.format(val))
+                par_list = parse_abby_par(val)
+            else:
+                raise ValueError
+            
+            abby_cell = AbbyCell(par_list, cell_attr_dict)
+            # abby_cell.infer_attr_dict = add_infer_xxxattrs(cell_attr_dict)
+            return abby_cell
+
+    raise ValueError        
+    
+
+def parse_abby_rows(ajson) -> List[AbbyRow]:
+
+    ab_row_list = []  # List[AbbyRow]
+
+    # print("\n\najson in parse_abby_row:")
+    # pprint.pprint(ajson)
+    # [{'cell': ...}, {'cell': }]
+
+    for cell_dict in ajson:
+        ab_cell_list = []  # type: List[AbbyCell]
+        if isinstance(cell_dict, dict):
+            # cell_attr, cell_val = cell_dict
+            cell_val = cell_dict['cell']
+            if isinstance(cell_val, list):
+                for tmp_val in cell_val:
+                    ab_cell_list.append(parse_abby_cell(tmp_val))
+            elif isinstance(cell_val, dict):
+                ab_cell_list.append(parse_abby_cell(cell_val))
+            else:
+                raise ValueError                
+        else:
+            raise ValueError
+
+        if ab_cell_list:
+            ab_row = AbbyRow(ab_cell_list, {})
+            ab_row_list.append(ab_row)
+
+    return ab_row_list
+
+
+
 def add_ydiffs_in_lines(ab_lines: List[AbbyLine]) -> None:
     prev_b_attr = ab_lines[0].attr_dict['@b']
     ab_lines[0].infer_attr_dict['ydiff'] = -1
@@ -127,7 +197,7 @@ def add_ydiffs_in_lines(ab_lines: List[AbbyLine]) -> None:
         ab_line.infer_attr_dict['ydiff'] = ydiff
         prev_b_attr = b_attr
 
-def add_ydiffs_in_block(ab_text_block: AbbyTextBlock) -> None:
+def add_ydiffs_in_text_block(ab_text_block: AbbyTextBlock) -> None:
     line_list = []  # type: List[AbbyLine]
     # collect all the abby_lines
     par_list = ab_text_block.ab_pars
@@ -142,6 +212,7 @@ def add_ydiffs_in_block(ab_text_block: AbbyTextBlock) -> None:
 def parse_abby_par(ajson) -> List[AbbyPar]:
     par_attr_dict = {}
     par_json_list = []
+
     for attr, val in sorted(ajson.items()):
         # there is no attribute for 'par'
         # if attr.startswith('@'):
@@ -204,10 +275,16 @@ def parse_abby_page(ajson) -> AbbyPage:
                     text_block_jsonlist.extend(val)
                 elif isinstance(val, dict):
                     text_block_jsonlist.append(val)
+    elif isinstance(ajson, list):
+        raise ValueError
+    else:
+        raise ValueError        
+    
     # print("page_attrs: {}".format(page_attr_dict))
 
-    ab_text_block_list = []  # type: List[AbbyTextBlock]
-    ab_table_block_list = []  # type: List[AbbyTableBlock]
+    # ab_text_block_list = []  # type: List[AbbyTextBlock]
+    # ab_table_block_list = []  # type: List[AbbyTableBlock]
+    ab_block_list = []  # type: List[Union[AbbyTableBlock, AbbyTextBlock]]
     prev_block_battr = -1
     for text_block in text_block_jsonlist:
 
@@ -225,8 +302,16 @@ def parse_abby_page(ajson) -> AbbyPage:
             if attr == 'text':
                 # print('\n    text_block ------ {}'.format(block_attr_dict))
 
-                # print('par: {}'.format(val))
-                par_list = parse_abby_par(val)
+                if isinstance(val, list):
+                    par_list = []
+                    for tmp_val in val:
+                        par_list.extend(parse_abby_par(tmp_val))
+                elif isinstance(val, dict):
+                    # print('par: {}'.format(val))
+                    par_list = parse_abby_par(val)
+                else:
+                    raise ValueError
+
                 if par_list:
                     text_block = AbbyTextBlock(par_list, block_attr_dict)
                     text_block.infer_attr_dict = add_infer_header_footer(block_attr_dict)
@@ -239,15 +324,46 @@ def parse_abby_page(ajson) -> AbbyPage:
                     prev_block_battr = block_battr
 
                     # try:
-                    add_ydiffs_in_block(text_block)
+                    add_ydiffs_in_text_block(text_block)
                     #except Exception as exc:
                     #    print("text_block ============================")
                     #    print(text_block)
 
                     add_infer_text_block_attrs(text_block)
-                    ab_text_block_list.append(text_block)
+                    # ab_text_block_list.append(text_block)
+                    ab_block_list.append(text_block)
+            elif attr == 'row':
+                if isinstance(val, list):
+                    row_list = parse_abby_rows(val)                    
+                elif isinstance(val, dict):  # val is a dictionary
+                    # print('par: {}'.format(val))
+                    row_list = parse_abby_rows([val])                    
+                else:
+                    raise ValueError
 
-    apage = AbbyPage(ab_text_block_list, ab_table_block_list, page_attr_dict)
+                if row_list:
+                    table_block = AbbyTableBlock(row_list, block_attr_dict)
+                    table_block.infer_attr_dict = add_infer_header_footer(block_attr_dict)
+
+                    block_battr = block_attr_dict['@b']
+                    block_tattr = block_attr_dict['@t']
+                    block_ydiff = block_tattr - prev_block_battr
+                    if prev_block_battr != -1:
+                        table_block.infer_attr_dict['ydiff'] = block_ydiff
+                    prev_block_battr = block_battr
+
+                    # try:
+                    # add_ydiffs_in_block(table_block)
+                    #except Exception as exc:
+                    #    print("table_block ============================")
+                    #    print(table_block)
+
+                    add_infer_table_block_attrs(table_block)
+                    # ab_table_block_list.append(table_block)
+                    ab_block_list.append(table_block)                    
+                
+
+    apage = AbbyPage(ab_block_list, page_attr_dict)
     # apage.infer_attr_dict = infer_page_attrs(page_attr_dict)
     return apage
 
@@ -320,22 +436,30 @@ def set_abby_page_numbers(ab_doc: AbbyXmlDoc) -> None:
     block_id = 0
     par_id = 0
     lid = 0
+    table_id = 0
     # Page number starts with 1, to be consistent with UI.
     for pnum, abby_page in enumerate(ab_doc.ab_pages, 1):
         # print("\n\npage #{} ========== {}".format(pnum, abby_page.infer_attr_dict))
         abby_page.num = pnum
-        for ab_text_block in abby_page.ab_text_blocks:
+        for ab_block in abby_page.ab_blocks:
             # print("\n    block #{} -------- {}".format(bid, ab_text_block.infer_attr_dict))
-            ab_text_block.num = block_id
+            ab_block.num = block_id
             block_id += 1
-            for ab_par in ab_text_block.ab_pars:
-                # print("        par #{} {}".format(par_id, ab_par.infer_attr_dict))
-                ab_par.num = par_id
-                par_id += 1
-                for ab_line in ab_par.ab_lines:
-                    #print("            line #{} [{}] {}".format(lid, ab_line.text, ab_line.infer_attr_dict))
-                    ab_line.num = lid
-                    lid += 1
+            if isinstance(ab_block, AbbyTextBlock):
+                ab_text_block = ab_block
+                for ab_par in ab_text_block.ab_pars:
+                    # print("        par #{} {}".format(par_id, ab_par.infer_attr_dict))
+                    ab_par.num = par_id
+                    par_id += 1
+                    for ab_line in ab_par.ab_lines:
+                        #print("            line #{} [{}] {}".format(lid, ab_line.text, ab_line.infer_attr_dict))
+                        ab_line.num = lid
+                        lid += 1
+            elif isinstance(ab_block, AbbyTableBlock):
+                ab_table_block = ab_block                
+                ab_table_block.table_id = table_id
+                table_id += 1
+                
 
 
 def split_indent_1_2(ab_text_block: AbbyTextBlock) -> None:
@@ -440,9 +564,6 @@ def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
 
     # set page number block number at the end
     set_abby_page_numbers(ab_doc)
-
-
-
 
 
 if __name__ == '__main__':

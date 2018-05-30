@@ -58,7 +58,6 @@ class AbbyTextBlock:
         self.num = -1
         self.ab_pars = ab_pars
         self.attr_dict = attr_dict
-
         self.infer_attr_dict = {}
 
 
@@ -81,25 +80,57 @@ class AbbyTextBlock:
         return '\n'.join(st_list)
 
 
+class AbbyCell:
+
+    def __init__(self,
+                 ab_pars: List[AbbyPar],
+                 attr_dict: Dict) -> None:
+        self.num = -1
+        self.ab_pars = ab_pars
+        self.attr_dict = attr_dict
+        self.infer_attr_dict = {}
+
+        
+class AbbyRow:
+
+    def __init__(self,
+                 ab_cells: List[AbbyCell],
+                 attr_dict: Dict) -> None:
+        self.num = -1
+        self.ab_cells = ab_cells
+        self.attr_dict = attr_dict
+        self.infer_attr_dict = {}
+
+
 class AbbyTableBlock:
 
     def __init__(self,
-                 table_block_num: int,
+                 ab_rows: List[AbbyRow],
                  attr_dict: Dict) -> None:
-        self.num = table_block_num
+        self.num = -1
+        self.ab_rows = ab_rows
         self.attr_dict = attr_dict
-
         self.infer_attr_dict = {}
+        self.table_id = -1
+
 
 class AbbyPage:
 
     def __init__(self,
-                 ab_text_blocks: List[AbbyTextBlock],
-                 ab_table_blocks: List[AbbyTextBlock],
+                 ab_blocks: List[Union[AbbyTextBlock, AbbyTableBlock]],
                  attr_dict: Dict) -> None:
         self.num = -1
-        self.ab_text_blocks = ab_text_blocks
-        self.ab_table_blocks = ab_table_blocks
+        self.ab_blocks = ab_blocks
+        self.ab_text_blocks = []  # type: List[AbbyTextBlock]
+        self.ab_table_blocks = []  # type: List[AbbyTableBlock]
+
+        for ab_block in ab_blocks:
+            if isinstance(ab_block, AbbyTextBlock):
+                self.ab_text_blocks.append(ab_block)
+            elif isinstance(ab_block, AbbyTableBlock):
+                self.ab_table_blocks.append(ab_block)
+            else:
+                raise ValueError
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
 
@@ -122,6 +153,7 @@ def _is_par_centered(attr_dict: Dict) -> bool:
             return True
     return False
 
+
 def _pprint_line_attrs(attr_dict: Dict) -> str:
     st_list = []  # type: List[str]
     st_list.append('x={}'.format(attr_dict['x']))
@@ -129,6 +161,16 @@ def _pprint_line_attrs(attr_dict: Dict) -> str:
     if attr_dict['ydiff'] != -1:
         st_list.append('ydf={}'.format(attr_dict['ydiff']))
     return ', '.join(st_list)
+
+
+def _pprint_table_attrs(attr_dict: Dict) -> str:
+    st_list = []  # type: List[str]
+    st_list.append('l={}'.format(attr_dict['@l']))
+    st_list.append('b={}'.format(attr_dict['@b']))
+    st_list.append('r={}'.format(attr_dict['@r']))
+    st_list.append('t={}'.format(attr_dict['@t']))
+    return ', '.join(st_list)
+
 
 def _get_indent_level(attr_dict: Dict) -> int:
     for attr, val in attr_dict.items():
@@ -246,27 +288,48 @@ class AbbyXmlDoc:
                 print('\n', file=file)
             print("========= page  #{:3d} ========".format(abby_page.num), file=file)
 
-            for ab_text_block in abby_page.ab_text_blocks:
-                print("\n  ------- block #{:3d} --------".format(ab_text_block.num), file=file)
+            # for ab_text_block in abby_page.ab_text_blocks:
+            for ab_block in abby_page.ab_blocks:                
+                if isinstance(ab_block, AbbyTextBlock):
+                    ab_text_block = ab_block
+                    print("\n  ----- block #{:3d} ----------".format(ab_text_block.num), file=file)
 
-                is_header_footer = ab_text_block.infer_attr_dict.get('header', False) or \
-                                   ab_text_block.infer_attr_dict.get('footer', False)
+                    is_header_footer = ab_text_block.infer_attr_dict.get('header', False) or \
+                                       ab_text_block.infer_attr_dict.get('footer', False)
 
-                for par_id, ab_par in enumerate(ab_text_block.ab_pars):
-                    # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
-                    print(file=file)
-                    is_par_centered = _is_par_centered(ab_par.infer_attr_dict)
-                    indent_level = _get_indent_level(ab_par.infer_attr_dict)
+                    for par_id, ab_par in enumerate(ab_text_block.ab_pars):
+                        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
+                        print(file=file)
+                        is_par_centered = _is_par_centered(ab_par.infer_attr_dict)
+                        indent_level = _get_indent_level(ab_par.infer_attr_dict)
 
-                    for lid, ab_line in enumerate(ab_par.ab_lines):
-                        _print_left_right_panes(ab_line.text,
-                                                ab_line.infer_attr_dict,
-                                                par_id=ab_par.num,
-                                                line_id=ab_line.num,
-                                                is_header_footer=is_header_footer,
-                                                indent_level=indent_level,
-                                                is_par_centered=is_par_centered,
-                                                file=file)
+                        for lid, ab_line in enumerate(ab_par.ab_lines):
+                            _print_left_right_panes(ab_line.text,
+                                                    ab_line.infer_attr_dict,
+                                                    par_id=ab_par.num,
+                                                    line_id=ab_line.num,
+                                                    is_header_footer=is_header_footer,
+                                                    indent_level=indent_level,
+                                                    is_par_centered=is_par_centered,
+                                                    file=file)
+                elif isinstance(ab_block, AbbyTableBlock):
+                    ab_table_block = ab_block
+                    print("\n  ----- block #{:3d} --Table--".format(ab_table_block.num), file=file)
+                    print("  {}".format(_pprint_table_attrs(ab_table_block.attr_dict)), file=file)                    
+
+                    for row_id, ab_row in enumerate(ab_table_block.ab_rows):
+                        
+                        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
+                        print(file=file)
+                        print("    {:26}--- row #{}".format('', row_id), file=file)
+                        for cell_seq, ab_cell in enumerate(ab_row.ab_cells):
+                            print("    {:26}  -- cell #{}:".format('', cell_seq), file=file)
+                            for ab_par in ab_cell.ab_pars:
+                                for lid, ab_line in enumerate(ab_par.ab_lines):
+                                    print("    {:26}        [{}]".format('', ab_line.text), file=file)                    
+                else:
+                    raise ValueError
+                    
 
         if self.unmatched_ab_lines:
             print("\n\n========= Unmatched Abby Lines ========", file=file)
