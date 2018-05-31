@@ -130,7 +130,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'is_use_corenlp': False,
                         'doc_to_candidates': regexgen.RegexContextGenerator(3,
                                                                             3,
-                                                                            re.compile(r'(([A-z]*[\d\-#@]+[A-z]*){4,})'), 
+                                                                            re.compile(r'(((\(?\d+\)\s*)?[A-z]*[\d\-#@\.]+[A-z]*){4,})'), 
                                                                             'ID-NUM'),
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
