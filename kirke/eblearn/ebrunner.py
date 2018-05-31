@@ -16,7 +16,7 @@ import psutil
 from sklearn.externals import joblib
 
 from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
-from kirke.eblearn import ebannotator, ebtrainer, lineannotator, provclassifier
+from kirke.eblearn import annotatorconfig, ebannotator, ebtrainer, lineannotator, provclassifier
 from kirke.eblearn import scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import ebantdoc4, evalutils, lrucache, osutils, strutils
@@ -44,7 +44,6 @@ def annotate_provision(eb_annotator,
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc)
     """
-
     return eb_annotator.annotate_antdoc(eb_antdoc)
 
 
@@ -187,6 +186,21 @@ class EbRunner:
         if provision.startswith('cust_'):
             # self.cust_annotator_map is lrucache.LRUCache.  Must use get().
             return self.custom_annotator_map.get(provision)
+        if provision in annotatorconfig.get_all_candidate_types():
+            config = annotatorconfig.get_ml_annotator_config(provision)
+            return spanannotator.SpanAnnotator(provision,
+                                               provision,
+                                               nbest=-1,
+                                               version=config['version'],
+                                               doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
+                                               is_use_corenlp=config['is_use_corenlp'],
+                                               doc_to_candidates=config['doc_to_candidates'],
+                                               candidate_transformers=config.get('candidate_transformers', []),
+                                               doc_postproc_list=config.get('doc_postproc_list', []),
+                                               pipeline=config['pipeline'],
+                                               gridsearch_parameters=config['gridsearch_parameters'],
+                                               threshold=0.0,
+                                               kfold=config.get('kfold', 3))
         return self.provision_annotator_map[provision]
 
 
@@ -200,6 +214,7 @@ class EbRunner:
         #    logger.info("user specified provision list: %s", provision_set)
         both_default_custom_provs = set(self.provision_annotator_map.keys())
         both_default_custom_provs.update(self.custom_annotator_map.keys())
+        both_default_custom_provs.update(annotatorconfig.get_all_candidate_types())
 
         annotations = defaultdict(list)  # type: DefaultDict[str, List]
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
@@ -356,7 +371,6 @@ class EbRunner:
             return empty_result, eb_antdoc
         # this execute the annotators in parallel
         prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, provision_set)
-
         # this update the 'start_end_span_list' in each antx in-place
         # docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
         # update prov_labels_map based on rules

@@ -64,7 +64,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'doc_to_candidates': regexgen.RegexContextGenerator(20,
                                                                              5,
                                                                              # pylint: disable=line-too-long
-                                                                             re.compile(r'([\$€₹£¥] *(\d{1,3},?)+([,\.]\d\d)?)[€円]?'),
+                                                                             re.compile(r'((USD|[\$€₹£¥])\s*(\d{1,3},?)+([,\.]\d\d)?\s*([bB]illion|[mM]illion|[tT]housand)?(M|B)?\s*(USD|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[€円])?)'),
                                                                              'CURRENCY'),
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -86,7 +86,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'doc_to_candidates': regexgen.RegexContextGenerator(10,
                                                                            10,
                                                                            # pylint: disable=line-too-long
-                                                                           re.compile(r'(\(?\d[\d\-\.,\)]+)\s'),
+                                                                           re.compile(r'([/\d\-\.,]*\d+)'),
                                                                            'NUMBER'),
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -108,7 +108,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'is_use_corenlp': False,
                         'doc_to_candidates': regexgen.RegexContextGenerator(15,
                                                                             5,
-                                                                            re.compile(r'(\d+%)'),
+                                                                            re.compile(r'(\-?[\d\.]+\s*%)'),
                                                                             'PERCENT'),
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -278,3 +278,6 @@ def get_annotator_config(label: str,
                 best_annotator_config = (candg_type, candg_ver, candg_property)
 
     return best_annotator_config
+
+def get_all_candidate_types():
+    return set([x[0] for x in ML_ANNOTATOR_CONFIG_LIST])

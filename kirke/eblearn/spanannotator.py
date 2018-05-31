@@ -281,6 +281,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         nbest = self.nbest
         start_time = time.time()
         candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
+
         end_time = time.time()
         logger.debug('annotate_antdoc(%s, %s) took %.0f msec',
                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
@@ -346,7 +347,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         if not candidates:
             return [], []
 
-        probs = [] # type: List[float]
+        probs = [1.0] * len(candidates) # type: List[float]
         if self.estimator:
             probs = self.estimator.predict_proba(candidates)[:, 1]
 
