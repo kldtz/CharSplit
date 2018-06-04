@@ -45,11 +45,14 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'equitable_relief': 0.24,
                            'events_default': 0.18,
                            'indemnify': 0.24,
+                           'l_premises': 0.36,
+                           'l_rent': 0.36,
                            'party': 0.5,
                            'pricing_salary': 0.36,
                            'sublicense': 0.24,
                            'survival': 0.24,
-                           'termination': 0.36}
+                           'termination': 0.36,
+                           'warranty': 0.36}
 
 
 class ShortcutClassifier(EbClassifier):
