@@ -320,6 +320,10 @@ def is_party_line_aux(line: str) -> str:
     if len(line) > 5000:  # sometime the whole doc is a line
         return 'False1'
 
+    if re.search(r'\bby\s+and\s+between\b', line, re.I) and \
+       len(line) > 100:
+        return 'True0.1242'
+
     if re.search(r'\b(engages?|made\s+available|subordinate\s+to|all\s+liens)\b', line, re.I):
         return 'False2'
 
@@ -424,7 +428,8 @@ def is_party_line_aux(line: str) -> str:
         return 'True9.1'
 
     # 39871.txt
-    if re.search(r'\band\b.*\bagree[sd]?\b', line, re.I):
+    if re.search(r'\band\b.*\bagree[sd]?\b', line, re.I) and \
+       not re.search(r'\btherefore\b', line, re.I):
         return 'True9.1.2'
 
     # mytest/doc1.txt fail on this
@@ -468,6 +473,9 @@ def is_party_line_aux(line: str) -> str:
         return 'False17'
     if 'means' in line:  # in definition section of 'purchase agreement'
         return 'False18'
+    if re.match(r'now\b', line, re.I) or \
+       re.search(r'\btherefore\b', line, re.I):
+        return 'False18.3'
     mat = PARTY_PAT.search(line)
     if mat:
         return 'True8.8'  # bool(mat)

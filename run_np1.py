@@ -100,8 +100,8 @@ if __name__ == '__main__':
     print(list(result))
     """
 
+
     """
-    line = 'ABN AMRO BANK N.V., BANC OF AMERICA SECURITIES LIMITED, BARCLAYS CAPITAL,  CITIGROUP GLOBAL MARKETS LIMITED, COÖPERATIEVE CENTRALE RAIFFEISEN- BOERENLEENBANK B.A., DEUTSCHE BANK AG, LONDON BRANCH, HSBC BANK PLC, ING  BANK N.V., JPMORGAN CHASE BANK N.A., MORGAN STANLEY BANK INTERNATIONAL  LIMITED, ROYAL BANK OF CANADA and THE ROYAL BANK OF SCOTLAND PLC as  mandated lead arrangers (the "Mandated Lead Arrangers");'
     # line = 'ROYAL BANK OF CANADA and THE ROYAL BANK OF SCOTLAND PLC'
     result = partyutils.find_uppercase_party_name_list(line)
     for i, party_se in enumerate(result):
@@ -309,6 +309,18 @@ line = 'ABN AMRO BANK N.V., BANC OF AMERICA SECURITIES LIMITED, BARCLAYS CAPITAL
 
 # line = 'ABN AMRO BANK N.V., BANC OF AMERICA SECURITIES LIMITED'
 # line = 'BANC OF AMERICA SECURITIES LIMITED, BARCLAYS CAPITAL,'
+
+line = 'The Board of Trustees of the University of Illinois (“Board” or “University”) '
+line = 'ABN AMRO BANK N.V., BANC OF AMERICA SECURITIES LIMITED, BARCLAYS CAPITAL,  CITIGROUP GLOBAL MARKETS LIMITED, COÖPERATIEVE CENTRALE RAIFFEISEN- BOERENLEENBANK B.A., DEUTSCHE BANK AG, LONDON BRANCH, HSBC BANK PLC, ING  BANK N.V., JPMORGAN CHASE BANK N.A., MORGAN STANLEY BANK INTERNATIONAL  LIMITED, ROYAL BANK OF CANADA and THE ROYAL BANK OF SCOTLAND PLC as  mandated lead arrangers (the "Mandated Lead Arrangers");'
+# line = 'LSH Auto UK Limited of 20-22 Bedford Row. London. United Kingdom. WCIR 4JS  with company registration number 10066560 (the “Borrower"): and'
+
+line = 'UDR, Inc., a Maryland corporation (the “Company”), confirms its agreement with Banc of  America Securities LLC, Citigroup Global Markets Inc., Deutsche Bank Securities Inc., J.P. Morgan  Securities Inc., Merrill Lynch, Pierce, Fenner & Smith Incorporated, Morgan Stanley & Co.  Incorporated and Wells Fargo Securities, LLC (each, an “Agent,” and together, the “Agents”) with  respect to the issue and sale by the Company of its Medium-Term Notes, Series A, Due Nine Months  or More From Date of Issue (the “Notes”).'
+
+line = 'BNP PARIBAS, GOLDMAN SACHS BANK USA and SOCIÉTÉ GÉNÉRALE S.A., ACTING  THROUGH ITS AMSTERDAM BRANCH as lead arrangers (the “Lead Arrangers”);'
+
+line = 'ABN AMRO BANK N.V., BANC OF AMERICA SECURITIES LIMITED, BARCLAYS CAPITAL,  CITIGROUP GLOBAL MARKETS LIMITED, DEUTSCHE BANK AG, ING BANK N.V.,  JPMORGAN CHASE BANK N.A., MORGAN STANLEY and ROYAL BANK OF CANADA as  bookrunners (the "Bookrunners");'
+
+line = 'AGREEMENT made this 19th day of May, 2010 by and between SHBV (Hong Kong) Ltd  (“SHBV”), a Company with its principal place of business at Unit 3208, 32/F Office Tower, Convention  Plaza No. 1 Harbour Road, Hong Kong and WASTE2ENERGY GROUP company registered in Isle of  Man Corporation (Company Registration No. 0038V) whose registered office is at Stanley House, Lord  Street, Douglas, Isle of Man 1M1 2BF (“W2EGH”), WASTE2ENERGY ENGINEERING LIMITED, a  company registered in Scotland (Company Registration No. SC360321) of Hestan House, Crichton  Business Park, Bankend Road, Dumfries, DG1 4TA, United Kingdom (“W2EE”) and WASTE2ENERGY  TECHNOLOGIES INTERNATIONAL LIMITED, a company registered in Isle of Man (Company  Registration No. 003615V) whose registered office is at Stanley House, Lord Street, Douglas, Isle of Man  1M1 2BF (“W2ETI”). W2EGH, W2EE and W2ETI are hereinafter collectively referred to as “W2E”).'
 
 print("line: [{}]".format(line))
 phrased_sent = nlputils.PhrasedSent(line, is_chopped=True)

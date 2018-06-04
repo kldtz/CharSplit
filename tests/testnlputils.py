@@ -61,9 +61,9 @@ class TestNLPUtils(unittest.TestCase):
             st_list.append(line[start:end])
             tag_list.append(ttype)
         self.assertEqual(st_list,
-                         ['N.A.', 'incorporated'])
+                         ['N.A.'])
         self.assertEqual(tag_list,
-                         ['xORGP', 'xORGP'])
+                         ['xORGP'])
 
 
 

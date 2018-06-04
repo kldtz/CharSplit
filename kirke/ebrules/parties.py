@@ -350,9 +350,13 @@ def extract_parties_term_list_from_party_line(line: str) \
 
     start_offset = 0
     tmp_mat = re.match(r'for\s+value\s+received,?\s+(.*)$', line, re.I)
+    delivered_by_mat = re.search(r'(\bis\s+delivered\s+by\s+)', line, re.I)
     if tmp_mat:
         start_offset = tmp_mat.start(1)
         line = line[start_offset:]
+    elif delivered_by_mat:
+        start_offset = delivered_by_mat.start()
+        line = line[delivered_by_mat.start():]
     else:
         between_list = list(BTWN_AMONG_PAT.finditer(line))
         # chop at first xxx entered ... by and between (wanted)
@@ -947,7 +951,8 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
 
             phrased_sent = nlputils.PhrasedSent(linex, is_chopped=True)
             tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
-            print("tmp_parties_term_offset = {}".format(tmp_parties_term_offset))
+            if IS_DEBUG_MODE:
+                print("tmp_parties_term_offset = {}".format(tmp_parties_term_offset))
             # party_name_sentinel = partyutils.find_uppercase_party_name(linex)
             if tmp_parties_term_offset:
 
@@ -991,7 +996,8 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
 
                     phrased_sent = nlputils.PhrasedSent(linex, is_chopped=True)
                     tmp_parties_term_offset = phrased_sent.extract_orgs_term_offset()
-                    print("tmp_parties_term_offset222 = {}".format(tmp_parties_term_offset))
+                    if IS_DEBUG_MODE:
+                        print("tmp_parties_term_offset222 = {}".format(tmp_parties_term_offset))
             else:
                 if len(linex) < 40:
                     se_curline_idx = move_next_non_empty_se_after_list(se_after_paras_attr_list,
