@@ -1,7 +1,7 @@
 import logging
 import re
 from typing import Dict, List, Pattern, Tuple
-
+import copy
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 logger = logging.getLogger(__name__)
@@ -14,16 +14,18 @@ class RegexContextGenerator:
                  num_prev_words: int,
                  num_post_words: int,
                  center_regex: Pattern,
-                 candidate_type: str) -> None:
+                 candidate_type: str,
+                 join: bool = False) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
         self.center_regex = center_regex
         self.candidate_type = candidate_type
+        self.join = join
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                             label: str = None)  -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                                label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                                                List[Dict],
                                                                List[bool],
                                                                List[int]]]:
@@ -79,6 +81,15 @@ class RegexContextGenerator:
                     new_start = prev_spans[0][0]
                 if post_spans:
                     new_end = post_spans[-1][-1]
+                if match_str.endswith(',') or match_str.endswith(';') or match_str.endswith(':'):
+                    match_str = match_str[:-1]
+                    match_end -= 1
+                if match_str.endswith(')') and not '(' in match_str:
+                    match_str = match_str[:-1]
+                    match_end -= 1
+                if match_str.startswith('(') and not ')' in match_str:
+                    match_str = match_str[1:]
+                    match_start += 1
                 a_candidate = {'candidate_type': self.candidate_type,
                             'bow_start': new_start,
                             'bow_end': new_end,
@@ -95,5 +106,27 @@ class RegexContextGenerator:
                     label_list.append(True)
                 else:
                     label_list.append(False)
+            if self.join:
+                merge_candidates = []
+                i = 0
+                while i < len(candidates):
+                    skip = True
+                    new_candidate = copy.deepcopy(candidates[i])
+                    while skip and i+1 < len(candidates):
+                        diff = candidates[i+1]['start'] - new_candidate['end']
+                        diff_str = nl_text[new_candidate['end']:candidates[i+1]['start']]
+                        if (diff_str.isspace() or not diff_str) and diff < 3:
+                            new_candidate['end'] = candidates[i+1]['end']
+                            new_candidate['chars'] = nl_text[new_candidate['start']:new_candidate['end']]
+                            i += 1
+                        else:
+                            merge_candidates.append(new_candidate)
+                            i += 1
+                            skip = False
+                    if i == len(candidates) - 1:
+                        skip = False
+                        merge_candidates.append(candidates[i])
+                        i += 1
+                candidates = merge_candidates
             result.append((antdoc, candidates, label_list, group_id_list))
         return result

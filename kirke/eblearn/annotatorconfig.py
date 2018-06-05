@@ -64,7 +64,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'doc_to_candidates': regexgen.RegexContextGenerator(20,
                                                                              5,
                                                                              # pylint: disable=line-too-long
-                                                                             re.compile(r'((USD|[\$€₹£¥])\s*(\d{1,3},?)+([,\.]\d\d)?\s*([bB]illion|[mM]illion|[tT]housand)?(M|B)?\s*(USD|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[€円])?)'),
+                                                                             re.compile(r'(((USD|[\$€₹£¥])\s*(\d{1,3},?)+([,\.]\d\d)?\s*([bB]illion|[mM]illion|[tT]housand|M|B)?)|((\d{1,3},?)+([,\.]\d\d)?\s*([bB]illion|[mM]illion|[tT]housand|M|B)?\s*(USD|GBP|JPY|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[€円¥])))'),
                                                                              'CURRENCY'),
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -86,7 +86,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'doc_to_candidates': regexgen.RegexContextGenerator(10,
                                                                            10,
                                                                            # pylint: disable=line-too-long
-                                                                           re.compile(r'([/\d\-\.,]*\d+)'),
+                                                                           re.compile(r'\s\(?(\-?(,?\d{1,3})+([,\./]\d+)?)\)?[,\.:;]?\s'),
                                                                            'NUMBER'),
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -108,7 +108,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'is_use_corenlp': False,
                         'doc_to_candidates': regexgen.RegexContextGenerator(15,
                                                                             5,
-                                                                            re.compile(r'(\-?[\d\.]+\s*%)'),
+                                                                            re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)?\s*%))'),
                                                                             'PERCENT'),
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
@@ -130,8 +130,9 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'is_use_corenlp': False,
                         'doc_to_candidates': regexgen.RegexContextGenerator(3,
                                                                             3,
-                                                                            re.compile(r'(((\(?\d+\)\s*)?[A-z]*[\d\-#@\.]+[A-z]*){4,})'), 
-                                                                            'ID-NUM'),
+                                                                            re.compile(r'([^\s]*\d[^\s]*)'),
+                                                                            'ID-NUM',
+                                                                            join=True),
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
