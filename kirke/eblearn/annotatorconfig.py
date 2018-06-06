@@ -108,7 +108,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'is_use_corenlp': False,
                         'doc_to_candidates': regexgen.RegexContextGenerator(15,
                                                                             5,
-                                                                            re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)?\s*%))'),
+                                                                            re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)\s*%))'),
                                                                             'PERCENT'),
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
