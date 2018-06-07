@@ -342,7 +342,7 @@ def find_sechead_prefix_part_line(st):
         # need to treate "re:" as a regular word instead of relying on the punctuation
         # "9. OPA Obligations re: Other Contracts"
         sec_words = [word for word in sec_words if word not in set(['re:'])]
-        if len(sec_words) <= 5 and strutils.is_all_title(sec_words):   # this is full section head per line
+        if len(sec_words) <= 5 and strutils.is_all_title_words(sec_words):   # this is full section head per line
             # print("hhhhhhhhhhhhhhhhhhhhh: {}".format(st))              # skip
             return None        
     
@@ -355,7 +355,7 @@ def find_sechead_prefix_part_line(st):
 
     sec_words_st = mat.group(2)[:-1]
     sec_words = stopwordutils.tokens_remove_stopwords(sec_words_st.split())
-    if not (len(sec_words) <= 5 and strutils.is_all_title(sec_words)):
+    if not (len(sec_words) <= 5 and strutils.is_all_title_words(sec_words)):
         return None
 
     # TODO, jshaw, something is wrong with the regex that it is slow.
@@ -367,7 +367,7 @@ def find_sechead_prefix_part_line(st):
         # rest_group = mat.group(4)
 
         sec_words = stopwordutils.tokens_remove_stopwords(sec_words_st.split())
-        if len(sec_words) <= 5 and strutils.is_all_title(sec_words):
+        if len(sec_words) <= 5 and strutils.is_all_title_words(sec_words):
             # return mat.group(1), mat.group(2), mat.group(4)
             return mat
     return None

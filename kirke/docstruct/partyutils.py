@@ -32,6 +32,8 @@ ST_PAT_LIST = ['is made and entered into by and between',
                'confirms its agreement',
                'the parties to this',
                'promises to pay',
+               'agreement.*is delivered by',               
+               'note.* is made by.*for.*benefit',
                'to the order of',
                'promises to pay to']
 
@@ -324,8 +326,16 @@ def is_party_line_aux(line: str) -> str:
        len(line) > 100:
         return 'True0.1242'
 
+    # export-train/39752.txt
+    if re.search(r'\bpropose(d|s)?\s+to\s+issue\b.*notes', line, re.I):
+        return 'True0.1243'
+
     if re.search(r'\b(engages?|made\s+available|subordinate\s+to|all\s+liens)\b', line, re.I):
         return 'False2'
+
+    # Now, Therefore
+    if re.match(r'now\b', line, re.I):
+        return 'False2.1.2'
 
     if '.....' in line:
         return 'False2.2'
@@ -419,6 +429,10 @@ def is_party_line_aux(line: str) -> str:
     #    not re.search(r'\bis\s+dated\b', line, re.I):
     #    return 'False1'
 
+
+    if re.search(r'\b(excluding|excludes?|closing)\b', line, re.I):
+        return 'False1.0.13'
+
     if re.search(r'\b(entered)\b', line, re.I) and \
        re.search(r'\b(by\s+and\s+between)\b', line, re.I):
         return 'True9'
@@ -428,9 +442,19 @@ def is_party_line_aux(line: str) -> str:
         return 'True9.1'
 
     # 39871.txt
-    if re.search(r'\band\b.*\bagree[sd]?\b', line, re.I) and \
-       not re.search(r'\btherefore\b', line, re.I):
-        return 'True9.1.2'
+    # too many false positives
+    if re.search(r'\bcorporation.*\band\b.*corporation.*\bagree[sd]?\b', line, re.I) and \
+       not re.search(r'\b(therefore|subject.*conditions?|during)\b', line, re.I):
+        return 'True9.1.2.2'
+
+    # export-train/39856.txt
+    if re.search(r'\bagree[sd]?\b.*\bto\b.*contract', line, re.I) or\
+       re.search(r'\bagree[sd]?\b.*as\b.*follows', line, re.I):
+        return 'True9.1.2.3'
+
+    # if re.search(r'\band\b.*\bagree[sd]?\b', line, re.I) and \
+    #    not re.search(r'\b(therefore|subject.*conditions?|during)\b', line, re.I):
+    #     return 'True9.1.2'
 
     # mytest/doc1.txt fail on this
     # pylint: disable=pointless-string-statement
@@ -461,7 +485,7 @@ def is_party_line_aux(line: str) -> str:
     # This Agreement is made on 2017
     #        Between:
     # (1) ...
-    if re.search(r'agreement\s+is\s+made\s+on', line, re.I):
+    if re.search(r'agreement\s+is\s+made\s+(on|as\s+of)', line, re.I):
         return 'True14'
 
     if line.startswith('T') and \
@@ -476,9 +500,14 @@ def is_party_line_aux(line: str) -> str:
     if re.match(r'now\b', line, re.I) or \
        re.search(r'\btherefore\b', line, re.I):
         return 'False18.3'
+
     mat = PARTY_PAT.search(line)
-    if mat:
+    if mat and \
+       not re.search(r'\b(assign(s|ed)?|percent|rate)\b', line, re.I):
+        # export-train/35736.txt
+        # export-train/38849.txt for "restated, modified"
         return 'True8.8'  # bool(mat)
+
     lc_line = line.lower()
     if 'between' in lc_line and engutils.has_date(lc_line):
         return 'True19'
@@ -486,7 +515,7 @@ def is_party_line_aux(line: str) -> str:
         return 'True20'
     if 'issued' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
         return 'True21'
-    if 'entered' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
+    if re.search(r'\benter(ed|s)?\b', line, re.I) and engutils.has_date(lc_line) and 'agreement' in lc_line:
         return 'True22'
     # power of attorney
     if 'made on' in lc_line and engutils.has_date(lc_line) and 'power' in lc_line:
@@ -502,7 +531,9 @@ def is_party_line_aux(line: str) -> str:
     if CONCLUDED_PAT.search(line):
         return 'True27'
 
-    if THIS_AGREEMENT_PAT.search(line) and "amendment" in lc_line:
+    if THIS_AGREEMENT_PAT.search(line) and \
+       "amendment" in lc_line and \
+       not 'section' in lc_line:
         return 'True28'
 
     if re.search(r'\b(following\s+meanings?)\b', line, re.I):
@@ -516,14 +547,25 @@ def is_party_line_aux(line: str) -> str:
     if 'date' in lc_line and ' by ' in lc_line and 'in favor of' in lc_line:
         return 'True30'
 
+    # export-train/35739.txt
+    if 'section'  in lc_line or \
+       'elsewhere'  in lc_line or \
+       'meanings'  in lc_line or \
+       lc_line.startswith('in addition'):
+        return 'False33.124'
+
     if 'reach an agreement' in lc_line or \
        'the following terms' in lc_line or \
        'terms and conditions' in lc_line or \
        'enter into this contract' in lc_line:
         return 'True31'
-    if 'hereinafter' in lc_line and 'agree' in lc_line:
+    if 'hereinafter' in lc_line and \
+       'agree' in lc_line and \
+       not 'subject to' in lc_line:
         return 'True32'
-    if 'confirm' in lc_line and 'agree' in lc_line:
+    if 'confirm' in lc_line and \
+       'agree' in lc_line and \
+       not 'subject to' in lc_line:
         return 'True33'
     # NOW, THEREFORE, in consideration of the premises and the mutual covenants
     # contained in this Agreement,  the Parties hereto agree as follows:
@@ -562,7 +604,7 @@ def is_party_line_aux(line: str) -> str:
     if 'is made' in lc_line and \
        'following parties' in lc_line:
         return 'True40'
-    return 'False41'
+    return 'False99'
 
 
 # pylint: disable=invalid-name

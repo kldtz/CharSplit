@@ -322,6 +322,14 @@ line = 'ABN AMRO BANK N.V., BANC OF AMERICA SECURITIES LIMITED, BARCLAYS CAPITAL
 
 line = 'AGREEMENT made this 19th day of May, 2010 by and between SHBV (Hong Kong) Ltd  (“SHBV”), a Company with its principal place of business at Unit 3208, 32/F Office Tower, Convention  Plaza No. 1 Harbour Road, Hong Kong and WASTE2ENERGY GROUP company registered in Isle of  Man Corporation (Company Registration No. 0038V) whose registered office is at Stanley House, Lord  Street, Douglas, Isle of Man 1M1 2BF (“W2EGH”), WASTE2ENERGY ENGINEERING LIMITED, a  company registered in Scotland (Company Registration No. SC360321) of Hestan House, Crichton  Business Park, Bankend Road, Dumfries, DG1 4TA, United Kingdom (“W2EE”) and WASTE2ENERGY  TECHNOLOGIES INTERNATIONAL LIMITED, a company registered in Isle of Man (Company  Registration No. 003615V) whose registered office is at Stanley House, Lord Street, Douglas, Isle of Man  1M1 2BF (“W2ETI”). W2EGH, W2EE and W2ETI are hereinafter collectively referred to as “W2E”).'
 
+line = 'Lithium Technology Corporation, with its principal place of business at 5115 Campus Drive, Plymouth Meeting, PA 19462-1129 (“LTC”).'
+
+line = 'Element 21 Sports Company (hereinafter “LICENSEE”), a Delaware corporation having a legal address of 200 Queens Quay East, Unit # 1, Toronto, Ontario M5A 4K9 Canada (together, the “Parties”).'
+
+line = 'a wholly-owned subsidiary of Agrium Inc., a corporation governed by the Canada Business Corporation Act (“Agrium Inc.”)'
+
+line = 'Agrium U.S., a Colorado corporation (“Agrium U.S.”) '
+
 print("line: [{}]".format(line))
 phrased_sent = nlputils.PhrasedSent(line, is_chopped=True)
 parties_term_offset = phrased_sent.extract_orgs_term_offset()

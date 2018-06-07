@@ -473,6 +473,7 @@ def is_acronym(input_word: str) -> bool:
             return False
     return True
 
+
 # split into words after removing , ' "
 def split_words(line: str) -> List[str]:
     words = re.split(r'[\s\,\'\"\-]+', line)  # lc_line.split()
@@ -493,24 +494,20 @@ def split_words(line: str) -> List[str]:
                 result.append(word)
     return result
 
-def is_all_title_words(line: str) -> bool:
-    words = split_words(line)
-    has_alpha_word = False
-    for word in words:
-        if is_all_alphas(word):
-            has_alpha_word = True
-            if not word.isupper():
-                return False
-    return has_alpha_word
 
-def is_all_title(words: List[str]) -> bool:
-    has_alpha_word = False
+def is_all_title(line: str) -> bool:
+    words = split_words(line)
+    return is_all_title_words(words)
+
+
+def is_all_title_words(words: List[str]) -> bool:
+    if not words:
+        return False
     for word in words:
-        if is_all_alphas(word):
-            has_alpha_word = True
-            if not word.isupper():
-                return False
-    return has_alpha_word
+        if not word[0].isalpha() or \
+           not word[0].isupper():
+            return False
+    return True
 
 
 ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)

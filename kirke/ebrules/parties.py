@@ -349,11 +349,17 @@ def extract_parties_term_list_from_party_line(line: str) \
     """
 
     start_offset = 0
-    tmp_mat = re.match(r'for\s+value\s+received,?\s+(.*)$', line, re.I)
+    value_received_mat = re.search(r'for\s+value\s+received,?\s+(.*)$', line, re.I)
     delivered_by_mat = re.search(r'(\bis\s+delivered\s+by\s+)', line, re.I)
-    if tmp_mat:
-        start_offset = tmp_mat.start(1)
-        line = line[start_offset:]
+    if value_received_mat:
+        if value_received_mat.start() == 0:
+            start_offset = value_received_mat.start(1)
+            line = line[start_offset:]
+        else:
+            # xxx corp, for value received, xxx
+            # start-offset = 0
+            # line = line
+            pass
     elif delivered_by_mat:
         start_offset = delivered_by_mat.start()
         line = line[delivered_by_mat.start():]
@@ -384,7 +390,7 @@ def extract_parties_term_list_from_party_line(line: str) \
         parties_term_offset_list = extract_parties_term_list_from_itemized_line(line)
     else:
         # now find the verb, such as 'is entered', the 2nd 'agree' is just a guess
-        entered_mat = re.search(r'( is\s+entered\s+into| agreed?\b)', line, re.I)
+        entered_mat = re.search(r'( (is\s+)?entered\s+into| agreed?\b)', line, re.I)
         if entered_mat:  # we don't try to find party across verb in party_line
             line = line[:entered_mat.start()]
         else:
@@ -698,7 +704,7 @@ def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
         #    prev_line_st = line_st
 
         # don't bother if party_line is too far from start of the doc
-        if i > 2000:
+        if i > 2200:
             return None
     return None
 
@@ -1008,7 +1014,7 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
                     _, _, linex, attr_list = se_line_attrs
                 else:
                     # a long line, but has no uppercase party name prefix
-                    return []
+                    return result
             num_attempt += 1
 
     if IS_DEBUG_MODE:
@@ -1028,14 +1034,14 @@ def is_list_party_line(line: str) -> bool:
     if len(org_suffix_list) > 1:
         # parties are already mentioned, not list_party_line
         return False
+    if re.search(r'(:|among|between)\s*$', line):
+        return True
     if len(line) > 250:
         # too long, parties are probably mentioned
         return False
     # 40349
     if re.search(r'\b(confirm)', line):
         return False
-    if re.search(r'(:|among|between)\s*$', line):
-        return True
     return False
 
 
@@ -1058,6 +1064,18 @@ def parties_term_offset_list_to_partyterm_pairs(parties_term_offset_list: List[T
         else:
             out_list.append((None, term_offset))
     return out_list
+
+def is_empty_parties_term_offset_list(parties_term_offset_list: List[Tuple[List[Tuple[int, int]],
+                                                                           Optional[Tuple[int, int]]]]) \
+                                                                           -> bool:
+    if not parties_term_offset_list:
+        return True
+    if len(parties_term_offset_list) == 1:
+        parties_offset_list, term_offset = parties_term_offset_list[0]
+        # only term, not parties
+        if not parties_offset_list:
+            return True
+    return False
 
 
 # paras_text is not used for title right now
@@ -1096,6 +1114,10 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
             parties_term_offset_list = extract_parties_term_list_from_party_line(second_sent)
             if parties_term_offset_list:
                 start = start + len(first_sent) + sec_sent_start
+
+        # This is due to there is only term, most likely to be wrong
+        if is_empty_parties_term_offset_list(parties_term_offset_list):
+            parties_term_offset_list = []
 
         if parties_term_offset_list:
             # need to adjust the offset because used first_sent
