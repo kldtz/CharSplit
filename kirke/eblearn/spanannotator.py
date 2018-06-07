@@ -40,10 +40,10 @@ def adapt_pipeline_params(best_params):
 
 
 def get_model_file_name(provision: str,
-                        candidate_type: str,
+                        candidate_types: List[str],
                         model_dir: str):
     base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
-                                                        candidate_type,
+                                                        "_".join(candidate_types),
                                                         CANDG_CLF_VERSION)
     return "{}/{}".format(model_dir, base_model_fname)
 
@@ -89,7 +89,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     # pylint: disable=too-many-instance-attributes
     def __init__(self,
                  provision: str,
-                 candidate_type: str,
+                 candidate_types: List[str],
                  version: str,
                  nbest: int,
                  *,
@@ -106,7 +106,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  text_type: str = '') -> None:
         super().__init__(provision, 'no description')
         self.provision = provision
-        self.candidate_type = candidate_type
+        self.candidate_types = candidate_types
         self.version = version
         self.nbest = nbest
         self.text_type = text_type
@@ -131,7 +131,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
     def make_bare_copy(self):
         return SpanAnnotator(self.provision,
-                             self.candidate_type,
+                             self.candidate_types,
                              self.version,
                              self.nbest,
                              doclist_to_antdoc_list=self.doclist_to_antdoc_list,
@@ -260,8 +260,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                                 List[Dict],
                                                                 List[bool],
                                                                 List[int]]]:
-        result = self.doc_to_candidates.documents_to_candidates(antdoc_list, label)
-        return result
+        all_results = []
+        for candidate_generator in self.doc_to_candidates:
+            result = candidate_generator.documents_to_candidates(antdoc_list, label)
+            all_results.extend(result)
+        return all_results
 
     def annotate_antdoc(self,
                         eb_antdoc: ebantdoc4.EbAnnotatedDoc4,

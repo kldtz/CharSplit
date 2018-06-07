@@ -28,7 +28,7 @@ logger.setLevel(logging.INFO)
 ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                      'is_use_corenlp': False,
-                     'doc_to_candidates': dategen.DateSpanGenerator(30, 30, 'DATE'),
+                     'doc_to_candidates': [dategen.DateSpanGenerator(30, 30, 'DATE')],
                      'version': "1.0",
                      'doc_postproc_list': [dates.DateNormalizer(),
                                            postproc.SpanDefaultPostProcessing()],
@@ -43,7 +43,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
-                        'doc_to_candidates': addrgen.AddrContextGenerator(30, 30, 'ADDRESS'),
+                        'doc_to_candidates': [addrgen.AddrContextGenerator(30, 30, 'ADDRESS')],
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([
@@ -61,11 +61,11 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'kfold': 3}),
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                          'is_use_corenlp': False,
-                         'doc_to_candidates': regexgen.RegexContextGenerator(20,
-                                                                             5,
-                                                                             # pylint: disable=line-too-long
-                                                                             re.compile(r'(((USD|[\$€₹£¥])\s*(\d{1,3},?)+([,\.]\d\d)?\s*([bB]illion|[mM]illion|[tT]housand|M|B)?)|((\d{1,3},?)+([,\.]\d\d)?\s*([bB]illion|[mM]illion|[tT]housand|M|B)?\s*(USD|GBP|JPY|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[€円¥])))'),
-                                                                             'CURRENCY'),
+                         'doc_to_candidates': [regexgen.RegexContextGenerator(20,
+                                                                              5,
+                                                                              # pylint: disable=line-too-long
+                                                                              re.compile(r'(((USD|[\$€₹£¥]) *(\d{1,3},?)+([,\.]\d\d)?( *[bB]illion| *[mM]illion| *[tT]housand| *M| *B)?)|((\d{1,3},?)+([,\.]\d\d)? *([bB]illion|[mM]illion|[tT]housand|M|B)? *(USD|GBP|JPY|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[€円¥])))'),
+                                                                              'CURRENCY')],
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                          'pipeline': Pipeline([
@@ -83,11 +83,11 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                        'is_use_corenlp': False,
-                       'doc_to_candidates': regexgen.RegexContextGenerator(10,
-                                                                           10,
-                                                                           # pylint: disable=line-too-long
-                                                                           re.compile(r'\s\(?(\-?(,?\d{1,3})+([,\./]\d+)?)\)?[,\.:;]?\s'),
-                                                                           'NUMBER'),
+                       'doc_to_candidates': [regexgen.RegexContextGenerator(10,
+                                                                            10,
+                                                                            # pylint: disable=line-too-long
+                                                                            re.compile(r'\s\(?(\-?(,?\d{1,3})+([,\./]\d+)?)\)?[,\.:;]?\s'),
+                                                                            'NUMBER')],
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                        'pipeline': Pipeline([('union', FeatureUnion(
@@ -106,10 +106,10 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
-                        'doc_to_candidates': regexgen.RegexContextGenerator(15,
-                                                                            5,
-                                                                            re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)\s*%))'),
-                                                                            'PERCENT'),
+                        'doc_to_candidates': [regexgen.RegexContextGenerator(15,
+                                                                             5,
+                                                                             re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)\s*%))'),
+                                                                             'PERCENT')],
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
@@ -126,13 +126,13 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.25,
                         'kfold': 3}),
 
-    ('ID-NUM', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+    ('ID_NUM', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
-                        'doc_to_candidates': regexgen.RegexContextGenerator(3,
-                                                                            3,
-                                                                            re.compile(r'([^\s]*\d[^\s]*)'),
-                                                                            'ID-NUM',
-                                                                            join=True),
+                        'doc_to_candidates': [regexgen.RegexContextGenerator(3,
+                                                                             3,
+                                                                             re.compile(r'([^\s]*\d[^\s]*)'),
+                                                                             'ID_NUM',
+                                                                             join=True)],
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
@@ -152,7 +152,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
      ('PARAGRAPH', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                            'is_use_corenlp': True,
                            'text_type': 'nlp_text',
-                           'doc_to_candidates': paragen.ParagraphGenerator('PARAGRAPH'),
+                           'doc_to_candidates': [paragen.ParagraphGenerator('PARAGRAPH')],
                            'version': "1.0",
                            'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                            'pipeline': Pipeline([('union', FeatureUnion(
@@ -233,15 +233,43 @@ validate_annotators_config_keys(RULE_ANNOTATOR_CONFIG_LIST)
 validate_annotators_config_keys(ML_ANNOTATOR_CONFIG_FROZEN_LIST)
 validate_annotators_config_keys(RULE_ANNOTATOR_CONFIG_FROZEN_LIST)
 
-def get_ml_annotator_config(label: str, version: Optional[str] = None) -> Dict:
-    configx = get_annotator_config(label,
-                                   version,
-                                   ML_ANNOTATOR_CONFIG_LIST,
-                                   ML_ANNOTATOR_CONFIG_FROZEN_LIST)
-    if configx:
-        _, _, prop = configx
-        return prop
-    return {}
+def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None) -> Dict:
+    if len(label_list) == 1:
+        label = label_list[0]
+        configx = get_annotator_config(label,
+                                       version,
+                                       ML_ANNOTATOR_CONFIG_LIST,
+                                       ML_ANNOTATOR_CONFIG_FROZEN_LIST)
+        if configx:
+            _, _, prop = configx
+            return prop
+        else:
+            return {}
+    else:
+       generic_prop = {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                       'version': "1.0",
+                       'is_use_corenlp': False,
+                       'doc_to_candidates': [],
+                       'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                       'pipeline': Pipeline([
+                             ('union', FeatureUnion(
+                                 transformer_list=[
+                                     # pylint: disable=line-too-long
+                                     ('surround_transformer', transformerutils.SimpleTextTransformer())
+                                 ])),
+                             ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                                   shuffle=True, random_state=42,
+                                                   class_weight={True: 3, False: 1}))]),
+                       'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                       'threshold': 0.25,
+                       'kfold': 3}
+       for label in label_list:
+           _, _, prop = get_annotator_config(label,
+                                             version,
+                                             ML_ANNOTATOR_CONFIG_LIST,
+                                             ML_ANNOTATOR_CONFIG_FROZEN_LIST)
+           generic_prop['doc_to_candidates'].extend(prop['doc_to_candidates'])
+       return generic_prop
 
 
 def get_rule_annotator_config(label: str, version: Optional[str] = None) -> Dict:

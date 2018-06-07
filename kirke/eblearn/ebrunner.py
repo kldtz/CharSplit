@@ -187,7 +187,7 @@ class EbRunner:
             # self.cust_annotator_map is lrucache.LRUCache.  Must use get().
             return self.custom_annotator_map.get(provision)
         if provision in annotatorconfig.get_all_candidate_types():
-            config = annotatorconfig.get_ml_annotator_config(provision)
+            config = annotatorconfig.get_ml_annotator_config([provision])
             return spanannotator.SpanAnnotator(provision,
                                                provision,
                                                nbest=-1,
@@ -552,7 +552,7 @@ class EbRunner:
                                             provision,
                                             custom_model_dir,
                                             base_model_fname,
-                                            candidate_type: str,
+                                            candidate_types: List[str],
                                             nbest: int,
                                             model_num: int,
                                             is_doc_structure=False,
@@ -566,7 +566,7 @@ class EbRunner:
         logger.info("custom_mode_file: %s", full_model_fname)
 
         # SENTENCE runs the standard pipeline, if specified candidate type run candidate generation
-        if candidate_type == 'SENTENCE':
+        if len(candidate_types) == 1 and candidate_types[0] == 'SENTENCE':
             eb_classifier = scutclassifier.ShortcutClassifier(provision)
             # It is know that 'eb_annotator' is ProvisionAnnotator, mypy.
             # Conflicts with below.
@@ -596,7 +596,7 @@ class EbRunner:
                                                     model_num,
                                                     doc_lang,
                                                     nbest,
-                                                    candidate_type,
+                                                    candidate_types,
                                                     work_dir,
                                                     custom_model_dir,
                                                     txt_fn_list,
@@ -678,7 +678,7 @@ class EbRunner:
     # pylint: disable=invalid-name
     def eval_span_annotator(self,
                             provision: str,
-                            candidate_type: str,
+                            candidate_types: List[str],
                             test_doclist_fn: str,
                             work_dir: str = 'dir-work') -> Dict:
         # test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
@@ -686,7 +686,7 @@ class EbRunner:
         tp, fn, fp, tn = 0, 0, 0, 0
 
         full_model_fn = spanannotator.get_model_file_name(provision,
-                                                          candidate_type,
+                                                          "_".join(candidate_types),
                                                           self.custom_model_dir)
 
         prov_model = joblib.load(full_model_fn)
