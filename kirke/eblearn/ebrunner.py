@@ -686,7 +686,7 @@ class EbRunner:
         tp, fn, fp, tn = 0, 0, 0, 0
 
         full_model_fn = spanannotator.get_model_file_name(provision,
-                                                          "_".join(candidate_types),
+                                                          "-".join(candidate_types),
                                                           self.custom_model_dir)
 
         prov_model = joblib.load(full_model_fn)

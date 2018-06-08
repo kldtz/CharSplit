@@ -43,7 +43,7 @@ def get_model_file_name(provision: str,
                         candidate_types: List[str],
                         model_dir: str):
     base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
-                                                        "_".join(candidate_types),
+                                                        "-".join(candidate_types),
                                                         CANDG_CLF_VERSION)
     return "{}/{}".format(model_dir, base_model_fname)
 

@@ -574,7 +574,7 @@ def train_eval_span_annotator(provision: str,
     if not model_file_name:
         model_file_name = '{}/{}_{}_annotator.v{}.pkl'.format(model_dir,
                                                               provision,
-                                                              "_".join(candidate_types),
+                                                              "-".join(candidate_types),
                                                               config['version'])
     #initializes annotator based on configs
     span_annotator = \
@@ -649,10 +649,10 @@ def train_eval_span_annotator(provision: str,
         # normal bespoke training
         train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir,
                                                                provision,
-                                                               "_".join(candidate_types))
+                                                               "-".join(candidate_types))
         test_doclist_fn = "{}/{}_{}_test_doclist.txt".format(model_dir,
                                                              provision,
-                                                             "_".join(candidate_types))
+                                                             "-".join(candidate_types))
 
         # use 1/4 of the data for testing
         X_train, X_test, unused_y_train, unused_y_test = \

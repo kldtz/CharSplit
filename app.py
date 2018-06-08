@@ -356,13 +356,13 @@ def custom_train(cust_id: str):
             else:
                 base_model_fname = '{}.{}_{}_annotator.v{}.pkl'.format(provision,
                                                                        next_model_num,
-                                                                       "_".join(candidate_types),
+                                                                       "-".join(candidate_types),
                                                                        CANDG_CLF_VERSION)
                 if doc_lang != "en":
                     base_model_fname = '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
                                                                               next_model_num,
                                                                               doc_lang,
-                                                                              "_".join(candidate_types),
+                                                                              "-".join(candidate_types),
                                                                               CANDG_CLF_VERSION)
 
             # Intentionally not passing is_doc_structure=True
