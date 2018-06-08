@@ -11,12 +11,22 @@ ABBY_TEXT_ATTR_SET = set(['@align',
                           '@version',
                           '@xmlns',
                           '@xmlns:xsi',
-                          '@xsi:schemaLocation'])
+                          '@xsi:schemaLocation',
+                          '@bottomBorder',
+                          '@topBorder',
+                          '@rightBorder',
+                          '@leftBorder'])
 
 def abby_attr_str_to_val(attr: str, val: str) -> Union[str, int]:
+    # print('abby_attr_str_to_val({}, {})'.format(attr, val))
     if attr in ABBY_TEXT_ATTR_SET:
         return val
     return int(val)
+    # try:
+    #    return int(val)
+    # except Exception as e:
+    ##    pass
+    # return val
 
 
 def count_left_indent(ajson, li_map: Dict) -> Dict:

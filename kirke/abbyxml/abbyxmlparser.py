@@ -11,11 +11,12 @@ import operator
 
 import json
 
-from typing import Any, DefaultDict, Dict, List, Optional
+from typing import Any, DefaultDict, Dict, List, Optional, Union
 
 # from kirke.abbyxml import AbbyLine, AbbyPar, AbbyTextBlock, AbbyTableBlock, AbbyXmlDoc
 from kirke.abbyxml.pdfoffsets import AbbyCell, AbbyLine, AbbyPar, AbbyRow
 from kirke.abbyxml.pdfoffsets import AbbyTextBlock, AbbyTableBlock, AbbyPage, AbbyXmlDoc
+from kirke.abbyxml.pdfoffsets import print_text_block_meta, to_html_tables, block_to_text
 
 from kirke.abbyxml import abbyutils
 
@@ -149,13 +150,13 @@ def parse_abby_cell(ajson) -> AbbyCell:
                 par_list = parse_abby_par(val)
             else:
                 raise ValueError
-            
+
             abby_cell = AbbyCell(par_list, cell_attr_dict)
             # abby_cell.infer_attr_dict = add_infer_xxxattrs(cell_attr_dict)
             return abby_cell
 
-    raise ValueError        
-    
+    raise ValueError
+
 
 def parse_abby_rows(ajson) -> List[AbbyRow]:
 
@@ -176,7 +177,7 @@ def parse_abby_rows(ajson) -> List[AbbyRow]:
             elif isinstance(cell_val, dict):
                 ab_cell_list.append(parse_abby_cell(cell_val))
             else:
-                raise ValueError                
+                raise ValueError
         else:
             raise ValueError
 
@@ -278,8 +279,8 @@ def parse_abby_page(ajson) -> AbbyPage:
     elif isinstance(ajson, list):
         raise ValueError
     else:
-        raise ValueError        
-    
+        raise ValueError
+
     # print("page_attrs: {}".format(page_attr_dict))
 
     # ab_text_block_list = []  # type: List[AbbyTextBlock]
@@ -314,6 +315,7 @@ def parse_abby_page(ajson) -> AbbyPage:
 
                 if par_list:
                     text_block = AbbyTextBlock(par_list, block_attr_dict)
+                    # maybe this should be performed later
                     text_block.infer_attr_dict = add_infer_header_footer(block_attr_dict)
 
                     block_battr = block_attr_dict['@b']
@@ -334,15 +336,16 @@ def parse_abby_page(ajson) -> AbbyPage:
                     ab_block_list.append(text_block)
             elif attr == 'row':
                 if isinstance(val, list):
-                    row_list = parse_abby_rows(val)                    
+                    row_list = parse_abby_rows(val)
                 elif isinstance(val, dict):  # val is a dictionary
                     # print('par: {}'.format(val))
-                    row_list = parse_abby_rows([val])                    
+                    row_list = parse_abby_rows([val])
                 else:
                     raise ValueError
 
                 if row_list:
                     table_block = AbbyTableBlock(row_list, block_attr_dict)
+                    # maybe this should be performed later
                     table_block.infer_attr_dict = add_infer_header_footer(block_attr_dict)
 
                     block_battr = block_attr_dict['@b']
@@ -360,8 +363,8 @@ def parse_abby_page(ajson) -> AbbyPage:
 
                     add_infer_table_block_attrs(table_block)
                     # ab_table_block_list.append(table_block)
-                    ab_block_list.append(table_block)                    
-                
+                    ab_block_list.append(table_block)
+
 
     apage = AbbyPage(ab_block_list, page_attr_dict)
     # apage.infer_attr_dict = infer_page_attrs(page_attr_dict)
@@ -420,6 +423,12 @@ def parse_document(file_name: str,
     # based what we have seen in contracts
     remake_abby_xml_doc(ab_xml_doc)
 
+    # infer_header_footer_doc(ab_xml_doc)
+
+    merge_haligned_block_as_table(ab_xml_doc)
+    # set page number block number at the end
+    set_abby_page_numbers(ab_xml_doc)
+
     return ab_xml_doc
 
     """
@@ -441,6 +450,15 @@ def set_abby_page_numbers(ab_doc: AbbyXmlDoc) -> None:
     for pnum, abby_page in enumerate(ab_doc.ab_pages, 1):
         # print("\n\npage #{} ========== {}".format(pnum, abby_page.infer_attr_dict))
         abby_page.num = pnum
+
+        for ab_block in abby_page.ab_blocks:
+            if isinstance(ab_block, AbbyTextBlock):
+                abby_page.ab_text_blocks.append(ab_block)
+            elif isinstance(ab_block, AbbyTableBlock):
+                abby_page.ab_table_blocks.append(ab_block)
+            else:
+                raise ValueError
+
         for ab_block in abby_page.ab_blocks:
             # print("\n    block #{} -------- {}".format(bid, ab_text_block.infer_attr_dict))
             ab_block.num = block_id
@@ -456,10 +474,15 @@ def set_abby_page_numbers(ab_doc: AbbyXmlDoc) -> None:
                         ab_line.num = lid
                         lid += 1
             elif isinstance(ab_block, AbbyTableBlock):
-                ab_table_block = ab_block                
+                ab_table_block = ab_block
                 ab_table_block.table_id = table_id
+                ab_table_block.page_num = pnum
                 table_id += 1
-                
+            else:
+                raise ValueError
+
+        # infer_header_footer_blocks(abby_page)
+        infer_header_footer_table_blocks(abby_page)
 
 
 def split_indent_1_2(ab_text_block: AbbyTextBlock) -> None:
@@ -492,6 +515,195 @@ def split_indent_1_2(ab_text_block: AbbyTextBlock) -> None:
 
     ab_text_block.ab_pars = out_par_list
 
+def get_text_block_num_words(ab_block: Union[AbbyTextBlock, AbbyTableBlock]) -> int:
+    block_text = block_to_text(ab_block)
+    words = block_text.split()
+    return len(words)
+
+
+def infer_header_footer_doc(ab_doc: AbbyXmlDoc) -> None:
+    for ab_page in ab_doc.ab_pages:
+        infer_header_footer_blocks(ab_page)
+
+
+def infer_header_footer_blocks(ab_page: AbbyPage) -> None:
+    for ab_block in ab_page.ab_blocks:
+        battr = ab_block.attr_dict.get('@b', -1)
+        tattr = ab_block.attr_dict.get('@t', -1)
+
+        block_num_words = get_text_block_num_words(ab_block)
+
+        # if tattr < 200:
+        if tattr < 340:
+            print("tattr < 340, tattr = {}".format(tattr))
+            block_text = block_to_text(ab_block)
+            print('block_num_words = {} [{}]'.format(block_num_words, block_text))
+
+        if tattr < 340 and \
+           block_num_words <= 20 and \
+           battr < 500:
+            ab_block.infer_attr_dict['header'] = True
+        if tattr >= 3000:
+            ab_block.infer_attr_dict['footer'] = True
+
+
+def infer_header_footer_table_blocks(ab_page: AbbyPage) -> None:
+    for ab_block in ab_page.ab_table_blocks:
+        battr = ab_block.attr_dict.get('@b', -1)
+        tattr = ab_block.attr_dict.get('@t', -1)
+
+        block_num_words = get_text_block_num_words(ab_block)
+
+        # if tattr < 200:
+        if tattr < 340:
+            print("\ntattr < 340, tattr = {}".format(tattr))
+            block_text = block_to_text(ab_block)
+            print('    block_num_words = {} [{}]'.format(block_num_words, block_text))
+
+        if tattr < 340 and \
+           block_num_words <= 120 and \
+           battr < 400:  # each left, middle, right cell can contribute 40 char each
+            ab_block.infer_attr_dict['header'] = True
+            print("      set header true")
+        if tattr >= 3000:
+            ab_block.infer_attr_dict['footer'] = True
+            print("      set footer true")
+
+
+# there is probably a more concise way of expressing this in python, 5345
+def block_get_attr_left(block: Union[AbbyTextBlock, AbbyTableBlock]) -> int:
+    return block.attr_dict.get('@l', -1)
+
+
+def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock]) -> AbbyTableBlock:
+    # there is probably a more concise way of expressing this in python, 5345
+    haligned_blocks = sorted(haligned_blocks, key=block_get_attr_left)
+    cell_list = []
+    is_header = False
+    is_footer = False
+    infer_attr_dict = {}
+    for tblock in haligned_blocks:
+        line_list = []  # type: List[AbbyLine]
+        for par_id, ab_par in enumerate(tblock.ab_pars):
+            line_list.extend(ab_par.ab_lines)
+        apar = AbbyPar(line_list, {})
+        cell_list.append(AbbyCell([apar], {}))
+
+        if tblock.infer_attr_dict.get('header'):
+            infer_attr_dict['header'] = True
+        if tblock.infer_attr_dict.get('footer'):
+            infer_attr_dict['footer'] = True
+
+    attr_dict = {}
+    attr_dict['@l'] = haligned_blocks[0].attr_dict['@l']
+    attr_dict['@t'] = haligned_blocks[0].attr_dict['@t']
+    attr_dict['@b'] = haligned_blocks[0].attr_dict['@b']
+    attr_dict['@r'] = haligned_blocks[-1].attr_dict['@r']
+    attr_dict['type'] = 'table-haligned'
+    # we can combine block1+2's attr_dict
+    row1 = AbbyRow(cell_list, {})
+
+    table_block = AbbyTableBlock([row1], attr_dict)
+    table_block.infer_attr_dict = infer_attr_dict
+
+    return table_block
+
+
+def is_top_bot_match(top: int,
+                     bot: int,
+                     prev_block_top: int,
+                     prev_block_bot: int) -> bool:
+    # this check for both top and bottom
+    diff = 10
+    return top - diff <= prev_block_top and \
+           prev_block_top <= top + diff and \
+           bot - diff <= prev_block_bot and \
+           prev_block_bot <= bot + diff
+
+    # this is only checking for top, seems to add too much
+    # can get section heading...
+    # diff = 10
+    # return top - diff <= prev_block_top and \
+    #        prev_block_top <= top + diff
+
+
+def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
+
+    for pnum, abby_page in enumerate(ab_doc.ab_pages):
+
+        # find all the blocks with similar @b and @t
+        ab_text_block_list = [ab_block for ab_block in abby_page.ab_blocks
+                              if isinstance(ab_block, AbbyTextBlock)]  # type: List[AbbyTextBlock]
+
+        # print("\nmerge_adj_aligned_block_as_table")
+        if not ab_text_block_list:
+            continue
+
+        haligned_blocks_list = []  # type: List[List[AbbyTextBlock]]
+        # skip_blocks are the blocks that have already been found to be haligned
+        skip_blocks = []  # type: List[AbbyTextBlock]
+        for i, ab_text_block in enumerate(ab_text_block_list):
+            if ab_text_block in skip_blocks:
+                continue
+
+            attr_dict = ab_text_block.attr_dict
+            top = attr_dict['@t']
+            bot = attr_dict['@b']
+            cur_blocks = []  # type: List[AbbyTextBlock]
+            # could sort by @b attribute first, but that might change the order in ab_text_block
+            for other_text_block in ab_text_block_list[i+1:]:
+                other_attr_dict = other_text_block.attr_dict
+                other_top = other_attr_dict['@t']
+                other_bot = other_attr_dict['@b']
+
+                if is_top_bot_match(top, bot, other_top, other_bot):
+                    """
+                    print("  match prev block attr: {}".format(ab_text_block.attr_dict))
+
+                    print("\nprev_block:")
+                    print_text_block_meta(prev_block)
+                    print("\ncur_block:")
+                    print_text_block_meta(ab_text_block)
+                    """
+                    cur_blocks.append(other_text_block)
+
+            if cur_blocks:
+                skip_blocks.extend(cur_blocks)
+                # add the original blocks at beginning
+                this_cur_blocks = [ab_text_block]
+                this_cur_blocks.extend(cur_blocks)
+                haligned_blocks_list.append(this_cur_blocks)
+
+        if not haligned_blocks_list:
+            # No haligned blocks, no need to merge tables.
+            # Move to next page
+            continue
+
+        out_block_list = []  # type: List[AbbyBlock]
+        haligned_block_list_map = {}  # type: Dict[AbbyTextBlock, List[AbbyTextBlock]]
+        for blocks in haligned_blocks_list:
+            haligned_block_list_map[blocks[0]] = blocks
+
+        # now we have a list of haligned blocks
+        for ab_block in abby_page.ab_blocks:
+            if ab_block in skip_blocks:
+                continue
+
+            if isinstance(ab_block, AbbyTextBlock):
+                haligned_blocks = haligned_block_list_map.get(ab_block, [])
+
+                if haligned_blocks:
+                    table = merge_aligned_blocks(haligned_blocks)
+                    out_block_list.append(table)
+                else:
+                    # print("      block attr: {}".format(ab_block.attr_dict))
+                    out_block_list.append(ab_block)
+            else:
+                # for tables
+                # print("      block attr: {}".format(ab_block.attr_dict))
+                out_block_list.append(ab_block)
+
+        abby_page.ab_blocks = out_block_list
 
 
 def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
@@ -518,36 +730,45 @@ def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
     for pnum, abby_page in enumerate(ab_doc.ab_pages):
 
         out_block_list = []
-        if not abby_page.ab_text_blocks:
-            continue
+        # if not abby_page.ab_text_blocks:
+        #     continue
 
         cur_par_list = []  # type: List[AbbyPar]
         cur_attr_dict = {}
         cur_infer_attr_dict = {}
-        for ab_text_block in abby_page.ab_text_blocks:
-            if ab_text_block.infer_attr_dict.get('column_blobs'):
-                is_merge_occurred = True
-                if cur_par_list:  # already found column_blobs before
-                    cur_par_list.extend(ab_text_block.ab_pars)
-                    cur_attr_dict['@b'] = ab_text_block.attr_dict['@b']
-                else:  # first time
-                    cur_par_list.extend(ab_text_block.ab_pars)
-                    cur_attr_dict = dict(ab_text_block.attr_dict)  # make acopy
-                    cur_infer_attr_dict = dict(ab_text_block.infer_attr_dict)  # make acopy
+        for ab_block in abby_page.ab_blocks:
+            # skip table blocks
+            if isinstance(ab_block, AbbyTextBlock):
+                ab_text_block = ab_block
+
+                if ab_text_block.infer_attr_dict.get('column_blobs'):
+                    is_merge_occurred = True
+                    if cur_par_list:  # already found column_blobs before
+                        cur_par_list.extend(ab_text_block.ab_pars)
+                        cur_attr_dict['@b'] = ab_text_block.attr_dict['@b']
+                    else:  # first time
+                        cur_par_list.extend(ab_text_block.ab_pars)
+                        cur_attr_dict = dict(ab_text_block.attr_dict)  # make acopy
+                        cur_infer_attr_dict = dict(ab_text_block.infer_attr_dict)  # make acopy
+                else:
+                    if cur_par_list:
+                        tmp_text_block = AbbyTextBlock(cur_par_list, cur_attr_dict)
+                        tmp_text_block.infer_attr_dict = cur_infer_attr_dict
+
+                        split_indent_1_2(tmp_text_block)
+                        # TODO, tmp_text_block.attr_dict and tmp_text_block.infer_attr_dict might
+                        # not be the correct union of all the attributes, but just taking the
+                        # first one is probably OK for now
+                        out_block_list.append(tmp_text_block)
+                        cur_par_list, cur_attr_dict, cur_infer_attr_dict = [], {}, {}
+
+                        # add the current text block
+                    out_block_list.append(ab_text_block)
+            elif isinstance(ab_block, AbbyTableBlock):
+                out_block_list.append(ab_block)
             else:
-                if cur_par_list:
-                    tmp_text_block = AbbyTextBlock(cur_par_list, cur_attr_dict)
-                    tmp_text_block.infer_attr_dict = cur_infer_attr_dict
+                raise ValueError
 
-                    split_indent_1_2(tmp_text_block)
-                    # TODO, tmp_text_block.attr_dict and tmp_text_block.infer_attr_dict might
-                    # not be the correct union of all the attributes, but just taking the
-                    # first one is probably OK for now
-                    out_block_list.append(tmp_text_block)
-                    cur_par_list, cur_attr_dict, cur_infer_attr_dict = [], {}, {}
-
-                    # add the current text block
-                out_block_list.append(ab_text_block)
         # if the last block is 'column_blobs'
         if cur_par_list:
             tmp_text_block = AbbyTextBlock(cur_par_list, cur_attr_dict)
@@ -559,11 +780,9 @@ def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
             # first one is probably OK for now
             out_block_list.append(tmp_text_block)
 
-        if is_merge_occurred:
-            abby_page.ab_text_blocks = out_block_list
 
-    # set page number block number at the end
-    set_abby_page_numbers(ab_doc)
+        if is_merge_occurred:
+            abby_page.ab_blocks = out_block_list
 
 
 if __name__ == '__main__':
@@ -583,9 +802,14 @@ if __name__ == '__main__':
     # abbydoc.print_raw_lines()
     abbydoc.print_text_with_meta()
 
+
     # abbydoc.print_text()
 
-
+    table_html_out_fn = fname.replace('.pdf.xml', '.html')
+    with open(table_html_out_fn, 'wt') as fout:
+        html_st = to_html_tables(abbydoc)
+        print(html_st, file=fout)
+    print('wrote "{}"'.format(table_html_out_fn))
 
 
 

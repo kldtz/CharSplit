@@ -90,7 +90,7 @@ class AbbyCell:
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
 
-        
+
 class AbbyRow:
 
     def __init__(self,
@@ -112,6 +112,7 @@ class AbbyTableBlock:
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
         self.table_id = -1
+        self.page_num = -1
 
 
 class AbbyPage:
@@ -124,13 +125,17 @@ class AbbyPage:
         self.ab_text_blocks = []  # type: List[AbbyTextBlock]
         self.ab_table_blocks = []  # type: List[AbbyTableBlock]
 
-        for ab_block in ab_blocks:
-            if isinstance(ab_block, AbbyTextBlock):
-                self.ab_text_blocks.append(ab_block)
-            elif isinstance(ab_block, AbbyTableBlock):
-                self.ab_table_blocks.append(ab_block)
-            else:
-                raise ValueError
+        # Intentioanlly not setting this here.  Later component
+        # might convert ab_text_blocks to ab_table_blocks.
+        #
+        # for ab_block in ab_blocks:
+        #    if isinstance(ab_block, AbbyTextBlock):
+        #        self.ab_text_blocks.append(ab_block)
+        #    elif isinstance(ab_block, AbbyTableBlock):
+        #        self.ab_table_blocks.append(ab_block)
+        #    else:
+        #        raise ValueError
+
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
 
@@ -165,10 +170,16 @@ def _pprint_line_attrs(attr_dict: Dict) -> str:
 
 def _pprint_table_attrs(attr_dict: Dict) -> str:
     st_list = []  # type: List[str]
-    st_list.append('l={}'.format(attr_dict['@l']))
-    st_list.append('b={}'.format(attr_dict['@b']))
-    st_list.append('r={}'.format(attr_dict['@r']))
-    st_list.append('t={}'.format(attr_dict['@t']))
+    if attr_dict.get('type'):
+        st_list.append('type={}'.format(attr_dict['type']))
+    if attr_dict.get('@l'):
+        st_list.append('l={}'.format(attr_dict['@l']))
+    if attr_dict.get('@b'):
+        st_list.append('b={}'.format(attr_dict['@b']))
+    if attr_dict.get('@r'):
+        st_list.append('r={}'.format(attr_dict['@r']))
+    if attr_dict.get('@t'):
+        st_list.append('t={}'.format(attr_dict['@t']))
     return ', '.join(st_list)
 
 
@@ -209,6 +220,30 @@ def _print_left_right_panes(rt_line: str,
 
     # 30 column for meta info
     print("    {:26}{}".format(left_line, tmp_rt_line), file=file)
+
+
+def print_text_block_meta(ab_text_block: AbbyTextBlock, file: TextIO = sys.stdout) -> None:
+    print("\n  ----- block #{:3d} ----------".format(ab_text_block.num), file=file)
+
+    is_header_footer = ab_text_block.infer_attr_dict.get('header', False) or \
+                       ab_text_block.infer_attr_dict.get('footer', False)
+
+    for par_id, ab_par in enumerate(ab_text_block.ab_pars):
+        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
+        print(file=file)
+        is_par_centered = _is_par_centered(ab_par.infer_attr_dict)
+        indent_level = _get_indent_level(ab_par.infer_attr_dict)
+
+        for lid, ab_line in enumerate(ab_par.ab_lines):
+            _print_left_right_panes(ab_line.text,
+                                    ab_line.infer_attr_dict,
+                                    par_id=ab_par.num,
+                                    line_id=ab_line.num,
+                                    is_header_footer=is_header_footer,
+                                    indent_level=indent_level,
+                                    is_par_centered=is_par_centered,
+                                    file=file)
+
 
 
 class AbbyXmlDoc:
@@ -289,7 +324,7 @@ class AbbyXmlDoc:
             print("========= page  #{:3d} ========".format(abby_page.num), file=file)
 
             # for ab_text_block in abby_page.ab_text_blocks:
-            for ab_block in abby_page.ab_blocks:                
+            for ab_block in abby_page.ab_blocks:
                 if isinstance(ab_block, AbbyTextBlock):
                     ab_text_block = ab_block
                     print("\n  ----- block #{:3d} ----------".format(ab_text_block.num), file=file)
@@ -314,11 +349,11 @@ class AbbyXmlDoc:
                                                     file=file)
                 elif isinstance(ab_block, AbbyTableBlock):
                     ab_table_block = ab_block
-                    print("\n  ----- block #{:3d} --Table--".format(ab_table_block.num), file=file)
-                    print("  {}".format(_pprint_table_attrs(ab_table_block.attr_dict)), file=file)                    
+                    print("\n  ----- block #{:3d}, page_num={} --Table--".format(ab_table_block.num,
+                                                                                 ab_table_block.page_num), file=file)
+                    print("  {}".format(_pprint_table_attrs(ab_table_block.attr_dict)), file=file)
 
                     for row_id, ab_row in enumerate(ab_table_block.ab_rows):
-                        
                         # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
                         print(file=file)
                         print("    {:26}--- row #{}".format('', row_id), file=file)
@@ -326,10 +361,10 @@ class AbbyXmlDoc:
                             print("    {:26}  -- cell #{}:".format('', cell_seq), file=file)
                             for ab_par in ab_cell.ab_pars:
                                 for lid, ab_line in enumerate(ab_par.ab_lines):
-                                    print("    {:26}        [{}]".format('', ab_line.text), file=file)                    
+                                    print("    {:26}        [{}]".format('', ab_line.text), file=file)
                 else:
                     raise ValueError
-                    
+
 
         if self.unmatched_ab_lines:
             print("\n\n========= Unmatched Abby Lines ========", file=file)
@@ -337,3 +372,130 @@ class AbbyXmlDoc:
             for unmatched_ab_line in self.unmatched_ab_lines:
                 print("  page #{:2}, {}".format(unmatched_ab_line.ab_page.num,
                                                 unmatched_ab_line.ab_line.to_debug_str()), file=file)
+
+
+def table_attrs_to_html(attr_dict: Dict) -> str:
+    st_list = []  # type: List[str]
+    if attr_dict.get('@l'):
+        st_list.append('l={}'.format(attr_dict['@l']))
+    if attr_dict.get('@b'):
+        st_list.append('b={}'.format(attr_dict['@b']))
+    if attr_dict.get('@r'):
+        st_list.append('r={}'.format(attr_dict['@r']))
+    if attr_dict.get('@t'):
+        st_list.append('t={}'.format(attr_dict['@t']))
+    return ', '.join(st_list)
+
+
+def table_block_to_html(ab_table_block: AbbyTableBlock) -> str:
+    st_list = []  # type: List[str]
+
+    st_list.append('<h3>Table {} on Page {}</h3>'.format(ab_table_block.table_id + 1,
+                                                         ab_table_block.page_num))
+
+    st_list.append('<table>')
+    st_list.append('<tr>')
+    st_list.append('<td width="60%">')
+    st_list.append('</td>')
+    st_list.append('<td>')
+    st_list.append('<i>Attributes</i>: {}'.format(table_attrs_to_html(ab_table_block.attr_dict)))
+    st_list.append('</td>')
+    st_list.append('</tr>')
+    st_list.append('</table>')
+
+    if ab_table_block.attr_dict.get('type'):
+        # a haligned table
+        infer_attr_dict = ab_table_block.infer_attr_dict
+        if infer_attr_dict.get('header') or \
+           infer_attr_dict.get('footer'):
+            st_list.append('<table border="1" bgcolor="DAA520">')  # brown
+            # for now, no header for footer table
+            return ''
+        else:
+            st_list.append('<table border="1" bgcolor="ffff66">')  # yellow
+    else:
+        st_list.append('<table border="1" bgcolor="00ff99">')  # green
+
+    for row_id, ab_row in enumerate(ab_table_block.ab_rows):
+        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
+        st_list.append('  <tr>')
+        for cell_seq, ab_cell in enumerate(ab_row.ab_cells):
+            st_list.append('    <td>')
+            for ab_par in ab_cell.ab_pars:
+                for lid, ab_line in enumerate(ab_par.ab_lines):
+                    st_list.append('      {}<br/>'.format(ab_line.text))
+            st_list.append('    </td>')
+        st_list.append('  </tr>')
+    st_list.append('</table>')
+    st_list.append('<br/>')
+
+    return '\n'.join(st_list)
+
+def is_header_footer_table(ab_table_block: AbbyTableBlock) -> bool:
+    infer_attr_dict = ab_table_block.infer_attr_dict
+    return infer_attr_dict.get('header') or \
+           infer_attr_dict.get('footer')
+
+
+def filter_out_header_footer_tables(table_block_list: List[AbbyTableBlock]) -> List[AbbyTableBlock]:
+    return [atable for atable in table_block_list if not is_header_footer_table(atable) ]
+
+def to_html_tables(abby_doc: AbbyXmlDoc) -> str:
+    st_list = []  # type: List[str]
+
+    st_list.append('<!doctype html>')
+    st_list.append('<html lang=en>')
+    st_list.append('<head>')
+    st_list.append('<meta charset=utf-8>')
+    st_list.append('<title>{}</title>'.format(abby_doc.file_id))
+    st_list.append('</head>')
+    st_list.append('<body>')
+    for ab_page in abby_doc.ab_pages:
+
+        table_block_list = filter_out_header_footer_tables(ab_page.ab_table_blocks)
+
+        if table_block_list:
+
+            st_list.append('<h2>Page {}</h2>'.format(ab_page.num))
+            # for ab_text_block in abby_page.ab_text_blocks:
+            for ab_table_block in table_block_list:
+
+                html_table_st = table_block_to_html(ab_table_block)
+                st_list.append(html_table_st)
+                st_list.append('')
+                st_list.append('')
+
+            st_list.append('<br/>')
+            st_list.append('<hr/>')
+            st_list.append('<br/>')
+
+
+    st_list.append('</body>')
+    st_list.append('</html>')
+
+    return '\n'.join(st_list)
+
+
+def text_block_to_text(ab_text_block: AbbyTextBlock) -> str:
+
+    st_list = []  # type: List[str]
+    for par_id, ab_par in enumerate(ab_text_block.ab_pars):
+        for lid, ab_line in enumerate(ab_par.ab_lines):
+            st_list.append(ab_line.text)
+
+    return '\n'.join(st_list)
+
+def table_block_to_text(ab_table_block: AbbyTableBlock) -> str:
+    st_list = []  # type: List[str]
+    for row_id, ab_row in enumerate(ab_table_block.ab_rows):
+        for cell_seq, ab_cell in enumerate(ab_row.ab_cells):
+            for ab_par in ab_cell.ab_pars:
+                for lid, ab_line in enumerate(ab_par.ab_lines):
+                    st_list.append(ab_line.text)
+
+    return '\n'.join(st_list)
+
+def block_to_text(ab_block: Union[AbbyTableBlock, AbbyTextBlock]) -> str:
+    if isinstance(ab_block, AbbyTextBlock):
+        return text_block_to_text(ab_block)
+    return table_block_to_text(ab_block)
