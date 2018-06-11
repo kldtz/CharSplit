@@ -16,7 +16,11 @@ PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 class ProvisionAnnotator:
 
-    def __init__(self, prov_classifier, work_dir, threshold=None, nbest=-1):
+    def __init__(self,
+                 prov_classifier,
+                 work_dir: str,
+                 threshold: Optional[float] = None,
+                 nbest: int = -1):
         self.provision_classifier = prov_classifier
         self.provision = prov_classifier.provision
         self.nbest = nbest
@@ -41,8 +45,9 @@ class ProvisionAnnotator:
                          -> Tuple[Dict[str, Any],
                                   Dict[str, Dict]]:
         logger.debug('test_document_list')
-        if not threshold:
+        if threshold is None:
             threshold = self.threshold
+
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
         log_json = dict()
@@ -53,7 +58,7 @@ class ProvisionAnnotator:
                                    if hant.label == self.provision]
             try:
                 ant_list, threshold = self.annotate_antdoc(ebantdoc,
-                                                           threshold=self.threshold,
+                                                           threshold=threshold,
                                                            prov_human_ant_list=prov_human_ant_list)
             # pylint: disable=broad-except, unused-variable
             except Exception as e:
@@ -71,7 +76,7 @@ class ProvisionAnnotator:
                 prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                        if hant.label == self.provision]
                 ant_list = self.annotate_antdoc(ebantdoc,
-                                                threshold=self.threshold,
+                                                threshold=threshold,
                                                 prov_human_ant_list=prov_human_ant_list)
             """
 
@@ -137,7 +142,10 @@ class ProvisionAnnotator:
         return self.provision_classifier.nbest
 
 
-    def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None) \
+    def annotate_antdoc(self,
+                        eb_antdoc,
+                        threshold: Optional[float] = None,
+                        prov_human_ant_list: Optional[List] = None) \
         -> Tuple[List[Dict], float]:
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
@@ -149,10 +157,9 @@ class ProvisionAnnotator:
         attrvec_list = eb_antdoc.get_attrvec_list()
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
-        if threshold is not None:
-            self.threshold = threshold
-        else:
+        if threshold is None:
             threshold = self.threshold
+
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()

@@ -119,15 +119,15 @@ def train_annotator(provision: str,
 
 def train_span_annotator(label: str,
                          nbest: int,
-                         candidate_type: str,
+                         candidate_types: str,
                          work_dir: str,
                          model_dir: str) -> None:
-    if candidate_type != 'SENTENCE':
+    if candidate_types != 'SENTENCE':
         ebtrainer.train_eval_span_annotator(label,
                                             383838,
                                             'en',
                                             nbest,
-                                            candidate_type,
+                                            candidate_types,
                                             work_dir,
                                             model_dir)
     else:
@@ -135,7 +135,7 @@ def train_span_annotator(label: str,
 
 
 def eval_span_annotator(label: str,
-                        candidate_type: str,
+                        candidate_types: str,
                         txt_fn_list_fn: str,
                         work_dir: str,
                         model_dir: str):
@@ -143,7 +143,7 @@ def eval_span_annotator(label: str,
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir=model_dir)
     # ebtrainer.eval_rule_annotator_with_trte(label, is_train_mode=True)
     eb_runner.eval_span_annotator(label,
-                                  candidate_type,
+                                  candidate_types,
                                   txt_fn_list_fn)
 
 
@@ -180,7 +180,7 @@ def eval_mlxline_annotator_with_trte(provision: str,
 
 # pylint: disable=too-many-arguments
 def custom_train_annotator(provision: str,
-                           candidate_type: str,
+                           candidate_types: str,
                            nbest: int,
                            txt_fn_list_fn: str,
                            work_dir: str,
@@ -200,7 +200,7 @@ def custom_train_annotator(provision: str,
                                                       provision,
                                                       custom_model_dir,
                                                       base_model_fname,
-                                                      candidate_type=candidate_type,
+                                                      candidate_types=candidate_types,
                                                       nbest=nbest,
                                                       model_num=383838,
                                                       is_doc_structure=is_doc_structure,
@@ -214,6 +214,7 @@ def test_annotators(provisions,
                     work_dir: str,
                     model_dir: str,
                     custom_model_dir: str,
+                    out_dir: str = '',
                     threshold: Optional[float] = None) -> None:
     provision_set = set([])  # type: Set[str]
     if provisions:
@@ -231,6 +232,16 @@ def test_annotators(provisions,
         pprint.pprint(ant_status)
         print("log_json:")
         pprint.pprint(log_json)
+
+        print("ant_status:")
+        print(ant_status)
+
+        if out_dir:
+            osutils.mkpath(out_dir)
+            out_fname = '{}/{}.status'.format(out_dir, provision)
+            with open(out_fname, 'wt') as fout:
+                print(ant_status, file=fout)
+                print('wrote "{}"'.format(out_fname))
 
 
 # test only 1 annotator
@@ -328,10 +339,11 @@ def main():
     parser.add_argument('--model_dir', help='output directory for trained models')
     parser.add_argument('--model_dirs', help='output directory for trained models')
     parser.add_argument('--custom_model_dir', help='output directory for custom trained models')
+    parser.add_argument('--out_dir', help='output directory for testing annotators')
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
-    parser.add_argument('--candidate_type', default='SENTENCE', help='type of candidate generator')
+    parser.add_argument('--candidate_types', default='SENTENCE', help='type of candidate generator')
     parser.add_argument('--cache_disabled', action="store_true", help='disable loading cached files')
     parser.add_argument('--nbest', default=-1, help='number of annotations per doc')
     # only for eval_rule_annotator
@@ -363,12 +375,12 @@ def main():
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,
                              args.nbest,
-                             candidate_type=args.candidate_type,
+                             candidate_types=args.candidate_types,
                              work_dir=work_dir,
                              model_dir=model_dir)
     elif cmd == 'eval_span_annotator':
         eval_span_annotator(provision,
-                            candidate_type=args.candidate_type,
+                            candidate_types=args.candidate_types,
                             txt_fn_list_fn=txt_fn_list_fn,
                             work_dir=work_dir,
                             model_dir=model_dir)
@@ -378,7 +390,7 @@ def main():
                             is_train_mode=args.is_train_mode)
     elif cmd == 'custom_train_annotator':
         custom_train_annotator(provision,
-                               args.candidate_type,
+                               args.candidate_types,
                                int(args.nbest),
                                txt_fn_list_fn,
                                work_dir,
@@ -387,8 +399,14 @@ def main():
                                is_doc_structure=True)
     elif cmd == 'test_annotators':
         # if no --provisions is specified, all annotators are tested
-        test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir,
-                        custom_model_dir, threshold=args.threshold)
+        out_dir = args.out_dir
+        test_annotators(args.provisions,
+                        txt_fn_list_fn,
+                        work_dir,
+                        model_dir,
+                        custom_model_dir,
+                        out_dir=out_dir,
+                        threshold=args.threshold)
     elif cmd == 'test_one_annotator':
         if not args.model_file:
             print('please specify --model_file', file=sys.stderr)
