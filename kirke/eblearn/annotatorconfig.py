@@ -106,10 +106,12 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
-                        'doc_to_candidates': [regexgen.RegexContextGenerator(15,
-                                                                             5,
-                                                                             re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)\s*%))'),
-                                                                             'PERCENT')],
+                        'doc_to_candidates': \
+                        [regexgen.RegexContextGenerator(15,
+                                                        5,
+                                                        # pylint: disable=line-too-long
+                                                        re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)\s*%))'),
+                                                        'PERCENT')],
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
