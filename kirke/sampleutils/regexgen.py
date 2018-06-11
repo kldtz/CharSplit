@@ -15,12 +15,14 @@ class RegexContextGenerator:
                  num_post_words: int,
                  center_regex: Pattern,
                  candidate_type: str,
-                 join: bool = False) -> None:
+                 join: bool = False,
+                 length_min: int = 0) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
         self.center_regex = center_regex
         self.candidate_type = candidate_type
         self.join = join
+        self.length_min = length_min
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
@@ -90,24 +92,27 @@ class RegexContextGenerator:
                 if match_str.startswith('(') and not ')' in match_str:
                     match_str = match_str[1:]
                     match_start += 1
-                a_candidate = {'candidate_type': self.candidate_type,
-                            'bow_start': new_start,
-                            'bow_end': new_end,
-                            'text': new_bow,
-                            'start': match_start,
-                            'end': match_end,
-                            'prev_n_words': ' '.join(prev_n_words),
-                            'post_n_words': ' '.join(post_n_words),
-                            'chars': match_str}
-                candidates.append(a_candidate)
-                group_id_list.append(group_id)
-                if is_label:
-                    a_candidate['label_human'] = label
-                    label_list.append(True)
-                else:
-                    label_list.append(False)
+                if len(match_str) > self.length_min:
+                    a_candidate = {'candidate_type': self.candidate_type,
+                                   'bow_start': new_start,
+                                   'bow_end': new_end,
+                                   'text': new_bow,
+                                   'start': match_start,
+                                   'end': match_end,
+                                   'prev_n_words': ' '.join(prev_n_words),
+                                   'post_n_words': ' '.join(post_n_words),
+                                   'chars': match_str}
+                    candidates.append(a_candidate)
+                    group_id_list.append(group_id)
+                    if is_label:
+                        a_candidate['label_human'] = label
+                        label_list.append(True)
+                    else:
+                        label_list.append(False)
             if self.join:
                 merge_candidates = []
+                merge_labels = []
+                merge_groups = []
                 i = 0
                 while i < len(candidates):
                     skip = True
@@ -121,12 +126,18 @@ class RegexContextGenerator:
                             i += 1
                         else:
                             merge_candidates.append(new_candidate)
+                            merge_labels.append(label_list[i])
+                            merge_groups.append(group_id_list[i])
                             i += 1
                             skip = False
                     if i == len(candidates) - 1:
                         skip = False
                         merge_candidates.append(candidates[i])
+                        merge_labels.append(label_list[i])
+                        merge_groups.append(group_id_list[i])
                         i += 1
                 candidates = merge_candidates
+                label_list = merge_labels
+                group_id_list = merge_groups
             result.append((antdoc, candidates, label_list, group_id_list))
         return result
