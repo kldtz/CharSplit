@@ -5,6 +5,7 @@ import copy
 from datetime import datetime
 import json
 import logging
+import logging.config
 import os.path
 import re
 import shutil
@@ -14,6 +15,7 @@ import zipfile
 from typing import DefaultDict, Dict, List, Optional, Tuple
 
 from flask import Flask, jsonify, request, send_file
+import yaml
 
 from kirke.eblearn import ebrunner
 from kirke.utils import osutils, strutils
@@ -22,8 +24,32 @@ from kirke.utils import osutils, strutils
 config = configparser.ConfigParser()
 config.read('kirke.ini')
 
-# NOTE: Remove the following line to get rid of all logging messages
-logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
+
+def setup_logging(default_path='logging.yaml',
+                  default_level=logging.INFO,
+                  env_key='LOG_CFG'):
+
+    """Setup logging configuration
+
+    """
+    path = default_path
+    value = os.getenv(env_key, None)
+    if value:
+        path = value
+    if os.path.exists(path):
+        with open(path, 'rt') as f:
+            xconfig = yaml.safe_load(f.read())
+        logging.config.dictConfig(xconfig)
+    else:
+        logging.basicConfig(level=default_level)
+
+setup_logging()
+
+
+# logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
+
+
 
 # pylint: disable=invalid-name
 app = Flask(__name__)
@@ -31,8 +57,8 @@ app.config['PROPAGATE_EXCEPTIONS'] = True
 # app.debug = True
 EB_FILES = os.environ['EB_FILES']
 EB_MODELS = os.environ['EB_MODELS']
-logging.info("eb files is [%s]", EB_FILES)
-logging.info("eb models is [%s]", EB_MODELS)
+logger.info("eb files is [%s]", EB_FILES)
+logger.info("eb models is [%s]", EB_MODELS)
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
@@ -53,7 +79,7 @@ eb_doccat_runner = ebrunner.EbDocCatRunner(MODEL_DIR)
 eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
 if not eb_runner:
-    logging.error('problem initializing ebrunner')
+    logger.error('problem initializing ebrunner')
     exit(1)
 
 @app.route('/annotate-doc', methods=['POST'])
@@ -98,14 +124,14 @@ def annotate_uploaded_document():
                 print('pdf_file\t{}'.format(file_title), file=meta_out)
                 print('txt_file\t{}'.format(fstorage.filename), file=meta_out)
         else:
-            logging.warning('unknown file extension in annotate_uploaded_document(%s)', fn)
+            logger.warning('unknown file extension in annotate_uploaded_document(%s)', fn)
 
     # cannot just access the request.files['file'].read() earlier, which
     # make it unavailable to the rest of the code.
 
     atext = strutils.loads(txt_file_name)
     doc_lang = eb_langdetect_runner.detect_lang(atext)
-    logging.info("detected language '%s'", doc_lang)
+    logger.info("detected language '%s'", doc_lang)
     if doc_lang is None:
         ebannotations['lang'] = doc_lang
         ebannotations['ebannotations'] = {}
@@ -120,11 +146,11 @@ def annotate_uploaded_document():
 
     if is_classify_doc:
         if eb_doccat_runner.is_initialized:
-            logging.info("classify document '%s'", txt_file_name)
+            logger.info("classify document '%s'", txt_file_name)
             doc_catnames = eb_doccat_runner.classify_document(txt_file_name)
             ebannotations['tags'] = doc_catnames
         else:
-            logging.warning('is_classify_doc is True, but no model exists for eb_doccat_runner')
+            logger.warning('is_classify_doc is True, but no model exists for eb_doccat_runner')
             ebannotations['tags'] = []
 
     if provision_set:
@@ -168,7 +194,7 @@ def annotate_uploaded_document():
 @app.route('/custom-train-export/<cust_id>', methods=['GET'])
 def custom_train_export(cust_id: str):
     # to ensure that no accidental file name overlap
-    logging.info("cust_id = %s", cust_id)
+    logger.info("cust_id = %s", cust_id)
 
     cust_model_fnames = eb_runner.get_custom_model_files(cust_id)
     # create the zip file with all the provision and its langs
@@ -193,8 +219,8 @@ def custom_train_export(cust_id: str):
 @app.route('/custom-train-import/<cust_id>', methods=['POST'])
 def custom_train_import(cust_id: str):
     # to ensure that no accidental file name overlap
-    # logging.info("import a custom train model = {}".format(cust_id))
-    logging.info("import a custom train model")
+    # logger.info("import a custom train model = {}".format(cust_id))
+    logger.info("import a custom train model")
 
     result_json = {'provision': 'unknown',
                    'model_number': -1}
@@ -206,7 +232,7 @@ def custom_train_import(cust_id: str):
         return jsonify(result_json)
 
     fname = '/tmp/{}_{}'.format(afile.filename, datetime.now().strftime('%Y%m%d%H%M%S'))
-    logging.info("importing custom model '%s'", fname)
+    logger.info("importing custom model '%s'", fname)
     afile.save(fname)
 
     # Increment the model number and
@@ -219,7 +245,7 @@ def custom_train_import(cust_id: str):
     except zipfile.BadZipFile:
         result_json['error'] = 'Bad ZIP file'
         return jsonify(result_json)
-    except:
+    except:  # pylint: disable=bare-except
         result_json['error'] = 'Bad ZIP file'
         return jsonify(result_json)
     provision = cust_id
@@ -248,7 +274,7 @@ def custom_train(cust_id: str):
     request_work_dir = request.form.get('workdir')
     if request_work_dir:
         work_dir = request_work_dir
-        logging.info("work_dir = '%s'", work_dir)
+        logger.info("work_dir = '%s'", work_dir)
         osutils.mkpath(work_dir)
     else:
         work_dir = WORK_DIR
@@ -263,7 +289,8 @@ def custom_train(cust_id: str):
         nbest = int(nbest)
 
     # to ensure that no accidental file name overlap
-    logging.info("cust_id = '%s'", cust_id)
+    logger.info("cust_id = '%s', candidate_type=%s, nbest= %d",
+                cust_id, candidate_type, nbest)
     provision = 'cust_{}'.format(cust_id)
     tmp_dir = '{}/{}'.format(work_dir, provision)
     osutils.mkpath(tmp_dir)
@@ -300,19 +327,19 @@ def custom_train(cust_id: str):
             tmp_txt_fn = name.replace(".offsets.json", ".txt")
             txt_offsets_fn_map[tmp_txt_fn] = name
         else:
-            logging.warning('unknown file extension in custom_train(%s)', fn)
+            logger.warning('unknown file extension in custom_train(%s)', fn)
 
 
     next_model_num = osutils.increment_model_version(model_dir=CUSTOM_MODEL_DIR)
     # print("next model number: {}".format(next_model_num))
 
-    #logging.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
+    #logger.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
     all_stats = {}
     for doc_lang, names_per_lang in full_txt_fnames.items():
         if not doc_lang:  # if a document has no text, its langid can be None
             continue
         ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
-        logging.info('Number of annotations for %s: %d', doc_lang, ant_count)
+        logger.info('Number of annotations for %s: %d', doc_lang, ant_count)
         if ant_count >= 6:
             txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
             fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
@@ -338,7 +365,11 @@ def custom_train(cust_id: str):
                                                                               candidate_type,
                                                                               CANDG_CLF_VERSION)
 
-            # Following the logic in the original code.
+            # Intentionally not passing is_doc_structure=True
+            # For spanannotator, currently we use is_doc_structure=False to not missing
+            # any lines in the original text.
+            # For sentence-candidate, is_doc_structure=True
+            # pylint: disable=unused-variable
             eval_status, log_json = \
                 eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                               provision,
@@ -347,7 +378,6 @@ def custom_train(cust_id: str):
                                                               candidate_type,
                                                               nbest,
                                                               model_num=next_model_num,
-                                                              is_doc_structure=True,
                                                               work_dir=work_dir,
                                                               doc_lang=doc_lang)
 
@@ -361,7 +391,7 @@ def custom_train(cust_id: str):
                       'provision': provision,
                       'model_number': next_model_num}
 
-            logging.info("status: %r", status)
+            logger.info("status: %r", status)
 
             # return some json accuracy info
             # TODO add eval_log back in when PR 408 is merged and the front end is ready
@@ -403,7 +433,7 @@ def detect_lang():
     atext = request.files['file'].read().decode('utf-8')
 
     detect_lang_x = eb_langdetect_runner.detect_lang(atext)
-    logging.info("detected language '%s'", detect_lang_x)
+    logger.info("detected language '%s'", detect_lang_x)
     return json.dumps({'lang': detect_lang_x})
 
 
@@ -419,14 +449,14 @@ def detect_langs():
     atext = request.files['file'].read().decode('utf-8')
 
     detect_langs_x = eb_langdetect_runner.detect_langs(atext)
-    logging.info("detected languages '%s'", detect_langs_x)
+    logger.info("detected languages '%s'", detect_langs_x)
     return json.dumps({'lang-probs': detect_langs_x})
 
 
 @app.route('/set-cluster-name/<cluster_name>', methods=['POST'])
 def set_cluser_id(cluster_name) -> str:
     # to ensure that no accidental file name overlap
-    logging.info("cluster_name = '%s'", cluster_name)
+    logger.info("cluster_name = '%s'", cluster_name)
     osutils.set_cluster_name(cluster_name, model_dir=MODEL_DIR)
 
     return "OK"

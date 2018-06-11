@@ -14,9 +14,10 @@ from kirke.eblearn import igain, bigramutils
 from kirke.eblearn.ebtransformerbase import EbTransformerBase
 from kirke.utils import stopwordutils, strutils
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 DEBUG_MODE = False
-
 
 PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
                                      ebattrvec.PARTY_NUMERIC_ATTR_LIST,
@@ -120,7 +121,7 @@ class EbTransformer(EbTransformerBase):
         if fit_mode:
             # we are cheating here because vocab is trained from both training and testing
             # jshaw, TODO, remove
-            logging.info("starting computing info_gain")
+            logger.info("starting computing info_gain")
             # igain_vocabs = igain.doc_label_list_to_vocab(sent_st_list, label_list, tokenize=igain.eb_doc_to_all_ngrams, debug_mode=True, provision=self.provision)
             # the tokenizer is bigramutils, not igain's
             igain_vocabs = igain.doc_label_list_to_vocab(sent_st_list,
@@ -129,7 +130,7 @@ class EbTransformer(EbTransformerBase):
                                                          debug_mode=True,
                                                          provision=self.provision)
 
-            logging.info("starting computing unigram and bigram")
+            logger.info("starting computing unigram and bigram")
             vocabs, positive_vocabs = bigramutils.doc_label_list_to_vocab(sent_st_list,
                                                                           label_list,
                                                                           tokenize=bigramutils.eb_doc_to_all_ngrams)
@@ -152,7 +153,7 @@ class EbTransformer(EbTransformerBase):
 
             # handling bi-topgram
             # only lower case, mode=0, label_list must not be empty
-            logging.info("starting computing bi_topgram")
+            logger.info("starting computing bi_topgram")
             nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
             filtered_list = []
             for nostop_positive_sent in nostop_positive_sent_st_list:
@@ -170,7 +171,7 @@ class EbTransformer(EbTransformerBase):
 
         # still need to go through rest of fit_mode because of more vars are setup
 
-        # logging.info("converting into matrix")
+        # logger.info("converting into matrix")
         # bow_matrix = self.gen_top_ig_ngram_matrix(sent_st_list, tokenize=igain.eb_doc_to_all_ngrams)
         bow_matrix, perc_positive_ngrams = self.gen_top_ngram_matrix(sent_st_list,
                                                                      tokenize=bigramutils.eb_doc_to_all_ngrams)

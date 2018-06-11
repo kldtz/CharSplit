@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import re
 
 from typing import List, Match
@@ -11,7 +10,6 @@ from kirke.utils import engutils, strutils
 
 IS_DEBUG_MODE = False
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s : %(levelname)s : %(message)s')
 
 ST_PAT_LIST = ['is made and entered into by and between',
                'is made and entered into',

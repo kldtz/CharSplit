@@ -7,6 +7,9 @@ from sklearn.pipeline import Pipeline
 # pylint: disable=import-error
 from sklearn.externals import joblib
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 GLOBAL_THRESHOLD = 0.12
 
@@ -28,7 +31,7 @@ class BaseAnnotator(ABC):
         return self.pred_status
 
     def save(self, model_file_name) -> None:
-        logging.info("saving model file: %s", model_file_name)
+        logger.info("saving model file: %s", model_file_name)
         self.file_name = model_file_name
         joblib.dump(self, model_file_name)
 

@@ -1,10 +1,9 @@
-from collections import Mapping, Container, defaultdict
+from collections import defaultdict
 import fcntl
 from fcntl import LOCK_EX, LOCK_SH
 import os
 import re
 import sys
-from sys import getsizeof
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
@@ -30,7 +29,9 @@ def get_model_files(dir_name: str) -> List[str]:
     return [f for f in os.listdir(dir_name)
             if (os.path.isfile(os.path.join(dir_name, f))
                 and not 'docclassifier' in f
-                and 'classifier' in f and f.endswith('.pkl'))]
+                and ('classifier' in f or \
+                     '_annotator' in f)
+                and f.endswith('.pkl'))]
 
 
 def _find_fname_with_lang(lang: str, lang_fname_list: List[Tuple[str, str]]) -> Optional[str]:
@@ -115,6 +116,7 @@ def get_custom_model_files(dir_name: str,
     # the key is the cust_id;
     # 1st tuple str is int(version), 2nd str is 'lang', 3rd value is fname
     cust_id_set = set([])  # type: Set[str]
+    # pylint: disable=line-too-long
     cust_id_fnames_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, Tuple[str, str]]]]
     # print("cust_prov_set: {}".format(cust_prov_set))
     for cust_prov in cust_prov_set:
@@ -178,63 +180,6 @@ def get_custom_model_files(dir_name: str,
                 cust_prov_fnames.append((cust_id, model_fn_with_lang))
 
     return cust_prov_fnames
-
-
-def get_size(obj: Any, seen: Optional[Set] = None) -> int:
-    """Recursively finds size of objects"""
-    size = sys.getsizeof(obj)
-    if seen is None:
-        seen = set()
-    obj_id = id(obj)
-    if obj_id in seen:
-        return 0
-    # Important mark as seen *before* entering recursion to gracefully handle
-    # self-referential objects
-    seen.add(obj_id)
-    if isinstance(obj, dict):
-        size += sum([get_size(v, seen) for v in obj.values()])
-        size += sum([get_size(k, seen) for k in obj.keys()])
-    elif hasattr(obj, '__dict__'):
-        size += get_size(obj.__dict__, seen)
-    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
-        size += sum([get_size(i, seen) for i in obj])
-
-    return size
-
-def deep_getsizeof(obj, ids: Set) -> int:
-    """Find the memory footprint of a Python object
-
-    This is a recursive function that drills down a Python object graph
-    like a dictionary holding nested dictionaries with lists of lists
-    and tuples and sets.
-
-    The sys.getsizeof function does a shallow size of only. It counts each
-    object inside a container as pointer only regardless of how big it
-    really is.
-
-    :param obj: the object
-    :param ids:
-    :return:
-    """
-    dsize = deep_getsizeof
-    if id(obj) in ids:
-        return 0
-
-    rval = getsizeof(obj)
-    ids.add(id(obj))
-
-    # if isinstance(obj, str) or isinstance(0, unicode):
-    if isinstance(obj, str):
-        return rval
-
-    if isinstance(obj, Mapping):
-        return rval + sum(dsize(k, ids) + dsize(v, ids)
-                          for k, v in obj.items())
-
-    if isinstance(obj, Container):
-        return rval + sum(dsize(xobj, ids) for xobj in obj)
-
-    return rval
 
 
 # https://www.safaribooksonline.com/library/view/python-cookbook/0596001673/ch04s25.html
@@ -313,8 +258,3 @@ def set_cluster_name(line: str, model_dir: str) -> None:
 def read_cluster_name(model_dir: str) -> Optional[str]:
     line = read_locked_file('%s/kirke_cluster_name.txt' % (model_dir, ))
     return line
-
-
-if __name__ == '__main__':
-    XOBJ = '1234567'
-    print(get_size(XOBJ))

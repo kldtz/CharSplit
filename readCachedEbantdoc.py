@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 from kirke.utils import ebantdoc2
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 def print_ebantdoc(ebantdoc):
     doc_text = eb_antdoc.text

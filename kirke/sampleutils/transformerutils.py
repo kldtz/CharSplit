@@ -10,6 +10,9 @@ from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class AddrLineTransformer(BaseEstimator, TransformerMixin):
 
@@ -47,7 +50,7 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
         self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
         end_time = time.time()
         AddrLineTransformer.fit_count += 1
-        logging.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
+        logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
                       self.name, AddrLineTransformer.fit_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return self
@@ -61,7 +64,7 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
         X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
         end_time = time.time()
         AddrLineTransformer.transform_count += 1
-        logging.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
+        logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
                       self.name, AddrLineTransformer.transform_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return X_out
@@ -128,7 +131,7 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
         self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
         end_time = time.time()
         SurroundWordTransformer.fit_count += 1
-        logging.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
+        logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
                       self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return self
@@ -142,7 +145,7 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
         X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
         end_time = time.time()
         SurroundWordTransformer.transform_count += 1
-        logging.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
+        logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
                       self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return X_out
@@ -184,7 +187,7 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
         self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
         end_time = time.time()
         SurroundWordTransformer.fit_count += 1
-        logging.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
+        logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
                       self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return self
@@ -197,7 +200,7 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
         X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
         end_time = time.time()
         SurroundWordTransformer.transform_count += 1
-        logging.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
+        logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
                       self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
                       (end_time - start_time) * 1000)
         return X_out

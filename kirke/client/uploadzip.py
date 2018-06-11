@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import os
 from pathlib import Path
 import requests
 import sys
 
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # pylint: disable=C0103
 if __name__ == '__main__':
