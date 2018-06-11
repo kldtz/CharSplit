@@ -16,8 +16,8 @@ import psutil
 from sklearn.externals import joblib
 
 from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
-from kirke.eblearn import annotatorconfig, ebannotator, ebtrainer, lineannotator, provclassifier
-from kirke.eblearn import scutclassifier, spanannotator
+from kirke.eblearn import annotatorconfig, ebannotator, ebpostproc, ebtrainer, lineannotator
+from kirke.eblearn import provclassifier, scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import ebantdoc4, evalutils, lrucache, osutils, strutils
 
@@ -25,6 +25,7 @@ from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s : %(levelname)s : %(message)s')
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.WARN)
 logger.setLevel(logging.INFO)
@@ -189,15 +190,19 @@ class EbRunner:
         if provision in annotatorconfig.get_all_candidate_types():
             config = annotatorconfig.get_ml_annotator_config([provision])
             return spanannotator.SpanAnnotator(provision,
-                                               provision,
+                                               [provision],
                                                nbest=-1,
                                                version=config['version'],
+                                               # pylint: disable=line-too-long
                                                doclist_to_antdoc_list=config['doclist_to_antdoc_list'],
                                                is_use_corenlp=config['is_use_corenlp'],
                                                doc_to_candidates=config['doc_to_candidates'],
+                                               # pylint: disable=line-too-long
                                                candidate_transformers=config.get('candidate_transformers', []),
+                                               # pylint: disable=line-too-long
                                                doc_postproc_list=config.get('doc_postproc_list', []),
                                                pipeline=config['pipeline'],
+                                               # pylint: disable=line-too-long
                                                gridsearch_parameters=config['gridsearch_parameters'],
                                                threshold=0.0,
                                                kfold=config.get('kfold', 3))
@@ -254,7 +259,8 @@ class EbRunner:
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         num_model = 0
 
-        cust_prov_set = set([provision for provision in provision_set if provision.startswith('cust_')])
+        cust_prov_set = set([provision for provision in provision_set
+                             if provision.startswith('cust_')])
 
         start_time_1 = time.time()
 
@@ -289,6 +295,18 @@ class EbRunner:
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
 
+                # if we loaded this for a particular custom field type ("cust_52")
+                # it must produce annotations with that label, not with whatever is "embedded"
+                # in the saved model file (since the file could have been imported from
+                # another server)
+                prov_name = cust_id_ver.split('.')[0]
+                logging.info('updating custom provision model to annotate with %s', prov_name)
+                # print(prov_classifier)
+                logging.info(prov_classifier)
+                prov_classifier.provision = prov_name
+                if hasattr(prov_classifier, 'transformer'):
+                    # only for scut_classifiers
+                    prov_classifier.transformer.provision = prov_name
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))
                 provision_classifier_map[cust_id_ver] = prov_classifier
@@ -308,6 +326,7 @@ class EbRunner:
                 pclassifier = provision_classifier_map[provision]
                 # Make sure all xxx_annotators are really annotator, not scut_classifier
                 if isinstance(pclassifier, spanannotator.SpanAnnotator):
+                    # pylint: disable=line-too-long
                     xxx_annotator = pclassifier  # type: Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator]
                 else:
                     prov_threshold = provclassifier.get_provision_threshold(provision)
@@ -315,7 +334,6 @@ class EbRunner:
                                                                    self.work_dir,
                                                                    threshold=prov_threshold)
                 self.custom_annotator_map.set(provision, xxx_annotator)
-
 
             total_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
             avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
@@ -555,7 +573,6 @@ class EbRunner:
                                             candidate_types: List[str],
                                             nbest: int,
                                             model_num: int,
-                                            is_doc_structure=False,
                                             work_dir=None,
                                             doc_lang="en") \
                                             -> Tuple[Dict[str, Any], Dict[str, Dict]]:
@@ -637,6 +654,11 @@ class EbRunner:
                 prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                        if hant.label == provision]
 
+                ant_list = self.recover_false_negatives(prov_human_ant_list,
+                                                        ebantdoc.get_text(),
+                                                        provision,
+                                                        ant_list)
+
                 # print("\nfn: {}".format(ebantdoc.file_id))
                 # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
                 # pred_prob_start_end_list, txt)
@@ -686,7 +708,7 @@ class EbRunner:
         tp, fn, fp, tn = 0, 0, 0, 0
 
         full_model_fn = spanannotator.get_model_file_name(provision,
-                                                          "-".join(candidate_types),
+                                                          candidate_types,
                                                           self.custom_model_dir)
 
         prov_model = joblib.load(full_model_fn)
@@ -746,6 +768,21 @@ class EbRunner:
 
         return tmp_eval_status
 
+
+    # pylint: disable=no-self-use
+    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
+        if not prov_human_ant_list:
+            return ant_result
+        for ant in prov_human_ant_list:
+            if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
+                clean_text = strutils.sub_nltab_with_space(doc_text[ant.start:ant.end])
+                fn_ant = ebpostproc.to_ant_result_dict(label=provision,
+                                                       prob=0.0,
+                                                       start=ant.start,
+                                                       end=ant.end,
+                                                       text=clean_text)
+                ant_result.append(fn_ant)
+        return ant_result
 
 
 # pylint: disable=too-few-public-methods

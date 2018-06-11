@@ -264,11 +264,13 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
                        'threshold': 0.25,
                        'kfold': 3}
        for label in label_list:
-           _, _, prop = get_annotator_config(label,
-                                             version,
-                                             ML_ANNOTATOR_CONFIG_LIST,
-                                             ML_ANNOTATOR_CONFIG_FROZEN_LIST)
-           generic_prop['doc_to_candidates'].extend(prop['doc_to_candidates'])
+           configx = get_annotator_config(label,
+                                          version,
+                                          ML_ANNOTATOR_CONFIG_LIST,
+                                          ML_ANNOTATOR_CONFIG_FROZEN_LIST)
+           if configx:
+               _, _, prop = configx
+               generic_prop['doc_to_candidates'].extend(prop['doc_to_candidates'])
        return generic_prop
 
 

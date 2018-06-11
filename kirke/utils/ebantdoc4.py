@@ -388,8 +388,8 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                 nlp_lnpos_list=nlp_lnpos_list,
                                 gap_span_list=gap_span_list,
                                 # there is no page_offsets_list
-                                linebreak_arr=[],
-                                para_not_linebreak_arr=[],
+                                linebreak_arr=array.array('i'),
+                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)

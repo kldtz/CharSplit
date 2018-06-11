@@ -637,7 +637,7 @@ def parse_document(file_name: str,
             page_nums[line_num] = page_num
             lxid_strinfos_map[line_num].append(StrInfo(start, end, xStart, xEnd, yStart))
 
-    pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]
+    pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]]
     bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
     tmp_prev_end = 0
     block_num = 0

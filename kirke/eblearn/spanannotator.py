@@ -256,11 +256,13 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     # this also enriches candidates using additional self.candidate_transformers
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                                label: Optional[str] = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                                List[Dict],
-                                                                List[bool],
-                                                                List[int]]]:
-        all_results = []
+                                label: Optional[str] = None) \
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                              List[Dict],
+                                              List[bool],
+                                              List[int]]]:
+        # pylint: disable=line-too-long
+        all_results = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         for candidate_generator in self.doc_to_candidates:
             result = candidate_generator.documents_to_candidates(antdoc_list, label)
             all_results.extend(result)
