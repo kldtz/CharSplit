@@ -126,13 +126,14 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.25,
                         'kfold': 3}),
 
-    ('ID_NUM', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+    ('IDNUM', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
                         'doc_to_candidates': [regexgen.RegexContextGenerator(3,
                                                                              3,
                                                                              re.compile(r'([^\s]*\d[^\s]*)'),
-                                                                             'ID_NUM',
-                                                                             join=True)],
+                                                                             'IDNUM',
+                                                                             join=True,
+                                                                             length_min=2)],
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
