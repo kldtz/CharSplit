@@ -92,6 +92,7 @@ def classify_document(file_name: str, model_dir: str) -> None:
 
 
 # This separates out training and testing data, trains only on training data.
+# pylint: disable=too-many-arguments
 def train_annotator(provision: str,
                     work_dir: str,
                     model_dir: str,
@@ -185,8 +186,7 @@ def custom_train_annotator(provision: str,
                            txt_fn_list_fn: str,
                            work_dir: str,
                            model_dir: str,
-                           custom_model_dir: str,
-                           is_doc_structure=True) -> None:
+                           custom_model_dir: str) -> None:
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
 
     # cust_id = '12345'
@@ -342,8 +342,10 @@ def main():
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
-    parser.add_argument('--candidate_types', default='SENTENCE', help='types of candidate generator')
-    parser.add_argument('--cache_disabled', action="store_true", help='disable loading cached files')
+    parser.add_argument('--candidate_types', default='SENTENCE',
+                        help='types of candidate generator')
+    parser.add_argument('--cache_disabled', action="store_true",
+                        help='disable loading cached files')
     parser.add_argument('--nbest', default=-1, help='number of annotations per doc')
     # only for eval_rule_annotator
     parser.add_argument('--is_train_mode', action="store_true",
@@ -394,8 +396,7 @@ def main():
                                txt_fn_list_fn,
                                work_dir,
                                model_dir,
-                               custom_model_dir,
-                               is_doc_structure=True)
+                               custom_model_dir)
     elif cmd == 'test_annotators':
         # if no --provisions is specified, all annotators are tested
         out_dir = args.out_dir
