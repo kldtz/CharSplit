@@ -277,9 +277,11 @@ def custom_train(cust_id: str):
     else:
         work_dir = WORK_DIR
 
-    candidate_types = request.form.get('candidate_types')
-    if not candidate_types:
+    cand_types_param = request.form.get('candidate_types')
+    if not cand_types_param:
         candidate_types = ['SENTENCE']
+    else:
+        candidate_types = cand_types_param.split(',')
     nbest = request.form.get('nbest')
     if not nbest:
         nbest = -1
@@ -287,7 +289,7 @@ def custom_train(cust_id: str):
         nbest = int(nbest)
 
     # to ensure that no accidental file name overlap
-    logger.info("cust_id = '%s', candidate_type=%s, nbest= %d",
+    logger.info("cust_id = '%s', candidate_types=%r, nbest= %d",
                 cust_id, candidate_types, nbest)
     provision = 'cust_{}'.format(cust_id)
     tmp_dir = '{}/{}'.format(work_dir, provision)
@@ -360,6 +362,7 @@ def custom_train(cust_id: str):
                     base_model_fname = '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
                                                                               next_model_num,
                                                                               doc_lang,
+                                                                              # pylint: disable=line-too-long
                                                                               "-".join(candidate_types),
                                                                               CANDG_CLF_VERSION)
 

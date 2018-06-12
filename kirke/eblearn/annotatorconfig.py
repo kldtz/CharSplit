@@ -106,10 +106,12 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
-                        'doc_to_candidates': [regexgen.RegexContextGenerator(15,
-                                                                             5,
-                                                                             re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)\s*%))'),
-                                                                             'PERCENT')],
+                        'doc_to_candidates': \
+                        [regexgen.RegexContextGenerator(15,
+                                                        5,
+                                                        # pylint: disable=line-too-long
+                                                        re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)\s*%))'),
+                                                        'PERCENT')],
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
@@ -265,11 +267,13 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
                        'threshold': 0.25,
                        'kfold': 3}
        for label in label_list:
-           _, _, prop = get_annotator_config(label,
-                                             version,
-                                             ML_ANNOTATOR_CONFIG_LIST,
-                                             ML_ANNOTATOR_CONFIG_FROZEN_LIST)
-           generic_prop['doc_to_candidates'].extend(prop['doc_to_candidates'])
+           configx = get_annotator_config(label,
+                                          version,
+                                          ML_ANNOTATOR_CONFIG_LIST,
+                                          ML_ANNOTATOR_CONFIG_FROZEN_LIST)
+           if configx:
+               _, _, prop = configx
+               generic_prop['doc_to_candidates'].extend(prop['doc_to_candidates'])
        return generic_prop
 
 

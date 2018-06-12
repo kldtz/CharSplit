@@ -7,7 +7,7 @@ import logging
 import os
 import pprint
 import sys
-from typing import Optional, Set
+from typing import List, Optional, Set
 
 # pylint: disable=import-error
 from sklearn.externals import joblib
@@ -119,10 +119,12 @@ def train_annotator(provision: str,
 
 def train_span_annotator(label: str,
                          nbest: int,
-                         candidate_types: str,
+                         candidate_types: List[str],
                          work_dir: str,
                          model_dir: str) -> None:
-    if candidate_types != 'SENTENCE':
+    if candidate_types == ['SENTENCE']:
+        train_annotator(label, work_dir, model_dir, True)
+    else:
         ebtrainer.train_eval_span_annotator(label,
                                             383838,
                                             'en',
@@ -130,12 +132,10 @@ def train_span_annotator(label: str,
                                             candidate_types,
                                             work_dir,
                                             model_dir)
-    else:
-        train_annotator(label, work_dir, model_dir, True)
 
 
 def eval_span_annotator(label: str,
-                        candidate_types: str,
+                        candidate_types: List[str],
                         txt_fn_list_fn: str,
                         work_dir: str,
                         model_dir: str):
@@ -180,7 +180,7 @@ def eval_mlxline_annotator_with_trte(provision: str,
 
 # pylint: disable=too-many-arguments
 def custom_train_annotator(provision: str,
-                           candidate_types: str,
+                           candidate_types: List[str],
                            nbest: int,
                            txt_fn_list_fn: str,
                            work_dir: str,
@@ -203,7 +203,6 @@ def custom_train_annotator(provision: str,
                                                       candidate_types=candidate_types,
                                                       nbest=nbest,
                                                       model_num=383838,
-                                                      is_doc_structure=is_doc_structure,
                                                       work_dir=work_dir)
 
 
@@ -343,7 +342,7 @@ def main():
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
-    parser.add_argument('--candidate_types', default='SENTENCE', help='type of candidate generator')
+    parser.add_argument('--candidate_types', default='SENTENCE', help='types of candidate generator')
     parser.add_argument('--cache_disabled', action="store_true", help='disable loading cached files')
     parser.add_argument('--nbest', default=-1, help='number of annotations per doc')
     # only for eval_rule_annotator
@@ -375,12 +374,12 @@ def main():
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,
                              args.nbest,
-                             candidate_types=args.candidate_types,
+                             candidate_types=args.candidate_types.split(','),
                              work_dir=work_dir,
                              model_dir=model_dir)
     elif cmd == 'eval_span_annotator':
         eval_span_annotator(provision,
-                            candidate_types=args.candidate_types,
+                            candidate_types=args.candidate_types.split(','),
                             txt_fn_list_fn=txt_fn_list_fn,
                             work_dir=work_dir,
                             model_dir=model_dir)
@@ -390,7 +389,7 @@ def main():
                             is_train_mode=args.is_train_mode)
     elif cmd == 'custom_train_annotator':
         custom_train_annotator(provision,
-                               args.candidate_types,
+                               args.candidate_types.split(','),
                                int(args.nbest),
                                txt_fn_list_fn,
                                work_dir,

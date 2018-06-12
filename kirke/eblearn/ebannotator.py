@@ -20,7 +20,7 @@ class ProvisionAnnotator:
                  prov_classifier,
                  work_dir: str,
                  threshold: Optional[float] = None,
-                 nbest: int = -1):
+                 nbest: int = -1) -> None:
         self.provision_classifier = prov_classifier
         self.provision = prov_classifier.provision
         self.nbest = nbest
@@ -29,7 +29,8 @@ class ProvisionAnnotator:
         else:
             self.threshold = prov_classifier.threshold
         self.work_dir = work_dir
-        self.eval_status = {}  # this is set after training
+        # this is set after training
+        self.eval_status = {}  # type: Dict
 
     def get_eval_status(self):
         return self.eval_status
@@ -118,7 +119,7 @@ class ProvisionAnnotator:
 
 
     # pylint: disable=no-self-use
-    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
+    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result) -> List[Dict]:
         if not prov_human_ant_list:
             return ant_result
         for ant in prov_human_ant_list:
@@ -158,7 +159,9 @@ class ProvisionAnnotator:
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
         if threshold is None:
-            threshold = self.threshold
+            specified_threshold = self.threshold
+        else:
+            specified_threshold = threshold
 
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
@@ -181,10 +184,10 @@ class ProvisionAnnotator:
             adj_prov_human_ant_list = prov_human_ant_list
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations, threshold = \
+        prov_annotations, out_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
-                                                          threshold,
+                                                          specified_threshold,
                                                           nbest=self.get_nbest(),
                                                           provision=prov,
                                                           # pylint: disable=line-too-long
@@ -215,7 +218,7 @@ class ProvisionAnnotator:
                                                         prov,
                                                         prov_annotations)
 
-        return prov_annotations, threshold
+        return prov_annotations, out_threshold
 
 # this is destructive
 def update_text_with_span_list(prov_annotations, doc_text):
