@@ -32,6 +32,10 @@ class RegexContextGenerator:
                                                                List[bool],
                                                                List[int]]]:
 
+        if 'length_min' not in self.__dict__:
+            self.length_min = 0
+        if 'join' not in self.__dict__:
+            self.join = False
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc4
