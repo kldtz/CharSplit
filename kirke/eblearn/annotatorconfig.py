@@ -32,6 +32,14 @@ CURRENCY_PAT = re.compile(r'(((USD|[\$€₹£¥]) *(\d{1,3},?)+([,\.]\d{,2})?( 
 NUMBER_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+(,[0-9]{3})*\.?[0-9]*|\.[0-9]+))\)?[,\.:;]?(\s|$)')
 PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+(,[0-9]{3})*\.?[0-9]*|\.[0-9]+)\s*(%|percent))\)?[,\.:;]?(\s|$)', re.I)
 
+# must have at least a digit
+# IDNUM_WORD_PAT = re.compile(r'([^\s]*\d[^\s]+|[^\s]+\d+[^\s]*)')
+
+# the separator in adjacent IDNUM must be just 1 space, cannot be tab or new line
+# comma, lparen, rparen are special characters
+# allowsing 1 or 2 spaces between 2 adjacent idnums
+IDNUM_PAT = re.compile(r'(([^\s,\(\)]*\d[^\s,\(\)]+|[^\s,\(\)]+\d+[^\s,\(\)]*)( {1,2}[^\s,\(\)]*\d[^\s,\(\)]+|[^\s,\(\)]+\d+[^\s,\(\)]*)*)')
+
 
 ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
@@ -142,9 +150,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
                       'doc_to_candidates':
                       [regexgen.RegexContextGenerator(3,
                                                       3,
-                                                      re.compile(r'([^\s]*\d[^\s]*)'),
+                                                      IDNUM_PAT,
                                                       'IDNUM',
-                                                      join=True,
                                                       length_min=2)],
                       'version': "1.0",
                       'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],

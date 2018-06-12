@@ -31,7 +31,7 @@ class TestCurrency(unittest.TestCase):
 
         line = "Bob received 33.5 dollars from Alice"
         self.assertEqual(extract_str(currency_pat, line),
-                         '33.5 dollars')        
+                         '33.5 dollars')
 
         line = "Bob received 33.55 dollars from Alice"
         self.assertEqual(extract_str(currency_pat, line),
@@ -72,7 +72,7 @@ class TestCurrency(unittest.TestCase):
         line = "Bob received $333,333.20 from Alice"
         self.assertEqual(extract_str(currency_pat, line),
                          '$333,333.20')
-        
+
         line = "Bob received €333,333 from Alice"
         self.assertEqual(extract_str(currency_pat, line),
                          '€333,333')
@@ -87,7 +87,7 @@ class TestCurrency(unittest.TestCase):
 
         line = "Bob received 333,333€ from Alice"
         self.assertEqual(extract_str(currency_pat, line),
-                         '333,333€')                                
+                         '333,333€')
 
         line = "Bob received 333,333 from Alice"
         self.assertEqual(extract_str(currency_pat, line),
@@ -113,7 +113,7 @@ class TestCurrency(unittest.TestCase):
         line = "Bob received USD   33.33 from Alice"
         self.assertEqual(extract_str(currency_pat,
                                      line),
-                         'USD   33.33')                
+                         'USD   33.33')
 
 
     def test_number(self):
@@ -124,7 +124,7 @@ class TestCurrency(unittest.TestCase):
         line = "33.3 dollars from Alice"
         self.assertEqual(extract_str(number_pat, line, 2),
                          '33.3')
-        
+
         line = "3.3 dollars from Alice"
         self.assertEqual(extract_str(number_pat, line, 2),
                          '3.3')
@@ -135,7 +135,7 @@ class TestCurrency(unittest.TestCase):
 
         line = "0.3 dollars from Alice"
         self.assertEqual(extract_str(number_pat, line, 2),
-                         '0.3')                        
+                         '0.3')
 
 
         line = "-0.3 dollars from Alice"
@@ -149,8 +149,8 @@ class TestCurrency(unittest.TestCase):
 
         line = "-22,333.3 dollars from Alice"
         self.assertEqual(extract_str(number_pat, line, 2),
-                         '-22,333.3')                                        
-        
+                         '-22,333.3')
+
         line = "Bob received 33 dollars from Alice"
         self.assertEqual(extract_str(number_pat, line, 2),
                          '33')
@@ -178,7 +178,7 @@ class TestCurrency(unittest.TestCase):
 
         line = "Bob received (0.3802) dollars from Alice"
         self.assertEqual(extract_str(number_pat, line, 2),
-                         '0.3802')                        
+                         '0.3802')
 
 
     def test_percent(self):
@@ -196,13 +196,13 @@ class TestCurrency(unittest.TestCase):
 
         line = "33.3percent from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
-                         '33.3percent')                
+                         '33.3percent')
 
 
         line = "33.3 % from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
-                         '33.3 %')                
-        
+                         '33.3 %')
+
         line = "3.3 percent from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
                          '3.3 percent')
@@ -213,7 +213,7 @@ class TestCurrency(unittest.TestCase):
 
         line = "0.3 percent from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
-                         '0.3 percent')                        
+                         '0.3 percent')
 
         line = "-0.3 percent from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
@@ -226,8 +226,8 @@ class TestCurrency(unittest.TestCase):
 
         line = "-22,333.3 percent from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
-                         '-22,333.3 percent')                                        
-        
+                         '-22,333.3 percent')
+
         line = "Bob received 33 percent from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
                          '33 percent')
@@ -250,5 +250,65 @@ class TestCurrency(unittest.TestCase):
 
         line = "Bob received 0.3802 percent from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
-                         '0.3802 percent')                        
-        
+                         '0.3802 percent')
+
+
+
+class TestIdNum(unittest.TestCase):
+
+    def test_idnum(self):
+        "Test IDNUM_PAT"
+
+        idnum_pat = annotatorconfig.IDNUM_PAT
+
+        line = "Bob received 33 dollars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '33')
+
+        line = "Bob received 33. dollars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '33.')
+
+        line = "Bob received 33.5 335 dollars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '33.5 335')
+
+        line = "Bob received 33.5 335dollars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '33.5 335dollars')
+
+        line = "Bob received 33.5 #3llars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '33.5 #3llars')
+
+        line = "Bob received 3 from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '')
+
+        line = "Bob received 3 #3llars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '#3llars')
+
+        line = "Bob received 43 #3llars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '43 #3llars')
+
+        line = "Bob received 43 #3ll,ars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '43 #3ll')
+
+        line = "Bob received .43 #3ll)ars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '.43 #3ll')
+
+        line = "Bob received .43  #3ll)ars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '.43  #3ll')
+
+        # 3 spaces between idnums, only first one is found
+        line = "Bob received .43   #3ll)ars from Alice"
+        self.assertEqual(extract_str(idnum_pat, line),
+                         '.43')
+
+
+
