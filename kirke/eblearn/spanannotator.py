@@ -263,6 +263,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                               List[int]]]:
         # pylint: disable=line-too-long
         all_results = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+        if type(self.doc_to_candidates) != list:
+            self.doc_to_candidates = [self.doc_to_candidates]
         for candidate_generator in self.doc_to_candidates:
             result = candidate_generator.documents_to_candidates(antdoc_list, label)
             all_results.extend(result)

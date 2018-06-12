@@ -38,6 +38,8 @@ class RegexContextGenerator:
             self.length_min = 0
         if 'join' not in self.__dict__:
             self.join = False
+        if 'group_num' not in self.__dict__:
+            self.group_num = 1
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc4
@@ -67,8 +69,8 @@ class RegexContextGenerator:
             #finds all matches in the text and adds window around each as a candidate
             matches = self.center_regex.finditer(nl_text, re.I)
             for match in matches:
-                match_start, match_end = match.span(group_num)
-                match_str = match.group(group_num)
+                match_start, match_end = match.span(self.group_num)
+                match_str = match.group(self.group_num)
                 is_label = ebsentutils.check_start_end_overlap(match_start,
                                                                match_end,
                                                                label_ant_list)
