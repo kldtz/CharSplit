@@ -598,6 +598,9 @@ def train_eval_span_annotator(provision: str,
     logger.info("    work_dir = %s", work_dir)
     logger.info("    model_file_name = %s", model_file_name)
 
+    # this is mainly for paragraph
+    if text_type == 'nlp_text':
+        is_doc_structure = True
 
     if is_bespoke_mode:
         # converts all docs to ebantdocs

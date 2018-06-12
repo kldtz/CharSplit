@@ -16,13 +16,15 @@ class RegexContextGenerator:
                  center_regex: Pattern,
                  candidate_type: str,
                  join: bool = False,
-                 length_min: int = 0) -> None:
+                 length_min: int = 0,
+                 group_num: int = 1) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
         self.center_regex = center_regex
         self.candidate_type = candidate_type
         self.join = join
         self.length_min = length_min
+        self.group_num = group_num
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
@@ -65,8 +67,8 @@ class RegexContextGenerator:
             #finds all matches in the text and adds window around each as a candidate
             matches = self.center_regex.finditer(nl_text, re.I)
             for match in matches:
-                match_start, match_end = match.span(1)
-                match_str = match.group(1)
+                match_start, match_end = match.span(group_num)
+                match_str = match.group(group_num)
                 is_label = ebsentutils.check_start_end_overlap(match_start,
                                                                match_end,
                                                                label_ant_list)

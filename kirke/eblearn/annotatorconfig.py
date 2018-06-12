@@ -11,10 +11,11 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
 
 from kirke.sampleutils import postproc
-from kirke.ebrules import addrannotator, dummyannotator, dates
+from kirke.ebrules import dummyannotator, dates
 from kirke.sampleutils import regexgen, addrgen, paragen, dategen, transformerutils
 from kirke.utils import ebantdoc4
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -23,6 +24,13 @@ logger.setLevel(logging.INFO)
 #
 # There are "frozen" lists of those config so that developer are aware not to touch
 # any of the classes mentioned in the frozen config lists.
+
+CURRENCY_PAT = re.compile(r'(((USD|[\$€₹£¥]) *(\d{1,3},?)+([,\.]\d{,2})?( *[bB]illion| *[mM]illion| *[tT]housand| *M| *B)?)|'
+                          r'((\d{1,3},?)+([,\.]\d{,2})? *([bB]illion|[mM]illion|[tT]housand|M|B)? *(USD|GBP|JPY|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[€円¥])))')
+
+# must pick gruop 2 instead of group 1
+NUMBER_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+(,[0-9]{3})*\.?[0-9]*|\.[0-9]+))\)?[,\.:;]?(\s|$)')
+PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+(,[0-9]{3})*\.?[0-9]*|\.[0-9]+)\s*(%|percent))\)?[,\.:;]?(\s|$)', re.I)
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
@@ -59,13 +67,14 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                         'threshold': 0.35,
                         'kfold': 3}),
+
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                          'is_use_corenlp': False,
-                         'doc_to_candidates': [regexgen.RegexContextGenerator(20,
-                                                                              5,
-                                                                              # pylint: disable=line-too-long
-                                                                              re.compile(r'(((USD|[\$€₹£¥]) *(\d{1,3},?)+([,\.]\d\d)?( *[bB]illion| *[mM]illion| *[tT]housand| *M| *B)?)|((\d{1,3},?)+([,\.]\d\d)? *([bB]illion|[mM]illion|[tT]housand|M|B)? *(USD|GBP|JPY|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[€円¥])))'),
-                                                                              'CURRENCY')],
+                         'doc_to_candidates':
+                         [regexgen.RegexContextGenerator(20,
+                                                         5,
+                                                         CURRENCY_PAT,
+                                                         'CURRENCY')],
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                          'pipeline': Pipeline([
@@ -85,9 +94,9 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'is_use_corenlp': False,
                        'doc_to_candidates': [regexgen.RegexContextGenerator(10,
                                                                             10,
-                                                                            # pylint: disable=line-too-long
-                                                                            re.compile(r'\s\(?(\-?(,?\d{1,3})+([,\./]\d+)?)\)?[,\.:;]?\s'),
-                                                                            'NUMBER')],
+                                                                            NUMBER_PAT,
+                                                                            'NUMBER',
+                                                                            group_num=2)],
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                        'pipeline': Pipeline([('union', FeatureUnion(
@@ -109,9 +118,9 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'doc_to_candidates': \
                         [regexgen.RegexContextGenerator(15,
                                                         5,
-                                                        # pylint: disable=line-too-long
-                                                        re.compile(r'\s((\-?(\d{1,3},?)+([,\.]\d+)?\s*%)|(\-?([,\.]\d+)\s*%))'),
-                                                        'PERCENT')],
+                                                        PERCENT_PAT,
+                                                        'PERCENT',
+                                                        group_num=2)],
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
@@ -129,70 +138,52 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'kfold': 3}),
 
     ('IDNUM', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
-                        'is_use_corenlp': False,
-                        'doc_to_candidates': [regexgen.RegexContextGenerator(3,
-                                                                             3,
-                                                                             re.compile(r'([^\s]*\d[^\s]*)'),
-                                                                             'IDNUM',
-                                                                             join=True,
-                                                                             length_min=2)],
-                        'version': "1.0",
-                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
-                        'pipeline': Pipeline([('union', FeatureUnion(
-                            # pylint: disable=line-too-long
-                            transformer_list=[('surround_transformer', transformerutils.CharacterTransformer())])),
-                                              ('clf', SGDClassifier(loss='log',
-                                                                    penalty='l2',
-                                                                    n_iter=50,
-                                                                    shuffle=True,
-                                                                    random_state=42,
-                                                                    class_weight={True: 3,
-                                                                                  False: 1}))]),
-                        'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                        'threshold': 0.25,
-                        'kfold': 3}),
+                      'is_use_corenlp': False,
+                      'doc_to_candidates':
+                      [regexgen.RegexContextGenerator(3,
+                                                      3,
+                                                      re.compile(r'([^\s]*\d[^\s]*)'),
+                                                      'IDNUM',
+                                                      join=True,
+                                                      length_min=2)],
+                      'version': "1.0",
+                      'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                      'pipeline': Pipeline([('union', FeatureUnion(
+                          # pylint: disable=line-too-long
+                          transformer_list=[('surround_transformer', transformerutils.CharacterTransformer())])),
+                                            ('clf', SGDClassifier(loss='log',
+                                                                  penalty='l2',
+                                                                  n_iter=50,
+                                                                  shuffle=True,
+                                                                  random_state=42,
+                                                                  class_weight={True: 3,
+                                                                                False: 1}))]),
+                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                      'threshold': 0.25,
+                      'kfold': 3}),
 
-     ('PARAGRAPH', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
-                           'is_use_corenlp': True,
-                           'text_type': 'nlp_text',
-                           'doc_to_candidates': [paragen.ParagraphGenerator('PARAGRAPH')],
-                           'version': "1.0",
-                           'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
-                           'pipeline': Pipeline([('union', FeatureUnion(
-                           # pylint: disable=line-too-long
-                           transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
-                                              ('clf', SGDClassifier(loss='log',
-                                                                    penalty='l2',
-                                                                    n_iter=50,
-                                                                    shuffle=True,
-                                                                    random_state=42,
-                                                                    class_weight={True: 3,
-                                                                                  False: 1}))]),
-                           'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                           'threshold': 0.25,
-                           'kfold': 3})
+    ('PARAGRAPH', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                          'is_use_corenlp': False,
+                          'text_type': 'nlp_text',
+                          'doc_to_candidates': [paragen.ParagraphGenerator('PARAGRAPH')],
+                          'version': "1.0",
+                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                          'pipeline': Pipeline([('union', FeatureUnion(
+                              # pylint: disable=line-too-long
+                              transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
+                                                ('clf', SGDClassifier(loss='log',
+                                                                      penalty='l2',
+                                                                      n_iter=50,
+                                                                      shuffle=True,
+                                                                      random_state=42,
+                                                                      class_weight={True: 3,
+                                                                                    False: 1}))]),
+                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                          'threshold': 0.25,
+                          'kfold': 3})
 ]
 
-'''
-('l_tenant_notice', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
-                            'is_use_corenlp': False,
-                            'doc_to_candidates': addrgen.AddrContextGenerator(10, 2, 'ADDRESS'),
-                            'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
-                            'version': "1.0",
-                            'pipeline': Pipeline([
-                                ('union', FeatureUnion(
-                                    transformer_list=[
-                                        # pylint: disable=line-too-long
-                                            ('surround_transformer', transformerutils.SimpleTextTransformer()),
-                                        ('is_addr_line_transformer', transformerutils.AddrLineTransformer())
-                                    ])),
-                                ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
-                                                      shuffle=True, random_state=42,
-                                                      class_weight={True: 3, False: 1}))]),
-                            'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                            'threshold': 0.25,
-                            'kfold': 3}),
-'''
+
 
 RULE_ANNOTATOR_CONFIG_LIST = [
     ('effectivedate', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
@@ -202,13 +193,14 @@ RULE_ANNOTATOR_CONFIG_LIST = [
                               'rule_engine': dummyannotator.DummyAnnotator()}),
 ]
 
+
 ML_ANNOTATOR_CONFIG_FROZEN_LIST = []  # type: List[Tuple[str, str, Dict]]
 RULE_ANNOTATOR_CONFIG_FROZEN_LIST = []  # type: List[Tuple[str, str, Dict]]
 
 def validate_annotator_config_keys(aconfig: Tuple[str, str, Dict]) -> bool:
     label, version, adict = aconfig
     is_valid = True
-    for key, value in adict.items():
+    for key, unused_value in adict.items():
         if key not in set(['doclist_to_antdoc_list',
                            'is_use_corenlp',
                            'doc_to_candidates',
@@ -246,35 +238,34 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
         if configx:
             _, _, prop = configx
             return prop
-        else:
-            return {}
-    else:
-       generic_prop = {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
-                       'version': "1.0",
-                       'is_use_corenlp': False,
-                       'doc_to_candidates': [],
-                       'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
-                       'pipeline': Pipeline([
-                             ('union', FeatureUnion(
-                                 transformer_list=[
-                                     # pylint: disable=line-too-long
-                                     ('surround_transformer', transformerutils.SimpleTextTransformer())
-                                 ])),
-                             ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
-                                                   shuffle=True, random_state=42,
-                                                   class_weight={True: 3, False: 1}))]),
-                       'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                       'threshold': 0.25,
-                       'kfold': 3}
-       for label in label_list:
-           configx = get_annotator_config(label,
-                                          version,
-                                          ML_ANNOTATOR_CONFIG_LIST,
-                                          ML_ANNOTATOR_CONFIG_FROZEN_LIST)
-           if configx:
-               _, _, prop = configx
-               generic_prop['doc_to_candidates'].extend(prop['doc_to_candidates'])
-       return generic_prop
+        return {}
+
+    generic_prop = {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                    'version': "1.0",
+                    'is_use_corenlp': False,
+                    'doc_to_candidates': [],
+                    'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                    'pipeline': Pipeline([
+                        ('union', FeatureUnion(
+                            transformer_list=[
+                                # pylint: disable=line-too-long
+                                ('surround_transformer', transformerutils.SimpleTextTransformer())
+                            ])),
+                        ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                              shuffle=True, random_state=42,
+                                              class_weight={True: 3, False: 1}))]),
+                    'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                    'threshold': 0.25,
+                    'kfold': 3}
+    for label in label_list:
+        configx = get_annotator_config(label,
+                                       version,
+                                       ML_ANNOTATOR_CONFIG_LIST,
+                                       ML_ANNOTATOR_CONFIG_FROZEN_LIST)
+        if configx:
+            _, _, prop = configx
+            generic_prop['doc_to_candidates'].extend(prop['doc_to_candidates'])
+    return generic_prop
 
 
 def get_rule_annotator_config(label: str, version: Optional[str] = None) -> Dict:
@@ -286,7 +277,6 @@ def get_rule_annotator_config(label: str, version: Optional[str] = None) -> Dict
         _, _, prop = configx
         return prop
     return {}
-
 
 
 def get_annotator_config(label: str,
@@ -312,6 +302,7 @@ def get_annotator_config(label: str,
                 best_annotator_config = (candg_type, candg_ver, candg_property)
 
     return best_annotator_config
+
 
 def get_all_candidate_types():
     return set([x[0] for x in ML_ANNOTATOR_CONFIG_LIST])
