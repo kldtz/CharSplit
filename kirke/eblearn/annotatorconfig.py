@@ -163,7 +163,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                       'kfold': 3}),
 
     ('PARAGRAPH', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
-                          'is_use_corenlp': True,
+                          'is_use_corenlp': False,
                           'text_type': 'nlp_text',
                           'doc_to_candidates': [paragen.ParagraphGenerator('PARAGRAPH')],
                           'version': "1.0",
