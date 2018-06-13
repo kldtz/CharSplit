@@ -142,7 +142,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                       'doc_to_candidates':
                       [regexgen.RegexContextGenerator(3,
                                                       3,
-                                                      re.compile(r'([^\s]*\d[^\s]*)')
+                                                      re.compile(r'([^\s]*\d[^\s]*)'),
                                                       'IDNUM',
                                                       join=True,
                                                       length_min=2)],
