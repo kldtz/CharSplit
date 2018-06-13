@@ -104,7 +104,7 @@ class RegexContextGenerator:
                     match_str = match_str[1:]
                     match_start += 1
 
-                if len(match_str) >= self.length_min:
+                if len(match_str) > self.length_min:
                     a_candidate = {'candidate_type': self.candidate_type,
                                    'bow_start': new_start,
                                    'bow_end': new_end,
@@ -121,7 +121,6 @@ class RegexContextGenerator:
                         label_list.append(True)
                     else:
                         label_list.append(False)
-            """
             if self.join:
                 merge_candidates = []
                 merge_labels = []
@@ -152,6 +151,5 @@ class RegexContextGenerator:
                 candidates = merge_candidates
                 label_list = merge_labels
                 group_id_list = merge_groups
-            """
             result.append((antdoc, candidates, label_list, group_id_list))
         return result
