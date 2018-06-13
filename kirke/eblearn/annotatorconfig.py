@@ -25,20 +25,12 @@ logger.setLevel(logging.INFO)
 # There are "frozen" lists of those config so that developer are aware not to touch
 # any of the classes mentioned in the frozen config lists.
 
-CURRENCY_PAT = re.compile(r'(((USD|[\$€₹£¥]) *(\d{1,3},?)+([,\.]\d{,2})?( *[bB]illion| *[mM]illion| *[tT]housand| *M| *B)?)|'
-                          r'((\d{1,3},?)+([,\.]\d{,2})? *([bB]illion|[mM]illion|[tT]housand|M|B)? *(USD|GBP|JPY|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[€円¥])))')
+CURRENCY_PAT = re.compile(r'(((USD|GBP|JPY|[\$€₹£¥円]) *(\d{1,3}[,\.]?)+([,\.]\d{,2})?( *[tTbBmM]illion| *[tT]housand| *[TMB])?)|'
+                          r'((\d{1,3},?)+([,\.]\d{,2})? *([tTbBmM]illion|[tT]housand|[TMB])? *(USD|EUR|INR|GBP|CNY|JPY|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[\$€₹£¥円])))')
 
 # must pick gruop 2 instead of group 1
-NUMBER_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+(,[0-9]{3})*\.?[0-9]*|\.[0-9]+))\)?[,\.:;]?(\s|$)')
-PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+(,[0-9]{3})*\.?[0-9]*|\.[0-9]+)\s*(%|percent))\)?[,\.:;]?(\s|$)', re.I)
-
-# must have at least a digit
-# IDNUM_WORD_PAT = re.compile(r'([^\s]*\d[^\s]+|[^\s]+\d+[^\s]*)')
-
-# the separator in adjacent IDNUM must be just 1 space, cannot be tab or new line
-# comma, lparen, rparen are special characters
-# allowsing 1 or 2 spaces between 2 adjacent idnums
-IDNUM_PAT = re.compile(r'(([^\s,\(\)]*\d[^\s,\(\)]+|[^\s,\(\)]+\d+[^\s,\(\)]*)( {1,2}[^\s,\(\)]*\d[^\s,\(\)]+|[^\s,\(\)]+\d+[^\s,\(\)]*)*)')
+NUMBER_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))\)?[,\.:;]?(\s|$)')
+PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|\.[0-9]+)\s*(%|percent))\)?[,\.:;]?(\s|$)', re.I)
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
@@ -150,8 +142,9 @@ ML_ANNOTATOR_CONFIG_LIST = [
                       'doc_to_candidates':
                       [regexgen.RegexContextGenerator(3,
                                                       3,
-                                                      IDNUM_PAT,
+                                                      re.compile(r'([^\s]*\d[^\s]*)')
                                                       'IDNUM',
+                                                      join=True,
                                                       length_min=2)],
                       'version': "1.0",
                       'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
