@@ -94,7 +94,8 @@ class RegexContextGenerator:
 
                 # clean up the string if special character is at the end.  Currently
                 # none of the matat_str will have nose characters except for ";" or ":"
-                if match_str.endswith(',') or match_str.endswith(';') or match_str.endswith(':') or match_str.endswith('.'):
+                if match_str.endswith(',') or match_str.endswith(';') or \
+                   match_str.endswith(':') or match_str.endswith('.'):
                     match_str = match_str[:-1]
                     match_end -= 1
                 if match_str.endswith(')') and not '(' in match_str:
@@ -104,23 +105,22 @@ class RegexContextGenerator:
                     match_str = match_str[1:]
                     match_start += 1
 
-                if len(match_str) > self.length_min:
-                    a_candidate = {'candidate_type': self.candidate_type,
-                                   'bow_start': new_start,
-                                   'bow_end': new_end,
-                                   'text': new_bow,
-                                   'start': match_start,
-                                   'end': match_end,
-                                   'prev_n_words': ' '.join(prev_n_words),
-                                   'post_n_words': ' '.join(post_n_words),
-                                   'chars': match_str}
-                    candidates.append(a_candidate)
-                    group_id_list.append(group_id)
-                    if is_label:
-                        a_candidate['label_human'] = label
-                        label_list.append(True)
-                    else:
-                        label_list.append(False)
+                a_candidate = {'candidate_type': self.candidate_type,
+                               'bow_start': new_start,
+                               'bow_end': new_end,
+                               'text': new_bow,
+                               'start': match_start,
+                               'end': match_end,
+                               'prev_n_words': ' '.join(prev_n_words),
+                               'post_n_words': ' '.join(post_n_words),
+                               'chars': match_str}
+                candidates.append(a_candidate)
+                group_id_list.append(group_id)
+                if is_label:
+                    a_candidate['label_human'] = label
+                    label_list.append(True)
+                else:
+                    label_list.append(False)
             if self.join:
                 merge_candidates = []
                 merge_labels = []
@@ -157,5 +157,109 @@ class RegexContextGenerator:
                 candidates = merge_candidates
                 label_list = merge_labels
                 group_id_list = merge_groups
-            result.append((antdoc, candidates, label_list, group_id_list))
+
+            # remove any candidate that is >= min_length
+            filtered_candidates = []  # type: List[Dict]
+            filtered_label_list = []  # type: List[bool]
+            filtered_group_id_list = []  # type: List[int]          
+            for candidate, label, group_id in zip(candidates,
+                                                  label_list,
+                                                  group_id_list):
+                if len(candidate['chars']) >= self.length_min:
+                    filtered_candidates.append(candidate)
+                    filtered_label_list.append(label)
+                    filtered_group_id_list.append(group_id)
+
+            result.append((antdoc, filtered_candidates,
+                           filtered_label_list, filtered_group_id_list))            
+
         return result
+
+
+def extract_doc_candidates(regex_pat: Pattern,
+                           group_num: int,
+                           atext: str,
+                           candidate_type: str,
+                           num_prev_words: int,
+                           num_post_words: int,
+                           min_length: int,
+                           is_join: bool) \
+    -> List[Dict]:
+
+    candidates = []  # type: List[Dict]
+    matches = regex_pat.finditer(atext)
+    for match in matches:
+        match_start, match_end = match.span(group_num)
+        match_str = match.group(group_num)
+        prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(atext,
+                                                                  match_start,
+                                                                  num_prev_words)
+        post_n_words, post_spans = strutils.get_post_n_clx_tokens(atext,
+                                                                  match_end,
+                                                                  num_post_words)
+        new_bow = '{} {} {}'.format(' '.join(prev_n_words),
+                                    match_str,
+                                    ' '.join(post_n_words))
+
+        #update span based on window size
+        new_start = match_start
+        new_end = match_end
+        if prev_spans:
+            new_start = prev_spans[0][0]
+        if post_spans:
+            new_end = post_spans[-1][-1]
+
+        # clean up the string if special character is at the end.  Currently
+        # none of the matat_str will have nose characters except for ";" or ":"
+        if match_str.endswith(',') or match_str.endswith(';') or \
+           match_str.endswith(':') or match_str.endswith('.'):
+            match_str = match_str[:-1]
+            match_end -= 1
+        if match_str.endswith(')') and not '(' in match_str:
+            match_str = match_str[:-1]
+            match_end -= 1
+        if match_str.startswith('(') and not ')' in match_str:
+            match_str = match_str[1:]
+            match_start += 1
+
+        a_candidate = {'candidate_type': candidate_type,
+                       'bow_start': new_start,
+                       'bow_end': new_end,
+                       'text': new_bow,
+                       'start': match_start,
+                       'end': match_end,
+                       'prev_n_words': ' '.join(prev_n_words),
+                       'post_n_words': ' '.join(post_n_words),
+                       'chars': match_str}
+        candidates.append(a_candidate)
+
+        if is_join:
+            merge_candidates = []
+            i = 0
+            while i < len(candidates):
+                skip = True
+                new_candidate = copy.deepcopy(candidates[i])
+                while skip and i+1 < len(candidates):
+                    diff = candidates[i+1]['start'] - new_candidate['end']
+                    diff_str = atext[new_candidate['end']:candidates[i+1]['start']]
+                    if (diff_str.isspace() or not diff_str) and diff < 3:
+                        new_candidate['end'] = candidates[i+1]['end']
+                        new_candidate['chars'] = atext[new_candidate['start']:new_candidate['end']]
+                        i += 1
+                        if i == len(candidates) - 1:
+                            skip = False
+                            merge_candidates.append(new_candidate)
+                            i += 1
+                    else:
+                        merge_candidates.append(new_candidate)
+                        i += 1
+                        skip = False
+                if i == len(candidates) - 1:
+                    skip = False
+                    merge_candidates.append(candidates[i])
+                    i += 1
+            candidates = merge_candidates
+        
+
+    return [candidate for candidate in candidates
+            if len(candidate['chars']) >= min_length]
