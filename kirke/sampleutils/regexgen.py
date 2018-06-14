@@ -135,6 +135,9 @@ class RegexContextGenerator:
                         if (diff_str.isspace() or not diff_str) and diff < 3:
                             new_candidate['end'] = candidates[i+1]['end']
                             new_candidate['chars'] = nl_text[new_candidate['start']:new_candidate['end']]
+                            new_candidate['bow_end'] = candidates[i+1]['bow_end']
+                            new_candidate['post_n_words'] = candidates[i+1]['post_n_words']
+                            post_n_words
                             i += 1
                             if i == len(candidates) - 1:
                                 skip = False
