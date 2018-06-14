@@ -121,43 +121,36 @@ class RegexContextGenerator:
                     label_list.append(True)
                 else:
                     label_list.append(False)
+
+            # joins adjacent candidates that are only separated by whitespace
             if self.join:
-                merge_candidates = []
+                candidates_to_merge = []
+                new_candidates = []
                 merge_labels = []
                 merge_groups = []
                 i = 0
                 while i < len(candidates):
                     skip = True
-                    new_candidate = copy.deepcopy(candidates[i])
+                    candidates_to_merge.append(candidates[i])
+                    # looks ahead until it fails the requirement
                     while skip and i+1 < len(candidates):
-                        diff = candidates[i+1]['start'] - new_candidate['end']
-                        diff_str = nl_text[new_candidate['end']:candidates[i+1]['start']]
+                        diff = candidates[i+1]['start'] - candidates_to_merge[-1]['end']
+                        diff_str = nl_text[candidates_to_merge[-1]['end']:candidates[i+1]['start']]
                         if (diff_str.isspace() or not diff_str) and diff < 3:
-                            new_candidate['end'] = candidates[i+1]['end']
-                            new_candidate['chars'] = nl_text[new_candidate['start']:new_candidate['end']]
-                            new_candidate['bow_end'] = candidates[i+1]['bow_end']
-                            new_candidate['post_n_words'] = candidates[i+1]['post_n_words']
-                            post_n_words
+                            candidates_to_merge.append(candidates[i+1])
                             i += 1
-                            if i == len(candidates) - 1:
-                                skip = False
-                                merge_candidates.append(new_candidate)
-                                merge_labels.append(label_list[i])
-                                merge_groups.append(group_id_list[i])
-                                i += 1
                         else:
-                            merge_candidates.append(new_candidate)
-                            merge_labels.append(label_list[i])
-                            merge_groups.append(group_id_list[i])
-                            i += 1
                             skip = False
-                    if i == len(candidates) - 1:
-                        skip = False
-                        merge_candidates.append(candidates[i])
-                        merge_labels.append(label_list[i])
-                        merge_groups.append(group_id_list[i])
-                        i += 1
-                candidates = merge_candidates
+
+                    # merges candidates that pass the requirement
+                    merged_cands = self.merge_candidates(candidates_to_merge, nl_text)
+                    new_candidates.append(merged_cands)
+                    candidates_to_merge = []
+                    merge_labels.append(label_list[i])
+                    merge_groups.append(group_id_list[i])
+                    i += 1
+
+                candidates = new_candidates
                 label_list = merge_labels
                 group_id_list = merge_groups
 
@@ -178,6 +171,23 @@ class RegexContextGenerator:
 
         return result
 
+    def merge_candidates(self, cands: List[Dict], nl_text: str) -> Dict:
+        # doesn't need to be merged
+        if len(cands) == 1:
+            return cands[0]
+
+        # else concat the list of candidates to a single dictionary
+        else:
+            new_cand = {'candidate_type': self.candidate_type,
+                        'bow_start': cands[0]['bow_start'],
+                        'bow_end': cands[-1]['bow_end'],
+                        'start': cands[0]['start'],
+                        'end': cands[-1]['end'],
+                        'prev_n_words': cands[0]['prev_n_words'],
+                        'post_n_words': cands[-1]['post_n_words']}
+            new_cand['text'] = nl_text[new_cand['bow_start']:new_cand['bow_end']]
+            new_cand['chars'] = nl_text[new_cand['start']:new_cand['end']]
+            return new_cand
 
 def extract_doc_candidates(regex_pat: Pattern,
                            group_num: int,
