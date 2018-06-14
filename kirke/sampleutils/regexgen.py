@@ -67,7 +67,7 @@ class RegexContextGenerator:
                              group_id)
 
             #finds all matches in the text and adds window around each as a candidate
-            matches = self.center_regex.finditer(nl_text, re.I)
+            matches = self.center_regex.finditer(nl_text)
             for match in matches:
                 match_start, match_end = match.span(self.group_num)
                 match_str = match.group(self.group_num)
@@ -94,7 +94,7 @@ class RegexContextGenerator:
 
                 # clean up the string if special character is at the end.  Currently
                 # none of the matat_str will have nose characters except for ";" or ":"
-                if match_str.endswith(',') or match_str.endswith(';') or match_str.endswith(':'):
+                if match_str.endswith(',') or match_str.endswith(';') or match_str.endswith(':') or match_str.endswith('.'):
                     match_str = match_str[:-1]
                     match_end -= 1
                 if match_str.endswith(')') and not '(' in match_str:
@@ -136,6 +136,12 @@ class RegexContextGenerator:
                             new_candidate['end'] = candidates[i+1]['end']
                             new_candidate['chars'] = nl_text[new_candidate['start']:new_candidate['end']]
                             i += 1
+                            if i == len(candidates) - 1:
+                                skip = False
+                                merge_candidates.append(new_candidate)
+                                merge_labels.append(label_list[i])
+                                merge_groups.append(group_id_list[i])
+                                i += 1
                         else:
                             merge_candidates.append(new_candidate)
                             merge_labels.append(label_list[i])

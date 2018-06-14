@@ -150,7 +150,10 @@ ML_ANNOTATOR_CONFIG_LIST = [
                       'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                       'pipeline': Pipeline([('union', FeatureUnion(
                           # pylint: disable=line-too-long
-                          transformer_list=[('surround_transformer', transformerutils.CharacterTransformer())])),
+                          transformer_list=[
+                                            ('surround_transformer', transformerutils.SimpleTextTransformer()),
+                                            ('char_transformer', transformerutils.CharacterTransformer())
+                                           ])),
                                             ('clf', SGDClassifier(loss='log',
                                                                   penalty='l2',
                                                                   n_iter=50,

@@ -212,8 +212,8 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
     def __init__(self) -> None:
         self.name = 'CharacterTransformer'
         self.version = '1.0'
-        self.words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
         self.char_vectorizer = CountVectorizer(analyzer='char', min_df=2, ngram_range=(1, 2))
+        self.generic_char_vectorizer = CountVectorizer(analyzer='word', min_df=2, token_pattern=r'(?u)\b[^\s]+\b', ngram_range=(1, 3))
         self.min_max_scaler = preprocessing.MinMaxScaler()
         self.start = datetime.now()
 
@@ -223,28 +223,45 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
                           span_candidate_list: List[Dict],
                           y: Optional[List[bool]],
                           fit_mode: bool = False):
-        words_list = []
-        chars_list = []
-        numeric_matrix = np.zeros(shape=(len(span_candidate_list), 3))
+        all_cands = []
+        generic_chars_list = []
+        numeric_matrix = np.zeros(shape=(len(span_candidate_list), 26))
         for i, span_candidate in enumerate(span_candidate_list):
-            words_list.append(span_candidate.get('text', ''))
             chars = span_candidate.get('chars', '')
-            # chars_list.append(chars)
-            chars = list(chars)
-            numeric_matrix[i, 0] = len(chars)
-            numeric_matrix[i, 1] = len([x for x in chars if x.isalpha()])
-            numeric_matrix[i, 2] = len([x for x in chars if not x.isalpha()])
+            all_cands.append(chars)
+            chars_list = list(chars)
+            numeric_matrix[i, 0] = len(chars_list) # total length
+            numeric_matrix[i, 1] = len([x for x in chars_list if x.isalpha()]) # number of alpha character
+            numeric_matrix[i, 2] = len([x for x in chars_list if x.isdigit()]) # number of digits
+            numeric_matrix[i, 3] = chars[0].isalpha() # first char alpha
+            numeric_matrix[i, 4] = chars[0].isdigit() # first char digit
+            numeric_matrix[i, 5] = len(chars.split('-')) # sections divided by hyphens
+            numeric_matrix[i, 6] = len(chars.split('.')) # sections divided by periods
+            if len([x for x in chars_list if x.isalpha()]) == 0:
+                numeric_matrix[i, 7] = True # no alpha characters
+            else:
+                numeric_matrix[i, 7] = False
+            match_len = 2
+            for j in range(8, 26):
+                if len(chars_list) == match_len:
+                    numeric_matrix[i, j] = True # individual length features
+                else:
+                    numeric_matrix[i, j] = False
+                match_len += 1
+            generic_alpha_list = ['ALPHA' if x.isalpha() else x for x in chars_list]
+            generic_char_list = ['NUM' if x.isdigit() else x for x in generic_alpha_list]
+            generic_chars = " ".join(generic_char_list)
+            generic_chars_list.append(generic_chars)
         if fit_mode:
-            self.words_vectorizer.fit(words_list)
-            # self.char_vectorizer.fit(chars_list)
+            self.char_vectorizer.fit(all_cands) # character ngram vectorizer
+            self.generic_char_vectorizer.fit(generic_chars_list) # generic ngram vectorizer
             numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
             return self
 
-        words_out = self.words_vectorizer.transform(words_list)
-        # using this is slightly worse testing on zipcodes, possibly too sensitive to number of annotations
-        # chars_out = self.char_vectorizer.transform(chars_list)
+        chars_out = self.char_vectorizer.transform(all_cands)
+        generic_out = self.generic_char_vectorizer.transform(generic_chars_list)
         numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
-        X_out = sparse.hstack((words_out, numeric_matrix)) 
+        X_out = sparse.hstack((chars_out, numeric_matrix, generic_out))
         return X_out
 
 
