@@ -136,12 +136,12 @@ class RegexContextGenerator:
         filtered_candidates = []  # type: List[Dict]
         filtered_label_list = []  # type: List[bool]
         filtered_group_id_list = []  # type: List[int]
-        for candidate, label, group_id in zip(candidates,
+        for candidate, cand_label, group_id in zip(candidates,
                                               label_list,
                                               group_id_list):
             if len(candidate['chars']) >= self.length_min:
                 filtered_candidates.append(candidate)
-                filtered_label_list.append(label)
+                filtered_label_list.append(cand_label)
                 filtered_group_id_list.append(group_id)
         return filtered_candidates, filtered_group_id_list, filtered_label_list
 
