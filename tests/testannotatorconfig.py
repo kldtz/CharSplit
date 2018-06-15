@@ -112,6 +112,43 @@ class TestAlphanum(unittest.TestCase):
         line = "text xx1, xx2, xx3 text"
         self.assertEqual(extract_cand(alphanum, line), 'xx1 /// xx2 /// xx3')
 
+        line = "xx1, xx2, xx3"
+        self.assertEqual(extract_cand(alphanum, line), 'xx1 /// xx2 /// xx3')
+
+        line = "xx1"
+        self.assertEqual(extract_cand(alphanum, line), 'xx1')
+
+        line = "xx1, xx2"
+        self.assertEqual(extract_cand(alphanum, line), 'xx1 /// xx2')
+
+        line = "xx1,xx2,xx3"
+        self.assertEqual(extract_cand(alphanum, line), 'xx1,xx2,xx3')
+
+        line = "xxabc"
+        self.assertEqual(extract_cand(alphanum, line), '')
+
+        line = '+ 63 3 477 4000'
+        self.assertEqual(extract_cand(alphanum, line), '+ 63 3 477 4000')
+
+        line = '+1 917'
+        self.assertEqual(extract_cand(alphanum, line), '+1 917')
+
+        line = '+49'
+        self.assertEqual(extract_cand(alphanum, line), '+49')
+
+        line = '8 10 64 3 477 4000'
+        self.assertEqual(extract_cand(alphanum, line), '8 10 64 3 477 4000')
+
+        line = '1 800 Mattre2'
+        self.assertEqual(extract_cand(alphanum, line), '1 800 Mattre2')
+
+        # TODO, letting this pass for now
+        # We can always add a split when seeing '+' token after merging is done.  But
+        # keep the code simple, don't bother right now.
+        # line = '+ 8 10 64 + 3 477 4000'
+        # self.assertEqual(extract_cand(alphanum, line), '+ 8 10 64 /// + 3 477 4000')
+
+
 class TestCurrency(unittest.TestCase):
 
     def test_currency(self):
