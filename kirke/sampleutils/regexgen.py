@@ -1,14 +1,17 @@
 import logging
 import re
-from typing import Dict, List, Pattern, Tuple
+from typing import Dict, List, Optional, Pattern, Tuple
+
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # pylint: disable=too-few-public-methods
 class RegexContextGenerator:
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  num_prev_words: int,
                  num_post_words: int,
@@ -31,80 +34,85 @@ class RegexContextGenerator:
             return cands[0]
 
         # else concat the list of candidates to a single dictionary
-        else:
-            new_cand = {'candidate_type': self.candidate_type,
-                        'bow_start': cands[0]['bow_start'],
-                        'bow_end': cands[-1]['bow_end'],
-                        'start': cands[0]['start'],
-                        'end': cands[-1]['end'],
-                        'prev_n_words': cands[0]['prev_n_words'],
-                        'post_n_words': cands[-1]['post_n_words']}
-            new_cand['text'] = nl_text[new_cand['bow_start']:new_cand['bow_end']]
-            new_cand['chars'] = nl_text[new_cand['start']:new_cand['end']]
-            return new_cand
+        new_cand = {'candidate_type': self.candidate_type,
+                    'bow_start': cands[0]['bow_start'],
+                    'bow_end': cands[-1]['bow_end'],
+                    'start': cands[0]['start'],
+                    'end': cands[-1]['end'],
+                    'prev_n_words': cands[0]['prev_n_words'],
+                    'post_n_words': cands[-1]['post_n_words']}
+        new_cand['text'] = nl_text[new_cand['bow_start']:new_cand['bow_end']]
+        new_cand['chars'] = nl_text[new_cand['start']:new_cand['end']]
+        return new_cand
 
+    # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
     def get_candidates_from_text(self,
                                  nl_text: str,
                                  group_id: int = 0,
-                                 label_ant_list: List[str] = [],
-                                 label_list: List[bool] = [],
+                                 label_ant_list: Optional[List[str]] = None,
+                                 label_list: Optional[List[bool]] = None,
                                  label: str = ''):
+        if label_ant_list is None:
+            label_ant_list = []  # type: List[str]
+        if label_list is None:
+            label_list = []  # type: List[bool]
+
         candidates = [] # type: List[Dict]
         group_id_list = [] # type: List[int]
         matches = self.center_regex.finditer(nl_text)
         for match in matches:
-                match_start, match_end = match.span(self.group_num)
-                match_str = match.group(self.group_num)
-                is_label = ebsentutils.check_start_end_overlap(match_start,
-                                                               match_end,
-                                                               label_ant_list)
-                prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
-                                                                          match_start,
-                                                                          self.num_prev_words)
-                post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
-                                                                          match_end,
-                                                                          self.num_post_words)
-                new_bow = '{} {} {}'.format(' '.join(prev_n_words),
-                                            match_str,
-                                            ' '.join(post_n_words))
+            match_start, match_end = match.span(self.group_num)
+            match_str = match.group(self.group_num)
+            is_label = ebsentutils.check_start_end_overlap(match_start,
+                                                           match_end,
+                                                           label_ant_list)
+            prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
+                                                                      match_start,
+                                                                      self.num_prev_words)
+            post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
+                                                                      match_end,
+                                                                      self.num_post_words)
+            new_bow = '{} {} {}'.format(' '.join(prev_n_words),
+                                        match_str,
+                                        ' '.join(post_n_words))
 
-                #update span based on window size
-                new_start = match_start
-                new_end = match_end
-                if prev_spans:
-                    new_start = prev_spans[0][0]
-                if post_spans:
-                    new_end = post_spans[-1][-1]
+            #update span based on window size
+            new_start = match_start
+            new_end = match_end
+            if prev_spans:
+                new_start = prev_spans[0][0]
+            if post_spans:
+                new_end = post_spans[-1][-1]
 
-                # clean up the string if special character is at the end.  Currently
-                # none of the matat_str will have nose characters except for ";" or ":"
-                if match_str.endswith(',') or match_str.endswith(';') or \
-                   match_str.endswith(':') or match_str.endswith('.'):
-                    match_str = match_str[:-1]
-                    match_end -= 1
-                if match_str.endswith(')') and not '(' in match_str:
-                    match_str = match_str[:-1]
-                    match_end -= 1
-                if match_str.startswith('(') and not ')' in match_str:
-                    match_str = match_str[1:]
-                    match_start += 1
+            # clean up the string if special character is at the end.  Currently
+            # none of the matat_str will have nose characters except for ";" or ":"
+            if match_str.endswith(',') or match_str.endswith(';') or \
+               match_str.endswith(':') or match_str.endswith('.'):
+                match_str = match_str[:-1]
+                match_end -= 1
+            if match_str.endswith(')') and not '(' in match_str:
+                match_str = match_str[:-1]
+                match_end -= 1
+            if match_str.startswith('(') and not ')' in match_str:
+                match_str = match_str[1:]
+                match_start += 1
 
-                a_candidate = {'candidate_type': self.candidate_type,
-                               'bow_start': new_start,
-                               'bow_end': new_end,
-                               'text': new_bow,
-                               'start': match_start,
-                               'end': match_end,
-                               'prev_n_words': ' '.join(prev_n_words),
-                               'post_n_words': ' '.join(post_n_words),
-                               'chars': match_str}
-                candidates.append(a_candidate)
-                group_id_list.append(group_id)
-                if is_label:
-                    a_candidate['label_human'] = label
-                    label_list.append(True)
-                else:
-                    label_list.append(False)
+            a_candidate = {'candidate_type': self.candidate_type,
+                           'bow_start': new_start,
+                           'bow_end': new_end,
+                           'text': new_bow,
+                           'start': match_start,
+                           'end': match_end,
+                           'prev_n_words': ' '.join(prev_n_words),
+                           'post_n_words': ' '.join(post_n_words),
+                           'chars': match_str}
+            candidates.append(a_candidate)
+            group_id_list.append(group_id)
+            if is_label:
+                a_candidate['label_human'] = label
+                label_list.append(True)
+            else:
+                label_list.append(False)
         # joins adjacent candidates that are only separated by whitespace
         if self.join:
             candidates_to_merge = []
@@ -117,7 +125,7 @@ class RegexContextGenerator:
                 candidates_to_merge.append(candidates[i])
                 # looks ahead until it fails the requirement
                 while skip and i+1 < len(candidates):
-                    diff = candidates[i+1]['start'] - candidates_to_merge[-1]['end']
+                    # diff = candidates[i+1]['start'] - candidates_to_merge[-1]['end']
                     diff_str = nl_text[candidates_to_merge[-1]['end']:candidates[i+1]['start']]
                     if re.match('^ {,3}$', diff_str) or not diff_str:
                         candidates_to_merge.append(candidates[i+1])
@@ -140,22 +148,22 @@ class RegexContextGenerator:
         filtered_candidates = []  # type: List[Dict]
         filtered_label_list = []  # type: List[bool]
         filtered_group_id_list = []  # type: List[int]
-        for candidate, cand_label, group_id in zip(candidates,
-                                              label_list,
-                                              group_id_list):
+        for candidate, cand_label, cand_group_id in zip(candidates,
+                                                        label_list,
+                                                        group_id_list):
             if len(candidate['chars']) >= self.length_min:
                 filtered_candidates.append(candidate)
                 filtered_label_list.append(cand_label)
-                filtered_group_id_list.append(group_id)
+                filtered_group_id_list.append(cand_group_id)
         return filtered_candidates, filtered_group_id_list, filtered_label_list
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                                 label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                               List[Dict],
-                                                               List[bool],
-                                                               List[int]]]:
+                                                                 List[Dict],
+                                                                 List[bool],
+                                                                 List[int]]]:
 
         if 'length_min' not in self.__dict__:
             self.length_min = 0

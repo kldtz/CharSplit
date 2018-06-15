@@ -148,6 +148,10 @@ class TestAlphanum(unittest.TestCase):
         # line = '+ 8 10 64 + 3 477 4000'
         # self.assertEqual(extract_cand(alphanum, line), '+ 8 10 64 /// + 3 477 4000')
 
+        # shouldn't go across lines
+        line = "text xx1\nxx2, xx3 text"
+        self.assertEqual(extract_cand(alphanum, line), 'xx1 /// xx2 /// xx3')
+
 
 class TestCurrency(unittest.TestCase):
 
