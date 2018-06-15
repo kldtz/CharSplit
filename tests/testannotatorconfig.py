@@ -15,7 +15,7 @@ def extract_str(pat: Pattern, line: str, group_num: int = 1) -> str:
     return ''
 
 def extract_cand(alphanum: regexgen.RegexContextGenerator, line: str):
-    candidates,_ ,_ = alphanum.get_candidates_from_text(line, 1, [], [])
+    candidates,_ ,_ = alphanum.get_candidates_from_text(line)
     cand_text = ' /// '.join([cand['chars'] for cand in candidates])
     return cand_text
 

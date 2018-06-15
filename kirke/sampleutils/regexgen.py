@@ -44,7 +44,12 @@ class RegexContextGenerator:
             new_cand['chars'] = nl_text[new_cand['start']:new_cand['end']]
             return new_cand
 
-    def get_candidates_from_text(self, nl_text: str, group_id: int, label_ant_list: List[str], label_list: List[bool]):
+    def get_candidates_from_text(self,
+                                 nl_text: str,
+                                 group_id: int=0,
+                                 label_ant_list: List[str]=[],
+                                 label_list: List[bool]=[],
+                                 label: str=''):
         candidates = [] # type: List[Dict]
         group_id_list = [] # type: List[int]
         matches = self.center_regex.finditer(nl_text)
@@ -183,7 +188,11 @@ class RegexContextGenerator:
                 logger.debug('RegexContextGenerator.documents_to_candidates(), group_id = %d',
                              group_id)
 
-            candidates, group_id_list, label_list = self.get_candidates_from_text(nl_text, group_id, label_ant_list, label_list)
+            candidates, group_id_list, label_list = self.get_candidates_from_text(nl_text,
+                                                                                  group_id=group_id,
+                                                                                  label_ant_list=label_ant_list,
+                                                                                  label_list=label_list,
+                                                                                  label=label)
             result.append((antdoc, candidates, label_list, group_id_list))
         return result
 

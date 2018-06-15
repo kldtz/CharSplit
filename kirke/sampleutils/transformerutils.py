@@ -235,8 +235,8 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
             numeric_matrix[i, 2] = len([x for x in chars_list if x.isdigit()]) # number of digits
             numeric_matrix[i, 3] = chars[0].isalpha() # first char alpha
             numeric_matrix[i, 4] = chars[0].isdigit() # first char digit
-            numeric_matrix[i, 5] = len(chars.split('-')) # sections divided by hyphens
-            numeric_matrix[i, 6] = len(chars.split('.')) # sections divided by periods
+            numeric_matrix[i, 5] = len([x for x in chars.split('-') if x]) # sections divided by hyphens
+            numeric_matrix[i, 6] = len([x for x in chars.split('.') if x]) # sections divided by periods
             if len([x for x in chars_list if x.isalpha()]) == 0:
                 numeric_matrix[i, 7] = True # no alpha characters
             else:
