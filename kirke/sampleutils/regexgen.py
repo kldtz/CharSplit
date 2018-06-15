@@ -49,13 +49,16 @@ class RegexContextGenerator:
     def get_candidates_from_text(self,
                                  nl_text: str,
                                  group_id: int = 0,
-                                 label_ant_list: Optional[List[str]] = None,
-                                 label_list: Optional[List[bool]] = None,
-                                 label: str = ''):
-        if label_ant_list is None:
-            label_ant_list = []  # type: List[str]
-        if label_list is None:
-            label_list = []  # type: List[bool]
+                                 # pylint: disable=line-too-long
+                                 label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
+                                 label_list_param: Optional[List[bool]] = None,
+                                 label: Optional[str] = None):
+        # pylint: disable=line-too-long
+        label_ant_list, label_list = [], []  # type: List[ebsentutils.ProvisionAnnotation], List[bool]
+        if label_ant_list_param is not None:
+            label_ant_list = label_ant_list_param
+        if label_list_param is not None:
+            label_list = label_list_param
 
         candidates = [] # type: List[Dict]
         group_id_list = [] # type: List[int]
@@ -160,10 +163,11 @@ class RegexContextGenerator:
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                                label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                                 List[Dict],
-                                                                 List[bool],
-                                                                 List[int]]]:
+                                label: Optional[str] = None) \
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                              List[Dict],
+                                              List[bool],
+                                              List[int]]]:
 
         if 'length_min' not in self.__dict__:
             self.length_min = 0
@@ -178,7 +182,7 @@ class RegexContextGenerator:
 
             #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
-            label_ant_list = []
+            label_ant_list = []  # type: List[ebsentutils.ProvisionAnnotation]
             for ant in ant_list:
                 if ant.label == label:
                     label_ant_list.append(ant)
@@ -197,8 +201,8 @@ class RegexContextGenerator:
 
             candidates, group_id_list, label_list = self.get_candidates_from_text(nl_text,
                                                                                   group_id=group_id,
-                                                                                  label_ant_list=label_ant_list,
-                                                                                  label_list=label_list,
+                                                                                  label_ant_list_param=label_ant_list,
+                                                                                  label_list_param=label_list,
                                                                                   label=label)
             result.append((antdoc, candidates, label_list, group_id_list))
         return result

@@ -15,15 +15,21 @@ def extract_str(pat: Pattern, line: str, group_num: int = 1) -> str:
     return ''
 
 def extract_cand(alphanum: regexgen.RegexContextGenerator, line: str):
-    candidates,_ ,_ = alphanum.get_candidates_from_text(line)
+    candidates, _, _ = alphanum.get_candidates_from_text(line)
     cand_text = ' /// '.join([cand['chars'] for cand in candidates])
     return cand_text
 
 class TestAlphanum(unittest.TestCase):
 
+    # pylint: disable=too-many-statements
     def test_alphanum(self):
         "Test AlphaNum"
-        alphanum = regexgen.RegexContextGenerator(0, 0, re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)'), 'idnum', join=True, length_min=2)
+        alphanum = regexgen.RegexContextGenerator(0,
+                                                  0,
+                                                  re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)'),
+                                                  'idnum',
+                                                  join=True,
+                                                  length_min=2)
 
         line = "text TIN: 555-77-5555 text"
         self.assertEqual(extract_cand(alphanum, line), '555-77-5555')
