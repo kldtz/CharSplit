@@ -1,7 +1,6 @@
 import logging
 import re
 from typing import Dict, List, Pattern, Tuple
-import copy
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 logger = logging.getLogger(__name__)
@@ -46,10 +45,10 @@ class RegexContextGenerator:
 
     def get_candidates_from_text(self,
                                  nl_text: str,
-                                 group_id: int=0,
-                                 label_ant_list: List[str]=[],
-                                 label_list: List[bool]=[],
-                                 label: str=''):
+                                 group_id: int = 0,
+                                 label_ant_list: List[str] = [],
+                                 label_list: List[bool] = [],
+                                 label: str = ''):
         candidates = [] # type: List[Dict]
         group_id_list = [] # type: List[int]
         matches = self.center_regex.finditer(nl_text)
@@ -195,25 +194,3 @@ class RegexContextGenerator:
                                                                                   label=label)
             result.append((antdoc, candidates, label_list, group_id_list))
         return result
-
-    def extract_doc_candidates(regex_pat: Pattern,
-                               group_num: int,
-                               atext: str,
-                               candidate_type: str,
-                               num_prev_words: int,
-                               num_post_words: int,
-                               min_length: int,
-                               is_join: bool) -> List[Dict]:
-
-        candidates, group_id_list, label_list = self.get_candidates_from_text(nl_text, group_id, label_list)
-        return candidates
-
-
-
-
-
-
-
-
-
-
