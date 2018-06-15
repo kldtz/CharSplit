@@ -119,7 +119,7 @@ class RegexContextGenerator:
                 while skip and i+1 < len(candidates):
                     diff = candidates[i+1]['start'] - candidates_to_merge[-1]['end']
                     diff_str = nl_text[candidates_to_merge[-1]['end']:candidates[i+1]['start']]
-                    if (diff_str.isspace() or not diff_str) and diff < 3:
+                    if re.match('^ {,3}$', diff_str) or not diff_str:
                         candidates_to_merge.append(candidates[i+1])
                         i += 1
                     else:
