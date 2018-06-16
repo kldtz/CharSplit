@@ -18,7 +18,7 @@ from flask import Flask, jsonify, request, send_file
 import yaml
 
 from kirke.eblearn import ebrunner
-from kirke.utils import osutils, strutils
+from kirke.utils import corenlputils, osutils, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -70,6 +70,9 @@ CUSTOM_MODEL_DIR = EB_FILES + 'pymodel'
 osutils.mkpath(WORK_DIR)
 osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
+
+# start corenlp server
+corenlputils.init_corenlp_server()
 
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 

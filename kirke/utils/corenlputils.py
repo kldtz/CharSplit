@@ -15,8 +15,14 @@ logger.setLevel(logging.INFO)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
-NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
+# loading it here causes nosetests to be stuck
+# NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
+NLP_SERVER = None
 
+def init_corenlp_server():
+    global NLP_SERVER
+    if NLP_SERVER is None:
+        NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
 
 # http://stanfordnlp.github.io/CoreNLP/ner.html#sutime
 # Using default NER models,
@@ -30,6 +36,12 @@ NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
 # In other words, the offsets will be incorrect if there are prefix spaces in the text.
 # We will fix those issues in the later modules, not here.
 def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
+    # to get rid of mypy error: NLP_SERVER has no attribute 'annotate'
+    # init_corenlp_server()
+    global NLP_SERVER
+    if NLP_SERVER is None:
+        NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
+
     if not doc_lang: # no language detected, text is probably too short or empty
         return {'sentences': []}
 

@@ -18,7 +18,7 @@ from kirke.eblearn import ebannotator, ebrunner, ebtrainer, provclassifier, scut
 # from kirke.ebrules import rateclassifier
 # pylint: disable=unused-import
 from kirke.eblearn.ebclassifier import EbClassifier
-from kirke.utils import ebantdoc4, osutils, splittrte, strutils
+from kirke.utils import corenlputils, ebantdoc4, osutils, splittrte, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -42,6 +42,9 @@ DOCCAT_MODEL_FILE_NAME = ebrunner.DOCCAT_MODEL_FILE_NAME
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+
+# start corenlp server
+corenlputils.init_corenlp_server()
 
 IS_SUPPORT_DOC_CLASSIFICATION = True
 
