@@ -8,91 +8,29 @@ import warnings
 import re
 import copy
 
-from typing import Dict, List, Pattern
+from typing import Dict, List, Optional, Pattern, Tuple
 
+from kirke.utils import ebsentutils
 from kirke.sampleutils import regexgen
 
 
-def extract_matches(pat: Pattern, atext: str) -> List[Dict]:
-    group_num = 1
-    length_min = 2
+def extract_cand(alphanum: regexgen.RegexContextGenerator, line: str):
+    candidates, _, _ = alphanum.get_candidates_from_text(line)
+    cand_text = ' /// '.join([cand['chars'] for cand in candidates])
+    return cand_text
 
-    # print('atext = [{}]'.format(atext))
-
-    candidates = []  # type: List[Dict]
-    #finds all matches in the text and adds window around each as a candidate
-    matches = pat.finditer(atext)
-    for match in matches:
-        match_start, match_end = match.span(group_num)
-        match_str = match.group(group_num)
-
-        print("  -- match_str {} {}: {}".format(match_start,
-                                                match_end,
-                                                match_str))
-
-        #update span based on window size
-        new_start = match_start
-        new_end = match_end
-
-        # clean up the string if special character is at the end.  Currently
-        # none of the matat_str will have nose characters except for ";" or ":"
-        if match_str.endswith(',') or match_str.endswith(';') or match_str.endswith(':'):
-            match_str = match_str[:-1]
-            match_end -= 1
-        if match_str.endswith(')') and not '(' in match_str:
-            match_str = match_str[:-1]
-            match_end -= 1
-        if match_str.startswith('(') and not ')' in match_str:
-            match_str = match_str[1:]
-            match_start += 1
-
-        a_candidate = {'start': match_start,
-                       'end': match_end,
-                       'chars': match_str}
-        candidates.append(a_candidate)
-
-    merge_candidates = []
-    i = 0
-    while i < len(candidates):
-        skip = True
-        new_candidate = copy.deepcopy(candidates[i])
-        while skip and i+1 < len(candidates):
-            diff = candidates[i+1]['start'] - new_candidate['end']
-            diff_str = atext[new_candidate['end']:candidates[i+1]['start']]
-            if (diff_str.isspace() or not diff_str) and diff < 3:
-                new_candidate['end'] = candidates[i+1]['end']
-                new_candidate['chars'] = atext[new_candidate['start']:new_candidate['end']]
-                i += 1
-            else:
-                merge_candidates.append(new_candidate)
-                i += 1
-                skip = False
-        if i == len(candidates) - 1:
-            skip = False
-            merge_candidates.append(candidates[i])
-            i += 1
-    candidates = merge_candidates
-
-    filtered_candidates = []
-    for candidate in candidates:
-        if len(candidate['chars']) >= length_min:
-            filtered_candidates.append(candidate)
-    
-    return filtered_candidates
-
-
-def extract_matches_2(regex: Pattern, atext: str) -> List[Dict]:
-
-    candidates = regexgen.extract_doc_candidates(regex_pat=regex,
-                                                 group_num=1,
-                                                 atext=atext,
-                                                 candidate_type='mycant',
-                                                 num_prev_words=3,
-                                                 num_post_words=3,
-                                                 min_length=2,
-                                                 is_join=True)
-    return candidates
-    
+def extract_idnum_list(alphanum: regexgen.RegexContextGenerator,
+                       line: str,
+                       label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
+                       label: str = '') -> Tuple[List[Dict],
+                                                 List[int],
+                                                 List[bool]]:
+    candidates, group_id_list, label_list = \
+        alphanum.get_candidates_from_text(line,
+                                          group_id=-1,
+                                          label_ant_list_param=label_ant_list_param,
+                                          label=label)
+    return candidates, group_id_list, label_list
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
@@ -108,20 +46,30 @@ if __name__ == '__main__':
     """
     # line = '1234567'
     regex = re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)')
-    
+
     for i, line in enumerate(st_list):
         print('\nline {}: [{}]'.format(i, line))
         mat_list = extract_matches(regex, line)
-    
+
         for j, mat in enumerate(mat_list):
             print('    mat #{}: {}'.format(j, mat))
-            # pprint.pprint(mat)        
+            # pprint.pprint(mat)
     """
+
+
 
     # regex = re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)')
     # regex = re.compile(r'((\+ )?[^\s]*\d[^\s]*( {1,2}[^\s]*\d[^\s]*)*)')
     regex = re.compile(r'([^\s]*\d[^\s]*)')
-    regex = re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)')    
+    regex = re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)')
+
+    alphanum = regexgen.RegexContextGenerator(3,
+                                              3,
+                                              re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)'),
+                                              'idnum',
+                                              join=True,
+                                              length_min=2)
+
 
     st_list = ['xxxxxx1',
                'xxx1, hi xxx2',
@@ -139,10 +87,42 @@ if __name__ == '__main__':
 
     for i, line in enumerate(st_list):
         print('\nline {}: [{}]'.format(i, line))
-        mat_list = extract_matches_2(regex, line)
+        mat_list, _, _ = extract_idnum_list(alphanum, line)
 
         if mat_list:
             for j, mat in enumerate(mat_list):
                 print('    mat #{}:'.format(j))
-                pprint.pprint(mat, indent=20)        
+                pprint.pprint(mat, indent=20)
 
+    line = 'aaaaaaaaa bbbbbbbbb ccccccccc abcd #678,012 456 text ddddddddd eeeeeeeee ffffffffff'
+    print('found idnum = [{}]'.format(extract_cand(alphanum, line)))  # , '#678,901 345')
+
+    ant_list = [ebsentutils.ProvisionAnnotation(label='purchase_order_number',
+                                                start=44,
+                                                end=47)]
+    candidates, group_id_list, label_list = \
+        extract_idnum_list(alphanum,
+                           line,
+                           label_ant_list_param=ant_list,
+                           label='purchase_order_number')
+    for i, cand in enumerate(candidates):
+        print("cand_list[{}] = {}".format(i, cand))
+    for i, label in enumerate(label_list):
+        print("label_list[{}] = {}".format(i, label))
+
+
+    line = 'aaaaaaaaa bbbbbbbbb ccccccccc abcd #678,012 456 text ddddddddd eeeeeeeee ffffffffff'
+    print('found idnum = [{}]'.format(extract_cand(alphanum, line)))  # , '#678,901 345')
+
+    ant_list = [ebsentutils.ProvisionAnnotation(label='purchase_order_number',
+                                                start=35,
+                                                end=43)]
+    candidates, group_id_list, label_list = \
+        extract_idnum_list(alphanum,
+                           line,
+                           label_ant_list_param=ant_list,
+                           label='purchase_order_number')
+    for i, cand in enumerate(candidates):
+        print("cand_list[{}] = {}".format(i, cand))
+    for i, label in enumerate(label_list):
+        print("label_list[{}] = {}".format(i, label))

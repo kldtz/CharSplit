@@ -5,7 +5,7 @@ import unittest
 from typing import Dict, List
 
 from kirke.sampleutils import idnumgen
-
+from kirke.utils import ebsentutils
 
 IDNUM_WORD_PAT = re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)')
 
@@ -344,4 +344,45 @@ class TestIdNumGen(unittest.TestCase):
                          ['1 2'])
 
 
+    def test_idnum_label_list(self):
+        "Test idnumgen"
+        idnum_gen = idnumgen.IdNumContextGenerator(3,
+                                                   3,
+                                                   re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)'),
+                                                   'idnum',
+                                                   is_join=True,
+                                                   length_min=2)
 
+        line = 'aaaaaaaaa bbbbbbbbb ccccccccc abcd #678,012 456 text ddddddddd eeeeeeeee ffffffffff'
+
+        # test if the 2nd idnum_word is labeled True
+        ant_list = [ebsentutils.ProvisionAnnotation(label='purchase_order_number',
+                                                    start=44,
+                                                    end=47)]
+        candidates, group_id_list, label_list = \
+            idnum_gen.get_candidates_from_text(line,
+                                               group_id=-1,
+                                               label_ant_list=ant_list,
+                                               label='purchase_order_number')
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]['chars'],
+                         '#678,012 456')
+        self.assertEqual(len(label_list), 1)
+        self.assertTrue(label_list[0])
+
+        # test if the first idnum_word is labeled True
+        ant_list = [ebsentutils.ProvisionAnnotation(label='purchase_order_number',
+                                                    start=35,
+                                                    end=43)]
+        candidates, group_id_list, label_list = \
+            idnum_gen.get_candidates_from_text(line,
+                                               group_id=-1,
+                                               label_ant_list=ant_list,
+                                               label='purchase_order_number')
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]['chars'],
+                         '#678,012 456')
+        self.assertEqual(len(label_list), 1)
+        self.assertTrue(label_list[0])

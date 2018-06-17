@@ -2,8 +2,9 @@
 
 import re
 import unittest
-from typing import Pattern
+from typing import Dict, List, Optional, Pattern, Tuple
 
+from kirke.utils import ebsentutils
 from kirke.eblearn import annotatorconfig
 from kirke.sampleutils import regexgen
 
@@ -18,6 +19,20 @@ def extract_cand(alphanum: regexgen.RegexContextGenerator, line: str):
     candidates, _, _ = alphanum.get_candidates_from_text(line)
     cand_text = ' /// '.join([cand['chars'] for cand in candidates])
     return cand_text
+
+def extract_idnum_list(alphanum: regexgen.RegexContextGenerator,
+                       line: str,
+                       label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
+                       label: str = '') -> Tuple[List[Dict],
+                                                 List[int],
+                                                 List[bool]]:
+    candidates, group_id_list, label_list = \
+        alphanum.get_candidates_from_text(line,
+                                          group_id=-1,
+                                          label_ant_list_param=label_ant_list_param,
+                                          label=label)
+    return candidates, group_id_list, label_list
+
 
 class TestAlphanum(unittest.TestCase):
 
@@ -157,6 +172,47 @@ class TestAlphanum(unittest.TestCase):
         # shouldn't go across lines
         line = "text xx1\nxx2, xx3 text"
         self.assertEqual(extract_cand(alphanum, line), 'xx1 /// xx2 /// xx3')
+
+    def test_alphanum_label_list(self):
+        "Test AlphaNum label_list handling"
+
+        alphanum = regexgen.RegexContextGenerator(0,
+                                                  0,
+                                                  re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)'),
+                                                  'idnum',
+                                                  join=True,
+                                                  length_min=2)
+
+        line = 'aaaaaaaaa bbbbbbbbb ccccccccc abcd #678,012 456 text ddddddddd eeeeeeeee ffffffffff'
+        self.assertEqual(extract_cand(alphanum, line), '#678,012 456')
+
+        # test if the 2nd idnum_word is labeled True
+        ant_list = [ebsentutils.ProvisionAnnotation(label='purchase_order_number',
+                                                    start=44,
+                                                    end=47)]
+        candidates, group_id_list, label_list = \
+            extract_idnum_list(alphanum,
+                               line,
+                               label_ant_list_param=ant_list,
+                               label='purchase_order_number')
+
+        self.assertEqual(len(label_list), 1)
+        self.assertTrue(label_list[0])
+
+        # test if the first idnum_word is labeled True
+        ant_list = [ebsentutils.ProvisionAnnotation(label='purchase_order_number',
+                                                    start=35,
+                                                    end=43)]
+        candidates, group_id_list, label_list = \
+            extract_idnum_list(alphanum,
+                               line,
+                               label_ant_list_param=ant_list,
+                               label='purchase_order_number')
+
+        self.assertEqual(len(label_list), 1)
+        self.assertTrue(label_list[0])
+
+
 
 
 class TestCurrency(unittest.TestCase):
