@@ -12,7 +12,8 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 
 from kirke.sampleutils import postproc
 from kirke.ebrules import dummyannotator, dates
-from kirke.sampleutils import regexgen, addrgen, paragen, dategen, transformerutils
+from kirke.sampleutils import addrgen, idnumgen, dategen, paragen
+from kirke.sampleutils import regexgen, transformerutils
 from kirke.utils import ebantdoc4
 
 # pylint: disable=invalid-name
@@ -25,11 +26,14 @@ logger.setLevel(logging.INFO)
 # There are "frozen" lists of those config so that developer are aware not to touch
 # any of the classes mentioned in the frozen config lists.
 
+# pylint: disable=line-too-long
 CURRENCY_PAT = re.compile(r'(((USD|GBP|JPY|[\$€₹£¥円]) *(\d{1,3}[,\.]?)+([,\.]\d{,2})?( *[tTbBmM]illion| *[tT]housand| *[TMB])?)|'
                           r'((\d{1,3},?)+([,\.]\d{,2})? *([tTbBmM]illion|[tT]housand|[TMB])? *(USD|EUR|INR|GBP|CNY|JPY|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[\$€₹£¥円])))')
 
 # must pick gruop 2 instead of group 1
+# pylint: disable=line-too-long
 NUMBER_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))\)?[,\.:;]?(\s|$)')
+# pylint: disable=line-too-long
 PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|\.[0-9]+)\s*(%|percent))\)?[,\.:;]?(\s|$)', re.I)
 
 
@@ -140,19 +144,18 @@ ML_ANNOTATOR_CONFIG_LIST = [
     ('IDNUM', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                       'is_use_corenlp': False,
                       'doc_to_candidates':
-                      [regexgen.RegexContextGenerator(3,
+                      [idnumgen.IdNumContextGenerator(3,
                                                       3,
                                                       # the first part is to handle phone numbers
                                                       re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)'),
                                                       'IDNUM',
-                                                      join=True,
+                                                      is_join=True,
                                                       length_min=2)],
                       'version': "1.0",
                       'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                       'pipeline': Pipeline([('union', FeatureUnion(
                           # pylint: disable=line-too-long
-                          transformer_list=[
-                                            ('surround_transformer', transformerutils.SimpleTextTransformer()),
+                          transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
                                             ('char_transformer', transformerutils.CharacterTransformer())
                                            ])),
                                             ('clf', SGDClassifier(loss='log',
