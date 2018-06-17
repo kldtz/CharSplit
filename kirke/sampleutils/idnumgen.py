@@ -55,6 +55,8 @@ def match_to_idnum_word(mat: Match,
     return idnum_word
 
 
+PHONE_PREFIX_PAT = re.compile(r'(phone|ph|telephone|tel|mobile|land\s?line|office|home):', re.I)
+
 def extract_idnum_list(line: str,
                        idnum_word_pat: Pattern,
                        group_num: int = 1,
@@ -67,6 +69,14 @@ def extract_idnum_list(line: str,
                   for mat in mat_list]
     if is_join:
         candidates = merge_adjacent_idnum_words(candidates, line)
+
+    for cand in candidates:
+        cand_str = cand['chars']
+        prefix_mat = PHONE_PREFIX_PAT.match(cand_str)
+        if prefix_mat:
+            mat_len = len(prefix_mat.group())
+            cand['chars'] = cand_str[mat_len:]
+            cand['start'] = cand['start'] + mat_len
 
     # remove any candidate with len < length_min
     candidates = [cand for cand in candidates if len(cand['chars']) >= length_min]
@@ -108,9 +118,10 @@ class IdNumContextGenerator:
         label_list = [] # type: List[bool]
         group_id_list = [] # type: List[int]
         idnum_list = extract_idnum_list(nl_text,
-                                        self.regex_pat,
-                                        self.group_num,
-                                        self.is_join)
+                                        idnum_word_pat=self.regex_pat,
+                                        group_num=self.group_num,
+                                        is_join=self.is_join,
+                                        length_min=self.length_min)
         for idnum_dict in idnum_list:
             match_start, match_end = idnum_dict['start'], idnum_dict['end']
             match_str = idnum_dict['chars']

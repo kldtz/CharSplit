@@ -31,7 +31,17 @@ def extract_idnum_str_list(atext: str) -> List[Dict]:
                                              group_num=1,
                                              is_join=True)
     return candidates
-    
+
+def extract_cand_str_list(idnum_gen: idnumgen.IdNumContextGenerator,
+                          line: str) -> List[str]:
+    candidates, label_list, group_id_list = \
+        idnum_gen.get_candidates_from_text(line,
+                                           group_id=-1,
+                                           label_ant_list=[])
+    str_list = [cand['chars'] for cand in candidates]
+    return str_list
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
@@ -47,23 +57,23 @@ if __name__ == '__main__':
     """
     # line = '1234567'
     regex = re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)')
-    
+
     for i, line in enumerate(st_list):
         print('\nline {}: [{}]'.format(i, line))
         mat_list = extract_matches(regex, line)
-    
+
         for j, mat in enumerate(mat_list):
             print('    mat #{}: {}'.format(j, mat))
-            # pprint.pprint(mat)        
+            # pprint.pprint(mat)
     """
 
     """
     # regex = re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)')
     # regex = re.compile(r'((\+ )?[^\s]*\d[^\s]*( {1,2}[^\s]*\d[^\s]*)*)')
     regex = re.compile(r'([^\s]*\d[^\s]*)')
-    regex = re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)')    
+    regex = re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)')
     """
-    
+
     st_list = ['xxxxxx1',
                'xxx1, hi xxx2',
                'xxx1, xxx2, xxx3',
@@ -95,9 +105,9 @@ if __name__ == '__main__':
                                                'idnum',
                                                is_join=True,
                                                length_min=2)
-                
+
     line = 'abcd #678,012 456 text'
-    line = 'aaaaaaaaa bbbbbbbbb ccccccccc abcd #678,012 456 text ddddddddd eeeeeeeee ffffffffff'    
+    line = 'aaaaaaaaa bbbbbbbbb ccccccccc abcd #678,012 456 text ddddddddd eeeeeeeee ffffffffff'
     print('\nline: [{}]'.format(line))
     mat_list = extract_idnum_list(line)
     if mat_list:
@@ -116,4 +126,17 @@ if __name__ == '__main__':
         print("cand_list[{}] = {}".format(i, cand))
     for i, label in enumerate(cand_label_list):
         print("label_list[{}] = {}".format(i, label))
-                
+
+
+    line = "text PHONE:+49-89-636-48018 text"
+    print('\nline: [{}]'.format(line))    
+    cand_str_list = extract_cand_str_list(idnum_gen, line)
+    for i, cand_str in enumerate(cand_str_list):
+        print("cand_str_list[{}] = [{}]".format(i, cand_str))
+        # ['+49-89-636-48018'])
+
+    line = "text PHONE:4 text"
+    print('\nline: [{}]'.format(line))    
+    cand_str_list = extract_cand_str_list(idnum_gen, line)
+    print('len(cand_str_list) should be 0, got: {}'.format(cand_str_list))
+

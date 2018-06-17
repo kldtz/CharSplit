@@ -2,7 +2,7 @@
 
 import re
 import unittest
-from typing import Dict, List
+from typing import List
 
 from kirke.sampleutils import idnumgen
 from kirke.utils import ebsentutils
@@ -21,7 +21,7 @@ def extract_idnum_str_list(atext: str) -> List[str]:
 
 def extract_cand_str_list(idnum_gen: idnumgen.IdNumContextGenerator,
                           line: str) -> List[str]:
-    candidates, label_list, group_id_list = \
+    candidates, unused_label_list, unused_group_id_list = \
         idnum_gen.get_candidates_from_text(line,
                                            group_id=-1,
                                            label_ant_list=[])
@@ -359,7 +359,7 @@ class TestIdNumGen(unittest.TestCase):
         ant_list = [ebsentutils.ProvisionAnnotation(label='purchase_order_number',
                                                     start=44,
                                                     end=47)]
-        candidates, group_id_list, label_list = \
+        candidates, unused_group_id_list, label_list = \
             idnum_gen.get_candidates_from_text(line,
                                                group_id=-1,
                                                label_ant_list=ant_list,
@@ -375,7 +375,7 @@ class TestIdNumGen(unittest.TestCase):
         ant_list = [ebsentutils.ProvisionAnnotation(label='purchase_order_number',
                                                     start=35,
                                                     end=43)]
-        candidates, group_id_list, label_list = \
+        candidates, unused_group_id_list, label_list = \
             idnum_gen.get_candidates_from_text(line,
                                                group_id=-1,
                                                label_ant_list=ant_list,
@@ -386,3 +386,38 @@ class TestIdNumGen(unittest.TestCase):
                          '#678,012 456')
         self.assertEqual(len(label_list), 1)
         self.assertTrue(label_list[0])
+
+    def test_phone_colon(self):
+        "Test idnumgen, removal of 'phone:' in 'phone:1234'"
+
+        idnum_gen = idnumgen.IdNumContextGenerator(3,
+                                                   3,
+                                                   re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)'),
+                                                   'idnum',
+                                                   is_join=True,
+                                                   length_min=2)
+
+        line = "text PHONE:+49-89-636-48018 text"
+        cand_str_list = extract_cand_str_list(idnum_gen, line)
+        self.assertEqual(cand_str_list,
+                         ['+49-89-636-48018'])
+
+        line = "text PHONE:+49-89-636 48018 text"
+        cand_str_list = extract_cand_str_list(idnum_gen, line)
+        self.assertEqual(cand_str_list,
+                         ['+49-89-636 48018'])
+
+        line = "text PHONE:4 text"
+        cand_str_list = extract_cand_str_list(idnum_gen, line)
+        self.assertEqual(cand_str_list,
+                         [])
+
+        line = "text tel:+4 text"
+        cand_str_list = extract_cand_str_list(idnum_gen, line)
+        self.assertEqual(cand_str_list,
+                         ['+4'])
+
+        line = "text PHONE:+4 tel:2 text"
+        cand_str_list = extract_cand_str_list(idnum_gen, line)
+        self.assertEqual(cand_str_list,
+                         ['+4 tel:2'])
