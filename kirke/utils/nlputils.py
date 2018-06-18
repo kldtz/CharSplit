@@ -54,6 +54,13 @@ US_STATE_SET = set(US_STATE_ABBRV_INCOMPLETE)
 DEFINED_TERM_WORDS = strutils.load_non_empty_str_list('dict/parties/defined_term.words')
 DEFINED_TERM_WORD_SET = set(DEFINED_TERM_WORDS)
 
+UK_STD = r'[A-Z]{1,2}[0-9R][0-9A-Z]? (?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
+UK_ZIP_PAT = re.compile(r'\b' + UK_STD + r'\b')
+
+
+def find_uk_zip_code(line: str) -> bool:
+    return bool(UK_ZIP_PAT.search(line))
+
 
 def is_us_state_abbrv(line: str) -> bool:
     return line in US_STATE_SET
@@ -66,13 +73,17 @@ def is_a_location(line: str) -> bool:
     if not strutils.is_digits(line[0]) and not line[0].isupper():  # must capitalize
         return False
 
+    if find_uk_zip_code(line):
+        return True
+
     words = line.split()
     if is_us_state_abbrv(words[-1]):
         # xxxx MA
         return True
     if words[-1].lower() in set([ 'avenue', 'ave', 'ave.',
                                   'drive', 'dr', 'dr.',
-                                  'road', 'rd', 'rd.']):
+                                  'road', 'rd', 'rd.',
+                                  'street', 'st', 'st.']):
         return True
 
     return line.lower() in LC_LOCATION_SET
@@ -242,6 +253,7 @@ def first_sentence(text: str) -> str:
 
     Author: Jason Ma
     """
+    text = text.replace('\n', ' ')
     match = FIRST_SENT_PAT.search(text)
     return match.group() if match else text
 
@@ -1910,7 +1922,7 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
         elif re.search(r'\b(date|day|amend(ed)?)\b', span_chunk.text, re.I):
             # (as effective date)
             pass
-        elif re.search(r'\b(number|loan|rate|amount|principal|warrant|act)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(number|loan|rate|amount|principal|warrant|act|registration)\b', span_chunk.text, re.I):
             # (registered number SC183333)
             pass
         elif re.search(r'\bparty\b.*and.*collectively.*parties.*', span_chunk.text, re.I):

@@ -899,6 +899,7 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
     if partyutils.is_party_list_prefix_with_validation(linex):
         # party_list_term, se_curline_idx = \
         #     seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
+        linex = linex.replace('\n', ' ')
         item_prefix_offset = 0
         item_prefix_mat = partyutils.match_party_list_prefix(linex)
         if item_prefix_mat:
@@ -929,6 +930,7 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
             if is_end_party_list(linex, attr_list):
                 se_curline_idx += 1
                 break
+            linex = linex.replace('\n', ' ')
 
             #  party_list_term, se_curline_idx = \
             #     seline_attrs_to_party_list_term(se_after_paras_attr_list, se_curline_idx)
