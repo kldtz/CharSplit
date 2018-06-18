@@ -25,6 +25,8 @@ from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s : %(levelname)s : %(message)s')
+
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.WARN)
 logger.setLevel(logging.INFO)
@@ -276,12 +278,12 @@ class EbRunner:
                 prov_classifier = joblib.load(full_custom_model_fn)
 
                 # if we loaded this for a particular custom field type ("cust_52")
-                # it must produce annotations with that label, not with whatever is "embedded"
-                # in the saved model file (since the file could have been imported from another server)
+                # it must produce annotations with that label, not with whatever is "embedded" in
+                # the saved model file (since the file could have been imported from another server)
                 prov_name = cust_id_ver.split('.')[0]
-                logging.info('updating custom provision model to annotate with %s', prov_name)
+                logger.info('updating custom provision model to annotate with %s', prov_name)
                 # print(prov_classifier)
-                logging.info(prov_classifier)
+                logger.info(prov_classifier)
                 prov_classifier.provision = prov_name
                 if hasattr(prov_classifier, 'transformer'):
                     # only for scut_classifiers
@@ -338,8 +340,8 @@ class EbRunner:
             provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
             provision_set.update(self.provisions)
             # also get ALL custom provision set, since we are doing testing
-            logging.info("custom_model_dir: %s", self.custom_model_dir)
-            logging.info("provision_set: %r", provision_set)
+            logger.info("custom_model_dir: %s", self.custom_model_dir)
+            logger.info("provision_set: %r", provision_set)
 
         #else:
         #    logger.info('user specified provision list: %s', provision_set)
@@ -555,7 +557,6 @@ class EbRunner:
                                             candidate_type: str,
                                             nbest: int,
                                             model_num: int,
-                                            is_doc_structure=False,
                                             work_dir=None,
                                             doc_lang="en") \
                                             -> Tuple[Dict[str, Any], Dict[str, Dict]]:
@@ -750,21 +751,6 @@ class EbRunner:
         print("len({}) = {}".format(test_doclist_fn, num_test_doc))
 
         return tmp_eval_status
-
-    # pylint: disable=no-self-use
-    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
-        if not prov_human_ant_list:
-            return ant_result
-        for ant in prov_human_ant_list:
-            if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
-                clean_text = strutils.sub_nltab_with_space(doc_text[ant.start:ant.end])
-                fn_ant = ebpostproc.to_ant_result_dict(label=provision,
-                                                       prob=0.0,
-                                                       start=ant.start,
-                                                       end=ant.end,
-                                                       text=clean_text)
-                ant_result.append(fn_ant)
-        return ant_result
 
     # pylint: disable=no-self-use
     def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
