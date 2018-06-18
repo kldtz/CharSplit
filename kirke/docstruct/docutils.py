@@ -1,10 +1,8 @@
-import bisect
-from collections import defaultdict
 from operator import itemgetter
 
 from typing import Dict, List, Tuple
 
-from kirke.utils import mathutils, strutils
+from kirke.utils import strutils
 from kirke.docstruct import linepos
 
 
@@ -19,6 +17,7 @@ def lnpos2dict(start: int, end: int, lnpos: linepos.LnPos) -> Dict:
 
 # startx and endx are related to to_list
 # we want the offset in from_list
+# pylint: disable=too-many-locals
 def find_se_offset_list(startx: int,
                         endx: int,
                         from_list: List[Tuple[int, linepos.LnPos]],
@@ -31,7 +30,8 @@ def find_se_offset_list(startx: int,
     _, start_lnpos = to_list[0]  # set start_lnpos to a value, will be overriden
     start_diff = 0
     start_idx = 0
-    for i, ((fstart, from_lnpos), (tstart, to_lnpos)) in enumerate(zip(from_list, to_list)):
+    for i, ((fstart, unused_from_lnpos), (unused_tstart, to_lnpos)) in \
+        enumerate(zip(from_list, to_list)):
         if fstart == startx:
             start_lnpos = to_lnpos
             start_diff = 0
@@ -39,7 +39,7 @@ def find_se_offset_list(startx: int,
             break
         elif fstart > startx:
             _, start_lnpos = to_list[i-1]
-            prev_start, ignore_lnpos = from_list[i-1]
+            prev_start, unused_lnpos = from_list[i-1]
             start_diff = startx - prev_start
             start_idx = i - 1
             break
@@ -48,7 +48,8 @@ def find_se_offset_list(startx: int,
     _, end_lnpos = to_list[0]  # set start_lnpos to a value, will be overriden
     end_diff = 0
     end_idx = 0  # this is inclusive
-    for i, ((fstart, from_lnpos), (tstart, to_lnpos)) in enumerate(zip(from_list, to_list)):
+    for i, ((fstart, unused_from_lnpos), (unused_tstart, to_lnpos)) in \
+        enumerate(zip(from_list, to_list)):
         if fstart == endx:
             end_lnpos = to_lnpos
             end_diff = 0
@@ -56,7 +57,7 @@ def find_se_offset_list(startx: int,
             break
         elif fstart > endx:
             _, end_lnpos = to_list[i-1]
-            prev_start, ignore_lnpos = from_list[i-1]
+            prev_start, unused_lnpos = from_list[i-1]
             end_diff = endx - prev_start
             end_idx = i - 1
             break
@@ -91,87 +92,11 @@ def read_fromto_json(file_name: str) -> Tuple[List[int],
         # alist.append((from_end, to_end))
 
     sorted_alist = sorted(alist)
-    
+
     from_list = [a for a, b in sorted_alist]
     to_list = [b for a, b in sorted_alist]
     return from_list, to_list
 
-
-"""
-# This was called in ebrunner.annotate_document() before
-def update_ants_gap_spans(prov_labels_map, gap_span_list, doc_text):
-
-    ant_list = []
-    for provision, tmp_ant_list in prov_labels_map.items():
-        for antx in tmp_ant_list:
-            ant_list.append(antx)
-
-    se_ant_list_map = defaultdict(list)
-    for ant in ant_list:
-        se = (ant['start'], ant['end'])
-        se_ant_list_map[se].append(ant)
-    ant_se_list = sorted(se_ant_list_map.keys())
-    # print("  ant_se_list: {}".format(ant_se_list))
-    # print("gap_span_list: {}".format(gap_span_list))
-
-    min_possible_j, jmax = 0, len(gap_span_list)
-
-    for ant_se in ant_se_list:
-
-        overlap_spans = []
-        for j in range(min_possible_j, jmax):
-            gap_span = gap_span_list[j]
-            if gap_span[1] < ant_se[0]:
-                min_possible_j = j+1
-            if mathutils.start_end_overlap(ant_se, gap_span):
-                overlap_spans.append(gap_span)
-                # print('overlap {}, {}'.format(se_ant_list_map[ant_se][0], gap_span))
-            # because annotations can overlap,
-            # this guarantee is false
-            # if gap_span[0] > ant_end:
-            #    break
-
-        if overlap_spans:
-            # adjusted_spanst_list = []
-            endpoint_list = [ant_se[0], ant_se[1]]
-            max_end = len(doc_text)
-            for gap_span in overlap_spans:
-                tmp_start = gap_span[0]
-                # find the first space after an non-space to the left of gap
-                while tmp_start > 0 and strutils.is_space(doc_text[tmp_start-1]):
-                    tmp_start -= 1
-                tmp_end = gap_span[1]
-
-                # find the first non-space to the right of the gap
-                while tmp_end < max_end and strutils.is_space(doc_text[tmp_end]):
-                    tmp_end += 1
-
-                # adjusted_spanst_list.append("{}:{}".format(tmp_start, tmp_end))
-                endpoint_list.append(tmp_start)
-                endpoint_list.append(tmp_end)
-                # print("adjusted span {}:{} -> {}:{}".format(gap_span[0], gap_span[1], tmp_start, tmp_end))
-            endpoint_list.sort()
-
-            # add start, end only if not empty
-            endpoints_dict_list = []
-            for i in range(0, len(endpoint_list), 2):
-                aa_start = endpoint_list[i]
-                aa_end = endpoint_list[i+1]
-                if strutils.remove_space_nl(doc_text[aa_start:aa_end]):
-                    endpoints_dict_list.append({ 'start': aa_start,
-                                                 'end': aa_end})
-
-            # spans_st = ','.join(adjusted_spanst_list)
-            # spans_st = ','.join([str(endpoint) for endpoint in endpoint_list])
-            spans_st = endpoints_dict_list
-        else:
-            spans_st = [{'start': ant_se[0],
-                         'end': ant_se[1]}]
-
-        se_ant_list = se_ant_list_map[ant_se]
-        for antx in se_ant_list:
-            antx['span_list'] = spans_st
-"""
 
 def span_frto_list_to_fromto(span_frto_list: List[Tuple[linepos.LnPos,
                                                         linepos.LnPos]]) -> Tuple[Tuple[int, int],

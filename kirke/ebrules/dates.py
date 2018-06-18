@@ -56,10 +56,10 @@ class DateNormalizer(DocCandidatesTransformer):
             # Please Note: We changed the returns result to be a dict instead of datetime.datetime
             norm = parser.parse(line, fuzzy=True, default=NoDefaultDate())  # type: Dict[str, int]
         except ValueError:
-            logger.debug("Failed to parse_date(%s) as a date.  Branch 1.", line)
+            # logger.debug("Failed to parse_date(%s) as a date.  Branch 1.", line)
             return None
         except:  # pylint: disable=bare-except
-            logger.debug("Failed to parse_date(%s) as a date.  Branch 2.", line)
+            # logger.debug("Failed to parse_date(%s) as a date.  Branch 2.", line)
             return None
 
         if re.search('end of', orig_line, re.I) and \
@@ -83,13 +83,14 @@ class DateNormalizer(DocCandidatesTransformer):
         if (year_val and year_val < 1) or \
            (month_val and month_val < 1) or \
            (day_val and day_val < 1):
-            logger.debug("Failed to parse_date(%s) as a date.  Branch 3.", line)
+            # logger.debug("Failed to parse_date(%s) as a date.  Branch 3.", line)
             return None
         # pylint: disable=too-many-boolean-expressions
         if (year_val and year_val > 3000) or \
            (month_val and month_val > 12) or \
            (day_val and day_val > 31):
-            logger.debug("Failed to parse_date(%s) as a date.  Branch 4.", line)
+            # there are a log of telephone, '818-1888'
+            # logger.debug("Failed to parse_date(%s) as a date.  Branch 4.", line)
             return None
 
         norm_dict = {'norm': {'date':'{}-{}-{}'.format(year_st, month_st, day_st)}}
@@ -97,9 +98,11 @@ class DateNormalizer(DocCandidatesTransformer):
         return norm_dict
 
 
-    def doc_postproc(self, candidates: List[Dict],
-                     nbest: int) -> None:
+    def doc_postproc(self,
+                     candidates: List[Dict],
+                     nbest: int) -> List[Dict]:
         num_used = 0
+        out_list = []  # type: List[Dict]
         for candidate in candidates:
             text = candidate['text']
             date_dict = self.parse_date(text)
@@ -107,14 +110,20 @@ class DateNormalizer(DocCandidatesTransformer):
             if not date_dict:
                 candidate['prob'] = 0.011
             else:
-                if num_used < nbest:
+                # UI doenn't want a nested 'date' inside 'norm' dict.
+                # shortcut this
+                date_dict['norm'] = date_dict['norm']['date']
+
+                if nbest == -1 or num_used < nbest:
                     num_used += 1  # do really nothing
+                    out_list.append(candidate)
                 else:
                     # set anything >= nbest to none
                     candidate['prob'] = 0.0112
 
                 candidate.update(date_dict)
-        return
+        # return candidates
+        return out_list
 
 
 # to be used by this module internally, extra '_' at the end
@@ -509,7 +518,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
             partyline_dates = [(partyline_start + start, partyline_start + end,
                                 date_st, date_type, date_norm)
                                for start, end, date_st, date_type, date_norm in partyline_dates]
-    logger.debug('3555 partyline_dates: %r', partyline_dates)
+    # logger.debug('3555 partyline_dates: %r', partyline_dates)
 
     before_dates = []  # type: List[Tuple[int, int, str, str, str]]
     for line_start, unused_line_end, xline in before_lines:
@@ -519,7 +528,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                 start, end, date_st, date_type, norm_date = date_ox
                 before_dates.append((line_start + start, line_start + end, date_st, date_type, norm_date))
 
-    logger.debug('3556 before_dates: %r', before_dates)
+    # logger.debug('3556 before_dates: %r', before_dates)
     # x1 = before_dates[0]
     # print("paras_text: [{}]".format(paras_text[x1[0]:x1[1]]))
 

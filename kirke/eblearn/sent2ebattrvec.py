@@ -1,7 +1,5 @@
 import re
-import time
-import logging
-from typing import Match, List, Tuple
+from typing import Optional
 
 from kirke.utils import unicodeutils, entityutils
 from kirke.utils.corenlpsent import EbSentence
@@ -23,8 +21,8 @@ def count_define_party(line: str) -> int:
 
 AGREEMENT_PAT = re.compile(r'\bagreements?\b', re.IGNORECASE)
 
-def has_word_agreement(line: str) -> Match[str]:
-    return AGREEMENT_PAT.search(line)
+def has_word_agreement(line: str) -> bool:
+    return bool(AGREEMENT_PAT.search(line))
 
 #    patlist = AGREEMENT_PAT.finditer(line)
 #    result = []
@@ -35,16 +33,15 @@ def has_word_agreement(line: str) -> Match[str]:
 
 BTW_PAT = re.compile(r'\b(between|among)\b', re.IGNORECASE)
 
-def has_word_between(line: str) -> Match[str]:
-    return BTW_PAT.search(line)
+def has_word_between(line: str) -> bool:
+    return bool(BTW_PAT.search(line))
 
 
 # pylint: disable=R0912,R0913,R0914,R0915
-def sent2ebattrvec(file_id: str,
-                   ebsent: EbSentence,
+def sent2ebattrvec(ebsent: EbSentence,
                    sent_seq: int,
-                   prev_ebsent: EbSentence,
-                   next_ebsent: EbSentence,
+                   prev_ebsent: Optional[EbSentence],
+                   next_ebsent: Optional[EbSentence],
                    atext: str) -> ebattrvec.EbAttrVec:
     tokens = ebsent.get_tokens()
     text_len = len(atext)
@@ -52,9 +49,13 @@ def sent2ebattrvec(file_id: str,
 
     # TODO, pass in the token list, with lemma
     # will do chunking in the future also
-    fvec = ebattrvec.EbAttrVec(file_id,
-                               ebsent.start, ebsent.end,
-                               ebsent.get_tokens_text(), ebsent.labels, ebsent.entities, ebsent.sechead)
+    fvec = ebattrvec.EbAttrVec(None,  # there is no file_id any more
+                               ebsent.start,
+                               ebsent.end,
+                               ebsent.get_tokens_text(),
+                               ebsent.labels,
+                               ebsent.entities,
+                               ebsent.sechead)
 
     tmp_start = min(ENT_START_MAX, ebsent.start)
     tmp_end = min(ENT_END_MAX, ebsent.end)
@@ -62,7 +63,8 @@ def sent2ebattrvec(file_id: str,
     fvec.set_val('ent_end', tmp_end)
     fvec.set_val('ent_percent_start', 1.0 * ebsent.start / text_len)
     # fvec.set_val('nth_candidate', sent_seq)
-    fvec.set_val('nth_candidate', min(NTH_CANDIDATE_MAX, sent_seq - 1))  # prod version starts with 0
+    fvec.set_val('nth_candidate', min(NTH_CANDIDATE_MAX,
+                                      sent_seq - 1))  # prod version starts with 0
     if prev_ebsent is None:   # the first sentence
         fvec.set_val('prevLength', 0)        # number of words in a sentence
         fvec.set_val('prevLengthChar', 0)

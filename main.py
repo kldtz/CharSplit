@@ -18,13 +18,19 @@ from kirke.eblearn import ebannotator, ebrunner, ebtrainer, provclassifier, scut
 # from kirke.ebrules import rateclassifier
 # pylint: disable=unused-import
 from kirke.eblearn.ebclassifier import EbClassifier
-from kirke.utils import ebantdoc2, osutils, splittrte, strutils
-
-
+from kirke.utils import ebantdoc4, osutils, splittrte, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
 config.read('kirke.ini')
+
+# NOTE: Remove the following line to get rid of all logging messages
+logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.WARN)
+logger.setLevel(logging.INFO)
+# logger.setLevel(logging.DEBUG)
+
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 PROV_CLF_VERSION = config['ebrevia.com']['PROV_CLF_VERSION']
@@ -90,6 +96,7 @@ def train_annotator(provision: str,
                     work_dir: str,
                     model_dir: str,
                     is_scut: bool,
+                    is_cache_enabled: bool = True,
                     is_doc_structure: bool = True) -> None:
     if is_scut:
         eb_classifier = scutclassifier.ShortcutClassifier(provision)  # type: EbClassifier
@@ -107,9 +114,11 @@ def train_annotator(provision: str,
                                              model_dir,
                                              model_file_name,
                                              eb_classifier,
+                                             is_cache_enabled=is_cache_enabled,
                                              is_doc_structure=is_doc_structure)
 
 def train_span_annotator(label: str,
+                         nbest: int,
                          candidate_type: str,
                          work_dir: str,
                          model_dir: str) -> None:
@@ -117,7 +126,7 @@ def train_span_annotator(label: str,
         ebtrainer.train_eval_span_annotator(label,
                                             383838,
                                             'en',
-                                            nbest=-1,
+                                            nbest,
                                             candidate_type=candidate_type,
                                             work_dir=work_dir,
                                             model_dir=model_dir)
@@ -205,6 +214,7 @@ def test_annotators(provisions,
                     work_dir: str,
                     model_dir: str,
                     custom_model_dir: str,
+                    out_dir: str = '',
                     threshold: Optional[float] = None) -> None:
     provision_set = set([])  # type: Set[str]
     if provisions:
@@ -223,6 +233,16 @@ def test_annotators(provisions,
         print("log_json:")
         pprint.pprint(log_json)
 
+        print("ant_status:")
+        print(ant_status)
+
+        if out_dir:
+            osutils.mkpath(out_dir)
+            out_fname = '{}/{}.status'.format(out_dir, provision)
+            with open(out_fname, 'wt') as fout:
+                print(ant_status, file=fout)
+                print('wrote "{}"'.format(out_fname))
+
 
 # test only 1 annotator
 # not sure anyone calling this
@@ -233,7 +253,7 @@ def test_one_annotator(txt_fn_list_fn: str,
     provision = eb_classifier.provision
     print("provision = {}".format(provision))
 
-    ebantdoc_list = ebantdoc2.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
+    ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list_fn, work_dir=work_dir)
     print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     pred_status = eb_classifier.predict_and_evaluate(ebantdoc_list, work_dir)
@@ -321,10 +341,12 @@ def main():
     parser.add_argument('--model_dir', help='output directory for trained models')
     parser.add_argument('--model_dirs', help='output directory for trained models')
     parser.add_argument('--custom_model_dir', help='output directory for custom trained models')
+    parser.add_argument('--out_dir', help='output directory for testing annotators')
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
     parser.add_argument('--candidate_type', default='SENTENCE', help='type of candidate generator')
+    parser.add_argument('--cache_disabled', action="store_true", help='disable loading cached files')
     parser.add_argument('--nbest', default=-1, help='number of annotations per doc')
     # only for eval_rule_annotator
     parser.add_argument('--is_train_mode', action="store_true",
@@ -337,6 +359,11 @@ def main():
     work_dir = args.work_dir
     model_dir = args.model_dir
     custom_model_dir = args.custom_model_dir
+    if args.cache_disabled:
+        is_cache_enabled = False
+    else:
+        is_cache_enabled = True
+
 
     if cmd == 'train_classifier':  # jshaw, nobody should be using this?
         train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, args.scut)
@@ -345,9 +372,11 @@ def main():
                         work_dir,
                         model_dir,
                         args.scut,
+                        is_cache_enabled=is_cache_enabled,
                         is_doc_structure=True)
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,
+                             args.nbest,
                              candidate_type=args.candidate_type,
                              work_dir=work_dir,
                              model_dir=model_dir)
@@ -372,8 +401,14 @@ def main():
                                is_doc_structure=True)
     elif cmd == 'test_annotators':
         # if no --provisions is specified, all annotators are tested
-        test_annotators(args.provisions, txt_fn_list_fn, work_dir, model_dir,
-                        custom_model_dir, threshold=args.threshold)
+        out_dir = args.out_dir
+        test_annotators(args.provisions,
+                        txt_fn_list_fn,
+                        work_dir,
+                        model_dir,
+                        custom_model_dir,
+                        out_dir=out_dir,
+                        threshold=args.threshold)
     elif cmd == 'test_one_annotator':
         if not args.model_file:
             print('please specify --model_file', file=sys.stderr)

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from typing import List, Optional
+
 """
 # has_org, has_loc, has_person, has_date, hr ('yes', 'no')
 binary_indices = [0, 1, 2, 3, 9]
@@ -155,8 +157,16 @@ class EbAttrVec:
 
 
     # pylint: disable=too-many-arguments
-    def __init__(self, file_id, start, end, sent_text, labels, entities, sechead=None):
-        self.file_id = file_id
+    def __init__(self,
+                 file_id: Optional[str],
+                 start: int,
+                 end: int,
+                 sent_text: str,
+                 labels: List[str],
+                 entities,
+                 sechead: Optional[str] = None) \
+                 -> None:
+        self.file_id = None  # we never use this, so not use.
         self.start = start  # this differs from ent_start, which can be chopped
         self.end = end      # similar to above, ent_end
         self.bag_of_words = sent_text
@@ -184,7 +194,6 @@ class EbAttrVec:
 
     def __str__(self):
         attr_val_list = []
-        attr_val_list.append(('file_id', self.file_id))
         attr_val_list.append(('start', self.start))
         attr_val_list.append(('end', self.end))
         attr_val_list.append(('labels', self.labels))

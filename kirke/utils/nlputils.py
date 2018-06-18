@@ -2181,7 +2181,8 @@ def find_and_org_tok_indices(span_chunk_list: List[SpanChunk]) -> List[int]:
         if spchunk.is_word_and():
             # export-train/40170.txt
             if prev_spchunk and \
-               prev_spchunk.has_label('xPAREN'):
+               prev_spchunk.has_label('xPAREN') and \
+               next_spchunk:
                 result.append(next_spchunk.tok_idx)
                 idx += 1
             elif next_spchunk:

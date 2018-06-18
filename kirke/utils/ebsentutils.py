@@ -4,9 +4,10 @@ import json
 import os
 from pathlib import Path
 import re
-from typing import Any, Dict, List, Optional, Tuple
+# pylint: disable=unused-import
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from kirke.utils import textoffset, mathutils, entityutils, stopwordutils
+from kirke.utils import entityutils, mathutils, stopwordutils, textoffset
 from kirke.docstruct import docutils
 
 class EbEntityType(Enum):
@@ -52,7 +53,7 @@ EbEntityTuple = namedtuple('EbEntityTuple', ['start', 'end', 'ner', 'text'])
 class EbEntity:
     __slots__ = ['start', 'end', 'ner', 'text']
 
-    def __init__(self, start, end, ner, text):
+    def __init__(self, start: int, end: int, ner: str, text: str) -> None:
         self.start = start
         self.end = end
         self.ner = ner
@@ -63,6 +64,9 @@ class EbEntity:
 
     def __str__(self):
         return str((self.ner, self.start, self.end, self.text))
+
+    def __repr__(self):
+        return self.__str__()
 
     def to_dict(self):
         return {'ner': self.ner,
@@ -76,8 +80,6 @@ def entities_to_dict_list(entities):
         return [entity.to_dict() for entity in entities]
     return []
 
-
-# from kirke.utils import corenlputils, ebantdoc, mathutils, strutils, osutils, entityutils, txtreader
 
 _WANTED_ENTITY_NAMES = {EbEntityType.PERSON.name,
                         EbEntityType.ORGANIZATION.name,
@@ -136,12 +138,12 @@ INCORRECT_DOMAIN_ENTITIES = {
     'Delaware Limited Liability Company'}
 
 _LOC_OR_ORG = {EbEntityType.ORGANIZATION.name,
-               EbEntityType.LOCATION.name}
+               EbEntityType.LOCATION.name}  # type: Set[str]
 
 _PERSON_DFTERM_SET = set([EbEntityType.DEFINE_TERM.name,
-                          EbEntityType.PERSON.name])
+                          EbEntityType.PERSON.name])  # type: Set[str]
 _ORG_DFTERM_SET = set([EbEntityType.DEFINE_TERM.name,
-                       EbEntityType.ORGANIZATION.name])
+                       EbEntityType.ORGANIZATION.name])  # type: Set[str]
 
 
 def _fix_incorrect_tokens(xst, orig_label, token_list, entity_st_set, new_ner):
@@ -187,12 +189,12 @@ def _tokens_to_entity(token_list):
     return EbEntity(start, end, label, xst)
 
 
-def is_distinct_ner_type(ner1, ner2):
+def is_distinct_ner_type(ner1, ner2) -> bool:
     if ner1 == ner2:
         return False
-    if (ner1 in _PERSON_DFTERM_SET and ner2 in _PERSON_DFTERM_SET):
+    if ner1 in _PERSON_DFTERM_SET and ner2 in _PERSON_DFTERM_SET:
         return False
-    if (ner1 in _ORG_DFTERM_SET and ner2 in _ORG_DFTERM_SET):
+    if ner1 in _ORG_DFTERM_SET and ner2 in _ORG_DFTERM_SET:
         return False
     return True
 
@@ -230,7 +232,13 @@ def _extract_entities(tokens, wanted_ner_names):
 NAME_POS_SET = set(['NNS', 'CD', 'NNP', 'NN', 'POS'])
 
 # this is destructive/in-place
-def _extract_entities_v2(tokens, raw_sent_text, start_offset=0, lang: str ='en'):
+# TODO, recursive import
+# tokens: List[corenlpsent.EbToken]
+# pylint: disable=too-many-branches
+def _extract_entities_v2(tokens,
+                         raw_sent_text: str,
+                         start_offset: int = 0,
+                         lang: str = 'en'):
     ptr = -1
     max_token_ptr = len(tokens)
     # fix incorrect pos
@@ -243,13 +251,13 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0, lang: str ='en')
 
         for i, token in enumerate(tokens):
             # print('{}\t{}'.format(i, token))
-            if (token.word[0].isupper() and
-                token.word.lower() in set(['llc.', 'llc', 'inc.', 'inc',
-                                           'l.p.', 'n.a.', 'corp',
-                                           'corporation', 'corp.', 'ltd.',
-                                           'ltd', 'co.', 'co', 'l.l.p.',
-                                           'lp', 's.a.', 'sa',
-                                           'n.v.', 'plc', 'plc.', 'l.l.c.'])):
+            if token.word[0].isupper() and \
+               token.word.lower() in set(['llc.', 'llc', 'inc.', 'inc',
+                                          'l.p.', 'n.a.', 'corp',
+                                          'corporation', 'corp.', 'ltd.',
+                                          'ltd', 'co.', 'co', 'l.l.p.',
+                                          'lp', 's.a.', 'sa',
+                                          'n.v.', 'plc', 'plc.', 'l.l.c.']):
                 # reset all previous tokens to ORG
                 # print("I am in here")
                 ptr = i
@@ -264,9 +272,10 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0, lang: str ='en')
                     else:
                         break
             # separate "the Company and xxx"
-            if (token.word in 'Company' and token.ner == EbEntityType.ORGANIZATION.name and
-                (i + 1) < max_token_ptr and tokens[i+1].word == 'and' and
-                tokens[i+1].ner == EbEntityType.ORGANIZATION.name):
+            if token.word in 'Company' and \
+               token.ner == EbEntityType.ORGANIZATION.name and \
+               (i + 1) < max_token_ptr and tokens[i+1].word == 'and' and \
+               tokens[i+1].ner == EbEntityType.ORGANIZATION.name:
                 tokens[i+1].ner = 'O'
 
     pat_list = entityutils.extract_define_party(raw_sent_text, start_offset=start_offset)
@@ -284,13 +293,22 @@ def _extract_entities_v2(tokens, raw_sent_text, start_offset=0, lang: str ='en')
 def get_sechead_attr(attrs):
     for attr in attrs:
         # print("is_attr_section_head: {} || {}".format(attr, attr[2]))
-        if (len(attr) > 3 and attr[0] == 'sechead'):
+        if len(attr) > 3 and attr[0] == 'sechead':
             return attr
     return ''
 
 
 # this is in-place
-def update_ebsents_with_sechead(ebsent_list, paras_with_attrs):
+# TODO, this type declaration will cause recursive import.
+# Should move to a better location.
+# def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
+#                                 paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
+#                                                                        linepos.LnPos]],
+#                                                             List[Any]]]) \
+#                                                             -> None:
+# pylint: disable=too-many-locals
+def update_ebsents_with_sechead(ebsent_list,
+                                paras_with_attrs) -> None:
     if not ebsent_list:  # if there is no data
         return
 
@@ -300,8 +318,9 @@ def update_ebsents_with_sechead(ebsent_list, paras_with_attrs):
     ebsent_start, ebsent_end = ebsent.start, ebsent.end
 
     while para_i < len_paras and ebsent_i < len_ebsents:
-        span_se_list, line, attrs = paras_with_attrs[para_i]
-        (para_from_start, para_from_end), (para_to_start, para_to_end) = docutils.span_frto_list_to_fromto(span_se_list)
+        span_se_list, attrs = paras_with_attrs[para_i]
+        (unused_para_from_start, unused_para_from_end), (para_to_start, para_to_end) = \
+            docutils.span_frto_list_to_fromto(span_se_list)
 
         if para_to_start == para_to_end:  # empty line, move on
             para_i += 1
@@ -309,16 +328,23 @@ def update_ebsents_with_sechead(ebsent_list, paras_with_attrs):
         sechead_attr = get_sechead_attr(attrs)
         if sechead_attr:
             # print("attrs: {}".format(attrs[0]))
-            sechead_type, sh_prefix_num, sh_header, sh_idx = sechead_attr
+            unused_sechead_type, unused_sh_prefix_num, sh_header, unused_sh_idx = \
+                sechead_attr
         else:
             sh_header = ''
         # print("para #{}: {}".format(para_i, paras_with_attrs[para_i]))
         while ebsent_start <= para_to_end:
-            if mathutils.start_end_overlap((ebsent_start, ebsent_end), (para_to_start, para_to_end)):
-                # print("\tebsent set sechead ({}, {}): {}".format(ebsent_start, ebsent_end, sh_header))
+            if mathutils.start_end_overlap((ebsent_start, ebsent_end),
+                                           (para_to_start, para_to_end)):
+                # print("\tebsent set sechead ({}, {}): {}". \
+                #       format(ebsent_start, ebsent_end, sh_header))
                 if sh_header:
-                    ebsent.set_sechead(' '.join(stopwordutils.tokens_remove_stopwords([word.lower() for word in re.findall(r'\w+', sh_header)],
-                                                                                      is_lower=True)))
+                    ebsent.set_sechead(' '. \
+                        join(stopwordutils. \
+                        tokens_remove_stopwords([word.lower()
+                                                 for word in re.findall(r'\w+',
+                                                                        sh_header)],
+                                                is_lower=True)))
                 # else, don't even set it
             ebsent_i += 1
             if ebsent_i < len_ebsents:
@@ -369,9 +395,9 @@ class ProvisionAnnotation:
     __slots__ = ['start', 'end', 'label']
 
     def __init__(self, start, end, label):
-        self.start = start
-        self.end = end
-        self.label = label
+        self.start = start  # type: int
+        self.end = end  # type: int
+        self.label = label  # type: str
 
     def __repr__(self) -> str:
         return "ProvisionAnnotation({}, {}, '{}')".format(self.start, self.end, self.label)
@@ -385,7 +411,6 @@ class ProvisionAnnotation:
     def to_tuple(self) -> Tuple[int, int, str]:
         return (self.start, self.end, self.label)
 
-              
 #    def to_tuple(self):
 #        return (self.lable, self.start, self.end)
 
@@ -426,7 +451,8 @@ class EbProvisionAnnotation:
 # (start, end, ant_name)
 def load_prov_annotation_list(txt_file_name: str,
                               cpoint_cunit_mapper: textoffset.TextCpointCunitMapper,
-                              provision: Optional[str]=None) -> Tuple[List[ProvisionAnnotation], bool]:
+                              provision: Optional[str] = None) \
+                              -> Tuple[List[ProvisionAnnotation], bool]:
     prov_ant_fn = txt_file_name.replace('.txt', '.ant')
     prov_ant_file = Path(prov_ant_fn)
     prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
