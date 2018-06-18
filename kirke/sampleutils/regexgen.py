@@ -87,19 +87,6 @@ class RegexContextGenerator:
             if post_spans:
                 new_end = post_spans[-1][-1]
 
-            # clean up the string if special character is at the end.  Currently
-            # none of the matat_str will have nose characters except for ";" or ":"
-            if match_str.endswith(',') or match_str.endswith(';') or \
-               match_str.endswith(':') or match_str.endswith('.'):
-                match_str = match_str[:-1]
-                match_end -= 1
-            if match_str.endswith(')') and not '(' in match_str:
-                match_str = match_str[:-1]
-                match_end -= 1
-            if match_str.startswith('(') and not ')' in match_str:
-                match_str = match_str[1:]
-                match_start += 1
-
             a_candidate = {'candidate_type': self.candidate_type,
                            'bow_start': new_start,
                            'bow_end': new_end,
@@ -116,7 +103,8 @@ class RegexContextGenerator:
                 label_list.append(True)
             else:
                 label_list.append(False)
-        # joins adjacent candidates that are only separated by whitespace
+
+        # joins adjacent candidates that are only separated by spaces
         if self.join:
             candidates_to_merge = []
             new_candidates = []
@@ -147,6 +135,7 @@ class RegexContextGenerator:
             candidates = new_candidates
             label_list = merge_labels
             group_id_list = merge_groups
+
         # remove any candidate that is >= min_length
         filtered_candidates = []  # type: List[Dict]
         filtered_label_list = []  # type: List[bool]
