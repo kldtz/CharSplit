@@ -213,7 +213,8 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         self.name = 'CharacterTransformer'
         self.version = '1.0'
         self.char_vectorizer = CountVectorizer(analyzer='char', min_df=2, ngram_range=(1, 2))
-        self.generic_char_vectorizer = CountVectorizer(analyzer='word', min_df=2, token_pattern=r'(?u)\b[^\s]+\b', ngram_range=(1, 3))
+        self.generic_char_vectorizer = CountVectorizer(analyzer='word', min_df=2, token_pattern=r'(?u)[^\s]+', ngram_range=(1, 3))
+        self.first_char_vectorizer = CountVectorizer(analyzer='word', token_pattern=r'(?u)[^\s]+', ngram_range=(1, 2))
         self.min_max_scaler = preprocessing.MinMaxScaler()
         self.start = datetime.now()
 
@@ -225,10 +226,12 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
                           fit_mode: bool = False):
         all_cands = []
         generic_chars_list = []
+        all_first_chars = []
         numeric_matrix = np.zeros(shape=(len(span_candidate_list), 26))
         for i, span_candidate in enumerate(span_candidate_list):
             chars = span_candidate.get('chars', '')
             all_cands.append(chars)
+            all_first_chars.append("{} {}".format('FIRST-'+chars[0], 'SECOND-'+chars[1]))
             chars_list = list(chars)
             numeric_matrix[i, 0] = len(chars_list) # total length
             numeric_matrix[i, 1] = len([x for x in chars_list if x.isalpha()]) # number of alpha character
@@ -250,18 +253,22 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
                 match_len += 1
             generic_alpha_list = ['ALPHA' if x.isalpha() else x for x in chars_list]
             generic_char_list = ['NUM' if x.isdigit() else x for x in generic_alpha_list]
+            generic_char_list = ['SPACE' if x.isspace() else x for x in generic_alpha_list]
             generic_chars = " ".join(generic_char_list)
             generic_chars_list.append(generic_chars)
+
         if fit_mode:
             self.char_vectorizer.fit(all_cands) # character ngram vectorizer
             self.generic_char_vectorizer.fit(generic_chars_list) # generic ngram vectorizer
+            self.first_char_vectorizer.fit(all_first_chars) # vectorizer of first character
             numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
             return self
 
         chars_out = self.char_vectorizer.transform(all_cands)
         generic_out = self.generic_char_vectorizer.transform(generic_chars_list)
+        first_char_out = self.first_char_vectorizer.transform(all_first_chars)
         numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
-        X_out = sparse.hstack((chars_out, numeric_matrix, generic_out))
+        X_out = sparse.hstack((chars_out, numeric_matrix, generic_out, first_char_out))
         return X_out
 
 
