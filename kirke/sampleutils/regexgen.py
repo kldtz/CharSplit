@@ -17,33 +17,15 @@ class RegexContextGenerator:
                  num_post_words: int,
                  center_regex: Pattern,
                  candidate_type: str,
-                 join: bool = False,
                  length_min: int = 0,
                  group_num: int = 1) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
         self.center_regex = center_regex
         self.candidate_type = candidate_type
-        self.join = join
         self.length_min = length_min
         self.group_num = group_num
 
-    def merge_candidates(self, cands: List[Dict], nl_text: str) -> Dict:
-        # doesn't need to be merged
-        if len(cands) == 1:
-            return cands[0]
-
-        # else concat the list of candidates to a single dictionary
-        new_cand = {'candidate_type': self.candidate_type,
-                    'bow_start': cands[0]['bow_start'],
-                    'bow_end': cands[-1]['bow_end'],
-                    'start': cands[0]['start'],
-                    'end': cands[-1]['end'],
-                    'prev_n_words': cands[0]['prev_n_words'],
-                    'post_n_words': cands[-1]['post_n_words']}
-        new_cand['text'] = nl_text[new_cand['bow_start']:new_cand['bow_end']]
-        new_cand['chars'] = nl_text[new_cand['start']:new_cand['end']]
-        return new_cand
 
     # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
     def get_candidates_from_text(self,
@@ -104,38 +86,6 @@ class RegexContextGenerator:
             else:
                 label_list.append(False)
 
-        # joins adjacent candidates that are only separated by spaces
-        if self.join:
-            candidates_to_merge = []
-            new_candidates = []
-            merge_labels = []
-            merge_groups = []
-            i = 0
-            while i < len(candidates):
-                skip = True
-                candidates_to_merge.append(candidates[i])
-                # looks ahead until it fails the requirement
-                while skip and i+1 < len(candidates):
-                    # diff = candidates[i+1]['start'] - candidates_to_merge[-1]['end']
-                    diff_str = nl_text[candidates_to_merge[-1]['end']:candidates[i+1]['start']]
-                    if re.match('^ {1,3}$', diff_str) or not diff_str:
-                        candidates_to_merge.append(candidates[i+1])
-                        i += 1
-                    else:
-                        skip = False
-
-                    # merges candidates that pass the requirement
-                merged_cands = self.merge_candidates(candidates_to_merge, nl_text)
-                new_candidates.append(merged_cands)
-                candidates_to_merge = []
-                merge_labels.append(label_list[i])
-                merge_groups.append(group_id_list[i])
-                i += 1
-
-            candidates = new_candidates
-            label_list = merge_labels
-            group_id_list = merge_groups
-
         # remove any candidate that is >= min_length
         filtered_candidates = []  # type: List[Dict]
         filtered_label_list = []  # type: List[bool]
@@ -160,8 +110,6 @@ class RegexContextGenerator:
 
         if 'length_min' not in self.__dict__:
             self.length_min = 0
-        if 'join' not in self.__dict__:
-            self.join = False
         if 'group_num' not in self.__dict__:
             self.group_num = 1
         # pylint: disable=line-too-long
