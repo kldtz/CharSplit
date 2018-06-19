@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Pattern, Tuple
 
 from kirke.utils import ebsentutils
 from kirke.eblearn import annotatorconfig
-from kirke.sampleutils import regexgen
+from kirke.sampleutils import idnumgen
 
 def extract_str(pat: Pattern, line: str, group_num: int = 1) -> str:
     mat = re.search(pat, line)
@@ -15,12 +15,12 @@ def extract_str(pat: Pattern, line: str, group_num: int = 1) -> str:
         return mat_st
     return ''
 
-def extract_cand(alphanum: regexgen.RegexContextGenerator, line: str):
-    candidates, _, _ = alphanum.get_candidates_from_text(line)
+def extract_cand(alphanum: idnumgen.IdNumContextGenerator, line: str):
+    candidates, _, _ = alphanum.get_candidates_from_text(line, -1, [])
     cand_text = ' /// '.join([cand['chars'] for cand in candidates])
     return cand_text
 
-def extract_idnum_list(alphanum: regexgen.RegexContextGenerator,
+def extract_idnum_list(alphanum: idnumgen.IdNumContextGenerator,
                        line: str,
                        label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
                        label: str = '') -> Tuple[List[Dict],
@@ -28,9 +28,8 @@ def extract_idnum_list(alphanum: regexgen.RegexContextGenerator,
                                                  List[bool]]:
     candidates, group_id_list, label_list = \
         alphanum.get_candidates_from_text(line,
-                                          group_id=-1,
-                                          label_ant_list_param=label_ant_list_param,
-                                          label=label)
+                                          -1,
+                                          [])
     return candidates, group_id_list, label_list
 
 
@@ -39,11 +38,11 @@ class TestAlphanum(unittest.TestCase):
     # pylint: disable=too-many-statements
     def test_alphanum(self):
         "Test AlphaNum"
-        alphanum = regexgen.RegexContextGenerator(0,
+        alphanum = idnumgen.IdNumContextGenerator(0,
                                                   0,
                                                   re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)'),
                                                   'idnum',
-                                                  join=True,
+                                                  is_join=True,
                                                   length_min=2)
 
         line = "text TIN: 555-77-5555 text"
@@ -176,11 +175,11 @@ class TestAlphanum(unittest.TestCase):
     def test_alphanum_label_list(self):
         "Test AlphaNum label_list handling"
 
-        alphanum = regexgen.RegexContextGenerator(0,
+        alphanum = idnumgen.IdNumContextGenerator(0,
                                                   0,
                                                   re.compile(r'(\+ \d[^\s]*|[^\s]*\d[^\s]*)'),
                                                   'idnum',
-                                                  join=True,
+                                                  is_join=True,
                                                   length_min=2)
 
         line = 'aaaaaaaaa bbbbbbbbb ccccccccc abcd #678,012 456 text ddddddddd eeeeeeeee ffffffffff'
