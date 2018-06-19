@@ -246,12 +246,15 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
             # number of digits
             numeric_matrix[i, 2] = len([x for x in chars_list if x.isdigit()])
             # number of punct
-            numeric_matrix[i, 3] = len([x for x in chars_list if not x.isalpha() and not x.isdigit()])
-            # first char alpha 
+            numeric_matrix[i, 3] = len([x for x in chars_list
+                                        if not x.isalpha() and \
+                                        not x.isdigit() and \
+                                        not x.isspace()])
+            # first char alpha
             numeric_matrix[i, 4] = chars[0].isalpha()
             # first char digit
             numeric_matrix[i, 5] = chars[0].isdigit()
-            # sections divided by hyphens 
+            # sections divided by hyphens
             numeric_matrix[i, 6] = len([x for x in chars.split('-') if x])
             # sections divided by periods
             numeric_matrix[i, 7] = len([x for x in chars.split('.') if x])
@@ -261,10 +264,11 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
             numeric_matrix[i, 9] = not chars[0].isalpha() and not chars[0].isdigit()
             # no alpha characters
             # pylint: disable=len-as-condition
-            numeric_matrix[i, 10] = len([x for x in chars_list if x.isalpha()]) == 0 
+            numeric_matrix[i, 10] = len([x for x in chars_list if x.isalpha()]) == 0
             match_len = 2
             for j in range(11, 29):
                 # individual length features
+                # pylint: disable=simplifiable-if-statement
                 if len(chars_list) == match_len:
                     numeric_matrix[i, j] = True
                 else:
