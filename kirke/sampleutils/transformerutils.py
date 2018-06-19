@@ -10,6 +10,7 @@ from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -26,9 +27,9 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
 
     # pylint: disable=unused-argument, invalid-name
     def candidates_to_matrix(self,
-                          span_candidate_list: List[Dict],
-                          y: Optional[List[bool]],
-                          fit_mode: bool = False):
+                             span_candidate_list: List[Dict],
+                             y: Optional[List[bool]],
+                             fit_mode: bool = False):
         numeric_matrix = np.zeros(shape=(len(span_candidate_list),
                                          1))
         for i, span_candidate in enumerate(span_candidate_list):
@@ -51,8 +52,8 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         AddrLineTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                      self.name, AddrLineTransformer.fit_count, len(span_candidate_list),
-                      (end_time - start_time) * 1000)
+                     self.name, AddrLineTransformer.fit_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
         return self
 
     # return X_out
@@ -65,8 +66,8 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         AddrLineTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                      self.name, AddrLineTransformer.transform_count, len(span_candidate_list),
-                      (end_time - start_time) * 1000)
+                     self.name, AddrLineTransformer.transform_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
         return X_out
 
 
@@ -91,9 +92,9 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
     # span_candidate_list should be a list of dictionaries
     # pylint: disable=unused-argument, invalid-name
     def candidates_to_matrix(self,
-                          span_candidate_list: List[Dict],
-                          y: Optional[List[bool]],
-                          fit_mode: bool = False):
+                             span_candidate_list: List[Dict],
+                             y: Optional[List[bool]],
+                             fit_mode: bool = False):
         prev_words_list = []
         post_words_list = []
         numeric_matrix = np.zeros(shape=(len(span_candidate_list), 2))
@@ -132,8 +133,8 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         SurroundWordTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
-                      (end_time - start_time) * 1000)
+                     self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
         return self
 
     # return X_out
@@ -146,8 +147,8 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         SurroundWordTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
-                      (end_time - start_time) * 1000)
+                     self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
         return X_out
 
 
@@ -163,9 +164,9 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
     # span_candidate_list should be a list of dictionaries
     # pylint: disable=unused-argument, invalid-name
     def candidates_to_matrix(self,
-                          span_candidate_list: List[Dict],
-                          y: Optional[List[bool]],
-                          fit_mode: bool = False):
+                             span_candidate_list: List[Dict],
+                             y: Optional[List[bool]],
+                             fit_mode: bool = False):
         words_list = []
         for span_candidate in span_candidate_list:
             words_list.append(span_candidate.get('text', ''))
@@ -188,8 +189,8 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         SurroundWordTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
-                      (end_time - start_time) * 1000)
+                     self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
         return self
 
     # return X_out
@@ -201,8 +202,8 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         SurroundWordTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
-                      (end_time - start_time) * 1000)
+                     self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
         return X_out
 
 class CharacterTransformer(BaseEstimator, TransformerMixin):
@@ -213,17 +214,22 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         self.name = 'CharacterTransformer'
         self.version = '1.0'
         self.char_vectorizer = CountVectorizer(analyzer='char', min_df=2, ngram_range=(1, 2))
-        self.generic_char_vectorizer = CountVectorizer(analyzer='word', min_df=2, token_pattern=r'(?u)[^\s]+', ngram_range=(1, 3))
-        self.first_char_vectorizer = CountVectorizer(analyzer='word', token_pattern=r'(?u)[^\s]+', ngram_range=(1, 2))
+        self.generic_char_vectorizer = CountVectorizer(analyzer='word',
+                                                       min_df=2,
+                                                       token_pattern=r'(?u)[^\s]+',
+                                                       ngram_range=(1, 3))
+        self.first_char_vectorizer = CountVectorizer(analyzer='word',
+                                                     token_pattern=r'(?u)[^\s]+',
+                                                     ngram_range=(1, 2))
         self.min_max_scaler = preprocessing.MinMaxScaler()
         self.start = datetime.now()
 
     # span_candidate_list should be a list of dictionaries
-    # pylint: disable=unused-argument, invalid-name
+    # pylint: disable=unused-argument, invalid-name, too-many-locals
     def candidates_to_matrix(self,
-                          span_candidate_list: List[Dict],
-                          y: Optional[List[bool]],
-                          fit_mode: bool = False):
+                             span_candidate_list: List[Dict],
+                             y: Optional[List[bool]],
+                             fit_mode: bool = False):
         all_cands = []
         generic_chars_list = []
         all_first_chars = []
@@ -234,22 +240,22 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
             all_first_chars.append("{} {}".format('FIRST-'+chars[0], 'SECOND-'+chars[1]))
             chars_list = list(chars)
             numeric_matrix[i, 0] = len(chars_list) # total length
-            numeric_matrix[i, 1] = len([x for x in chars_list if x.isalpha()]) # number of alpha character
+            # number of alpha character
+            numeric_matrix[i, 1] = len([x for x in chars_list if x.isalpha()])
             numeric_matrix[i, 2] = len([x for x in chars_list if x.isdigit()]) # number of digits
             numeric_matrix[i, 3] = chars[0].isalpha() # first char alpha
             numeric_matrix[i, 4] = chars[0].isdigit() # first char digit
-            numeric_matrix[i, 5] = len([x for x in chars.split('-') if x]) # sections divided by hyphens
-            numeric_matrix[i, 6] = len([x for x in chars.split('.') if x]) # sections divided by periods
-            if len([x for x in chars_list if x.isalpha()]) == 0:
-                numeric_matrix[i, 7] = True # no alpha characters
-            else:
-                numeric_matrix[i, 7] = False
+            # sections divided by hyphens
+            numeric_matrix[i, 5] = len([x for x in chars.split('-') if x])
+            # sections divided by periods
+            numeric_matrix[i, 6] = len([x for x in chars.split('.') if x])
+            # no alpha characters
+            # pylint: disable=len-as-condition
+            numeric_matrix[i, 7] = len([x for x in chars_list if x.isalpha()]) == 0
             match_len = 2
             for j in range(8, 26):
-                if len(chars_list) == match_len:
-                    numeric_matrix[i, j] = True # individual length features
-                else:
-                    numeric_matrix[i, j] = False
+                # individual length features
+                numeric_matrix[i, j] = len(chars_list) == match_len
                 match_len += 1
             generic_alpha_list = ['ALPHA' if x.isalpha() else x for x in chars_list]
             generic_char_list = ['NUM' if x.isdigit() else x for x in generic_alpha_list]
@@ -282,8 +288,8 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         SurroundWordTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
-                      (end_time - start_time) * 1000)
+                     self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
         return self
 
     # return X_out
@@ -295,6 +301,6 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         SurroundWordTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                      self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
-                      (end_time - start_time) * 1000)
+                     self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
         return X_out
