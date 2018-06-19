@@ -227,7 +227,7 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         all_cands = []
         generic_chars_list = []
         all_first_chars = []
-        numeric_matrix = np.zeros(shape=(len(span_candidate_list), 26))
+        numeric_matrix = np.zeros(shape=(len(span_candidate_list), 28))
         for i, span_candidate in enumerate(span_candidate_list):
             chars = span_candidate.get('chars', '')
             all_cands.append(chars)
@@ -240,20 +240,25 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
             numeric_matrix[i, 4] = chars[0].isdigit() # first char digit
             numeric_matrix[i, 5] = len([x for x in chars.split('-') if x]) # sections divided by hyphens
             numeric_matrix[i, 6] = len([x for x in chars.split('.') if x]) # sections divided by periods
-            if len([x for x in chars_list if x.isalpha()]) == 0:
-                numeric_matrix[i, 7] = True # no alpha characters
+            numeric_matrix[i, 7] = len([x for x in chars.split(' ') if x]) # sections divided by spaces
+            if not chars[0].isalpha() and not chars[0].isdigit():
+                numeric_matrix[i, 8] = True #first char is punct
             else:
-                numeric_matrix[i, 7] = False
+                numeric_matrix[i, 8] = False
+            if len([x for x in chars_list if x.isalpha()]) == 0:
+                numeric_matrix[i, 9] = True # no alpha characters
+            else:
+                numeric_matrix[i, 9] = False
             match_len = 2
-            for j in range(8, 26):
+            for j in range(10, 28):
                 if len(chars_list) == match_len:
                     numeric_matrix[i, j] = True # individual length features
                 else:
                     numeric_matrix[i, j] = False
                 match_len += 1
             generic_alpha_list = ['ALPHA' if x.isalpha() else x for x in chars_list]
-            generic_char_list = ['NUM' if x.isdigit() else x for x in generic_alpha_list]
-            generic_char_list = ['SPACE' if x.isspace() else x for x in generic_alpha_list]
+            generic_num_list = ['NUM' if x.isdigit() else x for x in generic_alpha_list]
+            generic_char_list = ['SPACE' if x.isspace() else x for x in generic_num_list]
             generic_chars = " ".join(generic_char_list)
             generic_chars_list.append(generic_chars)
 
