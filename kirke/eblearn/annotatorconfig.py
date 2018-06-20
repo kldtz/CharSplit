@@ -13,7 +13,7 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from kirke.sampleutils import postproc
 from kirke.ebrules import addrannotator, dummyannotator, dates
 from kirke.sampleutils import regexgen, addrgen, paragen, dategen, transformerutils
-from kirke.utils import ebantdoc4
+from kirke.utils import ebantdoc4, ebantdoc5
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -26,7 +26,7 @@ logger.setLevel(logging.INFO)
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
-    ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+    ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
                      'is_use_corenlp': False,
                      'doc_to_candidates': dategen.DateSpanGenerator(30, 30, 'DATE'),
                      'version': "1.0",

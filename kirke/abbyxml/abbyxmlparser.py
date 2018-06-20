@@ -784,6 +784,28 @@ def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
         if is_merge_occurred:
             abby_page.ab_blocks = out_block_list
 
+def to_paras_with_attrs(abby_xml_doc: AbbyXmlDoc,
+                        file_name: str,
+                        work_dir: str,
+                        debug_mode: bool = False):
+
+    # current returns offsets_line_list / paras2_with_attrs [(para_indices, para_attrs)], paraline_text / para2_doc_text -> string with paragraphs sep by newlines, gap_span_list / gap2_span_list
+    # probably want to return list of lines, list of paragraphs? attrvec for both? where attrs are 'is header' and offsets etc??
+    base_fname = os.path.basename(file_name)
+    para_index_list = []
+    para_attrs = []
+    print(">", abby_xml_doc.ab_pages)
+    for ab_page in abby_xml_doc.ab_pages:
+        page_num = ab_page.num
+        for ab_block in ab_page.ab_blocks:
+            block_num = ab_block.num
+            is_footer = ab_block.infer_attr_dict.get('footer', None)
+            is_header = ab_block.infer_attr_dict.get('header', None)
+            if not is_footer and not is_header:
+                for ab_par in ab_block.ab_pars:
+                    lines = ab_par.ab_lines
+                    from_se_list = [x.abby_pbox_offset_mapper.from_se_list for x in lines]
+                    print(">>>", from_se_list)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
