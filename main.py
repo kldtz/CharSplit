@@ -7,7 +7,7 @@ import logging
 import os
 import pprint
 import sys
-from typing import List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 # pylint: disable=import-error
 from sklearn.externals import joblib
@@ -133,9 +133,9 @@ def train_span_annotator(label: str,
                                             383838,
                                             'en',
                                             nbest,
-                                            candidate_types,
-                                            work_dir,
-                                            model_dir)
+                                            candidate_type=candidate_type,
+                                            work_dir=work_dir,
+                                            model_dir=model_dir)
 
 
 def eval_span_annotator(label: str,
@@ -171,15 +171,15 @@ def eval_line_annotator_with_trte(provision: str,
                                             is_doc_structure=is_doc_structure)
 
 
-def eval_mlxline_annotator_with_trte(provision: str,
-                                     txt_fn_list_fn: str,
-                                     work_dir: str,
-                                     model_dir: str):
+def eval_mlxline_annotator(provision: str,
+                           txt_fn_list_fn: str,
+                           work_dir: str,
+                           model_dir: str):
     # custom_model_dir is not used
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir='dir-scut-model')
-    eb_runner.eval_mlxline_annotator_with_trte(provision,
-                                               txt_fn_list_fn,
-                                               work_dir=work_dir)
+    eb_runner.eval_mlxline_annotator(provision,
+                                     txt_fn_list_fn,
+                                     work_dir=work_dir)
 
 
 # pylint: disable=too-many-arguments
@@ -279,7 +279,7 @@ def annotate_document(file_name: str,
                       model_dir: str,
                       custom_model_dir: str,
                       provision_set: Optional[Set[str]] = None,
-                      is_doc_structure: bool = True) -> None:
+                      is_doc_structure: bool = True) -> Dict[str, Any]:
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
     eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
@@ -313,7 +313,7 @@ def annotate_document(file_name: str,
     #                                                              'indemnify', 'jurisdiction',
     #                                                              'party', 'warranty',
     #                                                              'termination', 'term']))
-    pprint.pprint(prov_labels_map)
+    # pprint.pprint(prov_labels_map)
 
     eb_doccat_runner = None
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists('{}/{}'.format(model_dir,
@@ -324,6 +324,8 @@ def annotate_document(file_name: str,
     if eb_doccat_runner:
         doc_catnames = eb_doccat_runner.classify_document(file_name)
         pprint.pprint({'tags': doc_catnames})
+
+    return prov_labels_map
 
 
 # pylint: disable=too-many-branches, too-many-statements
@@ -419,7 +421,24 @@ def main():
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        print("\nannotate_document() result:")
+        prov_ants_map = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        pprint.pprint(dict(prov_ants_map))
+    elif cmd == 'print_doc_parties':
+        if not args.doc:
+            print('please specify --doc', file=sys.stderr)
+            sys.exit(1)
+        print("\nannotate_document() result:")
+        prov_ants_map = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        pprint.pprint(dict(prov_ants_map))
+        party_ant_list = prov_ants_map['party']
+        result = []
+        for party_ant in party_ant_list:
+            result.append((party_ant['start'],
+                           party_ant['end'],
+                           party_ant['text']))
+        print('\nparties:')
+        pprint.pprint(result)
     elif cmd == 'eval_line_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
@@ -438,10 +457,10 @@ def main():
         if not args.docs:
             print('please specify --docs', file=sys.stderr)
             sys.exit(1)
-        eval_mlxline_annotator_with_trte(args.provision,
-                                         txt_fn_list_fn,
-                                         work_dir=work_dir,
-                                         model_dir=model_dir)
+        eval_mlxline_annotator(args.provision,
+                               txt_fn_list_fn,
+                               work_dir=work_dir,
+                               model_dir=model_dir)
     elif cmd == 'split_provision_trte':
         if not args.provfiles_dir:
             print('please specify --provfiles_dir', file=sys.stderr)

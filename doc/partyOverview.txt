@@ -1,0 +1,160 @@
+PartyAnnotator.extract_provision_offsets(para_with_attrs, paras_text)
+    extract_offsets(para_with_attrs, paras_text)
+        extract_party_line(paras_attr_list)  # identify party-line or party-list-indicator
+                                             # return start-end-partyline, is-list-party, after-paras_attr_list
+            if found party-line or party-list-indicator-line
+                # get the parties-term from first or 2nd sentence
+                extract_parties_term_list_from_party_line(first_sent)
+
+                if found parties-term:
+                    adjust the offsets for parties-term
+                elif is party-list-indicator-line:
+                    extract_parties_term_lsit_from_list_lines(after_se_paras_attr_list)
+
+                # transform the results to the format expected offsets
+                parties_term_offset_lsit_to_partyterm_paris(parties_term_offset_list)
+
+
+extract_party_line(paras_attr_list)
+    find any line that might be party-list-indicator-line
+        - starts with 'between' or 'among'
+        - ends with 'between' or 'among'
+        - has list prefix, such as '(1)'
+    or party-line
+    return start-end-partyline, is-list-party, after-paras_attr_list
+
+
+extract_parties_term_list_from_party_line(line)
+    take text between
+      - after: 'for value received,', 'between-among'
+      - before: 'is entered into', 'agree', 'the principal amount'
+
+    if line starts with '(1)':
+        extract_parties_term_list_from_itemized_line(line)
+            - segment the line using itemize prefix pattern
+            - for each item segment, call
+                phrased_sent = nlputils.PhrasedSent(span_st)
+                parties_term_offset = parsed_sent.extract_orgs_term_offset()
+                add result to parties_term_offset_list
+    else:
+        phrased_sent = nlputils.PhrasedSent(line)
+        parties_term_offset_list = phrased_sent.extract_orgs_term_offset_list()
+
+    return result
+
+
+extract_parties_term_lsit_from_list_lines(se_after_paras_attr_list)
+    if the lines starts with list-prefix, such as '(1)':
+        go through each line until list-prefix is no longer true
+          - phrased_sent = nlputils.PhraseSent(line_no_prefix)
+            parties_term_offset = phrased_sent.extract_orgs_term_offset()
+    elif a special table format:  # this is just a temporary hack for difficult input
+        seline_attrs_to_tabled_party_list_terms(xxx)  # no explanation for now, too ad-hoc
+    else:
+        # assume each line starts with party name
+        # try maximum 3 times
+        nlputils.PhrasedSEnt(line)
+        parties_term_offset = phrased_sent.extract_orgs_term_offset()
+
+
+# Convert a fragment into chunks after going through
+#   - part-of-speech tagging
+#   - regex-based chunking to segment into noun phrase chunks based on part-of-speech tags
+#   - add back org-suffix and org-prefix information
+#   - create a more organization-aware chunks by merging adjacent noun-phrase chunks
+nlputils.PhraseSent(line)
+    - tokenize_to_span_chunks(line)
+        - replace certain quotes and fix minor OCR error issues for NLTK
+        - se_tok_list = get the start-end and tokens for line
+        - chunk_list = get_org_aware_chunks(line)
+            - chunkize_by_regex_grammar(line)
+                - certain terms are first replaced, such as "Bank of" is replaced as 'ZqZ0000', a temporary noun.
+                  This is useful because we want to be able to merge 'Bank of' later proper name, 'Bank of Canada'.
+                  Preposition is complicating things, so we want to remove them from normal chunking consideration.
+                - tokenization and chunk grammar is applied
+                - some special splitting is applied to avoid the case where a company name is followed by an
+                  address, WITHOUT any punctuation between them.  This is done by looking at org-suffix
+            - mark_an_org_not_org(chunk_list)
+                - look through the chunks and mark xORGP that starts with 'a', or uncapitalized 'the' as not xORGP
+                - 'Delaware corporation' is not an xORGP.  This capitalization thing is annoying.  'plc' or 'pic' (OCR)
+                  is often found in British docs, so allowing uncapitalized organization suffix for now.
+            - merge chunks that are
+                - have zip code to create 'xADDRESS'
+                    update_with_address()
+                - xORGP or xPV_ORG (prefix_organization, such as 'Bank of')
+                    update_with_org_person()
+                        - It is assume the current chunk is xORGP already and trying to expand it.
+                        - such an xORGP often has only org-suffix only
+                        - first find the end of chunk for this org phrase
+                            - merge right chunk if following condition applies
+                                - if paren or an article is found, break
+                                - comma, if there is less than 1 comma in this phrase
+                                - if 'of' is found followed by xORGP, merge those and break
+                                - if xPV_ORG is found, break
+                                - if no comma before and 'NNP' (not xORG) but all caps, merge
+                                - if xORG and such xORG has only words in org-suffix, merge
+                        - find the beginning of chunk for this org phrase
+                            - merge left chunk if following condition applies
+                                - xPV_ORG, merge and break
+                                - if current chunk is all caps and previous one also, merge
+                                - if xPAREN, merge 'Kodak (UK) Ltd'
+                                - has an article, merge and break
+                                - has comma, merge (maybe be removed if comma is first token in phrase later)
+                                - if chunk is xNNP, NNP, or xNN, merge
+                                - if chunk is digit() and previous chunk is xNNP, merge
+                                - handle 'and' in special way to take care of 'Johnson and Johnson'
+                        - create a new chunk by merging all the tokens found above
+                        - The above logic is the trickest part of the process to identify parties.  So far,
+                          it works ok.
+                          It based on 3 pieces of information:
+                              - tokens, such as punctuations
+                              - part-of-speech
+                              - which words are likely organization indicating, org-suffix and org-prefix
+                    update_with_prefix_org()
+                
+            
+        - convert chunk_list to span_chunk_list by merging se_tok and chunks
+
+phrased_sent.extract_orgs_term_offset():
+    - self.extract_orgs_term()
+        - calls extract_orgs_term_in_span_chunk_list(self.span_chunk_list)
+
+phrased_sent.extract_orgs_term_offset_list()
+    - self.extract_orgs_term_list(), this get the span_chunk_list result
+          - segment self.span_chunk_list further by
+            - 'between'
+            - 'and' followed by xORGP
+            - xPAREN followed by xORPG
+            - end of line
+          - each segment is now orgs_term_spchunk_list
+          - extract_orgs_term_in_span_chunk_list(orgs_term_spchunk_list)
+
+
+# This is what every phrased_sent.extract_orgs_term_*() calls
+extract_orgs_term_in_span_chunk_list(span_chunk_list):
+    - paren_list, collect a list of all xPAREN in the span_chunk_list
+    - org_list, collect a lsit of all xORGP in the span_chunk_list
+      - remove any xORGP that is not valid, such as containing word 'branch' or has '$' or 'this'
+    - if no org is found, take the first xNNP in the span_chunk_list as party;  probably a person name
+      that has no org-suffix
+    - for xPAREN, remove any that are invalid, such as has word 'date'
+        - if there are still multiple possibilities, tha the last one
+        - chop off the parenthesis
+        - if there is 'as' in the xPAREN, take those
+    - if there is no xPAREN, then try 'as'
+        - take whatever is after 'as'
+
+span_chunk has the following information:
+    - start
+    - end
+    - tok_idx
+    - nempty_tok_idx (excludes punctuations)
+    - chunk (provided by NLTK)
+    - text
+    - se_tok_list
+
+Note:
+  - party-line and party-list-indicator-line detection is performed in kirke/docstruct/partyutils.py
+    It is different from party line detection in ML in two ways
+      - it is rule-based, not machine learned
+      - it also detect party-list-indicator-line

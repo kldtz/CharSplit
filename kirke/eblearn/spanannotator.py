@@ -18,6 +18,7 @@ from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
 
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -66,10 +67,11 @@ def recover_false_negatives(prov_human_ant_list,
     return ant_result
 
 
+# pylint: disable=line-too-long
 def antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list: List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                                   List[Dict],
-                                                                   List[bool],
-                                                                   List[int]]]) \
+                                                                            List[Dict],
+                                                                            List[bool],
+                                                                            List[int]]]) \
         -> Tuple[List[Dict], List[bool], List[int]]:
     all_candidates = []  # type: List[Dict]
     all_candidate_labels = []  # type: List[bool]
@@ -86,7 +88,7 @@ def antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list: List[Tuple[eban
 
 class SpanAnnotator(baseannotator.BaseAnnotator):
 
-    # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-instance-attributes, too-many-locals
     def __init__(self,
                  provision: str,
                  candidate_types: List[str],
@@ -152,12 +154,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
     # pylint: disable=too-many-arguments
     def train_candidates(self,
-                      candidates: List[Dict],
-                      label_list: List[bool],
-                      group_id_list: List[int],
-                      pipeline: Pipeline,
-                      parameters: Dict,
-                      work_dir: str) -> None:
+                         candidates: List[Dict],
+                         label_list: List[bool],
+                         group_id_list: List[int],
+                         pipeline: Pipeline,
+                         parameters: Dict,
+                         work_dir: str) -> None:
         logger.info('spanannotator.train_candidates()...')
 
         logger.info("Performing grid search...")
@@ -251,7 +253,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         return self.ant_status, log_json
 
-
     # returns candidates, label_list, group_id_list
     # this also enriches candidates using additional self.candidate_transformers
     def documents_to_candidates(self,
@@ -287,7 +288,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             threshold = self.threshold
         nbest = self.nbest
         start_time = time.time()
-        candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
+        candidates, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir)
 
         end_time = time.time()
         logger.debug('annotate_antdoc(%s, %s) took %.0f msec',
@@ -295,7 +296,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         prov_annotations = candidates
         x_threshold = threshold
-        
+
         prov_annotations = recover_false_negatives(prov_human_ant_list,
                                                    eb_antdoc.get_text(),
                                                    self.provision,
@@ -344,7 +345,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def predict_antdoc(self,
                        eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
-        # logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
         text = eb_antdoc.get_text()
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
@@ -359,7 +360,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             probs = self.estimator.predict_proba(candidates)[:, 1]
 
         # to indicate which type of annotation this is
-        for i, (candidate, prob) in enumerate(zip(candidates, probs)):
+        for candidate, prob in zip(candidates, probs):
             candidate['label'] = self.provision
             candidate['prob'] = prob
             candidate['text'] = text[candidate['start']:candidate['end']]

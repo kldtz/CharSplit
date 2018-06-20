@@ -217,6 +217,7 @@ def validate_annotator_config_keys(aconfig: Tuple[str, str, Dict]) -> bool:
                            'threshold',
                            'gridsearch_parameters',
                            'kfold',
+                           'text_type',
                            'rule_engine']):
             logger.warning('invalid key, %s, in %s %s config',
                            key, label, version)

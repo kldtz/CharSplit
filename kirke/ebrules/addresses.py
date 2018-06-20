@@ -105,6 +105,8 @@ ZIP_CODE_FORMATS = [re.compile(r'\b\d{5}[-\s]+\d{4}\b'),
 ALNUM_SET = set(string.ascii_letters).union(string.digits)
 NON_ALNUM = re.compile(r'[^A-Za-z\d]')
 
+UK_ZIP_PAT = re.compile(r'\b' + UK_STD + r'\b')
+
 
 def split(s, num_chunks):
     """Splits a string into the indicated number of chunks."""
@@ -122,6 +124,10 @@ def find_digit_features(s, num_chunks):
 def find_zip_code_features(s):
     """Returns a dictionary of whether each zip code pattern is in a string."""
     return {str(z): bool(z.search(s)) for z in ZIP_CODE_FORMATS}
+
+
+def find_uk_zip_code(line: str) -> bool:
+    return bool(UK_ZIP_PAT.search(line))
 
 
 def find_keyword_features(s, keywords):

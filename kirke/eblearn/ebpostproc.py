@@ -1,13 +1,14 @@
 # pylint: disable=too-many-lines
 
 from abc import ABC, abstractmethod
-import copy
+
 import re
 from operator import itemgetter
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties
-from kirke.utils import evalutils, entityutils, mathutils, stopwordutils, strutils
+from kirke.utils import evalutils, entityutils, mathutils, nlputils, stopwordutils, strutils
 from kirke.utils.ebsentutils import EbEntityType, ProvisionAnnotation
 
 PROVISION_PAT_MAP = {
@@ -23,12 +24,22 @@ PROVISION_PAT_MAP = {
     'term': (re.compile(r'[“"]Termination\s+Date[”"]', re.IGNORECASE | re.DOTALL), 1.0)
 }
 
-def to_ant_result_dict(label: str, prob: float, start: int, end: int, text: str) -> Dict:
-    return {'label': label,
-            'prob': prob,
-            'start': start,
-            'end':  end,
-            'text': text}
+# pylint: disable=too-many-arguments
+def to_ant_result_dict(label: str,
+                       prob: float,
+                       start: int,
+                       end: int,
+                       text: str,
+                       entity_id: int = -1) -> Dict:
+    out = {'label': label,
+           'prob': prob,
+           'start': start,
+           'end':  end,
+           'text': text}
+    if entity_id != -1:
+        out['id'] = entity_id
+    return out
+
 
 # pylint: disable=too-few-public-methods
 class ConciseProbAttrvec:
@@ -230,33 +241,47 @@ class PostPredPartyProc(EbPostPredictProcessing):
                                                              prov_human_ant_list)
             if cx_prob_attrvec.prob >= threshold or sent_overlap:
                 sent_st = doc_text[cx_prob_attrvec.start:cx_prob_attrvec.end]
-                #first tries to extract parties with regex
-                extr_parties = parties.extract_parties_from_party_line('(1) ' + sent_st,
-                                                                       is_party=True)
-                if extr_parties:
-                    for extr in extr_parties:
-                        if parties.is_invalid_party(extr[0]):
-                            continue
-                        if len(extr[0].split()) == 1 and not parties.is_valid_1word_party(extr[0]):
-                            continue
-                        else:
-                            for part in extr:
-                                mat = re.search(re.escape(part), sent_st, re.I)
-                                if mat:
-                                    ant_start, ant_end = mat.span()
-                                    #adds only if it's in close proximity to the last party line
-                                    if not last_result or count - last_result < 10:
-                                        last_result = count
-                                        ant_result.append(
-                                            to_ant_result_dict(label=self.provision,
-                                                               prob=cx_prob_attrvec.prob,
-                                                               # pylint: disable=line-too-long
-                                                               start=cx_prob_attrvec.start+ant_start,
-                                                               end=cx_prob_attrvec.start+ant_end,
-                                                               # pylint: disable=line-too-long
-                                                               text=strutils.sub_nltab_with_space(cx_prob_attrvec.text)))
-                                else:
-                                    continue
+
+                first_sent = nlputils.first_sentence(sent_st)
+                # First, extract parties-term using rules
+                # If that fails, then try use entities from CoreNLP
+                parties_term_offset_list = \
+                    parties.extract_parties_term_list_from_party_line(first_sent)
+
+                if parties_term_offset_list:
+                    # need to adjust the offset because used first_sent
+                    parties_term_offset_list = \
+                        parties.adjust_start_offset_ptoffset_list(parties_term_offset_list,
+                                                                  cx_prob_attrvec.start)
+                    # pylint: disable=line-too-long
+                    partyterm_pairs = \
+                        parties.parties_term_offset_list_to_partyterm_pairs(parties_term_offset_list)
+
+                    party_id = 0
+                    for party_term_pair in partyterm_pairs:
+                        party_se, term_se = party_term_pair
+                        party_id += 1
+                        if party_se:
+                            pstart, pend = party_se
+                            pst = doc_text[pstart:pend]
+                            ant_result.append(
+                                to_ant_result_dict(label=self.provision,
+                                                   prob=0.92,
+                                                   start=pstart,
+                                                   end=pend,
+                                                   entity_id=party_id,
+                                                   text=strutils.sub_nltab_with_space(pst)))
+                        if term_se:
+                            pstart, pend = term_se
+                            pst = doc_text[pstart:pend]
+                            ant_result.append(
+                                to_ant_result_dict(label=self.provision,
+                                                   prob=0.92,
+                                                   start=pstart,
+                                                   end=pend,
+                                                   entity_id=party_id,
+                                                   text=strutils.sub_nltab_with_space(pst)))
+
                 #uses entities if party extraction fails
                 else:
                     for entity in cx_prob_attrvec.entities:
@@ -1586,7 +1611,7 @@ PROVISION_POSTPROC_MAP = {
     'l_tenant_lessee': PostPredLandlordTenantProc('l_tenant_lessee'),
     'party': PostPredPartyProc(),
     'sigdate': PostPredBestDateProc('sigdate'),
-    'title': PostPredTitleProc(), 
+    'title': PostPredTitleProc(),
 }
 
 
@@ -1595,5 +1620,3 @@ def obtain_postproc(provision):
     if not postproc:
         postproc = PROVISION_POSTPROC_MAP['default']
     return postproc
-
-

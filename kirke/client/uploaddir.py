@@ -52,8 +52,9 @@ def upload_train_dir(url_st: str, upload_dir: str, candidate_type: str, nbest: i
     print("Number of file uploaded: {}".format(len(file_tuple_list)))
     # print("file_tuple_list = {}".format(file_tuple_list))
     # payload = {'custom_id': 'custom_id2'}
-    req = requests.post(url_st, files=file_tuple_list, data=payload, timeout=6000)
-    print(req.text)
+    resp = requests.post(url_st, files=file_tuple_list, data=payload, timeout=6000)
+    print(resp.text)
+
 
 
 # pylint: disable=C0103

@@ -25,6 +25,7 @@ from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s : %(levelname)s : %(message)s')
+
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.WARN)
@@ -295,14 +296,14 @@ class EbRunner:
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
 
-                # if we loaded this for a particular custom field type ("cust_52")
-                # it must produce annotations with that label, not with whatever is "embedded"
-                # in the saved model file (since the file could have been imported from
-                # another server)
+                # if we loaded this for a particular custom field type ("cust_52"),
+                # it must produce annotations with that label, not with whatever is "embedded" in
+                # the saved model file (since the file could have been imported from another server)
+
                 prov_name = cust_id_ver.split('.')[0]
-                logging.info('updating custom provision model to annotate with %s', prov_name)
+                logger.info('updating custom provision model to annotate with %s', prov_name)
                 # print(prov_classifier)
-                logging.info(prov_classifier)
+                logger.info(prov_classifier)
                 prov_classifier.provision = prov_name
                 if hasattr(prov_classifier, 'transformer'):
                     # only for scut_classifiers
@@ -359,9 +360,8 @@ class EbRunner:
             provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
             provision_set.update(self.provisions)
             # also get ALL custom provision set, since we are doing testing
-            print("custom_model_dir: {}".format(self.custom_model_dir))
-            print("provision_set: {}".format(provision_set))
-
+            logger.info("custom_model_dir: %s", self.custom_model_dir)
+            logger.info("provision_set: %r", provision_set)
 
         #else:
         #    logger.info('user specified provision list: %s', provision_set)
@@ -449,8 +449,11 @@ class EbRunner:
                 fromtomapper.paras_to_fromto_lists(paras_with_attrs)
 
             # there is no offset map because paraline is the same
-            self.apply_line_annotators_aux(prov_labels_map, paras_with_attrs, para_doc_text,
-                                           nlp_sx_lnpos_list, origin_sx_lnpos_list,
+            self.apply_line_annotators_aux(prov_labels_map,
+                                           paras_with_attrs,
+                                           para_doc_text,
+                                           nlp_sx_lnpos_list,
+                                           origin_sx_lnpos_list,
                                            eb_antdoc.get_nl_text())
         else:
             self.apply_line_annotators_aux(prov_labels_map,
@@ -626,10 +629,10 @@ class EbRunner:
 
     # this function is here because it is a combination of both ML and rule-based annotator
     # pylint: disable=invalid-name
-    def eval_mlxline_annotator_with_trte(self,
-                                         provision: str,
-                                         test_doclist_fn: str,
-                                         work_dir: str = 'dir-work') -> Dict:
+    def eval_mlxline_annotator(self,
+                               provision: str,
+                               test_doclist_fn: str,
+                               work_dir: str = 'dir-work') -> Dict:
         # test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
         num_test_doc = 0
         tp, fn, fp, tn = 0, 0, 0, 0
@@ -641,21 +644,21 @@ class EbRunner:
             for test_fn in testin:
                 num_test_doc += 1
                 test_fn = test_fn.strip()
-                prov_labels_map, ebantdoc = self.annotate_document(test_fn,
-                                                                   provision_set=set([provision]),
-                                                                   work_dir=work_dir)
+                prov_labels_map, eb_antdoc = self.annotate_document(test_fn,
+                                                                    provision_set=set([provision]),
+                                                                    work_dir=work_dir)
                 ant_list = prov_labels_map.get(provision, [])
 
-                print("\ntest_fn = {}".format(test_fn))
-                print("ant_list: {}".format(ant_list))
-
-                print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
+                # print("\ntest_fn = {}".format(test_fn))
                 # print("ant_list: {}".format(ant_list))
-                prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
+
+                print('ebantdoc.fileid = {}'.format(eb_antdoc.file_id))
+                # print("ant_list: {}".format(ant_list))
+                prov_human_ant_list = [hant for hant in eb_antdoc.prov_annotation_list
                                        if hant.label == provision]
 
                 ant_list = self.recover_false_negatives(prov_human_ant_list,
-                                                        ebantdoc.get_text(),
+                                                        eb_antdoc.get_text(),
                                                         provision,
                                                         ant_list)
 
@@ -667,15 +670,15 @@ class EbRunner:
                     xtp, xfn, xfp, xtn, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
-                                                                         ebantdoc.file_id,
-                                                                         ebantdoc.get_text(),
+                                                                         eb_antdoc.file_id,
+                                                                         eb_antdoc.get_text(),
                                                                          diagnose_mode=True)
                 else:
                     xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
                                                                 ant_list,
-                                                                ebantdoc.file_id,
-                                                                ebantdoc.get_text(),
+                                                                eb_antdoc.file_id,
+                                                                eb_antdoc.get_text(),
                                                                 threshold,
                                                                 is_raw_mode=False,
                                                                 diagnose_mode=True)
@@ -724,8 +727,8 @@ class EbRunner:
                                                                    work_dir=work_dir)
                 ant_list = prov_labels_map.get(provision, [])
 
-                print("\ntest_fn = {}".format(test_fn))
-                print("ant_list: {}".format(ant_list))
+                # print("\ntest_fn = {}".format(test_fn))
+                # print("ant_list: {}".format(ant_list))
 
                 print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
                 # print("ant_list: {}".format(ant_list))
@@ -767,7 +770,6 @@ class EbRunner:
         print("len({}) = {}".format(test_doclist_fn, num_test_doc))
 
         return tmp_eval_status
-
 
     # pylint: disable=no-self-use
     def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
