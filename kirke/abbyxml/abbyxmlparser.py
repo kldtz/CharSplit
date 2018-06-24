@@ -784,6 +784,19 @@ def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
         if is_merge_occurred:
             abby_page.ab_blocks = out_block_list
 
+def get_page_abby_lines(abby_page: AbbyPage) -> List[AbbyLine]:
+    ab_line_list = []  # type: List[AbbyLine]
+    for ab_block in abby_page.ab_text_blocks:
+        for ab_par in ab_block.ab_pars:
+            ab_line_list.extend(ab_par.ab_lines)
+
+    for ab_block in abby_page.ab_table_blocks:
+        for ab_row in ab_block.ab_rows:
+            for ab_cell in ab_row.ab_cells:
+                for ab_par in ab_cell.ab_pars:
+                    ab_line_list.extend(ab_par.ab_lines)
+    return ab_line_list
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Section Headings.')

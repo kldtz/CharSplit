@@ -83,4 +83,3 @@ def has_indent_2_attr(attr_dict: Dict) -> bool:
         if attr.startswith('indent_2'):
             return True
     return False
-

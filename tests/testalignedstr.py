@@ -17,21 +17,25 @@ class TestAlingedStr(unittest.TestCase):
         smapper = AlignedStrMapper(line1, line2)
         self.assertEqual(smapper.get_to_offset(9),
                          5)
+        self.assertTrue(smapper.is_fully_synced)
 
         # test the reverse
         smapper = AlignedStrMapper(line2, line1)
         self.assertEqual(smapper.get_to_offset(5),
                          9)
+        self.assertTrue(smapper.is_fully_synced)
 
         line1 = 'Hi     Mary  '
         line2 = 'Hi Mary          '
         smapper = AlignedStrMapper(line1, line2)
         self.assertEqual(smapper.get_to_offset(9),
                          5)
+        self.assertTrue(smapper.is_fully_synced)
 
         smapper = AlignedStrMapper(line2, line1)
         self.assertEqual(smapper.get_to_offset(5),
                          9)
+        self.assertTrue(smapper.is_fully_synced)
 
         """
         with self.assertRaises(Exception) as context:
@@ -44,6 +48,30 @@ class TestAlingedStr(unittest.TestCase):
         line2 = 'Hi Mary'
         smapper = AlignedStrMapper(line1, line2)
         """
+
+        line1 = 'LAND REGISTRY PRESCRIBED LEASE CLAUSES ________________________________I'
+        line2 = 'LAND REGISTRY PRESCRIBED LEASE CLAUSES _I'
+        smapper = AlignedStrMapper(line1, line2)
+        self.assertEquals(smapper.from_se_list,
+                          [(0, 40), (71, 72)])
+        self.assertEquals(smapper.to_se_list,
+                          [(0, 40), (40, 41)])
+
+        line1 = '2.    THE LETTING TERMS_2'
+        line2 = '2. THE LETTING TERMS__________________________________________________'
+        smapper = AlignedStrMapper(line1, line2)
+        self.assertEquals(smapper.from_se_list,
+                          [(0, 3), (6, 24)])
+        self.assertEquals(smapper.to_se_list,
+                          [(0, 3), (3, 21)])
+
+        # now check the reverse
+        smapper = AlignedStrMapper(line2, line1)
+        self.assertEquals(smapper.from_se_list,
+                          [(0, 3), (3, 21)])
+        self.assertEquals(smapper.to_se_list,
+                          [(0, 3), (6, 24)])
+
 
     def test_failed_aligned_str(self):
 
@@ -89,4 +117,21 @@ class TestAlingedStr(unittest.TestCase):
             self.assertTrue("character diff at 1, char '.'"
                             in str(context.exception))
         """
+
+
+    def test_extra_fse_tse(self):
+
+        line1 = '2.    THE LETTING TERMS_2'
+        line2 = '2. THE LETTING TERMS__________________________________________________'
+        smapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(smapper.extra_fse,
+                         (24, 25))
+        self.assertIsNone(smapper.extra_tse,
+                         None)
+
+        # now check the reverse
+        smapper = AlignedStrMapper(line2, line1)
+        self.assertIsNone(smapper.extra_fse)
+        self.assertEqual(smapper.extra_tse,
+                          (24, 25))
 

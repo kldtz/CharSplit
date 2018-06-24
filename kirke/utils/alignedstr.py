@@ -1,5 +1,5 @@
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 
 def is_space_uline(line: str) -> bool:
@@ -9,13 +9,22 @@ def is_space_uline(line: str) -> bool:
 class AlignedStrMapper:
 
     def __init__(self, from_line: str, to_line: str, offset: int = 0) -> None:
+        self.is_fully_synced = False
+        self.extra_fse, self.extra_tse = None, None
+
         if offset == -1:
             self.from_se_list = []
             self.to_se_list = []
         else:
-            from_se_list, to_se_list = self.compute_se_list(from_line, to_line, offset)
+            from_se_list, to_se_list, extra_fse, extra_tse = \
+                self.compute_se_list(from_line, to_line, offset)
             self.from_se_list = from_se_list
             self.to_se_list = to_se_list
+            if not extra_fse and not extra_tse:
+                self.is_fully_synced = True
+            else:
+                self.extra_fse = extra_fse
+                self.extra_tse = extra_tse
 
     # pylint: disable=invalid-name
     def get_to_offset(self, x: int) -> int:
@@ -36,12 +45,20 @@ class AlignedStrMapper:
         return [(offset + start, offset + end)
                 for start, end in se_list]
 
+    def add_aligned_se_pair(self, aligned_se_pair: Tuple[int, int]) -> None:
+        self.from_se_list.append(aligned_se_pair)  # the offset is not correct now
+        self.to_se_list.append(aligned_se_pair)
+
     # pylint: disable=too-many-branches
     def compute_se_list(self, from_line: str, to_line: str, offset: int) \
         -> Tuple[List[Tuple[int, int]],
-                 List[Tuple[int, int]]]:
+                 List[Tuple[int, int]],
+                 Optional[Tuple[int, int]],
+                 Optional[Tuple[int, int]]]:
         fidx, tidx = 0, 0
         flen, tlen = len(from_line), len(to_line)
+        # fse = from_line's extra start-end, tse=to_line's start-end
+        extra_fse, extra_tse = None, None
 
         from_se_list = []
         to_se_list = []
@@ -101,7 +118,8 @@ class AlignedStrMapper:
                         # Don't add empty spans
                         # from_se_list.append((fstart, fidx))
                         # to_se_list.append((tstart, tidx))
-                        pass
+                        extra_fse = (fi2, flen)
+                        # pass
                     else:
                         raise Exception("Character diff at %d, char '%s'" %
                                         (offset + fidx, from_line[fidx]))
@@ -111,7 +129,8 @@ class AlignedStrMapper:
                     # print("tlen = {}, ti2 = {}, tidx = {}, tstart= {}".format(tlen, ti2, tidx, tstart))
                     if tlen - ti2 <= 3 and \
                        fidx > 10:
-                        pass
+                        extra_tse = (ti2, tlen)
+                        # pass
                     else:
                         raise Exception("Character diff at %d, eoln" %
                                         (offset + fidx, ))
@@ -119,7 +138,7 @@ class AlignedStrMapper:
         # print('flen = {}, tlen = {}'.format(flen, tlen))
         # print("from_se_list: {}".format(from_se_list))
         # print("to_se_list: {}".format(to_se_list))
-        return self.add_offset(from_se_list, offset), self.add_offset(to_se_list, offset)
+        return self.add_offset(from_se_list, offset), self.add_offset(to_se_list, offset), extra_fse, extra_tse
 
 
 def make_aligned_str_mapper(fromto_se_pair_list: List[Tuple[Tuple[int, int],
