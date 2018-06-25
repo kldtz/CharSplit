@@ -2,8 +2,6 @@
 
 import unittest
 
-import logging
-
 from kirke.utils.alignedstr import AlignedStrMapper
 
 
@@ -37,40 +35,28 @@ class TestAlingedStr(unittest.TestCase):
                          9)
         self.assertTrue(smapper.is_fully_synced)
 
-        """
-        with self.assertRaises(Exception) as context:
-            smapper = AlignedStrMapper(line1, line2)
-            logging.warning('eee: [{}]'.format(str(context.exception)))
-            self.assertTrue("character diff at 1, char '.'"
-                            in str(context.exception))
-
-        line1 = 'Hi John'
-        line2 = 'Hi Mary'
-        smapper = AlignedStrMapper(line1, line2)
-        """
-
         line1 = 'LAND REGISTRY PRESCRIBED LEASE CLAUSES ________________________________I'
         line2 = 'LAND REGISTRY PRESCRIBED LEASE CLAUSES _I'
         smapper = AlignedStrMapper(line1, line2)
-        self.assertEquals(smapper.from_se_list,
-                          [(0, 40), (71, 72)])
-        self.assertEquals(smapper.to_se_list,
-                          [(0, 40), (40, 41)])
+        self.assertEqual(smapper.from_se_list,
+                         [(0, 40), (71, 72)])
+        self.assertEqual(smapper.to_se_list,
+                         [(0, 40), (40, 41)])
 
         line1 = '2.    THE LETTING TERMS_2'
         line2 = '2. THE LETTING TERMS__________________________________________________'
         smapper = AlignedStrMapper(line1, line2)
-        self.assertEquals(smapper.from_se_list,
-                          [(0, 3), (6, 24)])
-        self.assertEquals(smapper.to_se_list,
-                          [(0, 3), (3, 21)])
+        self.assertEqual(smapper.from_se_list,
+                         [(0, 3), (6, 24)])
+        self.assertEqual(smapper.to_se_list,
+                         [(0, 3), (3, 21)])
 
         # now check the reverse
         smapper = AlignedStrMapper(line2, line1)
-        self.assertEquals(smapper.from_se_list,
-                          [(0, 3), (3, 21)])
-        self.assertEquals(smapper.to_se_list,
-                          [(0, 3), (6, 24)])
+        self.assertEqual(smapper.from_se_list,
+                         [(0, 3), (3, 21)])
+        self.assertEqual(smapper.to_se_list,
+                         [(0, 3), (6, 24)])
 
 
     def test_failed_aligned_str(self):
@@ -137,46 +123,25 @@ class TestAlingedStr(unittest.TestCase):
         self.assertIsNone(smapper.extra_tse)
 
         line1 = 'Hi John'
-        try:
-            smapper = AlignedStrMapper(line1, line2)
-        except Exception as e:
-            print("e: [{}]".format(e))
-            self.assertEquals("Character2 diff at 3, char 'J', weird",
-                              str(e))
+        smapper = AlignedStrMapper(line1, line2)
+        self.assertFalse(smapper.is_aligned)
+
 
         line1 = 'xHi John'
-        try:
-            smapper = AlignedStrMapper(line1, line2)
-        except Exception as e:
-            print("e: [{}]".format(e))
-            self.assertEquals("Character1 diff at 0, char 'x'",
-                              str(e))
-
-
-
-        # self.assertRaises() doesn't seem to work
-        # always passes regardless what are passed in.
-        """
-        with self.assertRaises(Exception) as context:
-            smapper = AlignedStrMapper(line1, line2)
-            self.assertTrue("character diff at 1, char '.'"
-                            in str(context.exception))
-        """
-
+        smapper = AlignedStrMapper(line1, line2)
+        self.assertFalse(smapper.is_aligned)
 
     def test_extra_fse_tse(self):
-
         line1 = '2.    THE LETTING TERMS_2'
         line2 = '2. THE LETTING TERMS__________________________________________________'
         smapper = AlignedStrMapper(line1, line2)
         self.assertEqual(smapper.extra_fse,
                          (24, 25))
         self.assertIsNone(smapper.extra_tse,
-                         None)
+                          None)
 
         # now check the reverse
         smapper = AlignedStrMapper(line2, line1)
         self.assertIsNone(smapper.extra_fse)
         self.assertEqual(smapper.extra_tse,
-                          (24, 25))
-
+                         (24, 25))
