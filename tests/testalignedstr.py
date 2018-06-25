@@ -75,28 +75,73 @@ class TestAlingedStr(unittest.TestCase):
 
     def test_failed_aligned_str(self):
 
+        line1 = 'I'
+        line2 = 'I166'
+        smapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(smapper.from_se_list,
+                         [(0, 1)])
+        self.assertEqual(smapper.to_se_list,
+                         [(0, 1)])
+        self.assertIsNone(smapper.extra_fse)
+        self.assertEqual(smapper.extra_tse,
+                         (1, 4))
+
+        smapper = AlignedStrMapper(line2, line1)
+        self.assertEqual(smapper.from_se_list,
+                         [(0, 1)])
+        self.assertEqual(smapper.to_se_list,
+                         [(0, 1)])
+        self.assertEqual(smapper.extra_fse,
+                         (1, 4))
+        self.assertIsNone(smapper.extra_tse)
+
         line1 = 'Hi  Mary.'
         line2 = 'Hi Mary'
-        try:
-            smapper = AlignedStrMapper(line1, line2)
-        except Exception as e:
-            print("e: [{}]".format(e))
-            self.assertEquals("Character diff at 8, char '.'",
-                              str(e))
+        smapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(smapper.from_se_list,
+                         [(0, 3), (4, 8)])
+        self.assertEqual(smapper.to_se_list,
+                         [(0, 3), (3, 7)])
+        self.assertEqual(smapper.extra_fse,
+                         (8, 9))
+        self.assertIsNone(smapper.extra_tse)
 
-        try:
-            smapper = AlignedStrMapper(line2, line1)
-        except Exception as e:
-            print("e: [{}]".format(e))
-            self.assertEquals("Character diff at 7, eoln",
-                              str(e))
+        smapper = AlignedStrMapper(line2, line1)
+        self.assertEqual(smapper.from_se_list,
+                         [(0, 3), (3, 7)])
+        self.assertEqual(smapper.to_se_list,
+                         [(0, 3), (4, 8)])
+        self.assertIsNone(smapper.extra_fse)
+        self.assertEqual(smapper.extra_tse,
+                         (8, 9))
+
+        line1 = 'Hi  Mary_'
+        line2 = 'Hi Mary'
+        smapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(smapper.from_se_list,
+                         [(0, 3), (4, 8)])
+        self.assertEqual(smapper.to_se_list,
+                         [(0, 3), (3, 7)])
+        self.assertEqual(smapper.extra_fse,
+                         (8, 9))
+        self.assertIsNone(smapper.extra_tse)
+
+        line1 = 'Hi  Mary__'
+        line2 = 'Hi Mary_'
+        smapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(smapper.from_se_list,
+                         [(0, 3), (4, 9)])
+        self.assertEqual(smapper.to_se_list,
+                         [(0, 3), (3, 8)])
+        self.assertIsNone(smapper.extra_fse)
+        self.assertIsNone(smapper.extra_tse)
 
         line1 = 'Hi John'
         try:
             smapper = AlignedStrMapper(line1, line2)
         except Exception as e:
             print("e: [{}]".format(e))
-            self.assertEquals("Character diff at 3, char 'J'",
+            self.assertEquals("Character2 diff at 3, char 'J', weird",
                               str(e))
 
         line1 = 'xHi John'
@@ -104,7 +149,7 @@ class TestAlingedStr(unittest.TestCase):
             smapper = AlignedStrMapper(line1, line2)
         except Exception as e:
             print("e: [{}]".format(e))
-            self.assertEquals("Character diff at 0, char 'x'",
+            self.assertEquals("Character1 diff at 0, char 'x'",
                               str(e))
 
 

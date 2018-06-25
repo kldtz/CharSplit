@@ -148,6 +148,9 @@ class UnmatchedAbbyLine:
         self.ab_line = ab_line
         self.ab_page = ab_page
 
+    def __str__(self):
+        return str(self.ab_line)
+
 
 def _is_par_centered(attr_dict: Dict) -> bool:
     for attr, val in attr_dict.items():

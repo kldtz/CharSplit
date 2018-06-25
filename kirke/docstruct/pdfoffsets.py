@@ -241,7 +241,7 @@ class PDFTextDoc:
         print('wrote {}'.format(paged_fname), file=sys.stderr)
 
     def save_str_text(self, file: TextIO) -> None:
-        lineinfo_list = []
+        lineinfo_list = []  # type: List[LineInfo3]
         doc_text = self.doc_text
         for page_num, page in enumerate(self.page_list):
             print('pbox page #{} ========================='.format(page_num), file=file)
