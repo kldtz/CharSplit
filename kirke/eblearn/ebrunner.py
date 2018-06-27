@@ -16,7 +16,7 @@ import psutil
 from sklearn.externals import joblib
 
 from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
-from kirke.eblearn import ebannotator, ebtrainer, lineannotator, provclassifier
+from kirke.eblearn import ebannotator, ebpostproc, ebtrainer, lineannotator, provclassifier
 from kirke.eblearn import scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import ebantdoc4, evalutils, lrucache, osutils, strutils
@@ -274,6 +274,17 @@ class EbRunner:
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
 
+                # if we loaded this for a particular custom field type ("cust_52")
+                # it must produce annotations with that label, not with whatever is "embedded"
+                # in the saved model file (since the file could have been imported from another server)
+                prov_name = cust_id_ver.split('.')[0]
+                logging.info('updating custom provision model to annotate with %s', prov_name)
+                # print(prov_classifier)
+                logging.info(prov_classifier)
+                prov_classifier.provision = prov_name
+                if hasattr(prov_classifier, 'transformer'):
+                    # only for scut_classifiers
+                    prov_classifier.transformer.provision = prov_name
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))
                 provision_classifier_map[cust_id_ver] = prov_classifier
@@ -300,7 +311,6 @@ class EbRunner:
                                                                    self.work_dir,
                                                                    threshold=prov_threshold)
                 self.custom_annotator_map.set(provision, xxx_annotator)
-
 
             total_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
             avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
@@ -623,6 +633,11 @@ class EbRunner:
                 prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                        if hant.label == provision]
 
+                ant_list = self.recover_false_negatives(prov_human_ant_list,
+                                                        ebantdoc.get_text(),
+                                                        provision,
+                                                        ant_list)
+
                 # print("\nfn: {}".format(ebantdoc.file_id))
                 # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
                 # pred_prob_start_end_list, txt)
@@ -732,6 +747,21 @@ class EbRunner:
 
         return tmp_eval_status
 
+
+    # pylint: disable=no-self-use
+    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
+        if not prov_human_ant_list:
+            return ant_result
+        for ant in prov_human_ant_list:
+            if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
+                clean_text = strutils.sub_nltab_with_space(doc_text[ant.start:ant.end])
+                fn_ant = ebpostproc.to_ant_result_dict(label=provision,
+                                                       prob=0.0,
+                                                       start=ant.start,
+                                                       end=ant.end,
+                                                       text=clean_text)
+                ant_result.append(fn_ant)
+        return ant_result
 
 
 # pylint: disable=too-few-public-methods
