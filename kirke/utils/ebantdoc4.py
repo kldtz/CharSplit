@@ -2,7 +2,6 @@
 import array
 from array import ArrayType
 import concurrent.futures
-import configparser
 from enum import Enum
 import json
 import logging
@@ -10,7 +9,6 @@ import os
 import re
 import shutil
 import sys
-import tempfile
 import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
@@ -26,16 +24,9 @@ from kirke.utils.textoffset import TextCpointCunitMapper
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
-config = configparser.ConfigParser()
-config.read('kirke.ini')
-
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.INFO)
 logger.setLevel(logging.DEBUG)
-
-EB_FILES = os.environ['EB_FILES']
-KIRKE_TMP_DIR = EB_FILES + config['ebrevia.com']['KIRKE_TMP']
-osutils.mkpath(KIRKE_TMP_DIR)
 
 CORENLP_JSON_VERSION = '1.6'
 EBANTDOC_VERSION = '1.8'
@@ -408,9 +399,10 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
         t2_start_time = time.time()
-        tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
-        joblib.dump(eb_antdoc, tmpFileName.name)
-        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        # tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
+        # joblib.dump(eb_antdoc, tmpFileName.name)
+        # shutil.move(tmpFileName.name, eb_antdoc_fn)
+        osutils.joblib_atomic_dump(eb_antdoc, eb_antdoc_fn)
         t2_end_time = time.time()
         if (t2_end_time - t2_start_time) * 1000 > 30000:
             logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
@@ -524,9 +516,10 @@ def html_to_ebantdoc4(txt_file_name: str,
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
         t2_start_time = time.time()
-        tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
-        joblib.dump(eb_antdoc, tmpFileName.name)
-        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        # tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
+        # joblib.dump(eb_antdoc, tmpFileName.name)
+        # shutil.move(tmpFileName.name, eb_antdoc_fn)
+        osutils.joblib_atomic_dump(eb_antdoc, eb_antdoc_fn)
         t2_end_time = time.time()
         if (t2_end_time - t2_start_time) * 1000 > 30000:
             logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
@@ -666,9 +659,10 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
         t2_start_time = time.time()
-        tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
-        joblib.dump(eb_antdoc, tmpFileName.name)
-        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        # tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
+        # joblib.dump(eb_antdoc, tmpFileName.name)
+        # shutil.move(tmpFileName.name, eb_antdoc_fn)
+        osutils.joblib_atomic_dump(eb_antdoc, eb_antdoc_fn)
         t2_end_time = time.time()
         if (t2_end_time - t2_start_time) * 1000 > 30000:
             logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
@@ -708,7 +702,8 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
                 logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
                             work_dir, txt_base_fname, doc_lang, len(doc_text))
                 corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
-                strutils.dumps(json.dumps(corenlp_json), json_fn)
+                # strutils.dumps(json.dumps(corenlp_json), json_fn)
+                osutils.atomic_dumps(json.dumps(corenlp_json), json_fn)
                 end_time = time.time()
                 logger.info("wrote cache file: %s, took %.0f msec",
                             json_fn, (end_time - start_time) * 1000)
@@ -716,7 +711,8 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
             logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
                         work_dir, txt_base_fname, doc_lang, len(doc_text))
             corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
-            strutils.dumps(json.dumps(corenlp_json), json_fn)
+            # strutils.dumps(json.dumps(corenlp_json), json_fn)
+            osutils.atomic_dumps(json.dumps(corenlp_json), json_fn)
             end_time = time.time()
             logger.info("wrote cache file: %s, took %.0f msec",
                         json_fn, (end_time - start_time) * 1000)
@@ -863,6 +859,7 @@ def doclist_to_ebantdoc_list(doclist_file: str,
 
 
 # Just an alias, in case anyone prefer this.
+# pylint: disable=invalid-name
 def doclist_to_ebantdoc_list_no_corenlp(doclist_file: str,
                                         work_dir: str,
                                         is_bespoke_mode: bool = False,
