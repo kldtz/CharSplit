@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 import logging
 import re
 import sys
 # pylint: disable=unused-import
-from typing import Dict, List, Match, Optional, Set, TextIO, Tuple
+from typing import Dict, List, Match, Optional, TextIO, Tuple
 
 from kirke.abbyxml import abbyxmlparser
 from kirke.abbyxml.pdfoffsets import AbbyPage
 from kirke.abbyxml.pdfoffsets import AbbyTableBlock, AbbyTextBlock, AbbyXmlDoc, UnmatchedAbbyLine
 from kirke.docstruct.pdfoffsets import PageInfo3
-from kirke.docstruct import pdftxtparser
-# from kirke.docstruct.pdfoffsets import PDFTextDoc
-from kirke.utils import alignedstr
 from kirke.utils.alignedstr import AlignedStrMapper
 
 
@@ -23,7 +20,7 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.INFO)
 logger.setLevel(logging.DEBUG)
 
-IS_DEBUG_SYNC = True
+IS_DEBUG_SYNC = False
 # level 2, sync debug, more detailed info
 IS_DEBUG_SYNC_L2 = False
 
@@ -83,6 +80,7 @@ def find_strinfo_by_xy(x: int,
                 return strinfo
     return None
 
+
 class StrMappedTracker:
 
     def __init__(self) -> None:
@@ -119,138 +117,6 @@ def find_unique_str_in_unmatched_ablines(stext: str,
             return None
         return mats[0], um_abline
     return None
-
-
-# pylint: disable=too-many-locals
-def find_unique_abline_in_pbox_strs(um_abline: UnmatchedAbbyLine,
-                                    # xy_se_str_list: List[Tuple[Tuple[int, int],
-                                    #                            Tuple[int, int], str]],
-                                    um_pbox_xy_list: List[Tuple[int, int]],
-                                    pbox_xy_map: Dict[Tuple[int, int],
-                                                      Tuple[Tuple[int, int],
-                                                            Tuple[int, int], str]],
-                                    pbox_extra_se_list: List[Tuple[int,
-                                                                   Tuple[int, int],
-                                                                   str,
-                                                                   AlignedStrMapper]]) \
-                                    -> Optional[Tuple[Tuple[int, int],
-                                                      Tuple[Tuple[int, int],
-                                                            Tuple[int, int]],
-                                                      UnmatchedAbbyLine]]:
-
-    xy_se_str_list = []
-    for um_pbox_xy in um_pbox_xy_list:
-        xy_se_str_list.append(pbox_xy_map[um_pbox_xy])
-
-    # pylint: disable=line-too-long
-    xy_matse_tose_list = []  # type: List[Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int]]]
-    mat_st = re.escape(um_abline.ab_line.text)
-    for xypair, to_se, text in xy_se_str_list:
-        tmp_mat_list = list(re.finditer(mat_st, text))
-        if len(tmp_mat_list) == 1:
-            mat = tmp_mat_list[0]
-            xy_matse_tose_list.append((xypair, (mat.start(), mat.end()), to_se))
-
-    # Must only have only str has the ab_line,
-    # otherwise, too ambiguous and return None
-    if len(xy_matse_tose_list) == 1:
-        xypair, (mstart, mend), (to_start, unused_to_end) = xy_matse_tose_list[0]
-        adj_se = (to_start + mstart, to_start + mend)
-        return xypair, (adj_se, adj_se), um_abline
-    elif len(xy_matse_tose_list) > 1:
-        # ambiguous
-        return None
-
-    for unused_i, extra_se in enumerate(pbox_extra_se_list):
-        yyy, to_se, text, unused_ignore = extra_se
-        # print("   extra_pbox_str #{}: {} ({}, {}) [{}]".format(i, yyy, start, end, text))
-        tmp_mat_list = list(re.finditer(mat_st, text))
-        if len(tmp_mat_list) == 1:
-            mat = tmp_mat_list[0]
-            xy_matse_tose_list.append(((-1, yyy), (mat.start(), mat.end()), to_se))
-
-    # Must only have only str has the ab_line,
-    # otherwise, too ambiguous and return None
-    if len(xy_matse_tose_list) == 1:
-        xypair, (mstart, mend), (to_start, unused_to_end) = xy_matse_tose_list[0]
-        adj_se = (to_start + mstart, to_start + mend)
-        return xypair, (adj_se, adj_se), um_abline
-
-
-
-    return None
-
-
-def find_abline_in_pbox_strs_by_unique_match(um_abline: UnmatchedAbbyLine,
-                                             # xy_se_str_list: List[Tuple[Tuple[int, int],
-                                             #                            Tuple[int, int], str]],
-                                             um_pbox_xy_list: List[Tuple[int, int]],
-                                             pbox_xy_map: Dict[Tuple[int, int],
-                                                               Tuple[Tuple[int, int],
-                                                                     Tuple[int, int], str]],
-                                             pbox_extra_se_list: List[Tuple[int,
-                                                                            Tuple[int, int],
-                                                                            str,
-                                                                            AlignedStrMapper]]) \
-                                            -> Tuple[bool,
-                                                     List[Tuple[int, int]],
-                                                     List[Tuple[int,
-                                                                Tuple[int, int],
-                                                                str,
-                                                                AlignedStrMapper]]]:
-
-    xy_se_str_list = []
-    for um_pbox_xy in um_pbox_xy_list:
-        xy_se_str_list.append(pbox_xy_map[um_pbox_xy])
-
-    # pylint: disable=line-too-long
-    xy_matse_tose_list = []  # type: List[Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int]]]
-    mat_st = re.escape(um_abline.ab_line.text)
-    for xypair, to_se, text in xy_se_str_list:
-        tmp_mat_list = list(re.finditer(mat_st, text))
-        for tmp_mat in tmp_mat_list:
-            xy_matse_tose_list.append((xypair, (tmp_mat.start(), tmp_mat.end()), to_se))
-
-    # Must only have only str has the ab_line,
-    # otherwise, too ambiguous and return None
-    if len(xy_matse_tose_list) == 1:
-        xypair, (mstart, mend), (to_start, unused_to_end) = xy_matse_tose_list[0]
-        adj_se = (to_start + mstart, to_start + mend)
-        um_abline.offsetxxmap = \
-                alignedstr.make_aligned_str_mapper([adj_se, adj_se])
-        um_pbox_xy_list.remove(xypair)
-        return True, um_pbox_xy_list, pbox_extra_se_list
-    if len(xy_matse_tose_list) > 1:
-        # ambiguous
-        return None, um_pbox_xy_list, pbox_extra_se_list
-
-
-    xy_matse_tose_list = []
-    out_pbox_extra_se_list = []  # type: List[Tuple[int, Tuple[int, int], str, AlignedStrMapper]]
-    for unused_i, extra_se in enumerate(pbox_extra_se_list):
-        pbox_y, to_se, text, unused_ignore = extra_se
-        # print("   extra_pbox_str #{}: {} ({}, {}) [{}]".format(i, pbox_y, start, end, text))
-        tmp_mat_list = list(re.finditer(mat_st, text))
-        for tmp_mat in tmp_mat_list:
-            xy_matse_tose_list.append(((-1, pbox_y), (tmp_mat.start(), tmp_mat.end()), to_se))
-        if not tmp_mat_list:
-            out_pbox_extra_se_list.append(extra_se)
-    # out_pbox_extra_se_list is correct only if there is
-    # only 1 xy_matse_tose_list
-
-    # Must only have only str has the ab_line,
-    # otherwise, too ambiguous and return None
-    if len(xy_matse_tose_list) == 1:
-        xypair, (mstart, mend), (to_start, unused_to_end) = xy_matse_tose_list[0]
-        adj_se = (to_start + mstart, to_start + mend)
-        um_abline.offsetxxmap = \
-                alignedstr.make_aligned_str_mapper([adj_se, adj_se])
-        # out_pbox_extra_se_list is correct only if there is
-        # only 1 xy_matse_tose_list
-        return True, um_pbox_xy_list, out_pbox_extra_se_list
-
-    return None, um_pbox_xy_list, pbox_extra_se_list
-
 
 
 # pylint: disable=too-many-locals
@@ -294,7 +160,7 @@ def find_um_abline_in_pbox_strs_by_y_strmatch(um_abline: UnmatchedAbbyLine,
         unused_pbox_x, pbox_y = xypair
 
         if is_skip_y_check or \
-           (pbox_y - Y_BOX_CHECK_MIN_2 <= um_abline_y and \
+           (pbox_y - Y_BOX_CHECK_MIN_2 <= um_abline_y and
             um_abline_y < pbox_y + Y_BOX_CHECK_MAX):
             abby_pbox_offset_mapper = AlignedStrMapper(abline_st,
                                                        text,
@@ -302,8 +168,9 @@ def find_um_abline_in_pbox_strs_by_y_strmatch(um_abline: UnmatchedAbbyLine,
             if abby_pbox_offset_mapper.is_fully_synced:
                 asm_list.append(abby_pbox_offset_mapper)
                 to_remove_pbox_xy_list.append(xypair)
-                print("aligned matched 1 !! abline_st [{}]".format(abline_st))
-                print("                     pdfbox_st [{}]".format(text))
+                if IS_DEBUG_SYNC:
+                    print("aligned matched 1 !! abline_st [{}]".format(abline_st))
+                    print("                     pdfbox_st [{}]".format(text))
 
     # Must only have only str has the ab_line,
     # otherwise, too ambiguous and return None
@@ -317,11 +184,11 @@ def find_um_abline_in_pbox_strs_by_y_strmatch(um_abline: UnmatchedAbbyLine,
     # pylint: disable=line-too-long
     to_remove_pbox_extra_se_list = []  # type: List[Tuple[int, Tuple[int, int], str, AlignedStrMapper]]
     for unused_i, pbox_extra_se in enumerate(pbox_extra_se_list):
-        pbox_y, (start, end), text, unused_ignore = pbox_extra_se
+        pbox_y, (start, unused_end), text, unused_ignore = pbox_extra_se
         # print("   extra_pbox_str #{}: {} ({}, {}) [{}]".format(i, pbox_y, start, end, text))
 
         if is_skip_y_check or \
-           (pbox_y - Y_BOX_CHECK_MIN_2 <= um_abline_y and \
+           (pbox_y - Y_BOX_CHECK_MIN_2 <= um_abline_y and
             um_abline_y < pbox_y + Y_BOX_CHECK_MAX):
 
             abby_pbox_offset_mapper = AlignedStrMapper(abline_st,
@@ -331,9 +198,9 @@ def find_um_abline_in_pbox_strs_by_y_strmatch(um_abline: UnmatchedAbbyLine,
             if abby_pbox_offset_mapper.is_fully_synced:
                 asm_list.append(abby_pbox_offset_mapper)
                 to_remove_pbox_extra_se_list.append(pbox_extra_se)
-                print("aligned matched 2 !! abline_st [{}]".format(abline_st))
-                print("                     pdfbox_st [{}]".format(text))
-
+                if IS_DEBUG_SYNC:
+                    print("aligned matched 2 !! abline_st [{}]".format(abline_st))
+                    print("                     pdfbox_st [{}]".format(text))
 
     # Must only have only str has the ab_line,
     # otherwise, too ambiguous and return None
@@ -344,7 +211,7 @@ def find_um_abline_in_pbox_strs_by_y_strmatch(um_abline: UnmatchedAbbyLine,
         # pbox_extra_se_list is NOT modified
         return True, um_pbox_xy_list, out_pbox_extra_se_list
 
-    return None, um_pbox_xy_list, pbox_extra_se_list
+    return False, um_pbox_xy_list, pbox_extra_se_list
 
 
 def setup_pdfbox_xy_maps(pbox_page, doc_text: str) \
@@ -385,7 +252,8 @@ def find_abby_extra_in_pbox_xy_list_by_y_strmatch(abby_ypoint: int,
                                                   pbox_xy_map: Dict[Tuple[int, int],
                                                                     Tuple[Tuple[int, int],
                                                                           Tuple[int, int], str]]) \
-                                                  -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
+                                                  -> Optional[Tuple[Tuple[int, int],
+                                                                    Tuple[int, int]]]:
     """Find 'fully synced' abby extra se in um_pbox_xy_list.
 
     The requirement is
@@ -427,8 +295,7 @@ def filter_um_pbox_xy_list_by_y_strmatch(um_pbox_xy_list: List[Tuple[int, int]],
                                                                         AlignedStrMapper]],
                                          pbox_xy_map: Dict[Tuple[int, int],
                                                            Tuple[Tuple[int, int],
-                                                                 Tuple[int, int], str]],
-                                         page_num: int) \
+                                                                 Tuple[int, int], str]]) \
                                          -> Tuple[List[Tuple[int, int]],
                                                   # List[Tuple[Tuple[int, int],
                                                   #           Tuple[int, int], str]],
@@ -446,9 +313,9 @@ def filter_um_pbox_xy_list_by_y_strmatch(um_pbox_xy_list: List[Tuple[int, int]],
         return [], []
 
     # store the xy of aligned pbox xy
-    found_extra_xypair = []  # type: List[Tuplep[int, int]]
+    found_extra_xypair = []  # type: List[Tuple[int, int]]
     # pylint: disable=line-too-long
-    unmatched_abby_extra_se_list = []  # type: List[Tuple[int, Tuple[int, int], str, AlignedStrMapper]],
+    unmatched_abby_extra_se_list = []  # type: List[Tuple[int, Tuple[int, int], str, AlignedStrMapper]]
     for unused_i, abby_extra_se in enumerate(abby_extra_se_list):
         abby_y, (unused_fstart, unused_fend), extra_text, asmapper = abby_extra_se
         # logger.debug("  -- extra abby str #%d: xy=%r, %r [%s]",
@@ -467,33 +334,9 @@ def filter_um_pbox_xy_list_by_y_strmatch(um_pbox_xy_list: List[Tuple[int, int]],
         else:
             unmatched_abby_extra_se_list.append(abby_extra_se)
 
-    # type: List[Tuple[int, int]]
     filtered_um_pbox_xy_list = [xypair for xypair in um_pbox_xy_list
-                                    if xypair not in found_extra_xypair]
+                                if xypair not in found_extra_xypair]
 
-    """
-    # these are the same, except the 2nd list only has the xypair
-    filtered_unused_pbox_str_list = []  # type: List[Tuple[Tuple[int, int], Tuple[int, int], str]]
-    filtered_um_pbox_xy_list = []  # type: List[Tuple[int, int]]
-    for count_i, xypair in enumerate(um_pbox_xy_list):
-        tmp_t3 = pbox_xy_map[xypair]
-        unused_xypair, se_pair, stext = tmp_t3
-        if xypair in found_extra_xypair:
-            pass
-        else:
-            if IS_DEBUG_SYNC:
-                print("  unused pdfbox str in page {}: #{} xy={}, {} [{}]".format(page_num,
-                                                                                  count_i,
-                                                                                  xypair,
-                                                                                  se_pair,
-                                                                                  stext))
-            filtered_unused_pbox_str_list.append(tmp_t3)
-            filtered_um_pbox_xy_list.append(xypair)
-
-    return (filtered_um_pbox_xy_list,
-            filtered_unused_pbox_str_list,
-            unmatched_abby_extra_se_list)
-    """
     return filtered_um_pbox_xy_list, unmatched_abby_extra_se_list
 
 
@@ -503,7 +346,6 @@ def print_unsynced(unmatched_ablines: List[UnmatchedAbbyLine],
                    pbox_xy_map: Dict[Tuple[int, int],
                                      Tuple[Tuple[int, int],
                                            Tuple[int, int], str]],
-                   pbox_text: str,
                    abby_extra_se_list: List[Tuple[int,
                                                   Tuple[int, int],
                                                   str,
@@ -520,11 +362,11 @@ def print_unsynced(unmatched_ablines: List[UnmatchedAbbyLine],
         print()
     if unmatched_pbox_xy_list:
         for count_i, xypair in enumerate(unmatched_pbox_xy_list):
-            pbox_xypair, pbox_se, pbox_text = pbox_xy_map[xypair]
+            pbox_xypair, pbox_se, ptext = pbox_xy_map[xypair]
             print("  unmatched pbox str #{}: xy={} se={} [{}]".format(count_i,
                                                                       pbox_xypair,
                                                                       pbox_se,
-                                                                      pbox_text))
+                                                                      ptext))
         print()
     if abby_extra_se_list:
         for count_i, ab_extra_se in enumerate(abby_extra_se_list):
@@ -655,23 +497,19 @@ def sync_page_offsets(abby_page: AbbyPage,
         print_unsynced(unmatched_ablines,
                        unmatched_pbox_xy_list,
                        pbox_xy_map,
-                       doc_text,
                        abby_extra_se_list,
                        pbox_extra_se_list)
         print('^^^^^\n')
     # filter unmatched_pbox_xy_list by applying filter using abby_extra_se_list
-    ## unmatched_pbox_xy_list, unmatched_pbox_strz_list, abby_extra_se_list = \
     unmatched_pbox_xy_list, abby_extra_se_list = \
         filter_um_pbox_xy_list_by_y_strmatch(unmatched_pbox_xy_list,
                                              abby_extra_se_list,
-                                             pbox_xy_map,
-                                             pbox_page.page_num)
+                                             pbox_xy_map)
     if IS_DEBUG_SYNC:
         print("\n----- {}\n".format("after apply unmatched_pbox_xy_list by y_strmatch 33534"))
         print_unsynced(unmatched_ablines,
                        unmatched_pbox_xy_list,
                        pbox_xy_map,
-                       doc_text,
                        abby_extra_se_list,
                        pbox_extra_se_list)
         print('^^^^^\n')
@@ -685,7 +523,7 @@ def sync_page_offsets(abby_page: AbbyPage,
 
     # Look for sync'ing from Abby's str list view point
     if unmatched_ablines:
-        out_unmatched_ablines = []  # type: xxx
+        out_unmatched_ablines = []  # type: List[UnmatchedAbbyLine]
         for um_abline in unmatched_ablines:
             is_um_abline_found, unmatched_pbox_xy_list, pbox_extra_se_list = \
                 find_um_abline_in_pbox_strs_by_y_strmatch(um_abline,
@@ -699,11 +537,6 @@ def sync_page_offsets(abby_page: AbbyPage,
                                                               pbox_xy_map,
                                                               pbox_extra_se_list,
                                                               is_skip_y_check=True)
-                    #find_abline_in_pbox_strs_by_unique_match(um_abline,
-                    #                                         # unmatched_pbox_strz_list,
-                    #                                         unmatched_pbox_xy_list,
-                    #                                         pbox_xy_map,
-                    #                                         pbox_extra_se_list)
                 if not is_um_abline_found:
                     out_unmatched_ablines.append(um_abline)
         unmatched_ablines = out_unmatched_ablines
@@ -713,11 +546,13 @@ def sync_page_offsets(abby_page: AbbyPage,
         print_unsynced(unmatched_ablines,
                        unmatched_pbox_xy_list,
                        pbox_xy_map,
-                       doc_text,
                        abby_extra_se_list,
                        pbox_extra_se_list)
         print('^^^^^\n')
 
+    # maybe remove in future, but still not sure if this is
+    # ever needed.
+    # pylint: disable=pointless-string-statement
     """
     # abbydoc.unmatched_ablines are not found in pbox_doc
     # Now try to use more expensive string matching to find
@@ -761,7 +596,6 @@ def sync_page_offsets(abby_page: AbbyPage,
         print_unsynced(unmatched_ablines,
                        unmatched_pbox_xy_list,
                        pbox_xy_map,
-                       doc_text,
                        abby_extra_se_list,
                        pbox_extra_se_list)
         print('^^^^^\n')
@@ -782,7 +616,6 @@ def sync_doc_offsets(abby_doc, pbox_doc) -> None:
                           pbox_page,
                           doc_text,
                           abby_doc.unmatched_ab_lines)
-
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -841,7 +674,8 @@ def verify_abby_xml_doc_by_offsets(abby_doc: AbbyXmlDoc,
 
                             for ab_line in ab_par.ab_lines:
                                 amapper = ab_line.abby_pbox_offset_mapper
-                                print("\ntable abby_line: [{}]".format(ab_line.text), file=sync_file)
+                                print("\ntable abby_line: [{}]".format(ab_line.text),
+                                      file=sync_file)
 
                                 if amapper:
                                     print("table from_se_list: {}".format(amapper.from_se_list),
@@ -863,7 +697,8 @@ def verify_abby_xml_doc_by_offsets(abby_doc: AbbyXmlDoc,
 
                                     # if ab_line.text == to_st:
                                     if abby_st == pbox_st:
-                                        print("table pbox_line: [{}]".format(abby_st), file=sync_file)
+                                        print("table pbox_line: [{}]".format(abby_st),
+                                              file=sync_file)
                                         # pass
                                     else:
                                         # slight differ due to space or '_', not important enough
@@ -891,6 +726,3 @@ def verify_abby_xml_doc_by_offsets(abby_doc: AbbyXmlDoc,
                                                           um_abline.ab_page.page_num,
                                                           um_abline.ab_line),
               file=unsync_file)
-
-
-
