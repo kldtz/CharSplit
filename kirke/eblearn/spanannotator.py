@@ -18,6 +18,7 @@ from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
 
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -40,10 +41,10 @@ def adapt_pipeline_params(best_params):
 
 
 def get_model_file_name(provision: str,
-                        candidate_type: str,
+                        candidate_types: List[str],
                         model_dir: str):
     base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
-                                                        candidate_type,
+                                                        "-".join(candidate_types),
                                                         CANDG_CLF_VERSION)
     return "{}/{}".format(model_dir, base_model_fname)
 
@@ -66,10 +67,11 @@ def recover_false_negatives(prov_human_ant_list,
     return ant_result
 
 
+# pylint: disable=line-too-long
 def antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list: List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                                   List[Dict],
-                                                                   List[bool],
-                                                                   List[int]]]) \
+                                                                            List[Dict],
+                                                                            List[bool],
+                                                                            List[int]]]) \
         -> Tuple[List[Dict], List[bool], List[int]]:
     all_candidates = []  # type: List[Dict]
     all_candidate_labels = []  # type: List[bool]
@@ -86,10 +88,10 @@ def antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list: List[Tuple[eban
 
 class SpanAnnotator(baseannotator.BaseAnnotator):
 
-    # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-instance-attributes, too-many-locals
     def __init__(self,
                  provision: str,
-                 candidate_type: str,
+                 candidate_types: List[str],
                  version: str,
                  nbest: int,
                  *,
@@ -106,7 +108,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                  text_type: str = '') -> None:
         super().__init__(provision, 'no description')
         self.provision = provision
-        self.candidate_type = candidate_type
+        self.candidate_types = candidate_types
         self.version = version
         self.nbest = nbest
         self.text_type = text_type
@@ -131,7 +133,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
     def make_bare_copy(self):
         return SpanAnnotator(self.provision,
-                             self.candidate_type,
+                             self.candidate_types,
                              self.version,
                              self.nbest,
                              doclist_to_antdoc_list=self.doclist_to_antdoc_list,
@@ -152,12 +154,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
     # pylint: disable=too-many-arguments
     def train_candidates(self,
-                      candidates: List[Dict],
-                      label_list: List[bool],
-                      group_id_list: List[int],
-                      pipeline: Pipeline,
-                      parameters: Dict,
-                      work_dir: str) -> None:
+                         candidates: List[Dict],
+                         label_list: List[bool],
+                         group_id_list: List[int],
+                         pipeline: Pipeline,
+                         parameters: Dict,
+                         work_dir: str) -> None:
         logger.info('spanannotator.train_candidates()...')
 
         logger.info("Performing grid search...")
@@ -251,17 +253,23 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         return self.ant_status, log_json
 
-
     # returns candidates, label_list, group_id_list
     # this also enriches candidates using additional self.candidate_transformers
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                                label: Optional[str] = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                                List[Dict],
-                                                                List[bool],
-                                                                List[int]]]:
-        result = self.doc_to_candidates.documents_to_candidates(antdoc_list, label)
-        return result
+                                label: Optional[str] = None) \
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                              List[Dict],
+                                              List[bool],
+                                              List[int]]]:
+        # pylint: disable=line-too-long
+        all_results = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+        if type(self.doc_to_candidates) != list:
+            self.doc_to_candidates = [self.doc_to_candidates]
+        for candidate_generator in self.doc_to_candidates:
+            result = candidate_generator.documents_to_candidates(antdoc_list, label)
+            all_results.extend(result)
+        return all_results
 
     def annotate_antdoc(self,
                         eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
@@ -280,14 +288,15 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             threshold = self.threshold
         nbest = self.nbest
         start_time = time.time()
-        candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
+        candidates, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir)
+
         end_time = time.time()
         logger.debug('annotate_antdoc(%s, %s) took %.0f msec',
                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates
         x_threshold = threshold
-        
+
         prov_annotations = recover_false_negatives(prov_human_ant_list,
                                                    eb_antdoc.get_text(),
                                                    self.provision,
@@ -336,7 +345,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def predict_antdoc(self,
                        eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
-        # logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
         text = eb_antdoc.get_text()
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
@@ -346,12 +355,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         if not candidates:
             return [], []
 
-        probs = [] # type: List[float]
+        probs = [1.0] * len(candidates) # type: List[float]
         if self.estimator:
             probs = self.estimator.predict_proba(candidates)[:, 1]
 
         # to indicate which type of annotation this is
-        for i, (candidate, prob) in enumerate(zip(candidates, probs)):
+        for candidate, prob in zip(candidates, probs):
             candidate['label'] = self.provision
             candidate['prob'] = prob
             candidate['text'] = text[candidate['start']:candidate['end']]

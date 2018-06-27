@@ -32,7 +32,7 @@ class ParagraphGenerator:
             for ant in ant_list:
                 if ant.label == label:
                     label_ant_list.append(ant)
-            nl_text = antdoc.get_nlp_text()
+            nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
                 logging.info('ContextGenerator.documents_to_candidates(), group_id = %d',
@@ -58,13 +58,16 @@ class ParagraphGenerator:
                     para_end_punct = re.search(r'[;:]', para_text[-10:])
                     next_end_punct = re.search(r'[;\.A-z]', next_text[-10:])
                     preamble = re.search(r'(now,? +therefore)|(definitions)', para_text[:50], re.I)
+                    header_footer = antdoc.para_attrs[i+1].get('footer') or antdoc.para_attrs[i+1].get('header')
                     if not preamble:
                         preamble = re.search(r'(as +follows[:;])|(defined +terms)', para_text, re.I)
                     try:
                         next_start_punct = re.search(r'(\([A-z]+\))? ?([A-z])', next_text).group()[-1].islower()
                     except AttributeError:
                         next_start_punct = False
-                    if ((not preamble) and para_end_punct and next_end_punct and len(para_text.split()) > 1) or (not next_text) or next_start_punct:
+                    print('PARA:', para_text)
+                    print("\tNEXT:", next_start, next_end, next_text)
+                    if ((not preamble) and para_end_punct and next_end_punct and len(para_text.split()) > 1 and not header_footer) or (not next_text) or next_start_punct:
                         if next_raw_end > raw_end:
                             para_text = para_text + " " + next_text
                             match_end = next_end
@@ -74,6 +77,7 @@ class ParagraphGenerator:
                     else:
                         skipping = False
                 if len(para_text.split()) > 5 and raw_end > raw_start:
+                    print("\t\tADDED", para_text, "\n----------\n")
                     is_label = ebsentutils.check_start_end_overlap(raw_start,
                                                                    raw_end,
                                                                    label_ant_list)

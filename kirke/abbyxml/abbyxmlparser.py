@@ -7,6 +7,7 @@ import pprint
 import sys
 import warnings
 import re
+import os
 import operator
 
 import json
@@ -17,7 +18,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Union
 from kirke.abbyxml.pdfoffsets import AbbyCell, AbbyLine, AbbyPar, AbbyRow
 from kirke.abbyxml.pdfoffsets import AbbyTextBlock, AbbyTableBlock, AbbyPage, AbbyXmlDoc
 from kirke.abbyxml.pdfoffsets import print_text_block_meta, to_html_tables, block_to_text
-
+from kirke.docstruct import linepos
 from kirke.abbyxml import abbyutils
 
 IS_DISPLAY_ATTRS = False
@@ -792,20 +793,30 @@ def to_paras_with_attrs(abby_xml_doc: AbbyXmlDoc,
     # current returns offsets_line_list / paras2_with_attrs [(para_indices, para_attrs)], paraline_text / para2_doc_text -> string with paragraphs sep by newlines, gap_span_list / gap2_span_list
     # probably want to return list of lines, list of paragraphs? attrvec for both? where attrs are 'is header' and offsets etc??
     base_fname = os.path.basename(file_name)
-    para_index_list = []
-    para_attrs = []
-    print(">", abby_xml_doc.ab_pages)
+    para_with_attrs = []
+    paraline_text = ''
     for ab_page in abby_xml_doc.ab_pages:
         page_num = ab_page.num
-        for ab_block in ab_page.ab_blocks:
+        for ab_block in ab_page.ab_text_blocks:
             block_num = ab_block.num
-            is_footer = ab_block.infer_attr_dict.get('footer', None)
-            is_header = ab_block.infer_attr_dict.get('header', None)
-            if not is_footer and not is_header:
-                for ab_par in ab_block.ab_pars:
-                    lines = ab_par.ab_lines
-                    from_se_list = [x.abby_pbox_offset_mapper.from_se_list for x in lines]
-                    print(">>>", from_se_list)
+            is_footer = ab_block.infer_attr_dict.get('footer', False)
+            is_header = ab_block.infer_attr_dict.get('header', False)
+            for ab_par in ab_block.ab_pars:
+                to_from_index_list = []
+                lines = ab_par.ab_lines
+                for line in lines:
+                    if line.abby_pbox_offset_mapper:
+                       from_lnpos = [linepos.LnPos(x[0], x[1]) for x in line.abby_pbox_offset_mapper.from_se_list]
+                       to_lnpos = [linepos.LnPos(y[0], y[1]) for y in line.abby_pbox_offset_mapper.to_se_list]
+                       zipped_lnpos = list(zip(to_lnpos, from_lnpos))
+                       to_from_index_list.extend(zipped_lnpos)
+                ab_par.infer_attr_dict['footer'] = is_footer
+                ab_par.infer_attr_dict['header'] = is_header
+                if to_from_index_list:
+                    para_with_attrs.append((to_from_index_list, ab_par.infer_attr_dict))
+                    paraline_text += "\n".join([x.text for x in lines])+"\n\n"
+
+    return para_with_attrs, paraline_text
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Section Headings.')

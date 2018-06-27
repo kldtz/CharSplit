@@ -388,17 +388,22 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                 nlp_lnpos_list=nlp_lnpos_list,
                                 gap_span_list=gap_span_list,
                                 # there is no page_offsets_list
-                                linebreak_arr=[],
-                                para_not_linebreak_arr=[],
+                                linebreak_arr=array.array('i'),
+                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
-    if txt_file_name and is_cache_enabled and is_use_corenlp:
-        start_time = time.time()
-        joblib.dump(eb_antdoc, eb_antdoc_fn)
-        end_time = time.time()
-        logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-                     eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
+
+    # We don't want to cache a document that's not complete.
+    # It must be 'is_cache_enabled', 'is_doc_structure', 'is_use_corenlp'.
+    # html_no_docstruct_to_ebantdoc4 has 'is_doc_structure=False, so no cache.
+    #
+    # if txt_file_name and is_cache_enabled and is_use_corenlp:
+    #     start_time = time.time()
+    #     joblib.dump(eb_antdoc, eb_antdoc_fn)
+    #     end_time = time.time()
+    #     logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+    #                 eb_antdoc_fn, len(attrvec_list), (end_time - start_time) * 1000)
 
     end_time = time.time()
     logger.info("html_no_docstruct_to_ebantdoc4: %s, took %.0f msec; %d attrvecs",

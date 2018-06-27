@@ -20,5 +20,5 @@ class SpanDefaultPostProcessing(DocCandidatesTransformer):
         if nbest > 0:
             nbest_candidates = sorted(candidates, key=itemgetter('prob'), reverse=True)[:nbest]
             return nbest_candidates
-        else:
-            return candidates
+
+        return candidates

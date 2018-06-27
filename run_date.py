@@ -13,18 +13,18 @@ from kirke.utils import strutils
 from kirke.docstruct import secheadutils
 from kirke.ebrules import dates
 
-    
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
     parser.add_argument("-v", "--verbosity", help="increase output verbosity")
     parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
     # parser.add_argument('--dir', default='data-300-txt', help='input directory for .txt files')
-    parser.add_argument('file', help='input file')
+    # parser.add_argument('file', help='input file')
 
     args = parser.parse_args()
 
-    fname = args.file
+    # fname = args.file
 
     """
     line = 'entered into as of __________, 2011 (the “Effective Date”)'
@@ -37,6 +37,15 @@ if __name__ == '__main__':
     print("{}\t{}".format(line, xxx))
     """
 
+    # line = 'Amy is born on January 14, 2011 when it rained'
+    # line = 'Amy is born on 13-Apr-14 when it rained'
+    line = 'Amy is born on 13Apr2014 when it rained'
+    result = dates.extract_dates_v2(line, 0)
+    print("result:")
+    print(result)
+
+
+    """
     with open(fname, 'rt') as fin:
         for line in fin:
             line = line.strip()
@@ -46,5 +55,6 @@ if __name__ == '__main__':
             # print("{}\t{}".format(line, xxx))
             if len(xxx) != 1:
                 print("{}\t{}".format(line, xxx))
+    """
 
     # print(dates.extract_dates(fname))
