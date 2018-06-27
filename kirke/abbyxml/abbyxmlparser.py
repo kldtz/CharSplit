@@ -815,7 +815,6 @@ if __name__ == '__main__':
     # abbydoc.print_raw_lines()
     abbydoc.print_text_with_meta()
 
-
     # abbydoc.print_text()
 
     table_html_out_fn = fname.replace('.pdf.xml', '.html')
@@ -823,14 +822,3 @@ if __name__ == '__main__':
         html_st = to_html_tables(abbydoc)
         print(html_st, file=fout)
     print('wrote "{}"'.format(table_html_out_fn))
-
-
-
-
-
-
-
-
-
-
-
