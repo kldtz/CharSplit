@@ -723,6 +723,6 @@ def verify_abby_xml_doc_by_offsets(abby_doc: AbbyXmlDoc,
           file=unsync_file)
     for count_i, um_abline in enumerate(abby_doc.unmatched_ab_lines):
         print("unmatched_ab_line #{}: page {}, {}".format(count_i,
-                                                          um_abline.ab_page.page_num,
+                                                          um_abline.ab_page.num,
                                                           um_abline.ab_line),
               file=unsync_file)

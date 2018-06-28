@@ -1,10 +1,17 @@
+
+
 sync_abby_pbox.py mytest2/anira1.txt
 sync_abby_pbox.py mytest2/8235.txt
 sync_abby_pbox.py mytest2/8234.txt
 
 
 # change the file name to parse
+# This also generate the HTML table?
 parseabby.sh
+python3 -m kirke.abbyxml.abbyxmlparser mytest/8237.pdf.xml
+
+print_tables.py mytest/8237.txt
+
 
 # not working
 sync_abby_pbox.py 8234.txt
