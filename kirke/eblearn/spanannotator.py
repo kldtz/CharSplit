@@ -282,8 +282,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         start_time = time.time()
         candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
-        logger.debug('annotate_antdoc(%s, %s) took %.0f msec',
-                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
+                    self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates
         x_threshold = threshold

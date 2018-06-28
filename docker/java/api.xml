@@ -1,0 +1,14 @@
+<Context docBase="/var/www/ebrevia-api" reloadable="false"> 
+  <Manager className="org.apache.catalina.session.PersistentManager"
+           maxIdleBackup="10">
+    <Store className="org.apache.catalina.session.FileStore"
+	   directory="/eb_files/sessions"/>
+  </Manager>
+  <Parameter name="om_port" value="2003"
+             override="false"/>
+  <Valve className="org.apache.catalina.valves.RemoteIpValve"
+	 protocolHeader="x-forwarded-proto"/>
+  <Valve className="org.apache.catalina.valves.AccessLogValve" directory="/var/log/ebrevia"
+         prefix="tomcat_access_log." suffix=".txt"
+         pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+</Context>
