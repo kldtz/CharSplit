@@ -49,6 +49,7 @@ class ParagraphGenerator:
                 para_text = nl_text[match_start:match_end].strip()
                 skipping = True
                 span_list = [x[0] for x in para]
+                # looks ahead to see if it should merge the next paragraph
                 while skipping and i+1 < len(antdoc.para_indices):
                     para_next = sorted_paras[i+1]
                     next_start = para_next[0][1].start
@@ -65,8 +66,7 @@ class ParagraphGenerator:
                         next_start_punct = re.search(r'(\([A-z]+\))? ?([A-z])', next_text).group()[-1].islower()
                     except AttributeError:
                         next_start_punct = False
-                    print('PARA:', para_text)
-                    print("\tNEXT:", next_start, next_end, next_text)
+                    # extend the text and end indices if matches the critera
                     if ((not preamble) and para_end_punct and next_end_punct and len(para_text.split()) > 1 and not header_footer) or (not next_text) or next_start_punct:
                         if next_raw_end > raw_end:
                             para_text = para_text + " " + next_text
@@ -76,12 +76,11 @@ class ParagraphGenerator:
                         i += 1
                     else:
                         skipping = False
+                # add candidate to list of output cands
                 if len(para_text.split()) > 5 and raw_end > raw_start:
-                    print("\t\tADDED", para_text, "\n----------\n")
                     is_label = ebsentutils.check_start_end_overlap(raw_start,
                                                                    raw_end,
                                                                    label_ant_list)
-                    #update span based on window size
                     a_candidate = {'candidate_type': self.candidate_type,
                                    'bow_start': match_start,
                                    'bow_end': match_end,

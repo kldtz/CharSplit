@@ -9,7 +9,7 @@ import warnings
 import re
 import os
 import operator
-
+import math
 import json
 
 from typing import Any, DefaultDict, Dict, List, Optional, Union
@@ -91,11 +91,13 @@ def add_infer_text_block_attrs(text_block: AbbyTextBlock) -> None:
     indent_count_map = defaultdict(int)
     num_line = 0
     total_line_len = 0
+    all_ydiffs = []
     for ab_par in text_block.ab_pars:
         abbyutils.count_indent_attr(ab_par.infer_attr_dict, indent_count_map)
         for ab_line in ab_par.ab_lines:
             total_line_len += len(ab_line.text)
             num_line += 1
+            all_ydiffs.append(ab_line.infer_attr_dict['ydiff'])
     avg_line_len = total_line_len / num_line
     # print("avg_line_len = {}".format(avg_line_len))
 
@@ -104,6 +106,7 @@ def add_infer_text_block_attrs(text_block: AbbyTextBlock) -> None:
     num_indent = num_indent_1 + num_indent_2
     perc_indent_pars = num_indent / len(text_block.ab_pars)
     # print("perc_indent_pars = {}".format(perc_indent_pars))
+    text_block.infer_attr_dict['ydiff_min'] = min([diff for diff in all_ydiffs if diff > 0], default=0)
     if num_indent_1 > 0 and num_indent_2 > 0 and \
        perc_indent_pars >= 0.75 and \
        avg_line_len < 50:
@@ -785,13 +788,31 @@ def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
         if is_merge_occurred:
             abby_page.ab_blocks = out_block_list
 
+# merges paragraphs within a block if the ydiff is roughly the block's minimum ydiff
+def merge_block_paras(ab_pars, block_min):
+    merged_lines = []
+    i = 0
+    while i < len(ab_pars):
+        try:
+            first_ydiff = ab_pars[i+1].ab_lines[0].infer_attr_dict['ydiff']
+            if math.floor(first_ydiff / 10) <= round(block_min / 10) <= math.ceil(first_ydiff / 10):
+                lines = ab_pars[i].ab_lines + ab_pars[i+1].ab_lines
+                merged_lines.append(lines)
+                i += 2
+            else:
+                merged_lines.append(ab_pars[i].ab_lines)
+                i += 1
+        except IndexError:
+            merged_lines.append(ab_pars[i].ab_lines)
+            i += 1
+    return merged_lines
+
+# creates a list of paragraph indices and paragraph attributes
 def to_paras_with_attrs(abby_xml_doc: AbbyXmlDoc,
                         file_name: str,
                         work_dir: str,
                         debug_mode: bool = False):
 
-    # current returns offsets_line_list / paras2_with_attrs [(para_indices, para_attrs)], paraline_text / para2_doc_text -> string with paragraphs sep by newlines, gap_span_list / gap2_span_list
-    # probably want to return list of lines, list of paragraphs? attrvec for both? where attrs are 'is header' and offsets etc??
     base_fname = os.path.basename(file_name)
     para_with_attrs = []
     paraline_text = ''
@@ -801,22 +822,39 @@ def to_paras_with_attrs(abby_xml_doc: AbbyXmlDoc,
             block_num = ab_block.num
             is_footer = ab_block.infer_attr_dict.get('footer', False)
             is_header = ab_block.infer_attr_dict.get('header', False)
-            for ab_par in ab_block.ab_pars:
+            merged_paras = merge_block_paras(ab_block.ab_pars, ab_block.infer_attr_dict['ydiff_min'])
+            for ab_par in merged_paras:
+                infer_attr_dict = {}
                 to_from_index_list = []
-                lines = ab_par.ab_lines
-                for line in lines:
+                for line in ab_par:
+                    # convert to LnPos because that's expected further in the pipeline
                     if line.abby_pbox_offset_mapper:
                        from_lnpos = [linepos.LnPos(x[0], x[1]) for x in line.abby_pbox_offset_mapper.from_se_list]
                        to_lnpos = [linepos.LnPos(y[0], y[1]) for y in line.abby_pbox_offset_mapper.to_se_list]
                        zipped_lnpos = list(zip(to_lnpos, from_lnpos))
                        to_from_index_list.extend(zipped_lnpos)
-                ab_par.infer_attr_dict['footer'] = is_footer
-                ab_par.infer_attr_dict['header'] = is_header
+                infer_attr_dict['footer'] = is_footer
+                infer_attr_dict['header'] = is_header
                 if to_from_index_list:
-                    para_with_attrs.append((to_from_index_list, ab_par.infer_attr_dict))
-                    paraline_text += "\n".join([x.text for x in lines])+"\n\n"
-
+                    para_with_attrs.append((to_from_index_list, infer_attr_dict))
+                    paraline_text += "\n".join([x.text for x in ab_par])+"\n\n"
+                    to_from_index_list = []
+    
     return para_with_attrs, paraline_text
+
+def get_page_abby_lines(abby_page: AbbyPage) -> List[AbbyLine]:
+    ab_line_list = []  # type: List[AbbyLine]
+    for ab_block in abby_page.ab_text_blocks:
+        for ab_par in ab_block.ab_pars:
+            ab_line_list.extend(ab_par.ab_lines)
+
+    for ab_block in abby_page.ab_table_blocks:
+        for ab_row in ab_block.ab_rows:
+            for ab_cell in ab_row.ab_cells:
+                for ab_par in ab_cell.ab_pars:
+                    ab_line_list.extend(ab_par.ab_lines)
+    return ab_line_list
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
@@ -835,7 +873,6 @@ if __name__ == '__main__':
     # abbydoc.print_raw_lines()
     abbydoc.print_text_with_meta()
 
-
     # abbydoc.print_text()
 
     table_html_out_fn = fname.replace('.pdf.xml', '.html')
@@ -843,14 +880,3 @@ if __name__ == '__main__':
         html_st = to_html_tables(abbydoc)
         print(html_st, file=fout)
     print('wrote "{}"'.format(table_html_out_fn))
-
-
-
-
-
-
-
-
-
-
-

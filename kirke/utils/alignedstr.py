@@ -1,21 +1,188 @@
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
+IS_DEBUG = False
 
 def is_space_uline(line: str) -> bool:
     return line.isspace() or line == '_'
 
 
+def is_underline(line: str) -> bool:
+    return line == '_'
+
+
+def adjust_list_offset(se_list: List[Tuple[int, int]],
+                       offset: int) \
+                       -> List[Tuple[int, int]]:
+    return [(offset + start, offset + end)
+            for start, end in se_list]
+
+
+def adjust_pair_offset(se_pair: Optional[Tuple[int, int]],
+                       offset: int) \
+                       -> Optional[Tuple[int, int]]:
+    if se_pair:
+        return (offset + se_pair[0], offset + se_pair[1])
+    return None
+
+
+# pylint: disable=too-many-branches, too-many-locals, too-many-statements
+def compute_se_list(from_line: str,
+                    to_line: str,
+                    offset: int) \
+    -> Optional[Tuple[List[Tuple[int, int]],
+                      List[Tuple[int, int]],
+                      Optional[Tuple[int, int]],
+                      Optional[Tuple[int, int]]]]:
+    fidx, tidx = 0, 0
+    flen, tlen = len(from_line), len(to_line)
+    # fse = from_line's extra start-end, tse=to_line's start-end
+    extra_fse, extra_tse = None, None
+
+    from_se_list, to_se_list = [], []
+    fstart, tstart = 0, 0
+    prev_matched_char = ' '
+    while fidx < flen and tidx < tlen:
+        if from_line[fidx] == to_line[tidx]:
+            prev_matched_char = from_line[fidx]
+            fidx += 1
+            tidx += 1
+        else:
+            if fstart == fidx or tstart == tidx:
+                if IS_DEBUG:
+                    # even the first character didn't match
+                    print("Character1 diff at %d, char '%s'" %
+                          (offset + fidx, from_line[fidx]))
+                return None
+
+            # try to see if the mismatch is due to space or underline
+            from_se_list.append((fstart, fidx))
+            to_se_list.append((tstart, tidx))
+            fstart, tstart = fidx, tidx
+
+            if from_line[fstart].isspace():
+                fstart += 1
+                while fstart < flen and from_line[fstart].isspace():
+                    fstart += 1
+            elif to_line[tstart].isspace():
+                tstart += 1
+                while tstart < tlen and to_line[tstart].isspace():
+                    tstart += 1
+
+            if is_underline(prev_matched_char):
+                if is_space_uline(from_line[fstart]):
+                    fstart += 1
+                    while fstart < flen and is_space_uline(from_line[fstart]):
+                        fstart += 1
+                if is_space_uline(to_line[tstart]):
+                    tstart += 1
+                    while tstart < tlen and is_space_uline(to_line[tstart]):
+                        tstart += 1
+
+            # if either advanced, then there is a reason to move forward
+            # otherwise, don't other
+            if fstart != fidx or tstart != tidx:
+                fidx, tidx = fstart, tstart
+            else:
+                break
+
+
+    # if there was any match, add them
+    if fidx != fstart:
+        # must have saw some new text after last fstart reset
+        from_se_list.append((fstart, fidx))
+        to_se_list.append((tstart, tidx))
+
+    # print("fidx = {}, tidx = {}".format(fidx, tidx))
+    # it's either a mismatch or eoln is reached for both line1 and line2
+    if fidx == flen and tidx == tlen:
+        pass
+    else:
+
+        # check if the excessed on are all spaces
+        # We are using fi2 and ti2 because we don't want to change
+        # fidx and tidx if the ends are not reached
+        fi2, ti2 = fidx, tidx
+        if fi2 < flen:
+            while fi2 < flen and \
+                  (from_line[fi2].isspace() or \
+                   (is_underline(prev_matched_char) and
+                    is_underline(from_line[fi2]))):
+                fi2 += 1
+
+        if ti2 < tlen:
+            while ti2 < tlen and \
+                  (to_line[ti2].isspace() or \
+                   (is_underline(prev_matched_char) and
+                    is_underline(to_line[ti2]))):
+                ti2 += 1
+
+        if fi2 == flen and ti2 == tlen:
+            pass
+        elif fidx < flen and tidx < tlen:
+            # this shouldn't happen.
+            # usually one of the lines should be finished.
+            if IS_DEBUG:
+                print("Character2 diff at %d, char '%s', weird" %
+                      (offset + fidx, from_line[fidx]))
+            return None
+        elif fidx < flen:
+            extra_fse = (fidx, flen)
+        elif tidx < tlen:
+            extra_tse = (tidx, tlen)
+        else:
+            if IS_DEBUG:
+                print("Character3 diff at %d, eoln" %
+                      (offset + fidx, ))
+            return None
+
+    # print('flen = {}, tlen = {}'.format(flen, tlen))
+    # print("from_se_list: {}".format(from_se_list))
+    # print("to_se_list: {}".format(to_se_list))
+    return (adjust_list_offset(from_se_list, offset),
+            adjust_list_offset(to_se_list, offset),
+            adjust_pair_offset(extra_fse, offset),
+            adjust_pair_offset(extra_tse, offset))
+
+
 class AlignedStrMapper:
 
     def __init__(self, from_line: str, to_line: str, offset: int = 0) -> None:
-        if offset == -1:
-            self.from_se_list = []
-            self.to_se_list = []
-        else:
-            from_se_list, to_se_list = self.compute_se_list(from_line, to_line, offset)
-            self.from_se_list = from_se_list
-            self.to_se_list = to_se_list
+        if IS_DEBUG:
+            print("AlignedStrMapper(), offset = {}".format(offset))
+            print("     from_line: [{}]".format(from_line))
+            print("       to_line: [{}]".format(to_line))
+
+        self.is_aligned = False
+        self.is_fully_synced = False
+        self.from_se_list = []  # type: List[Tuple[int, int]]
+        self.to_se_list = []  # type: List[Tuple[int, int]]
+        self.extra_fse = None  # type: Optional[Tuple[int, int]]
+        self.extra_tse = None  # type: Optional[Tuple[int, int]]
+
+        align_result = compute_se_list(from_line, to_line, offset)
+        if align_result:
+            self.from_se_list, self.to_se_list, \
+                self.extra_fse, self.extra_tse = align_result
+            self.is_aligned = True
+            if not self.extra_fse and not self.extra_tse:
+                self.is_fully_synced = True
+
+        if IS_DEBUG:
+            if self.is_aligned:
+                print("    return from_se_list: {}".format(self.from_se_list))
+                print("             to_se_list: {}".format(self.to_se_list))
+                print("              extra_fse: {}".format(self.extra_fse))
+                print("              extra_tse: {}".format(self.extra_tse))
+            else:
+                print("    return is_aligned is False")
+
+
+    def __str__(self):
+        return 'AlignedStrMapper({},\n'.format(self.from_se_list) + \
+            '                 {},\n'.format(self.to_se_list) + \
+            '                 {},\n'.format(self.extra_fse) + \
+            '                 {})'.format(self.extra_tse)
 
     # pylint: disable=invalid-name
     def get_to_offset(self, x: int) -> int:
@@ -27,99 +194,12 @@ class AlignedStrMapper:
                     tstart, unused_tend = to_se
                     diff = x - fstart
                     return tstart + diff
-                else:
-                    return -1
+                return -1
         return -1
 
-    # pylint: disable=no-self-use
-    def add_offset(self, se_list: List[Tuple[int, int]], offset: int) -> List[Tuple[int, int]]:
-        return [(offset + start, offset + end)
-                for start, end in se_list]
-
-    # pylint: disable=too-many-branches
-    def compute_se_list(self, from_line: str, to_line: str, offset: int) \
-        -> Tuple[List[Tuple[int, int]],
-                 List[Tuple[int, int]]]:
-        fidx, tidx = 0, 0
-        flen, tlen = len(from_line), len(to_line)
-
-        from_se_list = []
-        to_se_list = []
-        fstart, tstart = 0, 0
-        while fidx < flen and tidx < tlen:
-            if from_line[fidx] == to_line[tidx]:
-                fidx += 1
-                tidx += 1
-            else:
-                if fstart == fidx:
-                    raise Exception("Character diff at %d, char '%s'" %
-                                    (offset + fidx, from_line[fidx]))
-                from_se_list.append((fstart, fidx))
-                to_se_list.append((tstart, tidx))
-                fstart, tstart = fidx, tidx
-
-                if is_space_uline(from_line[fstart]):
-                    fstart += 1
-                    while fstart < flen and is_space_uline(from_line[fstart]):
-                        fstart += 1
-                elif is_space_uline(to_line[tstart]):
-                    tstart += 1
-                    while tstart < tlen and is_space_uline(to_line[tstart]):
-                        tstart += 1
-                else:
-                    raise Exception("Character diff at %d, char '%s'" %
-                                    (offset + fidx, from_line[fidx]))
-                fidx, tidx = fstart, tstart
-            # print("fidx = {}, tidx = {}".format(fidx, tidx))
-        if fidx == flen and tidx == tlen:
-            if fidx != fstart:
-                from_se_list.append((fstart, fidx))
-                to_se_list.append((tstart, tidx))
-        else:
-            # check if the excessed on are all spaces
-            fi2, ti2 = fidx, tidx
-            if fidx < flen:
-                while fi2 < flen and is_space_uline(from_line[fi2]):
-                    fi2 += 1
-            if tidx < tlen:
-                while ti2 < tlen and is_space_uline(to_line[ti2]):
-                    ti2 += 1
-
-            if fi2 == flen and ti2 == tlen:
-                if fidx != fstart:
-                    from_se_list.append((fstart, fidx))
-                    to_se_list.append((tstart, tidx))
-            else:
-                if fi2 < flen:
-                    # print("flen = {}, fi2 = {}, fidx = {}, fstart= {}".format(flen, fi2, fidx, fstart))
-                    # print("tlen = {}, ti2 = {}, tidx = {}, tstart= {}".format(tlen, ti2, tidx, tstart))
-                    if flen - fidx <= 3 and \
-                       fidx > 10 and \
-                       ti2 == tlen and \
-                       fidx == fstart:
-                        # Probably in toc.  Don't have the number at the end
-                        # Don't add empty spans
-                        # from_se_list.append((fstart, fidx))
-                        # to_se_list.append((tstart, tidx))
-                        pass
-                    else:
-                        raise Exception("Character diff at %d, char '%s'" %
-                                        (offset + fidx, from_line[fidx]))
-                else:
-                    # fi2 >= flen
-                    # print("flen = {}, fi2 = {}, fidx = {}, fstart= {}".format(flen, fi2, fidx, fstart))
-                    # print("tlen = {}, ti2 = {}, tidx = {}, tstart= {}".format(tlen, ti2, tidx, tstart))
-                    if tlen - ti2 <= 3 and \
-                       fidx > 10:
-                        pass
-                    else:
-                        raise Exception("Character diff at %d, eoln" %
-                                        (offset + fidx, ))
-
-        # print('flen = {}, tlen = {}'.format(flen, tlen))
-        # print("from_se_list: {}".format(from_se_list))
-        # print("to_se_list: {}".format(to_se_list))
-        return self.add_offset(from_se_list, offset), self.add_offset(to_se_list, offset)
+    def add_aligned_se_pair(self, aligned_se_pair: Tuple[int, int]) -> None:
+        self.from_se_list.append(aligned_se_pair)  # the offset is not correct now
+        self.to_se_list.append(aligned_se_pair)
 
 
 def make_aligned_str_mapper(fromto_se_pair_list: List[Tuple[Tuple[int, int],
@@ -131,5 +211,3 @@ def make_aligned_str_mapper(fromto_se_pair_list: List[Tuple[Tuple[int, int],
         amapper.from_se_list.append(from_se)
         amapper.to_se_list.append(to_se)
     return amapper
-
-
