@@ -55,11 +55,11 @@ def main():
         print('wrote {}'.format(txt_meta_fname))
 
 
-    table_html_out_fn = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.html'))
+    table_html_out_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.html'))
     with open(table_html_out_fn, 'wt') as fout:
         html_st = abbyxmlparser.to_html_tables(abby_xml_doc)
         print(html_st, file=fout)
-    print('wrote "{}"'.format(table_html_out_fn))
+    print('wrote {}'.format(table_html_out_fn))
 
 
 if __name__ == '__main__':

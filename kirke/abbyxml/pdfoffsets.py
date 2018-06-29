@@ -225,6 +225,40 @@ def _print_left_right_panes(rt_line: str,
     print("    {:26}{}".format(left_line, tmp_rt_line), file=file)
 
 
+def _print_left_right_panes_with_sync(rt_line: str,
+                                      line_attr_dict: Dict,
+                                      to_se_list : List[Tuple[int, int]],
+                                      *,
+                                      par_id: int = -1,
+                                      line_id: int = -1,
+                                      is_header_footer: bool = False,
+                                      is_par_centered: bool = False,
+                                      indent_level: int = 0,
+                                      file: TextIO) -> None:
+
+    left_line = 'par={}, ln={}'.format(par_id, line_id)
+
+    if is_header_footer:
+        left_line += ', HF'
+
+    if indent_level != 0:
+        left_line += ', I{}'.format(indent_level)
+
+    if is_par_centered:
+        left_line += ', CC'
+        tmp_rt_line = '>> <<' + '     ' * 4 + '[' + rt_line + ']'
+    elif is_header_footer:
+        tmp_rt_line = '##### ' + '[' + rt_line + ']'
+    else:
+        tmp_rt_line = '|----' * indent_level + '[' + rt_line + ']'
+
+    if to_se_list:
+        left_line += ' {}'.format(to_se_list)
+
+    # 40 column for meta info
+    print("    {:36}{}".format(left_line, tmp_rt_line), file=file)
+
+
 def print_text_block_meta(ab_text_block: AbbyTextBlock, file: TextIO = sys.stdout) -> None:
     print("\n  ----- block #{:3d} ----------".format(ab_text_block.num), file=file)
 
@@ -375,6 +409,73 @@ class AbbyXmlDoc:
             for unmatched_ab_line in self.unmatched_ab_lines:
                 print("  page #{:2}, {}".format(unmatched_ab_line.ab_page.num,
                                                 unmatched_ab_line.ab_line.to_debug_str()), file=file)
+
+
+    def print_text_with_meta_with_sync(self, file: TextIO = sys.stdout):
+        for abby_page in self.ab_pages:
+            if abby_page.num != 0:
+                print('\n', file=file)
+            print("========= page  #{:3d} ========".format(abby_page.num), file=file)
+
+            # for ab_text_block in abby_page.ab_text_blocks:
+            for ab_block in abby_page.ab_blocks:
+                if isinstance(ab_block, AbbyTextBlock):
+                    ab_text_block = ab_block
+                    print("\n  ----- block #{:3d} ----------".format(ab_text_block.num), file=file)
+
+                    is_header_footer = ab_text_block.infer_attr_dict.get('header', False) or \
+                                       ab_text_block.infer_attr_dict.get('footer', False)
+
+                    for par_id, ab_par in enumerate(ab_text_block.ab_pars):
+                        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
+                        print(file=file)
+                        is_par_centered = _is_par_centered(ab_par.infer_attr_dict)
+                        indent_level = _get_indent_level(ab_par.infer_attr_dict)
+
+                        for lid, ab_line in enumerate(ab_par.ab_lines):
+                            to_se_list = []
+                            if ab_line.abby_pbox_offset_mapper and \
+                               ab_line.abby_pbox_offset_mapper.to_se_list:
+                                to_se_list = ab_line.abby_pbox_offset_mapper.to_se_list
+                            _print_left_right_panes_with_sync(ab_line.text,
+                                                              ab_line.infer_attr_dict,
+                                                              to_se_list,
+                                                              par_id=ab_par.num,
+                                                              line_id=ab_line.num,
+                                                              is_header_footer=is_header_footer,
+                                                              indent_level=indent_level,
+                                                              is_par_centered=is_par_centered,
+                                                              file=file)
+                elif isinstance(ab_block, AbbyTableBlock):
+                    ab_table_block = ab_block
+                    print("\n  ----- block #{:3d}, page_num={} --Table--".format(ab_table_block.num,
+                                                                                 ab_table_block.page_num), file=file)
+                    print("  {}".format(_pprint_table_attrs(ab_table_block.attr_dict)), file=file)
+
+                    for row_id, ab_row in enumerate(ab_table_block.ab_rows):
+                        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
+                        print(file=file)
+                        print("    {:26}--- row #{}".format('', row_id), file=file)
+                        for cell_seq, ab_cell in enumerate(ab_row.ab_cells):
+                            print("    {:26}  -- cell #{}:".format('', cell_seq), file=file)
+                            for ab_par in ab_cell.ab_pars:
+                                for lid, ab_line in enumerate(ab_par.ab_lines):
+                                    to_se_list = []
+                                    if ab_line.abby_pbox_offset_mapper and \
+                                       ab_line.abby_pbox_offset_mapper.to_se_list:
+                                        to_se_list = ab_line.abby_pbox_offset_mapper.to_se_list
+                                    print("    {:26}        [{}]".format(str(to_se_list), ab_line.text), file=file)
+                else:
+                    raise ValueError
+
+
+        if self.unmatched_ab_lines:
+            print("\n\n========= Unmatched Abby Lines ========", file=file)
+
+            for unmatched_ab_line in self.unmatched_ab_lines:
+                print("  page #{:2}, {}".format(unmatched_ab_line.ab_page.num,
+                                                unmatched_ab_line.ab_line.to_debug_str()), file=file)
+
 
 
 def table_attrs_to_html(attr_dict: Dict) -> str:
