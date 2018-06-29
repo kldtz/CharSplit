@@ -6,6 +6,7 @@ from kirke.utils import ebantdoc4, evalutils
 from kirke.docstruct import fromtomapper, htmltxtparser
 from kirke.ebrules import parties
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -62,8 +63,7 @@ class LineAnnotator:
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc.file_id,
-                                                                     ebantdoc.get_text(),
-                                                                     diagnose_mode=True)
+                                                                     ebantdoc.get_text())
             else:
                 xtp, xfn, xfp, xtn, _, unused_log_json = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -71,8 +71,7 @@ class LineAnnotator:
                                                             ebantdoc.file_id,
                                                             ebantdoc.get_text(),
                                                             self.threshold,
-                                                            is_raw_mode=True,
-                                                            diagnose_mode=True)
+                                                            is_raw_mode=True)
 
             tp += xtp
             fn += xfn

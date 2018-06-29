@@ -17,7 +17,7 @@ from sklearn.pipeline import Pipeline
 from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
 
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -66,10 +66,11 @@ def recover_false_negatives(prov_human_ant_list,
     return ant_result
 
 
+# pylint: disable=line-too-long
 def antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list: List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                                   List[Dict],
-                                                                   List[bool],
-                                                                   List[int]]]) \
+                                                                            List[Dict],
+                                                                            List[bool],
+                                                                            List[int]]]) \
         -> Tuple[List[Dict], List[bool], List[int]]:
     all_candidates = []  # type: List[Dict]
     all_candidate_labels = []  # type: List[bool]
@@ -86,7 +87,7 @@ def antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list: List[Tuple[eban
 
 class SpanAnnotator(baseannotator.BaseAnnotator):
 
-    # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-instance-attributes, too-many-locals
     def __init__(self,
                  provision: str,
                  candidate_type: str,
@@ -152,12 +153,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
     # pylint: disable=too-many-arguments
     def train_candidates(self,
-                      candidates: List[Dict],
-                      label_list: List[bool],
-                      group_id_list: List[int],
-                      pipeline: Pipeline,
-                      parameters: Dict,
-                      work_dir: str) -> None:
+                         candidates: List[Dict],
+                         label_list: List[bool],
+                         group_id_list: List[int],
+                         pipeline: Pipeline,
+                         parameters: Dict,
+                         work_dir: str) -> None:
         logger.info('spanannotator.train_candidates()...')
 
         logger.info("Performing grid search...")
@@ -220,9 +221,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc.file_id,
-                                                                     ebantdoc.get_text(),
-                                                                     #threshold,
-                                                                     diagnose_mode=True)
+                                                                     ebantdoc.get_text())
             else:
                 xtp, xfn, xfp, xtn, xfallout, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -230,8 +229,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                             ebantdoc.file_id,
                                                             ebantdoc.get_text(),
                                                             threshold,
-                                                            is_raw_mode=False,
-                                                            diagnose_mode=True)
+                                                            is_raw_mode=False)
             tp += xtp
             fn += xfn
             fp += xfp
@@ -256,10 +254,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     # this also enriches candidates using additional self.candidate_transformers
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                                label: Optional[str] = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                                List[Dict],
-                                                                List[bool],
-                                                                List[int]]]:
+                                label: Optional[str] = None) \
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                              List[Dict],
+                                              List[bool],
+                                              List[int]]]:
         result = self.doc_to_candidates.documents_to_candidates(antdoc_list, label)
         return result
 
@@ -280,14 +279,14 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             threshold = self.threshold
         nbest = self.nbest
         start_time = time.time()
-        candidates, prob_list = self.predict_antdoc(eb_antdoc, work_dir)
+        candidates, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
         logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates
         x_threshold = threshold
-        
+
         prov_annotations = recover_false_negatives(prov_human_ant_list,
                                                    eb_antdoc.get_text(),
                                                    self.provision,
@@ -351,7 +350,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             probs = self.estimator.predict_proba(candidates)[:, 1]
 
         # to indicate which type of annotation this is
-        for i, (candidate, prob) in enumerate(zip(candidates, probs)):
+        for unused_i, (candidate, prob) in enumerate(zip(candidates, probs)):
             candidate['label'] = self.provision
             candidate['prob'] = prob
             candidate['text'] = text[candidate['start']:candidate['end']]

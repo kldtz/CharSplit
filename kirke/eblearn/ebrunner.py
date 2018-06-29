@@ -25,6 +25,7 @@ from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s : %(levelname)s : %(message)s')
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.WARN)
 logger.setLevel(logging.INFO)
@@ -239,7 +240,8 @@ class EbRunner:
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         num_model = 0
 
-        cust_prov_set = set([provision for provision in provision_set if provision.startswith('cust_')])
+        cust_prov_set = set([provision for provision in provision_set
+                             if provision.startswith('cust_')])
 
         start_time_1 = time.time()
 
@@ -276,7 +278,8 @@ class EbRunner:
 
                 # if we loaded this for a particular custom field type ("cust_52")
                 # it must produce annotations with that label, not with whatever is "embedded"
-                # in the saved model file (since the file could have been imported from another server)
+                # in the saved model file (since the file could have been imported from another
+                # server)
                 prov_name = cust_id_ver.split('.')[0]
                 logging.info('updating custom provision model to annotate with %s', prov_name)
                 # print(prov_classifier)
@@ -304,6 +307,7 @@ class EbRunner:
                 pclassifier = provision_classifier_map[provision]
                 # Make sure all xxx_annotators are really annotator, not scut_classifier
                 if isinstance(pclassifier, spanannotator.SpanAnnotator):
+                    # pylint: disable=line-too-long
                     xxx_annotator = pclassifier  # type: Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator]
                 else:
                     prov_threshold = provclassifier.get_provision_threshold(provision)
@@ -551,7 +555,6 @@ class EbRunner:
                                             candidate_type: str,
                                             nbest: int,
                                             model_num: int,
-                                            is_doc_structure=False,
                                             work_dir=None,
                                             doc_lang="en") \
                                             -> Tuple[Dict[str, Any], Dict[str, Dict]]:
@@ -647,8 +650,7 @@ class EbRunner:
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
                                                                          ebantdoc.file_id,
-                                                                         ebantdoc.get_text(),
-                                                                         diagnose_mode=True)
+                                                                         ebantdoc.get_text())
                 else:
                     xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -656,8 +658,7 @@ class EbRunner:
                                                                 ebantdoc.file_id,
                                                                 ebantdoc.get_text(),
                                                                 threshold,
-                                                                is_raw_mode=False,
-                                                                diagnose_mode=True)
+                                                                is_raw_mode=False)
                 tp += xtp
                 fn += xfn
                 fp += xfp
@@ -720,8 +721,7 @@ class EbRunner:
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
                                                                          ebantdoc.file_id,
-                                                                         ebantdoc.get_text(),
-                                                                         diagnose_mode=True)
+                                                                         ebantdoc.get_text())
                 else:
                     xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -729,8 +729,7 @@ class EbRunner:
                                                                 ebantdoc.file_id,
                                                                 ebantdoc.get_text(),
                                                                 threshold,
-                                                                is_raw_mode=False,
-                                                                diagnose_mode=True)
+                                                                is_raw_mode=False)
                 tp += xtp
                 fn += xfn
                 fp += xfp

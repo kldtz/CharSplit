@@ -65,13 +65,14 @@ SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
 
 # classifiers
-WORK_DIR = 'data-from-web'
+WORK_DIR = KIRKE_TMP_DIR + '/dir-work'
 MODEL_DIR = EB_MODELS
 CUSTOM_MODEL_DIR = EB_FILES + 'pymodel'
 osutils.mkpath(WORK_DIR)
 osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
 osutils.mkpath(KIRKE_TMP_DIR)
+
 
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 

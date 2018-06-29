@@ -25,8 +25,8 @@ from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.INFO)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
+# logger.setLevel(logging.DEBUG)
 
 CORENLP_JSON_VERSION = '1.6'
 EBANTDOC_VERSION = '1.8'
@@ -361,7 +361,7 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
-    paras_with_attrs = []
+    paras_with_attrs = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], List[Any]]]
     attrvec_list, nlp_prov_ant_list, _, _ = nlptxt_to_attrvec_list(doc_text,
                                                                    txt_file_name,
                                                                    txt_base_fname,
@@ -375,9 +375,9 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
     # there is no nlp.txt
     # para_doc_text = doc_text
     nlp_prov_ant_list = prov_annotation_list
-    origin_lnpos_list = []
-    nlp_lnpos_list = []
-    gap_span_list = []
+    origin_lnpos_list = []  # type: List[linepos.LnPos]
+    nlp_lnpos_list = []  # type: List[linepos.LnPos]
+    gap_span_list = []  # type: List[Tuple[int, int]]
     eb_antdoc = EbAnnotatedDoc4(file_name=txt_file_name,
                                 doc_format=EbDocFormat.html_nodocstruct,
                                 text=doc_text,
@@ -392,8 +392,8 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                 nlp_lnpos_list=nlp_lnpos_list,
                                 gap_span_list=gap_span_list,
                                 # there is no page_offsets_list
-                                linebreak_arr=[],
-                                para_not_linebreak_arr=[],
+                                linebreak_arr=array.array('i'),
+                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)

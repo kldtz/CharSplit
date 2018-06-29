@@ -6,6 +6,7 @@ import traceback
 from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ class ProvisionAnnotator:
                  prov_classifier,
                  work_dir: str,
                  threshold: Optional[float] = None,
-                 nbest: int = -1):
+                 nbest: int = -1) -> None:
         self.provision_classifier = prov_classifier
         self.provision = prov_classifier.provision
         self.nbest = nbest
@@ -29,7 +30,8 @@ class ProvisionAnnotator:
         else:
             self.threshold = prov_classifier.threshold
         self.work_dir = work_dir
-        self.eval_status = {}  # this is set after training
+        # this is set after training
+        self.eval_status = {}  # type: Dict
 
     def get_eval_status(self):
         return self.eval_status
@@ -89,9 +91,7 @@ class ProvisionAnnotator:
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc.file_id,
-                                                                     ebantdoc.get_text(),
-                                                                     # threshold,
-                                                                     diagnose_mode=True)
+                                                                     ebantdoc.get_text())
             else:
                 xtp, xfn, xfp, xtn, _, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -99,8 +99,7 @@ class ProvisionAnnotator:
                                                             ebantdoc.file_id,
                                                             ebantdoc.get_text(),
                                                             threshold,
-                                                            is_raw_mode=False,
-                                                            diagnose_mode=True)
+                                                            is_raw_mode=False)
             tp += xtp
             fn += xfn
             fp += xfp
@@ -118,7 +117,12 @@ class ProvisionAnnotator:
 
 
     # pylint: disable=no-self-use
-    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
+    def recover_false_negatives(self,
+                                prov_human_ant_list: List[ProvisionAnnotation],
+                                doc_text: str,
+                                provision: str,
+                                ant_result: List[Dict]) \
+        -> List[Dict]:
         if not prov_human_ant_list:
             return ant_result
         for ant in prov_human_ant_list:
@@ -145,7 +149,7 @@ class ProvisionAnnotator:
     def annotate_antdoc(self,
                         eb_antdoc,
                         threshold: Optional[float] = None,
-                        prov_human_ant_list: Optional[List] = None) \
+                        prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
         -> Tuple[List[Dict], float]:
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
@@ -181,7 +185,7 @@ class ProvisionAnnotator:
             adj_prov_human_ant_list = prov_human_ant_list
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations, threshold = \
+        prov_annotations, out_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
                                                           threshold,
@@ -215,7 +219,7 @@ class ProvisionAnnotator:
                                                         prov,
                                                         prov_annotations)
 
-        return prov_annotations, threshold
+        return prov_annotations, out_threshold
 
 # this is destructive
 def update_text_with_span_list(prov_annotations, doc_text):

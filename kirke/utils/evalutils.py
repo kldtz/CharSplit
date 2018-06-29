@@ -7,9 +7,13 @@ from typing import DefaultDict, Dict, List, Optional, Set, Tuple
 from kirke.utils import mathutils, wordutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# TODO, verify IS_DIAGNOSE_MODE is used for logformat?
+IS_DIAGNOSE_MODE = True
+IS_DEBUG = False
 
 
 AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
@@ -121,8 +125,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                                   file_id: str,
                                   txt: str,
                                   threshold: float,
-                                  is_raw_mode: bool,
-                                  diagnose_mode: bool) \
+                                  is_raw_mode: bool) \
                                   -> Tuple[int, int, int, int, int,
                                            Dict[str, List[Tuple[int, int, str, float, str]]]]:
     """Calculate the confusion matrix for one document only, based only on offsets.
@@ -133,7 +136,6 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
         file_id: document id
         txt: text of the document
         threshold: the threshold to decide if a provision is positive
-        diagnose_mode: whether to print debug info
 
     Returns:
         tp, fn, fp, tn, fallout, Dictionary of tp, fn, fp, tn
@@ -200,7 +202,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
             fp += 1
 
     # we don't care about reporting true negatives
-    if diagnose_mode:
+    if IS_DIAGNOSE_MODE:
         for xhant in sorted(tp_inst_map.keys()):
             _, hstart, hend, label = xhant
             tp_inst_list = tp_inst_map[xhant]
@@ -208,7 +210,8 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
             min_start = min([x.start for x in tp_inst_list])  # type: int
             max_end = max([x.end for x in tp_inst_list])  # type: int
             max_prob = max([x.prob for x in tp_inst_list])  # type: float
-            print("tp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", tp_txt), str(max_prob)))
+            if IS_DEBUG:
+                print("tp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", tp_txt), str(max_prob)))
             json_return['tp'].append((min_start,
                                       max_end,
                                       label,
@@ -220,7 +223,8 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
             if is_raw_mode:
                 fn_txt = txt[hstart:hend]
                 max_prob = -1.0
-                print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(max_prob)))
+                if IS_DEBUG:
+                    print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(max_prob)))
                 json_return['fn'].append((hstart,
                                           hend,
                                           label,
@@ -232,7 +236,8 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                 min_start = min([x.start for x in fn_inst_list])
                 max_end = max([x.end for x in fn_inst_list])
                 max_prob = max([x.prob for x in fn_inst_list])
-                print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(max_prob)))
+                if IS_DEBUG:
+                    print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(max_prob)))
                 json_return['fn'].append((min_start,
                                           max_end,
                                           label,
@@ -240,7 +245,8 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                                           linebreaks.sub(" ", fn_txt)))
 
         for pred_ant in fp_inst_list:
-            print("fp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
+            if IS_DEBUG:
+                print("fp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
             json_return['fp'].append((pred_ant.start,
                                       pred_ant.end,
                                       pred_ant.label,
@@ -255,9 +261,7 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
 def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAnnotation],
                                            ant_list: List[Dict],  # this is machine annotation
                                            file_id: str,
-                                           txt: str,
-                                           # threshold,
-                                           diagnose_mode: bool = False) \
+                                           txt: str) \
     -> Tuple[int, int, int, int,
              Dict[str, List[Tuple[int, int, str, float, str]]]]:
     """Calculate the confusion matrix for one document, if there is any match by offset or string.
@@ -272,7 +276,6 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
         ant_list: annotation predicted by machine
         file_id: document id
         txt: text of the document
-        diagnose_mode: whether to print debug info
 
     Returns:
         tp, fn, fp, tn, Dictionary of List of tp, fn, fp, tn
@@ -358,7 +361,7 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
     # print("tp= {}, fn= {}, fp = {}, tn = {}".format(tp, fn, fp, tn))
 
     # there is no tn, because we deal with only annotations
-    if diagnose_mode:
+    if IS_DIAGNOSE_MODE:
         for xhant in sorted(tp_inst_map.keys()):
             hstart, hend, label = xhant
             tp_inst_list = tp_inst_map[xhant]
@@ -366,7 +369,8 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
             min_start = min([x.start for x in tp_inst_list])
             max_end = max([x.end for x in tp_inst_list])
             prob = max([x.prob for x in tp_inst_list])
-            print("tp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", tp_txt), str(prob)))
+            if IS_DEBUG:
+                print("tp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", tp_txt), str(prob)))
             json_return['tp'].append((min_start,
                                       max_end,
                                       label,
@@ -377,7 +381,8 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
             hstart, hend, label = prov_ant.start, prov_ant.end, prov_ant.label
             fn_txt = txt[hstart:hend]
             prob = -1.0
-            print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(prob)))
+            if IS_DEBUG:
+                print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(prob)))
             json_return['fn'].append((hstart,
                                       hend,
                                       label,
@@ -386,7 +391,8 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
 
 
         for pred_ant in fp_inst_list:
-            print("fp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
+            if IS_DEBUG:
+                print("fp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
             json_return['fp'].append((pred_ant.start,
                                       pred_ant.end,
                                       pred_ant.label,

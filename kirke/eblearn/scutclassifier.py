@@ -11,16 +11,16 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import GroupKFold
 
-from sklearn.model_selection import cross_val_score, cross_val_predict
+from sklearn.model_selection import cross_val_predict
 
-from kirke.eblearn import ebpostproc, ebattrvec
+from kirke.eblearn import ebpostproc
 from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformer import EbTransformer
 from kirke.utils import evalutils
 
-from kirke.eblearn.ebtransformer import EbTransformer
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -28,6 +28,7 @@ logger.setLevel(logging.INFO)
 # pylint: disable=C0301
 # based on http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html#sphx-glr-auto-examples-hetero-feature-union-py
 
+# pylint: disable=invalid-name
 config = configparser.ConfigParser()
 config.read('kirke.ini')
 
@@ -55,6 +56,8 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'termination': 0.36,
                            'warranty': 0.36}
 
+IS_DEBUG_TP = False
+
 
 class ShortcutClassifier(EbClassifier):
 
@@ -69,22 +72,26 @@ class ShortcutClassifier(EbClassifier):
             self.transformer = EbTransformer(provision)
         if self.version == '1.2':
             self.transformer = EbTransformerV1_2(provision)
-        elif self.version == '1.3':
-            self.transformer = EbTransformerV1_3(provision)
+        # elif self.version == '1.3':
+        #    self.transformer = EbTransformerV1_3(provision)
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
+        # Note: Some old pickled versions might not have this attribute.
+        # 'nbest' is a newly added attribute.
+        self.nbest = -1
 
     def make_bare_copy(self):
         result = ShortcutClassifier(self.provision)
+        # this is for backward compatibility
         if hasattr(self, 'nbest'):
             result.nbest = self.nbest
         else:
             result.nbest = -1
         return result
 
-    # pylint: disable=R0914
-    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name, is_debug=True):
+    # pylint: disable=too-many-statements, too-many-locals
+    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):
         logger.info('train_antdoc_list()...')
 
         sent_list = []
@@ -161,38 +168,41 @@ class ShortcutClassifier(EbClassifier):
         # trying to repeat the above testing, but based on
         # optimal parameter
         cv_scores = []
-        if is_debug:
-            alpha = self.best_parameters['alpha']
-            # print("alpha = {}".format(alpha))
 
-            sgd_clf2 = SGDClassifier(loss='log', penalty='l2', alpha=alpha,
-                                     n_iter=iterations, shuffle=True,
-                                     random_state=42, class_weight={True: 3, False: 1})
-            print("sgd_clf2 used for detailed cross-validation status")
-            print(sgd_clf2)
+        alpha = self.best_parameters['alpha']
+        # print("alpha = {}".format(alpha))
 
-            cv_scores = cross_val_predict(sgd_clf2,
-                                          X_train,
-                                          y_train,
-                                          groups=group_id_list,
-                                          cv=GroupKFold(), method="predict_proba")[:, 1]
+        sgd_clf2 = SGDClassifier(loss='log', penalty='l2', alpha=alpha,
+                                 n_iter=iterations, shuffle=True,
+                                 random_state=42, class_weight={True: 3, False: 1})
+        print("sgd_clf2 used for detailed cross-validation status")
+        print(sgd_clf2)
 
-            num_tp, num_fp, num_fn, num_tn = 0, 0, 0, 0
-            for score, sent, ylab in zip(cv_scores, sent_list, y_train):
-                pred = score >= self.threshold
-                if ylab and pred:
-                    num_tp += 1
+        cv_scores = cross_val_predict(sgd_clf2,
+                                      X_train,
+                                      y_train,
+                                      groups=group_id_list,
+                                      cv=GroupKFold(), method="predict_proba")[:, 1]
+
+        num_tp, num_fp, num_fn, num_tn = 0, 0, 0, 0
+        for score, sent, ylab in zip(cv_scores, sent_list, y_train):
+            pred = score >= self.threshold
+            if ylab and pred:
+                num_tp += 1
+                if IS_DEBUG_TP:
                     print("\nTP #{}: {}".format(num_tp, sent))
-                elif ylab and not pred:
-                    num_fn += 1
+            elif ylab and not pred:
+                num_fn += 1
+                if IS_DEBUG_TP:
                     print("\nFN #{}: {}".format(num_fn, sent))
-                elif pred and not ylab:
-                    num_fp += 1
+            elif pred and not ylab:
+                num_fp += 1
+                if IS_DEBUG_TP:
                     print("\nFP #{}: {}".format(num_fp, sent))
-                else:
-                    num_tn += 1
-            print("\nnum_tp = %d, num_fn = %d, num_fp = %d, num_tn = %d\n" %
-                  (num_tp, num_fn, num_fp, num_tn))
+            else:
+                num_tn += 1
+        print("\nnum_tp = %d, num_fn = %d, num_fp = %d, num_tn = %d\n" %
+              (num_tp, num_fn, num_fp, num_tn))
 
         return grid_search.best_estimator_, cv_scores
 
@@ -234,6 +244,7 @@ class ShortcutClassifier(EbClassifier):
 
 
     # this is mainly used for the outer testing (real hold out)
+    # pylint: disable=too-many-locals
     def predict_and_evaluate(self, ebantdoc_list, work_dir, diagnose_mode=False):
         logger.info('predict_and_evaluate()...')
 
