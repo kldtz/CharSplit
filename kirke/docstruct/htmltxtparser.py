@@ -4,6 +4,7 @@ import sys
 # pylint: disable=unused-import
 from typing import Any, List, Optional, Tuple
 
+
 from kirke.docstruct import footerutils, partyutils, secheadutils
 from kirke.utils import ebsentutils, engutils, strutils, txtreader
 
@@ -22,9 +23,21 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                     -> Tuple[List[Tuple[Tuple[int, int],
                                                         Tuple[int, int],
                                                         str,
-                                                        List]],
+                                                        List[Any]]],
                                              str]:
-    lineinfo_list = []  # List[Tuple[Tuple[Tuple[int, int], Tuple[int, int]], str, List]]
+    """Convert a text into lineinfos_with_attrs.
+
+    Returns
+       1. lineinfo_list.append(((start, end),
+                                (to_offset, to_offset + len(line)),
+                                line,
+                                attr_list))
+       2. text
+
+    attr_list is usually a 'str', but sometimes (sechead_type, prefix_num, sec_head, split_idx)
+    """
+    # pylint: disable=line-too-long
+    lineinfo_list = []  # type: List[Tuple[Tuple[int, int], Tuple[int, int], str, List[Any]]]
     split_idx = -1
     to_offset = 0
 
@@ -43,8 +56,21 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                 prev_nonempty_line = ''
             else:
                 sechead_type, prefix_num, sec_head, split_idx = \
-                    secheadutils.extract_sechead_v4(line, prev_nonempty_line, prev_line_idx,
+                    secheadutils.extract_sechead_v4(line,
+                                                    prev_nonempty_line,
+                                                    prev_line_idx,
                                                     is_combine_line=is_combine_line)
+                # pylint: disable=pointless-string-statement
+                """
+                print("secheadutils.extract_sechead_v4(ln={}, prv={}, prv_idx={}, iscomb={})".format(line,
+                                                                                                     prev_nonempty_line,
+                                                                                                     prev_line_idx,
+                                                                                                     is_combine_line))
+                print("       sechead_type= {}, prefix_num= {}, sec_head= {}, split_idx= {}".format(sechead_type,
+                                                                                                    prefix_num,
+                                                                                                    sec_head,
+                                                                                                    split_idx))
+                """
 
                 if sechead_type:
                     attr_list.append((sechead_type, prefix_num, sec_head, split_idx))
@@ -109,7 +135,8 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                 to_offset += 1
                 prev_output_line = ''
 
-    doc_lines = [line for unused_from_se, unused_to_se, line, unused_attr_list in lineinfo_list]
+    doc_lines = [line for unused_fromx, unuused_tox, line, unused_attrlist
+                 in lineinfo_list]
     doc_text = '\n'.join(doc_lines)
 
     return lineinfo_list, doc_text
@@ -139,7 +166,7 @@ def get_sechead_attr(attr_list):
 # and remove pagenum.
 # TODO, Should add footer and header in the future.
 # But such info only available in PDF files.
-# pylint: disable=too-many-branches, too-many-statements
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
                                              Tuple[int, int],
                                              str,
@@ -196,6 +223,7 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
                             omit_list.append(i+1)
                             # if i + 2 < len_tmp_list:
                             #     _, _, next_notempty_line, _ = tmp_list[i+2]
+
                         ## if really end of sentence and have any line break
                         ## leave 1 empty line break in.
                         #if prev_notempty_line[-1] in set(['.', '?', '!', '_', ':']) and omit_list:
@@ -225,6 +253,7 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
             # "interactive Intell SOW CNG 000 Child.pdf" failed the "not prev_line" test.
             # need to compute the ydiff, and somehow add line breaks to lineinfos (not in file,
             # but only in memory).
+
             # if not prev_line and prefix == 'toc':  # we don't continue TOC, if
             # previous prefix is toc
             if prefix == 'toc':  # there is no attribute, we don't continue 'toc'
@@ -312,11 +341,19 @@ def mark_title_attrs(para_attr_list, begin_idx, end_idx, lc_party_line):
 def mark_toc_aux(para_attr_list):
     found_eng_i = -1
     num_sechead = 0
+    found_party_line_i = -1
     num_line = len(para_attr_list)
     for i, (line, attr_list) in enumerate(para_attr_list):
 
         if i == num_line -1:  # last line, when toc is at the end
             found_eng_i = i
+            break
+
+        # maybe party line
+        if 'party_line' in attr_list or \
+           ('yes_eng' in attr_list and \
+            'date_line' in attr_list):
+            found_party_line_i = i
             break
 
         # TODO, jshaw, still not sure if this is needed.
@@ -337,6 +374,12 @@ def mark_toc_aux(para_attr_list):
         if 'yes_eng' in attr_list and len(line) > 120:
             found_eng_i = i
             break
+
+    if found_party_line_i >= 0:
+        for i, (line, attr_list) in enumerate(para_attr_list):
+            if i < found_party_line_i:
+                attr_list.append('toc70')
+        return found_party_line_i
 
     if found_eng_i > 0 and num_sechead / float(found_eng_i) > 0.9:
         # now go find the last sechead
@@ -366,7 +409,9 @@ def mark_toc(para_attr_list: List[Tuple[str, List]]) -> Tuple[int, int]:
     return -1, -1
 
 
-def find_previous_sechead(para_attr_list, idx):
+def find_previous_sechead(para_attr_list: List[Tuple[str, List[str]]],
+                          idx: int) \
+                          -> int:
     while idx >= 0:
         unused_line, attr_list = para_attr_list[idx]
         if 'sechead' in attr_list:
@@ -375,7 +420,9 @@ def find_previous_sechead(para_attr_list, idx):
     return -1
 
 
-def find_previous_notempty_line(para_attr_list, idx):
+def find_previous_notempty_line(para_attr_list: List[Tuple[str, List[str]]],
+                                idx: int) \
+                                -> int:
     idx -= 1
     while idx >= 0:
         line, unused_attr_list = para_attr_list[idx]
@@ -399,7 +446,7 @@ def maybe_adjust_toc_last_recital(para_attr_list, toc_last_idx, party_line_idx):
     return toc_last_idx
 
 
-# toc_last_idx = mabye_adjust_toc_last(para_attr_list, toc_last_idx + 1,  party_line_idx)
+# toc_last_idx = mabye_adjust_toc_last(para_attr_list, toc_last_idx + 1, party_line_idx)
 def maybe_adjust_toc_last(para_attr_list, toc_last_idx, party_line_idx):
 
     prev_sechead_idx = find_previous_notempty_line(para_attr_list, party_line_idx)
@@ -446,6 +493,7 @@ def find_sechead_toc(para_attr_list):
     consecutive_start_idx = 0  # TODO, not certain of this default init value
     max_consecutive_sechead = 0
     max_consecutive_start_idx = -1
+    consecutive_start_idx = -1
     for line_idx, (line, attr_list) in enumerate(para_attr_list):
         if line:
             if 'sechead' in attr_list:
@@ -478,8 +526,10 @@ def find_sechead_toc(para_attr_list):
     return -1, -1
 
 # this is called by eblearn/lineannotator.py
-def lineinfos_paras_to_attr_list(lineinfos_paras, doc_text: str):
-    para_attr_list = []
+def lineinfos_paras_to_attr_list(lineinfos_paras: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                                             List[Any]]],
+                                 doc_text: str) -> List[Tuple[str, List[str]]]:
+    para_attr_list = []  # type: List[Tuple[str, List[str]]]
     prev_out_line = ''
     # found_witness = False   # never changed.
     found_toc = False
@@ -540,8 +590,9 @@ def lineinfos_paras_to_attr_list(lineinfos_paras, doc_text: str):
         if party_line_idx == -1 and \
            'skip_as_template' not in attr2_list and \
            partyutils.is_party_line(line, num_long_english_line) and \
-           (first_eng_para_idx == -1 or
-            found_toc or
+           (first_eng_para_idx == -1 or \
+            num_long_english_line < 2 or  # add some breadthing room for cover page
+            found_toc or \
             # it was 10 before
             abs(first_eng_para_idx - line_idx) < 40):
             # print("adding party line jjjjj, [{}]".format(line))
@@ -618,6 +669,7 @@ def lineinfos_paras_to_attr_list(lineinfos_paras, doc_text: str):
 
 # 'is_combine_line' indicates if the system combines line when doing sechead identification
 # for HTML docs, this shoulbe True.  For PDF documents, this should be False.
+# pylint: disable=too-many-locals
 def parse_document(file_name: str,
                    work_dir: str,
                    is_combine_line: bool = True) \
@@ -630,7 +682,8 @@ def parse_document(file_name: str,
     base_fname = os.path.basename(file_name)
     orig_doc_text = txtreader.loads(file_name)
 
-    lineinfos_with_attrs, lineinfo_doc_text = htmltxt_to_lineinfos_with_attrs(file_name, is_combine_line=is_combine_line)
+    lineinfos_with_attrs, unused_lineinfo_doc_text = \
+        htmltxt_to_lineinfos_with_attrs(file_name, is_combine_line=is_combine_line)
     if debug_mode:
         lineinfo_fname = '{}/{}.lineinfo.v1'.format(work_dir, base_fname).replace('.txt', '')
         with open(lineinfo_fname, 'wt') as fout:
@@ -641,6 +694,7 @@ def parse_document(file_name: str,
 
     lineinfos_paras, paras_doc_text, gap_span_list = \
              lineinfos_to_paras(lineinfos_with_attrs)
+
     if debug_mode:
         paras_fname = '{}/{}.lineinfo.paras'.format(work_dir, base_fname).replace('.txt', '')
         txtreader.dumps(paras_doc_text, paras_fname)
@@ -656,8 +710,8 @@ def parse_document(file_name: str,
         para_debug_fname = paras_fname.replace('.paras', '.paras.debug')
         with open(para_debug_fname, 'wt') as fout1:
             paras_attr_list = lineinfos_paras_to_attr_list(lineinfos_paras, orig_doc_text)
-            for line, para_attrs in paras_attr_list:
-                attrs_st = '|'.join([str(attr) for attr in para_attrs])
+            for line, para_attrs_xx in paras_attr_list:
+                attrs_st = '|'.join([str(attr) for attr in para_attrs_xx])
                 print('\t'.join([attrs_st, '[{}]'.format(line)]), file=fout1)
         print('wrote {}'.format(para_debug_fname), file=sys.stderr)
 

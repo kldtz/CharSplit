@@ -16,7 +16,11 @@ PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
 class ProvisionAnnotator:
 
-    def __init__(self, prov_classifier, work_dir, threshold=None, nbest=-1):
+    def __init__(self,
+                 prov_classifier,
+                 work_dir: str,
+                 threshold: Optional[float] = None,
+                 nbest: int = -1) -> None:
         self.provision_classifier = prov_classifier
         self.provision = prov_classifier.provision
         self.nbest = nbest
@@ -25,7 +29,8 @@ class ProvisionAnnotator:
         else:
             self.threshold = prov_classifier.threshold
         self.work_dir = work_dir
-        self.eval_status = {}  # this is set after training
+        # this is set after training
+        self.eval_status = {}  # type: Dict
 
     def get_eval_status(self):
         return self.eval_status
@@ -41,8 +46,9 @@ class ProvisionAnnotator:
                          -> Tuple[Dict[str, Any],
                                   Dict[str, Dict]]:
         logger.debug('test_document_list')
-        if not threshold:
+        if threshold is None:
             threshold = self.threshold
+
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
         log_json = dict()
@@ -53,7 +59,7 @@ class ProvisionAnnotator:
                                    if hant.label == self.provision]
             try:
                 ant_list, threshold = self.annotate_antdoc(ebantdoc,
-                                                           threshold=self.threshold,
+                                                           threshold=threshold,
                                                            prov_human_ant_list=prov_human_ant_list)
             # pylint: disable=broad-except, unused-variable
             except Exception as e:
@@ -71,7 +77,7 @@ class ProvisionAnnotator:
                 prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                        if hant.label == self.provision]
                 ant_list = self.annotate_antdoc(ebantdoc,
-                                                threshold=self.threshold,
+                                                threshold=threshold,
                                                 prov_human_ant_list=prov_human_ant_list)
             """
 
@@ -113,7 +119,7 @@ class ProvisionAnnotator:
 
 
     # pylint: disable=no-self-use
-    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result):
+    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result) -> List[Dict]:
         if not prov_human_ant_list:
             return ant_result
         for ant in prov_human_ant_list:
@@ -137,7 +143,10 @@ class ProvisionAnnotator:
         return self.provision_classifier.nbest
 
 
-    def annotate_antdoc(self, eb_antdoc, threshold=None, prov_human_ant_list=None) \
+    def annotate_antdoc(self,
+                        eb_antdoc,
+                        threshold: Optional[float] = None,
+                        prov_human_ant_list: Optional[List] = None) \
         -> Tuple[List[Dict], float]:
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
@@ -149,10 +158,11 @@ class ProvisionAnnotator:
         attrvec_list = eb_antdoc.get_attrvec_list()
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
-        if threshold is not None:
-            self.threshold = threshold
+        if threshold is None:
+            specified_threshold = self.threshold
         else:
-            threshold = self.threshold
+            specified_threshold = threshold
+
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
@@ -174,10 +184,10 @@ class ProvisionAnnotator:
             adj_prov_human_ant_list = prov_human_ant_list
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations, threshold = \
+        prov_annotations, out_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
-                                                          threshold,
+                                                          specified_threshold,
                                                           nbest=self.get_nbest(),
                                                           provision=prov,
                                                           # pylint: disable=line-too-long
@@ -208,15 +218,16 @@ class ProvisionAnnotator:
                                                         prov,
                                                         prov_annotations)
 
-        return prov_annotations, threshold
+        return prov_annotations, out_threshold
 
 # this is destructive
 def update_text_with_span_list(prov_annotations, doc_text):
     # print("prov_annotations: {}".format(prov_annotations))
     for ant in prov_annotations:
-        tmp_span_text_list = []
-        for span in ant['span_list']:
-            start = span['start']
-            end = span['end']
-            tmp_span_text_list.append(doc_text[start:end])
-        ant['text'] = ' '.join(tmp_span_text_list)
+        if ant.get('span_list'):  # check if the cached version is very old
+            tmp_span_text_list = []
+            for span in ant['span_list']:
+                start = span['start']
+                end = span['end']
+                tmp_span_text_list.append(doc_text[start:end])
+            ant['text'] = ' '.join(tmp_span_text_list)

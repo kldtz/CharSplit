@@ -32,7 +32,7 @@ class ParagraphGenerator:
             for ant in ant_list:
                 if ant.label == label:
                     label_ant_list.append(ant)
-            nl_text = antdoc.get_nlp_text()
+            nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
                 logging.info('ContextGenerator.documents_to_candidates(), group_id = %d',
@@ -49,6 +49,7 @@ class ParagraphGenerator:
                 para_text = nl_text[match_start:match_end].strip()
                 skipping = True
                 span_list = [x[0] for x in para]
+                # looks ahead to see if it should merge the next paragraph
                 while skipping and i+1 < len(antdoc.para_indices):
                     para_next = sorted_paras[i+1]
                     next_start = para_next[0][1].start
@@ -58,13 +59,15 @@ class ParagraphGenerator:
                     para_end_punct = re.search(r'[;:]', para_text[-10:])
                     next_end_punct = re.search(r'[;\.A-z]', next_text[-10:])
                     preamble = re.search(r'(now,? +therefore)|(definitions)', para_text[:50], re.I)
+                    header_footer = antdoc.para_attrs[i+1].get('footer') or antdoc.para_attrs[i+1].get('header')
                     if not preamble:
                         preamble = re.search(r'(as +follows[:;])|(defined +terms)', para_text, re.I)
                     try:
                         next_start_punct = re.search(r'(\([A-z]+\))? ?([A-z])', next_text).group()[-1].islower()
                     except AttributeError:
                         next_start_punct = False
-                    if ((not preamble) and para_end_punct and next_end_punct and len(para_text.split()) > 1) or (not next_text) or next_start_punct:
+                    # extend the text and end indices if matches the critera
+                    if ((not preamble) and para_end_punct and next_end_punct and len(para_text.split()) > 1 and not header_footer) or (not next_text) or next_start_punct:
                         if next_raw_end > raw_end:
                             para_text = para_text + " " + next_text
                             match_end = next_end
@@ -73,11 +76,11 @@ class ParagraphGenerator:
                         i += 1
                     else:
                         skipping = False
+                # add candidate to list of output cands
                 if len(para_text.split()) > 5 and raw_end > raw_start:
                     is_label = ebsentutils.check_start_end_overlap(raw_start,
                                                                    raw_end,
                                                                    label_ant_list)
-                    #update span based on window size
                     a_candidate = {'candidate_type': self.candidate_type,
                                    'bow_start': match_start,
                                    'bow_end': match_end,

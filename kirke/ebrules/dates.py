@@ -1,15 +1,135 @@
 import calendar
-import datetime
+import logging
 import re
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional, Tuple
 
 from dateutil import parser
 
 from kirke.utils import mathutils
 from kirke.sampleutils.doccandidatesutils import DocCandidatesTransformer
 
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-def extract_party_line(paras_attr_list):
+
+# pylint: disable=too-few-public-methods
+class NoDefaultDate(object):
+
+    # pylint: disable=no-self-use
+    def replace(self, **fields) -> Dict:
+        return fields
+
+
+class DateNormalizer(DocCandidatesTransformer):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.label = 'date_norm'
+
+    # not called by anyone
+    def enrich(self, candidate: Dict) -> None:
+        pass
+
+    # if using fuzzy-with_tokens
+    # Tuple[datetime.datetime, Tuple]
+    # pylint: disable=no-self-use
+    def parse_date(self, line: str) -> Optional[Dict[str, Any]]:
+        orig_line = line.replace('\n', '|')
+        line = re.sub(r'first', '1st', line)
+        # fixing OCR errors for "L" for "1" or "O" for '0"
+        if 'l' in line:
+            line = re.sub(r'(\d)l', r'\g<1>1', line)
+            line = re.sub(r'l(\d)', r'1\g<1>', line)
+        if 'o' in line:
+            line = re.sub(r'(\d)[oO]', r'\g<1>0', line)
+            line = re.sub(r'[oO](\d)', r'0\g<1>', line)
+        # to handle '13Aprl2014'
+        mat = re.match(r'(\d+)([a-zA-Z]+)(\d+)$', line)
+        if mat:
+            line = mat.group(1) + ' ' + mat.group(2) + ' ' + \
+                   mat.group(3)
+
+        try:
+            # set dayfirst=True for UK dates, revisit later
+            # print("parse_date({})".format(line))
+            # Please Note: We changed the returns result to be a dict instead of datetime.datetime
+            norm = parser.parse(line, fuzzy=True, default=NoDefaultDate())  # type: Dict[str, int]
+        except ValueError:
+            # logger.debug("Failed to parse_date(%s) as a date.  Branch 1.", line)
+            return None
+        except:  # pylint: disable=bare-except
+            # logger.debug("Failed to parse_date(%s) as a date.  Branch 2.", line)
+            return None
+
+        if re.search('end of', orig_line, re.I) and \
+           norm.get('month') and norm.get('year') and \
+           not norm.get('day'):
+            norm['day'] = get_last_day_of_month(norm.get('year', 2018),
+                                                norm.get('month', 4))
+
+        year_st, month_st, day_st = 'XXXX', 'XX', 'XX'
+        year_val = norm.get('year')
+        month_val = norm.get('month')
+        day_val = norm.get('day')
+        if year_val:
+            year_st = '{:04d}'.format(year_val)
+        if month_val:
+            month_st = '{:02d}'.format(month_val)
+        if day_val:
+            day_st = '{:02d}'.format(day_val)
+
+        # pylint: disable=too-many-boolean-expressions
+        if (year_val and year_val < 1) or \
+           (month_val and month_val < 1) or \
+           (day_val and day_val < 1):
+            # logger.debug("Failed to parse_date(%s) as a date.  Branch 3.", line)
+            return None
+        # pylint: disable=too-many-boolean-expressions
+        if (year_val and year_val > 3000) or \
+           (month_val and month_val > 12) or \
+           (day_val and day_val > 31):
+            # there are a log of telephone, '818-1888'
+            # logger.debug("Failed to parse_date(%s) as a date.  Branch 4.", line)
+            return None
+
+        norm_dict = {'norm': {'date':'{}-{}-{}'.format(year_st, month_st, day_st)}}
+
+        return norm_dict
+
+
+    def doc_postproc(self,
+                     candidates: List[Dict],
+                     nbest: int) -> List[Dict]:
+        num_used = 0
+        out_list = []  # type: List[Dict]
+        for candidate in candidates:
+            text = candidate['text']
+            date_dict = self.parse_date(text)
+
+            if not date_dict:
+                candidate['prob'] = 0.011
+            else:
+                # UI doenn't want a nested 'date' inside 'norm' dict.
+                # shortcut this
+                date_dict['norm'] = date_dict['norm']['date']
+
+                if nbest == -1 or num_used < nbest:
+                    num_used += 1  # do really nothing
+                    out_list.append(candidate)
+                else:
+                    # set anything >= nbest to none
+                    candidate['prob'] = 0.0112
+
+                candidate.update(date_dict)
+        # return candidates
+        return out_list
+
+
+# to be used by this module internally, extra '_' at the end
+DATE_NORMALIZER_ = DateNormalizer()
+
+def extract_party_line(paras_attr_list: List[Tuple[str, List[str]]]):
     offset = 0
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
         # attrs_st = '|'.join([str(attr) for attr in para_attrs])
@@ -26,9 +146,11 @@ def extract_party_line(paras_attr_list):
 
     return None
 
-def extract_before_and_party_line(paras_attr_list):
+
+def extract_before_and_party_line(paras_attr_list: List[Tuple[str, List[str]]]) \
+    -> Tuple[List[Tuple[int, int, str]], Optional[Tuple[int, int, str]]]:
     offset = 0
-    before_lines = []
+    before_lines = []  # type: List[Tuple[int, int, str]]
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
         # attrs_st = '|'.join([str(attr) for attr in para_attrs])
         # print('\t'.join([attrs_st, '[{}]'.format(line_st)]), file=fout1)
@@ -61,8 +183,9 @@ SET_FORTH_PAT = re.compile(r'\b(the date set forth in section \S+ of the summary
 DATE_MADE_ON_PAT = re.compile(r'\bmade on ((\S+|\S+\s+\S+|\S+\s+\S+\s+\S+) \d{4})\b', re.IGNORECASE)
 
 # pylint: disable=too-many-branches, too-many-statements
-def extract_dates_from_party_line(line):
-    result = []
+def extract_dates_from_party_line(line: str) \
+    -> List[Tuple[int, int, str, str, str]]:
+    result = []  # type: List[Tuple[int, int, str, str]]
     # very special case, for handling handwriting
     for mat in DATE_AS_OF_PAT.finditer(line):
         maybe_date = mat.group(1)
@@ -155,10 +278,15 @@ def extract_dates_from_party_line(line):
             result.append((mat.start(), mat.end(), mat.group(), 'date'))
 
     result = prefer_effectivedate_over_date(result)
-    return mathutils.remove_subsumed(result)
+    result = mathutils.remove_subsumed(result)
+    result_with_norm = validate_dates(result)
 
-def prefer_effectivedate_over_date(alist):
-    start_end_tuple_map = {}
+    return result_with_norm
+
+
+def prefer_effectivedate_over_date(alist: List[Tuple[int, int, str, str]]) \
+    -> List[Tuple[int, int, str, str]]:
+    start_end_tuple_map = {}  # type: Dict[Tuple[int, int], Tuple[int, int, str, str]]
     for elt in alist:
         old_elt = start_end_tuple_map.get((elt[0], elt[1]), [])
         if elt[3] == 'effectivedate_auto':
@@ -166,9 +294,10 @@ def prefer_effectivedate_over_date(alist):
             start_end_tuple_map[(elt[0], elt[1])] = elt
         elif not old_elt:
             start_end_tuple_map[(elt[0], elt[1])] = elt
-    return start_end_tuple_map.values()
+    return list(start_end_tuple_map.values())
 
-def extract_std_dates(line):
+
+def extract_std_dates(line: str):
     """Extract standard-format dates from a given line."""
     dates = [(mat.start(), mat.end())
              for pat in (DATE_PAT1, DATE_PAT2, DATE_PAT3, DATE_PAT4)
@@ -197,7 +326,8 @@ DATE_PAT1_2_ST = '(' + ALL_MONTH_PAT + r'|(_+|\[[_•\s]*\])' + r')[,\s]*[oOl\d]
 # DATE_PAT_ST = '(' + ALL_MONTH_PAT + r')'
 # print('DATE_PAT_ST = "{}"'.format(DATE_PAT1_ST))
 
-DATE_PAT1 = re.compile(r'(' + DATE_PAT1_ST + r'|' + DATE_PAT1_1_ST  +
+DATE_PAT1 = re.compile(r'(' +
+                       DATE_PAT1_ST + r'|' + DATE_PAT1_1_ST  +
                        r'|' + DATE_PAT1_2_ST + r')\b', re.IGNORECASE)
 
 
@@ -219,14 +349,23 @@ DATE_PAT3_3_ST = r'((the|this)\s+((day )?(of|o f))\s+[oOl\d]{4})'
 DATE_PAT3 = re.compile(r'(' + DATE_PAT3_ST + r'|' + DATE_PAT3_1_ST + r'|' + DATE_PAT3_2_ST + r'|' +
                        DATE_PAT3_3_ST + r')\b', re.IGNORECASE)
 
+# r'[oOl\d]{1,2}[\-\/\.][oOl\d]{1,2}[\-\/\.][oOl\d]{2,4}|' \
+# r'[oOl\d]{4}[\-\/\.][oOl\d]{1,2}[\-\/\.][oOl\d]{1,2}|' \
 # pylint: disable=line-too-long
-DATE_PAT4_ST = r'\b([oOl\d]{1,2}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{2,4}|[oOl\d]{4}[\-\/][oOl\d]{1,2}[\-\/][oOl\d]{1,2})\b'
+DATE_PAT4_ST = r'\b(' \
+               r'[oOl\d]{1,2}[\-\/\.]([oOl\d]{1,2}|(' + ALL_MONTH_PAT + r'))[\-\/\.][oOl\d]{2,4}|' \
+               r'[oOl\d]{1,2}[\-\/\.]?([oOl\d]{1,2}|(' + ALL_MONTH_PAT + r'))[\-\/\.]?[oOl\d]{4}|' \
+               r'[oOl\d]{4}[\-\/\.]([oOl\d]{1,2}|(' + ALL_MONTH_PAT + r'))[\-\/\.][oOl\d]{1,2}' \
+               r')\b'
 DATE_PAT4 = re.compile(DATE_PAT4_ST, re.IGNORECASE)
 
 EFFECTIVE_PAT = re.compile(r'effective', re.IGNORECASE)
 
-def extract_dates_v2(line, line_start, doc_text=''):
-    result = []
+def extract_dates_v2(line: str,
+                     line_start: int,
+                     doc_text: str = '') \
+                     -> List[Tuple[int, int, str, str, str]]:
+    result = []  # List[Tuple[int, int, str, str]]
     for mat in DATE_PAT1.finditer(line):
         if doc_text:
             char40_before = doc_text[max(line_start + mat.start() - 40, 0):line_start + mat.start()]
@@ -282,12 +421,38 @@ def extract_dates_v2(line, line_start, doc_text=''):
     # remove duplicates
     out_list2 = mathutils.remove_subsumed(result)
 
-    return out_list2
+    out_list3 = validate_dates(out_list2)
+
+    return out_list3
 
 
+def validate_dates(date_list: List[Tuple[int, int, str, str]]) \
+    -> List[Tuple[int, int, str, str, str]]:
+    result = []  # List[Tuple[int, int, str, str, str]]
+    for date_tuple in date_list:
+        start, end, text, date_type = date_tuple
+
+        # to handle '13Aprl2014'
+        mat = re.match(r'(\d+)([a-zA-Z]+)(\d+)$', text)
+        if mat:
+            tmp_text = mat.group(1) + ' ' + mat.group(2) + ' ' + \
+                   mat.group(3)
+        else:
+            tmp_text = text
+        date_dict = DATE_NORMALIZER_.parse_date(tmp_text)
+        if date_dict:
+            result.append((start, end, text, date_type, date_dict['norm']['date']))
+        else:
+            logging.info("failed to parse_date(%s)", text)
+    return result
+
+
+# maybe delete in future, jshaw
+# pylint: disable=pointless-string-statement
+"""
 # pylint: disable=too-many-locals
-def extract_dates(filepath):
-    """Return list of parties (lists of (start, inclusive-end) offsets)."""
+def extract_dates(filepath: str) -> List[Tuple[int, int, str, str, str]]:
+    "" "Return list of parties (lists of (start, inclusive-end) offsets)."" "
 
     # Find the party line in the file
     party_line_ox = None
@@ -312,7 +477,7 @@ def extract_dates(filepath):
     # print("party line: [{}]".format(party_line_ox))
     # print('len(before_lines) = {}'.format(len(before_lines)))
 
-    before_dates = []
+    before_dates = []  # type: List[Tuple[int, int, str, str, str]]
     for line_start, unused_line_end, xline in before_lines:
         found_dates = extract_dates_v2(xline, line_start, doc_text='')
         if found_dates:
@@ -320,22 +485,27 @@ def extract_dates(filepath):
     # print('before_dates: {}'.format(before_dates))
 
     if not before_dates and not party_line_ox:
-        return None
+        return []
 
     # Extract parties and return their offsets
     unused_party_start, unused_party_end, party_line = party_line_ox
     dates = extract_dates_from_party_line(party_line)
+
     return before_dates + dates
+"""
 
 
-def extract_offsets(paras_attr_list, paras_text):
-    """Return list of parties (lists of (start, inclusive-end) offsets)."""
+# pylint: disable=too-many-locals
+def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
+                    paras_text: str) \
+                    -> List[Tuple[int, int, str, str, str]]:
+    """Return list of parties (lists of (start, inclusive-end) offsets, date_norm)."""
 
     # logging.info('extract_offsets: len(paras_text) = {}'.format(len(paras_text)))
     # Grab lines from the file
     before_lines, start_end_partyline = extract_before_and_party_line(paras_attr_list)
 
-    partyline_dates = []
+    partyline_dates = []  # type: List[Tuple[int, int, str, str, str]]
     if start_end_partyline:
         partyline_start, unused_partyline_end, partyline = start_end_partyline
         # print("partyline ({}, {})".format(partyline_start, partyline_end))
@@ -345,132 +515,62 @@ def extract_offsets(paras_attr_list, paras_text):
         partyline_dates = extract_dates_from_party_line(partyline)
         # logging.info("partyline dates: {}".format(partyline_dates))
         if partyline_dates:
-            adjusted_dates = []
-            for date_ox in partyline_dates:
-                start, end, unused_date_st, date_type = date_ox
-                adjusted_dates.append((partyline_start + start, partyline_start + end, date_type))
-            partyline_dates = adjusted_dates
-    # print('partyline_dates: {}'.format(partyline_dates))
+            partyline_dates = [(partyline_start + start, partyline_start + end,
+                                date_st, date_type, date_norm)
+                               for start, end, date_st, date_type, date_norm in partyline_dates]
+    # logger.debug('3555 partyline_dates: %r', partyline_dates)
 
-    before_dates = []
+    before_dates = []  # type: List[Tuple[int, int, str, str, str]]
     for line_start, unused_line_end, xline in before_lines:
         found_dates = extract_dates_v2(xline, line_start, doc_text=paras_text)
         if found_dates:
             for date_ox in found_dates:
-                start, end, unused_date_st, date_type = date_ox
-                before_dates.append((line_start + start, line_start + end, date_type))
-    # print('before_dates: {}'.format(before_dates))
+                start, end, date_st, date_type, norm_date = date_ox
+                before_dates.append((line_start + start, line_start + end, date_st, date_type, norm_date))
+
+    # logger.debug('3556 before_dates: %r', before_dates)
     # x1 = before_dates[0]
     # print("paras_text: [{}]".format(paras_text[x1[0]:x1[1]]))
 
     if not before_dates and not partyline_dates:
-        return None
+        return []
 
     # we want first effective date and date, no more
-    out_list = []
+    out_list = []  # type: List[Tuple[int, int, str, str, str]]
     # if effective date is mentioned in before_dates, that's effective date for the doc.
     # in party line, the effective date can be effective date for master doc
     xx_effective_dates = [date_ox for date_ox in before_dates
-                          if date_ox[2] == 'effectivedate']
+                          if date_ox[3] == 'effectivedate']
     if not xx_effective_dates:
         xx_effective_dates = [date_ox for date_ox in partyline_dates
-                              if date_ox[2] == 'effectivedate']
+                              if date_ox[3] == 'effectivedate']
     if xx_effective_dates:
         out_list.append(xx_effective_dates[0])
 
-    xx_dates = [date_ox for date_ox in partyline_dates if date_ox[2] == 'date']
+    xx_dates = [date_ox for date_ox in partyline_dates if date_ox[3] == 'date']
     if not xx_dates:
-        xx_dates = [date_ox for date_ox in before_dates if date_ox[2] == 'date']
+        xx_dates = [date_ox for date_ox in before_dates if date_ox[3] == 'date']
     if xx_dates:
         out_list.append(xx_dates[0])
 
-    # logging.info("out_list: {}".format(out_list))
+    logger.debug("dates out_list: %r", out_list)
     return out_list
 
 
 # pylint: disable=too-few-public-methods
 class DateAnnotator:
 
-    def __init__(self, provision):
+    def __init__(self, provision: str) -> None:
         self.provision = provision
 
     # pylint: disable=no-self-use
-    def extract_provision_offsets(self, paras_with_attrs, paras_text):
+    def extract_provision_offsets(self,
+                                  paras_with_attrs: List[Tuple[str, List[str]]],
+                                  paras_text: str):
         return extract_offsets(paras_with_attrs, paras_text)
-
-
-# pylint: disable=too-few-public-methods
-class NoDefaultDate(object):
-
-    # pylint: disable=no-self-use
-    def replace(self, **fields) -> Dict:
-        return fields
 
 
 def get_last_day_of_month(year: int, month: int) -> int:
     """Returns the number of days in a month."""
     _, num_day = calendar.monthrange(year, month)
     return num_day
-
-
-class DateNormalizer(DocCandidatesTransformer):
-
-    def __init__(self) -> None:
-        self.label = 'date_norm'
-
-    # if using fuzzy-with_tokens
-    # Tuple[datetime.datetime, Tuple]
-    # pylint: disable=no-self-use
-    def parse_date(self, line: str) -> Optional[Dict]:
-        orig_line = line.replace('\n', '|')
-        line = re.sub(r'first', '1st', line)
-        # fixing OCR errors for "L" for "1" or "O" for '0"
-        if 'l' in line:
-            line = re.sub(r'(\d)l', r'\g<1>1', line)
-            line = re.sub(r'l(\d)', r'1\g<1>', line)
-        if 'o' in line:
-            line = re.sub(r'(\d)[oO]', r'\g<1>0', line)
-            line = re.sub(r'[oO](\d)', r'0\g<1>', line)
-
-        try:
-            # set dayfirst=True for UK dates, revisit later
-            # print("parse_date({})".format(line))
-            norm = parser.parse(line, fuzzy=True, default=NoDefaultDate())
-        except ValueError:
-            print("x2523, failed to parse [{}] as a date".format(line))
-            return None
-        except:
-            print("x2524, failed to parse2 [{}] as a date".format(line))
-            return None
-
-        if re.search('end of', orig_line, re.I) and \
-           norm.get('month') and norm.get('year') and \
-           not norm.get('day'):
-            norm['day'] = get_last_day_of_month(norm.get('year'),
-                                                norm.get('month'))
-
-        year_st, month_st, day_st = 'XXXX', 'XX', 'XX'
-        year_val = norm.get('year')
-        month_val = norm.get('month')
-        day_val = norm.get('day')
-        if year_val:
-            year_st = '{:04d}'.format(year_val)
-        if month_val:
-            month_st = '{:02d}'.format(month_val)
-        if day_val:
-            day_st = '{:02d}'.format(day_val)
-        norm_st = {'norm': {'date':'{}-{}-{}'.format(year_st, month_st, day_st)}}
-        return norm_st
-
-
-    def doc_postproc(self, candidates: List[Dict], nbest: int) -> None:
-        for candidate in candidates:
-            text = candidate['text']
-            date_dict = self.parse_date(text)
-
-            if not date_dict:
-                candidate['prob'] == 0.011
-                return
-
-            candidate.update(date_dict)
-        return candidates
