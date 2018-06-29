@@ -15,12 +15,8 @@ docker build -f Dockerfile -t ebreviainc/kirke:$VERSION .
 docker push ebreviainc/kirke:$VERSION
 
 # tag the build in git
-## git tag -f $VERSION
-## git push -f origin $VERSION
-
-##(cd ../kirke && \
-##        git tag -f $VERSION && \
-##        git push -f origin $VERSION)
+git tag -f $VERSION
+git push -f origin $VERSION
 
 # generate aws deploy file
 # FIXME should do this for each region, since they need separate deploy files (stupid)

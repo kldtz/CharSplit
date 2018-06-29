@@ -281,7 +281,7 @@ def custom_train(cust_id: str):
     request_work_dir = request.form.get('workdir')
     if request_work_dir:
         work_dir = request_work_dir
-        logger.info("work_dir = '%s'", work_dir)
+        logger.info("passed in work_dir = '%s'", work_dir)
         # For security reason,
         # make sure we don't write to anywhere else other than /eb_files
         if '..' in work_dir or not work_dir.startswith(EB_FILES):
@@ -289,6 +289,7 @@ def custom_train(cust_id: str):
         osutils.mkpath(work_dir)
     else:
         work_dir = WORK_DIR
+    logger.info("work_dir = '%s'", work_dir)
 
     candidate_type = request.form.get('candidate_type')
     if not candidate_type:
