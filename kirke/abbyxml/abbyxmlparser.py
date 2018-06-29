@@ -552,9 +552,9 @@ def infer_header_footer_blocks(ab_page: AbbyPage) -> None:
 
         # if tattr < 200:
         if tattr < 340:
-            print("tattr < 340, tattr = {}".format(tattr))
+            # print("tattr < 340, tattr = {}".format(tattr))
             block_text = block_to_text(ab_block)
-            print('block_num_words = {} [{}]'.format(block_num_words, block_text))
+            # print('block_num_words = {} [{}]'.format(block_num_words, block_text))
 
         if tattr < 340 and \
            block_num_words <= 20 and \
@@ -574,18 +574,18 @@ def infer_header_footer_table_blocks(ab_page: AbbyPage) -> None:
 
         # if tattr < 200:
         if tattr < 340:
-            print("\ntattr < 340, tattr = {}".format(tattr))
+            # print("\ntattr < 340, tattr = {}".format(tattr))
             block_text = block_to_text(ab_block)
-            print('    block_num_words = {} [{}]'.format(block_num_words, block_text))
+            # print('    block_num_words = {} [{}]'.format(block_num_words, block_text))
 
         if tattr < 340 and \
            block_num_words <= 120 and \
            battr < 400:  # each left, middle, right cell can contribute 40 char each
             ab_block.infer_attr_dict['header'] = True
-            print("      set header true")
+            # print("      set header true")
         if tattr >= 3000:
             ab_block.infer_attr_dict['footer'] = True
-            print("      set footer true")
+            # print("      set footer true")
 
 
 # there is probably a more concise way of expressing this in python, 5345
