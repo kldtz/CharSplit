@@ -11,24 +11,8 @@ fi
 
 echo "Building version $1"
 
-rm -rf target
-mkdir -p target/kirke
-
-# copy ../kirke to current working dir
-cp *.py target/kirke
-cp *.sh target/kirke
-cp *.ini target/kirke
-cp requirements.txt target/kirke
-cp logging.yaml target/kirke
-cp -r kirke target/kirke
-cp -r parser target/kirke
-cp -r resources target/kirke
-cp -r tests target/kirke
-cp -r dict target/kirke
-cp -r doc target/kirke
-
 docker build -f Dockerfile -t ebreviainc/kirke:$VERSION .
-## docker push ebreviainc/kirke:$VERSION
+docker push ebreviainc/kirke:$VERSION
 
 # tag the build in git
 ## git tag -f $VERSION

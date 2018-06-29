@@ -58,10 +58,10 @@ ENV EB_MODELS=/eb_models/
 # add specified config for local or production
 
 # install python app
-COPY target/kirke/requirements.txt /var/www/ebrevia-python/
+COPY requirements.txt /var/www/ebrevia-python/
 WORKDIR /var/www/ebrevia-python/
 RUN pip3 install -r requirements.txt
-COPY target/kirke/download_nltk.py /var/www/ebrevia-python/
+COPY download_nltk.py /var/www/ebrevia-python/
 RUN python3 download_nltk.py
 
 WORKDIR $EB_MODELS
@@ -75,13 +75,11 @@ COPY docker/service /etc/service/
 RUN mkdir -p /etc/my_init.d
 ADD docker/bin/startup.sh /etc/my_init.d/startup.sh
 
-COPY target/kirke /var/www/ebrevia-python/
+COPY . /var/www/ebrevia-python/
 
 #------------------------------------------------
 
-ENV OCR_SERVER_URL=http://ocrrecognitionserve-env.us-east-1.elasticbeanstalk.com/Recognition4WS/RSSoapService.asmx?WSDL
-
-EXPOSE 8000
+EXPOSE 80
 
 VOLUME /eb_files
 
