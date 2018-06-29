@@ -643,7 +643,8 @@ def sync_doc_offsets(abby_doc: AbbyXmlDoc,
         unsync_fname = '/tmp/{}.unsync'.format(pbox_fname)
         fout = open(unsync_fname, 'wt')
 
-    doc_text = pbox_doc.doc_text
+    # doc_text = pbox_doc.doc_text
+    doc_text = re.sub('[­¬]', '-', pbox_doc.doc_text)
     for page_num, ab_page in enumerate(abby_doc.ab_pages):
         pbox_page = pbox_doc.page_list[page_num]
         sync_page_offsets(ab_page,

@@ -1,6 +1,7 @@
 from collections import namedtuple, Counter, defaultdict
 from functools import total_ordering
 import os
+import re
 import sys
 from typing import Any, DefaultDict, Dict, List, Optional, TextIO, Tuple, Union
 
@@ -16,7 +17,7 @@ class AbbyLine:
                  text: str,
                  attr_dict: Dict) -> None:
         self.num = -1
-        self.text = text
+        self.text = re.sub('[­¬]', '-', text)
         self.attr_dict = attr_dict
 
         # this links to PDFBox's offset
@@ -252,11 +253,15 @@ def _print_left_right_panes_with_sync(rt_line: str,
     else:
         tmp_rt_line = '|----' * indent_level + '[' + rt_line + ']'
 
+    tmp_x = line_attr_dict.get('x', -1)
+    tmp_y = line_attr_dict.get('y', -1)
+    left_line += ' xy=({}, {})'.format(tmp_x, tmp_y)
+
     if to_se_list:
         left_line += ' {}'.format(to_se_list)
 
     # 40 column for meta info
-    print("    {:36}{}".format(left_line, tmp_rt_line), file=file)
+    print("  {:46}{}".format(left_line, tmp_rt_line), file=file)
 
 
 def print_text_block_meta(ab_text_block: AbbyTextBlock, file: TextIO = sys.stdout) -> None:
@@ -281,6 +286,25 @@ def print_text_block_meta(ab_text_block: AbbyTextBlock, file: TextIO = sys.stdou
                                     is_par_centered=is_par_centered,
                                     file=file)
 
+
+def print_text_block_first_line(ab_text_block: AbbyTextBlock) -> None:
+
+    for unused_par_id, ab_par in enumerate(ab_text_block.ab_pars):
+        for unused_lid, ab_line in enumerate(ab_par.ab_lines):
+            print('    para [{}...]'.format(ab_line.text[:30]))
+            break
+
+
+def print_table_block_first_line(ab_table_block: AbbyTableBlock) -> None:
+
+    for unused_row_id, ab_row in enumerate(ab_table_block.ab_rows):
+        for unused_cell_seq, ab_cell in enumerate(ab_row.ab_cells):
+            for ab_par in ab_cell.ab_pars:
+                for unused_lid, ab_line in enumerate(ab_par.ab_lines):
+                    print("    cell [{}]".format(ab_line.text[:30]))
+                    break
+                break
+            break
 
 
 class AbbyXmlDoc:
@@ -460,11 +484,17 @@ class AbbyXmlDoc:
                             print("    {:26}  -- cell #{}:".format('', cell_seq), file=file)
                             for ab_par in ab_cell.ab_pars:
                                 for lid, ab_line in enumerate(ab_par.ab_lines):
+
+                                    tmp_x = ab_line.infer_attr_dict.get('x', -1)
+                                    tmp_y = ab_line.infer_attr_dict.get('y', -1)
+                                    left_line = ' xy=({}, {})'.format(tmp_x, tmp_y)
+
                                     to_se_list = []
                                     if ab_line.abby_pbox_offset_mapper and \
                                        ab_line.abby_pbox_offset_mapper.to_se_list:
                                         to_se_list = ab_line.abby_pbox_offset_mapper.to_se_list
-                                    print("    {:26}        [{}]".format(str(to_se_list), ab_line.text), file=file)
+                                    left_line += ' {}'.format(str(to_se_list))
+                                    print("    {:26}        [{}]".format(left_line, ab_line.text), file=file)
                 else:
                     raise ValueError
 
