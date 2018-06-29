@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import sys
 from typing import TextIO
 
@@ -41,34 +42,38 @@ if __name__ == '__main__':
     txt_fname = fname
     pdf_txt_doc = pdftxtparser.parse_document(txt_fname, work_dir=work_dir)
 
+    base_fname = os.path.basename(txt_fname)
+
+    work_fname = '{}/{}'.format(work_dir, base_fname)
+
     # pdf_txt_doc.print_debug_blocks()
     # pdf_txt_doc.save_debug_pages(work_dir=work_dir, extension='.sync.debug.tsv')
-    txt_str_fname = fname.replace('.txt', '.txt.str')
+    txt_str_fname = work_fname.replace('.txt', '.txt.str')
     with open(txt_str_fname, 'wt') as fout:
         pdf_txt_doc.save_str_text(file=fout)
         print('wrote {}'.format(txt_str_fname))
 
     sync_doc_offsets(abby_xml_doc, pdf_txt_doc)
 
-    txt_infer_fname = fname.replace('.txt', '.txt.infer')
+    txt_infer_fname = work_fname.replace('.txt', '.txt.infer')
     with open(txt_infer_fname, 'wt') as fout:
         abby_xml_doc.print_infer_text(file=fout)
         print('wrote {}'.format(txt_infer_fname))
 
     # has both infer_attr_dict and attr_dict
-    txt_debug_fname = fname.replace('.txt', '.txt.debug')
+    txt_debug_fname = work_fname.replace('.txt', '.txt.debug')
     with open(txt_debug_fname, 'wt') as fout:
         abby_xml_doc.print_debug_text(file=fout)
         print('wrote {}'.format(txt_debug_fname))
 
     # abby_xml_doc.print_text()
-    txt_meta_fname = fname.replace('.txt', '.txt.meta')
+    txt_meta_fname = work_fname.replace('.txt', '.txt.meta')
     with open(txt_meta_fname, 'wt') as fout:
         abby_xml_doc.print_text_with_meta(file=fout)
         print('wrote {}'.format(txt_meta_fname))
 
-    txt_sync_fname = fname.replace('.txt', '.txt.sync')
-    txt_unsync_fname = fname.replace('.txt', '.txt.unsync')
+    txt_sync_fname = work_fname.replace('.txt', '.txt.sync')
+    txt_unsync_fname = work_fname.replace('.txt', '.txt.unsync')
     with open(txt_sync_fname, 'wt') as sync_fout:
         with open(txt_unsync_fname, 'wt') as unsync_fout:
             verify_abby_xml_doc_by_offsets(abby_xml_doc,

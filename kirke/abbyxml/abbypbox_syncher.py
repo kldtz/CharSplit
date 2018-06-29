@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 import logging
+import os
 import re
 import sys
 # pylint: disable=unused-import
@@ -10,7 +11,7 @@ from typing import Dict, List, Match, Optional, TextIO, Tuple
 from kirke.abbyxml import abbyxmlparser
 from kirke.abbyxml.pdfoffsets import AbbyPage
 from kirke.abbyxml.pdfoffsets import AbbyTableBlock, AbbyTextBlock, AbbyXmlDoc, UnmatchedAbbyLine
-from kirke.docstruct.pdfoffsets import PageInfo3
+from kirke.docstruct.pdfoffsets import PDFTextDoc, PageInfo3
 from kirke.utils.alignedstr import AlignedStrMapper
 
 
@@ -23,6 +24,9 @@ logger.setLevel(logging.DEBUG)
 IS_DEBUG_SYNC = False
 # level 2, sync debug, more detailed info
 IS_DEBUG_SYNC_L2 = False
+
+# This is just to print out the unsync information
+IS_DEBUG_UNSYNC = True
 
 IS_DEBUG_XY_DIFF = False
 
@@ -353,31 +357,35 @@ def print_unsynced(unmatched_ablines: List[UnmatchedAbbyLine],
                    pbox_extra_se_list: List[Tuple[int,
                                                   Tuple[int, int],
                                                   str,
-                                                  AlignedStrMapper]]) \
+                                                  AlignedStrMapper]],
+                   fout: TextIO = sys.stdout) \
                    -> None:
 
     if unmatched_ablines:
         for count_i, ua_line in enumerate(unmatched_ablines):
-            print("  unmatched abline #{}: {}".format(count_i, ua_line))
-        print()
+            print("  unmatched abline #{}: {}".format(count_i, ua_line), file=fout)
+        print(file=fout)
     if unmatched_pbox_xy_list:
         for count_i, xypair in enumerate(unmatched_pbox_xy_list):
             pbox_xypair, pbox_se, ptext = pbox_xy_map[xypair]
             print("  unmatched pbox str #{}: xy={} se={} [{}]".format(count_i,
                                                                       pbox_xypair,
                                                                       pbox_se,
-                                                                      ptext))
-        print()
+                                                                      ptext),
+                  file=fout)
+        print(file=fout)
     if abby_extra_se_list:
         for count_i, ab_extra_se in enumerate(abby_extra_se_list):
             abby_y, ab_se, ab_text, unused_asm = ab_extra_se
-            print("  abby_extra_se #{}: y={} se={} [{}]".format(count_i, abby_y, ab_se, ab_text))
-        print()
+            print("  abby_extra_se #{}: y={} se={} [{}]".format(count_i, abby_y, ab_se, ab_text),
+                  file=fout)
+        print(file=fout)
     if pbox_extra_se_list:
         for count_i, pb_extra_se in enumerate(pbox_extra_se_list):
             pbox_y, pbox_se, pb_text, unused_asm = pb_extra_se
-            print("  pbox_extra_se #{}: y={} se={} [{}]".format(count_i, pbox_y, pbox_se, pb_text))
-        print()
+            print("  pbox_extra_se #{}: y={} se={} [{}]".format(count_i, pbox_y, pbox_se, pb_text),
+                  file=fout)
+        print(file=fout)
 
 
 # Note:
@@ -388,7 +396,8 @@ def print_unsynced(unmatched_ablines: List[UnmatchedAbbyLine],
 def sync_page_offsets(abby_page: AbbyPage,
                       pbox_page: PageInfo3,
                       doc_text: str,
-                      abbydoc_unmatched_ablines: List[UnmatchedAbbyLine]) -> None:
+                      abbydoc_unmatched_ablines: List[UnmatchedAbbyLine],
+                      funsync: Optional[TextIO] = None) -> None:
 
     # pbox_xy_map: the coordinates all str in pdfbox's output
     # pbox_str_mapped_tracker: all the xy pairs in pdfbox.  Will be used to figure
@@ -453,7 +462,7 @@ def sync_page_offsets(abby_page: AbbyPage,
                         fstart, fend = asmapper.extra_fse
                         abby_extra_se_list.append((xypair[-1],
                                                    asmapper.extra_fse,
-                                                   ab_line.text[fstart-start:fend-start],
+                                                   ab_line.text[fstart:fend],
                                                    ab_line.abby_pbox_offset_mapper))
                     elif asmapper.extra_tse:  # pdfbox has this, but not abby
                         tstart, tend = asmapper.extra_tse
@@ -602,7 +611,25 @@ def sync_page_offsets(abby_page: AbbyPage,
         print('^^^^^\n')
 
 
-def sync_doc_offsets(abby_doc, pbox_doc) -> None:
+    if funsync and \
+       (unmatched_ablines or
+        unmatched_pbox_xy_list or
+        abby_extra_se_list or
+        pbox_extra_se_list):
+
+        print("\n\n====== print_unsynced, page #{}====\n".format(pbox_page.page_num),
+              file=funsync)
+        print_unsynced(unmatched_ablines,
+                       unmatched_pbox_xy_list,
+                       pbox_xy_map,
+                       abby_extra_se_list,
+                       pbox_extra_se_list,
+                       fout=funsync)
+        print('^^^^^\n', file=funsync)
+
+
+def sync_doc_offsets(abby_doc: AbbyXmlDoc,
+                     pbox_doc: PDFTextDoc) -> None:
     """Update lines in abb_doc withe offsets in pbox_doc lines.
 
     The synching process does ONE page at a time.  Because of this 1
@@ -610,13 +637,24 @@ def sync_doc_offsets(abby_doc, pbox_doc) -> None:
     based on the fact that there are only limited unmatched candidates
     in a page.
     """
+    fout = None
+    if IS_DEBUG_UNSYNC:
+        pbox_fname = os.path.basename(pbox_doc.file_name)
+        unsync_fname = '/tmp/{}.unsync'.format(pbox_fname)
+        fout = open(unsync_fname, 'wt')
+
     doc_text = pbox_doc.doc_text
     for page_num, ab_page in enumerate(abby_doc.ab_pages):
         pbox_page = pbox_doc.page_list[page_num]
         sync_page_offsets(ab_page,
                           pbox_page,
                           doc_text,
-                          abby_doc.unmatched_ab_lines)
+                          abby_doc.unmatched_ab_lines,
+                          funsync=fout)
+    if IS_DEBUG_UNSYNC:
+        fout.close()
+        print('wrote {}'.format(unsync_fname))
+
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
