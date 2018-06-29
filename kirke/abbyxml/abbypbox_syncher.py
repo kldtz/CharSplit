@@ -577,6 +577,7 @@ def sync_page_offsets(abby_page: AbbyPage,
         for um_abline, fromto_selist in um_abline_fromto_selist_map.items():
             # now remove it
             unmatched_ablines.remove(um_abline)
+            # note, the semantics for alignedstr.make_aligned_str_mapper() is changed.
             um_abline.ab_line.abby_pbox_offset_mapper = \
                 alignedstr.make_aligned_str_mapper(sorted(fromto_selist))
         for xypair in to_remove_unmatched_pbox_xy_list:

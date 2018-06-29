@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
+import os
 import pprint
 import sys
 import warnings
 import re
-import os
 import operator
 import math
 import json
+import shutil
 
-from typing import Any, DefaultDict, Dict, List, Optional, Union
+# pylint: disable=unused-import
+from typing import DefaultDict, Dict, List, Union
 
 # from kirke.abbyxml import AbbyLine, AbbyPar, AbbyTextBlock, AbbyTableBlock, AbbyXmlDoc
 from kirke.abbyxml.pdfoffsets import AbbyCell, AbbyLine, AbbyPar, AbbyRow
@@ -74,6 +75,7 @@ def add_infer_header_footer(attr_dict: Dict) -> None:
     b_attr = attr_dict['@b']
     l_attr = attr_dict['@l']
     t_attr = attr_dict['@t']
+    # pylint: disable=unused-variable
     r_attr = attr_dict['@r']
     align_attr = attr_dict.get('@align')
     if l_attr > 1800 and \
@@ -87,8 +89,8 @@ def add_infer_header_footer(attr_dict: Dict) -> None:
 
 
 def add_infer_text_block_attrs(text_block: AbbyTextBlock) -> None:
-    par_with_indent_list = []
-    indent_count_map = defaultdict(int)
+    # par_with_indent_list = []
+    indent_count_map = defaultdict(int)  # type: DefaultDict[str, int]
     num_line = 0
     total_line_len = 0
     all_ydiffs = []
@@ -113,6 +115,7 @@ def add_infer_text_block_attrs(text_block: AbbyTextBlock) -> None:
         text_block.infer_attr_dict['column_blobs'] = perc_indent_pars
 
 
+# pylint: disable=unused-argument
 def add_infer_table_block_attrs(table_block: AbbyTableBlock) -> None:
     pass
 
@@ -262,9 +265,10 @@ def parse_abby_par(ajson) -> List[AbbyPar]:
     return ab_par_list
 
 
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def parse_abby_page(ajson) -> AbbyPage:
     text_block_jsonlist = []
-    table_block_list = []
+    # table_block_list = []
 
     # print("parse_abby_page")
     # print(ajson)
@@ -392,7 +396,7 @@ def docjson_to_abby_page_list(ajson) -> List[AbbyPage]:
     # ab_page_list = [parse_abby_page(page_json)
     #                 for page_json in page_json_list]
     ab_page_list = []
-    for pcount, page_json in enumerate(page_json_list):
+    for unused_pcount, page_json in enumerate(page_json_list):
         # print("===== page seq: {} =====".format(pcount))
         # if pcount == 17:
         #     pprint.pprint(page_json)
@@ -406,17 +410,24 @@ def parse_document(file_name: str,
                    debug_mode: bool = False) \
                    -> AbbyXmlDoc:
 
-    # pprint.pprint(ajson, width=140)
-    ajson = abbyutils.abbyxml_to_json(file_name)
+    base_fname = os.path.basename(file_name)
+    xml_fname = '{}/{}'.format(work_dir, base_fname)
+    if xml_fname != file_name:
+        shutil.copy2(file_name, xml_fname)
+    else:
+        xml_fname = file_name
 
-    ajson_fname = file_name.replace('.pdf.xml', '.pdf.json')
+    # pprint.pprint(ajson, width=140)
+    ajson = abbyutils.abbyxml_to_json(xml_fname)
+
+    ajson_fname = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.pdf.json'))
     with open(ajson_fname, 'wt') as fout:
         pprint.pprint(ajson, stream=fout)
         print('wrote {}'.format(ajson_fname))
 
     abby_page_list = docjson_to_abby_page_list(ajson)
 
-    ab_xml_doc = AbbyXmlDoc(file_name, abby_page_list)
+    ab_xml_doc = AbbyXmlDoc(xml_fname, abby_page_list)
 
     tmp_file = file_name.replace('.pdf.xml', '.tmp')
     with open(tmp_file, 'wt') as fout:
@@ -439,7 +450,8 @@ def parse_document(file_name: str,
     li_map = defaultdict(int)
     left_indent_count_map = count_left_indent(ajson, li_map)
     print('left_indent_count_map:')
-    pprint.pprint(OrderedDict(sorted(left_indent_count_map.items(), key=operator.itemgetter(1), reverse=True)))
+    pprint.pprint(OrderedDict(sorted(left_indent_count_map.items(),
+                  key=operator.itemgetter(1), reverse=True)))
 
     doc_attrs = defaultdict(int)
     print_text(ajson, doc_attrs)
@@ -474,7 +486,8 @@ def set_abby_page_numbers(ab_doc: AbbyXmlDoc) -> None:
                     ab_par.num = par_id
                     par_id += 1
                     for ab_line in ab_par.ab_lines:
-                        #print("            line #{} [{}] {}".format(lid, ab_line.text, ab_line.infer_attr_dict))
+                        # print("            line #{} [{}] {}".format(lid,
+                        #                    ab_line.text, ab_line.infer_attr_dict))
                         ab_line.num = lid
                         lid += 1
             elif isinstance(ab_block, AbbyTableBlock):
@@ -551,6 +564,7 @@ def infer_header_footer_blocks(ab_page: AbbyPage) -> None:
             ab_block.infer_attr_dict['footer'] = True
 
 
+# pylint: disable=invalid-name
 def infer_header_footer_table_blocks(ab_page: AbbyPage) -> None:
     for ab_block in ab_page.ab_table_blocks:
         battr = ab_block.attr_dict.get('@b', -1)
@@ -583,12 +597,12 @@ def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock]) -> AbbyTableBlock
     # there is probably a more concise way of expressing this in python, 5345
     haligned_blocks = sorted(haligned_blocks, key=block_get_attr_left)
     cell_list = []
-    is_header = False
-    is_footer = False
+    # is_header = False
+    # is_footer = False
     infer_attr_dict = {}
     for tblock in haligned_blocks:
         line_list = []  # type: List[AbbyLine]
-        for par_id, ab_par in enumerate(tblock.ab_pars):
+        for unused_par_id, ab_par in enumerate(tblock.ab_pars):
             line_list.extend(ab_par.ab_lines)
         apar = AbbyPar(line_list, {})
         cell_list.append(AbbyCell([apar], {}))
@@ -633,7 +647,7 @@ def is_top_bot_match(top: int,
 
 def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
 
-    for pnum, abby_page in enumerate(ab_doc.ab_pages):
+    for unused_pnum, abby_page in enumerate(ab_doc.ab_pages):
 
         # find all the blocks with similar @b and @t
         ab_text_block_list = [ab_block for ab_block in abby_page.ab_blocks
@@ -726,12 +740,13 @@ def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
             for par_id, ab_par in enumerate(ab_text_block.ab_pars):
                 print("        par #{} {}".format(par_id, ab_par.infer_attr_dict))
                 for lid, ab_line in enumerate(ab_par.ab_lines):
-                    print("            line #{} [{}] {}".format(lid, ab_line.text, ab_line.infer_attr_dict))
+                    print("            line #{} [{}] {}".format(lid,
+                                     ab_line.text, ab_line.infer_attr_dict))
     """
 
     # merge adjacent blocks
     is_merge_occurred = False
-    for pnum, abby_page in enumerate(ab_doc.ab_pages):
+    for unused_pnum, abby_page in enumerate(ab_doc.ab_pages):
 
         out_block_list = []
         # if not abby_page.ab_text_blocks:
@@ -856,7 +871,7 @@ def get_page_abby_lines(abby_page: AbbyPage) -> List[AbbyLine]:
     return ab_line_list
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
     parser.add_argument("-v", "--verbosity", help="increase output verbosity")
     parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
@@ -880,3 +895,6 @@ if __name__ == '__main__':
         html_st = to_html_tables(abbydoc)
         print(html_st, file=fout)
     print('wrote "{}"'.format(table_html_out_fn))
+
+if __name__ == '__main__':
+    main()

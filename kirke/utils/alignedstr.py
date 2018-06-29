@@ -139,9 +139,9 @@ def compute_se_list(from_line: str,
     # print('flen = {}, tlen = {}'.format(flen, tlen))
     # print("from_se_list: {}".format(from_se_list))
     # print("to_se_list: {}".format(to_se_list))
-    return (adjust_list_offset(from_se_list, offset),
+    return (from_se_list,
             adjust_list_offset(to_se_list, offset),
-            adjust_pair_offset(extra_fse, offset),
+            extra_fse,
             adjust_pair_offset(extra_tse, offset))
 
 
@@ -202,9 +202,10 @@ class AlignedStrMapper:
         self.to_se_list.append(aligned_se_pair)
 
 
-def make_aligned_str_mapper(fromto_se_pair_list: List[Tuple[Tuple[int, int],
-                                                            Tuple[int, int]]]) \
-                                                            -> AlignedStrMapper:
+# nobody is calling this now?
+def unused_make_aligned_str_mapper(fromto_se_pair_list: List[Tuple[Tuple[int, int],
+                                                                   Tuple[int, int]]]) \
+                                                                   -> AlignedStrMapper:
     amapper = AlignedStrMapper('', '', offset=-1)
     for fromto_se_pair in fromto_se_pair_list:
         from_se, to_se = fromto_se_pair
