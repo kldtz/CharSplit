@@ -3,12 +3,12 @@ from typing import List, Optional, Tuple
 
 IS_DEBUG = False
 
-def is_space_uline(line: str) -> bool:
-    return line.isspace() or line == '_'
+def is_space_huline(line: str) -> bool:
+    return line.isspace() or is_hyphen_underline(line)
 
 
-def is_underline(line: str) -> bool:
-    return line == '_'
+def is_hyphen_underline(line: str) -> bool:
+    return line == '_' or line == '-'
 
 
 def adjust_list_offset(se_list: List[Tuple[int, int]],
@@ -69,14 +69,14 @@ def compute_se_list(from_line: str,
                 while tstart < tlen and to_line[tstart].isspace():
                     tstart += 1
 
-            if is_underline(prev_matched_char):
-                if is_space_uline(from_line[fstart]):
+            if is_hyphen_underline(prev_matched_char):
+                if is_space_huline(from_line[fstart]):
                     fstart += 1
-                    while fstart < flen and is_space_uline(from_line[fstart]):
+                    while fstart < flen and is_space_huline(from_line[fstart]):
                         fstart += 1
-                if is_space_uline(to_line[tstart]):
+                if is_space_huline(to_line[tstart]):
                     tstart += 1
-                    while tstart < tlen and is_space_uline(to_line[tstart]):
+                    while tstart < tlen and is_space_huline(to_line[tstart]):
                         tstart += 1
 
             # if either advanced, then there is a reason to move forward
@@ -106,15 +106,15 @@ def compute_se_list(from_line: str,
         if fi2 < flen:
             while fi2 < flen and \
                   (from_line[fi2].isspace() or \
-                   (is_underline(prev_matched_char) and
-                    is_underline(from_line[fi2]))):
+                   (is_hyphen_underline(prev_matched_char) and
+                    is_hyphen_underline(from_line[fi2]))):
                 fi2 += 1
 
         if ti2 < tlen:
             while ti2 < tlen and \
                   (to_line[ti2].isspace() or \
-                   (is_underline(prev_matched_char) and
-                    is_underline(to_line[ti2]))):
+                   (is_hyphen_underline(prev_matched_char) and
+                    is_hyphen_underline(to_line[ti2]))):
                 ti2 += 1
 
         if fi2 == flen and ti2 == tlen:
@@ -125,7 +125,10 @@ def compute_se_list(from_line: str,
             if IS_DEBUG:
                 print("Character2 diff at %d, char '%s', weird" %
                       (offset + fidx, from_line[fidx]))
-            return None
+            return (from_se_list,
+                    adjust_list_offset(to_se_list, offset),
+                    (fidx, flen),
+                    adjust_pair_offset((tidx, tlen), offset))
         elif fidx < flen:
             extra_fse = (fidx, flen)
         elif tidx < tlen:

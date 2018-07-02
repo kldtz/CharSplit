@@ -13,14 +13,16 @@ import json
 import shutil
 
 # pylint: disable=unused-import
-from typing import DefaultDict, Dict, List, Union
+from typing import DefaultDict, Dict, List, Tuple, Union
 
 # from kirke.abbyxml import AbbyLine, AbbyPar, AbbyTextBlock, AbbyTableBlock, AbbyXmlDoc
 from kirke.abbyxml.pdfoffsets import AbbyCell, AbbyLine, AbbyPar, AbbyRow
 from kirke.abbyxml.pdfoffsets import AbbyTextBlock, AbbyTableBlock, AbbyPage, AbbyXmlDoc
 from kirke.abbyxml.pdfoffsets import print_text_block_meta, to_html_tables, block_to_text
+from kirke.abbyxml.pdfoffsets import print_text_block_first_line, print_table_block_first_line
 from kirke.docstruct import linepos
 from kirke.abbyxml import abbyutils
+from kirke.utils import mathutils
 
 IS_DISPLAY_ATTRS = False
 # IS_DISPLAY_ATTRS = True
@@ -128,8 +130,19 @@ def parse_abby_line(ajson) -> AbbyLine:
             line_attr_dict[attr] = abbyutils.abby_attr_str_to_val(attr, val)
 
         if attr == 'formatting':
-            abby_line = AbbyLine(val['#text'], line_attr_dict)
-            abby_line.infer_attr_dict = add_infer_line_attrs(line_attr_dict)
+            # val can be a list, with dict with '#text' tags.  This is a mixed language.
+            # This might happen when 'lang' is not specified to Abby?
+            if isinstance(val, list):
+                # take all the text from the list, but the space char between words between
+                # dictionary are removed.
+                # It is possible that there is no '#text' attribute!?
+                text_list = [tmp_val['#text'] for tmp_val in val if tmp_val.get('#text')]
+                # add spaces between words, assume our AligneStrMapper will resolve issues
+                abby_line = AbbyLine(' '.join(text_list), line_attr_dict)
+                abby_line.infer_attr_dict = add_infer_line_attrs(line_attr_dict)
+            else:
+                abby_line = AbbyLine(val['#text'], line_attr_dict)
+                abby_line.infer_attr_dict = add_infer_line_attrs(line_attr_dict)
             return abby_line
 
     raise ValueError
@@ -429,16 +442,19 @@ def parse_document(file_name: str,
 
     ab_xml_doc = AbbyXmlDoc(xml_fname, abby_page_list)
 
-    tmp_file = file_name.replace('.pdf.xml', '.tmp')
-    with open(tmp_file, 'wt') as fout:
+    tmp_fname = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.debug_txt'))
+    with open(tmp_fname, 'wt') as fout:
         ab_xml_doc.print_debug_text(fout)
-        print('wrote {}'.format(tmp_file))
+        print('wrote {}'.format(tmp_fname))
 
     # adjust the blocks of document according to our interpretation
     # based what we have seen in contracts
     remake_abby_xml_doc(ab_xml_doc)
 
     # infer_header_footer_doc(ab_xml_doc)
+
+    # jshaw, work
+    # find_haligned_blocks(ab_xml_doc)
 
     merge_haligned_block_as_table(ab_xml_doc)
     # set page number block number at the end
@@ -643,6 +659,123 @@ def is_top_bot_match(top: int,
     # diff = 10
     # return top - diff <= prev_block_top and \
     #        prev_block_top <= top + diff
+
+def find_text_block_minmaxy(ab_text_block: AbbyTextBlock) -> Tuple[int, int]:
+    attr_dict = ab_text_block.attr_dict
+    top = attr_dict['@t']
+    bot = attr_dict['@b']
+    return top, bot
+
+def find_table_block_minmaxy(ab_table_block: AbbyTableBlock) -> Tuple[int, int]:
+    attr_dict = ab_table_block.attr_dict
+    top = attr_dict['@t']
+    bot = attr_dict['@b']
+    return top, bot
+
+def find_block_minmaxy(ab_block: Union[AbbyTableBlock, AbbyTextBlock]) -> Tuple[int, int]:
+    if isinstance(ab_block, AbbyTextBlock):
+        return find_text_block_minmaxy(ab_block)
+    return find_table_block_minmaxy(ab_block)
+
+def find_haligned_blocks(ab_doc: AbbyXmlDoc) -> None:
+
+    for pnum, abby_page in enumerate(ab_doc.ab_pages):
+
+        yminmax_block_list = []  # type: List[Tuple[int, int, int, AbbyBlock]]
+
+        yminmax_blockid_list = []  # type: List[Tuple[int, int, int]]
+        for block_i, ab_block in enumerate(abby_page.ab_blocks):
+            miny, maxy = find_block_minmaxy(ab_block)
+            yminmax_block_list.append((block_i, miny, maxy, ab_block))
+            yminmax_blockid_list.append((block_i, miny, maxy))
+
+        print("=== page # {}".format(pnum + 1))
+        for yminmax_block in yminmax_block_list:
+            block_i, ymin, ymax, tmp_block = yminmax_block
+            if isinstance(tmp_block, AbbyTextBlock):
+                print("  text block #{}, ymin={}, ymax={}".format(block_i, ymin, ymax))
+                print_text_block_first_line(tmp_block)
+            else:
+                print("  tabel block #{}, ymin={}, ymax={}".format(block_i, ymin, ymax))
+                print_table_block_first_line(tmp_block)
+
+        # now found all blocks that are haligned
+        # for yminmax_blockid in yminmax_blockid_list:
+        #    print("yminmax_blockid: {}".format(yminmax_blockid))
+        print("yminmax_blockid_list: {}".format(yminmax_blockid_list))
+        grouped_ids = mathutils.find_overlaps_in_id_se_list(yminmax_blockid_list)
+        print("group_ids: {}".format(grouped_ids))
+
+
+        """
+        # find all the blocks with similar @b and @t
+        ab_text_block_list, ab_table_block_list = [], []  # type: List[AbbyTextBlock], List[AbbyTableBlock]
+        for ab_block in abby_page.ab_blocks:
+            if isinstance(ab_block, AbbyTextBlock)]:
+                ab_text_block_list.append(ab_block)
+            else:
+                ab_table_block_list.append(ab_block)
+
+
+
+        haligned_blocks_list = []  # type: List[List[AbbyTextBlock]]
+        # skip_blocks are the blocks that have already been found to be haligned
+        skip_blocks = []  # type: List[AbbyTextBlock]
+        for i, ab_text_block in enumerate(ab_text_block_list):
+            if ab_text_block in skip_blocks:
+                continue
+
+            attr_dict = ab_text_block.attr_dict
+            top = attr_dict['@t']
+            bot = attr_dict['@b']
+            cur_blocks = []  # type: List[AbbyTextBlock]
+            # could sort by @b attribute first, but that might change the order in ab_text_block
+            for other_text_block in ab_text_block_list[i+1:]:
+                other_attr_dict = other_text_block.attr_dict
+                other_top = other_attr_dict['@t']
+                other_bot = other_attr_dict['@b']
+
+                if is_top_bot_match(top, bot, other_top, other_bot):
+                   cur_blocks.append(other_text_block)
+
+            if cur_blocks:
+                skip_blocks.extend(cur_blocks)
+                # add the original blocks at beginning
+                this_cur_blocks = [ab_text_block]
+                this_cur_blocks.extend(cur_blocks)
+                haligned_blocks_list.append(this_cur_blocks)
+
+        if not haligned_blocks_list:
+            # No haligned blocks, no need to merge tables.
+            # Move to next page
+            continue
+
+        out_block_list = []  # type: List[AbbyBlock]
+        haligned_block_list_map = {}  # type: Dict[AbbyTextBlock, List[AbbyTextBlock]]
+        for blocks in haligned_blocks_list:
+            haligned_block_list_map[blocks[0]] = blocks
+
+        # now we have a list of haligned blocks
+        for ab_block in abby_page.ab_blocks:
+            if ab_block in skip_blocks:
+                continue
+
+            if isinstance(ab_block, AbbyTextBlock):
+                haligned_blocks = haligned_block_list_map.get(ab_block, [])
+
+                if haligned_blocks:
+                    table = merge_aligned_blocks(haligned_blocks)
+                    out_block_list.append(table)
+                else:
+                    # print("      block attr: {}".format(ab_block.attr_dict))
+                    out_block_list.append(ab_block)
+            else:
+                # for tables
+                # print("      block attr: {}".format(ab_block.attr_dict))
+                out_block_list.append(ab_block)
+
+        abby_page.ab_blocks = out_block_list
+        """
 
 
 def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
@@ -854,7 +987,7 @@ def to_paras_with_attrs(abby_xml_doc: AbbyXmlDoc,
                     para_with_attrs.append((to_from_index_list, infer_attr_dict))
                     paraline_text += "\n".join([x.text for x in ab_par])+"\n\n"
                     to_from_index_list = []
-    
+
     return para_with_attrs, paraline_text
 
 def get_page_abby_lines(abby_page: AbbyPage) -> List[AbbyLine]:

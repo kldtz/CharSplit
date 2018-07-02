@@ -10,7 +10,7 @@ from kirke.docstruct import pdftxtparser
 
 from kirke.abbyxml import abbyxmlparser
 from kirke.abbyxml.pdfoffsets import AbbyTableBlock, AbbyTextBlock, AbbyXmlDoc
-from kirke.abbyxml.abbypbox_syncher import sync_doc_offsets, verify_abby_xml_doc_by_offsets
+from kirke.abbyxml.abbypbox_syncher import sync_doc_offsets, print_abby_pbox_sync, print_abby_pbox_unsync
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
@@ -73,12 +73,15 @@ if __name__ == '__main__':
         print('wrote {}'.format(txt_meta_fname))
 
     txt_sync_fname = work_fname.replace('.txt', '.txt.sync')
-    txt_unsync_fname = work_fname.replace('.txt', '.txt.unsync')
     with open(txt_sync_fname, 'wt') as sync_fout:
-        with open(txt_unsync_fname, 'wt') as unsync_fout:
-            verify_abby_xml_doc_by_offsets(abby_xml_doc,
-                                           pdf_txt_doc.doc_text,
-                                           sync_file=sync_fout,
-                                           unsync_file=unsync_fout)
-    print('wrote {}'.format(txt_sync_fname))
-    print('wrote {}'.format(txt_unsync_fname))
+        print_abby_pbox_sync(abby_xml_doc,
+                             pdf_txt_doc.doc_text,
+                             file=sync_fout)
+        print('wrote {}'.format(txt_sync_fname))
+
+
+    txt_unsync_fname = work_fname.replace('.txt', '.txt.unsync')
+    with open(txt_unsync_fname, 'wt') as unsync_fout:
+        print_abby_pbox_unsync(abby_xml_doc,
+                               file=unsync_fout)
+        print('wrote {}'.format(txt_unsync_fname))

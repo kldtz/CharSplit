@@ -17,7 +17,16 @@ class AbbyLine:
                  text: str,
                  attr_dict: Dict) -> None:
         self.num = -1
-        self.text = re.sub('[­¬]', '-', text)
+        # These characters, for abby, it's the 2nd char
+        # for pdfbox, it's the first.  They mismatch.
+        # Replacing both here.
+        # self.text = text
+        # for special hypen char
+        if re.search('[­¬]', text):
+            self.text = re.sub('[­¬]', '-', text)
+        else:
+            self.text = text
+
         self.attr_dict = attr_dict
 
         # this links to PDFBox's offset
@@ -116,6 +125,64 @@ class AbbyTableBlock:
         self.page_num = -1
 
 
+"""
+class UnmatchedAbbyLine:
+
+    def __init__(self,
+                 ab_line: AbbyLine,
+                 page_num: int) -> None:
+        self.ab_line = ab_line
+        self.page_num = page_num
+
+    def __str__(self):
+        return str((self.page_num, str(self.ab_line)))
+"""
+
+class UnsyncedPBoxLine:
+
+    def __init__(self,
+                 xy_pair: Tuple[int, int],
+                 se_pair: Tuple[int, int],
+                 text: str) -> None:
+        self.xy_pair = xy_pair
+        self.se_pair = se_pair
+        self.text = text
+
+    def __str__(self) -> str:
+        return 'xy={}, se={}, text=[{}]'.format(self.xy_pair,
+                                                self.se_pair,
+                                                self.text)
+
+    def to_tuple(self) -> Tuple[Tuple[int, int],
+                                Tuple[int, int],
+                                str]:
+        return self.xy_pair, self.se_pair, self.text
+
+
+class UnsyncedStrWithY:
+
+    def __init__(self,
+                 y_val: int,
+                 se_pair: Tuple[int, int],
+                 text: str,
+                 as_mapper: AlignedStrMapper) -> None:
+        self.y_val = y_val
+        self.se_pair = se_pair
+        self.text = text
+        self.as_mapper = as_mapper
+
+    def __str__(self) -> str:
+        return 'UmStrWithY(y={}, se={}, text=[{}])'.format(self.y_val,
+                                                           self.se_pair,
+                                                           self.text)
+
+    def to_tuple(self) -> Tuple[int,
+                                Tuple[int, int],
+                                str,
+                                AlignedStrMapper]:
+        return self.y_val, self.se_pair, self.text, self.as_mapper
+
+
 class AbbyPage:
 
     def __init__(self,
@@ -140,17 +207,17 @@ class AbbyPage:
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
 
+        # for recording down unmatched info with pdfbox
+        self.unsync_abby_lines = []  # type: List[AbbyLine]
+        self.unsync_abby_frags = [] # type: List[UnsyncedStrWithY]
+        self.unsync_pbox_lines = []  # type: Tuple[UnsyncedPBoxLine]
+        self.unsync_pbox_frags = []  # type: List[UnsyncedStrWithY]
 
-class UnmatchedAbbyLine:
-
-    def __init__(self,
-                 ab_line: AbbyLine,
-                 ab_page: AbbyPage) -> None:
-        self.ab_line = ab_line
-        self.ab_page = ab_page
-
-    def __str__(self):
-        return str(self.ab_line)
+    def has_unsynced_strs(self):
+        return self.unsync_abby_lines or \
+            self.unsync_abby_frags or \
+            self.unsync_pbox_lines or \
+            self.unsync_pbox_frags
 
 
 def _is_par_centered(attr_dict: Dict) -> bool:
@@ -314,8 +381,6 @@ class AbbyXmlDoc:
                  ab_pages: List[AbbyPage]) -> None:
         self.file_id = file_name
         self.ab_pages = ab_pages
-        # to store ab_lines that are not found in pdfbox
-        self.unmatched_ab_lines = []  # type: List[UnmatchedAbbyLine]
 
     def print_raw(self):
         for pnum, abby_page in enumerate(self.ab_pages):
@@ -427,12 +492,11 @@ class AbbyXmlDoc:
                     raise ValueError
 
 
-        if self.unmatched_ab_lines:
-            print("\n\n========= Unmatched Abby Lines ========", file=file)
+        for abby_page in self.ab_pages:
 
-            for unmatched_ab_line in self.unmatched_ab_lines:
-                print("  page #{:2}, {}".format(unmatched_ab_line.ab_page.num,
-                                                unmatched_ab_line.ab_line.to_debug_str()), file=file)
+            if abby_page.has_unsynced_strs():
+                print("\n\n========= Unsynced strs in page {}========".format(abby_page.num), file=file)
+                print_abby_page_unsynced(abby_page, file=file)
 
 
     def print_text_with_meta_with_sync(self, file: TextIO = sys.stdout):
@@ -629,7 +693,53 @@ def table_block_to_text(ab_table_block: AbbyTableBlock) -> str:
 
     return '\n'.join(st_list)
 
+
 def block_to_text(ab_block: Union[AbbyTableBlock, AbbyTextBlock]) -> str:
     if isinstance(ab_block, AbbyTextBlock):
         return text_block_to_text(ab_block)
     return table_block_to_text(ab_block)
+
+
+def print_abby_page_unsynced(abby_page: AbbyPage, file: TextIO = sys.stdout) -> int:
+    return print_abby_page_unsynced_aux(abby_page.unsync_abby_lines,
+                                        abby_page.unsync_abby_frags,
+                                        abby_page.unsync_pbox_lines,
+                                        abby_page.unsync_pbox_frags,
+                                        file=file)
+
+
+def print_abby_page_unsynced_aux(unsync_abby_lines: List[AbbyLine],
+                                 unsync_abby_frags: List[UnsyncedStrWithY],
+                                 unsync_pbox_lines: List[UnsyncedPBoxLine],
+                                 unsync_pbox_frags: List[UnsyncedStrWithY],
+                                 file: TextIO = sys.stdout) \
+                                 -> int:
+    count = 0
+    for count_i, ua_line in enumerate(unsync_abby_lines):
+        xval, yval = ua_line.infer_attr_dict['x'], ua_line.infer_attr_dict['y']
+        print("  unsync abby_line #{}: xy={} [{}]".format(count_i, (xval, yval), ua_line.text),
+              file=file)
+        print(file=file)
+        count += 1
+    for count_i, ab_extra_se in enumerate(unsync_abby_frags):
+        abby_y, ab_se, ab_text, unused_asm = ab_extra_se.to_tuple()
+        print("  unsync_abby_frag #{}: y={} se={} [{}]".format(count_i, abby_y, ab_se, ab_text),
+              file=file)
+        print(file=file)
+        count += 1
+    for count_i, um_pbox_line in enumerate(unsync_pbox_lines):
+        pbox_xypair, pbox_se, ptext = um_pbox_line.to_tuple()
+        print("  unsync pbox_line #{}: xy={} se={} [{}]".format(count_i,
+                                                                  pbox_xypair,
+                                                                  pbox_se,
+                                                                  ptext),
+              file=file)
+        print(file=file)
+        count += 1
+    for count_i, pb_extra_se in enumerate(unsync_pbox_frags):
+        pbox_y, pbox_se, pb_text, unused_asm = pb_extra_se.to_tuple()
+        print("  unsync pbox_frag #{}: y={} se={} [{}]".format(count_i, pbox_y, pbox_se, pb_text),
+              file=file)
+        print(file=file)
+        count += 1
+    return count

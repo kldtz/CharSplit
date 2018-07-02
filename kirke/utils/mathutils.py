@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 def start_end_overlap(stend1, stend2):
     start1, end1 = stend1
@@ -103,3 +103,58 @@ def choose_closest(x: int, other_list: List[int]):
     sorted_diff_list = sorted(diff_list)
     _, chosen_idx = sorted_diff_list[0]
     return other_list[chosen_idx]
+
+
+def find_overlap_ids(id_se: Tuple[int, int, int],
+                     id_se_list: List[Tuple[int, int, int]]) -> List[int]:
+    result = []  # type: List[int]
+    unused_xid, xstart, xend = id_se
+    for yid, ystart, yend in id_se_list:
+        if xstart < yend and ystart < xend:
+            result.append(yid)
+    return result
+
+def find_overlaps_in_id_se_list(id_se_list: List[Tuple[int, int, int]]) -> List[List[int]]:
+    overlap_pair_list = []  # type: List[Tuple[int, int]]
+    id_overlap_ids_map = {}  # type:Dict[int, Set[int]]
+    for count_i in range(len(id_se_list)):
+        i_id_se = id_se_list[count_i]
+
+        is_overlap_id_list = find_overlap_ids(i_id_se, id_se_list[count_i+1:])
+
+        for count_j in is_overlap_id_list:
+            overlap_pair_list.append((count_i, count_j))
+            # print("overlap_pair: {}".format((count_i, count_j)))
+        id_overlap_ids_map[count_i] = set(is_overlap_id_list + [count_i])
+
+    # for tid, overlap_ids in id_overlap_ids_map.items():
+    #     print("  id = {}, overlap_ids = {}".format(tid, overlap_ids))
+
+    for tid in id_overlap_ids_map.keys():
+
+        overlap_ids = id_overlap_ids_map[tid]
+
+        for oid in list(overlap_ids):
+            if oid != tid:
+                oid_overlap_ids = id_overlap_ids_map[oid]
+
+                if oid_overlap_ids != overlap_ids:
+                    overlap_ids.update(oid_overlap_ids)
+                    # overlap_ids is already updated, so no need for
+                    # id_overlap_ids_map[tid] = overlap_ids
+                    id_overlap_ids_map[oid] = overlap_ids
+
+        # print("  id = {}, overlap_ids = {}".format(tid, overlap_ids))
+
+    out_group_list = []  # type: List[List[int]]
+    seen_set = set([])  # type: Set[Set[int]]
+    for tid in id_overlap_ids_map.keys():
+        overlap_set = frozenset(id_overlap_ids_map[tid])
+        if len(overlap_set) > 1 and \
+           overlap_set not in seen_set:
+            out_group_list.append(list(overlap_set))
+            seen_set.add(overlap_set)
+
+    # print("overlap_pair_list: {}".format(overlap_pair_list))
+    # print("out_group_list: {}".format(out_group_list))
+    return out_group_list
