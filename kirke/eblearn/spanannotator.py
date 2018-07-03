@@ -222,9 +222,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc.file_id,
-                                                                     ebantdoc.get_text(),
-                                                                     #threshold,
-                                                                     diagnose_mode=True)
+                                                                     ebantdoc.get_text())
             else:
                 xtp, xfn, xfp, xtn, xfallout, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -232,8 +230,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                             ebantdoc.file_id,
                                                             ebantdoc.get_text(),
                                                             threshold,
-                                                            is_raw_mode=False,
-                                                            diagnose_mode=True)
+                                                            is_raw_mode=False)
             tp += xtp
             fn += xfn
             fp += xfp
@@ -289,10 +286,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         nbest = self.nbest
         start_time = time.time()
         candidates, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir)
-
         end_time = time.time()
-        logger.debug('annotate_antdoc(%s, %s) took %.0f msec',
-                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
+                    self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates
         x_threshold = threshold

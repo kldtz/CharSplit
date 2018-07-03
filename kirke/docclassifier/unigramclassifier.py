@@ -5,7 +5,6 @@ from typing import List
 
 import numpy as np
 
-from sklearn.externals import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import classification_report
@@ -14,8 +13,9 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn import preprocessing
 
 from kirke.docclassifier import doccatutils
+from kirke.utils import osutils
 
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -30,18 +30,24 @@ class DocClassifier(ABC):
 
     def save(self, model_file_name):
         logger.info("saving model file: %s", model_file_name)
-        joblib.dump(self, model_file_name)
+        # joblib.dump(self, model_file_name)
+        osutils.joblib_atomic_dump(self, model_file_name)
 
     @abstractmethod
-    def train(self, txt_fn_list_fn, model_file_name, catnames=None):
+    def train(self,
+              txt_fn_list_fn: str,
+              model_file_name: str):
         pass
 
     @abstractmethod
-    def predict(self, doc_text, catnames=None):
+    def predict(self,
+                doc_text: str):
         pass
 
     @abstractmethod
-    def train_and_evaluate(self, txt_fn_list_fn, catnames=None):
+    def train_and_evaluate(self,
+                           txt_fn_list_fn: str,
+                           prod_status_fname: str = ''):
         pass
 
 
@@ -57,7 +63,9 @@ class UnigramDocClassifier(DocClassifier):
         # self.catid_catname_map = {}
         self.valid_tags = set([])
 
-    def train(self, txt_fn_list_fn, model_file_name):
+    def train(self,
+              txt_fn_list_fn: str,
+              model_file_name: str):
 
         logger.info('start training unigram document classifier: [%s]', txt_fn_list_fn)
 
@@ -70,7 +78,9 @@ class UnigramDocClassifier(DocClassifier):
 
         # each y is a list of catid
         # pylint: disable=invalid-name
-        X_both, y_both = doccatutils.load_data(txt_fn_list_fn, self.catname_catid_map, self.valid_tags)
+        X_both, y_both = doccatutils.load_data(txt_fn_list_fn,
+                                               self.catname_catid_map,
+                                               self.valid_tags)
 
         X_both = np.asarray(X_both)
         y_both = np.asarray(y_both)
@@ -97,9 +107,11 @@ class UnigramDocClassifier(DocClassifier):
         return sgd
 
     # pylint: disable=too-many-locals
-    def train_and_evaluate(self, txt_fn_list_fn, prod_status_fname=None):
+    def train_and_evaluate(self,
+                           txt_fn_list_fn: str,
+                           prod_status_fname: str = ''):
         logger.info('start training and evaluate unigram document classifier: [%s]',
-                     txt_fn_list_fn)
+                    txt_fn_list_fn)
 
         # pylint: disable=invalid-name
         EB_DOC_KFOLD = 3
@@ -110,7 +122,9 @@ class UnigramDocClassifier(DocClassifier):
 
         # each y is a list of catid
         # pylint: disable=invalid-name
-        X_both, y_both = doccatutils.load_data(txt_fn_list_fn, self.catname_catid_map, self.valid_tags)
+        X_both, y_both = doccatutils.load_data(txt_fn_list_fn,
+                                               self.catname_catid_map,
+                                               self.valid_tags)
 
         X_both = np.asarray(X_both)
         y_both = np.asarray(y_both)
@@ -159,13 +173,17 @@ class UnigramDocClassifier(DocClassifier):
         sum_count = len(f1_list)
 
         doccatutils.print_combined_reports(report_list, self.valid_tags)
-        print("\nreported avg precision= {:.2f}, recall= {:.2f}, f1= {:.2f}".format(sum_prec / sum_count,
-                                                                                    sum_recall / sum_count,
-                                                                                    sum_f1 / sum_count))
+        print("\nreported avg precision= "
+              "{:.2f}, recall= {:.2f}, f1= {:.2f}".format(sum_prec / sum_count,
+                                                          sum_recall / sum_count,
+                                                          sum_f1 / sum_count))
 
         print("\nwith filtering of threshold 0.75")
-        prod_tag_list = doccatutils.print_combined_reports(report_list, self.valid_tags, threshold=0.75,
-                                                           prod_status_fname=prod_status_fname)
+        prod_tag_list = \
+            doccatutils.print_combined_reports(report_list,
+                                               self.valid_tags,
+                                               threshold=0.75,
+                                               prod_status_fname=prod_status_fname)
 
         # save the valid tags to limit the production document categories
         prod_tags_fname = 'dict/doccat.prod.tsv'
@@ -175,7 +193,7 @@ class UnigramDocClassifier(DocClassifier):
         print("wrote {}".format(prod_tags_fname))
 
 
-    def predict(self, doc_text: str, catnames=None) -> List[str]:
+    def predict(self, doc_text: str) -> List[str]:
         doc_feats = [doccatutils.doc_text_to_docfeats(doc_text)]
         # pylint: disable=invalid-name
         X_test = self.transformer.transform(doc_feats)

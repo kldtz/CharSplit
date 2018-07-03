@@ -1,0 +1,27 @@
+{
+ "AWSEBDockerrunVersion": "1",
+ "Authentication": {
+   "Bucket": "ebrevia-docker-<REGION>",
+   "Key": "dockercfg.json"
+ },
+ "Image": {
+    "Name": "ebreviainc/kirke:<VERSION>",
+    "Update": "true"
+ },
+ "Volumes": [
+   {
+     "HostDirectory": "/eb_files",
+     "ContainerDirectory": "/eb_files"
+   },
+   {
+     "HostDirectory": "/dev/shm",
+     "ContainerDirectory": "/dev/shm"
+   }
+ ],
+ "Ports": [
+   {
+     "ContainerPort": "80"
+   }
+ ],
+ "Logging": "/var/log/ebrevia"
+}

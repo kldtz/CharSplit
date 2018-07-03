@@ -51,26 +51,29 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
-
 # pylint: disable=invalid-name
 app = Flask(__name__)
 app.config['PROPAGATE_EXCEPTIONS'] = True
 # app.debug = True
 EB_FILES = os.environ['EB_FILES']
 EB_MODELS = os.environ['EB_MODELS']
-logger.info("eb files is [%s]", EB_FILES)
-logger.info("eb models is [%s]", EB_MODELS)
+KIRKE_TMP_DIR = EB_FILES + config['ebrevia.com']['KIRKE_TMP']
+logger.info('eb files is [%s]', EB_FILES)
+logger.info('eb models is [%s]', EB_MODELS)
+logger.info('kirke_tmp_dir is [%s]', KIRKE_TMP_DIR)
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
 
 # classifiers
-WORK_DIR = 'data-from-web'
+WORK_DIR = KIRKE_TMP_DIR + '/dir-work'
 MODEL_DIR = EB_MODELS
 CUSTOM_MODEL_DIR = EB_FILES + 'pymodel'
 osutils.mkpath(WORK_DIR)
 osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
+osutils.mkpath(KIRKE_TMP_DIR)
+
 
 # start corenlp server
 corenlputils.init_corenlp_server()

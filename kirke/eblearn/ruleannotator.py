@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Tuple
 # from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
 
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -92,9 +92,7 @@ class RuleAnnotator:
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc.file_id,
-                                                                     ebantdoc.get_text(),
-                                                                     # threshold,
-                                                                     diagnose_mode=True)
+                                                                     ebantdoc.get_text())
             else:
                 xtp, xfn, xfp, xtn, _, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -102,8 +100,7 @@ class RuleAnnotator:
                                                             ebantdoc.file_id,
                                                             ebantdoc.get_text(),
                                                             threshold,
-                                                            is_raw_mode=True,
-                                                            diagnose_mode=True)
+                                                            is_raw_mode=True)
             tp += xtp
             fn += xfn
             fp += xfp
@@ -123,8 +120,8 @@ class RuleAnnotator:
 
     # returns candidates, label_list, group_id_list
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                             label: str):
+                                antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                                label: str):
         return self.doc_to_candidates.documents_to_candidates(antdoc_list, label)
 
 

@@ -1,11 +1,20 @@
+import configparser
 from collections import defaultdict
 import fcntl
 from fcntl import LOCK_EX, LOCK_SH
 import os
 import re
+import shutil
 import sys
+import tempfile
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
+
+from sklearn.externals import joblib
+
+# pylint: disable=invalid-name
+config = configparser.ConfigParser()
+config.read('kirke.ini')
 
 
 # Create a directory and any missing ancestor directories.
@@ -14,6 +23,11 @@ from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 def mkpath(dir_name: str) -> None:
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
+
+EB_FILES = os.environ['EB_FILES']
+KIRKE_TMP_DIR = EB_FILES + config['ebrevia.com']['KIRKE_TMP']
+# make sure that KIRKE_TMP_DIR is setup correctly
+mkpath(KIRKE_TMP_DIR)
 
 
 def get_last_cmd_line_arg() -> str:
@@ -248,13 +262,33 @@ def increment_model_version(model_dir: str) -> int:
     version = increment_file('%s/kirke_model_count.txt' % (model_dir, ))
     return version
 
+
 def read_model_version(model_dir: str) -> int:
     version = read_version_file('%s/kirke_model_count.txt' % (model_dir, ))
     return version
 
+
 def set_cluster_name(line: str, model_dir: str) -> None:
     save_locked_file('%s/kirke_cluster_name.txt' % (model_dir, ), line)
+
 
 def read_cluster_name(model_dir: str) -> Optional[str]:
     line = read_locked_file('%s/kirke_cluster_name.txt' % (model_dir, ))
     return line
+
+
+def joblib_atomic_dump(an_object: Any,
+                       file_name: str,
+                       tmp_dir: str = KIRKE_TMP_DIR) -> None:
+    tmpFileName = tempfile.NamedTemporaryFile(dir=tmp_dir, delete=False)
+    joblib.dump(an_object, tmpFileName.name)
+    shutil.move(tmpFileName.name, file_name)
+
+
+def atomic_dumps(text: str,
+                 file_name: str,
+                 tmp_dir: str = KIRKE_TMP_DIR) -> None:
+    tmpFileName = tempfile.NamedTemporaryFile(dir=tmp_dir, delete=False)
+    with open(tmpFileName.name, 'wt') as fout:
+        fout.write(text)
+    shutil.move(tmpFileName.name, file_name)
