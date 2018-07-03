@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-from nltk.tokenize import TreebankWordTokenizer 
+
+# pylint: disable=too-many-lines
+
 import collections
 import json
 import logging
@@ -11,9 +13,12 @@ from typing import Pattern, Set, Tuple, Union
 import unicodedata
 import urllib.parse
 
+from nltk.tokenize import TreebankWordTokenizer
+from nltk.tokenize.regexp import RegexpTokenizer
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 # https://github.com/python/typing/issues/182
 # JSONType = Union[Dict[str, Any], List[Any]]
@@ -91,6 +96,16 @@ def load_str_list(file_name: str) -> List[str]:
     with open(file_name, 'rt', newline='') as fin:
         for line in fin:
             st_list.append(line.strip())
+    return st_list
+
+
+def load_non_empty_str_list(file_name: str) -> List[str]:
+    st_list = []
+    with open(file_name, 'rt', newline='') as fin:
+        for line in fin:
+            xline = line.strip()
+            if xline:  # add only if not empty
+                st_list.append(xline)
     return st_list
 
 
@@ -254,8 +269,10 @@ def is_all_dash_underline(line: str) -> bool:
             return False
     return True
 
+
 def is_all_caps_space(line: str) -> bool:
     return bool(CAP_SPACE_PAT.match(line))
+
 
 def is_all_lower(line: str) -> bool:
     words = line.split()
@@ -266,7 +283,6 @@ def is_all_lower(line: str) -> bool:
             return False
     return True
 
-
 def is_all_upper_words(words: List[str]) -> bool:
     if not words:
         return False
@@ -274,6 +290,25 @@ def is_all_upper_words(words: List[str]) -> bool:
         if not word.isupper():
             return False
     return True
+
+def count_all_upper_words(line: str) -> int:
+    words = line.split()
+    count = 0
+    for word in words:
+        if word.isupper():
+            count += 1
+    return count
+
+
+def is_cap_not_first_char(line: str) -> bool:
+    if len(line) < 2:
+        return False
+    if not line[0].islower():
+        return False
+    for ach in line[1:]:
+        if ach.isupper():
+            return True
+    return False
 
 
 def bool_to_int(bool_val: bool) -> int:
@@ -441,6 +476,7 @@ def is_acronym(input_word: str) -> bool:
             return False
     return True
 
+
 # split into words after removing , ' "
 def split_words(line: str) -> List[str]:
     words = re.split(r'[\s\,\'\"\-]+', line)  # lc_line.split()
@@ -461,24 +497,20 @@ def split_words(line: str) -> List[str]:
                 result.append(word)
     return result
 
-def is_all_title_words(line: str) -> bool:
-    words = split_words(line)
-    has_alpha_word = False
-    for word in words:
-        if is_all_alphas(word):
-            has_alpha_word = True
-            if not word.isupper():
-                return False
-    return has_alpha_word
 
-def is_all_title(words: List[str]) -> bool:
-    has_alpha_word = False
+def is_all_title(line: str) -> bool:
+    words = split_words(line)
+    return is_all_title_words(words)
+
+
+def is_all_title_words(words: List[str]) -> bool:
+    if not words:
+        return False
     for word in words:
-        if is_all_alphas(word):
-            has_alpha_word = True
-            if not word.isupper():
-                return False
-    return has_alpha_word
+        if not word[0].isalpha() or \
+           not word[0].isupper():
+            return False
+    return True
 
 
 ANY_ALPHA_PAT = re.compile(r'[a-z]', re.I)
@@ -613,6 +645,57 @@ NEXT_TOKEN_PAT = re.compile(r'\s*\S+')  # type: Pattern[str]
 def find_next_token(line: str) -> Optional[Match[str]]:
     return NEXT_TOKEN_PAT.match(line)
 
+def find_next_not_space_idx(line: str, idx: int) -> int:
+    """Find the index of the start of next non-space char.
+
+    Assume we are after end of a word, maybe a space, or a ','
+    """
+    if idx < 0 or idx >= len(line):
+        return len(line)
+
+    # if not line[idx].isspace():  # such as comma
+    #    return idx
+
+    for i in range(idx + 1, len(line)):
+        if not line[i].isspace():
+            return i
+    # reached the end of line without find a space
+    # return current position
+    return idx
+
+
+def find_previous_word(line: str, idx: int) -> Tuple[int, int, str]:
+    """Find previous word.
+
+    If the current index is an alphanum, it will get the previous word,
+    not the current one.
+    """
+    if idx < 0 or idx >= len(line):
+        return -1, -1, ''
+    found_space = False  # in the middle of a word
+    for i in range(idx, -1, -1):
+        ch = line[i]
+        if ch.isspace():
+            found_space = True  # found end of a word
+        elif ch.isalnum():
+            if not found_space:
+                continue
+            end_idx = i + 1
+            # go find the begin of a word
+            for j in range(i-1, -1, -1):
+                ch2 = line[j]
+                if ch2.isspace():
+                    return j+1, end_idx, line[j+1:end_idx]
+                elif ch2.isalnum():
+                    continue
+                else:  # punctuation or anything else
+                    return j+1, end_idx, line[j+1:end_idx]
+            # this can only be reached if j == -1
+            return 0, end_idx, line[0:end_idx]
+        else:
+            found_space = True  # any non-alphanum is a space
+    return -1, -1, ''
+
 
 # primitive version of getting words using regex
 
@@ -658,6 +741,9 @@ def get_lc_post_n_words(text: str, end: int, num_words: int) \
     return [word.lower() for word in words], spans
 
 
+def has_quote(line: str) -> bool:
+    return bool(re.search('[“"”]', line))
+
 # adding period to tokens reduced 0.004 in F1 for effective_date.
 # period by itself is also dangerous because it can be a part of abbreviation or
 # floating point number.  Maybe better tokenizer in future.
@@ -691,7 +777,7 @@ def get_simple_words_with_quote(text: str,
         elif word == '\n':
             word = 'WxxNL'
         elif re.match(r'[\d\.,]+', word):
-            word = 'WxxDIGIT'            
+            word = 'WxxDIGIT'
         # elif word == '.':
         #    word = 'WxxPD'
         spans.append((mat.start(), mat.end(), word))
@@ -728,7 +814,7 @@ def get_post_n_words_with_quote(text: str,
     if is_lower:
         post_text = post_text.lower()
     words_and_spans = get_simple_words_with_quote(post_text,
-                                                     is_quote)[:num_words]
+                                                  is_quote)[:num_words]
     words = [x[-1] for x in words_and_spans]
     spans = [(x+end, y+end) for [x, y, z] in words_and_spans]
     return words, spans
@@ -758,9 +844,9 @@ def remove_ignorable_token(se_word_list: List[Tuple[int, int, str]]) \
     Will remove len(token) == 1
     """
     result = []
-    prev_start, prev_end, prev_token = -1, -1, ''
+    prev_token = ''
     for se_token in se_word_list:
-        start, end, token = se_token
+        unused_start, unused_end, token = se_token
         # skip 1 char words, and article 'a' or 'the'
         if len(token) == 1 or token == 'the' or token == 'an':
             pass
@@ -769,6 +855,10 @@ def remove_ignorable_token(se_word_list: List[Tuple[int, int, str]]) \
         prev_token = token
     return result
 
+WWPLUS_PAT = re.compile(r'\w\w+')
+
+def get_regex_wwplus(line: str) -> List[str]:
+    return WWPLUS_PAT.findall(line)
 
 # For digits, we take , and .
 # we take multiple \n as one
@@ -780,6 +870,8 @@ def remove_ignorable_token(se_word_list: List[Tuple[int, int, str]]) \
 #    remove len(1) characters, and 'the', but kept the prepositions
 
 SIMPLE_WORD_TOKEN_PAT = re.compile(r'([“"”:;\(\)]|\n+|\b[\d,\.]+\b|(\w\.)+|\w+)')
+
+TREEBANK_WORD_TOKENIZER = TreebankWordTokenizer()
 
 # please note that because CountVectorizer does some word filtering,
 # we must transform 1 char punctuations to alphabetized words, otherwise
@@ -797,7 +889,7 @@ def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
     '''
     spans = []  # type: List[Tuple[int, int, str]]
     text = text.replace('"', '``')
-    tok_spans = TreebankWordTokenizer().span_tokenize(text)
+    tok_spans = TREEBANK_WORD_TOKENIZER.span_tokenize(text)
     for start, end in tok_spans:
         word = text[start:end]
         if word in '``“"”':
@@ -923,34 +1015,25 @@ def split_with_offsets_xparens(line: str) -> List[Tuple[int, int, str]]:
     return out_list
 
 
-def get_consecutive_one_char_parens_mats(line: str) -> List[Match[str]]:
-    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
-
-    Makes sure they start with 1, 2 or a, b.
-    """
-    result = list(re.finditer(r'\(?\S\)\s*', line))
-
-    if len(result) > 1:
-        # check if first and 2nd are valid indexes
-        first = result[0].group()
-        second = result[1].group()
-        # print("first = [{}]".format(first))
-        # print("second = [{}]".format(second))
-        # print("    matched 1 = {}".format(re.match(r'\((1|a|i)\)', first, re.I)))
-        # print("    matched 2 = {}".format(re.match(r'\((2|b|ii)\)', second, re.I)))
-        if re.match(r'\(?(1|a|i)\)', first, re.I) and \
-           re.match(r'\(?(2|b|ii)\)', second, re.I):
-            return result
-    return []
-
-def get_one_char_parens_mats(line: str) -> List[Match[str]]:
-    """Get a list of parens with just 1 chars, such as (1) (2)... or (a) (b).
-
-    No check to make sure they start with 1, 2 or a, b.
-    """
-    result = list(re.finditer(r'\(?\S\)\s*', line))
+def find_itemized_paren_mats(line: str) -> List[Match[str]]:
+    result = list(re.finditer(r'\(?\s*([\divx]+|[a-z])\s*\)\s*', line, re.I))
     return result
 
+
+def find_non_space_index(line: str) -> int:
+    """Return index of the first non-space character in line.
+
+    This handles non-breaking spaces because of isspace()
+    """
+    if not line:
+        return -1
+    idx = 0
+    line_len = len(line)
+    while line[idx].isspace():
+        idx += 1
+        if idx >= line_len:
+            return -1
+    return idx
 
 
 if __name__ == '__main__':

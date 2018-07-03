@@ -72,13 +72,16 @@ class ShortcutClassifier(EbClassifier):
             self.transformer = EbTransformer(provision)
         if self.version == '1.2':
             self.transformer = EbTransformerV1_2(provision)
-        # elif self.version == '1.3':
-        #    self.transformer = EbTransformerV1_3(provision)
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
         # Note: Some old pickled versions might not have this attribute.
         # 'nbest' is a newly added attribute.
+        self.nbest = -1
+
+        # This is an attribute that is added later, so some .pkl files
+        # might not have this attribute.  Please make sure to check this
+        # variable using hasattr() first before accessing it.
         self.nbest = -1
 
     def make_bare_copy(self):
@@ -93,6 +96,7 @@ class ShortcutClassifier(EbClassifier):
     # pylint: disable=too-many-statements, too-many-locals
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):
         logger.info('train_antdoc_list()...')
+        is_debug = True
 
         sent_list = []
         attrvec_list, group_id_list = [], []

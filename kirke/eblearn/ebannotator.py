@@ -162,7 +162,9 @@ class ProvisionAnnotator:
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
         if threshold is None:
-            threshold = self.threshold
+            specified_threshold = self.threshold
+        else:
+            specified_threshold = threshold
 
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
@@ -188,7 +190,7 @@ class ProvisionAnnotator:
         prov_annotations, out_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
-                                                          threshold,
+                                                          specified_threshold,
                                                           nbest=self.get_nbest(),
                                                           provision=prov,
                                                           # pylint: disable=line-too-long
@@ -225,9 +227,10 @@ class ProvisionAnnotator:
 def update_text_with_span_list(prov_annotations, doc_text):
     # print("prov_annotations: {}".format(prov_annotations))
     for ant in prov_annotations:
-        tmp_span_text_list = []
-        for span in ant['span_list']:
-            start = span['start']
-            end = span['end']
-            tmp_span_text_list.append(doc_text[start:end])
-        ant['text'] = ' '.join(tmp_span_text_list)
+        if ant.get('span_list'):  # check if the cached version is very old
+            tmp_span_text_list = []
+            for span in ant['span_list']:
+                start = span['start']
+                end = span['end']
+                tmp_span_text_list.append(doc_text[start:end])
+            ant['text'] = ' '.join(tmp_span_text_list)

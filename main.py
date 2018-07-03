@@ -7,7 +7,7 @@ import logging
 import os
 import pprint
 import sys
-from typing import Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 # pylint: disable=import-error
 from sklearn.externals import joblib
@@ -18,7 +18,7 @@ from kirke.eblearn import ebannotator, ebrunner, ebtrainer, provclassifier, scut
 # from kirke.ebrules import rateclassifier
 # pylint: disable=unused-import
 from kirke.eblearn.ebclassifier import EbClassifier
-from kirke.utils import ebantdoc4, osutils, splittrte, strutils
+from kirke.utils import corenlputils, ebantdoc4, osutils, splittrte, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -42,6 +42,9 @@ DOCCAT_MODEL_FILE_NAME = ebrunner.DOCCAT_MODEL_FILE_NAME
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+
+# start corenlp server
+corenlputils.init_corenlp_server()
 
 IS_SUPPORT_DOC_CLASSIFICATION = True
 
@@ -120,23 +123,23 @@ def train_annotator(provision: str,
 
 def train_span_annotator(label: str,
                          nbest: int,
-                         candidate_type: str,
+                         candidate_types: List[str],
                          work_dir: str,
                          model_dir: str) -> None:
-    if candidate_type != 'SENTENCE':
+    if candidate_types == ['SENTENCE']:
+        train_annotator(label, work_dir, model_dir, True)
+    else:
         ebtrainer.train_eval_span_annotator(label,
                                             383838,
                                             'en',
                                             nbest,
-                                            candidate_type,
-                                            work_dir,
-                                            model_dir)
-    else:
-        train_annotator(label, work_dir, model_dir, True)
+                                            candidate_type=candidate_type,
+                                            work_dir=work_dir,
+                                            model_dir=model_dir)
 
 
 def eval_span_annotator(label: str,
-                        candidate_type: str,
+                        candidate_types: List[str],
                         txt_fn_list_fn: str,
                         work_dir: str,
                         model_dir: str):
@@ -144,7 +147,7 @@ def eval_span_annotator(label: str,
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir=model_dir)
     # ebtrainer.eval_rule_annotator_with_trte(label, is_train_mode=True)
     eb_runner.eval_span_annotator(label,
-                                  candidate_type,
+                                  candidate_types,
                                   txt_fn_list_fn)
 
 
@@ -168,20 +171,20 @@ def eval_line_annotator_with_trte(provision: str,
                                             is_doc_structure=is_doc_structure)
 
 
-def eval_mlxline_annotator_with_trte(provision: str,
-                                     txt_fn_list_fn: str,
-                                     work_dir: str,
-                                     model_dir: str):
+def eval_mlxline_annotator(provision: str,
+                           txt_fn_list_fn: str,
+                           work_dir: str,
+                           model_dir: str):
     # custom_model_dir is not used
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir='dir-scut-model')
-    eb_runner.eval_mlxline_annotator_with_trte(provision,
-                                               txt_fn_list_fn,
-                                               work_dir=work_dir)
+    eb_runner.eval_mlxline_annotator(provision,
+                                     txt_fn_list_fn,
+                                     work_dir=work_dir)
 
 
 # pylint: disable=too-many-arguments
 def custom_train_annotator(provision: str,
-                           candidate_type: str,
+                           candidate_types: List[str],
                            nbest: int,
                            txt_fn_list_fn: str,
                            work_dir: str,
@@ -200,7 +203,7 @@ def custom_train_annotator(provision: str,
                                                       provision,
                                                       custom_model_dir,
                                                       base_model_fname,
-                                                      candidate_type=candidate_type,
+                                                      candidate_types=candidate_types,
                                                       nbest=nbest,
                                                       model_num=383838,
                                                       work_dir=work_dir)
@@ -276,7 +279,7 @@ def annotate_document(file_name: str,
                       model_dir: str,
                       custom_model_dir: str,
                       provision_set: Optional[Set[str]] = None,
-                      is_doc_structure: bool = True) -> None:
+                      is_doc_structure: bool = True) -> Dict[str, Any]:
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
     eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
@@ -310,7 +313,7 @@ def annotate_document(file_name: str,
     #                                                              'indemnify', 'jurisdiction',
     #                                                              'party', 'warranty',
     #                                                              'termination', 'term']))
-    pprint.pprint(prov_labels_map)
+    # pprint.pprint(prov_labels_map)
 
     eb_doccat_runner = None
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists('{}/{}'.format(model_dir,
@@ -321,6 +324,8 @@ def annotate_document(file_name: str,
     if eb_doccat_runner:
         doc_catnames = eb_doccat_runner.classify_document(file_name)
         pprint.pprint({'tags': doc_catnames})
+
+    return prov_labels_map
 
 
 # pylint: disable=too-many-branches, too-many-statements
@@ -342,7 +347,8 @@ def main():
     parser.add_argument('--scut', action='store_true', help='build short-cut trained models')
     parser.add_argument('--model_file', help='model file name to test a doc')
     parser.add_argument('--threshold', type=float, default=0.24, help='threshold for annotator')
-    parser.add_argument('--candidate_type', default='SENTENCE', help='type of candidate generator')
+    parser.add_argument('--candidate_types', default='SENTENCE',
+                        help='types of candidate generator')
     parser.add_argument('--cache_disabled', action="store_true",
                         help='disable loading cached files')
     parser.add_argument('--nbest', default=-1, help='number of annotations per doc')
@@ -375,12 +381,12 @@ def main():
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,
                              args.nbest,
-                             candidate_type=args.candidate_type,
+                             candidate_types=args.candidate_types.split(','),
                              work_dir=work_dir,
                              model_dir=model_dir)
     elif cmd == 'eval_span_annotator':
         eval_span_annotator(provision,
-                            candidate_type=args.candidate_type,
+                            candidate_types=args.candidate_types.split(','),
                             txt_fn_list_fn=txt_fn_list_fn,
                             work_dir=work_dir,
                             model_dir=model_dir)
@@ -390,7 +396,7 @@ def main():
                             is_train_mode=args.is_train_mode)
     elif cmd == 'custom_train_annotator':
         custom_train_annotator(provision,
-                               args.candidate_type,
+                               args.candidate_types.split(','),
                                int(args.nbest),
                                txt_fn_list_fn,
                                work_dir,
@@ -415,7 +421,24 @@ def main():
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        print("\nannotate_document() result:")
+        prov_ants_map = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        pprint.pprint(dict(prov_ants_map))
+    elif cmd == 'print_doc_parties':
+        if not args.doc:
+            print('please specify --doc', file=sys.stderr)
+            sys.exit(1)
+        print("\nannotate_document() result:")
+        prov_ants_map = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        pprint.pprint(dict(prov_ants_map))
+        party_ant_list = prov_ants_map['party']
+        result = []
+        for party_ant in party_ant_list:
+            result.append((party_ant['start'],
+                           party_ant['end'],
+                           party_ant['text']))
+        print('\nparties:')
+        pprint.pprint(result)
     elif cmd == 'eval_line_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
@@ -434,10 +457,10 @@ def main():
         if not args.docs:
             print('please specify --docs', file=sys.stderr)
             sys.exit(1)
-        eval_mlxline_annotator_with_trte(args.provision,
-                                         txt_fn_list_fn,
-                                         work_dir=work_dir,
-                                         model_dir=model_dir)
+        eval_mlxline_annotator(args.provision,
+                               txt_fn_list_fn,
+                               work_dir=work_dir,
+                               model_dir=model_dir)
     elif cmd == 'split_provision_trte':
         if not args.provfiles_dir:
             print('please specify --provfiles_dir', file=sys.stderr)

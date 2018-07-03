@@ -449,6 +449,7 @@ def train_eval_annotator(provision: str,
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir, nbest=nbest)
     # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
     # using generator, instead of all loaded at once.
+
     # X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
     # ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
     # X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
@@ -559,7 +560,7 @@ def train_eval_span_annotator(provision: str,
                               # For now, there is no lang specific spanannotator?
                               unused_doc_lang: str,
                               nbest: int,
-                              candidate_type: str,
+                              candidate_types: List[str],
                               work_dir: str,
                               model_dir: str,
                               txt_fn_list: Optional[str] = None,
@@ -570,16 +571,16 @@ def train_eval_span_annotator(provision: str,
                      Dict[str, Dict]]:
 
     #get configs based on candidate_type or provision
-    config = annotatorconfig.get_ml_annotator_config(candidate_type)
+    config = annotatorconfig.get_ml_annotator_config(candidate_types)
     if not model_file_name:
         model_file_name = '{}/{}_{}_annotator.v{}.pkl'.format(model_dir,
                                                               provision,
-                                                              candidate_type,
+                                                              "-".join(candidate_types),
                                                               config['version'])
     #initializes annotator based on configs
     span_annotator = \
         spanannotator.SpanAnnotator(provision,
-                                    candidate_type,
+                                    candidate_types,
                                     version=config['version'],
                                     nbest=nbest,
                                     text_type=config.get('text_type', 'text'),
@@ -598,6 +599,9 @@ def train_eval_span_annotator(provision: str,
     logger.info("    work_dir = %s", work_dir)
     logger.info("    model_file_name = %s", model_file_name)
 
+    # this is mainly for paragraph
+    if span_annotator.text_type == 'nlp_text':
+        is_doc_structure = True
 
     if is_bespoke_mode:
         # converts all docs to ebantdocs
@@ -628,7 +632,7 @@ def train_eval_span_annotator(provision: str,
 
             # pylint: disable=line-too-long
             logger.info("%s training using cross validation with %d candidates.  num_inst_pos= %d, num_inst_neg= %d",
-                         candidate_type, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
+                         candidate_types, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
 
             prov_annotator2, combined_log_json = \
                 cv_candg_train_at_annotation_level(provision,
@@ -644,15 +648,15 @@ def train_eval_span_annotator(provision: str,
 
         # pylint: disable=line-too-long
         logger.info("%s training using train/test split with %d candidates.  num_inst-pos= %d, num_inst_neg= %d",
-                     candidate_type, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
+                     candidate_types, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
 
         # normal bespoke training
         train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir,
                                                                provision,
-                                                               candidate_type)
+                                                               "-".join(candidate_types))
         test_doclist_fn = "{}/{}_{}_test_doclist.txt".format(model_dir,
                                                              provision,
-                                                             candidate_type)
+                                                             "-".join(candidate_types))
 
         # use 1/4 of the data for testing
         X_train, X_test, unused_y_train, unused_y_test = \

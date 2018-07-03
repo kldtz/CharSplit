@@ -1,9 +1,11 @@
 import logging
-from typing import List
+
+from typing import Any, List, Tuple
+
 
 from kirke.utils import ebantdoc4, evalutils
 
-from kirke.docstruct import fromtomapper, htmltxtparser
+from kirke.docstruct import fromtomapper, htmltxtparser, linepos
 from kirke.ebrules import parties
 
 # pylint: disable=invalid-name
@@ -43,6 +45,7 @@ class LineAnnotator:
                                                       ebantdoc.get_nlp_sx_lnpos_list(),
                                                       ebantdoc.get_origin_sx_lnpos_list())
 
+            print("test_antdoc_list(), at {}".format(ebantdoc.file_id))
             ant_list = self.annotate_antdoc(paras_with_attrs,
                                             paras_text,
                                             fromto_mapper,
@@ -89,7 +92,9 @@ class LineAnnotator:
 
     # pylint: disable=too-many-branches
     def annotate_antdoc(self,
-                        paras_with_attrs,
+                        paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                                     str,
+                                                     List[Any]]],
                         paras_text: str,
                         fromto_mapper: fromtomapper.FromToMapper,
                         nl_text: str):
@@ -102,28 +107,25 @@ class LineAnnotator:
 
             if party_offset_pair_list:
                 for i, party_offset_pair in enumerate(party_offset_pair_list, 1):
-                    (party_start, party_end), term_ox = party_offset_pair
-                    party_st = paras_text[party_start:party_end]
-                    num_words = len(party_st.split())
-                    if not parties.is_invalid_party(party_st) and \
-                       (num_words > 1 or \
-                        (num_words == 1 and parties.is_valid_1word_party(party_st))):
+                    party_ox, term_ox = party_offset_pair
+                    if party_ox:
+                        party_start, party_end = party_ox
+                        party_st = paras_text[party_start:party_end]
                         prov_annotations.append({'end': party_end,
                                                  'label': self.provision,
                                                  'id': i,
                                                  'start': party_start,
                                                  'prob': 0.91,
-                                                 'text': paras_text[party_start:party_end]})
+                                                 'text': party_st})
                     if term_ox:
                         term_start, term_end = term_ox
-                        party_st = paras_text[term_start:term_end]
-                        if not parties.is_invalid_party(party_st):
-                            prov_annotations.append({'end': term_end,
+                        term_st = paras_text[term_start:term_end]
+                        prov_annotations.append({'end': term_end,
                                                      'label': self.provision,
                                                      'id': i,
                                                      'start': term_start,
                                                      'prob': 0.91,
-                                                     'text': paras_text[term_start:term_end]})
+                                                     'text': term_st})
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
 
         elif self.provision == 'date':
@@ -134,11 +136,12 @@ class LineAnnotator:
 
             if date_list:
                 for i, date_ox in enumerate(date_list, 1):
-                    start_offset, end_offset, prov_type = date_ox
+                    start_offset, end_offset, unused_date_st, prov_type, date_norm = date_ox
                     prov_annotations.append({'end': end_offset,
                                              'label': prov_type,
                                              'start': start_offset,
                                              'prob': 0.91,
+                                             'norm': date_norm,
                                              'text': paras_text[start_offset:end_offset]})
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
 
