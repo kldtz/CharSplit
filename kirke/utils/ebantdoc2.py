@@ -593,46 +593,67 @@ def text_to_ebantdoc2(txt_fname,
                       is_bespoke_mode=False,
                       is_doc_structure=True,
                       doc_lang="en") -> EbAnnotatedDoc2:
-    txt_base_fname = os.path.basename(txt_fname)
-    if work_dir is None:
-        work_dir = '/tmp'
-    eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
-    # never want to save in bespoke_mode because annotation can change
-        #if os.path.exists(eb_antdoc_fn):
-        #    os.remove(eb_antdoc_fn)
-        # corenlp should be cache so that we don't run it again for same
-        # files.
-        # is_cache_enabled = False
-    if is_cache_enabled:
-        # check if file exist, if it is, load it and return
-        # regarless of the existing PDF or HtML or is_doc_structure
-        eb_antdoc = load_cached_ebantdoc2(eb_antdoc_fn)
-        if is_bespoke_mode and eb_antdoc:
-            tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
-                                                                               eb_antdoc.codepoint_to_cunit_mapper)
-            if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
-                eb_antdoc.file_id = txt_fname
-                return eb_antdoc
-            eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
-        if eb_antdoc:
-            eb_antdoc.file_id = txt_fname
-            return eb_antdoc
+    try:
+        txt_base_fname = os.path.basename(txt_fname)
+        if work_dir is None:
+            work_dir = '/tmp'
+        eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
+        # never want to save in bespoke_mode because annotation can change
+            #if os.path.exists(eb_antdoc_fn):
+            #    os.remove(eb_antdoc_fn)
+            # corenlp should be cache so that we don't run it again for same
+            # files.
+            # is_cache_enabled = False
+        if is_cache_enabled:
+            try:
+                # check if file exist, if it is, load it and return
+                # regarless of the existing PDF or HtML or is_doc_structure
+                eb_antdoc = load_cached_ebantdoc2(eb_antdoc_fn)
+                if is_bespoke_mode and eb_antdoc:
+                    tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
+                                                                                       eb_antdoc.codepoint_to_cunit_mapper)
+                    if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
+                        eb_antdoc.file_id = txt_fname
+                        return eb_antdoc
+                    eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
+                if eb_antdoc:
+                    eb_antdoc.file_id = txt_fname
+                    return eb_antdoc
+            except Exception:
+                logging.error("failed to load ebandoc2 cache file: [%s].  Load without cache.", eb_antdoc_fn)
+                # simply fall through to load the document without the loading cache file
 
-    pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
-    # if no doc_structure, simply do the simplest
-    if not is_doc_structure:
-        eb_antdoc = html_no_docstruct_to_ebantdoc2(txt_fname, work_dir=work_dir, doc_lang=doc_lang)
-    elif os.path.exists(pdf_offsets_filename):
-        eb_antdoc = pdf_to_ebantdoc2(txt_fname, pdf_offsets_filename, work_dir=work_dir,
-                                     is_cache_enabled=is_cache_enabled, doc_lang=doc_lang)
-    else:
-        eb_antdoc = html_to_ebantdoc2(txt_fname, work_dir=work_dir,
-                                      is_cache_enabled=is_cache_enabled, doc_lang=doc_lang)
+        pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
+        # if no doc_structure, simply do the simplest
+        if not is_doc_structure:
+            eb_antdoc = html_no_docstruct_to_ebantdoc2(txt_fname, work_dir=work_dir, doc_lang=doc_lang)
+        elif os.path.exists(pdf_offsets_filename):
+            eb_antdoc = pdf_to_ebantdoc2(txt_fname, pdf_offsets_filename, work_dir=work_dir,
+                                         is_cache_enabled=is_cache_enabled, doc_lang=doc_lang)
+        else:
+            eb_antdoc = html_to_ebantdoc2(txt_fname, work_dir=work_dir,
+                                          is_cache_enabled=is_cache_enabled, doc_lang=doc_lang)
 
-    ## in doclist, we only want "export-train" dir, not "work_dir"
-    # We need to keep .txt with .ebdata together
-    eb_antdoc.file_id = txt_fname
-    return eb_antdoc
+        ## in doclist, we only want "export-train" dir, not "work_dir"
+        # We need to keep .txt with .ebdata together
+        eb_antdoc.file_id = txt_fname
+        return eb_antdoc
+    except IndexError:
+        # currently, don't want to indicate it's index error to user.  Too detailed.
+        # For developers, we switched the double quote and quote in the message.
+        unused_error_type, error_instance, traceback  = sys.exc_info()
+        error_instance.filename = txt_fname
+        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % \
+                                      (txt_base_fname, doc_lang)
+        error_instance.__traceback__ = traceback
+        raise error_instance
+    except Exception:  # pylint: disable=broad-except
+        unused_error_type, error_instance, traceback = sys.exc_info()
+        error_instance.filename = txt_fname
+        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % \
+                                      (txt_base_fname, doc_lang)
+        error_instance.__traceback__ = traceback
+        raise error_instance
 
 
 def doclist_to_ebantdoc_list_linear(doclist_file,
