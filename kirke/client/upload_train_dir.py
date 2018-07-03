@@ -6,7 +6,7 @@ import os
 import requests
 
 
-def upload_train_dir(url_st: str, upload_dir: str, candidate_type: str, nbest: int = -1):
+def upload_train_dir(url_st: str, upload_dir: str, candidate_types: str, nbest: int = -1):
     txt_fnames, ant_fnames = [], []
     offsets_fnames = []
     for file in os.listdir(upload_dir):
@@ -39,8 +39,8 @@ def upload_train_dir(url_st: str, upload_dir: str, candidate_type: str, nbest: i
         else:
             print("cannot find matching ant file for {}".format(txt_fname), file=sys.stderr)
 
-    print('candidate_type: %s' % (candidate_type, ))
-    payload = {'candidate_type': candidate_type,
+    print('candidate_types: %s' % (candidate_types, ))
+    payload = {'candidate_types': candidate_types,
                'nbest': nbest}
 
     txt_fname_set = set(txt_fnames)
@@ -52,9 +52,8 @@ def upload_train_dir(url_st: str, upload_dir: str, candidate_type: str, nbest: i
     print("Number of file uploaded: {}".format(len(file_tuple_list)))
     # print("file_tuple_list = {}".format(file_tuple_list))
     # payload = {'custom_id': 'custom_id2'}
-    resp = requests.post(url_st, files=file_tuple_list, data=payload, timeout=6000)
-    print(resp.text)
-
+    req = requests.post(url_st, files=file_tuple_list, data=payload, timeout=6000)
+    print(req.text)
 
 
 # pylint: disable=C0103
@@ -63,7 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbosity', help='increase output verbosity')
     parser.add_argument('--url', help='url to post the files')
     parser.add_argument('--custid', default='12345', help='custom-id')
-    parser.add_argument('--candidate_type', default='SENTENCE', help='SENTENCE, CURRENCY, DATE, ADDRESS, NUMBER, PERCENT')
+    parser.add_argument('--candidate_types', default='SENTENCE', help='SENTENCE, CURRENCY, DATE, ADDRESS, NUMBER, PERCENT')
     parser.add_argument('--nbest', default=-1, help='url to post the files')
     parser.add_argument('upload_dir', help='directory to upload')
 
@@ -79,4 +78,4 @@ if __name__ == '__main__':
         nbest = int(args.nbest)
 
     # provision = 'cust_{}'.format(args.custid)
-    upload_train_dir(url, args.upload_dir, args.candidate_type, nbest)
+    upload_train_dir(url, args.upload_dir, args.candidate_types, nbest)

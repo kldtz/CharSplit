@@ -18,7 +18,7 @@ from flask import Flask, jsonify, request, send_file
 import yaml
 
 from kirke.eblearn import ebrunner
-from kirke.utils import osutils, strutils
+from kirke.utils import corenlputils, osutils, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -71,6 +71,9 @@ osutils.mkpath(WORK_DIR)
 osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
 
+# start corenlp server
+corenlputils.init_corenlp_server()
+
 eb_runner = ebrunner.EbRunner(MODEL_DIR, WORK_DIR, CUSTOM_MODEL_DIR)
 
 # pylint: disable=invalid-name
@@ -93,7 +96,6 @@ def annotate_uploaded_document():
     is_detect_lang = request.form.get('detect-lang')
 
     ebannotations = {}
-
     request_work_dir = request.form.get('workdir')
     file_title = request.form.get('fileName')
     if request_work_dir:
@@ -185,7 +187,6 @@ def annotate_uploaded_document():
             eff_ant['label'] = 'effectivedate_auto'
         prov_labels_map['effectivedate_auto'] = effectivedate_annotations
         del prov_labels_map['effectivedate']
-
     ebannotations['ebannotations'] = prov_labels_map
     return json.dumps(ebannotations)
 
@@ -279,9 +280,11 @@ def custom_train(cust_id: str):
     else:
         work_dir = WORK_DIR
 
-    candidate_type = request.form.get('candidate_type')
-    if not candidate_type:
-        candidate_type = 'SENTENCE'
+    cand_types_param = request.form.get('candidate_types')
+    if not cand_types_param:
+        candidate_types = ['SENTENCE']
+    else:
+        candidate_types = cand_types_param.split(',')
     nbest = request.form.get('nbest')
     if not nbest:
         nbest = -1
@@ -289,8 +292,8 @@ def custom_train(cust_id: str):
         nbest = int(nbest)
 
     # to ensure that no accidental file name overlap
-    logger.info("cust_id = '%s', candidate_type=%s, nbest= %d",
-                cust_id, candidate_type, nbest)
+    logger.info("cust_id = '%s', candidate_types=%r, nbest= %d",
+                cust_id, candidate_types, nbest)
     provision = 'cust_{}'.format(cust_id)
     tmp_dir = '{}/{}'.format(work_dir, provision)
     osutils.mkpath(tmp_dir)
@@ -344,7 +347,7 @@ def custom_train(cust_id: str):
             txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
             fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
             strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-            if candidate_type == 'SENTENCE':
+            if len(candidate_types) == 1 and candidate_types[0] == 'SENTENCE':
                 base_model_fname = '{}.{}_scutclassifier.v{}.pkl'.format(provision,
                                                                          next_model_num,
                                                                          SCUT_CLF_VERSION)
@@ -356,13 +359,14 @@ def custom_train(cust_id: str):
             else:
                 base_model_fname = '{}.{}_{}_annotator.v{}.pkl'.format(provision,
                                                                        next_model_num,
-                                                                       candidate_type,
+                                                                       "-".join(candidate_types),
                                                                        CANDG_CLF_VERSION)
                 if doc_lang != "en":
                     base_model_fname = '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
                                                                               next_model_num,
                                                                               doc_lang,
-                                                                              candidate_type,
+                                                                              # pylint: disable=line-too-long
+                                                                              "-".join(candidate_types),
                                                                               CANDG_CLF_VERSION)
 
             # Intentionally not passing is_doc_structure=True
@@ -375,7 +379,7 @@ def custom_train(cust_id: str):
                                                               provision,
                                                               CUSTOM_MODEL_DIR,
                                                               base_model_fname,
-                                                              candidate_type,
+                                                              candidate_types,
                                                               nbest,
                                                               model_num=next_model_num,
                                                               work_dir=work_dir,
