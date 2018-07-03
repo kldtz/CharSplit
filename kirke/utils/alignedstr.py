@@ -204,6 +204,12 @@ class AlignedStrMapper:
         self.from_se_list.append(aligned_se_pair)  # the offset is not correct now
         self.to_se_list.append(aligned_se_pair)
 
+    # TODO, why is the line below not valid?
+    # def update_with_mapper(self, other: AlignedStrMapper) -> None:
+    def update_with_mapper(self, other) -> None:
+        self.from_se_list.extend(other.from_se_list)
+        self.to_se_list.extend(other.to_se_list)
+
 
 # nobody is calling this now?
 def unused_make_aligned_str_mapper(fromto_se_pair_list: List[Tuple[Tuple[int, int],
