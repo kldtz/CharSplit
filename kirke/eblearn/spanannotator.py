@@ -265,7 +265,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         all_cands = defaultdict(list)
         all_labels = defaultdict(list)
         all_groups = defaultdict(list)
-        all_antdocs = []
         if type(self.doc_to_candidates) != list:
             self.doc_to_candidates = [self.doc_to_candidates]
         for candidate_generator in self.doc_to_candidates:
@@ -274,10 +273,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                 all_cands[antdoc.file_id].extend(cands)
                 all_labels[antdoc.file_id].extend(labels)
                 all_groups[antdoc.file_id].extend(groups)
-                all_antdocs.append(antdoc)
-        uniq_antdocs = set(all_antdocs)
         all_results = []
-        for antdoc in uniq_antdocs:
+        for antdoc in antdoc_list:
             all_results.append((antdoc, all_cands[antdoc.file_id], all_labels[antdoc.file_id], all_groups[antdoc.file_id]))
         return all_results
 
