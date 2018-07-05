@@ -16,15 +16,15 @@ from typing import Any, DefaultDict, Dict, List, Set, Tuple
 # pylint: disable=import-error
 from sklearn.externals import joblib
 
-
 from kirke.eblearn import ebattrvec, sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdftxtparser
 from kirke.docstruct.pdfoffsets import PDFTextDoc
 from kirke.utils import corenlputils, ebsentutils, memutils, osutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
 from kirke.utils.ebsentutils import ProvisionAnnotation
-from kirke.abbyxml import abbyxmlparser
-import sync_abby_pbox
+from kirke.abbyxml import abbyxmlparser, abbypbox_syncher
+
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -538,7 +538,13 @@ def pdf_to_ebantdoc(txt_file_name: str,
     xml_fname = txt_file_name.replace('.txt', '.pdf.xml')
     abby_xml_doc = abbyxmlparser.parse_document(xml_fname, work_dir=work_dir) # type: AbbyXmlDoc
 
-    sync_abby_pbox.sync_doc_offsets(abby_xml_doc, pdf_txt_doc)
+    abbypbox_syncher.sync_doc_offsets(abby_xml_doc, pdf_txt_doc)
+
+    txt_unsync_fname = '{}/{}'.format(work_dir, txt_base_fname.replace('.txt', '.txt.unsync'))
+    with open(txt_unsync_fname, 'wt') as unsync_fout:
+        abbypbox_syncher.print_abby_pbox_unsync(abby_xml_doc,
+                                                file=unsync_fout)
+        print('wrote {}'.format(txt_unsync_fname))
 
     paras2_with_attrs, para2_doc_text= \
         abbyxmlparser.to_paras_with_attrs(abby_xml_doc,
