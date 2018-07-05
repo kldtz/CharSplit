@@ -1,4 +1,4 @@
-
+import re
 from typing import List, Optional, Tuple
 
 IS_DEBUG = False
@@ -8,7 +8,7 @@ def is_space_huline(line: str) -> bool:
 
 
 def is_hyphen_underline(line: str) -> bool:
-    return line == '_' or line == '-'
+    return line == '_' or line == '-' or line == '.'
 
 
 def adjust_list_offset(se_list: List[Tuple[int, int]],
@@ -48,7 +48,9 @@ def compute_se_list(from_line: str,
             fidx += 1
             tidx += 1
         else:
-            if fstart == fidx or tstart == tidx:
+            # if fstart == fidx or tstart == tidx:
+            if fidx == 0 or tidx == 0:
+                # if fidx < 3 or tidx < 3:
                 if IS_DEBUG:
                     # even the first character didn't match
                     print("Character1 diff at %d, char '%s'" %
@@ -86,6 +88,16 @@ def compute_se_list(from_line: str,
             else:
                 break
 
+    # if two lines are diff by two much, we don't bother claim they are matched.
+    # We currently allow partial match of two strings due to some strings might be concatenated randomly.
+    # We can check for character overlap.  We currently assume x,y coordinate limit such candidates.
+    if fidx < len(from_line) / 3.0 and \
+       tidx < len(to_line) / 3.0:
+        if IS_DEBUG:
+            # even the first character didn't match
+            print("Character5 diff at %d, char '%s'" %
+                  (offset + fidx, from_line[fidx]))
+        return None
 
     # if there was any match, add them
     if fidx != fstart:
@@ -206,9 +218,11 @@ class AlignedStrMapper:
 
     # TODO, why is the line below not valid?
     # def update_with_mapper(self, other: AlignedStrMapper) -> None:
-    def update_with_mapper(self, other) -> None:
-        self.from_se_list.extend(other.from_se_list)
-        self.to_se_list.extend(other.to_se_list)
+    def update_with_mapper(self,
+                           other_from_se_list: List[Tuple[int, int]],
+                           other_to_se_list: List[Tuple[int, int]]) -> None:
+        self.from_se_list.extend(other_from_se_list)
+        self.to_se_list.extend(other_to_se_list)
 
 
 # nobody is calling this now?
@@ -221,3 +235,125 @@ def unused_make_aligned_str_mapper(fromto_se_pair_list: List[Tuple[Tuple[int, in
         amapper.from_se_list.append(from_se)
         amapper.to_se_list.append(to_se)
     return amapper
+
+
+# from_line is abby_line
+# to_line is pbox_line
+def compute_matched_se_list(from_line: str,
+                            to_line: str,
+                            offset: int) \
+    -> Optional[Tuple[List[Tuple[int, int]],
+                      List[Tuple[int, int]],
+                      Optional[Tuple[int, int]],
+                      Optional[Tuple[int, int]]]]:
+
+    if len(from_line) == len(to_line):
+        if from_line == to_line:
+            return [(0, len(from_line))], [(offset, offset + len(to_line))], None, None
+        return None
+
+    elif len(from_line) > len(to_line):
+        mat_st = re.escape(to_line)
+        abby_big_mat_list = list(re.finditer(mat_st, from_line))
+
+        if len(abby_big_mat_list) == 1:
+            # pbox's match, offset is based on abby_line or from_line
+            mat = abby_big_mat_list[0]
+            mstart, mend = mat.start(), mat.end()
+            before_start, before_end = 0, mstart
+            after_start, after_end = mend, len(from_line)
+
+            # There should be possible either before frag and after frag,
+            # but the API only allow returning 1 frag back.
+            # Since previously, the front has being checked in aligned_str_mapper.
+            # Assume front one has priority.
+            from_extra_se = None
+            # take the suffix extra first
+            if after_start != after_end:
+                from_extra_se = (after_start, after_end)
+            # but if there is prefix extra, take that instead
+            if before_start != before_end:
+                from_extra_se = (before_start, before_end)
+
+            return [(mstart, mend)], [(offset, offset + len(to_line))], from_extra_se, None
+
+        # 0 or more than 1, no match
+        return None
+
+    else:
+        mat_st = re.escape(from_line)
+        pbox_big_mat_list = list(re.finditer(mat_st, to_line))
+
+        if len(pbox_big_mat_list) == 1:
+            # abby's match, offset is based on pbox_line or to_line
+            mat = pbox_big_mat_list[0]
+            mstart, mend = mat.start(), mat.end()
+            before_start, before_end = 0, mstart
+            after_start, after_end = mend, len(from_line)
+
+            to_extra_se = None
+            # take the suffix extra first
+            if after_start != after_end:
+                to_extra_se = (after_start + offset, after_end + offset)
+            # but if there is prefix extra, take that instead
+            if before_start != before_end:
+                to_extra_se = (before_start + offset, before_end + offset)
+
+            return [(0, len(from_line))], [(offset + mstart, offset + mend)], None, to_extra_se
+
+        # 0 or more than 1, no match
+        return None
+
+
+# pylint: disable=too-few-public-methods
+class MatchedStrMapper:
+
+    def __init__(self, from_line: str, to_line: str, offset: int = 0) -> None:
+        if IS_DEBUG:
+            print("MatchedStrMapper(), offset = {}".format(offset))
+            print("     from_line: [{}]".format(from_line))
+            print("       to_line: [{}]".format(to_line))
+
+        self.is_aligned = False
+        self.is_fully_synced = False
+        self.from_se_list = []  # type: List[Tuple[int, int]]
+        self.to_se_list = []  # type: List[Tuple[int, int]]
+        self.extra_fse = None  # type: Optional[Tuple[int, int]]
+        self.extra_tse = None  # type: Optional[Tuple[int, int]]
+
+        align_result = compute_matched_se_list(from_line, to_line, offset)
+        if align_result:
+            self.from_se_list, self.to_se_list, \
+                self.extra_fse, self.extra_tse = align_result
+            self.is_aligned = True
+            if not self.extra_fse and not self.extra_tse:
+                self.is_fully_synced = True
+
+        if IS_DEBUG:
+            if self.is_aligned:
+                print("    return from_se_list: {}".format(self.from_se_list))
+                print("             to_se_list: {}".format(self.to_se_list))
+                print("              extra_fse: {}".format(self.extra_fse))
+                print("              extra_tse: {}".format(self.extra_tse))
+            else:
+                print("    return is_aligned is False")
+
+
+    def __str__(self):
+        return 'MatchedStrMapper({},\n'.format(self.from_se_list) + \
+            '                 {},\n'.format(self.to_se_list) + \
+            '                 {},\n'.format(self.extra_fse) + \
+            '                 {})'.format(self.extra_tse)
+
+    # pylint: disable=invalid-name
+    def get_to_offset(self, x: int) -> int:
+        for i, from_se in enumerate(self.from_se_list):
+            fstart, fend = from_se
+            if x <= fend:
+                if x >= fstart:
+                    to_se = self.to_se_list[i]
+                    tstart, unused_tend = to_se
+                    diff = x - fstart
+                    return tstart + diff
+                return -1
+        return -1

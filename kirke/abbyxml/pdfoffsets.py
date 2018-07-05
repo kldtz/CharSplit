@@ -8,8 +8,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, TextIO, Tuple, Union
 from kirke.docstruct import jenksutils, docstructutils
 from kirke.utils import engutils, strutils
 
-from kirke.utils.alignedstr import AlignedStrMapper
-
+from kirke.utils.alignedstr import AlignedStrMapper, is_hyphen_underline
 
 class AbbyLine:
 
@@ -167,6 +166,17 @@ class UnsyncedStrWithY:
                  text: str,
                  as_mapper: AlignedStrMapper) -> None:
         self.y_val = y_val
+        # because sometimes text starts with space or underline, we
+        # auto increment start index to avoid such junk
+        """
+        if len(text) > 2 and is_hyphen_underline(text[0]) and \
+           not is_hyphen_underline(text[1]):
+            self.se_pair = (se_pair[0]+1, se_pair[1])
+            self.text = text[1:]
+        else:
+            self.se_pair = se_pair
+            self.text = text
+        """
         self.se_pair = se_pair
         self.text = text
         self.as_mapper = as_mapper
