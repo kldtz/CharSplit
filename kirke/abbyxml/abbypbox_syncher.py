@@ -15,7 +15,6 @@ from kirke.docstruct.pdfoffsets import PDFTextDoc, PageInfo3
 from kirke.utils import alignedstr
 from kirke.utils.alignedstr import AlignedStrMapper, MatchedStrMapper
 
-
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.WARN)
@@ -23,6 +22,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 IS_DEBUG_SYNC = False
+IS_DEBUG_SYNC = True
+
 # level 2, sync debug, more detailed info
 IS_DEBUG_SYNC_L2 = False
 
@@ -35,11 +36,15 @@ X_BOX_CHECK_MIN = 2
 X_BOX_CHECK_MAX = 3
 
 Y_BOX_CHECK_MIN_1 = 12
-Y_BOX_CHECK_MIN_2 = 21
+# Y_BOX_CHECK_MIN_2 = 21
+Y_BOX_CHECK_MIN_2 = 30
 Y_BOX_CHECK_MAX = 3
 # found some instance of this, abby y = 1344, pbox y= 1336, a diff of 8
 Y_BOX_CHECK_MAX_2 = 12
 
+# remove all frags with only special chars
+# -_.
+IS_REMOVE_SPECIAL_CHAR_ONLY_FRAGS = True
 
 # pylint: disable=invalid-name
 def find_unsync_pbox_line_by_xy(x: int,
@@ -121,6 +126,38 @@ def find_unique_str_in_unmatched_ablines(stext: str,
             return None
         return mats[0], um_abline
     return None
+
+SPECIAL_CHAR_ONLY_PAT = re.compile(r'^[\-_\. ]+$')
+
+def remove_special_char_only_frags(frag_list: List[UnsyncedStrWithY]) \
+    -> List[UnsyncedStrWithY]:
+    out_list = []  # type: List[UnsyncedStrWithY]
+    for frag in frag_list:
+        frag_y, (unused_start, unused_end), frag_text, unused_as_mapper = frag.to_tuple()
+
+        if not SPECIAL_CHAR_ONLY_PAT.match(frag_text):
+            out_list.append(frag)
+    return out_list
+
+
+def remove_special_char_only_pbox_lines(pbox_lines: List[UnsyncedPBoxLine]) \
+    -> List[UnsyncedPBoxLine]:
+    out_list = []  # type: List[UnsyncedPBoxLine]
+    for pbox_line in pbox_lines:
+        xypair, (unused_start, unused_end), pbox_line_text = pbox_line.to_tuple()
+
+        if not SPECIAL_CHAR_ONLY_PAT.match(pbox_line_text):
+            out_list.append(pbox_line)
+    return out_list
+
+
+def remove_special_char_only_abby_lines(abby_lines: List[AbbyLine]) \
+    -> List[AbbyLine]:
+    out_list = []  # type: List[AbbyLine]
+    for abby_line in abby_lines:
+        if not SPECIAL_CHAR_ONLY_PAT.match(abby_line.text):
+            out_list.append(abby_line)
+    return out_list
 
 
 def pbox_xy_list_to_pbox_lines(um_pbox_xy_list: List[Tuple[int, int]],
@@ -265,7 +302,8 @@ def find_unsync_abline_in_pbox_strs_by_match_str(unsync_abby_line: AbbyLine,
                                                  unsync_pbox_lines: List[UnsyncedPBoxLine],
                                                  pbox_extra_se_list: List[UnsyncedStrWithY],
                                                  # not used for sync'ing, only for store unsync'ed
-                                                 abby_extra_se_list: List[UnsyncedStrWithY]) \
+                                                 abby_extra_se_list: List[UnsyncedStrWithY],
+                                                 allow_partial_match: bool = False) \
                                                  -> Tuple[bool,
                                                           List[UnsyncedPBoxLine],
                                                           List[UnsyncedStrWithY],
@@ -278,22 +316,17 @@ def find_unsync_abline_in_pbox_strs_by_match_str(unsync_abby_line: AbbyLine,
     abline_st = unsync_abby_line.text
     um_abline_y = unsync_abby_line.infer_attr_dict['y']
 
-
-    if abline_st == 'USI Southwest':
-        print("hello235234")
-
     for um_pbox_line in unsync_pbox_lines:
         xypair, (pstart, unused_to_end), pbox_text = um_pbox_line.to_tuple()
         unused_pbox_x, pbox_y = xypair
-
-        if pbox_text == 'USI Southwest':
-            print("hello23523455")
 
         asmapper = MatchedStrMapper(abline_st,
                                     pbox_text,
                                     pstart)
 
-        if asmapper.is_aligned:
+        if asmapper.is_fully_synced:
+            as_mapper_list.append(asmapper)
+        elif allow_partial_match and asmapper.is_aligned:
             as_mapper_list.append(asmapper)
 
             if IS_DEBUG_SYNC:
@@ -340,7 +373,9 @@ def find_unsync_abline_in_pbox_strs_by_match_str(unsync_abby_line: AbbyLine,
                                     pbox_text,
                                     pstart)
 
-        if asmapper.is_aligned:
+        if asmapper.is_fully_synced:
+            as_mapper_list.append(asmapper)
+        elif allow_partial_match and asmapper.is_aligned:
             as_mapper_list.append(asmapper)
 
             if IS_DEBUG_SYNC:
@@ -601,7 +636,8 @@ def find_abby_extra_in_pbox_lines_by_y_align_str(abby_ypoint: int,
 
     # Must only have exact matching only once in a page, otherwise ambiguous and return None.
     if len(as_mapper_list) == 1:
-        return as_mapper_list[0], out_abby_frag, out_pbox_frag, synced_pbox_lines[0]
+        matched_str_mapper = as_mapper_list[0]
+        return matched_str_mapper, out_abby_frag, out_pbox_frag, synced_pbox_lines[0]
     return None
 
 
@@ -626,7 +662,7 @@ def find_pbox_lines_in_abby_frags_by_y_align_str(pbox_lines: List[UnsyncedPBoxLi
     out_pbox_frags = list(pbox_extra_se_list)  # type: List[UnsyncedStrWithY]
     to_remove_pbox_lines = []  # type: List[UnsyncedPBoxLine]
     for unused_i, abby_extra_se in enumerate(abby_extra_se_list):
-        abby_y, (unused_fstart, unused_fend), extra_text, asmapper = abby_extra_se.to_tuple()
+        abby_y, (fstart, unused_fend), extra_text, asmapper = abby_extra_se.to_tuple()
 
         found_pbox_line_tuple = \
             find_abby_extra_in_pbox_lines_by_y_align_str(abby_y,
@@ -635,8 +671,12 @@ def find_pbox_lines_in_abby_frags_by_y_align_str(pbox_lines: List[UnsyncedPBoxLi
         if found_pbox_line_tuple:
             found_as_mapper, found_abby_frag, found_pbox_frag, found_pbox_line = \
                 found_pbox_line_tuple
+
+            adj_from_se_list = alignedstr.adjust_list_offset(found_as_mapper.from_se_list,
+                                                             fstart)
+
             # add the new found pdfbox offsets to abline.asmapper.from/to_se_list
-            asmapper.update_with_mapper(found_as_mapper.from_se_list,
+            asmapper.update_with_mapper(adj_from_se_list,
                                         found_as_mapper.to_se_list)
             to_remove_pbox_lines.append(found_pbox_line)
             if found_abby_frag:
@@ -877,6 +917,19 @@ def sync_page_offsets(abby_page: AbbyPage,
                 out_unmatched_ablines.append(um_abline)
         unmatched_ablines = out_unmatched_ablines
 
+    if unmatched_ablines:
+        out_unmatched_ablines = []  # type: List[AbbyLine]
+        for um_abline in unmatched_ablines:
+            is_um_abline_found, unsync_pbox_lines, abby_extra_se_list, pbox_extra_se_list = \
+                find_unsync_abline_in_pbox_strs_by_match_str(um_abline,
+                                                             unsync_pbox_lines,
+                                                             pbox_extra_se_list,
+                                                             abby_extra_se_list,
+                                                             allow_partial_match=True)
+            if not is_um_abline_found:
+                out_unmatched_ablines.append(um_abline)
+        unmatched_ablines = out_unmatched_ablines
+
 
     if IS_DEBUG_SYNC:
         print("\n----- {}\n".format("after synch abby_lines with pbox_lines and pbox_frag by match_str"))
@@ -950,6 +1003,13 @@ def sync_page_offsets(abby_page: AbbyPage,
             unused_xypair2, se_pair, stext = pbox_xy_map[xypair]
             logger.debug("    unused str: xy=%r, %r [%s]", xypair, se_pair, stext)
     """
+
+    if IS_REMOVE_SPECIAL_CHAR_ONLY_FRAGS:
+        unmatched_ablines = remove_special_char_only_abby_lines(unmatched_ablines)
+        abby_extra_se_list = remove_special_char_only_frags(abby_extra_se_list)
+        unsync_pbox_lines = remove_special_char_only_pbox_lines(unsync_pbox_lines)
+        pbox_extra_se_list = remove_special_char_only_frags(pbox_extra_se_list)
+
 
     # now record unsync stuff, per page
     abby_page.unsync_abby_lines = unmatched_ablines

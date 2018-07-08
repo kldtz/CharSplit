@@ -1,5 +1,6 @@
+from collections import defaultdict
 import re
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 IS_DEBUG = False
 
@@ -26,6 +27,56 @@ def adjust_pair_offset(se_pair: Optional[Tuple[int, int]],
     return None
 
 
+def to_str_list(line: str, se_list: List[Tuple[int, int]]) -> List[str]:
+    return [line[start:end] for start, end in se_list]
+
+
+def make_aligned_charmap(line: str) -> Dict[str, int]:
+    adict = defaultdict(int)
+    for achar in line:
+        if achar not in set([' ', '-', '_', '.']):
+            adict[achar] += 1
+    return adict
+
+def is_aligned_leftover_char_maps(map1: Dict[str, int],
+                                  map2: Dict[str, int]):
+    """Determine if the leftover character are similar enought to
+    claim 2 strings are aligned.
+
+    The code here is intensionally not very precise.  Ideally,
+    something closer to a cosine measure is probably better, but
+    too slow.  This a much faster, but less accurate replacement.
+    """
+    count_diff = 0
+    for achar, count in map1.items():
+        count2 = map2.get(achar, 0)
+        count_diff += abs(count - count2)
+
+        if count_diff > 4:
+            return False
+    # try from the other perspective
+    for achar, count in map2.items():
+        count2 = map1.get(achar, 0)
+        # if not found in the other map, then
+        # this must be a diff
+        if count2 == 0:
+            count_diff += count
+        if count_diff > 4:
+            return False
+    return True
+
+
+def is_leftover_chars_mostly_overlap(line1: str, line2: str) -> bool:
+    # if the leftover has no chars, then there is enough overlap before
+    if not line1 or not line2:
+        return True
+    char1_map = make_aligned_charmap(line1)
+    char2_map = make_aligned_charmap(line2)
+
+    return is_aligned_leftover_char_maps(char1_map,
+                                         char2_map)
+
+
 # pylint: disable=too-many-branches, too-many-locals, too-many-statements
 def compute_se_list(from_line: str,
                     to_line: str,
@@ -34,7 +85,6 @@ def compute_se_list(from_line: str,
                       List[Tuple[int, int]],
                       Optional[Tuple[int, int]],
                       Optional[Tuple[int, int]]]]:
-    fidx, tidx = 0, 0
     flen, tlen = len(from_line), len(to_line)
     # fse = from_line's extra start-end, tse=to_line's start-end
     extra_fse, extra_tse = None, None
@@ -42,6 +92,20 @@ def compute_se_list(from_line: str,
     from_se_list, to_se_list = [], []
     fstart, tstart = 0, 0
     prev_matched_char = ' '
+
+    # to handle the case where a string starts with special chars
+    if is_space_huline(from_line[fstart]):
+        fstart += 1
+        while fstart < flen and is_space_huline(from_line[fstart]):
+            fstart += 1
+    if is_space_huline(to_line[tstart]):
+        tstart += 1
+        while tstart < tlen and is_space_huline(to_line[tstart]):
+            tstart += 1
+
+    fstart_00, tstart_00 = fstart, tstart
+    fidx, tidx = fstart, tstart
+
     while fidx < flen and tidx < tlen:
         if from_line[fidx] == to_line[tidx]:
             prev_matched_char = from_line[fidx]
@@ -49,7 +113,7 @@ def compute_se_list(from_line: str,
             tidx += 1
         else:
             # if fstart == fidx or tstart == tidx:
-            if fidx == 0 or tidx == 0:
+            if fidx == fstart_00 or tidx == tstart_00:
                 # if fidx < 3 or tidx < 3:
                 if IS_DEBUG:
                     # even the first character didn't match
@@ -58,15 +122,24 @@ def compute_se_list(from_line: str,
                 return None
 
             # try to see if the mismatch is due to space or underline
-            from_se_list.append((fstart, fidx))
-            to_se_list.append((tstart, tidx))
-            fstart, tstart = fidx, tidx
+            if fstart != fidx and \
+                tstart != tidx:
+                from_se_list.append((fstart, fidx))
+                to_se_list.append((tstart, tidx))
+                fstart, tstart = fidx, tidx
+            else:
+                break
 
+            # from_line has underline, while the other has space
+            # if from_line[fstart].isspace() or \
+            #    (is_hyphen_underline(from_line[fstart]) and
+            #    to_line[tstart].isspace()):
+            """
             if from_line[fstart].isspace():
                 fstart += 1
                 while fstart < flen and from_line[fstart].isspace():
                     fstart += 1
-            elif to_line[tstart].isspace():
+            if to_line[tstart].isspace():
                 tstart += 1
                 while tstart < tlen and to_line[tstart].isspace():
                     tstart += 1
@@ -80,6 +153,15 @@ def compute_se_list(from_line: str,
                     tstart += 1
                     while tstart < tlen and is_space_huline(to_line[tstart]):
                         tstart += 1
+            """
+            if is_space_huline(from_line[fstart]):
+                fstart += 1
+                while fstart < flen and is_space_huline(from_line[fstart]):
+                    fstart += 1
+            if is_space_huline(to_line[tstart]):
+                tstart += 1
+                while tstart < tlen and is_space_huline(to_line[tstart]):
+                    tstart += 1
 
             # if either advanced, then there is a reason to move forward
             # otherwise, don't other
@@ -91,8 +173,10 @@ def compute_se_list(from_line: str,
     # if two lines are diff by two much, we don't bother claim they are matched.
     # We currently allow partial match of two strings due to some strings might be concatenated randomly.
     # We can check for character overlap.  We currently assume x,y coordinate limit such candidates.
-    if fidx < len(from_line) / 3.0 and \
-       tidx < len(to_line) / 3.0:
+    # if fidx < len(from_line) / 3.0 and \
+    #   tidx < len(to_line) / 3.0:
+    if not is_leftover_chars_mostly_overlap(from_line[fidx:],
+                                            to_line[tidx:]):
         if IS_DEBUG:
             # even the first character didn't match
             print("Character5 diff at %d, char '%s'" %
@@ -254,6 +338,10 @@ def compute_matched_se_list(from_line: str,
 
     elif len(from_line) > len(to_line):
         mat_st = re.escape(to_line)
+        # allow multiple '-', '_', and ' '
+        mat_st = mat_st.replace(' ', ' *')
+        mat_st = mat_st.replace('-', '-*')
+        mat_st = mat_st.replace('_', '_*')
         abby_big_mat_list = list(re.finditer(mat_st, from_line))
 
         if len(abby_big_mat_list) == 1:
@@ -262,6 +350,8 @@ def compute_matched_se_list(from_line: str,
             mstart, mend = mat.start(), mat.end()
             before_start, before_end = 0, mstart
             after_start, after_end = mend, len(from_line)
+
+
 
             # There should be possible either before frag and after frag,
             # but the API only allow returning 1 frag back.

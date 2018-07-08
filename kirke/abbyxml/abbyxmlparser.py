@@ -27,6 +27,28 @@ from kirke.utils import mathutils
 IS_DISPLAY_ATTRS = False
 # IS_DISPLAY_ATTRS = True
 
+# Normally, a page is resolution is 300 dots per intch
+# Sometimes, the reoslution is changed because of images or
+# pictures, such as signature.  Need to adjust accordingly
+
+def adjust_by_resolution(coord: int, resolution: int) -> int:
+    if resolution == 300:
+        return coord
+    multiplier = 300.0 / resolution
+    # it is OK we don't do rounding here,
+    # precision is not critical here
+    return int(coord * multiplier)
+
+def is_position_attr(attr):
+    return attr in set(['@b', '@t', '@l', '@r',
+                        '@baseline',
+                        '@height',
+                        '@width',
+                        '@leftIndent',
+                        '@rightIndent',
+                        '@startIndent',
+                        '@lineSpacing'])
+
 
 def add_infer_line_attrs(attr_dict: Dict):
     infer_attr_dict = {}
@@ -122,12 +144,14 @@ def add_infer_table_block_attrs(table_block: AbbyTableBlock) -> None:
     pass
 
 
-def parse_abby_line(ajson) -> AbbyLine:
+def parse_abby_line(ajson, resolution: int) -> AbbyLine:
     line_attr_dict = {}
 
     for attr, val in sorted(ajson.items()):
         if attr.startswith('@'):
             line_attr_dict[attr] = abbyutils.abby_attr_str_to_val(attr, val)
+            if is_position_attr(attr):
+                line_attr_dict[attr] = adjust_by_resolution(line_attr_dict[attr], resolution)
 
         if attr == 'formatting':
             # val can be a list, with dict with '#text' tags.  This is a mixed language.
@@ -148,7 +172,7 @@ def parse_abby_line(ajson) -> AbbyLine:
     raise ValueError
 
 
-def parse_abby_cell(ajson) -> AbbyCell:
+def parse_abby_cell(ajson, resolution: int) -> AbbyCell:
     cell_attr_dict = {}
 
     # print("\n\nparse_abby_cell:")
@@ -157,6 +181,8 @@ def parse_abby_cell(ajson) -> AbbyCell:
     for attr, val in sorted(ajson.items()):
         if attr.startswith('@'):
             cell_attr_dict[attr] = abbyutils.abby_attr_str_to_val(attr, val)
+            if is_position_attr(attr):
+                cell_attr_dict[attr] = adjust_by_resolution(cell_attr_dict[attr], resolution)
 
         if attr == 'text':
             # print('\n    text_block ------ {}'.format(block_attr_dict))
@@ -164,10 +190,10 @@ def parse_abby_cell(ajson) -> AbbyCell:
             if isinstance(val, list):
                 par_list = []
                 for tmp_val in val:
-                    par_list.extend(parse_abby_par(tmp_val))
+                    par_list.extend(parse_abby_par(tmp_val, resolution))
             elif isinstance(val, dict):
                 # print('par: {}'.format(val))
-                par_list = parse_abby_par(val)
+                par_list = parse_abby_par(val, resolution)
             else:
                 raise ValueError
 
@@ -178,7 +204,7 @@ def parse_abby_cell(ajson) -> AbbyCell:
     raise ValueError
 
 
-def parse_abby_rows(ajson) -> List[AbbyRow]:
+def parse_abby_rows(ajson, resolution: int) -> List[AbbyRow]:
 
     ab_row_list = []  # List[AbbyRow]
 
@@ -193,9 +219,9 @@ def parse_abby_rows(ajson) -> List[AbbyRow]:
             cell_val = cell_dict['cell']
             if isinstance(cell_val, list):
                 for tmp_val in cell_val:
-                    ab_cell_list.append(parse_abby_cell(tmp_val))
+                    ab_cell_list.append(parse_abby_cell(tmp_val, resolution))
             elif isinstance(cell_val, dict):
-                ab_cell_list.append(parse_abby_cell(cell_val))
+                ab_cell_list.append(parse_abby_cell(cell_val, resolution))
             else:
                 raise ValueError
         else:
@@ -230,7 +256,7 @@ def add_ydiffs_in_text_block(ab_text_block: AbbyTextBlock) -> None:
 
 
 # ajson is {'par': ... }
-def parse_abby_par(ajson) -> List[AbbyPar]:
+def parse_abby_par(ajson, resolution: int) -> List[AbbyPar]:
     par_attr_dict = {}
     par_json_list = []
 
@@ -254,15 +280,17 @@ def parse_abby_par(ajson) -> List[AbbyPar]:
         for attr, val in sorted(par_json.items()):
             if attr.startswith('@'):
                 par_attr_dict[attr] = abbyutils.abby_attr_str_to_val(attr, val)
+                if is_position_attr(attr):
+                    par_attr_dict[attr] = adjust_by_resolution(par_attr_dict[attr], resolution)
 
             if attr == 'line':
                 # print('\n            par\t{}'.format(par_attr_dict))
                 if isinstance(val, list):
                     for tmp_val in val:
-                        abby_line = parse_abby_line(tmp_val)
+                        abby_line = parse_abby_line(tmp_val, resolution)
                         ab_line_list.append(abby_line)
                 else:
-                    abby_line = parse_abby_line(val)
+                    abby_line = parse_abby_line(val, resolution)
                     ab_line_list.append(abby_line)
 
         # it is possible that a par has no line
@@ -280,17 +308,26 @@ def parse_abby_par(ajson) -> List[AbbyPar]:
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def parse_abby_page(ajson) -> AbbyPage:
+    """Transfomr a page json into our own representation."""
     text_block_jsonlist = []
     # table_block_list = []
 
     # print("parse_abby_page")
     # print(ajson)
 
+    # default resolution is 300 / inch
+    # but can be changed by page attribute
+    resolution = 300
+
     if isinstance(ajson, dict):
         page_attr_dict = {}
         for attr, val in sorted(ajson.items()):
             if attr.startswith('@'):
                 page_attr_dict[attr] = abbyutils.abby_attr_str_to_val(attr, val)
+
+                if attr == '@resolution':
+                    resolution = int(val)
+                    # print('page resolution: {}'.format(resolution))
 
             if attr == 'block':
                 if isinstance(val, list):
@@ -314,6 +351,9 @@ def parse_abby_page(ajson) -> AbbyPage:
         for attr, val in sorted(text_block.items()):
             if attr.startswith('@'):
                 block_attr_dict[attr] = abbyutils.abby_attr_str_to_val(attr, val)
+                if is_position_attr(attr):
+                    block_attr_dict[attr] = adjust_by_resolution(block_attr_dict[attr], resolution)
+
             # print("attr = [{}], val= [{}]".format(attr, val))
             if attr == '@blockType' and \
                val not in set(['Text', 'Table', 'Barcode']):
@@ -327,10 +367,10 @@ def parse_abby_page(ajson) -> AbbyPage:
                 if isinstance(val, list):
                     par_list = []
                     for tmp_val in val:
-                        par_list.extend(parse_abby_par(tmp_val))
+                        par_list.extend(parse_abby_par(tmp_val, resolution))
                 elif isinstance(val, dict):
                     # print('par: {}'.format(val))
-                    par_list = parse_abby_par(val)
+                    par_list = parse_abby_par(val, resolution)
                 else:
                     raise ValueError
 
@@ -357,10 +397,10 @@ def parse_abby_page(ajson) -> AbbyPage:
                     ab_block_list.append(text_block)
             elif attr == 'row':
                 if isinstance(val, list):
-                    row_list = parse_abby_rows(val)
+                    row_list = parse_abby_rows(val, resolution)
                 elif isinstance(val, dict):  # val is a dictionary
                     # print('par: {}'.format(val))
-                    row_list = parse_abby_rows([val])
+                    row_list = parse_abby_rows([val], resolution)
                 else:
                     raise ValueError
 

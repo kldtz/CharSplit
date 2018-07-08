@@ -12,50 +12,59 @@ class TestAlingedStr(unittest.TestCase):
 
         line1 = 'Hi     Mary'
         line2 = 'Hi Mary'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertEqual(smapper.get_to_offset(9),
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.get_to_offset(9),
                          5)
-        self.assertTrue(smapper.is_fully_synced)
+        self.assertTrue(as_mapper.is_fully_synced)
 
         # test the reverse
-        smapper = AlignedStrMapper(line2, line1)
-        self.assertEqual(smapper.get_to_offset(5),
+        as_mapper = AlignedStrMapper(line2, line1)
+        self.assertEqual(as_mapper.get_to_offset(5),
                          9)
-        self.assertTrue(smapper.is_fully_synced)
+        self.assertTrue(as_mapper.is_fully_synced)
 
         line1 = 'Hi     Mary  '
         line2 = 'Hi Mary          '
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertEqual(smapper.get_to_offset(9),
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.get_to_offset(9),
                          5)
-        self.assertTrue(smapper.is_fully_synced)
+        self.assertTrue(as_mapper.is_fully_synced)
 
-        smapper = AlignedStrMapper(line2, line1)
-        self.assertEqual(smapper.get_to_offset(5),
+        as_mapper = AlignedStrMapper(line2, line1)
+        self.assertEqual(as_mapper.get_to_offset(5),
                          9)
-        self.assertTrue(smapper.is_fully_synced)
+        self.assertTrue(as_mapper.is_fully_synced)
 
         line1 = 'LAND REGISTRY PRESCRIBED LEASE CLAUSES ________________________________I'
         line2 = 'LAND REGISTRY PRESCRIBED LEASE CLAUSES _I'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertEqual(smapper.from_se_list,
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
                          [(0, 40), (71, 72)])
-        self.assertEqual(smapper.to_se_list,
+        self.assertEqual(as_mapper.to_se_list,
                          [(0, 40), (40, 41)])
 
         line1 = '2.    THE LETTING TERMS_2'
         line2 = '2. THE LETTING TERMS__________________________________________________'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertEqual(smapper.from_se_list,
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
                          [(0, 3), (6, 24)])
-        self.assertEqual(smapper.to_se_list,
+        self.assertEqual(as_mapper.to_se_list,
+                         [(0, 3), (3, 21)])
+
+
+        line1 = '2.    THE LETTING TERMS_234'
+        line2 = '2. THE LETTING TERMS__________________________________________________'
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
+                         [(0, 3), (6, 24)])
+        self.assertEqual(as_mapper.to_se_list,
                          [(0, 3), (3, 21)])
 
         # now check the reverse
-        smapper = AlignedStrMapper(line2, line1)
-        self.assertEqual(smapper.from_se_list,
+        as_mapper = AlignedStrMapper(line2, line1)
+        self.assertEqual(as_mapper.from_se_list,
                          [(0, 3), (3, 21)])
-        self.assertEqual(smapper.to_se_list,
+        self.assertEqual(as_mapper.to_se_list,
                          [(0, 3), (6, 24)])
 
 
@@ -63,85 +72,121 @@ class TestAlingedStr(unittest.TestCase):
 
         line1 = 'I'
         line2 = 'I166'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertEqual(smapper.from_se_list,
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
                          [(0, 1)])
-        self.assertEqual(smapper.to_se_list,
+        self.assertEqual(as_mapper.to_se_list,
                          [(0, 1)])
-        self.assertIsNone(smapper.extra_fse)
-        self.assertEqual(smapper.extra_tse,
+        self.assertIsNone(as_mapper.extra_fse)
+        self.assertEqual(as_mapper.extra_tse,
                          (1, 4))
 
-        smapper = AlignedStrMapper(line2, line1)
-        self.assertEqual(smapper.from_se_list,
+        as_mapper = AlignedStrMapper(line2, line1)
+        self.assertEqual(as_mapper.from_se_list,
                          [(0, 1)])
-        self.assertEqual(smapper.to_se_list,
+        self.assertEqual(as_mapper.to_se_list,
                          [(0, 1)])
-        self.assertEqual(smapper.extra_fse,
+        self.assertEqual(as_mapper.extra_fse,
                          (1, 4))
-        self.assertIsNone(smapper.extra_tse)
+        self.assertIsNone(as_mapper.extra_tse)
 
         line1 = 'Hi  Mary.'
         line2 = 'Hi Mary'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertEqual(smapper.from_se_list,
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
                          [(0, 3), (4, 8)])
-        self.assertEqual(smapper.to_se_list,
+        self.assertEqual(as_mapper.to_se_list,
                          [(0, 3), (3, 7)])
-        self.assertEqual(smapper.extra_fse,
+        self.assertEqual(as_mapper.extra_fse,
                          (8, 9))
-        self.assertIsNone(smapper.extra_tse)
+        self.assertIsNone(as_mapper.extra_tse)
 
-        smapper = AlignedStrMapper(line2, line1)
-        self.assertEqual(smapper.from_se_list,
+        as_mapper = AlignedStrMapper(line2, line1)
+        self.assertEqual(as_mapper.from_se_list,
                          [(0, 3), (3, 7)])
-        self.assertEqual(smapper.to_se_list,
+        self.assertEqual(as_mapper.to_se_list,
                          [(0, 3), (4, 8)])
-        self.assertIsNone(smapper.extra_fse)
-        self.assertEqual(smapper.extra_tse,
+        self.assertIsNone(as_mapper.extra_fse)
+        self.assertEqual(as_mapper.extra_tse,
                          (8, 9))
 
         line1 = 'Hi  Mary_'
         line2 = 'Hi Mary'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertEqual(smapper.from_se_list,
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
                          [(0, 3), (4, 8)])
-        self.assertEqual(smapper.to_se_list,
+        self.assertEqual(as_mapper.to_se_list,
                          [(0, 3), (3, 7)])
-        self.assertEqual(smapper.extra_fse,
+        self.assertEqual(as_mapper.extra_fse,
                          (8, 9))
-        self.assertIsNone(smapper.extra_tse)
+        self.assertIsNone(as_mapper.extra_tse)
 
         line1 = 'Hi  Mary__'
         line2 = 'Hi Mary_'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertEqual(smapper.from_se_list,
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
                          [(0, 3), (4, 9)])
-        self.assertEqual(smapper.to_se_list,
+        self.assertEqual(as_mapper.to_se_list,
                          [(0, 3), (3, 8)])
-        self.assertIsNone(smapper.extra_fse)
-        self.assertIsNone(smapper.extra_tse)
+        self.assertIsNone(as_mapper.extra_fse)
+        self.assertIsNone(as_mapper.extra_tse)
 
         line1 = 'Hi John'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertFalse(smapper.is_aligned)
-
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertFalse(as_mapper.is_aligned)
 
         line1 = 'xHi John'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertFalse(smapper.is_aligned)
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertFalse(as_mapper.is_aligned)
+
+    def test_hyphen(self):
+        line1 = 'Dept. # Dept. Name_Account# Account Description'
+        line2 = 'Dept. # Dept. Name Account# Account Description'
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
+                         [(0, 18), (19, 47)])
+        self.assertEqual(as_mapper.to_se_list,
+                         [(0, 18), (19, 47)])
+        self.assertEqual(as_mapper.extra_fse,
+                         None)
+        self.assertEqual(as_mapper.extra_tse,
+                         None)
+
+        line1 = 'Dept. # Dept. Name__Account# Account Description'
+        line2 = 'Dept. # Dept. Name_Account# Account Description'
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
+                         [(0, 19), (20, 48)])
+        self.assertEqual(as_mapper.to_se_list,
+                         [(0, 19), (19, 47)])
+        self.assertEqual(as_mapper.extra_fse,
+                         None)
+        self.assertEqual(as_mapper.extra_tse,
+                         None)
+
+        line1 = 'Dept. # Dept. Name__Account# Account Description'
+        line2 = 'Dept. # Dept. Name_   Account# Account Description'
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.from_se_list,
+                         [(0, 19), (20, 48)])
+        self.assertEqual(as_mapper.to_se_list,
+                         [(0, 19), (22, 50)])
+        self.assertEqual(as_mapper.extra_fse,
+                         None)
+        self.assertEqual(as_mapper.extra_tse,
+                         None)
 
     def test_extra_fse_tse(self):
         line1 = '2.    THE LETTING TERMS_2'
         line2 = '2. THE LETTING TERMS__________________________________________________'
-        smapper = AlignedStrMapper(line1, line2)
-        self.assertEqual(smapper.extra_fse,
+        as_mapper = AlignedStrMapper(line1, line2)
+        self.assertEqual(as_mapper.extra_fse,
                          (24, 25))
-        self.assertIsNone(smapper.extra_tse,
+        self.assertIsNone(as_mapper.extra_tse,
                           None)
 
         # now check the reverse
-        smapper = AlignedStrMapper(line2, line1)
-        self.assertIsNone(smapper.extra_fse)
-        self.assertEqual(smapper.extra_tse,
+        as_mapper = AlignedStrMapper(line2, line1)
+        self.assertIsNone(as_mapper.extra_fse)
+        self.assertEqual(as_mapper.extra_tse,
                          (24, 25))

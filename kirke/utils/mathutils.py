@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Dict, FrozenSet, List, Set, Tuple
 
 def start_end_overlap(stend1, stend2):
     start1, end1 = stend1
@@ -116,7 +116,7 @@ def find_overlap_ids(id_se: Tuple[int, int, int],
 
 def find_overlaps_in_id_se_list(id_se_list: List[Tuple[int, int, int]]) -> List[List[int]]:
     overlap_pair_list = []  # type: List[Tuple[int, int]]
-    id_overlap_ids_map = {}  # type:Dict[int, Set[int]]
+    id_overlap_ids_map = {}  # type: Dict[int, Set[int]]
     for count_i in range(len(id_se_list)):
         i_id_se = id_se_list[count_i]
 
@@ -147,7 +147,7 @@ def find_overlaps_in_id_se_list(id_se_list: List[Tuple[int, int, int]]) -> List[
         # print("  id = {}, overlap_ids = {}".format(tid, overlap_ids))
 
     out_group_list = []  # type: List[List[int]]
-    seen_set = set([])  # type: Set[Set[int]]
+    seen_set = set([])  # type: Set[FrozenSet[int]]
     for tid in id_overlap_ids_map.keys():
         overlap_set = frozenset(id_overlap_ids_map[tid])
         if len(overlap_set) > 1 and \
@@ -158,3 +158,11 @@ def find_overlaps_in_id_se_list(id_se_list: List[Tuple[int, int, int]]) -> List[
     # print("overlap_pair_list: {}".format(overlap_pair_list))
     # print("out_group_list: {}".format(out_group_list))
     return out_group_list
+
+
+def calc_float_list_mode(ilist: List[float], ndigits: int = 2) -> float:
+    if ndigits != -1:
+        ilist = [round(val, ndigits) for val in ilist]
+    # This can be more optimized using a defaultdict.
+    # Repeatedly calling ilist.count is not efficient.
+    return max(set(ilist), key=ilist.count)
