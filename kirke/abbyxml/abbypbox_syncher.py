@@ -37,7 +37,7 @@ X_BOX_CHECK_MAX = 3
 
 Y_BOX_CHECK_MIN_1 = 12
 # Y_BOX_CHECK_MIN_2 = 21
-Y_BOX_CHECK_MIN_2 = 30
+Y_BOX_CHECK_MIN_2 = 38
 Y_BOX_CHECK_MAX = 3
 # found some instance of this, abby y = 1344, pbox y= 1336, a diff of 8
 Y_BOX_CHECK_MAX_2 = 12
