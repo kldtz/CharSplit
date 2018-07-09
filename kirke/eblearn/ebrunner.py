@@ -221,13 +221,24 @@ class EbRunner:
         both_default_custom_provs.update(self.custom_annotator_map.keys())
         both_default_custom_provs.update(annotatorconfig.get_all_candidate_types())
 
+        # Make sure all the provision's model are there
+        prov_annotator_map = {}  # type: Dict[str, Any]
+        prov_not_found_list = []  # type: List[str]
+        for provision in provision_set:
+            if provision in both_default_custom_provs:
+                prov_annotator_map[provision] = self.get_provision_annotator(provision)
+            else:
+                prov_not_found_list.append(provision)
+
+        if prov_not_found_list:
+            raise Exception("error: Cannot find model file for provisions, {}.".format(prov_not_found_list))
+
         annotations = defaultdict(list)  # type: DefaultDict[str, List]
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
-                                                   self.get_provision_annotator(provision),
+                                                   prov_annotator_map[provision],
                                                    eb_antdoc):
-                                   provision for provision in provision_set
-                                   if provision in both_default_custom_provs}
+                                   provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
                 ant_list, unused_threshold = future.result()
