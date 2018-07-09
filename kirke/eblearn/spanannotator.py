@@ -161,7 +161,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                          parameters: Dict,
                          work_dir: str) -> None:
         logger.info('spanannotator.train_candidates()...')
-
         logger.info("Performing grid search...")
         logger.info("parameters: %r", parameters)
         pos_neg_map = defaultdict(int)  # type: DefaultDict[bool, int]
@@ -222,9 +221,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc.file_id,
-                                                                     ebantdoc.get_text(),
-                                                                     #threshold,
-                                                                     diagnose_mode=True)
+                                                                     ebantdoc.get_text())
             else:
                 xtp, xfn, xfp, xtn, xfallout, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -232,8 +229,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                             ebantdoc.file_id,
                                                             ebantdoc.get_text(),
                                                             threshold,
-                                                            is_raw_mode=False,
-                                                            diagnose_mode=True)
+                                                            is_raw_mode=False)
             tp += xtp
             fn += xfn
             fp += xfp
@@ -263,12 +259,20 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                               List[bool],
                                               List[int]]]:
         # pylint: disable=line-too-long
-        all_results = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+        all_cands = defaultdict(list)
+        all_labels = defaultdict(list)
+        all_groups = defaultdict(list)
         if type(self.doc_to_candidates) != list:
             self.doc_to_candidates = [self.doc_to_candidates]
         for candidate_generator in self.doc_to_candidates:
-            result = candidate_generator.documents_to_candidates(antdoc_list, label)
-            all_results.extend(result)
+            docs_candidates = candidate_generator.documents_to_candidates(antdoc_list, label)
+            for antdoc, cands, labels, groups in docs_candidates:
+                all_cands[antdoc.file_id].extend(cands)
+                all_labels[antdoc.file_id].extend(labels)
+                all_groups[antdoc.file_id].extend(groups)
+        all_results = []
+        for antdoc in antdoc_list:
+            all_results.append((antdoc, all_cands[antdoc.file_id], all_labels[antdoc.file_id], all_groups[antdoc.file_id]))
         return all_results
 
     def annotate_antdoc(self,
@@ -289,10 +293,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         nbest = self.nbest
         start_time = time.time()
         candidates, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir)
-
         end_time = time.time()
-        logger.debug('annotate_antdoc(%s, %s) took %.0f msec',
-                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
+                    self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates
         x_threshold = threshold
@@ -351,7 +354,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
         candidates, unused_label_list, unused_group_ids = \
                 antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list)
-
         if not candidates:
             return [], []
 

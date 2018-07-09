@@ -6,6 +6,7 @@ import traceback
 from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -90,9 +91,7 @@ class ProvisionAnnotator:
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                      ant_list,
                                                                      ebantdoc.file_id,
-                                                                     ebantdoc.get_text(),
-                                                                     # threshold,
-                                                                     diagnose_mode=True)
+                                                                     ebantdoc.get_text())
             else:
                 xtp, xfn, xfp, xtn, _, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -100,8 +99,7 @@ class ProvisionAnnotator:
                                                             ebantdoc.file_id,
                                                             ebantdoc.get_text(),
                                                             threshold,
-                                                            is_raw_mode=False,
-                                                            diagnose_mode=True)
+                                                            is_raw_mode=False)
             tp += xtp
             fn += xfn
             fp += xfp
@@ -119,7 +117,12 @@ class ProvisionAnnotator:
 
 
     # pylint: disable=no-self-use
-    def recover_false_negatives(self, prov_human_ant_list, doc_text, provision, ant_result) -> List[Dict]:
+    def recover_false_negatives(self,
+                                prov_human_ant_list: List[ProvisionAnnotation],
+                                doc_text: str,
+                                provision: str,
+                                ant_result: List[Dict]) \
+        -> List[Dict]:
         if not prov_human_ant_list:
             return ant_result
         for ant in prov_human_ant_list:
@@ -146,7 +149,7 @@ class ProvisionAnnotator:
     def annotate_antdoc(self,
                         eb_antdoc,
                         threshold: Optional[float] = None,
-                        prov_human_ant_list: Optional[List] = None) \
+                        prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
         -> Tuple[List[Dict], float]:
         # attrvec_list = eb_antdoc.get_attrvec_list()
         # ebsent_list = eb_antdoc.get_ebsent_list()
@@ -166,8 +169,8 @@ class ProvisionAnnotator:
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
-        logger.debug('annotate_antdoc(%s, %s) took %.0f msec',
-                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.info('annotate_antdoc(%s, %s) took %.0f msec, eb_antr',
+                    self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         try:
             # mapping the offsets in prov_human_ant_list from raw_text to nlp_text

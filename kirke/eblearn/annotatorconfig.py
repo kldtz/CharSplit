@@ -273,6 +273,9 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
         if configx:
             _, _, prop = configx
             generic_prop['doc_to_candidates'].extend(prop['doc_to_candidates'])
+        else:
+            logger.error('Invalid Candidate Type: '+label)
+            exit(1)
     return generic_prop
 
 

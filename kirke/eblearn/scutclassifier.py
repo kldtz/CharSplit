@@ -56,6 +56,8 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'termination': 0.36,
                            'warranty': 0.36}
 
+IS_DEBUG_TP = False
+
 
 class ShortcutClassifier(EbClassifier):
 
@@ -73,6 +75,9 @@ class ShortcutClassifier(EbClassifier):
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
+        # Note: Some old pickled versions might not have this attribute.
+        # 'nbest' is a newly added attribute.
+        self.nbest = -1
 
         # This is an attribute that is added later, so some .pkl files
         # might not have this attribute.  Please make sure to check this
@@ -81,6 +86,7 @@ class ShortcutClassifier(EbClassifier):
 
     def make_bare_copy(self):
         result = ShortcutClassifier(self.provision)
+        # this is for backward compatibility
         if hasattr(self, 'nbest'):
             result.nbest = self.nbest
         else:
@@ -166,38 +172,41 @@ class ShortcutClassifier(EbClassifier):
         # trying to repeat the above testing, but based on
         # optimal parameter
         cv_scores = []
-        if is_debug:
-            alpha = self.best_parameters['alpha']
-            # print("alpha = {}".format(alpha))
 
-            sgd_clf2 = SGDClassifier(loss='log', penalty='l2', alpha=alpha,
-                                     n_iter=iterations, shuffle=True,
-                                     random_state=42, class_weight={True: 3, False: 1})
-            print("sgd_clf2 used for detailed cross-validation status")
-            print(sgd_clf2)
+        alpha = self.best_parameters['alpha']
+        # print("alpha = {}".format(alpha))
 
-            cv_scores = cross_val_predict(sgd_clf2,
-                                          X_train,
-                                          y_train,
-                                          groups=group_id_list,
-                                          cv=GroupKFold(), method="predict_proba")[:, 1]
+        sgd_clf2 = SGDClassifier(loss='log', penalty='l2', alpha=alpha,
+                                 n_iter=iterations, shuffle=True,
+                                 random_state=42, class_weight={True: 3, False: 1})
+        print("sgd_clf2 used for detailed cross-validation status")
+        print(sgd_clf2)
 
-            num_tp, num_fp, num_fn, num_tn = 0, 0, 0, 0
-            for score, sent, ylab in zip(cv_scores, sent_list, y_train):
-                pred = score >= self.threshold
-                if ylab and pred:
-                    num_tp += 1
+        cv_scores = cross_val_predict(sgd_clf2,
+                                      X_train,
+                                      y_train,
+                                      groups=group_id_list,
+                                      cv=GroupKFold(), method="predict_proba")[:, 1]
+
+        num_tp, num_fp, num_fn, num_tn = 0, 0, 0, 0
+        for score, sent, ylab in zip(cv_scores, sent_list, y_train):
+            pred = score >= self.threshold
+            if ylab and pred:
+                num_tp += 1
+                if IS_DEBUG_TP:
                     print("\nTP #{}: {}".format(num_tp, sent))
-                elif ylab and not pred:
-                    num_fn += 1
+            elif ylab and not pred:
+                num_fn += 1
+                if IS_DEBUG_TP:
                     print("\nFN #{}: {}".format(num_fn, sent))
-                elif pred and not ylab:
-                    num_fp += 1
+            elif pred and not ylab:
+                num_fp += 1
+                if IS_DEBUG_TP:
                     print("\nFP #{}: {}".format(num_fp, sent))
-                else:
-                    num_tn += 1
-            print("\nnum_tp = %d, num_fn = %d, num_fp = %d, num_tn = %d\n" %
-                  (num_tp, num_fn, num_fp, num_tn))
+            else:
+                num_tn += 1
+        print("\nnum_tp = %d, num_fn = %d, num_fp = %d, num_tn = %d\n" %
+              (num_tp, num_fn, num_fp, num_tn))
 
         return grid_search.best_estimator_, cv_scores
 

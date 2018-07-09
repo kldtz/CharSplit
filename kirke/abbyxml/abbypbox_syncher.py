@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 IS_DEBUG_SYNC = False
-IS_DEBUG_SYNC = True
+# IS_DEBUG_SYNC = True
 
 # level 2, sync debug, more detailed info
 IS_DEBUG_SYNC_L2 = False

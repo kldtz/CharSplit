@@ -11,7 +11,7 @@ import shutil
 import sys
 import time
 # pylint: disable=unused-import
-from typing import Any, DefaultDict, Dict, List, Set, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
 # pylint: disable=import-error
 from sklearn.externals import joblib
@@ -27,7 +27,8 @@ from kirke.abbyxml import abbyxmlparser, abbypbox_syncher
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 CORENLP_JSON_VERSION = '1.6'
 EBANTDOC_VERSION = '1.8'
@@ -147,7 +148,7 @@ class EbAnnotatedDoc:
     def get_attrvec_list(self) -> List[ebattrvec.EbAttrVec]:
         return self.attrvec_list
 
-    def get_text(self, text_type='text') -> str:
+    def get_text(self, text_type: str = 'text') -> str:
         if text_type == 'text':
             return self.text
         elif text_type == 'nlp_text':
@@ -206,7 +207,7 @@ def remove_prov_greater_offset(prov_annotation_list, max_offset):
             if prov_ant.start < max_offset]
 
 
-def load_cached_ebantdoc(eb_antdoc_fn: str):
+def load_cached_ebantdoc(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc]:
     """Load from pickled file if file exist, otherwise None"""
 
     # if cache version exists, load that and return
@@ -270,9 +271,8 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
 
     # let's adjust the offsets in prov_annotation to keep things simple and
     # maximize reuse of existing code.
-
     if not is_use_corenlp:  # this is for some analyzer in candidate-gen-pipeline
-        attrvec_list = []
+        attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     else:  # all sentence pipeline use this
         # para_doc_text is what is sent, not txt_base_fname
         corenlp_json = text_to_corenlp_json(para_doc_text,
@@ -335,7 +335,7 @@ def html_no_docstruct_to_ebantdoc(txt_file_name,
                                   work_dir,
                                   is_cache_enabled=True,
                                   doc_lang="en",
-                                  is_use_corenlp: bool = True):
+                                  is_use_corenlp: bool = True) -> EbAnnotatedDoc:
     logging.debug('html_to_ebantdoc(%s)', txt_file_name)
     debug_mode = False
     start_time = time.time()
@@ -343,7 +343,7 @@ def html_no_docstruct_to_ebantdoc(txt_file_name,
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
-    paras_with_attrs = []
+    paras_with_attrs = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], List[Any]]]
     attrvec_list, nlp_prov_ant_list, _, _ = nlptxt_to_attrvec_list(doc_text,
                                                                    txt_file_name,
                                                                    txt_base_fname,
@@ -355,9 +355,9 @@ def html_no_docstruct_to_ebantdoc(txt_file_name,
                                                                    is_use_corenlp=is_use_corenlp)
 
     nlp_prov_ant_list = prov_annotation_list
-    origin_lnpos_list = []
-    nlp_lnpos_list = []
-    gap_span_list = []
+    origin_lnpos_list = []  # type: List[linepos.LnPos]
+    nlp_lnpos_list = []  # type: List[linepos.LnPos]
+    gap_span_list = []  # type: List[Tuple[int, int]]
     eb_antdoc = EbAnnotatedDoc(file_name=txt_file_name,
                                doc_format=EbDocFormat.html_nodocstruct,
                                text=doc_text,
@@ -374,7 +374,7 @@ def html_no_docstruct_to_ebantdoc(txt_file_name,
                                para_not_linebreak_arr=[],
                                doc_lang=doc_lang)
 
-    eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
+    # eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
 
     # We don't want to cache a document that's not complete.
     # It must be 'is_cache_enabled', 'is_doc_structure', 'is_use_corenlp'.
@@ -389,7 +389,8 @@ def html_no_docstruct_to_ebantdoc(txt_file_name,
 
     end_time = time.time()
     logger.info("html_no_docstruct_to_ebantdoc: %s, took %.0f msec; %d attrvecs",
-                eb_antdoc_fn, (end_time - start_time) * 1000, len(attrvec_list))
+                'not_saving_html_no_docstruct_to_ebandoc',
+                (end_time - start_time) * 1000, len(attrvec_list))
     return eb_antdoc
 
 
@@ -440,7 +441,7 @@ def html_to_ebantdoc(txt_file_name: str,
                      work_dir: str,
                      is_cache_enabled: bool = True,
                      doc_lang: str = 'en',
-                     is_use_corenlp: bool = True):
+                     is_use_corenlp: bool = True) -> EbAnnotatedDoc:
     logging.debug('html_to_ebantdoc(%s)', txt_file_name)
     debug_mode = False
     start_time1 = time.time()
@@ -488,12 +489,21 @@ def html_to_ebantdoc(txt_file_name: str,
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
-        joblib.dump(eb_antdoc, eb_antdoc_fn)
+        t2_start_time = time.time()
+        # tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
+        # joblib.dump(eb_antdoc, tmpFileName.name)
+        # shutil.move(tmpFileName.name, eb_antdoc_fn)
+        osutils.joblib_atomic_dump(eb_antdoc, eb_antdoc_fn)
+        t2_end_time = time.time()
+        if (t2_end_time - t2_start_time) * 1000 > 30000:
+            logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                        eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
     end_time1 = time.time()
     logger.info("html_to_ebantdoc: %s, took %.0f msec; %d attrvecs",
                 eb_antdoc_fn, (end_time1 - start_time1) * 1000, len(attrvec_list))
     return eb_antdoc
+
 
 def update_special_block_info(eb_antdoc, pdf_txt_doc):
     eb_antdoc.table_list = pdf_txt_doc.special_blocks_map.get('table', [])
@@ -513,7 +523,7 @@ def pdf_to_ebantdoc(txt_file_name: str,
                     work_dir: str,
                     is_cache_enabled: bool = True,
                     doc_lang: str = 'en',
-                    is_use_corenlp: bool = True):
+                    is_use_corenlp: bool = True) -> EbAnnotatedDoc:
     logging.debug('pdf_to_ebantdoc(%s)', txt_file_name)
     debug_mode = False
     start_time0 = time.time()
@@ -618,7 +628,15 @@ def pdf_to_ebantdoc(txt_file_name: str,
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
-        joblib.dump(eb_antdoc, eb_antdoc_fn)
+        t2_start_time = time.time()
+        # tmpFileName = tempfile.NamedTemporaryFile(dir=KIRKE_TMP_DIR, delete=False)
+        # joblib.dump(eb_antdoc, tmpFileName.name)
+        # shutil.move(tmpFileName.name, eb_antdoc_fn)
+        osutils.joblib_atomic_dump(eb_antdoc, eb_antdoc_fn)
+        t2_end_time = time.time()
+        if (t2_end_time - t2_start_time) * 1000 > 30000:
+            logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                        eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
     end_time1 = time.time()
     logger.info("pdf_to_ebantdoc: %s, took %.0f msec; %d attrvecs",
@@ -654,7 +672,8 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
                 logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
                             work_dir, txt_base_fname, doc_lang, len(doc_text))
                 corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
-                strutils.dumps(json.dumps(corenlp_json), json_fn)
+                # strutils.dumps(json.dumps(corenlp_json), json_fn)
+                osutils.atomic_dumps(json.dumps(corenlp_json), json_fn)
                 end_time = time.time()
                 logger.info("wrote cache file: %s, took %.0f msec",
                             json_fn, (end_time - start_time) * 1000)
@@ -662,7 +681,8 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
             logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
                         work_dir, txt_base_fname, doc_lang, len(doc_text))
             corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
-            strutils.dumps(json.dumps(corenlp_json), json_fn)
+            # strutils.dumps(json.dumps(corenlp_json), json_fn)
+            osutils.atomic_dumps(json.dumps(corenlp_json), json_fn)
             end_time = time.time()
             logger.info("wrote cache file: %s, took %.0f msec",
                         json_fn, (end_time - start_time) * 1000)
@@ -684,53 +704,77 @@ def text_to_ebantdoc(txt_fname: str,
                      doc_lang: str = 'en',
                      is_use_corenlp: bool = True) \
                      -> EbAnnotatedDoc:
-    txt_base_fname = os.path.basename(txt_fname)
-    if work_dir is None:
-        work_dir = '/tmp'
-    eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
+    try:
+        txt_base_fname = os.path.basename(txt_fname)
+        if work_dir is None:
+            work_dir = '/tmp'
+        eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
 
-    if is_cache_enabled and is_use_corenlp:
-        # check if file exist, if it is, load it and return
-        # regardless of the existing PDF or HtML or is_doc_structure
-        eb_antdoc = load_cached_ebantdoc(eb_antdoc_fn)
-        if is_bespoke_mode and eb_antdoc:
-            tmp_prov_ant_list, unused_is_test = \
-                ebsentutils.load_prov_annotation_list(txt_fname,
-                                                      eb_antdoc.codepoint_to_cunit_mapper)
-            if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
-                eb_antdoc.file_id = txt_fname
-                return eb_antdoc
-            eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
-        if eb_antdoc:
-            eb_antdoc.file_id = txt_fname
-            return eb_antdoc
+        if is_cache_enabled and is_use_corenlp:
+            try:
+                # check if file exist, if it is, load it and return
+                # regardless of the existing PDF or HtML or is_doc_structure
+                eb_antdoc = load_cached_ebantdoc(eb_antdoc_fn)
+                if is_bespoke_mode and eb_antdoc:
+                    tmp_prov_ant_list, unused_is_test = \
+                        ebsentutils.load_prov_annotation_list(txt_fname,
+                                                              eb_antdoc.codepoint_to_cunit_mapper)
+                    if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
+                        eb_antdoc.file_id = txt_fname
+                        return eb_antdoc
+                    eb_antdoc = None   # if the annotation has changed, create the whole eb_antdoc
+                if eb_antdoc:
+                    eb_antdoc.file_id = txt_fname
+                    return eb_antdoc
+            # pylint: disable=broad-except
+            except Exception:
+                logger.warning('failed to load ebantdoc2 cache file: [%s].  Load without cache.',
+                               eb_antdoc_fn)
+                # simply fall through to load the document without loading cache file
 
-    pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
 
-    # if no doc_structure, simply do the simplest
-    if not is_doc_structure:
-        eb_antdoc = html_no_docstruct_to_ebantdoc(txt_fname,
-                                                  work_dir=work_dir,
-                                                  doc_lang=doc_lang,
-                                                  is_use_corenlp=is_use_corenlp)
-    elif os.path.exists(pdf_offsets_filename):
-        eb_antdoc = pdf_to_ebantdoc(txt_fname,
-                                    pdf_offsets_filename,
-                                    work_dir=work_dir,
-                                    is_cache_enabled=is_cache_enabled,
-                                    doc_lang=doc_lang,
-                                    is_use_corenlp=is_use_corenlp)
-    else:
-        eb_antdoc = html_to_ebantdoc(txt_fname,
-                                     work_dir=work_dir,
-                                     is_cache_enabled=is_cache_enabled,
-                                     doc_lang=doc_lang,
-                                     is_use_corenlp=is_use_corenlp)
+        pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
 
-    ## in doclist, we only want "export-train" dir, not "work_dir"
-    # We need to keep .txt with .ebdata together
-    eb_antdoc.file_id = txt_fname
-    return eb_antdoc
+        # if no doc_structure, simply do the simplest
+        if not is_doc_structure:
+            eb_antdoc = html_no_docstruct_to_ebantdoc(txt_fname,
+                                                      work_dir=work_dir,
+                                                      doc_lang=doc_lang,
+                                                      is_use_corenlp=is_use_corenlp)
+        elif os.path.exists(pdf_offsets_filename):
+            eb_antdoc = pdf_to_ebantdoc(txt_fname,
+                                        pdf_offsets_filename,
+                                        work_dir=work_dir,
+                                        is_cache_enabled=is_cache_enabled,
+                                        doc_lang=doc_lang,
+                                        is_use_corenlp=is_use_corenlp)
+        else:
+            eb_antdoc = html_to_ebantdoc(txt_fname,
+                                         work_dir=work_dir,
+                                         is_cache_enabled=is_cache_enabled,
+                                         doc_lang=doc_lang,
+                                         is_use_corenlp=is_use_corenlp)
+
+        ## in doclist, we only want "export-train" dir, not "work_dir"
+        # We need to keep .txt with .ebdata together
+        eb_antdoc.file_id = txt_fname
+        return eb_antdoc
+    except IndexError:
+        # currently, don't want to indicate it's index error to user.  Too detailed.
+        # For developers, we switched the double quote and quote in the message.
+        unused_error_type, error_instance, traceback = sys.exc_info()
+        error_instance.filename = txt_fname
+        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % \
+                                      (txt_base_fname, doc_lang)
+        error_instance.__traceback__ = traceback
+        raise error_instance
+    except Exception:  # pylint: disable=broad-except
+        unused_error_type, error_instance, traceback = sys.exc_info()
+        error_instance.filename = txt_fname
+        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % \
+                                      (txt_base_fname, doc_lang)
+        error_instance.__traceback__ = traceback
+        raise error_instance
 
 
 def doclist_to_ebantdoc_list_linear(doclist_file: str,
@@ -738,7 +782,7 @@ def doclist_to_ebantdoc_list_linear(doclist_file: str,
                                     is_bespoke_mode: bool = False,
                                     is_doc_structure: bool = False,
                                     doc_lang: str = 'en',
-                                    is_use_corenlp: bool = True):
+                                    is_use_corenlp: bool = True) -> List[EbAnnotatedDoc]:
     logger.debug('ebantdoc.doclist_to_ebantdoc_list_linear(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logger.debug("mkdir %s", work_dir)
@@ -765,7 +809,7 @@ def doclist_to_ebantdoc_list(doclist_file: str,
                              is_bespoke_mode: bool = False,
                              is_doc_structure: bool = False,
                              doc_lang: str = 'en',
-                             is_use_corenlp: bool = True):
+                             is_use_corenlp: bool = True) -> List[EbAnnotatedDoc]:
     logger.debug('ebantdoc.doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logger.debug("mkdir %s", work_dir)

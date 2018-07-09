@@ -25,7 +25,6 @@ from kirke.utils.ebantdoc5 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s : %(levelname)s : %(message)s')
-
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.WARN)
@@ -296,10 +295,10 @@ class EbRunner:
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
 
-                # if we loaded this for a particular custom field type ("cust_52"),
-                # it must produce annotations with that label, not with whatever is "embedded" in
-                # the saved model file (since the file could have been imported from another server)
-
+                # if we loaded this for a particular custom field type ("cust_52")
+                # it must produce annotations with that label, not with whatever is "embedded"
+                # in the saved model file (since the file could have been imported from another
+                # server)
                 prov_name = cust_id_ver.split('.')[0]
                 logger.info('updating custom provision model to annotate with %s', prov_name)
                 # print(prov_classifier)
@@ -670,9 +669,8 @@ class EbRunner:
                     xtp, xfn, xfp, xtn, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
-                                                                         eb_antdoc.file_id,
-                                                                         eb_antdoc.get_text(),
-                                                                         diagnose_mode=True)
+                                                                         ebantdoc.file_id,
+                                                                         ebantdoc.get_text())
                 else:
                     xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -680,8 +678,7 @@ class EbRunner:
                                                                 eb_antdoc.file_id,
                                                                 eb_antdoc.get_text(),
                                                                 threshold,
-                                                                is_raw_mode=False,
-                                                                diagnose_mode=True)
+                                                                is_raw_mode=False)
                 tp += xtp
                 fn += xfn
                 fp += xfp
@@ -744,8 +741,7 @@ class EbRunner:
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
                                                                          ebantdoc.file_id,
-                                                                         ebantdoc.get_text(),
-                                                                         diagnose_mode=True)
+                                                                         ebantdoc.get_text())
                 else:
                     xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
@@ -753,8 +749,7 @@ class EbRunner:
                                                                 ebantdoc.file_id,
                                                                 ebantdoc.get_text(),
                                                                 threshold,
-                                                                is_raw_mode=False,
-                                                                diagnose_mode=True)
+                                                                is_raw_mode=False)
                 tp += xtp
                 fn += xfn
                 fp += xfp
