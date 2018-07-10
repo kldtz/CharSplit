@@ -142,7 +142,7 @@ def cv_train_at_annotation_level(provision,
                                            cv_eb_classifier_fn)
         cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir, nbest=nbest)
 
-        cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket, nbest)
+        cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket)
         # print("cv ant_status, bucket_num = {}:".format(bucket_num))
         # print(cv_ant_status)
 
