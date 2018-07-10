@@ -1,6 +1,11 @@
 from collections import defaultdict
+import logging
 import re
 from typing import Dict, List, Optional, Tuple
+
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 IS_DEBUG = False
 
@@ -10,6 +15,15 @@ def is_space_huline(line: str) -> bool:
 
 def is_hyphen_underline(line: str) -> bool:
     return line == '_' or line == '-' or line == '.'
+
+
+def is_all_hyphen_underline(line: str) -> bool:
+    if not line:
+        return False
+    for xchar in line:
+        if not is_hyphen_underline(xchar):
+            return False
+    return True
 
 
 def adjust_list_offset(se_list: List[Tuple[int, int]],
@@ -37,6 +51,48 @@ def make_aligned_charmap(line: str) -> Dict[str, int]:
         if achar not in set([' ', '-', '_', '.']):
             adict[achar] += 1
     return adict
+
+# Note: nobody is calling this now.
+def align_aligned_strs(line1: str,
+                       line2: str,
+                       line2_span_list: List[Tuple[int, int]]) \
+                       -> List[Tuple[int, int]]:
+    """Align the line1's offsets to line2's span list.
+
+    It is assumed that line1 and line2 are already completely aligned.
+
+    If there is any failure, an empty list is returned
+    """
+
+    # print("align_aligned_strs()")
+    # print("         str1: [{}]".format(line1))
+    # print("         str2: [{}]".format(line2))
+    # print("   str2_spans: [{}]".format(line2_span_listxs))
+
+    idx1 = 0
+    len1 = len(line1)
+    out_span_list = []  # type: List[Tuple[int, int]]
+    try:
+        for start, end in line2_span_list:
+            idx1_span_start = idx1
+            idx2 = start
+            while line1[idx1] == line2[idx2]:
+                idx1 += 1
+                idx2 += 1
+
+            out_span_list.append((idx1_span_start, idx1))
+            # now line1 must have some extra spaces that
+            # are not in line2_span_list
+            while idx1 < len1 and is_space_huline(line1[idx1]):
+                idx1 += 1
+        return out_span_list
+    except IndexError:
+        logger.warning('align_aligned_strs failed on')
+        logger.warning('      str1 = [{}]'.format(line1))
+        logger.warning('      str2 = [{}]'.format(line2))
+        logger.warning('str2 spans = {}'.format(line2_span_list))
+        return []
+
 
 def is_aligned_leftover_char_maps(map1: Dict[str, int],
                                   map2: Dict[str, int]):
@@ -105,6 +161,11 @@ def compute_se_list(from_line: str,
 
     fstart_00, tstart_00 = fstart, tstart
     fidx, tidx = fstart, tstart
+
+    # in case a line1 or line2 == '_' only
+    if fstart_00 == flen or \
+        tstart_00 == tlen:
+        return None
 
     while fidx < flen and tidx < tlen:
         if from_line[fidx] == to_line[tidx]:
@@ -278,7 +339,8 @@ class AlignedStrMapper:
 
 
     def __str__(self):
-        return 'AlignedStrMapper({},\n'.format(self.from_se_list) + \
+        return 'AlignedStrMapper(is_aligned={}\n'.format(self.is_aligned) + \
+            '                 {},\n'.format(self.from_se_list) + \
             '                 {},\n'.format(self.to_se_list) + \
             '                 {},\n'.format(self.extra_fse) + \
             '                 {})'.format(self.extra_tse)
@@ -336,42 +398,70 @@ def compute_matched_se_list(from_line: str,
             return [(0, len(from_line))], [(offset, offset + len(to_line))], None, None
         return None
 
-    elif len(from_line) > len(to_line):
-        mat_st = re.escape(to_line)
+    # if either from_line is all special char, it will match anything
+    if is_all_hyphen_underline(from_line) or \
+       is_all_hyphen_underline(to_line):
+        return None
+
+    # originally tried to use length to decide which line is
+    # used for matching, but this is not reliable.  Example:
+    #   str1 [aaa bb ccc]
+    #   str2 [aaabbccc]
+    # These would not match is the shorter version, str2,, is always
+    # applied.
+
+    mat_st = re.escape(to_line)
+    # allow multiple '-', '_', and ' '
+    mat_st = mat_st.replace(' ', ' *')
+    mat_st = mat_st.replace('-', '-*')
+    mat_st = mat_st.replace('_', '_*')
+    abby_big_mat_list = list(re.finditer(mat_st, from_line))
+
+    if len(abby_big_mat_list) == 1:
+        # pbox's match, offset is based on abby_line or from_line
+        mat = abby_big_mat_list[0]
+        mstart, mend = mat.start(), mat.end()
+        before_start, before_end = 0, mstart
+        after_start, after_end = mend, len(from_line)
+
+        len_matched = mend - mstart
+        len_to = len(to_line)
+        if len_matched != len_to:
+            line3 = from_line[mstart:mend]
+            as_mapper = AlignedStrMapper(line3, to_line)
+            # print('as_mapper: {}'.format(as_mapper))
+            out_to_se_list = adjust_list_offset(as_mapper.to_se_list, offset)
+            out_from_se_list = adjust_list_offset(as_mapper.from_se_list, offset + mstart)
+
+            # can be removed in future, same behavior has above shorter version
+            # out_from_se_list = align_aligned_strs(from_line[mstart:mend],
+            #                                      to_line,
+            #                                       as_mapper.to_se_list)
+            # out_from_se_list = adjust_list_offset(out_from_se_list,
+            #                                       mstart)
+        else:
+            out_to_se_list = [(offset, offset + len(to_line))]
+            out_from_se_list = [(0, len(from_line))]
+
+        # There should be possible either before frag and after frag,
+        # but the API only allow returning 1 frag back.
+        # Since previously, the front has being checked in aligned_str_mapper.
+        # Assume front one has priority.
+        from_extra_se = None
+        # take the suffix extra first
+        if after_start != after_end:
+            from_extra_se = (after_start, after_end)
+            # but if there is prefix extra, take that instead
+        if before_start != before_end:
+            from_extra_se = (before_start, before_end)
+
+        return out_from_se_list, out_to_se_list, from_extra_se, None
+    elif len(abby_big_mat_list) == 0:
+        mat_st = re.escape(from_line)
         # allow multiple '-', '_', and ' '
         mat_st = mat_st.replace(' ', ' *')
         mat_st = mat_st.replace('-', '-*')
         mat_st = mat_st.replace('_', '_*')
-        abby_big_mat_list = list(re.finditer(mat_st, from_line))
-
-        if len(abby_big_mat_list) == 1:
-            # pbox's match, offset is based on abby_line or from_line
-            mat = abby_big_mat_list[0]
-            mstart, mend = mat.start(), mat.end()
-            before_start, before_end = 0, mstart
-            after_start, after_end = mend, len(from_line)
-
-
-
-            # There should be possible either before frag and after frag,
-            # but the API only allow returning 1 frag back.
-            # Since previously, the front has being checked in aligned_str_mapper.
-            # Assume front one has priority.
-            from_extra_se = None
-            # take the suffix extra first
-            if after_start != after_end:
-                from_extra_se = (after_start, after_end)
-            # but if there is prefix extra, take that instead
-            if before_start != before_end:
-                from_extra_se = (before_start, before_end)
-
-            return [(mstart, mend)], [(offset, offset + len(to_line))], from_extra_se, None
-
-        # 0 or more than 1, no match
-        return None
-
-    else:
-        mat_st = re.escape(from_line)
         pbox_big_mat_list = list(re.finditer(mat_st, to_line))
 
         if len(pbox_big_mat_list) == 1:
@@ -379,7 +469,19 @@ def compute_matched_se_list(from_line: str,
             mat = pbox_big_mat_list[0]
             mstart, mend = mat.start(), mat.end()
             before_start, before_end = 0, mstart
-            after_start, after_end = mend, len(from_line)
+            after_start, after_end = mend, len(to_line)
+
+            len_matched = mend - mstart
+            len_from = len(from_line)
+            if len_matched != len_from:
+                line3 = to_line[mstart:mend]
+                as_mapper = AlignedStrMapper(line3, from_line)
+                # print('as_mapper: {}'.format(as_mapper))
+                out_to_se_list = adjust_list_offset(as_mapper.from_se_list, offset + mstart)
+                out_from_se_list = as_mapper.to_se_list
+            else:
+                out_to_se_list = [(offset + mstart, offset + mend)]
+                out_from_se_list = [(0, len(from_line))]
 
             to_extra_se = None
             # take the suffix extra first
@@ -389,10 +491,17 @@ def compute_matched_se_list(from_line: str,
             if before_start != before_end:
                 to_extra_se = (before_start + offset, before_end + offset)
 
-            return [(0, len(from_line))], [(offset + mstart, offset + mend)], None, to_extra_se
+
+                # return [(mstart, mend)], out_to_se_list, from_extra_se, None
+
+            return out_from_se_list, out_to_se_list, None, to_extra_se
 
         # 0 or more than 1, no match
         return None
+
+    # not 1 or 0 matches, too ambiguous, fail
+    return None
+
 
 
 # pylint: disable=too-few-public-methods
@@ -447,3 +556,11 @@ class MatchedStrMapper:
                     return tstart + diff
                 return -1
         return -1
+
+    # TODO, why is the line below not valid?
+    # def update_with_mapper(self, other: AlignedStrMapper) -> None:
+    def update_with_mapper(self,
+                           other_from_se_list: List[Tuple[int, int]],
+                           other_to_se_list: List[Tuple[int, int]]) -> None:
+        self.from_se_list.extend(other_from_se_list)
+        self.to_se_list.extend(other_to_se_list)
