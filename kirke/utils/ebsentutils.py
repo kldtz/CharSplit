@@ -473,7 +473,7 @@ def load_prov_annotation_list(txt_file_name: str,
     # in-place update offsets
     result = []  # type: List[ProvisionAnnotation]
     for eb_prov_ant in prov_annotation_list:
-        if eb_prov_ant.start > eb_prov_ant.end:
+        if eb_prov_ant.start < eb_prov_ant.end:
             eb_prov_ant.start, eb_prov_ant.end = \
                 cpoint_cunit_mapper.to_codepoint_offsets(eb_prov_ant.start,
                                                          eb_prov_ant.end)
