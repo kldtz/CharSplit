@@ -61,7 +61,7 @@ class ParagraphGenerator:
                     if not preamble:
                         preamble = re.search(r'(as +follows[:;])|(defined +terms)', para_text, re.I)
                     try:
-                        next_start_punct = re.search(r'(\([A-z]+\))? ?([A-z])', next_text).group()[-1].islower()
+                        next_start_punct = re.search(r'(\([A-z]+\))? +([A-z])', next_text).group()[-1].islower()
                     except AttributeError:
                         next_start_punct = False
                     if ((not preamble) and para_end_punct and next_end_punct and len(para_text.split()) > 1) or (not next_text) or next_start_punct:
