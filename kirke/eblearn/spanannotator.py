@@ -265,7 +265,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         all_cands = defaultdict(list) # type: DefaultDict[str, List[Dict]]
         all_labels = defaultdict(list) # type: DefaultDict[str, List[bool]]
         all_groups = defaultdict(list) # type: DefaultDict[str, List[int]]
-        if type(self.doc_to_candidates) != list:
+        if not isinstance(self.doc_to_candidates, list):
             self.doc_to_candidates = [self.doc_to_candidates]
         for candidate_generator in self.doc_to_candidates:
             docs_candidates = candidate_generator.documents_to_candidates(antdoc_list, label)
@@ -283,7 +283,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                         *,
                         specified_threshold: Optional[float] = None,
                         prov_human_ant_list: Optional[List] = None,
-                        work_dir: str = 'dir-work') -> Tuple[List[Dict], float]:
+                        work_dir: str = 'dir-work') -> List[Dict]:
         """Annotate a document.
 
         Will always run recover_false_negatives() if there is human annotation.

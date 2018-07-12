@@ -231,6 +231,7 @@ class EbRunner:
                 prov_not_found_list.append(provision)
 
         if prov_not_found_list:
+            # pylint: disable=line-too-long
             raise Exception("error: Cannot find model file for provisions, {}.".format(prov_not_found_list))
 
         annotations = defaultdict(list)  # type: DefaultDict[str, List]
@@ -680,8 +681,8 @@ class EbRunner:
                     xtp, xfn, xfp, xtn, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
-                                                                         ebantdoc.file_id,
-                                                                         ebantdoc.get_text())
+                                                                         eb_antdoc.file_id,
+                                                                         eb_antdoc.get_text())
                 else:
                     xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
