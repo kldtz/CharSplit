@@ -59,9 +59,9 @@ class ProvisionAnnotator:
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
             try:
-                ant_list, out_threshold = self.annotate_antdoc(ebantdoc,
-                                                           specified_threshold=threshold,
-                                                           prov_human_ant_list=prov_human_ant_list)
+                ant_list = self.annotate_antdoc(ebantdoc,
+                                                specified_threshold=threshold,
+                                                prov_human_ant_list=prov_human_ant_list)
             # pylint: disable=broad-except, unused-variable
             except Exception as e:
                 logger.warning('Faile to annotat_antdoc(%s) in test_antdoc_list.',
@@ -81,7 +81,7 @@ class ProvisionAnnotator:
                                                             ant_list,
                                                             ebantdoc.file_id,
                                                             ebantdoc.get_text(),
-                                                            out_threshold,
+                                                            threshold,
                                                             is_raw_mode=False)
             tp += xtp
             fn += xfn
@@ -89,12 +89,12 @@ class ProvisionAnnotator:
             tn += xtn
             log_json[ebantdoc.get_document_id()] = json_return
 
-        title = "annotate_status, threshold = {}".format(out_threshold)
+        title = "annotate_status, threshold = {}".format(threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
 
         tmp_eval_status = {'ant_status': {'confusion_matrix': {'tn': tn, 'fp': fp,
                                                                'fn': fn, 'tp': tp},
-                                          'threshold': out_threshold,
+                                          'threshold': threshold,
                                           'prec': prec, 'recall': recall, 'f1': f1}}
         return tmp_eval_status, log_json
 
@@ -133,7 +133,7 @@ class ProvisionAnnotator:
                         eb_antdoc,
                         specified_threshold: Optional[float] = None,
                         prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
-        -> Tuple[List[Dict], float]:
+        -> List[Dict]:
 
         if prov_human_ant_list is None:
             prov_human_ant_list = []
@@ -167,7 +167,7 @@ class ProvisionAnnotator:
             adj_prov_human_ant_list = prov_human_ant_list
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations, out_threshold = \
+        prov_annotations, unused_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
                                                           threshold,
@@ -195,7 +195,7 @@ class ProvisionAnnotator:
                                                         prov,
                                                         prov_annotations)
 
-        return prov_annotations, out_threshold
+        return prov_annotations
 
 # this is destructive
 def update_text_with_span_list(prov_annotations, doc_text):

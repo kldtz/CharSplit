@@ -259,9 +259,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                               List[bool],
                                               List[int]]]:
         # pylint: disable=line-too-long
-        all_cands = defaultdict(list)
-        all_labels = defaultdict(list)
-        all_groups = defaultdict(list)
+        all_cands = defaultdict(list) # type: DefaultDict[str, List[Dict]]
+        all_labels = defaultdict(list) # type: DefaultDict[str, List[bool]]
+        all_groups = defaultdict(list) # type: DefaultDict[str, List[int]]
         if type(self.doc_to_candidates) != list:
             self.doc_to_candidates = [self.doc_to_candidates]
         for candidate_generator in self.doc_to_candidates:

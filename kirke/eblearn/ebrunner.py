@@ -40,7 +40,7 @@ MAX_CUSTOM_MODEL_CACHE_SIZE = 100
 
 
 def annotate_provision(eb_annotator,
-                       eb_antdoc: ebantdoc4.EbAnnotatedDoc4) -> Tuple[List[Dict], float]:
+                       eb_antdoc: ebantdoc4.EbAnnotatedDoc4) -> List[Dict]:
     """
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc)
@@ -241,7 +241,7 @@ class EbRunner:
                                    provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                ant_list, unused_threshold = future.result()
+                ant_list = future.result()
                 # want to collapse language-specific cust models to one provision
 
                 if 'cust_' in provision and ant_list:
