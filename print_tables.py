@@ -3,9 +3,12 @@
 import argparse
 import os
 
-
-from kirke.abbyxml import abbyxmlparser, abbypbox_syncher
 from kirke.docstruct import pdftxtparser
+from kirke.abbyxml import abbyxmlparser, abbypbox_syncher, tableutils
+from kirke.abbyxml.abbypbox_syncher import (sync_doc_offsets,
+                                            print_abby_pbox_sync,
+                                            print_abby_pbox_unsync)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
@@ -26,6 +29,8 @@ def main():
 
     abby_xml_doc = abbyxmlparser.parse_document(xml_fname, work_dir)
 
+    work_fname = '{}/{}'.format(work_dir, base_fname)
+
     # abbydoc.print_raw_lines()
 
     # abbydoc.print_text_with_meta()
@@ -35,18 +40,20 @@ def main():
 
     abbypbox_syncher.sync_doc_offsets(abby_xml_doc, pdf_txt_doc)
 
-
-    txt_sync_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.txt.sync'))
-    txt_unsync_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.txt.unsync'))
+    txt_sync_fname = work_fname.replace('.txt', '.txt.sync')
     with open(txt_sync_fname, 'wt') as sync_fout:
-        with open(txt_unsync_fname, 'wt') as unsync_fout:
-            abbypbox_syncher.verify_abby_xml_doc_by_offsets(abby_xml_doc,
-                                                            pdf_txt_doc.doc_text,
-                                                            sync_file=sync_fout,
-                                                            unsync_file=unsync_fout)
-    print('wrote {}'.format(txt_sync_fname))
-    print('wrote {}'.format(txt_unsync_fname))
-    
+        print_abby_pbox_sync(abby_xml_doc,
+                             pdf_txt_doc.doc_text,
+                             file=sync_fout)
+        print('wrote {}'.format(txt_sync_fname))
+
+
+    txt_unsync_fname = work_fname.replace('.txt', '.txt.unsync')
+    with open(txt_unsync_fname, 'wt') as unsync_fout:
+        print_abby_pbox_unsync(abby_xml_doc,
+                               file=unsync_fout)
+        print('wrote {}'.format(txt_unsync_fname))
+
 
     # abby_xml_doc.print_text()
     txt_meta_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.txt.meta2'))
@@ -57,7 +64,7 @@ def main():
 
     table_html_out_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.html'))
     with open(table_html_out_fn, 'wt') as fout:
-        html_st = abbyxmlparser.to_html_tables(abby_xml_doc)
+        html_st = tableutils.to_html_tables(abby_xml_doc)
         print(html_st, file=fout)
     print('wrote {}'.format(table_html_out_fn))
 

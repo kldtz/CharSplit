@@ -1,11 +1,16 @@
 
+# for now, focus on get the row split correct
+# inside a table
+print_tables.py mytest/8237.txt
 
+                           
 sync_abby_pbox.py mytest2/anira1.txt
 sync_abby_pbox.py mytest2/8235.txt
 sync_abby_pbox.py mytest2/8234.txt
 
 sync_abby_pbox.py mytest/8237.txt
 sync_abby_pbox.py mytest4/8235.txt
+# this is a challenging one, 4 mis-aligne str
 sync_abby_pbox.py andrea_txt/8255.txt
 
 
@@ -13,13 +18,4 @@ sync_abby_pbox.py andrea_txt/8255.txt
 # This also generate the HTML table?
 parseabby.sh
 python3 -m kirke.abbyxml.abbyxmlparser mytest/8237.pdf.xml
-
-print_tables.py mytest/8237.txt
-
-
-# not working
-sync_abby_pbox.py 8234.txt
-
-# this works, 05/19 9pm
-sync_abby_pbox.py 8235.txt
 
