@@ -43,49 +43,32 @@ class ProvisionAnnotator:
     # pylint: disable=R0914
     def test_antdoc_list(self,
                          ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                         threshold: Optional[float] = None) \
+                         specified_threshold: Optional[float] = None) \
                          -> Tuple[Dict[str, Any],
                                   Dict[str, Dict]]:
         logger.debug('test_document_list')
-        if threshold is None:
+        if specified_threshold is None:
             threshold = self.threshold
+        else:
+            threshold = specified_threshold
 
         # pylint: disable=C0103
         tp, fn, fp, tn = 0, 0, 0, 0
         log_json = dict()
         for ebantdoc in ebantdoc_list:
-            #print('ebantdoc.fileid = {}'.format(ebantdoc.file_id))
-            # print("ant_list: {}".format(ant_list))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
             try:
-                ant_list, threshold = self.annotate_antdoc(ebantdoc,
-                                                           threshold=threshold,
-                                                           prov_human_ant_list=prov_human_ant_list)
+                ant_list = self.annotate_antdoc(ebantdoc,
+                                                specified_threshold=threshold,
+                                                prov_human_ant_list=prov_human_ant_list)
             # pylint: disable=broad-except, unused-variable
             except Exception as e:
                 logger.warning('Faile to annotat_antdoc(%s) in test_antdoc_list.',
                                ebantdoc.file_id)
                 raise
             # pylint: disable=unreachable, pointless-string-statement
-            """
-                # retry all the operations, except for loading the cache
-                ebantdoc = ebantdoc4.text_to_ebantdoc4(ebantdoc.file_id,
-                                                       work_dir=None,
-                                                       is_cache_enabled=False,
-                                                       is_bespoke_mode=False,
-                                                       is_doc_structure=True)
-                prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
-                                       if hant.label == self.provision]
-                ant_list = self.annotate_antdoc(ebantdoc,
-                                                threshold=threshold,
-                                                prov_human_ant_list=prov_human_ant_list)
-            """
 
-            # print("\nfn: {}".format(ebantdoc.file_id))
-
-            # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
-            # pred_prob_start_end_list, txt)
             if self.provision in PROVISION_EVAL_ANYMATCH_SET:
                 xtp, xfn, xfp, xtn, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
@@ -148,23 +131,20 @@ class ProvisionAnnotator:
 
     def annotate_antdoc(self,
                         eb_antdoc,
-                        threshold: Optional[float] = None,
+                        specified_threshold: Optional[float] = None,
                         prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
-        -> Tuple[List[Dict], float]:
-        # attrvec_list = eb_antdoc.get_attrvec_list()
-        # ebsent_list = eb_antdoc.get_ebsent_list()
-        # print("txt_fn = '{}', vec_size= {}".format(eb_antdoc.file_id,
-        # len(eb_antdoc.get_attrvec_list())))
+        -> List[Dict]:
+
         if prov_human_ant_list is None:
             prov_human_ant_list = []
 
         attrvec_list = eb_antdoc.get_attrvec_list()
+
         # manually set the threshold
-        # self.provision_classifier.threshold = 0.5
-        if threshold is None:
-            specified_threshold = self.threshold
+        if specified_threshold is None:
+            threshold = self.threshold
         else:
-            specified_threshold = threshold
+            threshold = specified_threshold
 
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
@@ -187,20 +167,14 @@ class ProvisionAnnotator:
             adj_prov_human_ant_list = prov_human_ant_list
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-        prov_annotations, out_threshold = \
+        prov_annotations, unused_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
-                                                          specified_threshold,
+                                                          threshold,
                                                           nbest=self.get_nbest(),
                                                           provision=prov,
                                                           # pylint: disable=line-too-long
                                                           prov_human_ant_list=adj_prov_human_ant_list)
-
-        # print("eb_antdoc.from_list: {}".format(eb_antdoc.from_list))
-        # print("eb_antdoc.to_list: {}".format(eb_antdoc.to_list))
-        # for fr_sxlnpos, to_sxlnpos in zip(eb_antdoc.origin_sx_lnpos_list,
-        #                                   eb_antdoc.nlp_sx_lnpos_list):
-        #     print("35234 origin: {}, nlp: {}".format(fr_sxlnpos, to_sxlnpos))
 
         try:
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
@@ -221,7 +195,7 @@ class ProvisionAnnotator:
                                                         prov,
                                                         prov_annotations)
 
-        return prov_annotations, out_threshold
+        return prov_annotations
 
 # this is destructive
 def update_text_with_span_list(prov_annotations, doc_text):

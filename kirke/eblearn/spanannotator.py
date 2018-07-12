@@ -195,12 +195,15 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     # pylint: disable=R0914
     def test_antdoc_list(self,
                          ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                         threshold: float,
+                         specified_threshold: Optional[float] = None,
                          work_dir: str = 'work_dir')  -> Tuple[Dict[str, Any],
                                                                Dict[str, Dict]]:
         logger.debug('spanannotator.test_antdoc_list(), len= %d', len(ebantdoc_list))
-        if not threshold:
+        if specified_threshold is None:
             threshold = self.threshold
+        else:
+            threshold = specified_threshold
+
         # pylint: disable=C0103
         fallout, tp, fn, fp, tn = 0, 0, 0, 0, 0
         log_json = dict()
@@ -209,10 +212,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
 
-            ant_list, threshold = self.annotate_antdoc(ebantdoc,
-                                                       threshold=threshold,
-                                                       prov_human_ant_list=prov_human_ant_list,
-                                                       work_dir=work_dir)
+            ant_list = self.annotate_antdoc(ebantdoc,
+                                            specified_threshold=threshold,
+                                            prov_human_ant_list=prov_human_ant_list,
+                                            work_dir=work_dir)
             # print("\nfn: {}".format(ebantdoc.file_id))
             # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
             # pred_prob_start_end_list, txt)
@@ -259,10 +262,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                               List[bool],
                                               List[int]]]:
         # pylint: disable=line-too-long
-        all_cands = defaultdict(list)
-        all_labels = defaultdict(list)
-        all_groups = defaultdict(list)
-        if type(self.doc_to_candidates) != list:
+        all_cands = defaultdict(list) # type: DefaultDict[str, List[Dict]]
+        all_labels = defaultdict(list) # type: DefaultDict[str, List[bool]]
+        all_groups = defaultdict(list) # type: DefaultDict[str, List[int]]
+        if not isinstance(self.doc_to_candidates, list):
             self.doc_to_candidates = [self.doc_to_candidates]
         for candidate_generator in self.doc_to_candidates:
             docs_candidates = candidate_generator.documents_to_candidates(antdoc_list, label)
@@ -278,9 +281,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def annotate_antdoc(self,
                         eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                         *,
-                        threshold: Optional[float] = None,
+                        specified_threshold: Optional[float] = None,
                         prov_human_ant_list: Optional[List] = None,
-                        work_dir: str = 'dir-work') -> Tuple[List[Dict], float]:
+                        work_dir: str = 'dir-work') -> List[Dict]:
         """Annotate a document.
 
         Will always run recover_false_negatives() if there is human annotation.
@@ -288,8 +291,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         # manually set the threshold
         # self.provision_classifier.threshold = 0.5
-        if threshold is None:
+        if specified_threshold is None:
             threshold = self.threshold
+        else:
+            threshold = specified_threshold
         nbest = self.nbest
         start_time = time.time()
         candidates, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir)
@@ -298,7 +303,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates
-        x_threshold = threshold
 
         prov_annotations = recover_false_negatives(prov_human_ant_list,
                                                    eb_antdoc.get_text(),
@@ -307,10 +311,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # If there is no human annotation, must be normal annotation.
         # Remove anything below threshold
         if not prov_human_ant_list:
-            prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= x_threshold]
+            prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= threshold]
         if nbest > 0:
-            return prov_annotations[:nbest], x_threshold
-        return prov_annotations, x_threshold
+            return prov_annotations[:nbest]
+        return prov_annotations
 
     def get_eval_status(self):
         eval_status = {'label': self.provision}

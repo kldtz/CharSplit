@@ -54,6 +54,7 @@ class DateNormalizer(DocCandidatesTransformer):
             # set dayfirst=True for UK dates, revisit later
             # print("parse_date({})".format(line))
             # Please Note: We changed the returns result to be a dict instead of datetime.datetime
+            # typically parser.parse requires a datetime object as a default but we pass the function NoDefaultDate to return a dict
             norm = parser.parse(line, fuzzy=True, default=NoDefaultDate())  # type: Dict[str, int]
         except ValueError:
             # logger.debug("Failed to parse_date(%s) as a date.  Branch 1.", line)
@@ -122,7 +123,6 @@ class DateNormalizer(DocCandidatesTransformer):
                     candidate['prob'] = 0.0112
 
                 candidate.update(date_dict)
-        # return candidates
         return out_list
 
 

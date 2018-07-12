@@ -40,7 +40,7 @@ MAX_CUSTOM_MODEL_CACHE_SIZE = 100
 
 
 def annotate_provision(eb_annotator,
-                       eb_antdoc: ebantdoc4.EbAnnotatedDoc4) -> Tuple[List[Dict], float]:
+                       eb_antdoc: ebantdoc4.EbAnnotatedDoc4) -> List[Dict]:
     """
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc)
@@ -231,6 +231,7 @@ class EbRunner:
                 prov_not_found_list.append(provision)
 
         if prov_not_found_list:
+            # pylint: disable=line-too-long
             raise Exception("error: Cannot find model file for provisions, {}.".format(prov_not_found_list))
 
         annotations = defaultdict(list)  # type: DefaultDict[str, List]
@@ -241,7 +242,7 @@ class EbRunner:
                                    provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                ant_list, unused_threshold = future.result()
+                ant_list = future.result()
                 # want to collapse language-specific cust models to one provision
 
                 if 'cust_' in provision and ant_list:
@@ -680,8 +681,8 @@ class EbRunner:
                     xtp, xfn, xfp, xtn, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
-                                                                         ebantdoc.file_id,
-                                                                         ebantdoc.get_text())
+                                                                         eb_antdoc.file_id,
+                                                                         eb_antdoc.get_text())
                 else:
                     xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
