@@ -93,7 +93,6 @@ class LineAnnotator:
     # pylint: disable=too-many-branches
     def annotate_antdoc(self,
                         paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-                                                     str,
                                                      List[Any]]],
                         paras_text: str,
                         fromto_mapper: fromtomapper.FromToMapper,

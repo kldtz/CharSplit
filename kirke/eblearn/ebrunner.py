@@ -40,7 +40,7 @@ MAX_CUSTOM_MODEL_CACHE_SIZE = 100
 
 
 def annotate_provision(eb_annotator,
-                       eb_antdoc: ebantdoc5.EbAnnotatedDoc) -> Tuple[List[Dict], float]:
+                       eb_antdoc: ebantdoc5.EbAnnotatedDoc) -> List[Dict]:
     """
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc)
@@ -221,16 +221,28 @@ class EbRunner:
         both_default_custom_provs.update(self.custom_annotator_map.keys())
         both_default_custom_provs.update(annotatorconfig.get_all_candidate_types())
 
+        # Make sure all the provision's model are there
+        prov_annotator_map = {}  # type: Dict[str, Any]
+        prov_not_found_list = []  # type: List[str]
+        for provision in provision_set:
+            if provision in both_default_custom_provs:
+                prov_annotator_map[provision] = self.get_provision_annotator(provision)
+            else:
+                prov_not_found_list.append(provision)
+
+        if prov_not_found_list:
+            # pylint: disable=line-too-long
+            raise Exception("error: Cannot find model file for provisions, {}.".format(prov_not_found_list))
+
         annotations = defaultdict(list)  # type: DefaultDict[str, List]
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
-                                                   self.get_provision_annotator(provision),
+                                                   prov_annotator_map[provision],
                                                    eb_antdoc):
-                                   provision for provision in provision_set
-                                   if provision in both_default_custom_provs}
+                                   provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                ant_list, unused_threshold = future.result()
+                ant_list = future.result()
                 # want to collapse language-specific cust models to one provision
 
                 if 'cust_' in provision and ant_list:
@@ -669,8 +681,8 @@ class EbRunner:
                     xtp, xfn, xfp, xtn, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
                                                                          ant_list,
-                                                                         ebantdoc.file_id,
-                                                                         ebantdoc.get_text())
+                                                                         eb_antdoc.file_id,
+                                                                         eb_antdoc.get_text())
                 else:
                     xtp, xfn, xfp, xtn, _, unused_json_log = \
                         evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
