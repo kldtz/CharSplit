@@ -10,6 +10,8 @@ from kirke.abbyxml import abbyutils, pdfoffsets
 from kirke.utils import mathutils
 
 IS_DEBUG_TABLE = True
+IS_PRINT_HEADER_TABLE = False
+# IS_PRINT_HEADER_TABLE = True
 
 def table_attrs_to_html(attr_dict: Dict) -> str:
     st_list = []  # type: List[str]
@@ -49,8 +51,9 @@ def table_block_to_html(ab_table_block: AbbyTableBlock) -> str:
         if infer_attr_dict.get('header') or \
            infer_attr_dict.get('footer'):
             st_list.append('<table border="1" bgcolor="DAA520">')  # brown
-            # for now, no header for footer table
-            return ''
+            if not IS_PRINT_HEADER_TABLE:
+                # for now, no header for footer table
+                return ''
         else:
             st_list.append('<table border="1" bgcolor="ffff66">')  # yellow
     else:
@@ -101,7 +104,10 @@ def to_html_tables(abby_doc: AbbyXmlDoc) -> str:
     st_list.append('<body>')
     for ab_page in abby_doc.ab_pages:
 
-        table_block_list = filter_out_header_footer_tables(ab_page.ab_table_blocks)
+        if IS_PRINT_HEADER_TABLE:
+            table_block_list = ab_page.ab_table_blocks
+        else:
+            table_block_list = filter_out_header_footer_tables(ab_page.ab_table_blocks)
 
         if table_block_list:
 
@@ -430,6 +436,14 @@ def collect_justified_lines_after(ab_blocks: List[AbbyBlock],
         if is_all_pars_align_justified(ab_pars):
             print("first_block_left = {}, next_left = {}".format(first_block_left, next_left))
 
+        # please note that this next_left check is not really correct.
+        # the order of blocks inside a table is already screwed up.
+        # so there is no guarantee that what's expected to be the next
+        # block visually is really the next block.  Cannot solve correctly.
+        # In these cases, the collection will simply fail.  Since this is
+        # related to tables, it is probably fine.
+        #
+        # But for text blocks, this is probably still valid.
         if is_all_pars_align_justified(ab_pars) and \
            (first_block_left - 50 <= next_left and
             next_left <= first_block_left + 50):

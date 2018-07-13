@@ -495,7 +495,7 @@ def parse_document(file_name: str,
     # this is the more advanced version.
     # for now, focus on get the height right
     #
-    # tableutils.find_haligned_blocks(ab_xml_doc)
+    tableutils.find_haligned_blocks(ab_xml_doc)
 
     tableutils.merge_haligned_block_as_table(ab_xml_doc)
 
