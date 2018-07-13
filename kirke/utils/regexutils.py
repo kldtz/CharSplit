@@ -1,9 +1,7 @@
-import re
-
 """Utilities for regex."""
 
 import re
-from typing import List, Match, Pattern, Tuple
+from typing import List, Match, Optional, Pattern
 
 
 DATA_DIR = './dict/titles/'
@@ -122,7 +120,7 @@ def find_phrases(line: str,
     return [mat.group(1) for mat in pat.finditer(line)]
 
 
-def search_space_plus(regex_st: str, line: str, flags: int = 0) -> Match[str]:
+def search_space_plus(regex_st: str, line: str, flags: int = 0) -> Optional[Match[str]]:
     """re.search() with a space will match multiple spaces."""
     spcplus_st = regex_st.replace(' ', r'\s+')
     # must begin and end word boundaries
@@ -130,7 +128,7 @@ def search_space_plus(regex_st: str, line: str, flags: int = 0) -> Match[str]:
     return re.search(b_bound_st, line, flags)
 
 
-def match_space_plus(regex_st: str, line: str, flags: int = 0) -> Match[str]:
+def match_space_plus(regex_st: str, line: str, flags: int = 0) -> Optional[Match[str]]:
     """re.search() with a space will match multiple spaces."""
     spcplus_st = regex_st.replace(' ', r'\s+')
     # must end word boundaries
