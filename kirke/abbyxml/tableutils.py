@@ -1,9 +1,11 @@
 from collections import defaultdict
 
+# pylint: disable=unused-import
 from typing import Dict, List, Union, Tuple
 
 from kirke.abbyxml.pdfoffsets import AbbyTextBlock, AbbyTableBlock, AbbyXmlDoc
-from kirke.abbyxml.pdfoffsets import AbbyPar, AbbyLine, AbbyCell, AbbyRow
+# pylint: disable=unused-import
+from kirke.abbyxml.pdfoffsets import AbbyLine, AbbyPar, AbbyCell, AbbyRow
 from kirke.abbyxml import abbyutils
 from kirke.utils import mathutils
 
@@ -62,6 +64,7 @@ def table_block_to_html(ab_table_block: AbbyTableBlock) -> str:
             for ab_par in ab_cell.ab_pars:
                 for unused_lid, ab_line in enumerate(ab_par.ab_lines):
                     if not is_abby_table:
+                        # pylint: disable=line-too-long
                         # st_list.append('{}      {}<br/>'.format(table_attrs_to_html(ab_line.attr_dict),
                         #                                        ab_line.text))
                         st_list.append('      {}<br/>'.format(ab_line.text))
@@ -126,7 +129,8 @@ def find_haligned_blocks(ab_doc: AbbyXmlDoc) -> None:
 
     for pnum, abby_page in enumerate(ab_doc.ab_pages):
 
-        yminmax_block_list = []  # type: List[Tuple[int, int, int, AbbyBlock]]
+        # pylint: disable=line-too-long
+        yminmax_block_list = []  # type: List[Tuple[int, int, int, Union[AbbyTableBlock, AbbyTextBlock]]]
         yminmax_blockid_list = []  # type: List[Tuple[int, int, int]]
         for block_i, ab_block in enumerate(abby_page.ab_blocks):
             miny, maxy = abbyutils.find_block_minmaxy(ab_block)
@@ -153,7 +157,8 @@ def find_haligned_blocks(ab_doc: AbbyXmlDoc) -> None:
 
         """
         # find all the blocks with similar @b and @t
-        ab_text_block_list, ab_table_block_list = [], []  # type: List[AbbyTextBlock], List[AbbyTableBlock]
+        # type: List[AbbyTextBlock], List[AbbyTableBlock]
+        ab_text_block_list, ab_table_block_list = [], []
         for ab_block in abby_page.ab_blocks:
             if isinstance(ab_block, AbbyTextBlock)]:
                 ab_text_block_list.append(ab_block)
@@ -251,6 +256,7 @@ def get_row_seq_by_top(row_top_list: List[float], row_top: float) -> int:
     return len(row_top_list) - 1
 
 
+# pylint: disable=too-many-locals
 def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock]) -> AbbyTableBlock:
     """Merge a list of haligned blocks.
 
@@ -432,7 +438,7 @@ def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
             # Move to next page
             continue
 
-        out_block_list = []  # type: List[AbbyBlock]
+        out_block_list = []  # type: List[Union[AbbyTableBlock, AbbyTextBlock]]
         haligned_block_list_map = {}  # type: Dict[AbbyTextBlock, List[AbbyTextBlock]]
         for blocks in haligned_blocks_list:
             haligned_block_list_map[blocks[0]] = blocks
@@ -457,5 +463,3 @@ def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
                 out_block_list.append(ab_block)
 
         abby_page.ab_blocks = out_block_list
-
-
