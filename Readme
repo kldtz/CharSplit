@@ -3,6 +3,14 @@
 # inside a table
 print_tables.py mytest/8237.txt
 
+# the pdf for 8237.txt is
+# file:///home/jshaw/proj/KirkeLayout/lara/SPM2DP-12-D-0002,%20PWGSC%20(13C150)%20Contract.%2006-12-2012%20(1).pdf
+
+working on "justified" text as a part of the table
+in abbyxmlparser.py,    tableutils.merge_haligned_block_as_table(ab_xml_doc)
+in tableutils.py
+
+
                            
 sync_abby_pbox.py mytest2/anira1.txt
 sync_abby_pbox.py mytest2/8235.txt

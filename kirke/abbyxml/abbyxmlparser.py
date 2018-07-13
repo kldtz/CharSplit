@@ -13,11 +13,12 @@ import json
 import shutil
 
 # pylint: disable=unused-import
-from typing import DefaultDict, Dict, List, Tuple, Union
+from typing import DefaultDict, Dict, List, Tuple
 
 # from kirke.abbyxml import AbbyLine, AbbyPar, AbbyTextBlock, AbbyTableBlock, AbbyXmlDoc
 from kirke.abbyxml.pdfoffsets import AbbyCell, AbbyLine, AbbyPar, AbbyRow
-from kirke.abbyxml.pdfoffsets import AbbyTextBlock, AbbyTableBlock, AbbyPage, AbbyXmlDoc
+from kirke.abbyxml.pdfoffsets import AbbyBlock, AbbyTextBlock, AbbyTableBlock
+from kirke.abbyxml.pdfoffsets import AbbyPage, AbbyXmlDoc
 from kirke.abbyxml.pdfoffsets import print_text_block_meta
 from kirke.docstruct import linepos
 from kirke.abbyxml import abbyutils, tableutils
@@ -342,7 +343,7 @@ def parse_abby_page(ajson) -> AbbyPage:
 
     # ab_text_block_list = []  # type: List[AbbyTextBlock]
     # ab_table_block_list = []  # type: List[AbbyTableBlock]
-    ab_block_list = []  # type: List[Union[AbbyTableBlock, AbbyTextBlock]]
+    ab_block_list = []  # type: List[AbbyBlock]
     prev_block_battr = -1
     for text_block in text_block_jsonlist:
 

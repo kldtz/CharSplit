@@ -69,6 +69,9 @@ class AbbyTextBlock:
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
 
+        # for indexining into page's ab_blocks
+        self.page_block_seq = -1
+
 
     def __str__(self) -> str:
         st_list = []  # type: List[str]
@@ -122,6 +125,12 @@ class AbbyTableBlock:
         self.infer_attr_dict = {}
         self.table_id = -1
         self.page_num = -1
+
+        # for indexining into page's ab_blocks
+        self.page_block_seq = -1
+
+
+AbbyBlock = Union[AbbyTableBlock, AbbyTextBlock]
 
 
 """
@@ -202,6 +211,10 @@ class AbbyPage:
         self.ab_blocks = ab_blocks
         self.ab_text_blocks = []  # type: List[AbbyTextBlock]
         self.ab_table_blocks = []  # type: List[AbbyTableBlock]
+
+        # enable the ability to access prev and next ab_blocks
+        for block_seq, ab_block in enumerate(ab_blocks):
+            ab_block.page_block_seq = block_seq
 
         # Intentioanlly not setting this here.  Later component
         # might convert ab_text_blocks to ab_table_blocks.

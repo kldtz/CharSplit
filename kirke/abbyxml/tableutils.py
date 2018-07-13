@@ -1,12 +1,12 @@
 from collections import defaultdict
 
 # pylint: disable=unused-import
-from typing import Dict, List, Union, Tuple
+from typing import Dict, List, Tuple
 
-from kirke.abbyxml.pdfoffsets import AbbyTextBlock, AbbyTableBlock, AbbyXmlDoc
+from kirke.abbyxml.pdfoffsets import AbbyBlock, AbbyTextBlock, AbbyTableBlock, AbbyXmlDoc
 # pylint: disable=unused-import
 from kirke.abbyxml.pdfoffsets import AbbyLine, AbbyPar, AbbyCell, AbbyRow
-from kirke.abbyxml import abbyutils
+from kirke.abbyxml import abbyutils, pdfoffsets
 from kirke.utils import mathutils
 
 IS_DEBUG_TABLE = True
@@ -130,7 +130,7 @@ def find_haligned_blocks(ab_doc: AbbyXmlDoc) -> None:
     for pnum, abby_page in enumerate(ab_doc.ab_pages):
 
         # pylint: disable=line-too-long
-        yminmax_block_list = []  # type: List[Tuple[int, int, int, Union[AbbyTableBlock, AbbyTextBlock]]]
+        yminmax_block_list = []  # type: List[Tuple[int, int, int, AbbyBlock]]
         yminmax_blockid_list = []  # type: List[Tuple[int, int, int]]
         for block_i, ab_block in enumerate(abby_page.ab_blocks):
             miny, maxy = abbyutils.find_block_minmaxy(ab_block)
@@ -245,7 +245,7 @@ def is_top_bot_match(top: int,
 
 
 # there is probably a more concise way of expressing this in python, 5345
-def block_get_attr_left(block: Union[AbbyTextBlock, AbbyTableBlock]) -> int:
+def block_get_attr_left(block: AbbyBlock) -> int:
     return block.attr_dict.get('@l', -1)
 
 
@@ -257,7 +257,9 @@ def get_row_seq_by_top(row_top_list: List[float], row_top: float) -> int:
 
 
 # pylint: disable=too-many-locals
-def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock]) -> AbbyTableBlock:
+def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock],
+                         justified_row_blocks: List[AbbyTextBlock]) \
+                         -> AbbyTableBlock:
     """Merge a list of haligned blocks.
 
     The left most column is used to do the row splitting.
@@ -335,6 +337,22 @@ def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock]) -> AbbyTableBlock
     attr_dict['type'] = 'table-haligned'
     # we can combine block1+2's attr_dict
 
+    # Add the justified rows, each block is a row
+    for tblock in justified_row_blocks:
+        line_list = []  # type: List[AbbyLine]
+        for unused_par_id, ab_par in enumerate(tblock.ab_pars):
+            line_list.extend(ab_par.ab_lines)
+        apar = AbbyPar(line_list, {})
+        cell_list = []  # type: List(AbbyCell)
+        cell_list.append(AbbyCell([apar], {}))
+
+        if tblock.infer_attr_dict.get('header'):
+            infer_attr_dict['header'] = True
+        if tblock.infer_attr_dict.get('footer'):
+            infer_attr_dict['footer'] = True
+
+        row_list.append(AbbyRow(cell_list, {}))
+
     table_block = AbbyTableBlock(row_list, attr_dict)
 
     if IS_DEBUG_TABLE:
@@ -349,7 +367,8 @@ def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock]) -> AbbyTableBlock
     return table_block
 
 
-def merge_aligned_blocks_old(haligned_blocks: List[AbbyTextBlock]) -> AbbyTableBlock:
+def merge_aligned_blocks_old(haligned_blocks: List[AbbyTextBlock]) \
+                             -> AbbyTableBlock:
     # there is probably a more concise way of expressing this in python, 5345
     haligned_blocks = sorted(haligned_blocks, key=block_get_attr_left)
     cell_list = []
@@ -383,6 +402,46 @@ def merge_aligned_blocks_old(haligned_blocks: List[AbbyTextBlock]) -> AbbyTableB
     return table_block
 
 
+def is_all_pars_align_justified(ab_pars: List[AbbyPar]) -> bool:
+    if not ab_pars:
+        return False
+    is_all_justified = True
+    for ab_par in ab_pars:
+        if ab_par.attr_dict.get('@align', 'None') != 'Justified':
+            return False
+    return True
+
+
+def collect_justified_lines_after(ab_blocks: List[AbbyBlock],
+                                  page_block_seq: int,
+                                  first_block_left: int) \
+                                  -> List[AbbyTextBlock]:
+    if page_block_seq >= len(ab_blocks):
+        return []
+
+    result = []  # type: List[AbbyTextBlock]
+    cur_ab_block = ab_blocks[page_block_seq]
+    for ab_block in ab_blocks[page_block_seq + 1:]:
+        if not isinstance(ab_block, AbbyTextBlock):
+            return result
+
+        ab_pars = ab_block.ab_pars
+        next_left = ab_block.attr_dict['@l']
+        if is_all_pars_align_justified(ab_pars):
+            print("first_block_left = {}, next_left = {}".format(first_block_left, next_left))
+
+        if is_all_pars_align_justified(ab_pars) and \
+           (first_block_left - 50 <= next_left and
+            next_left <= first_block_left + 50):
+            print("adding text block as justified:")
+            pdfoffsets.print_text_block_meta(ab_block)
+            result.append(ab_block)
+        else:
+            break
+
+    return result
+
+
 # pylint: disable=too-many-locals, too-many-branches
 def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
 
@@ -391,8 +450,7 @@ def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
         print("merge_haligned_blocks_as_table, page #{}".format(unused_pnum))
         print("        len(abby_page.ab_blocks = {}".format(len(abby_page.ab_blocks)))
         # find all the blocks with similar @b and @t
-        ab_text_block_list = [ab_block for ab_block in abby_page.ab_blocks
-                              if isinstance(ab_block, AbbyTextBlock)]  # type: List[AbbyTextBlock]
+        ab_text_block_list = abbyutils.get_only_text_blocks(abby_page.ab_blocks)
 
         # print("\nmerge_adj_aligned_block_as_table")
         if not ab_text_block_list:
@@ -438,10 +496,26 @@ def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
             # Move to next page
             continue
 
-        out_block_list = []  # type: List[Union[AbbyTableBlock, AbbyTextBlock]]
+        out_block_list = []  # type: List[AbbyBlock]
         haligned_block_list_map = {}  # type: Dict[AbbyTextBlock, List[AbbyTextBlock]]
+        justified_row_block_list_map = {}  # type: Dict[AbbyTextBlock, List[AbbyTextBlock]]
         for blocks in haligned_blocks_list:
+
+            # found the column header, but no data
+            # if len(blocks) <= 2:
+            # jshaw, work
+            # merge next text block if it is "justified"
+            # most likely an minor column delimitation error from abby
+            first_block = blocks[0]
+            first_block_left = first_block.attr_dict['@l']
+            last_block = blocks[-1]
+            additional_table_row_blocks = \
+                collect_justified_lines_after(abby_page.ab_blocks,
+                                              last_block.page_block_seq,
+                                              first_block_left)
+
             haligned_block_list_map[blocks[0]] = blocks
+            justified_row_block_list_map[blocks[0]] = additional_table_row_blocks
 
         # now we have a list of haligned blocks
         for ab_block in abby_page.ab_blocks:
@@ -450,9 +524,10 @@ def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
 
             if isinstance(ab_block, AbbyTextBlock):
                 haligned_blocks = haligned_block_list_map.get(ab_block, [])
+                justified_row_blocks = justified_row_block_list_map.get(ab_block, [])
 
                 if haligned_blocks:
-                    table = merge_aligned_blocks(haligned_blocks)
+                    table = merge_aligned_blocks(haligned_blocks, justified_row_blocks)
                     out_block_list.append(table)
                 else:
                     # print("      block attr: {}".format(ab_block.attr_dict))

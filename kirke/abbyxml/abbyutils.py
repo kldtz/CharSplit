@@ -162,6 +162,17 @@ def get_text_block_num_words(ab_block: Union[AbbyTextBlock, AbbyTableBlock]) -> 
     return len(words)
 
 
+def get_only_text_blocks(ab_blocks: List[Union[AbbyTableBlock, AbbyTextBlock]]) \
+    -> List[AbbyTextBlock]:
+    return [ab_block for ab_block in ab_blocks
+            if isinstance(ab_block, AbbyTextBlock)]
+
+def get_only_table_blocks(ab_blocks: List[Union[AbbyTableBlock, AbbyTextBlock]]) \
+    -> List[AbbyTableBlock]:
+    return [ab_block for ab_block in ab_blocks
+            if isinstance(ab_block, AbbyTableBlock)]
+
+
 # text was using battr < 500
 # table was using battr < 400, go with text
 """
