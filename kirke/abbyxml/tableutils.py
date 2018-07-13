@@ -130,7 +130,7 @@ def to_html_tables(abby_doc: AbbyXmlDoc) -> str:
     return '\n'.join(st_list)
 
 
-
+# not used
 def find_haligned_blocks(ab_doc: AbbyXmlDoc) -> None:
 
     for pnum, abby_page in enumerate(ab_doc.ab_pages):
@@ -232,22 +232,31 @@ def find_haligned_blocks(ab_doc: AbbyXmlDoc) -> None:
         abby_page.ab_blocks = out_block_list
         """
 
+def percent_top_bot_match(top: int,
+                          bot: int,
+                          prev_block_top: int,
+                          prev_block_bot: int) -> float:
+    diff = min(bot, prev_block_bot) - max(top, prev_block_top)
+    if prev_block_bot - prev_block_top > bot - top:
+        return diff / (prev_block_bot - prev_block_top)
+    return diff / (bot - top)
+
+
 def is_top_bot_match(top: int,
                      bot: int,
                      prev_block_top: int,
                      prev_block_bot: int) -> bool:
-    # this check for both top and bottom
-    diff = 10
-    return top - diff <= prev_block_top and \
-           prev_block_top <= top + diff and \
-           bot - diff <= prev_block_bot and \
-           prev_block_bot <= bot + diff
+    is_overlap = top < prev_block_bot and \
+                 prev_block_top < bot
+    if is_overlap:
+        perc_overlap = percent_top_bot_match(top,
+                                             bot,
+                                             prev_block_top,
+                                             prev_block_bot)
+        if perc_overlap >= 0.4:
+            return True
+    return False
 
-    # this is only checking for top, seems to add too much
-    # can get section heading...
-    # diff = 10
-    # return top - diff <= prev_block_top and \
-    #        prev_block_top <= top + diff
 
 
 # there is probably a more concise way of expressing this in python, 5345
