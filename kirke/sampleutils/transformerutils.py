@@ -241,10 +241,13 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
             cat_dict = {}
             chars = span_candidate.get('chars', '')
             all_cands.append(chars)
-            all_first_chars.append("{} {}".format('FIRST-'+chars[0], 'SECOND-'+chars[1]))
+            if len(chars) > 1:
+                all_first_chars.append("{} {}".format('FIRST-'+chars[0], 'SECOND-'+chars[1]))
+            else:
+                all_first_chars.append('FIRST-'+chars[0])
             chars_list = list(chars)
             cat_dict[span_candidate['candidate_type']] = 1
-            cat_dict_list[i] = cat_dict
+            cat_dict_list.append(cat_dict)
             # total length
             numeric_matrix[i, 0] = len(chars_list)
             # number of alpha character
