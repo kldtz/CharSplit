@@ -5,7 +5,7 @@ import traceback
 
 from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
-from kirke.utils import ebantdoc4, evalutils, strutils
+from kirke.utils import ebantdoc5, evalutils, strutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
@@ -42,7 +42,7 @@ class ProvisionAnnotator:
     #    pass
     # pylint: disable=R0914
     def test_antdoc_list(self,
-                         ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                         ebantdoc_list: List[ebantdoc5.EbAnnotatedDoc],
                          specified_threshold: Optional[float] = None) \
                          -> Tuple[Dict[str, Any],
                                   Dict[str, Dict]]:

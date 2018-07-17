@@ -16,13 +16,15 @@ from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 # pylint: disable=import-error
 from sklearn.externals import joblib
 
+from kirke.abbyxml import abbyxmlparser, abbypbox_syncher, tableutils
+from kirke.abbyxml.pdfoffsets import AbbyTableBlock, AbbyXmlDoc
 from kirke.eblearn import ebattrvec, sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdftxtparser
 from kirke.docstruct.pdfoffsets import PDFTextDoc
 from kirke.utils import corenlputils, ebsentutils, memutils, osutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
 from kirke.utils.ebsentutils import ProvisionAnnotation
-from kirke.abbyxml import abbyxmlparser, abbypbox_syncher
+
 
 
 # pylint: disable=invalid-name
@@ -117,6 +119,9 @@ class EbAnnotatedDoc:
         self.pagenum_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
         self.footer_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
         self.signature_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
+
+        # abby's stuff
+        self.abby_table_list = []  # type: List[AbbyTableBlock]
 
 
     def get_file_id(self):
@@ -370,15 +375,15 @@ def html_no_docstruct_to_ebantdoc(txt_file_name,
                                origin_lnpos_list=origin_lnpos_list,
                                nlp_lnpos_list=nlp_lnpos_list,
                                gap_span_list=gap_span_list,
-                               linebreak_arr=[],
-                               para_not_linebreak_arr=[],
+                               linebreak_arr=array.array('i'),
+                               para_not_linebreak_arr=array.array('i'),
                                doc_lang=doc_lang)
 
     # eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
 
     # We don't want to cache a document that's not complete.
     # It must be 'is_cache_enabled', 'is_doc_structure', 'is_use_corenlp'.
-    # html_no_docstruct_to_ebantdoc4 has 'is_doc_structure=False, so no cache.
+    # html_no_docstruct_to_ebantdoc5 has 'is_doc_structure=False, so no cache.
     #
     # if txt_file_name and is_cache_enabled and is_use_corenlp:
     #     start_time = time.time()
@@ -558,6 +563,7 @@ def pdf_to_ebantdoc(txt_file_name: str,
     xml_fname = txt_file_name.replace('.txt', '.pdf.xml')
     # For test documents, there is no new .pdf.xml file available.
     # In this case, only use the information available from PDFBox.
+    abby_xml_doc = None
     if os.path.exists(xml_fname):
         abby_xml_doc = abbyxmlparser.parse_document(xml_fname, work_dir=work_dir) # type: AbbyXmlDoc
 
@@ -625,6 +631,9 @@ def pdf_to_ebantdoc(txt_file_name: str,
                                doc_lang=doc_lang)
 
     update_special_block_info(eb_antdoc, pdf_txt_doc)
+
+    if abby_xml_doc:
+        eb_antdoc.abby_table_list = tableutils.get_abby_table_list(abby_xml_doc)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
@@ -763,18 +772,20 @@ def text_to_ebantdoc(txt_fname: str,
         # currently, don't want to indicate it's index error to user.  Too detailed.
         # For developers, we switched the double quote and quote in the message.
         unused_error_type, error_instance, traceback = sys.exc_info()
-        error_instance.filename = txt_fname
-        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % \
-                                      (txt_base_fname, doc_lang)
-        error_instance.__traceback__ = traceback
-        raise error_instance
-    except Exception:  # pylint: disable=broad-except
+        error_instance.filename = txt_fname  # type: ignore
+        # pylint: disable=line-too-long
+        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.__traceback__ = traceback  # type: ignore
+        raise error_instance  # type: ignore
+
+    # pylint: disable=broad-except
+    except Exception:
         unused_error_type, error_instance, traceback = sys.exc_info()
-        error_instance.filename = txt_fname
-        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % \
-                                      (txt_base_fname, doc_lang)
-        error_instance.__traceback__ = traceback
-        raise error_instance
+        error_instance.filename = txt_fname  # type: ignore
+        # pylint: disable=line-too-long
+        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.__traceback__ = traceback  # type: ignore
+        raise error_instance  # type: ignore
 
 
 def doclist_to_ebantdoc_list_linear(doclist_file: str,
@@ -987,6 +998,7 @@ def prov_ants_cpoint_to_cunit(prov_ants_map, cpoint_to_cunit_mapper):
                 ant_json['span_list']
             except KeyError:
                 ant_json['span_list'] = [{'start': ant_json['start'], 'end': ant_json['end']}]
+
             for span_json in ant_json['span_list']:
                 span_json['cpoint_start'], span_json['cpoint_end'] = span_json['start'], span_json['end']
                 span_json['start'], span_json['end'] = \

@@ -37,6 +37,7 @@ def main():
 
     # abbydoc.print_text()
     pdf_txt_doc = pdftxtparser.parse_document(txt_fname, work_dir=work_dir)
+    doc_text = pdf_txt_doc.doc_text
 
     abbypbox_syncher.sync_doc_offsets(abby_xml_doc, pdf_txt_doc)
 
@@ -67,6 +68,21 @@ def main():
         html_st = tableutils.to_html_tables(abby_xml_doc)
         print(html_st, file=fout)
     print('wrote {}'.format(table_html_out_fn))
+
+
+    table_list = tableutils.get_abby_table_list(abby_xml_doc)
+    for table_seq, table_block in enumerate(table_list):
+        print("\ntable #{}".format(table_seq))
+        start, end = tableutils.get_pbox_text_offset(table_block)
+        print("table se = ({}, {})\n".format(start, end))
+        # # print("  text: [{}]".format(doc_text[start:end]))
+
+        se_list = tableutils.get_pbox_text_span_list(table_block, doc_text)
+
+        for str_i, (start, end) in enumerate(se_list):
+            print("  span #{}: ({}, {}) [{}]".format(str_i,
+                                                     start, end,
+                                                     doc_text[start:end]))
 
 
 if __name__ == '__main__':

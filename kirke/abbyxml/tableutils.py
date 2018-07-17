@@ -1,7 +1,9 @@
 from collections import defaultdict
+import re
+import sys
 
 # pylint: disable=unused-import
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from kirke.abbyxml.pdfoffsets import AbbyBlock, AbbyTextBlock, AbbyTableBlock, AbbyXmlDoc
 # pylint: disable=unused-import
@@ -128,6 +130,87 @@ def to_html_tables(abby_doc: AbbyXmlDoc) -> str:
     st_list.append('</html>')
 
     return '\n'.join(st_list)
+
+def get_abby_table_list(abby_doc: AbbyXmlDoc,
+                        is_include_header_footer: bool = False) \
+    -> List[AbbyTableBlock]:
+    out_table_list = []  # type: List[AbbyTableBlock]
+    for ab_page in abby_doc.ab_pages:
+        if is_include_header_footer:
+            page_table_list = ab_page.ab_table_blocks
+        else:
+            page_table_list = filter_out_header_footer_tables(ab_page.ab_table_blocks)
+        out_table_list.extend(page_table_list)
+    return out_table_list
+
+
+def get_pbox_text_offset(ab_table: AbbyTableBlock) \
+    -> Tuple[int, int]:
+    min_start = sys.maxsize
+    max_end = -1
+    # pylint: disable=too-many-nested-blocks
+    for ab_row in ab_table.ab_rows:
+        for ab_cell in ab_row.ab_cells:
+            for ab_par in ab_cell.ab_pars:
+                for ab_line in ab_par.ab_lines:
+                    to_se_list = ab_line.abby_pbox_offset_mapper.to_se_list
+                    for start, end in to_se_list:
+                        if start < min_start:
+                            min_start = start
+                        if end > max_end:
+                            max_end = end
+    return min_start, max_end
+
+
+
+SYNC_SPECIAL_CHARS_PAT = re.compile(r'[ _\-\.\s]')
+
+def merge_adjacent_spans(se_list: List[Tuple[int, int]],
+                         text: str) \
+                         -> List[Tuple[int, int]]:
+    out_span_list = []  # type: List[Tuple[int, int]]
+    se_list = sorted(se_list)
+    cur_start, cur_end = se_list[0]
+    for start, end in se_list[1:]:
+        if start > cur_end:
+            between_text = re.sub(SYNC_SPECIAL_CHARS_PAT, ' ', text[cur_end:start]).strip()
+            if not between_text:
+                cur_end = end
+            else:
+                out_span_list.append((cur_start, cur_end))
+                cur_start, cur_end = start, end
+        else:
+            out_span_list.append((cur_start, cur_end))
+            cur_start, cur_end = start, end
+    out_span_list.append((cur_start, cur_end))
+
+    return out_span_list
+
+
+IS_DEBUG_OUTPUT_SPANS = False
+
+def get_pbox_text_span_list(ab_table: AbbyTableBlock,
+                            text: str) \
+    -> List[Tuple[int, int]]:
+
+    out_se_list = []  # type: List[Tuple[int, int]]
+    # pylint: disable=too-many-nested-blocks
+    for ab_row in ab_table.ab_rows:
+        for ab_cell in ab_row.ab_cells:
+            for ab_par in ab_cell.ab_pars:
+                for ab_line in ab_par.ab_lines:
+                    to_se_list = ab_line.abby_pbox_offset_mapper.to_se_list
+                    out_se_list.extend(to_se_list)
+
+    merged_out_se_list = merge_adjacent_spans(out_se_list, text)
+
+    if IS_DEBUG_OUTPUT_SPANS:
+        for str_i, (start, end) in enumerate(out_se_list):
+            print("  str_i #{}: ({}, {}) [{}]".format(str_i,
+                                                      start, end,
+                                                      text[start:end]))
+
+    return merged_out_se_list
 
 
 # not used
@@ -271,7 +354,7 @@ def get_row_seq_by_top(row_top_list: List[float], row_top: float) -> int:
     return len(row_top_list) - 1
 
 
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals, too-many-branches
 def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock],
                          justified_row_blocks: List[AbbyTextBlock]) \
                          -> AbbyTableBlock:
@@ -317,8 +400,6 @@ def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock],
 
     tab_xy_cell = defaultdict(list)  # type: Dict[Tuple[int, int], List[AbbyLine]]
     for col_seq, tblock in enumerate(haligned_blocks):
-        line_list = []  # type: List[AbbyLine]
-
         # par is so unreliable
         """
         for unused_par_id, ab_par in enumerate(tblock.ab_pars):
@@ -337,10 +418,8 @@ def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock],
     for row_seq in range(len(row_top_list)):
         cell_list = []  # type: List[AbbyCell]
         for col_seq in range(len(haligned_blocks)):
-
-            line_list = tab_xy_cell.get((row_seq, col_seq), [])
-
-            apar = AbbyPar(line_list, {})
+            apar = AbbyPar(tab_xy_cell.get((row_seq, col_seq), []),
+                           {})
             cell_list.append(AbbyCell([apar], {}))
         row_list.append(AbbyRow(cell_list, {}))
 
@@ -352,13 +431,14 @@ def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock],
     attr_dict['type'] = 'table-haligned'
     # we can combine block1+2's attr_dict
 
+    infer_attr_dict = {}  # type: Dict[str, Any]
     # Add the justified rows, each block is a row
     for tblock in justified_row_blocks:
         line_list = []  # type: List[AbbyLine]
         for unused_par_id, ab_par in enumerate(tblock.ab_pars):
             line_list.extend(ab_par.ab_lines)
         apar = AbbyPar(line_list, {})
-        cell_list = []  # type: List(AbbyCell)
+        cell_list = []
         cell_list.append(AbbyCell([apar], {}))
 
         if tblock.infer_attr_dict.get('header'):
@@ -369,6 +449,7 @@ def merge_aligned_blocks(haligned_blocks: List[AbbyTextBlock],
         row_list.append(AbbyRow(cell_list, {}))
 
     table_block = AbbyTableBlock(row_list, attr_dict)
+    table_block.infer_attr_dict = infer_attr_dict
 
     if IS_DEBUG_TABLE:
         abbyutils.infer_ab_block_is_header_footer(table_block)
@@ -420,7 +501,7 @@ def merge_aligned_blocks_old(haligned_blocks: List[AbbyTextBlock]) \
 def is_all_pars_align_justified(ab_pars: List[AbbyPar]) -> bool:
     if not ab_pars:
         return False
-    is_all_justified = True
+
     for ab_par in ab_pars:
         if ab_par.attr_dict.get('@align', 'None') != 'Justified':
             return False
@@ -435,7 +516,7 @@ def collect_justified_lines_after(ab_blocks: List[AbbyBlock],
         return []
 
     result = []  # type: List[AbbyTextBlock]
-    cur_ab_block = ab_blocks[page_block_seq]
+    # cur_ab_block = ab_blocks[page_block_seq]
     for ab_block in ab_blocks[page_block_seq + 1:]:
         if not isinstance(ab_block, AbbyTextBlock):
             return result

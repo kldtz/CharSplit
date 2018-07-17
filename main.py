@@ -359,6 +359,7 @@ def main():
     args = parser.parse_args()
     cmd = args.cmd
     provision = args.provision
+    provisions = args.provisions
     txt_fn_list_fn = args.docs
     work_dir = args.work_dir
     model_dir = args.model_dir
@@ -422,7 +423,15 @@ def main():
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         print("\nannotate_document() result:")
-        prov_ants_map = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        provs = set([])
+        if args.provisions:
+            provs = set(args.provisions.split(','))
+        prov_ants_map = annotate_document(args.doc,
+                                          work_dir,
+                                          model_dir,
+                                          custom_model_dir,
+                                          provision_set=provs,
+                                          is_doc_structure=True)
         pprint.pprint(dict(prov_ants_map))
     elif cmd == 'print_doc_parties':
         if not args.doc:

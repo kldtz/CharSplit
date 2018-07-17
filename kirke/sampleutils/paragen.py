@@ -2,7 +2,7 @@ import logging
 import re
 from typing import Dict, List, Pattern, Tuple
 from operator import itemgetter
-from kirke.utils import ebantdoc4, ebsentutils, strutils
+from kirke.utils import ebantdoc5, ebsentutils, strutils
 
 # pylint: disable=too-few-public-methods
 class ParagraphGenerator:
@@ -13,20 +13,21 @@ class ParagraphGenerator:
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                             label: str = None)  -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                               List[Dict],
-                                                               List[bool],
-                                                               List[int]]]:
+                             antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                             label: str) \
+                             -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
+                                           List[Dict],
+                                           List[bool],
+                                           List[int]]]:
 
         # pylint: disable=line-too-long
-        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+        result = []  # type: List[Tuple[ebantdoc5.EbAnnotatedDoc, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):
             candidates = []  # type: List[Dict]
             label_list = []   # type: List[bool]
             group_id_list = []  # type: List[int]
 
-            #creates list of ants for a specific provision
+            # creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
             label_ant_list = []
             for ant in ant_list:
@@ -35,9 +36,9 @@ class ParagraphGenerator:
             nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logging.info('ContextGenerator.documents_to_candidates(), group_id = %d',
+                logging.info('ParagraphGenerator.documents_to_candidates(), group_id = %d',
                              group_id)
-            #finds all matches in the text and adds window around each as a candidate
+            # finds all matches in the text and adds window around each as a candidate
             i = 0
             sorted_paras = sorted(antdoc.para_indices, key=lambda x: x[0][0].start)
             while i < len(antdoc.para_indices):

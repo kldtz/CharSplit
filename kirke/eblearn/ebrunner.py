@@ -386,9 +386,9 @@ class EbRunner:
         self.update_custom_models(provision_set, doc_lang)
 
         eb_antdoc = ebantdoc5.text_to_ebantdoc(file_name,
-                                                work_dir=work_dir,
-                                                is_doc_structure=is_doc_structure,
-                                                doc_lang=doc_lang)
+                                               work_dir=work_dir,
+                                               is_doc_structure=is_doc_structure,
+                                               doc_lang=doc_lang)
 
         # if the file contains too few words, don't bother
         # otherwise, might cause classifier error if only have 1 error because of minmax
