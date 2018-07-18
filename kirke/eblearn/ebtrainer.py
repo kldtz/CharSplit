@@ -650,26 +650,27 @@ def train_eval_span_annotator(provision: str,
         prov_annotator2.save(model_file_name)
 
         return prov_annotator2, combined_log_json
-    else:
-        train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
-        test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
-        # loads existing doclists
-        X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
-                                                        work_dir,
-                                                        is_bespoke_mode=is_bespoke_mode,
-                                                        is_doc_structure=is_doc_structure,
-                                                        is_use_corenlp=span_annotator.get_is_use_corenlp())
-        X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
-                                                       work_dir,
-                                                       is_bespoke_mode=is_bespoke_mode,
-                                                       is_doc_structure=is_doc_structure,
-                                                       is_use_corenlp=span_annotator.get_is_use_corenlp())
-        # candidate generation on training set
-        train_antdoc_candidatex_list = \
-            span_annotator.documents_to_candidates(X_train, provision)
-        # candidate generation on test set
-        test_antdoc_candidatex_list = \
-            span_annotator.documents_to_candidates(X_test, provision)
+
+    # this is NOT bespoke
+    train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
+    test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
+    # loads existing doclists
+    X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
+                                                    work_dir,
+                                                    is_bespoke_mode=is_bespoke_mode,
+                                                    is_doc_structure=is_doc_structure,
+                                                    is_use_corenlp=span_annotator.get_is_use_corenlp())
+    X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
+                                                   work_dir,
+                                                   is_bespoke_mode=is_bespoke_mode,
+                                                   is_doc_structure=is_doc_structure,
+                                                   is_use_corenlp=span_annotator.get_is_use_corenlp())
+    # candidate generation on training set
+    train_antdoc_candidatex_list = \
+        span_annotator.documents_to_candidates(X_train, provision)
+    # candidate generation on test set
+    test_antdoc_candidatex_list = \
+        span_annotator.documents_to_candidates(X_test, provision)
 
     train_candidates, train_label_list, train_group_ids = \
         spanannotator.antdoc_candidatex_list_to_candidatex(train_antdoc_candidatex_list)

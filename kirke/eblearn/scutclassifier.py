@@ -147,8 +147,15 @@ class ShortcutClassifier(EbClassifier):
 
         #grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=2,
         #                           scoring='roc_auc', verbose=1, cv=group_kfold)
-        grid_search = GridSearchCV(sgd_clf, parameters, n_jobs=-1,
-                                   scoring='f1', verbose=1, cv=group_kfold)
+        # only 2 Gridsearch processes run at once, to reduce memory.
+        # Can be between 300 Mb to 600 Mb, depending on the training size
+        grid_search = GridSearchCV(sgd_clf,
+                                   parameters,
+                                   n_jobs=2,
+                                   pre_dispatch=2,
+                                   scoring='f1',
+                                   verbose=1,
+                                   cv=group_kfold)
 
         print("Performing grid search...")
         print("parameters:")
