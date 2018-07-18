@@ -9,6 +9,7 @@ from scipy import sparse
 from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction import DictVectorizer
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -222,6 +223,7 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
                                                      token_pattern=r'(?u)[^\s]+',
                                                      ngram_range=(1, 2))
         self.min_max_scaler = preprocessing.MinMaxScaler()
+        self.cat_vectorizer = DictVectorizer()
         self.start = datetime.now()
 
     # span_candidate_list should be a list of dictionaries
@@ -234,11 +236,18 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         generic_chars_list = []
         all_first_chars = []
         numeric_matrix = np.zeros(shape=(len(span_candidate_list), 29))
+        cat_dict_list = []
         for i, span_candidate in enumerate(span_candidate_list):
+            cat_dict = {}
             chars = span_candidate.get('chars', '')
             all_cands.append(chars)
-            all_first_chars.append("{} {}".format('FIRST-'+chars[0], 'SECOND-'+chars[1]))
+            if len(chars) > 1:
+                all_first_chars.append("{} {}".format('FIRST-'+chars[0], 'SECOND-'+chars[1]))
+            else:
+                all_first_chars.append('FIRST-'+chars[0])
             chars_list = list(chars)
+            cat_dict[span_candidate['candidate_type']] = 1
+            cat_dict_list.append(cat_dict)
             # total length
             numeric_matrix[i, 0] = len(chars_list)
             # number of alpha character
@@ -285,13 +294,15 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
             self.generic_char_vectorizer.fit(generic_chars_list) # generic ngram vectorizer
             self.first_char_vectorizer.fit(all_first_chars) # vectorizer of first character
             numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
+            self.cat_vectorizer.fit_transform(cat_dict_list)
             return self
 
         chars_out = self.char_vectorizer.transform(all_cands)
         generic_out = self.generic_char_vectorizer.transform(generic_chars_list)
         first_char_out = self.first_char_vectorizer.transform(all_first_chars)
         numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
-        X_out = sparse.hstack((chars_out, numeric_matrix, generic_out, first_char_out))
+        cat_out = self.cat_vectorizer.transform(cat_dict_list)
+        X_out = sparse.hstack((chars_out, numeric_matrix, generic_out, first_char_out, cat_out))
         return X_out
 
 
@@ -305,7 +316,7 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         SurroundWordTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                     self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
+                     self.name, CharacterTransformer.fit_count, len(span_candidate_list),
                      (end_time - start_time) * 1000)
         return self
 
@@ -318,6 +329,6 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         end_time = time.time()
         SurroundWordTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                     self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
+                     self.name, CharacterTransformer.transform_count, len(span_candidate_list),
                      (end_time - start_time) * 1000)
         return X_out

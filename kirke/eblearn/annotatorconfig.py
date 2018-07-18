@@ -83,10 +83,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                          'pipeline': Pipeline([
                              ('union', FeatureUnion(
-                                 transformer_list=[
-                                     # pylint: disable=line-too-long
-                                     ('surround_transformer', transformerutils.SimpleTextTransformer())
-                                 ])),
+                                 transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
+                                                  ])),
                              ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                    shuffle=True, random_state=42,
                                                    class_weight={True: 3, False: 1}))]),
@@ -105,7 +103,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                        'pipeline': Pipeline([('union', FeatureUnion(
                            # pylint: disable=line-too-long
-                           transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
+                           transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
+                                            ])),
                                              ('clf', SGDClassifier(loss='log',
                                                                    penalty='l2',
                                                                    n_iter=50,
@@ -129,7 +128,8 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([('union', FeatureUnion(
                             # pylint: disable=line-too-long
-                            transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer())])),
+                            transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
+                                             ])),
                                               ('clf', SGDClassifier(loss='log',
                                                                     penalty='l2',
                                                                     n_iter=50,
@@ -255,10 +255,9 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
                     'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                     'pipeline': Pipeline([
                         ('union', FeatureUnion(
-                            transformer_list=[
-                                # pylint: disable=line-too-long
-                                ('surround_transformer', transformerutils.SimpleTextTransformer())
-                            ])),
+                            transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
+                                              ('char_transformer', transformerutils.CharacterTransformer())
+                                             ])),
                         ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                               shuffle=True, random_state=42,
                                               class_weight={True: 3, False: 1}))]),
