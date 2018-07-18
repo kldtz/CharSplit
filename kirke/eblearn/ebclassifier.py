@@ -33,12 +33,12 @@ class EbClassifier(ABC):
 
     # this returns an estimator + list of scores for the training docs,
     # (estimator, List[float])
-    def train(self, txt_fn_list, work_dir, model_file_name):
+    def train(self, txt_fn_list, work_dir, model_file_name) -> None:
         ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
-        return self.train_antdoc_list(ebantdoc_list, work_dir, model_file_name)
+        self.train_antdoc_list(ebantdoc_list, work_dir, model_file_name)
 
     @abstractmethod
-    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name):
+    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name) -> None:
         pass
 
     @abstractmethod
