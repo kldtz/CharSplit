@@ -69,6 +69,8 @@ CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
 WORK_DIR = KIRKE_TMP_DIR + '/dir-work'
 MODEL_DIR = EB_MODELS
 CUSTOM_MODEL_DIR = EB_FILES + 'pymodel'
+logger.info('custom_model_dir is [%s]', CUSTOM_MODEL_DIR)
+
 osutils.mkpath(WORK_DIR)
 osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
