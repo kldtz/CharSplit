@@ -618,7 +618,7 @@ class EbRunner:
                                                eb_classifier,
                                                is_doc_structure=True,
                                                # pylint: disable=line-too-long
-                                               custom_training_mode=True)  # type: Tuple[Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator], Dict[str, Any]]
+                                               is_bespoke_mode=True)  # type: Tuple[Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator], Dict[str, Any]]
 
         else:
             # It is know that 'eb_annotator' is SpanAnnotator, mypy.
