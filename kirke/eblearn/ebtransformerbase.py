@@ -30,7 +30,6 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
         
 
     def fit(self, attrvec_list, label_list=None):
-        EbTransformerBase.fit_count += 1
         self.num_pos_instances = 0
         for label in label_list:
             if label:
@@ -53,7 +52,7 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
                      EbTransformerBase.fit_count,
                      len(attrvec_list),
                      (end_time - start_time) * 1000)
-        
+        EbTransformerBase.fit_count += 1
         return self
 
     
