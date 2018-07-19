@@ -153,12 +153,17 @@ def get_pbox_text_offset(ab_table: AbbyTableBlock) \
         for ab_cell in ab_row.ab_cells:
             for ab_par in ab_cell.ab_pars:
                 for ab_line in ab_par.ab_lines:
-                    to_se_list = ab_line.abby_pbox_offset_mapper.to_se_list
-                    for start, end in to_se_list:
-                        if start < min_start:
-                            min_start = start
-                        if end > max_end:
-                            max_end = end
+                    # do this only if abby_pbox_offset_mapper is defined
+                    if ab_line.abby_pbox_offset_mapper:
+                        to_se_list = ab_line.abby_pbox_offset_mapper.to_se_list
+                        for start, end in to_se_list:
+                            if start < min_start:
+                                min_start = start
+                            if end > max_end:
+                                max_end = end
+                    else:
+                        print("get_pbox_text_offset(), abbline not found: {}".format(ab_line))
+
     return min_start, max_end
 
 
@@ -199,8 +204,11 @@ def get_pbox_text_span_list(ab_table: AbbyTableBlock,
         for ab_cell in ab_row.ab_cells:
             for ab_par in ab_cell.ab_pars:
                 for ab_line in ab_par.ab_lines:
-                    to_se_list = ab_line.abby_pbox_offset_mapper.to_se_list
-                    out_se_list.extend(to_se_list)
+                    if ab_line.abby_pbox_offset_mapper:
+                        to_se_list = ab_line.abby_pbox_offset_mapper.to_se_list
+                        out_se_list.extend(to_se_list)
+                    else:
+                        print("get_pbox_text_span_list(), abbline not found: {}".format(ab_line))
 
     merged_out_se_list = merge_adjacent_spans(out_se_list, text)
 

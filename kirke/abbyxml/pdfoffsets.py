@@ -21,6 +21,9 @@ class AbbyLine:
         # Replacing both here.
         # self.text = text
         # for special hypen char
+        if re.search('№', text):
+            text = re.sub('№', 'No', text)
+
         if re.search('[­¬]', text):
             self.text = re.sub('[­¬]', '-', text)
         else:

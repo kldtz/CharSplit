@@ -1,5 +1,12 @@
 
-# for now, focus on get the row split correct
+# this should output table annotation, but is NOT
+run_upload_annotate_table.sh mytest/8237.txt > kkk
+
+but
+run_annotate_file.sh mytest/8237.txt > kkk
+has the table annotation.  What's the difference?
+
+
 # inside a table
 print_tables.py mytest/8237.txt
 

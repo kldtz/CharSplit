@@ -525,6 +525,7 @@ def update_special_block_info(eb_antdoc, pdf_txt_doc):
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def pdf_to_ebantdoc(txt_file_name: str,
                     offsets_file_name: str,
+                    pdfxml_file_name: str,
                     work_dir: str,
                     is_cache_enabled: bool = True,
                     doc_lang: str = 'en',
@@ -534,6 +535,9 @@ def pdf_to_ebantdoc(txt_file_name: str,
     start_time0 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
     offsets_base_fname = os.path.basename(offsets_file_name)
+    pdfxml_base_fname = ''
+    if os.path.exists(pdfxml_file_name):
+        pdfxml_base_fname = os.path.basename(pdfxml_file_name)
 
     # PDF files are mostly used by our users, not for training and test.
     # Chopping text at exhibit_complete messes up all the offsets info from offsets.json.
@@ -550,6 +554,8 @@ def pdf_to_ebantdoc(txt_file_name: str,
     if txt_file_name != '{}/{}'.format(work_dir, txt_base_fname):
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
+        if pdfxml_base_fname:
+            shutil.copy2(pdfxml_file_name, '{}/{}'.format(work_dir, pdfxml_base_fname))
 
     doc_text, unused_nl_text, linebreak_arr, \
         unused_paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
@@ -743,6 +749,7 @@ def text_to_ebantdoc(txt_fname: str,
 
 
         pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
+        pdf_xml_filename = txt_fname.replace('.txt', '.pdf.xml')
 
         # if no doc_structure, simply do the simplest
         if not is_doc_structure:
@@ -752,7 +759,8 @@ def text_to_ebantdoc(txt_fname: str,
                                                       is_use_corenlp=is_use_corenlp)
         elif os.path.exists(pdf_offsets_filename):
             eb_antdoc = pdf_to_ebantdoc(txt_fname,
-                                        pdf_offsets_filename,
+                                        offsets_file_name=pdf_offsets_filename,
+                                        pdfxml_file_name=pdf_xml_filename,
                                         work_dir=work_dir,
                                         is_cache_enabled=is_cache_enabled,
                                         doc_lang=doc_lang,

@@ -366,6 +366,7 @@ class EbRunner:
                           -> Tuple[Dict[str, List],
                                    ebantdoc5.EbAnnotatedDoc]:
         time1 = time.time()
+        logger.info('user specified provision list: %s', provision_set)
         if not provision_set:
             # no provision specified.  Must be doing testing.
             provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
@@ -373,9 +374,6 @@ class EbRunner:
             # also get ALL custom provision set, since we are doing testing
             logger.info("custom_model_dir: %s", self.custom_model_dir)
             logger.info("provision_set: %r", provision_set)
-
-        #else:
-        #    logger.info('user specified provision list: %s', provision_set)
 
         if not work_dir:
             work_dir = self.work_dir

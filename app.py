@@ -121,7 +121,8 @@ def annotate_uploaded_document():
             print("saving file '{}'".format(fn))
             fstorage.save(fn)
 
-            if fn.endswith('.offsets.json'):
+            if fn.endswith('.offsets.json') or \
+               fn.endswith('.pdf.xml'):
                 # pdf_offsets_file_name = fn
                 pass
             elif fn.endswith('.txt'):
@@ -338,7 +339,8 @@ def custom_train(cust_id: str):
 
         fname_provtypes_map = {}
         txt_fnames = []
-        txt_offsets_fn_map = {}
+        # txt_offsets_fn_map = {}
+        # txt_pdfxml_fn_map = {}
         for name in [fstorage.filename for fstorage in fn_list]:
             file_id = name.split('.')[0]
             full_path = '{}/{}'.format(tmp_dir, name)
@@ -354,13 +356,16 @@ def custom_train(cust_id: str):
                     # if we don't know what language it is, skip such document
                     continue
                 full_txt_fnames[doc_lang].append(file_id)
-            elif name.endswith('.offsets.json'):
+            elif name.endswith('.offsets.json') or \
+                 name.endswith('.pdf.xml'):
+                pass
                 # create txt -> offsets.json map in order to do sent4nlp processing
-                tmp_txt_fn = name.replace(".offsets.json", ".txt")
-                txt_offsets_fn_map[tmp_txt_fn] = name
+                # tmp_txt_fn = name.replace(".offsets.json", ".txt")
+                # txt_offsets_fn_map[tmp_txt_fn] = name
+                # tmp_txt_fn = name.replace(".pdf.xml", ".txt")
+                # txt_pdfxml_fn_map[tmp_txt_fn] = name
             else:
                 logger.warning('unknown file extension in custom_train(%s)', fn)
-
 
         next_model_num = osutils.increment_model_version(model_dir=CUSTOM_MODEL_DIR)
         # print("next model number: {}".format(next_model_num))
