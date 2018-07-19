@@ -31,7 +31,7 @@ DEFAULT_CV = 3
 MIN_FULL_TRAINING_SIZE = 100
 
 # training using cross validation of 600 docs took around 38 minutes
-MAX_DOCS_FOR_TRAIN_CROSS_VALIDATION = 600
+# MAX_DOCS_FOR_TRAIN_CROSS_VALIDATION = 600
 
 # Take all the data for training.
 # Unless you know what you are doing, don't use this function, use
@@ -95,7 +95,6 @@ def cv_train_at_annotation_level(provision,
     # we do 3-fold cross validation, as the big set for custom training
     # test_size = 0.33
     # this will be looped mutliple times, so a list, not a generator
-    # x_antdoc_list = list(ebantdoc4.traindoc_list_to_antdoc_list(x_traindoc_list, work_dir))
 
     ordered_list = []
     for x_antdoc, label in zip(x_antdoc_list, bool_list):
@@ -401,7 +400,8 @@ def train_eval_annotator(provision: str,
     # runs when custom training mode positive training instances are too few
     # only train, no independent testing
     # corss validation is applied to all Bespoke training
-    if custom_training_mode and num_docs < MAX_DOCS_FOR_TRAIN_CROSS_VALIDATION:
+    # Always do cross validation to keep N constant as what people expect.
+    if custom_training_mode:
         # pylint: disable=line-too-long
         logger.info("training using cross validation with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
                      len(attrvec_list), num_pos_label, num_neg_label)
@@ -612,6 +612,12 @@ def train_eval_span_annotator(provision: str,
                                                                is_bespoke_mode=is_bespoke_mode,
                                                                is_doc_structure=is_doc_structure,
                                                                is_use_corenlp=span_annotator.get_is_use_corenlp())
+
+        # sort eb_antdoc_list to ensure it is stable even if input file order is changed.
+        ordered_list = [(x_antdoc.file_id, x_antdoc) for x_antdoc in eb_antdoc_list]
+        ordered_list = sorted(ordered_list)
+        eb_antdoc_list = [x_antdoc for x_fn, x_antdoc in ordered_list]
+
         num_docs = len(eb_antdoc_list)
 
         #split training and test data, save doclists
@@ -625,77 +631,46 @@ def train_eval_span_annotator(provision: str,
             else:
                 num_neg_label += 1
 
-        if num_docs < MAX_DOCS_FOR_TRAIN_CROSS_VALIDATION:
-            # candidate generation on the whole training set
-            X_all_antdoc_candidatex_list = \
-                span_annotator.documents_to_candidates(X, provision)
-
-            # pylint: disable=line-too-long
-            logger.info("%s training using cross validation with %d candidates.  num_inst_pos= %d, num_inst_neg= %d",
-                         candidate_types, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
-
-            prov_annotator2, combined_log_json = \
-                cv_candg_train_at_annotation_level(provision,
-                                                   X_all_antdoc_candidatex_list,
-                                                   y,
-                                                   span_annotator,
-                                                   model_dir,
-                                                   work_dir)
-            prov_annotator2.print_eval_status(model_dir, model_num)
-            prov_annotator2.save(model_file_name)
-
-            return prov_annotator2, combined_log_json
+        # candidate generation on the whole training set
+        X_all_antdoc_candidatex_list = \
+            span_annotator.documents_to_candidates(X, provision)
 
         # pylint: disable=line-too-long
-        logger.info("%s training using train/test split with %d candidates.  num_inst-pos= %d, num_inst_neg= %d",
+        logger.info("%s training using cross validation with %d candidates.  num_inst_pos= %d, num_inst_neg= %d",
                      candidate_types, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
 
-        # normal bespoke training
-        train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir,
-                                                               provision,
-                                                               "-".join(candidate_types))
-        test_doclist_fn = "{}/{}_{}_test_doclist.txt".format(model_dir,
-                                                             provision,
-                                                             "-".join(candidate_types))
+        prov_annotator2, combined_log_json = \
+            cv_candg_train_at_annotation_level(provision,
+                                               X_all_antdoc_candidatex_list,
+                                               y,
+                                               span_annotator,
+                                               model_dir,
+                                               work_dir)
+        prov_annotator2.print_eval_status(model_dir, model_num)
+        prov_annotator2.save(model_file_name)
 
-        # use 1/4 of the data for testing
-        X_train, X_test, unused_y_train, unused_y_test = \
-            train_test_split(X,
-                             y,
-                             test_size=0.25,
-                             random_state=42,
-                             stratify=y)
+        return prov_annotator2, combined_log_json
 
-        splittrte.save_antdoc_fn_list(X_train, train_doclist_fn)
-        splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
-
-        # candidate generation on training set
-        train_antdoc_candidatex_list = \
-            span_annotator.documents_to_candidates(X_train, provision)
-
-        # candidate generation on test set
-        test_antdoc_candidatex_list = \
-            span_annotator.documents_to_candidates(X_test, provision)
-    else:
-        train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
-        test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
-        # loads existing doclists
-        X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
-                                                        work_dir,
-                                                        is_bespoke_mode=is_bespoke_mode,
-                                                        is_doc_structure=is_doc_structure,
-                                                        is_use_corenlp=span_annotator.get_is_use_corenlp())
-        X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
-                                                       work_dir,
-                                                       is_bespoke_mode=is_bespoke_mode,
-                                                       is_doc_structure=is_doc_structure,
-                                                       is_use_corenlp=span_annotator.get_is_use_corenlp())
-        # candidate generation on training set
-        train_antdoc_candidatex_list = \
-            span_annotator.documents_to_candidates(X_train, provision)
-        # candidate generation on test set
-        test_antdoc_candidatex_list = \
-            span_annotator.documents_to_candidates(X_test, provision)
+    # this is NOT bespoke
+    train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
+    test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
+    # loads existing doclists
+    X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
+                                                    work_dir,
+                                                    is_bespoke_mode=is_bespoke_mode,
+                                                    is_doc_structure=is_doc_structure,
+                                                    is_use_corenlp=span_annotator.get_is_use_corenlp())
+    X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
+                                                   work_dir,
+                                                   is_bespoke_mode=is_bespoke_mode,
+                                                   is_doc_structure=is_doc_structure,
+                                                   is_use_corenlp=span_annotator.get_is_use_corenlp())
+    # candidate generation on training set
+    train_antdoc_candidatex_list = \
+        span_annotator.documents_to_candidates(X_train, provision)
+    # candidate generation on test set
+    test_antdoc_candidatex_list = \
+        span_annotator.documents_to_candidates(X_test, provision)
 
     train_candidates, train_label_list, train_group_ids = \
         spanannotator.antdoc_candidatex_list_to_candidatex(train_antdoc_candidatex_list)

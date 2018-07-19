@@ -11,6 +11,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import langdetect
 from langdetect.lang_detect_exception import LangDetectException
+from langdetect import DetectorFactory
 import psutil
 
 from sklearn.externals import joblib
@@ -37,6 +38,9 @@ DOCCAT_MODEL_FILE_NAME = 'ebrevia_docclassifier.v1.pkl'
 
 EBRUN_PROCESS = psutil.Process(os.getpid())
 MAX_CUSTOM_MODEL_CACHE_SIZE = 100
+
+# to ensure that langdetect is stable
+DetectorFactory.seed = 0
 
 
 def annotate_provision(eb_annotator,
