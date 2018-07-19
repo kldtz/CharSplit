@@ -68,6 +68,10 @@ class TestAntDocCat(unittest.TestCase):
             for docid in range(8285, 8301):
                 pred_ajson = docid_pred_ajson_map[docid]
                 valid_ajson = docid_pred_ajson_map[docid]
+
+                txt_doc_fn = 'demo-txt/{}.txt'.format(docid)
+
+                print("checking provision '{}' in {}".format(provision, txt_doc_fn))
                 
                 pred_prov_list = antdocutils.get_ant_out_json_prov_list(pred_ajson,
                                                                         provision)
