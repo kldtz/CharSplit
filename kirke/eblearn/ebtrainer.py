@@ -19,6 +19,8 @@ from kirke.utils import  ebantdoc4, evalutils, splittrte, strutils, txtreader
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+IS_DEBUG_DOC_ORDER = False
+
 
 DEFAULT_CV = 3
 
@@ -109,6 +111,9 @@ def cv_train_at_annotation_level(provision,
             pos_list.append((x_antdoc, label))
         else:
             neg_list.append((x_antdoc, label))
+    if IS_DEBUG_DOC_ORDER:
+        print('len(pos_list) = {}, len(neg_list) = {}'.format(len(pos_list),
+                                                              len(neg_list)))
     pos_list.extend(neg_list)
     # this is a list of ebantdoc
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List]
@@ -132,6 +137,12 @@ def cv_train_at_annotation_level(provision,
                 train_buckets.extend(bucket_x)
             else:  # bnum == bucket_num
                 test_bucket = bucket_x
+
+        if IS_DEBUG_DOC_ORDER:
+            for tr_num, tr_doc in enumerate(train_buckets):
+                print("bucknum={}, tr_num={}, fn={}".format(bucket_num, tr_num, tr_doc.file_id))
+            for te_num, te_doc in enumerate(test_bucket):
+                print("bucknum={}, test_num={}, fn={}".format(bucket_num, te_num, te_doc.file_id))
 
         cv_eb_classifier = eb_classifier_orig.make_bare_copy()
         timestr = time.strftime("%Y%m%d-%H%M%S")
