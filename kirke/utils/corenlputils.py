@@ -77,6 +77,11 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
     return json.loads(output)
 
 
+def check_pipeline_lang(doc_lang: str, filename: str) -> str:
+    with open(filename, 'r') as doc:
+        doc_text = doc.read()
+        return annotate(doc_text, doc_lang)
+
 def annotate_for_enhanced_ner(text_as_string: str, doc_lang: str = 'en'):
     acopy_text = transform_corp_in_text(text_as_string)
 
