@@ -20,7 +20,8 @@ CUSTOM_MODEL_DIR = 'dir-custom-model'
 
 class TestLangs(unittest.TestCase):
     def test_langs(self):
-        
+
+        # ------- PORTUGUESE -------
         pt_file = 'dir-test-doc/df6bbe33a74d9d968d37e88d98418dc0-967.txt'
         #check corenlp
         corenlp_result = corenlputils.check_pipeline_lang('pt', pt_file) 
@@ -41,6 +42,8 @@ class TestLangs(unittest.TestCase):
         out_lang = json.loads(result_text)['lang']
         self.assertEqual(out_lang, 'pt')
         
+
+        # ------- FRENCH -------
         fr_file = 'dir-test-doc/07b078e73cf1fcb953a2206c16b186f0-960.txt'
 
         corenlp_result = corenlputils.check_pipeline_lang('fr', fr_file)
@@ -59,6 +62,8 @@ class TestLangs(unittest.TestCase):
         out_lang = json.loads(result_text)['lang']
         self.assertEqual(out_lang, 'fr')
 
+
+        # ------- CHINESE -------
         zh_file = 'dir-test-doc/d3fb1a4753b1fa03b2ed2dff61475006-935.txt'
 
         corenlp_result = corenlputils.check_pipeline_lang('zh', zh_file)
@@ -77,6 +82,8 @@ class TestLangs(unittest.TestCase):
         out_lang = json.loads(result_text)['lang']
         self.assertEqual(out_lang, 'zh-cn')
 
+
+        # ------- SPANISH -------
         es_file = 'dir-test-doc/2fd54ff76e2d48f364fdf42f6210d9c0-933.txt'
 
         corenlp_result = corenlputils.check_pipeline_lang('es', es_file)
@@ -94,9 +101,12 @@ class TestLangs(unittest.TestCase):
                                                      is_detect_lang=True)
         out_lang = json.loads(result_text)['lang']
         self.assertEqual(out_lang, 'es')
-        
+
+
         # de_file = 'dir-test-doc/7e5262689e831e875af142202f67faec-937.txt'
 
+
+        # ------- ENGLISH -------
         en_file = 'dir-test-doc/60543.txt'
 
         corenlp_result = corenlputils.check_pipeline_lang('en', en_file)

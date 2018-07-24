@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple
 
 from kirke.ebrules import dates
 from kirke.utils import ebantdoc4, ebsentutils, strutils
@@ -16,55 +16,31 @@ class DateSpanGenerator:
         self.num_post_words = num_post_words
         self.candidate_type = candidate_type
 
-    # pylint: disable=too-many-locals
-    def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                             label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                              List[Dict],
-                                                              List[bool],
-                                                              List[int]]]:
-        # pylint: disable=line-too-long
-        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
-        for group_id, antdoc in enumerate(antdoc_list):
+    def get_candidates_from_text(self,
+                                 nl_text: str,
+                                 group_id: int = 0,
+                                 label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
+                                 label_list_param: Optional[List[bool]] = None,
+                                 label: Optional[str] = None):
 
-            candidates = []  # type: List[Dict]
-            label_list = []   # type: List[bool]
-            group_id_list = []  # type: List[int]
+        label_ant_list, label_list = [], []  # type: List[ebsentutils.ProvisionAnnotation], List[bool]
+        if label_ant_list_param is not None:
+            label_ant_list = label_ant_list_param
+        if label_list_param is not None:
+            label_list = label_list_param
 
-            #creates list of ants for a specific provision
-            ant_list = antdoc.prov_annotation_list
-            label_ant_list = []
-            for ant in ant_list:
-                if ant.label == label:
-                    label_ant_list.append(ant)
-
-            #gets text based on document type
-            if antdoc.doc_format in set([ebantdoc4.EbDocFormat.html,
-                                         ebantdoc4.EbDocFormat.html_nodocstruct,
-                                         ebantdoc4.EbDocFormat.other]):
-                nl_text = antdoc.text
-            else:
-                nl_text = antdoc.get_nl_text()
-
-            if group_id % 10 == 0:
-                logger.debug('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
-
-
-            # Finds all matches in the text and adds window around each as a candidate
-            # We must parse line by line, otherwise, some regex capture too much.  That
-            # will cause major issue with date normalization.  The reason is probably
-            # because \s captures line break.
-            matches = []  # List[Tuple[int, int]]
-            offset = 0
-            for line in nl_text.split('\n'):
-                if line:
-                    tmp_matches = dates.extract_std_dates(line)
-                    for tmp_start, tmp_end in tmp_matches:
-                        matches.append((offset + tmp_start, offset + tmp_end))
-                offset += len(line) + 1
-            
-            doc_len = len(nl_text)
-            for mat_i, (match_start, match_end) in enumerate(matches):
+        candidates = [] # type: List[Dict]
+        group_id_list = [] # type: List[int]
+        matches = []  # List[Tuple[int, int]]
+        offset = 0
+        for line in nl_text.split('\n'):
+            if line:
+                tmp_matches = dates.extract_std_dates(line)
+                for tmp_start, tmp_end in tmp_matches:
+                    matches.append((offset + tmp_start, offset + tmp_end))
+            offset += len(line) + 1
+        doc_len = len(nl_text)
+        for mat_i, (match_start, match_end) in enumerate(matches):
                 match_str = nl_text[match_start:match_end]
                 is_label = ebsentutils.check_start_end_overlap(match_start,
                                                                match_end,
@@ -109,6 +85,7 @@ class DateSpanGenerator:
                             'text': new_bow,
                             'start': match_start,
                             'end': match_end,
+                            'chars': match_str,
                             'prev_n_words': ' '.join(prev_n_words_plus),
                             'post_n_words': ' '.join(post_n_words_plus),
                             'candidate_percent10': candidate_percentage10,
@@ -120,6 +97,44 @@ class DateSpanGenerator:
                     label_list.append(True)
                 else:
                     label_list.append(False)
+        return candidates, group_id_list, label_list
+
+    # pylint: disable=too-many-locals
+    def documents_to_candidates(self,
+                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                             label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                                              List[Dict],
+                                                              List[bool],
+                                                              List[int]]]:
+        # pylint: disable=line-too-long
+        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+        for group_id, antdoc in enumerate(antdoc_list):
+
+            label_list = []   # type: List[bool]
+
+            #creates list of ants for a specific provision
+            ant_list = antdoc.prov_annotation_list
+            label_ant_list = []
+            for ant in ant_list:
+                if ant.label == label:
+                    label_ant_list.append(ant)
+
+            #gets text based on document type
+            if antdoc.doc_format in set([ebantdoc4.EbDocFormat.html,
+                                         ebantdoc4.EbDocFormat.html_nodocstruct,
+                                         ebantdoc4.EbDocFormat.other]):
+                nl_text = antdoc.text
+            else:
+                nl_text = antdoc.get_nl_text()
+
+            if group_id % 10 == 0:
+                logger.debug('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
+
+            candidates, group_id_list, label_list = self.get_candidates_from_text(nl_text,
+                                                                                  group_id=group_id,
+                                                                                  label_ant_list_param=label_ant_list,
+                                                                                  label_list_param=label_list,
+                                                                                  label=label)
 
             result.append((antdoc, candidates, label_list, group_id_list))
         return result
