@@ -34,3 +34,5 @@ sync_abby_pbox.py andrea_txt/8255.txt
 parseabby.sh
 python3 -m kirke.abbyxml.abbyxmlparser mytest/8237.pdf.xml
 
+https://ocrsdk.com/documentation/specifications/xml-scheme-recognized-document/
+so pdfbox is in 72 dot per inch, abby is in 300 dot per inch
