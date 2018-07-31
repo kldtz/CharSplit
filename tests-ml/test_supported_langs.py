@@ -53,7 +53,7 @@ class TestLangs(unittest.TestCase):
         ner_string = " ".join([tok['ner'] for tok in sents[217]['tokens']])
         self.assertEqual(ner_string, 'O O O O O NUMBER O DATE O NUMBER O NUMBER O O')
         ner_string = " ".join([tok['ner'] for tok in sents[243]['tokens']])
-        self.assertEqual(ner_string, 'LOCATION LOCATION LOCATION LOCATION LOCATION LOCATION LOCATION LOCATION O ORGANIZATION ORGANIZATION NUMBER LOCATION')
+        self.assertEqual(ner_string, 'O LOCATION LOCATION LOCATION LOCATION LOCATION LOCATION LOCATION O ORGANIZATION ORGANIZATION NUMBER LOCATION')
          
         result_text = \
                 postfileutils.post_annotate_document(fr_file,
@@ -112,7 +112,7 @@ class TestLangs(unittest.TestCase):
         corenlp_result = corenlputils.check_pipeline_lang('en', en_file)
         sents = corenlp_result['sentences']
         ner_string = " ".join([tok['ner'] for tok in sents[257]['tokens']])
-        self.assertEqual(ner_string, 'O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O LOCATION LOCATION O O O ORGANIZATION ORGANIZATION ORGANIZATION O O O O O O O O O O O O O')
+        self.assertEqual(ner_string, 'O O O O O O O O O MISC MISC MISC O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O LOCATION LOCATION O O O ORGANIZATION ORGANIZATION ORGANIZATION O O O O O O O O O O O O O')
         ner_string = " ".join([tok['ner'] for tok in sents[336]['tokens']])
         self.assertEqual(ner_string, 'ORGANIZATION ORGANIZATION ORGANIZATION O O')
         ner_string = " ".join([tok['ner'] for tok in sents[362]['tokens']])

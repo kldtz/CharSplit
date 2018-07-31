@@ -17,7 +17,7 @@ MODEL_DIR = 'dir-scut-model'
 WORK_DIR = 'dir-work'
 CUSTOM_MODEL_DIR = 'dir-custom-model'
 
-class TestBespokeSent(unittest.TestCase):
+class TestBespokeRegex(unittest.TestCase):
 
     def test_bespoke_currency(self):
 
