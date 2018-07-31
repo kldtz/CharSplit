@@ -10,6 +10,7 @@ import os.path
 import re
 import shutil
 import tempfile
+import time
 import traceback
 import zipfile
 # pylint: disable=unused-import
@@ -407,6 +408,7 @@ def custom_train(cust_id: str):
                 # For spanannotator, currently we use is_doc_structure=False to not missing
                 # any lines in the original text.
                 # For sentence-candidate, is_doc_structure=True
+                start_time = time.time()
                 # pylint: disable=unused-variable
                 eval_status, log_json = \
                     eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
@@ -418,6 +420,9 @@ def custom_train(cust_id: str):
                                                                   model_num=next_model_num,
                                                                   work_dir=work_dir,
                                                                   doc_lang=doc_lang)
+                end_time = time.time()
+                logging.info("custom_train(%s, %r), took %.2f sec",
+                             provision, candidate_types, (end_time - start_time))
 
                 # copy the result into the expected format for client
                 ant_status = eval_status['ant_status']

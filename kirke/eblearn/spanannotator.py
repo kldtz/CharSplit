@@ -172,8 +172,13 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         group_kfold = list(GroupKFold(n_splits=self.kfold).split(candidates,
                                                                  label_list,
                                                                  groups=group_id_list))
-        grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
-                                   verbose=1, cv=group_kfold)
+        grid_search = GridSearchCV(pipeline,
+                                   parameters,
+                                   n_jobs=2,
+                                   pre_dispatch=2,
+                                   scoring='f1',
+                                   verbose=1,
+                                   cv=group_kfold)
 
         time_0 = time.time()
         grid_search.fit(candidates, label_list)

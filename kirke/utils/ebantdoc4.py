@@ -13,6 +13,8 @@ import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
+import psutil
+
 # pylint: disable=import-error
 from sklearn.externals import joblib
 
@@ -864,6 +866,11 @@ def doclist_to_ebantdoc_list(doclist_file: str,
         for txt_file_name in fin:
             txt_fn_list.append(txt_file_name.strip())
 
+    EBRUN_PROCESS = psutil.Process(os.getpid())
+    orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
+    logging.info('doclist_to_ebantdoc_list, orig memory use: %d Mbytes', orig_mem_usage)
+    prev_mem_usage = orig_mem_usage
+
     fn_eb_antdoc_map = {}
     with concurrent.futures.ThreadPoolExecutor(8) as executor:
         future_to_antdoc = {executor.submit(text_to_ebantdoc4,
@@ -875,10 +882,16 @@ def doclist_to_ebantdoc_list(doclist_file: str,
                                             doc_lang=doc_lang,
                                             is_use_corenlp=is_use_corenlp):
                             txt_fn for txt_fn in txt_fn_list}
-        for future in concurrent.futures.as_completed(future_to_antdoc):
+        for count, future in enumerate(concurrent.futures.as_completed(future_to_antdoc)):
             txt_fn = future_to_antdoc[future]
             data = future.result()
             fn_eb_antdoc_map[txt_fn] = data
+            if count % 25 == 0:
+                logging.info('doclist_to_antdoc_list(), count = {}'.format(count))
+                memory_use = EBRUN_PROCESS.memory_info()[0] / 2**20
+                # pylint: disable=line-too-long
+                logger.info('after loading %d ebantdocs, mem = %.2f Mbytes, diff %.2f Mbytes',
+                            count, memory_use, memory_use - prev_mem_usage)
 
     eb_antdoc_list = []
     for txt_fn in txt_fn_list:

@@ -171,7 +171,7 @@ def load_cached_ebantdoc2(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc2]:
 
             return eb_antdoc
         except:  # failed to load cache using joblib.load()
-            logging.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.", eb_antdoc_fn)
+            logging.warning("Detected an issue calling load_cached_ebantdoc2(%s).  Skip cache.", eb_antdoc_fn)
             return None
 
     return None
