@@ -16,7 +16,6 @@ from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInf
 from kirke.utils import strutils, txtreader, mathutils
 from kirke.utils.textoffset import TextCpointCunitMapper
 
-
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -26,7 +25,6 @@ logger.setLevel(logging.INFO)
 MAX_FOOTER_YSTART = 10000
 
 DEBUG_MODE = False
-DEBUG_MODE = True
 
 def get_nl_fname(base_fname: str,
                  work_dir: str) -> str:
@@ -608,6 +606,8 @@ def to_paralines(pdf_text_doc, file_name, work_dir, debug_mode=False):
 # between these two functions in the future.  Currently, there is also
 # Abby's paragraph info.  Should simplify and consolidate all these three
 # information sources.
+# The code below was extensively modified by Emily.
+# It fixed many earlier issues.
 def parse_document(file_name: str,
                    work_dir: str,
                    debug_mode: bool = False) \
@@ -615,7 +615,6 @@ def parse_document(file_name: str,
     base_fname = os.path.basename(file_name)
 
     doc_text = strutils.loads(file_name)
-    # len_doc_text = len(doc_text)
 
     cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
     unused_doc_len, str_offsets, line_breaks, unused_pblock_offsets, page_offsets = \
@@ -631,8 +630,8 @@ def parse_document(file_name: str,
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
     min_diff = float("inf")
     prev_y = 0
-    all_diffs = []  # type: List[float]
-    pagenum_linenums_map = defaultdict(list)  # type: Dict[int, List[int]]
+    all_diffs = []
+    page_nums = {}
     for str_offset in str_offsets:
         # 'start', 'end', 'lineNum', 'pageNum', 'xStart', 'yStart', 'xEnd'
         start = str_offset['start']
@@ -651,80 +650,42 @@ def parse_document(file_name: str,
             all_diffs.append(y_diff)
         prev_y = yStart
         str_text = nl_text[start:end]
-
         if yStart < 100 and not str_text.strip():
             pass
         else:
+            page_nums[line_num] = page_num
             lxid_strinfos_map[line_num].append(StrInfo(start, end, xStart, xEnd, yStart))
-            pagenum_linenums_map[page_num].append(line_num)
 
     pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]]
     bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
     block_num = 0
-    mode_diff = mathutils.calc_float_list_mode(all_diffs)
-    block_info_list = []  # type: List[PBlockInfo]
+    mode_diff = int(max(set(all_diffs), key=all_diffs.count))
+    tmp_end = 0
+    start = None
+    tmp_strinfos = []
+    block_info_list = []
+    max_line_num = max(lxid_strinfos_map.keys())
+    for line_num in range(0, max_line_num+1):
+        if not line_num in lxid_strinfos_map.keys():
+            continue
+        tmp_start = lxid_strinfos_map[line_num][0].start
+        tmp_end = lxid_strinfos_map[line_num][0].end
+        line_len = len(nl_text[tmp_start:tmp_end].split())
 
-    for page_num, line_num_list in sorted(pagenum_linenums_map.items()):
-
-        tmp_strinfos = []  # type: List[StrInfo]
-        start, end = -1, -1
-
-        prev_y = -100
-        prev_line_start, prev_line_end = 0, 0
-        prev_line_num = -1
-
-        for lineseq, line_num in enumerate(line_num_list):
-            line_start = lxid_strinfos_map[line_num][0].start
-            line_end = lxid_strinfos_map[line_num][0].end  # both line_end also
-            end = line_end
-            line_len = len(nl_text[line_start:line_end].split())
-
-            cur_y = lxid_strinfos_map[line_num][0].yStart
-
-            # checks the difference in y val between this line and the next, if below the mode,
-            # join into a block, otherwise add block to block_info
-            if line_len > 0 and cur_y >= prev_y:
-                y_diff = cur_y - prev_y
-            else:
-                y_diff = -1
-
-            if lineseq != 0 and \
-               (y_diff < 0 or y_diff > mode_diff+1):
-
-                # add everything from previous line, and store the current one for the next block
-                block_num += 1
-                bxid_lineinfos_map[block_num].append(LineInfo3(prev_line_start,
-                                                               prev_line_end,
-                                                               prev_line_num,
-                                                               block_num,
-                                                               tmp_strinfos))
-                para_line, unused_is_multi_lines, unused_not_linebreaks = \
-                    pdfutils.para_to_para_list(nl_text[start:prev_line_end])
-                block_info = PBlockInfo(prev_line_start,
-                                        prev_line_end,
-                                        block_num,
-                                        page_num,
-                                        para_line,
-                                        bxid_lineinfos_map[block_num],
-                                        False)
-                pgid_pblockinfos_map[page_num].append(block_info)
-                block_info_list.append(block_info)
-
-                tmp_strinfos = []
-                tmp_strinfos.extend(lxid_strinfos_map[line_num])
-                start = line_start
-            else:
-                tmp_strinfos.extend(lxid_strinfos_map[line_num])
-                if start == -1:
-                    start = lxid_strinfos_map[line_num][0].start
-
-            prev_y = cur_y
-            prev_line_start, prev_line_end = line_start, line_end
-            prev_line_num = line_num
-
-        # reached end of page, but got leftover
-        if tmp_strinfos:
+        # checks the difference in y val between this line and the next, if below
+        # the mode, join into a block, otherwise add block to block_info
+        if line_num+1 in lxid_strinfos_map.keys() and line_len > 0:
+            # pylint: disable=line-too-long
+            y_diff = int(lxid_strinfos_map[line_num+1][0].yStart - lxid_strinfos_map[line_num][0].yStart)
+        else:
+            y_diff = -1
+        if tmp_start != tmp_end and (y_diff < 0 or y_diff > mode_diff+1):
             block_num += 1
+            tmp_strinfos.extend(lxid_strinfos_map[line_num])
+            if not start:
+                start = tmp_start
+            end = tmp_end
+            page_num = page_nums[line_num]
             bxid_lineinfos_map[block_num].append(LineInfo3(start,
                                                            end,
                                                            line_num,
@@ -741,7 +702,12 @@ def parse_document(file_name: str,
                                     False)
             pgid_pblockinfos_map[page_num].append(block_info)
             block_info_list.append(block_info)
-            tmp_strinfos = []  # probably not needed
+            tmp_strinfos = []
+            start = None
+        else:
+            if not start:
+                start = lxid_strinfos_map[line_num][0].start
+            tmp_strinfos.extend(lxid_strinfos_map[line_num])
 
     pageinfo_list = []  # type: List[PageInfo3]
     for page_offset in page_offsets:
