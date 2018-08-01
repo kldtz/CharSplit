@@ -67,7 +67,7 @@ class TestCandGen(unittest.TestCase):
         with open('idnum_cands.json') as infile:
             serial_idnum_cands = json.load(infile)
 
-        for fname in txt_fnames[:25]:
+        for fname in sorted(txt_fnames)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
                 currency_cands, _ , _ = currency_gen.get_candidates_from_text(doc_text)

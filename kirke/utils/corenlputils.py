@@ -58,6 +58,7 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
                                                  'outputFormat': 'json',
                                                  'enforceRequirements': 'false',
                                                  'ssplit.newlineIsSentenceBreak': 'two',
+                                                 'useKnownLCWords': 'false',
                                                  'pipelineLanguage': doc_lang})
     elif doc_lang == "pt":
         logger.debug("corenlp running on %s, len=%d", doc_lang, len(no_ctrl_chars_text))
@@ -66,6 +67,7 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
                                                  'outputFormat': 'json',
                                                  'enforceRequirements': 'false',
                                                  'ssplit.newlineIsSentenceBreak': 'two',
+                                                 'useKnownLCWords': 'false',
                                                  'ner.model':'portuguese-ner.ser.gz'})
     else:
         logger.debug("corenlp running on en, len=%d", len(no_ctrl_chars_text))
@@ -73,6 +75,7 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
                                      properties={'annotators': 'tokenize,ssplit,pos,ner',
                                                  'outputFormat': 'json',
                                                  'ssplit.newlineIsSentenceBreak': 'two',
+                                                 'useKnownLCWords': 'false',
                                                  'pipelineLanguage': 'en'})
     return json.loads(output)
 
