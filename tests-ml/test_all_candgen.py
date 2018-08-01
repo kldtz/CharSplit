@@ -36,35 +36,35 @@ class TestCandGen(unittest.TestCase):
         config = annotatorconfig.get_ml_annotator_config(['CURRENCY'])
         currency_gen = config['doc_to_candidates'][0]
         all_currency_cands = []
-        with open('currency_cands.json') as infile:
+        with open('cands_json/currency_cands.json') as infile:
             serial_currency_cands = json.load(infile)
 
         # ------- DATES -------
         config = annotatorconfig.get_ml_annotator_config(['DATE'])
         date_gen = config['doc_to_candidates'][0]
         all_date_cands = []
-        with open('date_cands.json') as infile:
+        with open('cands_json/date_cands.json') as infile:
             serial_date_cands = json.load(infile)
 
         # ------- NUMBER -------
         config = annotatorconfig.get_ml_annotator_config(['NUMBER'])
         number_gen = config['doc_to_candidates'][0]
         all_number_cands = []
-        with open('number_cands.json') as infile:
+        with open('cands_json/number_cands.json') as infile:
             serial_number_cands = json.load(infile)
 
         # ------- PERCENT -------
         config = annotatorconfig.get_ml_annotator_config(['PERCENT'])
         percent_gen = config['doc_to_candidates'][0]
         all_percent_cands = []
-        with open('percent_cands.json') as infile:
+        with open('cands_json/percent_cands.json') as infile:
             serial_percent_cands = json.load(infile)
 
         # ------- IDNUM -------
         config = annotatorconfig.get_ml_annotator_config(['IDNUM'])
         idnum_gen = config['doc_to_candidates'][0]
         all_idnum_cands = []
-        with open('idnum_cands.json') as infile:
+        with open('cands_json/idnum_cands.json') as infile:
             serial_idnum_cands = json.load(infile)
 
         for fname in sorted(txt_fnames)[:25]:
