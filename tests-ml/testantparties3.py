@@ -42,13 +42,6 @@ def annotate_doc(file_name: str) -> Dict[str, Any]:
     pprint.pprint(prov_labels_map)
     return prov_labels_map
 
-def get_party_list(prov_labels_map: Dict) -> List[Tuple[int, int, str]]:
-    party_ant_list = prov_labels_map.get('party', [])
-
-    return [(ant['start'],
-             ant['end'],
-             ant['text']) for ant in party_ant_list]
-
 
 def upload_annotate_doc(file_name: str) -> Dict[str, Any]:
 
