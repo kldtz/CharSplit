@@ -339,7 +339,6 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                         work_dir: str,
                         debug_mode: bool = False) \
                         -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-                                            # str,
                                             List[Any]]],
                                  str,
                                  List[Tuple[int, int]]]:

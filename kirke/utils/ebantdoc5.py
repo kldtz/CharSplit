@@ -25,14 +25,24 @@ from kirke.utils import corenlputils, ebsentutils, memutils, osutils, strutils, 
 from kirke.utils.textoffset import TextCpointCunitMapper
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
+from kirke.docstruct import paraattrsutils
+
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 logger.setLevel(logging.INFO)
 
+IS_USE_ABBYY_FOR_PARAGRAPH_INFO = False
+
+# if we use pdfbox's text or abbyy's text
 CORENLP_JSON_VERSION = '1.6'
-EBANTDOC_VERSION = '1.8'
+EBANTDOC_VERSION = '1.9'
+
+if IS_USE_ABBYY_FOR_PARAGRAPH_INFO:
+    CORENLP_JSON_VERSION = '1.7'
+    EBANTDOC_VERSION = '1.10'
+
 
 def get_corenlp_json_fname(txt_basename, work_dir):
     base_fn = txt_basename.replace('.txt',
@@ -584,29 +594,41 @@ def pdf_to_ebantdoc(txt_file_name: str,
         # Will switch to Abbyy's after more testing.
         # As it is, not working.
         # Tried with "Carousel Wind PPA 12-27-13.pdf"
-        """
-        paras2_with_attrs, para2_doc_text = \
-            abbyxmlparser.to_paras_with_attrs(abby_xml_doc,
-                                              txt_file_name,
-                                              work_dir=work_dir,
-                                              debug_mode=False)
-        """
+        if IS_USE_ABBYY_FOR_PARAGRAPH:
+            paras2_with_attrs, para2_doc_text = \
+                abbyxmlparser.to_paras_with_attrs(abby_xml_doc,
+                                                  txt_file_name,
+                                                  work_dir=work_dir,
+                                                  debug_mode=False)
 
-    # paras2 here is based on information from pdfbox.
-    # Current pdfbox outputs lines with only spaces, so it sometime put the text
-    # of a whole page as one block, with lines with only spaces as textual lines.
-    # To preserve the original annotation performance, we still use this not-so-great
-    # txt file as input to corenlp.
-    # A better input file could be *.paraline.txt, which is used for lineannotator.
-    # In *.paraline.txt, each line is a paragraph, based on some semi-English heuristics.
-    # Section header for *.praline.txt is much better than trying to identify section for
-    # pages with only 1 block.  Cannot really switch to *.paraline.txt now because
-    # double-lined text might cause more trouble.
-    paras2_with_attrs, para2_doc_text, unused_gap2_span_list = \
-        pdftxtparser.to_paras_with_attrs(pdf_txt_doc,
-                                         txt_file_name,
-                                         work_dir=work_dir,
-                                         debug_mode=False)
+            paraattrsutils.print_paras_with_attrs(paras2_with_attrs,
+                                                  doc_text,
+                                                  para2_doc_text,
+                                                  '{}/{}'.format(work_dir,
+                                                                 txt_base_fname.replace('.txt', '.abby.para5attrs')))
+
+    if not IS_USE_ABBYY_FOR_PARAGRAPH:
+        # paras2 here is based on information from pdfbox.
+        # Current pdfbox outputs lines with only spaces, so it sometime put the text
+        # of a whole page as one block, with lines with only spaces as textual lines.
+        # To preserve the original annotation performance, we still use this not-so-great
+        # txt file as input to corenlp.
+        # A better input file could be *.paraline.txt, which is used for lineannotator.
+        # In *.paraline.txt, each line is a paragraph, based on some semi-English heuristics.
+        # Section header for *.praline.txt is much better than trying to identify section for
+        # pages with only 1 block.  Cannot really switch to *.paraline.txt now because
+        # double-lined text might cause more trouble.
+        paras2_with_attrs, para2_doc_text, unused_gap2_span_list = \
+            pdftxtparser.to_paras_with_attrs(pdf_txt_doc,
+                                             txt_file_name,
+                                             work_dir=work_dir,
+                                             debug_mode=False)
+
+        paraattrsutils.print_paras_with_attrs(paras2_with_attrs,
+                                              doc_text,
+                                              para2_doc_text,
+                                              '{}/{}'.format(work_dir,
+                                                             txt_base_fname.replace('.txt', '.pbox.para5attrs')))
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para2_doc_text, text4nlp_fn)

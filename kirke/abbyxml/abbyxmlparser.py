@@ -2,14 +2,9 @@
 
 import argparse
 from collections import defaultdict
+import math
 import os
 import pprint
-import sys
-import warnings
-import re
-import operator
-import math
-import json
 import shutil
 
 # pylint: disable=unused-import
@@ -94,8 +89,8 @@ def add_infer_par_attrs(attr_dict: Dict):
 
 
 # only applicable to text blocks, not lines
-def add_infer_header_footer(attr_dict: Dict) -> None:
-    infer_attr_dict = {}
+def add_infer_header_footer(attr_dict: Dict) -> Dict:
+    infer_attr_dict = {}  # type: Dict
     b_attr = attr_dict['@b']
     l_attr = attr_dict['@l']
     t_attr = attr_dict['@t']
@@ -132,7 +127,8 @@ def add_infer_text_block_attrs(text_block: AbbyTextBlock) -> None:
     num_indent = num_indent_1 + num_indent_2
     perc_indent_pars = num_indent / len(text_block.ab_pars)
     # print("perc_indent_pars = {}".format(perc_indent_pars))
-    text_block.infer_attr_dict['ydiff_min'] = min([diff for diff in all_ydiffs if diff > 0], default=0)
+    text_block.infer_attr_dict['ydiff_min'] = min([diff for diff in all_ydiffs if diff > 0],
+                                                  default=0)
     if num_indent_1 > 0 and num_indent_2 > 0 and \
        perc_indent_pars >= 0.75 and \
        avg_line_len < 50:
@@ -256,9 +252,9 @@ def add_ydiffs_in_text_block(ab_text_block: AbbyTextBlock) -> None:
 
 
 # ajson is {'par': ... }
+# pylint: disable=too-many-branches
 def parse_abby_par(ajson, resolution: int) -> List[AbbyPar]:
-    par_attr_dict = {}
-    par_json_list = []
+    par_json_list = []  # type: List
 
     for attr, val in sorted(ajson.items()):
         # there is no attribute for 'par'
@@ -506,6 +502,7 @@ def parse_document(file_name: str,
 
     return ab_xml_doc
 
+    # pylint: disable=unreachable
     """
     li_map = defaultdict(int)
     left_indent_count_map = count_left_indent(ajson, li_map)
@@ -563,9 +560,9 @@ def split_indent_1_2(ab_text_block: AbbyTextBlock) -> None:
     """Group all indent_2 para into 1 par.
     """
     ab_par_list = ab_text_block.ab_pars
-    out_par_list = []
-    cur_line_list = []
-    cur_attr_dict, cur_infer_attr_dict = {}, {}
+    out_par_list = []  # type: List[AbbyPar]
+    cur_line_list = []  # type: List[AbbyLine]
+    cur_attr_dict, cur_infer_attr_dict = {}, {}  # type: Dict, Dict
     for ab_par in ab_par_list:
         if abbyutils.has_indent_2_attr(ab_par.infer_attr_dict):
             if cur_line_list:
@@ -619,8 +616,8 @@ def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
         #     continue
 
         cur_par_list = []  # type: List[AbbyPar]
-        cur_attr_dict = {}
-        cur_infer_attr_dict = {}
+        cur_attr_dict = {}  # type: Dict
+        cur_infer_attr_dict = {}  # type: Dict
         for ab_block in abby_page.ab_blocks:
             # skip table blocks
             if isinstance(ab_block, AbbyTextBlock):
@@ -670,8 +667,10 @@ def remake_abby_xml_doc(ab_doc: AbbyXmlDoc) -> None:
             abby_page.ab_blocks = out_block_list
 
 # merges paragraphs within a block if the ydiff is roughly the block's minimum ydiff
-def merge_block_paras(ab_pars, block_min):
-    merged_lines = []
+def merge_block_paras(ab_pars: List[AbbyPar],
+                      block_min: int) \
+                      -> List[List[AbbyLine]]:
+    merged_lines = []  # type: List[List[AbbyLine]]
     i = 0
     while i < len(ab_pars):
         try:
@@ -688,38 +687,61 @@ def merge_block_paras(ab_pars, block_min):
             i += 1
     return merged_lines
 
+
 # creates a list of paragraph indices and paragraph attributes
 def to_paras_with_attrs(abby_xml_doc: AbbyXmlDoc,
                         file_name: str,
                         work_dir: str,
-                        debug_mode: bool = False):
-
-    base_fname = os.path.basename(file_name)
-    para_with_attrs = []
+                        debug_mode: bool = False) \
+                        -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                            Dict]],
+                                 str]:
+    para_with_attrs = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], Dict]]
     paraline_text = ''
+    nlp_offset = 0
     for ab_page in abby_xml_doc.ab_pages:
-        page_num = ab_page.num
         for ab_block in ab_page.ab_text_blocks:
-            block_num = ab_block.num
             is_footer = ab_block.infer_attr_dict.get('footer', False)
             is_header = ab_block.infer_attr_dict.get('header', False)
-            merged_paras = merge_block_paras(ab_block.ab_pars, ab_block.infer_attr_dict['ydiff_min'])
-            for ab_par in merged_paras:
+            # weird pylint error on no-member, .text?? in xabline.text below
+            merged_paras = merge_block_paras(ab_block.ab_pars, ab_block.infer_attr_dict['ydiff_min'])  # type: List[List[AbbyLine]]
+
+            for ab_par_in_ablines in merged_paras:
                 infer_attr_dict = {}
-                to_from_index_list = []
-                for line in ab_par:
+                # pylint: disable=line-too-long
+                to_from_index_list = []  # type: List[Tuple[linepos.LnPos, linepos.LnPos]]
+
+                para_lines = []  # type: List[str]
+                for line in ab_par_in_ablines:
                     # convert to LnPos because that's expected further in the pipeline
                     if line.abby_pbox_offset_mapper:
-                       from_lnpos = [linepos.LnPos(x[0], x[1]) for x in line.abby_pbox_offset_mapper.from_se_list]
-                       to_lnpos = [linepos.LnPos(y[0], y[1]) for y in line.abby_pbox_offset_mapper.to_se_list]
-                       zipped_lnpos = list(zip(to_lnpos, from_lnpos))
-                       to_from_index_list.extend(zipped_lnpos)
+                        from_lnpos = []  # type: List[linepos.LnPos]
+                        line_offset = nlp_offset
+                        for x in line.abby_pbox_offset_mapper.from_se_list:
+                            from_lnpos.append(linepos.LnPos(x[0] + line_offset,
+                                                            x[1] + line_offset,
+                                                            line_num=line.num))
+                            print('tttt {} {}, ({} {}): [{}]'.format(x[0],
+                                                                     x[1],
+                                                                     x[0] + line_offset,
+                                                                     x[1] + line_offset,
+                                                                     line.text[x[0]:x[1]]))
+                            nlp_offset += (x[1] - x[0] + 1)
+                            para_lines.append(line.text[x[0]:x[1]])
+                        to_lnpos = []  # type: List[linepos.LnPos]
+                        to_lnpos = [linepos.LnPos(y[0],
+                                                  y[1],
+                                                  line_num=line.num)
+                                    for y in line.abby_pbox_offset_mapper.to_se_list]
+                        zipped_lnpos = list(zip(to_lnpos, from_lnpos))
+                        to_from_index_list.extend(zipped_lnpos)
                 infer_attr_dict['footer'] = is_footer
                 infer_attr_dict['header'] = is_header
                 if to_from_index_list:
                     para_with_attrs.append((to_from_index_list, infer_attr_dict))
-                    paraline_text += "\n".join([x.text for x in ab_par])+"\n\n"
+                    paraline_text += '\n'.join(para_lines) + '\n\n'
                     to_from_index_list = []
+                    nlp_offset += 1
 
     return para_with_attrs, paraline_text
 

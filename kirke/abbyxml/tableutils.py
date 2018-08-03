@@ -572,7 +572,9 @@ def merge_haligned_block_as_table(ab_doc: AbbyXmlDoc) -> None:
         # skip_blocks are the blocks that have already been found to be haligned
         skip_blocks = []  # type: List[AbbyTextBlock]
         for i, ab_text_block in enumerate(ab_text_block_list):
-            if ab_text_block in skip_blocks:
+            text_block_is_header_footer = ab_text_block.infer_attr_dict.get('footer', False) or \
+                                          ab_text_block.infer_attr_dict.get('header', False)
+            if ab_text_block in skip_blocks or text_block_is_header_footer:
                 continue
 
             attr_dict = ab_text_block.attr_dict

@@ -25,6 +25,7 @@ from kirke.utils import corenlputils, ebsentutils, memutils, osutils, strutils, 
 from kirke.utils.textoffset import TextCpointCunitMapper
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
+from kirke.docstruct import paraattrsutils
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -33,6 +34,8 @@ logger.setLevel(logging.INFO)
 
 CORENLP_JSON_VERSION = '1.6'
 EBANTDOC_VERSION = '1.8'
+
+IS_DEBUG = False
 
 
 def get_corenlp_json_fname(txt_basename, work_dir):
@@ -606,6 +609,15 @@ def pdf_to_ebantdoc4(txt_file_name: str,
                                          work_dir=work_dir,
                                          debug_mode=False)
 
+    if IS_DEBUG:
+        paraattrsutils.print_paras_with_attrs(paras2_with_attrs,
+                                              doc_text,
+                                              para2_doc_text,
+                                              '{}/{}'.format(work_dir,
+                                                             # pylint: disable=line-too-long
+                                                             txt_base_fname.replace('.txt', '.pbox.para4attrs')))
+
+
     # for i, (gap_start, gap_end) in enumerate(gap2_span_list):
     #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
     skip_st_list = []
@@ -887,7 +899,7 @@ def doclist_to_ebantdoc_list(doclist_file: str,
             data = future.result()
             fn_eb_antdoc_map[txt_fn] = data
             if count % 25 == 0:
-                logging.info('doclist_to_antdoc_list(), count = {}'.format(count))
+                logging.info('doclist_to_antdoc_list(), count = %d', count)
                 memory_use = EBRUN_PROCESS.memory_info()[0] / 2**20
                 # pylint: disable=line-too-long
                 logger.info('after loading %d ebantdocs, mem = %.2f Mbytes, diff %.2f Mbytes',

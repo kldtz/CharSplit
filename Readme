@@ -1,3 +1,4 @@
+etag/abby-paras
 
 # this should output table annotation, but is NOT
 run_upload_annotate_table.sh mytest/8237.txt > kkk
@@ -36,3 +37,22 @@ python3 -m kirke.abbyxml.abbyxmlparser mytest/8237.pdf.xml
 
 https://ocrsdk.com/documentation/specifications/xml-scheme-recognized-document/
 so pdfbox is in 72 dot per inch, abby is in 300 dot per inch
+
+
+
+=========
+# for table paras_with_attrs debug
+For carousel file,
+There is an issue ea_employer
+Shoule be "Seller and XXX", but got "eller and XX".  Some offset error.
+But tried "dev" branch, such annotation is not extracted.  Weird.  So
+there is a significant discrepancies between abbyxml and pbox's text, so the
+annotation extracted is not consistent.
+
+It seem that after 241337, things are bad.
+245208 has 2 offsets.
+
+But 244079 also looked ok.  Maybe something else is going on.
+Before that, things normally seem ok.
+===========
+
