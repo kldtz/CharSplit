@@ -594,20 +594,21 @@ def pdf_to_ebantdoc(txt_file_name: str,
         # Will switch to Abbyy's after more testing.
         # As it is, not working.
         # Tried with "Carousel Wind PPA 12-27-13.pdf"
-        if IS_USE_ABBYY_FOR_PARAGRAPH:
+        if IS_USE_ABBYY_FOR_PARAGRAPH_INFO:
             paras2_with_attrs, para2_doc_text = \
                 abbyxmlparser.to_paras_with_attrs(abby_xml_doc,
                                                   txt_file_name,
                                                   work_dir=work_dir,
                                                   debug_mode=False)
 
+            tmp_para5attrs_fname = txt_base_fname.replace('.txt', '.abby.para5attrs')
             paraattrsutils.print_paras_with_attrs(paras2_with_attrs,
                                                   doc_text,
                                                   para2_doc_text,
                                                   '{}/{}'.format(work_dir,
-                                                                 txt_base_fname.replace('.txt', '.abby.para5attrs')))
+                                                                 tmp_para5attrs_fname))
 
-    if not IS_USE_ABBYY_FOR_PARAGRAPH:
+    if not IS_USE_ABBYY_FOR_PARAGRAPH_INFO:
         # paras2 here is based on information from pdfbox.
         # Current pdfbox outputs lines with only spaces, so it sometime put the text
         # of a whole page as one block, with lines with only spaces as textual lines.
@@ -624,11 +625,12 @@ def pdf_to_ebantdoc(txt_file_name: str,
                                              work_dir=work_dir,
                                              debug_mode=False)
 
+        tmp_para5attrs_fname = txt_base_fname.replace('.txt', '.pbox.para5attrs')
         paraattrsutils.print_paras_with_attrs(paras2_with_attrs,
                                               doc_text,
                                               para2_doc_text,
                                               '{}/{}'.format(work_dir,
-                                                             txt_base_fname.replace('.txt', '.pbox.para5attrs')))
+                                                             tmp_para5attrs_fname))
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para2_doc_text, text4nlp_fn)
