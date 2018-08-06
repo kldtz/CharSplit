@@ -1974,9 +1974,9 @@ def remove_invalid_defined_terms_as(span_chunk_list: List[SpanChunk]) \
 
     span_chunks_text = span_chunk_list_to_text(span_chunk_list)
     # "... xxx as Parties and individually as a Party"
-    if re.search(r'^\s*(Parties.+and.+individually)\b', span_chunks_text, re.I):
+    if re.search(r'\b(parties.+and.+individually)\b', span_chunks_text, re.I):
         return []
-    if re.search(r'^\s*(party.+and.+(together|collectively))\b', span_chunks_text, re.I):
+    if re.search(r'\b(party.+and.+(together|collectively))\b', span_chunks_text, re.I):
         return []
 
     for span_chunk in span_chunk_list:
