@@ -61,7 +61,7 @@ class TestParties(unittest.TestCase):
         # pylint: disable=invalid-name
         self.maxDiff = None
 
-        prov_labels_map = annotate_doc('mytest/doc1.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc1.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(6617, 6636, 'LSH Auto UK Limited'),
@@ -69,7 +69,7 @@ class TestParties(unittest.TestCase):
                           (6763, 6776, 'HSBC BANK PLC'),
                           (6851, 6863, 'the “Lender"')])
 
-        prov_labels_map = annotate_doc('mytest/doc2.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc2.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(1884, 1904, 'Volkswagen Bank GmbH'),
@@ -77,7 +77,7 @@ class TestParties(unittest.TestCase):
                           (2077, 2090, 'HSBC Bank pic'),
                           (2216, 2228, 'the "Lender"')])
 
-        prov_labels_map = annotate_doc('mytest/doc3.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc3.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(7967, 7981, 'Tetra Pak Ltda'),
@@ -89,7 +89,7 @@ class TestParties(unittest.TestCase):
                           (8436, 8456, 'HSBC Bank Brasil S.A'),
                           (8683, 8694, 'HSBC Brazil')])
 
-        prov_labels_map = annotate_doc('mytest/doc4.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc4.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(59, 92, 'STAGECOACH TRANSPORT HOLDINGS PLC'),
@@ -99,7 +99,7 @@ class TestParties(unittest.TestCase):
                           (194, 207, 'HSBC BANK PLC'),
                           (247, 251, 'Bank')])
 
-        prov_labels_map = annotate_doc('mytest/doc5.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc5.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(8683, 8693, 'AEGON N.V.'),
@@ -148,7 +148,7 @@ class TestParties(unittest.TestCase):
                           (10361, 10382, 'BANK OF AMERICA, N.A.'),
                           (10426, 10454, 'the "Fronting Issuing  Bank"')])
 
-        prov_labels_map = annotate_doc('mytest/doc6.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc6.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(8427, 8438, 'AMEY UK PLC'),
@@ -158,7 +158,7 @@ class TestParties(unittest.TestCase):
                           (8649, 8662, 'HSBC BANK PLC'),
                           (8674, 8686, 'the "Lender”')])
 
-        prov_labels_map = annotate_doc('mytest/doc7.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc7.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(2727, 2736, 'Aviva pic'),
@@ -169,7 +169,7 @@ class TestParties(unittest.TestCase):
                           (3195, 3208, 'HSBC Bank pic'),
                           (3357, 3367, '"the Bank”')])
 
-        prov_labels_map = annotate_doc('mytest/doc8.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc8.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(8380, 8405, 'LIBERTY INTERNATIONAL PLC'),
@@ -177,7 +177,7 @@ class TestParties(unittest.TestCase):
                           (8479, 8492, 'HSBC BANK PLC'),
                           (8494, 8506, 'the "Lender"')])
 
-        prov_labels_map = annotate_doc('mytest/doc9.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc9.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(1897, 1914, 'HATTA ONE LIMITED'),
@@ -192,7 +192,7 @@ class TestParties(unittest.TestCase):
                           (2547, 2560, 'HSBC BANK PLC'),
                           (2713, 2727, 'Security Agent')])
 
-        prov_labels_map = annotate_doc('mytest/doc10.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc10.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(89, 131, 'Volkswagen Financial Services (UK) Limited'),
@@ -200,7 +200,7 @@ class TestParties(unittest.TestCase):
                           (155, 168, 'HSBC Bank pic'),
                           (172, 181, '“Lender”.')])
 
-        prov_labels_map = annotate_doc('mytest/doc11.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc11.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(7462, 7474, 'DELOITTE LLP'),
@@ -211,7 +211,7 @@ class TestParties(unittest.TestCase):
                           (7751, 7763, 'the "Lender"')])
 
 
-        prov_labels_map = annotate_doc('mytest/doc12.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc12.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(2237, 2288, 'Johnson & Johnson Medikal Sanayi Ve Ticaret Limited'),
@@ -220,7 +220,7 @@ class TestParties(unittest.TestCase):
                           (2434, 2444, 'the “Bank”')])
 
 
-        prov_labels_map = annotate_doc('mytest/doc13.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc13.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(529, 556, 'Gulf Agency Company Limited'),
@@ -228,7 +228,7 @@ class TestParties(unittest.TestCase):
                           (632, 645, 'HSBC BANK PLC'),
                           (683, 693, 'the “Bank”')])
 
-        prov_labels_map = annotate_doc('mytest/doc14.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc14.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(85, 98, 'UNILEVER N.V.'),
@@ -245,7 +245,7 @@ class TestParties(unittest.TestCase):
                           (511, 524, 'HSBC BANK PLC'),
                           (558, 593, 'the “U.S. Dollar Swingline  Lender”')])
 
-        prov_labels_map = annotate_doc('mytest/doc15.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc15.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(1997, 2036, 'CHINA MERCHANTS SECURITIES (UK) LIMITED'),
@@ -254,7 +254,7 @@ class TestParties(unittest.TestCase):
                           (2225, 2235, 'the “Bank”')])
 
 
-        prov_labels_map = annotate_doc('mytest/doc16.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc16.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(74, 93, 'GLAXOSMITHKLINE pic'),
@@ -263,7 +263,7 @@ class TestParties(unittest.TestCase):
                           (139, 149, 'the "Bank"')])
 
         # box
-        prov_labels_map = annotate_doc('mytest/doc100.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc100.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(213, 216, 'Box'),
@@ -273,7 +273,7 @@ class TestParties(unittest.TestCase):
                           # (367, 382, 'Box and Partner'),
                           # (419, 459, 'a “Party” and together as the “Parties”.')])
 
-        prov_labels_map = annotate_doc('mytest/doc101.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc101.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(158, 186, 'CUSTOMER THREE HOLDINGS B.V.'),
@@ -282,7 +282,7 @@ class TestParties(unittest.TestCase):
                           (601, 607, '"Box "')])
 
 
-        prov_labels_map = annotate_doc('mytest/doc102.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc102.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(306, 320, 'Partner 4, LLC'),
@@ -290,7 +290,7 @@ class TestParties(unittest.TestCase):
                           (505, 514, 'Box, Inc.'),
                           (677, 701, 'collectively, “Supplier”')])
 
-        prov_labels_map = annotate_doc('mytest/doc103.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc103.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(221, 242, 'ContentX Technologies'),
@@ -299,7 +299,7 @@ class TestParties(unittest.TestCase):
                           # pylint: disable=line-too-long
                           (508, 575, 'Cybermesh and together with ContentX, the “Members" each a “Member”')])
 
-        prov_labels_map = annotate_doc('mytest/doc104.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc104.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(118, 172, 'Hadasit Medical Research  Services and Development Ltd'),
@@ -310,12 +310,12 @@ class TestParties(unittest.TestCase):
         # uses dict/parties/location.list to remove 'Wales'
         # 'Wales' is originally an issue due to and_org_index,
         # which captured 'Wales' as a separate party
-        prov_labels_map = annotate_doc('mytest/doc105.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc105.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(296, 312, 'Box.com (UK) Ltd')])
 
-        prov_labels_map = annotate_doc('mytest/doc106.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc106.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(185, 211, 'LipimetiX Development, LLC'),
@@ -325,19 +325,19 @@ class TestParties(unittest.TestCase):
 
         # missing 'Customer One, LLC___..., TX 99223               (jointly' at end of
         # page.  OCR issue.
-        prov_labels_map = annotate_doc('mytest/doc107.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc107.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(279, 288, 'Box, Inc.'),
                           (380, 393, '“Participant”')])
 
-        prov_labels_map = annotate_doc('mytest/doc108.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc108.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(3055, 3076, 'TriLinc Advisors, LLC'),
                           (3121, 3152, 'TriLinc Global Impact Fund, LLC')])
 
-        prov_labels_map = annotate_doc('mytest/doc109.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc109.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(157, 176, 'BIOPURE CORPORATION'),
@@ -347,14 +347,14 @@ class TestParties(unittest.TestCase):
 
         # TODO, 06/18/2018
         # this is not a contract, a letter
-        # prov_labels_map = annotate_doc('mytest/doc110.txt')
+        # prov_labels_map = annotate_doc('dir-test-doc/doc110.txt')
         # party_list = get_party_list(prov_labels_map)
         # self.assertEqual(party_list,
         #                  [(3569, 3606, 'Prudential Investment Management, Inc'),
         #                   (3930, 3950, 'LTC Properties, Inc.'),
         #                   (3976, 3989, 'the “Company”')])
 
-        prov_labels_map = annotate_doc('mytest/doc111.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc111.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(126, 145, 'Arrayit Corporation'),
@@ -371,20 +371,20 @@ class TestParties(unittest.TestCase):
         # Need to fix paragraph understanding part in pdftxtparser
         # pylint: disable=pointless-string-statement
         """
-        prov_labels_map = annotate_doc('mytest/doc112.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc112.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                           [])
         """
 
-        prov_labels_map = annotate_doc('mytest/doc113.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc113.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(244, 253, 'Box, Inc.'),
                           (274, 279, '“Box”'),
                           (375, 388, '“Participant”')])
 
-        prov_labels_map = annotate_doc('mytest/doc114.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc114.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(197, 214, 'ADVANTENNIS CORP.'),
@@ -392,7 +392,7 @@ class TestParties(unittest.TestCase):
                           (260, 292, 'WORLD TEAMTENNIS FRANCHISE, INC.'),
                           (320, 326, '“WTTF”')])
 
-        prov_labels_map = annotate_doc('mytest/doc115.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc115.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(117, 134, 'Johanna Templeton'),
@@ -400,7 +400,7 @@ class TestParties(unittest.TestCase):
                           (151, 165, 'Ravneet Uberoi'),
                           (167, 178, '"Subtenant"')])
 
-        prov_labels_map = annotate_doc('mytest/doc116.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc116.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(879, 928, 'Oriental Intra-Asia Entertainment (China) Limited'),
@@ -429,7 +429,7 @@ class TestParties(unittest.TestCase):
                            'Zhangcheng Culture, Zhangcheng Science, China TranWiseway, Xinjiang  '
                            'Zhangcheng and Dalian Dajian, the “VIE Entities”')])
 
-        prov_labels_map = annotate_doc('mytest/doc117.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc117.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(250, 280, 'Apollo Global Management,  LLC'),
@@ -437,7 +437,7 @@ class TestParties(unittest.TestCase):
                           (340, 353, 'Leon D. Black'),
                           (355, 366, '“Executive"')])
 
-        prov_labels_map = annotate_doc('mytest/doc118.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc118.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(102, 122, 'SHBV (Hong Kong) Ltd'),
@@ -451,7 +451,7 @@ class TestParties(unittest.TestCase):
 
         # This is not a contract.
         # The full list of party name is not verified.
-        prov_labels_map = annotate_doc('mytest/doc119.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc119.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(796, 805, 'UDR, Inc.'),
@@ -466,7 +466,7 @@ class TestParties(unittest.TestCase):
                           (1091, 1118, 'Wells Fargo Securities, LLC'),
                           (1120, 1164, 'each, an “Agent,” and together, the “Agents”')])
 
-        prov_labels_map = annotate_doc('mytest/doc120.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc120.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(183, 205, 'Lincolnway Energy, LLC'),
@@ -474,7 +474,7 @@ class TestParties(unittest.TestCase):
                           (260, 288, 'Green Plains Trade Group LLC'),
                           (328, 334, '"GPTG"')])
 
-        prov_labels_map = annotate_doc('mytest/doc121.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc121.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(140, 161, 'NEW YORK AIRCAM CORF.'),
@@ -483,7 +483,7 @@ class TestParties(unittest.TestCase):
                           (399, 407, '“Lessee”')])
 
         # very similar to doc113.txt, but slightly different
-        prov_labels_map = annotate_doc('mytest/doc122.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc122.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(217, 226, 'Box, Inc.'),
@@ -491,7 +491,7 @@ class TestParties(unittest.TestCase):
                           (348, 361, '“Participant”')])
 
         # TODO, missing
-        prov_labels_map = annotate_doc('mytest/doc123.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc123.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(159, 183, 'Fidelity Funding Company'),
@@ -503,7 +503,7 @@ class TestParties(unittest.TestCase):
 
         # these are test documents
         # TODO, missing
-        prov_labels_map = annotate_doc('mytest/doc130.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc130.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(167, 187, 'THE BOARD OF REGENTS'),
@@ -519,7 +519,7 @@ class TestParties(unittest.TestCase):
                           (612, 622, '"LICENSEE"')])
 
 
-        prov_labels_map = annotate_doc('mytest/doc131.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc131.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(244, 253, 'Box, Inc.'),
@@ -528,7 +528,7 @@ class TestParties(unittest.TestCase):
 
         # doc132 is the same as doc131.txt
 
-        prov_labels_map = annotate_doc('mytest/doc133.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc133.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(158, 177, 'Comverse Technology'),
@@ -539,13 +539,13 @@ class TestParties(unittest.TestCase):
         # TODO, failed
         # pylint: disable=pointless-string-statement
         """
-        prov_labels_map = annotate_doc('mytest/doc134.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc134.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                           [])
         """
 
-        prov_labels_map = annotate_doc('mytest/doc135.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc135.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(291, 300, 'Box, Inc.'),
@@ -553,7 +553,7 @@ class TestParties(unittest.TestCase):
                           (390, 409, 'Customer  Six Corp.'),
                           (411, 424, '"Participant"')])
 
-        prov_labels_map = annotate_doc('mytest/doc136.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc136.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(166, 188, 'Trio Resources AG Inc.'),
@@ -563,7 +563,7 @@ class TestParties(unittest.TestCase):
 
 
         # TODO, "hereinafter defined' is wrong
-        prov_labels_map = annotate_doc('mytest/doc137.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc137.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(13343, 13351, 'DSW INC.'),
@@ -576,7 +576,7 @@ class TestParties(unittest.TestCase):
                           (13813, 13839, 'the “Administrative Agent”')])
 
 
-        prov_labels_map = annotate_doc('mytest/doc138.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/doc138.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(188, 202, 'CRG Finance AG'),
@@ -586,7 +586,7 @@ class TestParties(unittest.TestCase):
 
 
         # unknown source
-        prov_labels_map = annotate_doc('mytest/kodak1.txt')
+        prov_labels_map = annotate_doc('dir-test-doc/kodak1.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(104, 131, 'Kodak (Australasia) Pty Ltd'),

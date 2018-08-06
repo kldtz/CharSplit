@@ -132,7 +132,7 @@ class EbTransformerV1_2(EbTransformerBase):
             igain_vocabs = igain.doc_label_list_to_vocab(sent_st_list,
                                                          label_list,
                                                          tokenize=bigramutils.eb_doc_to_all_ngrams,
-                                                         debug_mode=True,
+                                                         debug_mode=False,
                                                          provision=self.provision)
 
             logger.info("starting computing unigram and bigram")
