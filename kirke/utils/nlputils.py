@@ -1935,7 +1935,7 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
         elif re.search(r'\b(number|loan|rate|amount|principal|warrant|act|registration)\b', span_chunk.text, re.I):
             # (registered number SC183333)
             pass
-        elif re.search(r'\bparty.+and.+collectively.*parties.*', span_chunk.text, re.I) or \
+        elif re.search(r'\bparty.+and.+(together|collectively).*parties.*', span_chunk.text, re.I) or \
              re.search(r'\bparties.+and.+individually.+', span_chunk.text, re.I):
             # TODO, not sure why adding following caused failure in
             # export-train/52082.txt failed??
