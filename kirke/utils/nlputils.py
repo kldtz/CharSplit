@@ -2039,7 +2039,7 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, ends in a number')
             pass
-        elif re.search(r'\b(agreement|extension|amendment)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(agreement|extension|amendment|whereas)\b', span_chunk.text, re.I):
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid word')
             pass
@@ -2062,6 +2062,10 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
             # got the wrong heading instead.
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid prefix({})'.format(span_chunk.text))
+            pass
+        elif re.match(r'^\s*(party)\s*$', span_chunk.text, re.I):
+            if IS_DEBUG_ORGS_TERM:
+                print('removed invalid party, invalid term({})'.format(span_chunk.text))
             pass
         else:
             result.append(span_chunk)
