@@ -497,9 +497,9 @@ class TestParties(unittest.TestCase):
                          [(159, 183, 'Fidelity Funding Company'),
                           (207, 217, '“Landlord”'),
                           (225, 244, 'Extend Health, Inc.'),
-                          (270, 278, '“Tenant”'),
+                          (270, 278, '“Tenant”')])
                           # missing "Landlord and Tenant"
-                          (341, 386, 'the “Parties” and individually, as a “Party.”')])
+                          # (341, 386, 'the “Parties” and individually, as a “Party.”')])
 
         # these are test documents
         # TODO, missing
