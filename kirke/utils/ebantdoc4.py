@@ -841,7 +841,8 @@ def doclist_to_ebantdoc_list_linear(doclist_file: str,
                                     is_bespoke_mode: bool = False,
                                     is_doc_structure: bool = False,
                                     doc_lang: str = 'en',
-                                    is_use_corenlp: bool = True):
+                                    is_use_corenlp: bool = True,
+                                    is_sort_by_file_id: bool = False):
     logger.debug('ebantdoc4.doclist_to_ebantdoc_list_linear(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logger.debug("mkdir %s", work_dir)
@@ -859,6 +860,9 @@ def doclist_to_ebantdoc_list_linear(doclist_file: str,
                                           is_use_corenlp=is_use_corenlp)
             eb_antdoc_list.append(eb_antdoc)
     logger.debug('Finished ebantdoc4.doclist_to_ebantdoc_list_linear()')
+
+    if is_sort_by_file_id:
+        eb_antdoc_list = sorted(eb_antdoc_list, key=lambda x: x.file_id)
     return eb_antdoc_list
 
 
@@ -868,7 +872,8 @@ def doclist_to_ebantdoc_list(doclist_file: str,
                              is_bespoke_mode: bool = False,
                              is_doc_structure: bool = False,
                              doc_lang: str = 'en',
-                             is_use_corenlp: bool = True):
+                             is_use_corenlp: bool = True,
+                             is_sort_by_file_id: bool = False):
     logger.debug('ebantdoc4.doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logger.debug("mkdir %s", work_dir)
@@ -912,6 +917,8 @@ def doclist_to_ebantdoc_list(doclist_file: str,
     logger.debug('Finished doclist_to_ebantdoc_list(%s, %s), len= %d',
                  doclist_file, work_dir, len(txt_fn_list))
 
+    if is_sort_by_file_id:
+        eb_antdoc_list = sorted(eb_antdoc_list, key=lambda x: x.file_id)
     return eb_antdoc_list
 
 
@@ -921,7 +928,8 @@ def doclist_to_ebantdoc_list_no_corenlp(doclist_file: str,
                                         work_dir: str,
                                         is_bespoke_mode: bool = False,
                                         is_doc_structure: bool = False,
-                                        doc_lang: str = 'en'):
+                                        doc_lang: str = 'en',
+                                        is_sort_by_file_id: bool = False):
     logger.debug('ebantdoc4.doclist_to_ebantdoc_list_no_corenlp(%s, %s)', doclist_file, work_dir)
     eb_antdoc_list = doclist_to_ebantdoc_list(doclist_file,
                                               work_dir,
@@ -929,6 +937,8 @@ def doclist_to_ebantdoc_list_no_corenlp(doclist_file: str,
                                               is_doc_structure=is_doc_structure,
                                               doc_lang=doc_lang,
                                               is_use_corenlp=False)
+    if is_sort_by_file_id:
+        eb_antdoc_list = sorted(eb_antdoc_list, key=lambda x: x.file_id)
     return eb_antdoc_list
 
 

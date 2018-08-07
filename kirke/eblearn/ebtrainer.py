@@ -19,6 +19,8 @@ from kirke.utils import  ebantdoc5, evalutils, splittrte, strutils, txtreader
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+IS_DEBUG_DOC_ORDER = False
+
 
 DEFAULT_CV = 3
 
@@ -109,6 +111,9 @@ def cv_train_at_annotation_level(provision,
             pos_list.append((x_antdoc, label))
         else:
             neg_list.append((x_antdoc, label))
+    if IS_DEBUG_DOC_ORDER:
+        print('len(pos_list) = {}, len(neg_list) = {}'.format(len(pos_list),
+                                                              len(neg_list)))
     pos_list.extend(neg_list)
     # this is a list of ebantdoc
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List]
@@ -132,6 +137,12 @@ def cv_train_at_annotation_level(provision,
                 train_buckets.extend(bucket_x)
             else:  # bnum == bucket_num
                 test_bucket = bucket_x
+
+        if IS_DEBUG_DOC_ORDER:
+            for tr_num, tr_doc in enumerate(train_buckets):
+                print("bucknum={}, tr_num={}, fn={}".format(bucket_num, tr_num, tr_doc.file_id))
+            for te_num, te_doc in enumerate(test_bucket):
+                print("bucknum={}, test_num={}, fn={}".format(bucket_num, te_num, te_doc.file_id))
 
         cv_eb_classifier = eb_classifier_orig.make_bare_copy()
         timestr = time.strftime("%Y%m%d-%H%M%S")
@@ -327,7 +338,7 @@ def train_eval_annotator(provision: str,
                          model_file_name,
                          eb_classifier,
                          is_doc_structure=False,
-                         custom_training_mode=False) \
+                         is_bespoke_mode=False) \
                          -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
     logger.info("training_eval_annotator(%s) called", provision)
     logger.info("    txt_fn_list = %s", txt_fn_list)
@@ -345,9 +356,12 @@ def train_eval_annotator(provision: str,
     eb_antdoc_list = \
         ebantdoc5.doclist_to_ebantdoc_list(txt_fn_list,
                                            work_dir,
-                                           is_bespoke_mode=custom_training_mode,
+                                           is_bespoke_mode=is_bespoke_mode,
                                            is_doc_structure=is_doc_structure,
-                                           doc_lang=doc_lang)
+                                           doc_lang=doc_lang,
+                                           # to keep file order stable to ensure
+                                           # consistent numbers
+                                           is_sort_by_file_id=True)
     num_docs = len(eb_antdoc_list)
     attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     group_id_list = []
@@ -374,7 +388,8 @@ def train_eval_annotator(provision: str,
         else:
             num_neg_label += 1
 
-    # pylint: disable=C0103
+    # X is sorted by file_id already
+    # pylint: disable=invalid-name
     X = eb_antdoc_list
     y = [provision in eb_antdoc.get_provision_set()
          for eb_antdoc in eb_antdoc_list]
@@ -401,7 +416,7 @@ def train_eval_annotator(provision: str,
     # only train, no independent testing
     # corss validation is applied to all Bespoke training
     # Always do cross validation to keep N constant as what people expect.
-    if custom_training_mode:
+    if is_bespoke_mode:
         # pylint: disable=line-too-long
         logger.info("training using cross validation with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
                      len(attrvec_list), num_pos_label, num_neg_label)
@@ -424,11 +439,12 @@ def train_eval_annotator(provision: str,
                                          work_dir)
 
         return prov_annotator2, combined_log_json
+
     # pylint: disable=line-too-long
     logger.info("training using train/test split with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
                  len(attrvec_list), num_pos_label, num_neg_label)
 
-    if custom_training_mode:
+    if is_bespoke_mode:
         test_size = 0.25
     else:
         test_size = 0.2
@@ -494,6 +510,7 @@ def train_eval_annotator_with_trte(provision: str,
                                    is_cache_enabled=True,
                                    is_doc_structure=False) \
                                    -> Tuple[ebannotator.ProvisionAnnotator,
+                                            Dict[str, Any],
                                             Dict[str, Dict]]:
     logger.info("training_eval_annotator_with_trte(%s) called", provision)
     logger.info("    work_dir = %s", work_dir)
@@ -505,7 +522,8 @@ def train_eval_annotator_with_trte(provision: str,
     X_train = ebantdoc5.doclist_to_ebantdoc_list(train_doclist_fn,
                                                  work_dir,
                                                  is_cache_enabled=is_cache_enabled,
-                                                 is_doc_structure=is_doc_structure)
+                                                 is_doc_structure=is_doc_structure,
+                                                 is_sort_by_file_id=True)
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
     X_train = None  # free that memory
 
@@ -545,7 +563,7 @@ def train_eval_annotator_with_trte(provision: str,
                  astatus['prec'], astatus['recall'], astatus['f1']]
         print('\t'.join([str(x) for x in aline]), file=pmout)
 
-    return prov_annotator, log_json
+    return prov_annotator, ant_status['ant_status'], log_json
 
 
 # For our default provisions, we take 4/5 for training, 1/5 for testing
@@ -611,13 +629,10 @@ def train_eval_span_annotator(provision: str,
                                                                work_dir,
                                                                is_bespoke_mode=is_bespoke_mode,
                                                                is_doc_structure=is_doc_structure,
-                                                               is_use_corenlp=span_annotator.get_is_use_corenlp())
-
-        # sort eb_antdoc_list to ensure it is stable even if input file order is changed.
-        ordered_list = [(x_antdoc.file_id, x_antdoc) for x_antdoc in eb_antdoc_list]
-        ordered_list = sorted(ordered_list)
-        eb_antdoc_list = [x_antdoc for x_fn, x_antdoc in ordered_list]
-
+                                                               is_use_corenlp=span_annotator.get_is_use_corenlp(),
+                                                               # we need the files to be sorted in order to
+                                                               # ensure stable training.
+                                                               is_sort_by_file_id=True)
         num_docs = len(eb_antdoc_list)
 
         #split training and test data, save doclists
@@ -659,12 +674,17 @@ def train_eval_span_annotator(provision: str,
                                                     work_dir,
                                                     is_bespoke_mode=is_bespoke_mode,
                                                     is_doc_structure=is_doc_structure,
-                                                    is_use_corenlp=span_annotator.get_is_use_corenlp())
+                                                    is_use_corenlp=span_annotator.get_is_use_corenlp(),
+                                                    # we need the file order to be stable, even if input file
+                                                    # order is changed.
+                                                    is_sort_by_file_id=True)
+    # we don't care about the file order for testing
     X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
                                                    work_dir,
                                                    is_bespoke_mode=is_bespoke_mode,
                                                    is_doc_structure=is_doc_structure,
                                                    is_use_corenlp=span_annotator.get_is_use_corenlp())
+
     # candidate generation on training set
     train_antdoc_candidatex_list = \
         span_annotator.documents_to_candidates(X_train, provision)
