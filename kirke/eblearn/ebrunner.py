@@ -453,10 +453,11 @@ class EbRunner:
             # using htmltxtparser instead of coding the necessary logic again on PDF.
             txt_base_fname = os.path.basename(eb_antdoc.file_id)
             paraline_fname = txt_base_fname.replace('.txt', '.paraline.txt')
-            paras_with_attrs, para_doc_text, unused_gap_span_list, unused_orig_doc_text = \
-                    htmltxtparser.parse_document('{}/{}'.format(work_dir, paraline_fname),
-                                                 work_dir=work_dir,
-                                                 is_combine_line=False)
+            paras_with_attrs, para_doc_text, unused_gap_span_list, \
+                unused_orig_doc_text, unused_sechead_list = \
+                htmltxtparser.parse_document('{}/{}'.format(work_dir, paraline_fname),
+                                             work_dir=work_dir,
+                                             is_combine_line=False)
 
             origin_sx_lnpos_list, nlp_sx_lnpos_list = \
                 fromtomapper.paras_to_fromto_lists(paras_with_attrs)

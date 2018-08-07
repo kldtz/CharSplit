@@ -1,7 +1,8 @@
 from collections import defaultdict
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+# pylint: disable=unused-import
+from typing import Dict, DefaultDict, List, Optional, Tuple
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def to_str_list(line: str, se_list: List[Tuple[int, int]]) -> List[str]:
 
 
 def make_aligned_charmap(line: str) -> Dict[str, int]:
-    adict = defaultdict(int)
+    adict = defaultdict(int)  # type: DefaultDict[str, int]
     for achar in line:
         if achar not in set([' ', '-', '_', '.']):
             adict[achar] += 1
@@ -73,7 +74,7 @@ def align_aligned_strs(line1: str,
     len1 = len(line1)
     out_span_list = []  # type: List[Tuple[int, int]]
     try:
-        for start, end in line2_span_list:
+        for start, unused_end in line2_span_list:
             idx1_span_start = idx1
             idx2 = start
             while line1[idx1] == line2[idx2]:
@@ -88,9 +89,9 @@ def align_aligned_strs(line1: str,
         return out_span_list
     except IndexError:
         logger.warning('align_aligned_strs failed on')
-        logger.warning('      str1 = [{}]'.format(line1))
-        logger.warning('      str2 = [{}]'.format(line2))
-        logger.warning('str2 spans = {}'.format(line2_span_list))
+        logger.warning('      str1 = [%s]', line1)
+        logger.warning('      str2 = [%s]', line2)
+        logger.warning('str2 spans = %r', line2_span_list)
         return []
 
 
@@ -232,8 +233,11 @@ def compute_se_list(from_line: str,
                 break
 
     # if two lines are diff by two much, we don't bother claim they are matched.
-    # We currently allow partial match of two strings due to some strings might be concatenated randomly.
-    # We can check for character overlap.  We currently assume x,y coordinate limit such candidates.
+    # We currently allow partial match of two strings due to some strings might be
+    # concatenated randomly.
+
+    # We can check for character overlap.  We currently assume x,y coordinate limit
+    # such candidates.
     # if fidx < len(from_line) / 3.0 and \
     #   tidx < len(to_line) / 3.0:
     if not is_leftover_chars_mostly_overlap(from_line[fidx:],
@@ -383,8 +387,9 @@ def unused_make_aligned_str_mapper(fromto_se_pair_list: List[Tuple[Tuple[int, in
     return amapper
 
 
-# from_line is abby_line
+# from_line is abbyy_line
 # to_line is pbox_line
+# pylint: disable=too-many-return-statements
 def compute_matched_se_list(from_line: str,
                             to_line: str,
                             offset: int) \
@@ -415,11 +420,11 @@ def compute_matched_se_list(from_line: str,
     mat_st = mat_st.replace(' ', ' *')
     mat_st = mat_st.replace('-', '-*')
     mat_st = mat_st.replace('_', '_*')
-    abby_big_mat_list = list(re.finditer(mat_st, from_line))
+    abbyy_big_mat_list = list(re.finditer(mat_st, from_line))
 
-    if len(abby_big_mat_list) == 1:
-        # pbox's match, offset is based on abby_line or from_line
-        mat = abby_big_mat_list[0]
+    if len(abbyy_big_mat_list) == 1:
+        # pbox's match, offset is based on abbyy_line or from_line
+        mat = abbyy_big_mat_list[0]
         mstart, mend = mat.start(), mat.end()
         before_start, before_end = 0, mstart
         after_start, after_end = mend, len(from_line)
@@ -456,7 +461,7 @@ def compute_matched_se_list(from_line: str,
             from_extra_se = (before_start, before_end)
 
         return out_from_se_list, out_to_se_list, from_extra_se, None
-    elif len(abby_big_mat_list) == 0:
+    elif not abbyy_big_mat_list:
         mat_st = re.escape(from_line)
         # allow multiple '-', '_', and ' '
         mat_st = mat_st.replace(' ', ' *')

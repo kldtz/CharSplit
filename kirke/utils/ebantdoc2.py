@@ -13,7 +13,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 from sklearn.externals import joblib
 
 from kirke.eblearn import sent2ebattrvec
-from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
+from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser, linepos
 from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
 from kirke.utils.textoffset import TextCpointCunitMapper
 

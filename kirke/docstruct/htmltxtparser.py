@@ -24,6 +24,8 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                                         Tuple[int, int],
                                                         str,
                                                         List[Any]]],
+                                             # sechead_list
+                                             List[Tuple[int, int, str, int]],
                                              str]:
     """Convert a text into lineinfos_with_attrs.
 
@@ -32,7 +34,8 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                 (to_offset, to_offset + len(line)),
                                 line,
                                 attr_list))
-       2. text
+       2. sechead_list
+       3. text
 
     attr_list is usually a 'str', but sometimes (sechead_type, prefix_num, sec_head, split_idx)
     """
@@ -40,6 +43,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
     lineinfo_list = []  # type: List[Tuple[Tuple[int, int], Tuple[int, int], str, List[Any]]]
     split_idx = -1
     to_offset = 0
+    sechead_list = []  # type: List[Tuple[int, int, str, int]]
 
     prev_output_line = ''
     # These are for handling inconsistent ways html text split section number and heading.
@@ -60,6 +64,13 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                                     prev_nonempty_line,
                                                     prev_line_idx,
                                                     is_combine_line=is_combine_line)
+
+                # remvoe invalid sechead, but this really should be done in
+                # secheadutils
+                if sec_head and '...' in sec_head:
+                    # print("SKIP html sechead_tuple: {}".format(sec_head))
+                    sechead_type = ''
+
                 # pylint: disable=pointless-string-statement
                 """
                 print("secheadutils.extract_sechead_v4(ln={}, prv={}, prv_idx={}, iscomb={})".format(line,
@@ -87,6 +98,17 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                           attr_list))
                     to_offset += len(line) + 1
                     prev_output_line = line
+
+                    if sec_head:
+                        sechead_st = sec_head
+                    else:
+                        sechead_st = prefix_num
+                    out_sechead = (start,
+                                   end,
+                                   sechead_st,
+                                   -1)
+                    # print("html sechead_tuple: {}".format(out_sechead))
+                    sechead_list.append(out_sechead)
                 else:
                     first_line = line[:split_idx]
                     second_line = line[split_idx:]
@@ -115,6 +137,18 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                           []))
                     to_offset += len(second_line) + 1
                     prev_output_line = second_line
+
+                    if sec_head:
+                        sechead_st = sec_head
+                    else:
+                        sechead_st = prefix_num
+                    out_sechead = (start,
+                                   start + split_idx,
+                                   sechead_st,
+                                   # first_line,
+                                   -1)
+                    # print("html sechead_tuple2: {}".format(out_sechead))
+                    sechead_list.append(out_sechead)
             else:  # no attr_list, but maybe a page number
                 # print("{}\t{}\t[{}]".format(start, end, line))
                 if is_pagenum_line:
@@ -139,7 +173,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                  in lineinfo_list]
     doc_text = '\n'.join(doc_lines)
 
-    return lineinfo_list, doc_text
+    return lineinfo_list, sechead_list, doc_text
 
 
 def has_sechead_attr(attr_list):
@@ -677,12 +711,13 @@ def parse_document(file_name: str,
                                        List[Tuple[Any]]]],
                             str,
                             List[Tuple[int, int]],
-                            str]:
+                            str,
+                            List[Tuple[int, int, str, int]]]:
     debug_mode = False
     base_fname = os.path.basename(file_name)
     orig_doc_text = txtreader.loads(file_name)
 
-    lineinfos_with_attrs, unused_lineinfo_doc_text = \
+    lineinfos_with_attrs, sechead_list, unused_lineinfo_doc_text = \
         htmltxt_to_lineinfos_with_attrs(file_name, is_combine_line=is_combine_line)
     if debug_mode:
         lineinfo_fname = '{}/{}.lineinfo.v1'.format(work_dir, base_fname).replace('.txt', '')
@@ -691,6 +726,15 @@ def parse_document(file_name: str,
                 print("line #{}\t{}\t{}\t{}\t[{}]".format(i, from_se, to_se, attr_list, line), file=fout)
             # txtreader.dumps(lineinfo_doc_text, lineinfo_fname)
         print('wrote {}'.format(lineinfo_fname), file=sys.stderr)
+
+        html_sechead_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt',
+                                                                         '.html.sechead.list'))
+        with open(html_sechead_fname, 'wt') as fout:
+            for i, (start, end, sechead_st, unused_page_num) in enumerate(sechead_list):
+                print("html sechead #{}: {} {} [{}] {}".format(i, start, end,
+                                                                   sechead_st, unused_page_num),
+                      file=fout)
+        print('wrote {}'.format(html_sechead_fname), file=sys.stderr)
 
     lineinfos_paras, paras_doc_text, gap_span_list = \
              lineinfos_to_paras(lineinfos_with_attrs)
@@ -737,4 +781,4 @@ def parse_document(file_name: str,
                     prev_out_line = tmp_outline
         print('wrote %s' % (sechead_fname, ), file=sys.stderr)
 
-    return lineinfos_paras, paras_doc_text, gap_span_list, orig_doc_text
+    return lineinfos_paras, paras_doc_text, gap_span_list, orig_doc_text, sechead_list

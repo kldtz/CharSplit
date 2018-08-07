@@ -16,8 +16,8 @@ from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 # pylint: disable=import-error
 from sklearn.externals import joblib
 
-from kirke.abbyxml import abbyxmlparser, abbypbox_syncher, tableutils
-from kirke.abbyxml.pdfoffsets import AbbyTableBlock, AbbyXmlDoc
+from kirke.abbyyxml import abbyyxmlparser, abbyypbox_syncher, tableutils
+from kirke.abbyyxml.pdfoffsets import AbbyyTableBlock, AbbyyXmlDoc
 from kirke.eblearn import ebattrvec, sent2ebattrvec
 from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdftxtparser
 from kirke.docstruct.pdfoffsets import PDFTextDoc
@@ -85,6 +85,7 @@ class EbAnnotatedDoc:
                  # para_doc_text,      # adjusted
                  para_prov_ant_list,   # nlp_offset adjusted
                  attrvec_list: List[ebattrvec.EbAttrVec],         # nlp offset adjusted
+                 sechead_list: List[Tuple[int, int, str, int]],
                  paras_with_attrs,     # nlp_offset adjusted
                  origin_lnpos_list: List[linepos.LnPos],
                  nlp_lnpos_list: List[linepos.LnPos],
@@ -109,6 +110,7 @@ class EbAnnotatedDoc:
 
         self.para_prov_ant_list = para_prov_ant_list
         self.attrvec_list = attrvec_list
+        self.sechead_list = sechead_list
         self.paras_with_attrs = paras_with_attrs
         # para_indices and para_attrs should be the same length
         self.para_indices = [x[0] for x in paras_with_attrs]
@@ -129,8 +131,8 @@ class EbAnnotatedDoc:
         self.footer_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
         self.signature_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
 
-        # abby's stuff
-        self.abby_table_list = []  # type: List[AbbyTableBlock]
+        # abbyy's stuff
+        self.abbyy_table_list = []  # type: List[AbbyyTableBlock]
 
 
     def get_file_id(self):
@@ -380,6 +382,10 @@ def html_no_docstruct_to_ebantdoc(txt_file_name,
                                is_test=is_test,
                                para_prov_ant_list=nlp_prov_ant_list,
                                attrvec_list=attrvec_list,
+                               # TODO, jshaw
+                               # Maybe still add sechead info for .txt files.
+                               # no sechead information for txt file
+                               sechead_list=[],
                                paras_with_attrs=paras_with_attrs,
                                origin_lnpos_list=origin_lnpos_list,
                                nlp_lnpos_list=nlp_lnpos_list,
@@ -463,10 +469,10 @@ def html_to_ebantdoc(txt_file_name: str,
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
-    paras_with_attrs, para_doc_text, gap_span_list, _ = \
-            htmltxtparser.parse_document(txt_file_name,
-                                         work_dir=work_dir,
-                                         is_combine_line=True)
+    paras_with_attrs, para_doc_text, gap_span_list, unused_orig_doc_txt, sechead_list = \
+        htmltxtparser.parse_document(txt_file_name,
+                                     work_dir=work_dir,
+                                     is_combine_line=True)
 
     txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para_doc_text, txt4nlp_fname)
@@ -492,6 +498,7 @@ def html_to_ebantdoc(txt_file_name: str,
                                is_test=is_test,
                                para_prov_ant_list=nlp_prov_ant_list,
                                attrvec_list=attrvec_list,
+                               sechead_list=sechead_list,
                                paras_with_attrs=paras_with_attrs,
                                origin_lnpos_list=origin_lnpos_list,
                                nlp_lnpos_list=nlp_lnpos_list,
@@ -578,15 +585,15 @@ def pdf_to_ebantdoc(txt_file_name: str,
     xml_fname = txt_file_name.replace('.txt', '.pdf.xml')
     # For test documents, there is no new .pdf.xml file available.
     # In this case, only use the information available from PDFBox.
-    abby_xml_doc = None  # type: Optional[AbbyXmlDoc]
+    abbyy_xml_doc = None  # type: Optional[AbbyyXmlDoc]
     if os.path.exists(xml_fname):
-        abby_xml_doc = abbyxmlparser.parse_document(xml_fname, work_dir=work_dir)
+        abbyy_xml_doc = abbyyxmlparser.parse_document(xml_fname, work_dir=work_dir)
 
-        abbypbox_syncher.sync_doc_offsets(abby_xml_doc, pdf_txt_doc)
+        abbyypbox_syncher.sync_doc_offsets(abbyy_xml_doc, pdf_txt_doc)
 
         txt_unsync_fname = '{}/{}'.format(work_dir, txt_base_fname.replace('.txt', '.txt.unsync'))
         with open(txt_unsync_fname, 'wt') as unsync_fout:
-            abbypbox_syncher.print_abby_pbox_unsync(abby_xml_doc,
+            abbyypbox_syncher.print_abbyy_pbox_unsync(abbyy_xml_doc,
                                                     file=unsync_fout)
             print('wrote {}'.format(txt_unsync_fname))
 
@@ -596,12 +603,12 @@ def pdf_to_ebantdoc(txt_file_name: str,
         # Tried with "Carousel Wind PPA 12-27-13.pdf"
         if IS_USE_ABBYY_FOR_PARAGRAPH_INFO:
             paras2_with_attrs, para2_doc_text = \
-                abbyxmlparser.to_paras_with_attrs(abby_xml_doc,
+                abbyyxmlparser.to_paras_with_attrs(abbyy_xml_doc,
                                                   txt_file_name,
                                                   work_dir=work_dir,
                                                   debug_mode=False)
 
-            tmp_para5attrs_fname = txt_base_fname.replace('.txt', '.abby.para5attrs')
+            tmp_para5attrs_fname = txt_base_fname.replace('.txt', '.abbyy.para5attrs')
             paraattrsutils.print_paras_with_attrs(paras2_with_attrs,
                                                   doc_text,
                                                   para2_doc_text,
@@ -656,6 +663,7 @@ def pdf_to_ebantdoc(txt_file_name: str,
                                is_test=is_test,
                                para_prov_ant_list=nlp_prov_ant_list,
                                attrvec_list=attrvec_list,
+                               sechead_list=pdf_txt_doc.sechead_list,
                                paras_with_attrs=paras2_with_attrs,
                                origin_lnpos_list=origin_lnpos_list,
                                nlp_lnpos_list=nlp_lnpos_list,
@@ -667,8 +675,8 @@ def pdf_to_ebantdoc(txt_file_name: str,
 
     update_special_block_info(eb_antdoc, pdf_txt_doc)
 
-    if abby_xml_doc:
-        eb_antdoc.abby_table_list = tableutils.get_abby_table_list(abby_xml_doc)
+    if abbyy_xml_doc:
+        eb_antdoc.abbyy_table_list = tableutils.get_abbyy_table_list(abbyy_xml_doc)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:

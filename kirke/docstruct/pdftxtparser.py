@@ -333,7 +333,6 @@ def save_str_list(pdf_text_doc: PDFTextDoc,
 # span_se_list = List[Tuple[linepos.LnPos, linepos.LnPos]]
 # offsets_line_list = List[Tuple[span_se_list, str, attr_list]]
 # gap_span_list = List[Tuple[int, int]]
-
 def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                         file_name: str,
                         work_dir: str,
@@ -1087,6 +1086,20 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                 sechead_tuple = docstructutils.extract_line_sechead(line.line_text)
                 if sechead_tuple:
                     line.attrs['sechead'] = sechead_tuple
+                    unused_sec_type, sechead_prefix, sechead_st, split_idx = sechead_tuple
+                    if split_idx != -1:
+                        shead_end = line.lineinfo.start + split_idx
+                    else:
+                        shead_end = line.lineinfo.end
+                    if not sechead_st:
+                        sechead_st = sechead_prefix
+                    out_sechead = (line.lineinfo.start,
+                                   shead_end,
+                                   sechead_st,
+                                   page_num)
+                    # print("sechead_tuple: {}".format(sechead_tuple))
+                    # print("             : {}".format(out_sechead))
+                    pdf_txt_doc.sechead_list.append(out_sechead)
 
         # 2nd stage of rules
         is_footer, unused_score = docstructutils.is_line_footer(line.line_text,
@@ -1202,6 +1215,21 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
             if apage.attrs.get('has_toc') and not deactivate_toc_detection:
                 line.attrs['toc'] = True
             line.attrs['sechead'] = sechead_tuple
+            unused_sec_type, sechead_prefix, sechead_st, split_idx = sechead_tuple
+            if split_idx != -1:
+                shead_end = line.lineinfo.start + split_idx
+            else:
+                shead_end = line.lineinfo.end
+            if not sechead_st:
+                sechead_st = sechead_prefix
+            out_sechead = (line.lineinfo.start,
+                           shead_end,
+                           sechead_st,
+                           # ' '.join([sechead_prefix, sechead_st]).strip(),
+                           page_num)
+            # print("sechead_tuple2: {}".format(sechead_tuple))
+            # print("              : {}".format(out_sechead))
+            pdf_txt_doc.sechead_list.append(out_sechead)
         else:
             non_sechead_count += 1
 

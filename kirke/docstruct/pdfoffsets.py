@@ -116,6 +116,7 @@ class PDFTextDoc:
         # each page is a list of grouped_block
         self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
         self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
+        self.sechead_list = []  # type: List[Tuple[int, int, str, int]]
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]
