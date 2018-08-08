@@ -1220,10 +1220,11 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                     shead_end = line.lineinfo.start + split_idx
                 else:
                     shead_end = line.lineinfo.end
+                if not sechead_st:
+                    sechead_st = sechead_prefix
             else:
                 shead_end = line.lineinfo.end
-            if not sechead_st:
-                sechead_st = sechead_prefix
+                sechead_st = line.line_text
             out_sechead = (line.lineinfo.start,
                            shead_end,
                            sechead_st,
