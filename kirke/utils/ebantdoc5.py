@@ -594,7 +594,7 @@ def pdf_to_ebantdoc(txt_file_name: str,
         txt_unsync_fname = '{}/{}'.format(work_dir, txt_base_fname.replace('.txt', '.txt.unsync'))
         with open(txt_unsync_fname, 'wt') as unsync_fout:
             abbyypbox_syncher.print_abbyy_pbox_unsync(abbyy_xml_doc,
-                                                    file=unsync_fout)
+                                                      file=unsync_fout)
             print('wrote {}'.format(txt_unsync_fname))
 
         # Current still use PDFBox's paragraph.
@@ -604,9 +604,9 @@ def pdf_to_ebantdoc(txt_file_name: str,
         if IS_USE_ABBYY_FOR_PARAGRAPH_INFO:
             paras2_with_attrs, para2_doc_text = \
                 abbyyxmlparser.to_paras_with_attrs(abbyy_xml_doc,
-                                                  txt_file_name,
-                                                  work_dir=work_dir,
-                                                  debug_mode=False)
+                                                   txt_file_name,
+                                                   work_dir=work_dir,
+                                                   debug_mode=False)
 
             tmp_para5attrs_fname = txt_base_fname.replace('.txt', '.abbyy.para5attrs')
             paraattrsutils.print_paras_with_attrs(paras2_with_attrs,
@@ -838,7 +838,8 @@ def doclist_to_ebantdoc_list_linear(doclist_file: str,
                                     is_bespoke_mode: bool = False,
                                     is_doc_structure: bool = False,
                                     doc_lang: str = 'en',
-                                    is_use_corenlp: bool = True) -> List[EbAnnotatedDoc]:
+                                    is_use_corenlp: bool = True,
+                                    is_sort_by_file_id: bool = False) -> List[EbAnnotatedDoc]:
     logger.debug('ebantdoc.doclist_to_ebantdoc_list_linear(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logger.debug("mkdir %s", work_dir)
@@ -855,6 +856,9 @@ def doclist_to_ebantdoc_list_linear(doclist_file: str,
                                          doc_lang=doc_lang,
                                          is_use_corenlp=is_use_corenlp)
             eb_antdoc_list.append(eb_antdoc)
+
+    if is_sort_by_file_id:
+        eb_antdoc_list = sorted(eb_antdoc_list, key=lambda x: x.file_id)
     logger.debug('Finished ebantdoc.doclist_to_ebantdoc_list_linear()')
     return eb_antdoc_list
 
@@ -865,7 +869,9 @@ def doclist_to_ebantdoc_list(doclist_file: str,
                              is_bespoke_mode: bool = False,
                              is_doc_structure: bool = False,
                              doc_lang: str = 'en',
-                             is_use_corenlp: bool = True) -> List[EbAnnotatedDoc]:
+                             is_use_corenlp: bool = True,
+                             is_sort_by_file_id: bool = False) \
+                             -> List[EbAnnotatedDoc]:
     logger.debug('ebantdoc.doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logger.debug("mkdir %s", work_dir)
@@ -895,9 +901,10 @@ def doclist_to_ebantdoc_list(doclist_file: str,
     for txt_fn in txt_fn_list:
         eb_antdoc_list.append(fn_eb_antdoc_map[txt_fn])
 
+    if is_sort_by_file_id:
+        eb_antdoc_list = sorted(eb_antdoc_list, key=lambda x: x.file_id)
     logger.debug('Finished doclist_to_ebantdoc_list(%s, %s), len= %d',
                  doclist_file, work_dir, len(txt_fn_list))
-
     return eb_antdoc_list
 
 
@@ -906,14 +913,16 @@ def doclist_to_ebantdoc_list_no_corenlp(doclist_file: str,
                                         work_dir: str,
                                         is_bespoke_mode: bool = False,
                                         is_doc_structure: bool = False,
-                                        doc_lang: str = 'en'):
+                                        doc_lang: str = 'en',
+                                        is_sort_by_file_id: bool = False):
     logger.debug('ebantdoc.doclist_to_ebantdoc_list_no_corenlp(%s, %s)', doclist_file, work_dir)
     eb_antdoc_list = doclist_to_ebantdoc_list(doclist_file,
                                               work_dir,
                                               is_bespoke_mode=is_bespoke_mode,
                                               is_doc_structure=is_doc_structure,
                                               doc_lang=doc_lang,
-                                              is_use_corenlp=False)
+                                              is_use_corenlp=False,
+                                              is_sort_by_file_id=is_sort_by_file_id)
     return eb_antdoc_list
 
 
