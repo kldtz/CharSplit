@@ -7,11 +7,11 @@ from kirke.abbyyxml import tableutils
 def find_prev_sechead(start: int,
                       sechead_list: List[Tuple[int, int, str, int]]) \
                       -> Optional[Tuple[int, int, str, int]]:
-    print("find_prev_sechead, table_start = {}".format(start))
+    # print("find_prev_sechead, table_start = {}".format(start))
     prev_sechead_tuple = None
     for sechead_tuple in sechead_list:
         shead_start, unused_shead_end, unused_shead_st, unused_shead_page_num = sechead_tuple
-        if start < shead_start:
+        if start <= shead_start:
             return prev_sechead_tuple
         prev_sechead_tuple = sechead_tuple
     return prev_sechead_tuple
@@ -24,11 +24,11 @@ def find_prev_exhibit_in_page(start: int,
     prev_exhibit_tuple = None
     for sechead_tuple in sechead_list:
         shead_start, unused_shead_end, shead_st, shead_page_num = sechead_tuple
+        if start <= shead_start:
+            return prev_exhibit_tuple
         if shead_page_num == page_num and \
            'exhibit' in shead_st.lower():
             prev_exhibit_tuple = sechead_tuple
-        if start < shead_start:
-            return prev_exhibit_tuple
         if page_num < shead_page_num:
             return prev_exhibit_tuple
     return prev_exhibit_tuple
@@ -43,15 +43,46 @@ def is_in_exhibit_section(start: int,
     sechead_tuple = find_prev_exhibit_in_page(start,
                                               page_num,
                                               sechead_list)
-    if not sechead_tuple:
-        sechead_tuple = find_prev_sechead(start,
-                                          sechead_list)
-        if sechead_tuple:
-            unused_shead_start, unused_shead_end, shead_st, unused_shead_page_num = \
-                sechead_tuple
-            if 'exhibit' in shead_st:
-                return sechead_tuple
-    return sechead_tuple
+    if sechead_tuple:
+        return sechead_tuple
+
+    # no previous 'exhibit' sechead found
+    sechead_tuple = find_prev_sechead(start,
+                                      sechead_list)
+    if sechead_tuple:
+        unused_shead_start, unused_shead_end, shead_st, unused_shead_page_num = \
+            sechead_tuple
+        if 'exhibit' in shead_st:
+            return sechead_tuple
+
+    return None
+
+def get_before_table_text(table_start: int,
+                          sechead_tuple: Optional[Tuple[int, int, str, int]],
+                          exhibit_tuple: Optional[Tuple[int, int, str, int]],
+                          doc_text: str) -> str:
+    if sechead_tuple and exhibit_tuple:
+        if sechead_tuple[1] <= exhibit_tuple[1]:
+            last_tuple = exhibit_tuple
+        else:
+            last_tuple = sechead_tuple
+    elif sechead_tuple:
+        last_tuple = sechead_tuple
+    elif exhibit_tuple:
+        last_tuple = exhibit_tuple
+    else:
+        return ''
+
+    unused_shead_start, shead_end, unused_shead_st, unused_shead_page_num = \
+        last_tuple
+
+    # only up to 1000 char are returned
+    print('  before table text len = {}'.format(table_start - shead_end))
+    if table_start > shead_end and table_start - shead_end < 1000:
+        text = doc_text[shead_end:table_start].replace('\n', ' ')
+        return text
+
+    return ''
 
 
 # pylint: disable=too-few-public-methods
@@ -102,13 +133,21 @@ class TableGenerator:
 
 
                 print('\n\n==================================================')
-                print('ABBYY table count #{}, page_num = {}'.format(table_count, abbyy_table.page_num))
+                print('ABBYY table count #{}, page_num = {}, table_start = {}'.format(table_count,
+                                                                                      abbyy_table.page_num,
+                                                                                      table_start))
 
                 print("  is_abbyy_original: {}".format(abbyy_table.is_abbyy_original))
-                print("  sechead: {}".format(find_prev_sechead(table_start, sechead_list)))
-                print("  is_in_exhibit: {}".format(is_in_exhibit_section(table_start,
-                                                                         abbyy_table.page_num,
-                                                                         sechead_list)))
+                table_sechead = find_prev_sechead(table_start, sechead_list)
+                table_exhibit = is_in_exhibit_section(table_start,
+                                                      abbyy_table.page_num,
+                                                      sechead_list)
+                print("  sechead: {}".format(table_sechead))
+                print("  is_in_exhibit: {}".format(table_exhibit))
+                print('  before_table text: [{}]'.format(get_before_table_text(table_start,
+                                                                               table_sechead,
+                                                                               table_exhibit,
+                                                                               doc_text)))
                 print("  perc doc: {:.2f}%".format(100.0 * table_start / doc_len))
 
                 for span_seq, (start, end) in enumerate(span_list):

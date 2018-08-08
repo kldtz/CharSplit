@@ -1014,7 +1014,7 @@ def extract_tables_from_markups(apage, pdf_txt_doc):
 def add_doc_structure_to_page(apage, pdf_txt_doc):
     num_line_in_page = len(apage.line_list)
     page_num = apage.page_num
-    prev_line_text = ''
+    # prev_line_text = ''
     # take out lines that are clearly not useful for annotation extractions:
     #   - toc
     #   - header
@@ -1083,7 +1083,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         else:  # none-of-above
             # check if sechead
             if secheadutils.is_line_sechead_prefix(line.line_text):
-                sechead_tuple = docstructutils.extract_line_sechead(line.line_text)
+                sechead_tuple = secheadutils.extract_sechead(line.line_text)
                 if sechead_tuple:
                     line.attrs['sechead'] = sechead_tuple
                     unused_sec_type, sechead_prefix, sechead_st, split_idx = sechead_tuple
@@ -1130,7 +1130,6 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
             # footer might appear first in the page instead of end, though
             # in PDF view, it is at the end.
 
-        prev_line_text = line.line_text
         if not is_skip and line.lineinfo.yStart < footer_yStart:
             content_line_list.append(line)
     # if footer is found, set everything afterward as footer
@@ -1209,15 +1208,18 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     for line in apage.line_list[last_toc_line + 1:]:
         # sechead detection is applied later
         # sechead, prefix, head, split_idx
-        sechead_tuple = docstructutils.extract_line_sechead(line.line_text, prev_line_text)
+        sechead_tuple = secheadutils.extract_sechead(line.line_text)
         is_sechead_prefix = secheadutils.is_line_sechead_prefix(line.line_text)
         if sechead_tuple or is_sechead_prefix:
             if apage.attrs.get('has_toc') and not deactivate_toc_detection:
                 line.attrs['toc'] = True
             line.attrs['sechead'] = sechead_tuple
-            unused_sec_type, sechead_prefix, sechead_st, split_idx = sechead_tuple
-            if split_idx != -1:
-                shead_end = line.lineinfo.start + split_idx
+            if sechead_tuple:
+                unused_sec_type, sechead_prefix, sechead_st, split_idx = sechead_tuple
+                if split_idx != -1:
+                    shead_end = line.lineinfo.start + split_idx
+                else:
+                    shead_end = line.lineinfo.end
             else:
                 shead_end = line.lineinfo.end
             if not sechead_st:

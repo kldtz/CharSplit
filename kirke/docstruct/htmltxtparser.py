@@ -17,7 +17,7 @@ DEBUG_MODE = False
 #                 (to_start, to_end)),
 #                 text_span,
 #                 attr_list)]
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                     is_combine_line: bool = True) \
                                     -> Tuple[List[Tuple[Tuple[int, int],
@@ -59,33 +59,17 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
             elif strutils.is_dashed_line(line):
                 prev_nonempty_line = ''
             else:
-                sechead_type, prefix_num, sec_head, split_idx = \
-                    secheadutils.extract_sechead_v4(line,
-                                                    prev_nonempty_line,
-                                                    prev_line_idx,
-                                                    is_combine_line=is_combine_line)
+                sechead_tuple = secheadutils.extract_sechead(line,
+                                                             prev_line=prev_nonempty_line,
+                                                             prev_line_idx=prev_line_idx,
+                                                             is_combine_line=is_combine_line)
 
-                # remvoe invalid sechead, but this really should be done in
-                # secheadutils
-                if sec_head and '...' in sec_head:
-                    # print("SKIP html sechead_tuple: {}".format(sec_head))
-                    sechead_type = ''
-
-                # pylint: disable=pointless-string-statement
-                """
-                print("secheadutils.extract_sechead_v4(ln={}, prv={}, prv_idx={}, iscomb={})".format(line,
-                                                                                                     prev_nonempty_line,
-                                                                                                     prev_line_idx,
-                                                                                                     is_combine_line))
-                print("       sechead_type= {}, prefix_num= {}, sec_head= {}, split_idx= {}".format(sechead_type,
-                                                                                                    prefix_num,
-                                                                                                    sec_head,
-                                                                                                    split_idx))
-                """
-
-                if sechead_type:
-                    attr_list.append((sechead_type, prefix_num, sec_head, split_idx))
-                prev_nonempty_line, prev_line_idx = line, split_idx
+                if sechead_tuple:
+                    attr_list.append(sechead_tuple)
+                    unused_sechead_type, prefix_num, sec_head, split_idx = sechead_tuple
+                    prev_nonempty_line, prev_line_idx = line, split_idx
+                else:
+                    prev_nonempty_line, prev_line_idx = line, -1
 
             # attr_list is True iff it is a section head
             if attr_list:
@@ -732,7 +716,7 @@ def parse_document(file_name: str,
         with open(html_sechead_fname, 'wt') as fout:
             for i, (start, end, sechead_st, unused_page_num) in enumerate(sechead_list):
                 print("html sechead #{}: {} {} [{}] {}".format(i, start, end,
-                                                                   sechead_st, unused_page_num),
+                                                               sechead_st, unused_page_num),
                       file=fout)
         print('wrote {}'.format(html_sechead_fname), file=sys.stderr)
 

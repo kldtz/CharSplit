@@ -338,37 +338,6 @@ def is_line_header(line: str,
     return score >= 1.0
 
 
-def is_invalid_sechead(unused_sechead,
-                       prefix: str,
-                       head: str,
-                       unused_split_idx: int):
-    if prefix == 'a':   # 'a', 'Force Majeure Event.'
-        return True
-    words = head.split()
-    # 'At the termination of the Transmission Force Majeure Event, the '
-    if len(words) >= 8:
-        if strutils.is_word_all_lc(words[-1]):
-            return True
-        # 'xxx shall:'
-        if words[-1][-1] == ':' and strutils.is_word_all_lc(words[-1][:-1]):
-            return True
-    # 'Agreement'
-    if (not prefix) and head in set(['Agreement', 'Agreement.']):
-        return True
-
-    return False
-
-
-def extract_line_sechead(line: str, unused_prev_line: Optional[str] = None) \
-    -> Optional[Tuple[str, str, str, int]]:
-    sechead, prefix, head, split_idx = secheadutils.extract_sechead_v4(line,
-                                                                       is_combine_line=True)
-    if sechead:
-        if not is_invalid_sechead(sechead, prefix, head, split_idx):
-            return sechead, prefix, head, split_idx
-    return None
-
-
 SIGNATURE_PREFIX_PAT = re.compile(r'(By|Name|Title)(.*?):')
 # SIGNATURE_PREFIX_PAT = re.compile(r'(By|Name|Title)\s*:')
 
