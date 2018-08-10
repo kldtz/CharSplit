@@ -105,6 +105,13 @@ class AbbyyCell:
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
 
+    def get_text(self) -> str:
+        st_list = []  # type: List[str]
+        for ab_par in self.ab_pars:
+            for unused_lid, ab_line in enumerate(ab_par.ab_lines):
+                st_list.append(ab_line.text)
+        return '\n'.join(st_list)
+
 
 # pylint: disable=too-few-public-methods
 class AbbyyRow:
@@ -116,6 +123,13 @@ class AbbyyRow:
         self.ab_cells = ab_cells
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
+
+    def get_text(self) -> str:
+        st_list = []  # type: List[str]
+        for unused_cell_seq, ab_cell in enumerate(self.ab_cells):
+            cell_text = ab_cell.get_text()
+            st_list.append(cell_text)
+        return '\n'.join(st_list)
 
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
@@ -141,6 +155,20 @@ class AbbyyTableBlock:
         col_num_list = [len(ab_row.ab_cells) for ab_row in self.ab_rows]
         col_counter = Counter(col_num_list)
         return col_counter.most_common(1)[0][0]
+
+    def get_row(self, idx: int) -> Optional[AbbyyRow]:
+        if idx < len(self.ab_rows):
+            return self.ab_rows[idx]
+        return None
+
+    def get_text(self) -> str:
+        st_list = []  # type: List[str]
+        for unused_row_id, ab_row in enumerate(self.ab_rows):
+            row_text = ab_row.get_text()
+            st_list.append(row_text)
+
+        return '\n'.join(st_list)
+
 
 
 # pylint: disable=invalid-name

@@ -144,6 +144,11 @@ def text_block_to_text(ab_text_block: AbbyyTextBlock) -> str:
     return '\n'.join(st_list)
 
 
+#  TODO, this should be replaced by ab_table_block.get_text()
+def table_block_to_text(ab_table_block: AbbyyTableBlock) -> str:
+    return ab_table_block.get_text()
+
+"""
 def table_block_to_text(ab_table_block: AbbyyTableBlock) -> str:
     st_list = []  # type: List[str]
     for unused_row_id, ab_row in enumerate(ab_table_block.ab_rows):
@@ -153,6 +158,8 @@ def table_block_to_text(ab_table_block: AbbyyTableBlock) -> str:
                     st_list.append(ab_line.text)
 
     return '\n'.join(st_list)
+"""
+
 
 def table_block_to_y_top_bottom(ab_table_block: AbbyyTableBlock) -> Tuple[int, int]:
     top_y = sys.maxsize

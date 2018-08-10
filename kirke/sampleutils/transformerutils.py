@@ -12,6 +12,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction import DictVectorizer
 
 from kirke.utils import strutils
+from kirke.sampleutils.tablegen import fix_rate_table_text
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -347,12 +348,12 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
         self.name = 'TableTextTransformer'
         self.version = '1.0'
         self.words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
-        self.sechead_vectorizer = CountVectorizer(min_df=1,
-                                                  ngram_range=(1, 2),
-                                                  lowercase=True)
+        self.sechead_vectorizer = CountVectorizer(min_df=2,
+                                                  ngram_range=(1, 2))
+        self.row_header_vectorizer = CountVectorizer(min_df=2,
+                                                     ngram_range=(1, 2))
         self.pre_table_vectorizer = CountVectorizer(min_df=2,
-                                                    ngram_range=(1, 2),
-                                                    lowercase=True)
+                                                    ngram_range=(1, 2))
         self.min_max_scaler = preprocessing.MinMaxScaler()
 
     # span_candidate_list should be a list of dictionaries
@@ -365,6 +366,7 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
         pre_table_words_list = []  # type: List[str]
         sechead_words_list = []  # type: List[str]
         words_list = []  # type: List[str]
+        row_header_words_list = []  # type: List[str]
 
         numeric_matrix = np.zeros(shape=(len(span_candidate_list), 17))
         for i, span_candidate in enumerate(span_candidate_list):
@@ -386,24 +388,33 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
             numeric_matrix[i, 15] = span_candidate['num_rows']
             numeric_matrix[i, 16] = span_candidate['num_cols']
 
-            table_text = span_candidate.get('text', '')
+            table_text = fix_rate_table_text(span_candidate.get('text', ''))
             table_text_no_number = strutils.remove_numbers(table_text)
+            words_list.append(table_text_no_number)
+            row_header_text = fix_rate_table_text(span_candidate.get('row_header_text', ''))
+            row_header_words_list.append(row_header_text)
             pre_table_words_list.append(span_candidate.get('pre_table_text', ''))
             sechead_words_list.append(span_candidate.get('sechead_text', ''))
-            words_list.append(table_text_no_number)
+
 
         if fit_mode:
             self.words_vectorizer.fit(words_list)
             self.pre_table_vectorizer.fit(pre_table_words_list)
             self.sechead_vectorizer.fit(sechead_words_list)
+            self.row_header_vectorizer.fit(row_header_words_list)
             self.min_max_scaler.fit(numeric_matrix)
             return self
 
         words_out = self.words_vectorizer.transform(words_list)
+        row_header_out = self.row_header_vectorizer.transform(row_header_words_list)
         numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
         sechead_out = self.sechead_vectorizer.transform(sechead_words_list)
         pre_table_out = self.pre_table_vectorizer.transform(pre_table_words_list)
-        X_out = sparse.hstack((words_out, numeric_matrix, sechead_out, pre_table_out))
+        X_out = sparse.hstack((words_out,
+                               row_header_out,
+                               numeric_matrix,
+                               sechead_out,
+                               pre_table_out))
         return X_out
 
 

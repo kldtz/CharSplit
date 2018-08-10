@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Dict, List, Optional, Tuple
 
 from kirke.utils import ebantdoc5, ebsentutils, strutils
@@ -175,6 +176,7 @@ class TableGenerator:
                 len_pre_table_text = len(pre_table_text)
                 num_rows = len(abbyy_table.ab_rows)
                 num_cols = abbyy_table.get_num_cols()
+                row_header_text = abbyy_table.get_row(0).get_text()
 
                 print("  sechead: {}".format(table_sechead))
                 print("  is_in_exhibit: {}".format(is_table_in_exhibit))
@@ -192,6 +194,10 @@ class TableGenerator:
                 print("  len_before_table_text: {}".format(len_pre_table_text))
                 print("  num_rows: {}".format(num_rows))
                 print("  num_cols: {}".format(num_cols))
+                print("  row header_text: {}".format(row_header_text))
+                row_header_text2 =  fix_rate_table_text(row_header_text)
+                if row_header_text2 != row_header_text:
+                    print("  fixed_row header_text: {}".format(row_header_text2))
 
                 for span_seq, (start, end) in enumerate(span_list):
 
@@ -229,7 +235,8 @@ class TableGenerator:
                                'num_nonnum_word_div_100': num_nonnum_word_div_100,
                                'perc_number_word': perc_number_word,
                                'num_rows': num_rows,
-                               'num_cols': num_cols}
+                               'num_cols': num_cols,
+                               'row_header_text': row_header_text}
                 candidates.append(a_candidate)
                 group_id_list.append(group_id)
                 if is_label:
@@ -242,3 +249,16 @@ class TableGenerator:
 
             result.append((antdoc, candidates, label_list, group_id_list))
         return result
+
+
+def fix_rate_table_text(text: str) -> str:
+    text = re.sub(r'\b(r)\s+(ate)\b', r'\1\2', text, flags=re.I)
+    return text
+
+"""
+def fix_rate_table_text(text: str) -> str:
+    text = text.replace('$', ' dollar_symbol ')
+    # fix a missspelling
+    text = re.sub(r'\b(r)\s+(ate)\b', r'\1\2', text, flags=re.I)
+    return text
+"""
