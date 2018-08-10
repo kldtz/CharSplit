@@ -65,6 +65,9 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                                              is_combine_line=is_combine_line)
 
                 if sechead_tuple:
+                    # print("  iii check_sechead: [{}]".format(line))
+                    # print("      sechead_tuple: [{}]".format(sechead_tuple))
+                    # print("      prev_nempty_L: [{}]".format(prev_nonempty_line))
                     attr_list.append(sechead_tuple)
                     unused_sechead_type, prefix_num, sec_head, split_idx = sechead_tuple
                     prev_nonempty_line, prev_line_idx = line, split_idx

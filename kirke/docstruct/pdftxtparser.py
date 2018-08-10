@@ -1082,24 +1082,27 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
             # not skipped
         else:  # none-of-above
             # check if sechead
-            if secheadutils.is_line_sechead_prefix(line.line_text):
-                sechead_tuple = secheadutils.extract_sechead(line.line_text)
-                if sechead_tuple:
-                    line.attrs['sechead'] = sechead_tuple
-                    unused_sec_type, sechead_prefix, sechead_st, split_idx = sechead_tuple
-                    if split_idx != -1:
-                        shead_end = line.lineinfo.start + split_idx
-                    else:
-                        shead_end = line.lineinfo.end
-                    if not sechead_st:
-                        sechead_st = sechead_prefix
-                    out_sechead = (line.lineinfo.start,
-                                   shead_end,
-                                   sechead_st,
-                                   page_num)
-                    # print("sechead_tuple: {}".format(sechead_tuple))
-                    # print("             : {}".format(out_sechead))
-                    pdf_txt_doc.sechead_list.append(out_sechead)
+            # if secheadutils.is_line_sechead_prefix(line.line_text):
+            sechead_tuple = secheadutils.extract_sechead(line.line_text)
+            if sechead_tuple:
+                # print("  ggg check_sechead: [{}]".format(line.line_text))
+                # print("      sechead_tuple: [{}]".format(sechead_tuple))
+
+                line.attrs['sechead'] = sechead_tuple
+                unused_sec_type, sechead_prefix, sechead_st, split_idx = sechead_tuple
+                if split_idx != -1:
+                    shead_end = line.lineinfo.start + split_idx
+                else:
+                    shead_end = line.lineinfo.end
+                if not sechead_st:
+                    sechead_st = sechead_prefix
+                out_sechead = (line.lineinfo.start,
+                               shead_end,
+                               sechead_st,
+                               page_num)
+                # print("sechead_tuple: {}".format(sechead_tuple))
+                # print("             : {}".format(out_sechead))
+                pdf_txt_doc.sechead_list.append(out_sechead)
 
         # 2nd stage of rules
         is_footer, unused_score = docstructutils.is_line_footer(line.line_text,
@@ -1211,6 +1214,9 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         sechead_tuple = secheadutils.extract_sechead(line.line_text)
         is_sechead_prefix = secheadutils.is_line_sechead_prefix(line.line_text)
         if sechead_tuple or is_sechead_prefix:
+            # print("  hhh check_sechead: [{}]".format(line.line_text))
+            # print("      sechead_tuple: [{}]".format(sechead_tuple))
+            # print("     is_sechead_pre: [{}]".format(is_sechead_prefix))
             if apage.attrs.get('has_toc') and not deactivate_toc_detection:
                 line.attrs['toc'] = True
             line.attrs['sechead'] = sechead_tuple

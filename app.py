@@ -329,7 +329,10 @@ def custom_train(cust_id: str):
         # to ensure that no accidental file name overlap
         logger.info("cust_id = '%s', candidate_types=%r, nbest= %d",
                     cust_id, candidate_types, nbest)
-        provision = 'cust_{}'.format(cust_id)
+        if strutils.is_digits(cust_id):
+            provision = 'cust_{}'.format(cust_id)
+        else:
+            provision = cust_id
         tmp_dir = '{}/{}'.format(work_dir, provision)
         osutils.mkpath(tmp_dir)
         fn_list = request.files.getlist('file')

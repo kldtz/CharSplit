@@ -251,6 +251,22 @@ def is_invalid_sechead(unused_sechead_type: str,
     # toc
     if '...' in head:
         return True
+
+    lc_head = head.lower()
+    if lc_head in sechead_invalid_heading_set:
+        return True
+
+    # should have a parenthesis in sechead that's long
+    paren_mat = re.search(r'\(.*\)', lc_head)
+    if paren_mat:
+        # print("paren_mat len = {}".format(len(paren_mat.group())))
+        if len(paren_mat.group()) >= 43:
+            return True
+
+    # in TOC, or a table column
+    if lc_head.count('exhibit') >= 2:
+        return True
+
     if prefix == 'a':   # 'a', 'Force Majeure Event.'
         return True
     words = head.split()
@@ -273,12 +289,15 @@ def extract_sechead(line: str,
                     prev_line_idx: int = -1,
                     is_combine_line: bool = True) \
                     -> Optional[Tuple[str, str, str, int]]:
+    # print("extract_sechead({})".format(line))
     shead_tuple = extract_sechead_aux(line,
                                       prev_line=prev_line,
                                       prev_line_idx=prev_line_idx,
                                       is_combine_line=is_combine_line)
     if shead_tuple and not is_invalid_sechead(*shead_tuple):
+        # print('  result ex_sechead => {}'.format(shead_tuple))
         return shead_tuple
+    # print('  not sechead')
     return None
 
 
@@ -313,7 +332,6 @@ def extract_sechead_aux(line: str,
             return None
         prefix = ' '.join([prefix, num]).strip()
         return ('sechead', prefix, head, split_idx)
-
 
     if not prev_line:
         last_extract_sechead_v4_line = ''

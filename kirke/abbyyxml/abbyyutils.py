@@ -1,4 +1,5 @@
 import json
+import sys
 from typing import Dict, List, Tuple, Union
 
 import xmltodict
@@ -6,8 +7,6 @@ import xmltodict
 from kirke.abbyyxml import abbyyutils
 from kirke.abbyyxml.pdfoffsets import AbbyyTextBlock, AbbyyTableBlock, AbbyyXmlDoc
 # from kirke.abbyyxml.pdfoffsets import AbbyyPar, AbbyyLine, AbbyyCell, AbbyyRow
-
-
 
 ABBYY_TEXT_ATTR_SET = set(['@align',
                            '@blockType',
@@ -154,6 +153,21 @@ def table_block_to_text(ab_table_block: AbbyyTableBlock) -> str:
                     st_list.append(ab_line.text)
 
     return '\n'.join(st_list)
+
+def table_block_to_y_top_bottom(ab_table_block: AbbyyTableBlock) -> Tuple[int, int]:
+    top_y = sys.maxsize
+    bottom_y = 0
+    for unused_row_id, ab_row in enumerate(ab_table_block.ab_rows):
+        for unused_cell_seq, ab_cell in enumerate(ab_row.ab_cells):
+            for ab_par in ab_cell.ab_pars:
+                for unused_lid, ab_line in enumerate(ab_par.ab_lines):
+                    ab_battr = ab_line.attr_dict['@b']
+                    ab_tattr = ab_line.attr_dict['@t']
+                    if ab_tattr < top_y:
+                        top_y = ab_tattr
+                    if ab_battr > bottom_y:
+                        bottom_y = ab_battr
+    return top_y, bottom_y
 
 
 def block_to_text(ab_block: Union[AbbyyTableBlock, AbbyyTextBlock]) -> str:

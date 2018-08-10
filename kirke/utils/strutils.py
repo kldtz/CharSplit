@@ -578,7 +578,7 @@ def count_date(line: str) -> int:
     return len(find_substr_indices(r'(\d{1,2}/\d{1,2}/(20|19)\d\d)', line))
 
 def count_number(line: str) -> int:
-    return len(find_substr_indices(r'(\d+)', line))
+    return len(find_substr_indices(r'\b\d[\d,]*\.?\d*\b', line))
     # return len(find_substr_indices(r'(\d*\.\d+|\d+\.\d*|\d+)', line))
 
 

@@ -15,6 +15,8 @@ IS_DEBUG_TABLE = True
 IS_PRINT_HEADER_TABLE = False
 # IS_PRINT_HEADER_TABLE = True
 
+IS_PRESERVE_INVALID_TABLE_AS_TEXT = False
+
 def table_attrs_to_html(attr_dict: Dict) -> str:
     st_list = []  # type: List[str]
     if attr_dict.get('@l'):
@@ -554,9 +556,10 @@ def collect_justified_lines_after(ab_blocks: List[AbbyyBlock],
     return result
 
 
-# pylint: disable=too-many-locals, too-many-branches
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
 
+    # pylint: disable=too-many-nested-blocks
     for unused_pnum, abbyy_page in enumerate(ab_doc.ab_pages, 1):
 
         print("merge_haligned_blocks_as_table, page #{}".format(unused_pnum))
@@ -610,7 +613,6 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
             # Move to next page
             continue
 
-        out_block_list = []  # type: List[AbbyyBlock]
         haligned_block_list_map = {}  # type: Dict[AbbyyTextBlock, List[AbbyyTextBlock]]
         justified_row_block_list_map = {}  # type: Dict[AbbyyTextBlock, List[AbbyyTextBlock]]
         for blocks in haligned_blocks_list:
@@ -632,6 +634,11 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
             justified_row_block_list_map[blocks[0]] = additional_table_row_blocks
 
         # now we have a list of haligned blocks
+        # first try to form all the tables, with original blocks associated with table
+        # kept.  Later, we might want to undo
+
+        # maybe_block_origblocks_list has blocks + original_blocks
+        maybe_block_origblocks_list = []  # type: List[Tuple[AbbyyBlock, List[AbbyyBlock]]]
         for ab_block in abbyy_page.ab_blocks:
             if ab_block in skip_blocks:
                 continue
@@ -642,13 +649,159 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
 
                 if haligned_blocks:
                     table = merge_aligned_blocks(haligned_blocks, justified_row_blocks)
-                    out_block_list.append(table)
+                    maybe_block_origblocks_list.append((table,
+                                                        haligned_blocks +
+                                                        justified_row_blocks))
                 else:
+                    # normal text blocks
                     # print("      block attr: {}".format(ab_block.attr_dict))
-                    out_block_list.append(ab_block)
+                    maybe_block_origblocks_list.append((ab_block, [ab_block]))
             else:
-                # for tables
-                # print("      block attr: {}".format(ab_block.attr_dict))
+                # table blocks, from abby
+                maybe_block_origblocks_list.append((ab_block, [ab_block]))
+
+        """
+        # this is for the missing rate table issue in GoldenWest.txt
+        if unused_pnum == 106:
+            for bbb_seq, (ab_block, origblocks) in enumerate(maybe_block_origblocks_list):
+                print('\n-0------ block {}: ----'.format(bbb_seq))
+                if isinstance(ab_block, AbbyyTableBlock):
+                    print("is_table")
+                    print("[{}]".format(abbyyutils.table_block_to_text(ab_block)))
+                else:
+                    print("is_text")
+                    print("[{}]".format(abbyyutils.text_block_to_text(ab_block)))
+        """
+
+        # The spaces between some rows might be too big so that
+        # each row becomes a paragraph.
+        # Now merge haligned-tables that are adjacent
+        # out_block_origblocks_list = []  # type: List[Tuple[AbbyyBlock, List[AbbyyBlock]]]
+        out_block_origblocks_list = merge_adjacent_haligned_tables(maybe_block_origblocks_list)
+
+        # now remove invalid tables, or put back invalid tables
+        out_block_list = []  # type: List[AbbyyBlock]
+        for ab_block, origblocks in out_block_origblocks_list:
+            if isinstance(ab_block, AbbyyTableBlock):
+                if IS_PRESERVE_INVALID_TABLE_AS_TEXT:
+                    if is_invalid_table(ab_block):
+                        if ab_block.is_abbyy_original:
+                            # for now, we keep such tables
+                            out_block_list.append(ab_block)
+                        else:
+                            # add all the original blocks back
+                            out_block_list.extend(origblocks)
+                    else:
+                        out_block_list.append(ab_block)
+                else:
+                    # This is mainly for Table classification, without
+                    # concerning for paragraph preservation
+                    # simply ignore invalid tables
+                    # don't bother keep them as text_blocks
+                    if is_invalid_table(ab_block):
+                        pass
+                    else:
+                        out_block_list.append(ab_block)
+            else:
+                # normal text block
                 out_block_list.append(ab_block)
 
         abbyy_page.ab_blocks = out_block_list
+
+
+def merge_adjacent_haligned_tables(ab_block_origblocks_list:
+                                   List[Tuple[AbbyyBlock,
+                                              List[AbbyyBlock]]]) \
+                                   -> List[Tuple[AbbyyBlock,
+                                                 List[AbbyyBlock]]]:
+    out_block_origblocks_list = []  # type: List[Tuple[AbbyyBlock, List[AbbyyBlock]]]
+    adjacent_table_list = []  # type: List[AbbyyTableBlock]
+    adjacent_origblocks_list = []  # type: List[AbbyyBlock]
+    for ab_block, origblocks in ab_block_origblocks_list:
+        if isinstance(ab_block, AbbyyTableBlock) and \
+           ab_block.is_abbyy_original:
+            # abbyy's table is always trusted
+            out_block_origblocks_list.append((ab_block, origblocks))
+        elif isinstance(ab_block, AbbyyTableBlock):
+            # is inferred, or haligned table
+            adjacent_table_list.append(ab_block)
+            adjacent_origblocks_list.extend(origblocks)
+        else:
+            # is text block
+            if adjacent_table_list:
+                atable_block = merge_multiple_adjacent_tables(adjacent_table_list)
+                out_block_origblocks_list.append((atable_block, adjacent_origblocks_list))
+                adjacent_table_list = []
+                adjacent_origblocks_list = []
+            # text block, simply add them
+            out_block_origblocks_list.append((ab_block, origblocks))
+
+    if adjacent_table_list:
+        atable_block = merge_multiple_adjacent_tables(adjacent_table_list)
+        out_block_origblocks_list.append((atable_block, adjacent_origblocks_list))
+        adjacent_table_list = []
+        adjacent_origblocks_list = []
+
+    return out_block_origblocks_list
+
+
+def merge_multiple_adjacent_tables(ab_table_list: List[AbbyyTableBlock]) -> AbbyyTableBlock:
+    if len(ab_table_list) == 1:
+        return ab_table_list[0]
+
+    top_y = sys.maxsize
+    bottom_y = 0
+    left_x = sys.maxsize
+    right_x = 0
+    row_list = []  # type: List[AbbyyRow]
+    for ab_table in ab_table_list:
+        row_list.extend(ab_table.ab_rows)
+
+        battr = ab_table.attr_dict['@b']
+        tattr = ab_table.attr_dict['@t']
+        lattr = ab_table.attr_dict['@l']
+        rattr = ab_table.attr_dict['@r']
+        if tattr < top_y:
+            top_y = tattr
+        if battr > bottom_y:
+            bottom_y = battr
+        if lattr < left_x:
+            left_x = lattr
+        if rattr < right_x:
+            right_x = rattr
+    attr_dict = {'@l': left_x,
+                 '@r': right_x,
+                 '@t': top_y,
+                 '@b': bottom_y}
+    table_block = AbbyyTableBlock(row_list, attr_dict, is_abbyy_original=False)
+    table_block.page_num = ab_table_list[0].page_num
+    return table_block
+
+
+def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
+    """A table is invalid for following reason:
+
+       - has only 1 line, by looking at y's
+       - has multiple '...', a toc
+       - has multiple 'exhibit', etc, a toc
+    """
+
+    table_text = abbyyutils.table_block_to_text(ab_table)
+    table_top_y, table_bottom_y = abbyyutils.table_block_to_y_top_bottom(ab_table)
+    table_y_diff = table_bottom_y - table_top_y
+    lc_table_text = table_text.lower()
+    if table_text.count('...') >= 2 or \
+       lc_table_text.count('exhibit') >= 2 or \
+       lc_table_text.count('appendix') >= 2 or \
+       lc_table_text.count('article') >= 2:
+        print("--- is_invalid_table()")
+        print("table_text: [{}]".format(table_text.replace('\n', r' ')))
+        return True
+    if table_y_diff <= 100:
+        print("--- is_invalid_table()")
+        print("table_y_top_bottom: {}, {}, diff={}".format(table_top_y,
+                                                           table_bottom_y,
+                                                           table_y_diff))
+        print("table_text: [{}]".format(table_text.replace('\n', r' ')))
+        return True
+    return False

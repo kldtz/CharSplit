@@ -151,8 +151,16 @@ class TestStrUtils(unittest.TestCase):
         start, end, word = strutils.find_previous_word(line, 6)
         self.assertEqual(word, 'aba')
 
+    def test_count_number(self):
 
+        line = '1) aba bd (b) a2df'
+        self.assertEqual(strutils.count_number(line), 1)
 
+        line = '1) 2.3 bd 4 0.4 (b) a2df'
+        self.assertEqual(strutils.count_number(line), 4)
+
+        line = '1) 2.3 bd 4 0.4 (b) 1,800,000 23.4 a2df'
+        self.assertEqual(strutils.count_number(line), 6)
 
 if __name__ == "__main__":
     unittest.main()

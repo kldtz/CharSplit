@@ -227,9 +227,9 @@ class AbbyyPage:
         # might convert ab_text_blocks to ab_table_blocks.
         #
         # for ab_block in ab_blocks:
-        #    if isinstance(ab_block, AbbyTextBlock):
+        #    if isinstance(ab_block, AbbyyTextBlock):
         #        self.ab_text_blocks.append(ab_block)
-        #    elif isinstance(ab_block, AbbyTableBlock):
+        #    elif isinstance(ab_block, AbbyyTableBlock):
         #        self.ab_table_blocks.append(ab_block)
         #    else:
         #        raise ValueError

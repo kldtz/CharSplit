@@ -175,6 +175,18 @@ class ProvisionAnnotator:
                                                           provision=prov,
                                                           # pylint: disable=line-too-long
                                                           prov_human_ant_list=adj_prov_human_ant_list)
+        # pylint: disable=pointless-string-statement
+        """
+        if prov == 'confidentiality':
+            nlp_text = eb_antdoc.get_nlp_text()
+            out_list = [(prob, attrvec.start, attrvec) for prob, attrvec in prob_attrvec_list]
+            out_list = sorted(out_list, reverse=True)
+            for sent_count, (prob, tmp_start, attrvec) in enumerate(out_list):
+                print("~~ prob {}: {:.3f}, [{}] sechead={}".format(sent_count,
+                                                                   prob,
+                                                                   nlp_text[attrvec.start:attrvec.end],
+                                                                   attrvec.sechead))
+        """
 
         try:
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',

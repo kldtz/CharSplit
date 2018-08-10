@@ -583,7 +583,6 @@ def train_eval_span_annotator(provision: str,
                               model_dir: str,
                               txt_fn_list: Optional[str] = None,
                               model_file_name: Optional[str] = None,
-                              is_doc_structure: bool = True,
                               is_bespoke_mode: bool = False) \
             -> Tuple[spanannotator.SpanAnnotator,
                      Dict[str, Dict]]:
@@ -618,7 +617,9 @@ def train_eval_span_annotator(provision: str,
     logger.info("    model_file_name = %s", model_file_name)
 
     # this is mainly for paragraph
-    if span_annotator.text_type == 'nlp_text':
+    is_doc_structure = False
+    if span_annotator.text_type == 'nlp_text' or \
+       config.get('is_doc_structure', False)
         is_doc_structure = True
 
     if is_bespoke_mode:

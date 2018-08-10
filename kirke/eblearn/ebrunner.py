@@ -635,7 +635,6 @@ class EbRunner:
                                                     custom_model_dir,
                                                     txt_fn_list,
                                                     model_file_name=full_model_fname,
-                                                    is_doc_structure=False,
                                                     is_bespoke_mode=True)
 
         return eb_annotator.get_eval_status(), log_json

@@ -9,6 +9,7 @@ import requests
 def upload_train_dir(url_st: str, upload_dir: str, candidate_types: str, nbest: int = -1):
     txt_fnames, ant_fnames = [], []
     offsets_fnames = []
+    pdfxml_fnames = []
     for file in os.listdir(upload_dir):
         fname = '{}/{}'.format(args.upload_dir, file)
         if file.endswith(".txt"):
@@ -17,6 +18,8 @@ def upload_train_dir(url_st: str, upload_dir: str, candidate_types: str, nbest: 
             ant_fnames.append(fname)
         elif file.endswith(".offsets.json"):
             offsets_fnames.append(fname)
+        elif file.endswith(".pdf.xml"):
+            pdfxml_fnames.append(fname)
 
     if not txt_fnames:
         print("cannot find any .txt files", file=sys.stderr)
@@ -25,9 +28,11 @@ def upload_train_dir(url_st: str, upload_dir: str, candidate_types: str, nbest: 
     file_tuple_list = []
     ant_fname_set = set(ant_fnames)
     offsets_fname_set = set(offsets_fnames)
+    pdfxml_fname_set = set(pdfxml_fnames)
     for txt_fname in txt_fnames:
         ant_fname = txt_fname.replace('.txt', '.ant')
         offsets_fname = txt_fname.replace('.txt', '.offsets.json')
+        pdfxml_fname = txt_fname.replace('.txt', '.pdf.xml')
         if ant_fname in ant_fname_set:
             file_tuple_list.append(('file', open(txt_fname, 'rt', encoding='utf-8', newline='')))
             print("uploading [{}]".format(txt_fname))
@@ -36,6 +41,9 @@ def upload_train_dir(url_st: str, upload_dir: str, candidate_types: str, nbest: 
             if offsets_fname in offsets_fname_set:
                 print("uploading [{}]".format(offsets_fname))
                 file_tuple_list.append(('file', open(offsets_fname, 'rt', encoding='utf-8')))
+            if pdfxml_fname in pdfxml_fname_set:
+                print("uploading [{}]".format(pdfxml_fname))
+                file_tuple_list.append(('file', open(pdfxml_fname, 'rt', encoding='utf-8')))
         else:
             print("cannot find matching ant file for {}".format(txt_fname), file=sys.stderr)
 
@@ -63,6 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbosity', help='increase output verbosity')
     parser.add_argument('--url', help='url to post the files')
     parser.add_argument('--custid', default='12345', help='custom-id')
+    parser.add_argument('--provision', help='custom-id')
     parser.add_argument('--candidate_types', default='SENTENCE', help='SENTENCE, CURRENCY, DATE, ADDRESS, NUMBER, PERCENT')
     parser.add_argument('--nbest', default=-1, help='url to post the files')
     parser.add_argument('upload_dir', help='directory to upload')
@@ -71,7 +80,10 @@ if __name__ == '__main__':
     if args.verbosity:
         print('verbosity turned on')
 
-    url = 'http://127.0.0.1:8000/custom-train/{}'.format(args.custid)
+    if args.provision:
+        url = 'http://127.0.0.1:8000/custom-train/{}'.format(args.provision)
+    else:
+        url = 'http://127.0.0.1:8000/custom-train/{}'.format(args.custid)
     if args.url:
         url = args.url
 

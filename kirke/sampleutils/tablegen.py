@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Optional, Tuple
 
-from kirke.utils import ebantdoc5, ebsentutils
+from kirke.utils import ebantdoc5, ebsentutils, strutils
 from kirke.abbyyxml import tableutils
 
 def find_prev_sechead(start: int,
@@ -60,6 +60,7 @@ def is_in_exhibit_section(start: int,
 def get_before_table_text(table_start: int,
                           sechead_tuple: Optional[Tuple[int, int, str, int]],
                           exhibit_tuple: Optional[Tuple[int, int, str, int]],
+                          prev_table_end: int,
                           doc_text: str) -> str:
     if sechead_tuple and exhibit_tuple:
         if sechead_tuple[1] <= exhibit_tuple[1]:
@@ -75,6 +76,10 @@ def get_before_table_text(table_start: int,
 
     unused_shead_start, shead_end, unused_shead_st, unused_shead_page_num = \
         last_tuple
+
+    if prev_table_end != -1 and \
+       prev_table_end > shead_end:
+        shead_end = prev_table_end
 
     # only up to 1000 char are returned
     print('  before table text len = {}'.format(table_start - shead_end))
@@ -92,7 +97,7 @@ class TableGenerator:
                  candidate_type: str) -> None:
         self.candidate_type = candidate_type
 
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals, too-many-statements
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
                                 label: str) \
@@ -125,12 +130,27 @@ class TableGenerator:
             for sechead_count, xsechead_tuple in enumerate(sechead_list):
                 print("== sechead #{}: {}".format(sechead_count, xsechead_tuple))
 
+            # a section might have multiple tables, so the pretext should start from
+            # either the sechead or the last table_end
+            prev_table_end = -1
             for table_count, abbyy_table in enumerate(antdoc.abbyy_table_list):
                 table_start, table_end = tableutils.get_pbox_text_offset(abbyy_table)
 
-                table_text = doc_text[table_start:table_end]
+                table_text = doc_text[table_start:table_end].strip()
                 span_list = tableutils.get_pbox_text_span_list(abbyy_table, doc_text)
 
+                # rate table related features
+                num_currency = table_text.count('$')
+                has_currency = num_currency > 0
+                num_number = strutils.count_number(table_text)
+                has_number = num_number > 0
+                num_word = len(table_text.split())
+                num_nonnum_word = max(num_word - num_number, 0)
+                is_num_nonnum_word_le10 = num_nonnum_word <= 10
+                is_num_nonnum_word_le20 = num_nonnum_word <= 20
+                num_word_div_100 = num_word / 100.0
+                num_nonnum_word_div_100 = num_nonnum_word / 100
+                perc_number_word = num_number / num_word
 
                 print('\n\n==================================================')
                 print('ABBYY table count #{}, page_num = {}, table_start = {}'.format(table_count,
@@ -139,25 +159,41 @@ class TableGenerator:
 
                 print("  is_abbyy_original: {}".format(abbyy_table.is_abbyy_original))
                 table_sechead = find_prev_sechead(table_start, sechead_list)
-                table_exhibit = is_in_exhibit_section(table_start,
-                                                      abbyy_table.page_num,
-                                                      sechead_list)
+                sechead_text = ''
+                if table_sechead:
+                    sechead_text = table_sechead[2]
+
+                is_table_in_exhibit = is_in_exhibit_section(table_start,
+                                                            abbyy_table.page_num,
+                                                            sechead_list)
+                doc_percent = table_start / doc_len
+                pre_table_text = get_before_table_text(table_start,
+                                                       table_sechead,
+                                                       is_table_in_exhibit,
+                                                       prev_table_end,
+                                                       doc_text).strip()
+                len_pre_table_text = len(pre_table_text)
+
                 print("  sechead: {}".format(table_sechead))
-                print("  is_in_exhibit: {}".format(table_exhibit))
-                print('  before_table text: [{}]'.format(get_before_table_text(table_start,
-                                                                               table_sechead,
-                                                                               table_exhibit,
-                                                                               doc_text)))
-                print("  perc doc: {:.2f}%".format(100.0 * table_start / doc_len))
+                print("  is_in_exhibit: {}".format(is_table_in_exhibit))
+                print('  before_table text: [{}]'.format(pre_table_text))
+                print("  doc_percent: {:.2f}%".format(100.0 * doc_percent))
+                print("  num_number: {}".format(num_number))
+                print("  num_currency: {}".format(num_currency))
+                print("  num_word: {}".format(num_word))
+                print("  num_word_div_100: {}".format(min(num_word_div_100, 1.0)))
+                print("  num_nonnum_word: {}".format(num_nonnum_word))
+                print("  is_num_nonnum_word_le_10: {}".format(is_num_nonnum_word_le10))
+                print("  is_num_nonnum_word_le_10: {}".format(is_num_nonnum_word_le20))
+                print("  num_nonnum_word_div_100: {}".format(min(num_nonnum_word_div_100, 1.0)))
+                print("  perc_num_word: {}".format(perc_number_word))
+                print("  len_before_table_text: {}".format(len_pre_table_text))
 
                 for span_seq, (start, end) in enumerate(span_list):
 
                     print("  tablegen.span #{}, ({}, {}): [{}]".format(span_seq,
                                                                        start, end,
                                                                        doc_text[start:end]))
-
-
-
 
                 span_dict_list = [{'start': start,
                                    'end': end} for start, end in span_list]
@@ -170,7 +206,24 @@ class TableGenerator:
                                'text': table_text,
                                'start': table_start,
                                'end': table_end,
-                               'span_list':span_dict_list}
+                               'span_list': span_dict_list,
+                               'pre_table_text': pre_table_text,
+                               'len_pre_table_text': len_pre_table_text,
+                               'doc_percent': doc_percent,
+                               'is_abbyy_original': abbyy_table.is_abbyy_original,
+                               'is_in_exhibit': is_table_in_exhibit,
+                               'sechead_text': sechead_text,
+                               'num_word': num_word,
+                               'num_currency': num_currency,
+                               'num_number': num_number,
+                               'has_currency': has_currency,
+                               'has_number': has_number,
+                               'num_nonnum_word': num_nonnum_word,
+                               'is_num_nonnum_word_le10': is_num_nonnum_word_le10,
+                               'is_num_nonnum_word_le20': is_num_nonnum_word_le20,
+                               'num_word_div_100': num_word_div_100,
+                               'num_nonnum_word_div_100': num_nonnum_word_div_100,
+                               'perc_number_word': perc_number_word}
                 candidates.append(a_candidate)
                 group_id_list.append(group_id)
                 if is_label:
@@ -178,5 +231,8 @@ class TableGenerator:
                     label_list.append(True)
                 else:
                     label_list.append(False)
+
+                prev_table_end = table_end
+
             result.append((antdoc, candidates, label_list, group_id_list))
         return result
