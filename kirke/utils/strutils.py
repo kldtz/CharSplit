@@ -143,71 +143,6 @@ def _get_num_prefix_space(line: str) -> int:
             break
     return i
 
-# http://stackoverflow.com/questions/354038/how-do-i-check-if-a-string-is-a-number-float-in-python
-def is_number(line: str) -> bool:
-    try:
-        float(line)
-        return True
-    except ValueError:
-        return False
-
-
-# SECHEAD_NUMBER_PAT = re.compile('^\d[\d\.]+$')
-
-NUM_ROMAN_PAT = re.compile(r'(([\(\“\”]?([\.\d]+|[ivx\d\.]+\b)[\)\“\”]?|'
-                           r'[\(\“\”\.]?[a-z][\s\.\)\“\”])+)')
-
-def is_header_number(line: str) -> bool:
-    return bool(NUM_ROMAN_PAT.match(line))
-# return SECHEAD_NUMBER_PAT.match(line)
-
-
-ROMAN_NUM_PAT = re.compile(r'^[ixv]+$', re.IGNORECASE)
-
-def is_roman_number(line: str) -> bool:
-    return bool(ROMAN_NUM_PAT.match(line))
-
-
-def is_int(line: str) -> bool:
-    try:
-        int(line)
-        return True
-    except ValueError:
-        return False
-
-
-def to_int(line: str) -> int:
-    try:
-        result = int(line)
-        return result
-    except ValueError:
-        raise ValueError("Error in to_int({})".format(line))
-
-ALL_DIGITS_PAT = re.compile(r'^\d+$')
-ALL_ALPHAS_PAT = re.compile(r'^[a-zA-Z]+$')
-ALL_ALPHAS_DOT_PAT = re.compile(r'^[a-zA-Z]+\.?$')
-
-# at least 2 char, starts with alpha
-ALL_ALPHA_NUM_PAT = re.compile(r'^[a-zA-Z][a-zA-Z\d]+$')
-ANY_DIGIT_PAT = re.compile(r'\d')
-ANY_ALPHA_PAT = re.compile(r'[a-zA-Z]')
-
-
-PARENS_ALL_DIGITS_PAT = re.compile(r'^\(\d+\)$')
-
-def is_all_digits(line: str) -> bool:
-    return bool(ALL_DIGITS_PAT.match(line))
-
-def is_parens_all_digits(line: str) -> bool:
-    return bool(PARENS_ALL_DIGITS_PAT.match(line))
-
-def is_all_digit_dot(line: str) -> bool:
-    if not line:
-        return False
-    for xch in line:
-        if not ((xch == '.') or (xch == '-') or xch.isdigit()):
-            return False
-    return True
 
 def is_all_length_1_words(words: List[str]) -> bool:
     if not words:
@@ -219,9 +154,15 @@ def is_all_length_1_words(words: List[str]) -> bool:
 
 WORD_LC_PAT = re.compile('^[a-z]+$')
 
+# at least 2 char, starts with alpha
+ALL_ALPHA_NUM_PAT = re.compile(r'^[a-zA-Z][a-zA-Z\d]+$')
+ALL_ALPHAS_PAT = re.compile(r'^[a-zA-Z]+$')
+ALL_ALPHAS_DOT_PAT = re.compile(r'^[a-zA-Z]+\.?$')
+ANY_ALPHA_PAT = re.compile(r'[a-zA-Z]')
+
+
 def is_word_all_lc(word: str) -> bool:
     return bool(WORD_LC_PAT.match(word))
-
 
 # has more than 2 digits that's more than 3 width
 TWO_GT_3_NUM_SEQ_PAT = re.compile(r'\d{3}.*\d{3}')
@@ -236,9 +177,6 @@ def is_all_alphas_dot(line: str) -> bool:
 
 def is_alpha_word(line: str) -> bool:
     return bool(ALL_ALPHAS_PAT.match(line))
-
-def has_digit(line: str) -> bool:
-    return bool(ANY_DIGIT_PAT.search(line))
 
 def is_both_alpha_and_num(line: str) -> bool:
     mat = ALL_ALPHA_NUM_PAT.match(line)
@@ -520,15 +458,126 @@ def has_alpha(line: str) -> bool:
     return bool(ANY_ALPHA_PAT.search(line))
 
 
+#
+# ========== digits and numbers ==========
+#
+# 'digit' is an initeger
+# 'number' is a floating point number, includint int
+
 DIGIT_PAT = re.compile(r'^\s*\d+\s*$')
+ALL_DIGITS_PAT = re.compile(r'^\d+$')
+ANY_DIGIT_PAT = re.compile(r'\d')
+PARENS_ALL_DIGITS_PAT = re.compile(r'^\(\d+\)$')
+
+
+def is_all_digits(line: str) -> bool:
+    return bool(ALL_DIGITS_PAT.match(line))
+
+
+def is_parens_all_digits(line: str) -> bool:
+    return bool(PARENS_ALL_DIGITS_PAT.match(line))
+
+
+def is_all_digit_dot(line: str) -> bool:
+    if not line:
+        return False
+    for xch in line:
+        if not ((xch == '.') or (xch == '-') or xch.isdigit()):
+            return False
+    return True
+
+
 def is_digit_st(line: str) -> bool:
     return bool(DIGIT_PAT.match(line))
 
-# alias
+
+def has_digit(line: str) -> bool:
+    return bool(ANY_DIGIT_PAT.search(line))
+
+
+def is_digit_core(line: str) -> bool:
+    return unicodedata.category(line) == 'Nd'
+
+
+def is_int(line: str) -> bool:
+    try:
+        int(line)
+        return True
+    except ValueError:
+        return False
+
+
+def to_int(line: str) -> int:
+    try:
+        result = int(line)
+        return result
+    except ValueError:
+        raise ValueError("Error in to_int({})".format(line))
+
 is_digits = is_digit_st
 
+FLOAT_REGEX_ST = r'[-+]?\b[0-9]*\.?[0-9]+\b'
+FLOAT_PAT = re.compile(FLOAT_REGEX_ST)
 
-# to detect telephone or SSN
+NUMBER_REGEX_ST = r'[-+]?\b[0-9,]*\.?[0-9]+\b'
+NUMBER_PAT = re.compile(NUMBER_REGEX_ST)
+
+ALL_NUMBER_PAT = re.compile(r'^' + NUMBER_REGEX_ST + r'$')
+
+
+def find_numbers(line: str) -> List[str]:
+    # return re.findall(r'(\d*\.\d+|\d+\.\d*|\d+)', line)
+    return NUMBER_PAT.findall(line)
+
+extract_numbers = find_numbers
+
+def count_numbers(line: str) -> int:
+    return len(find_numbers(line))
+
+def find_number(line: str) -> Match[str]:
+    return NUMBER_PAT.search(line)
+
+def has_number(line: str) -> bool:
+    return bool(find_number(line))
+
+def is_number(line: str) -> bool:
+    return bool(ALL_NUMBER_PAT.search(line))
+
+# http://stackoverflow.com/questions/354038/how-do-i-check-if-a-string-is-a-number-float-in-python
+def is_number_v2(line: str) -> bool:
+    try:
+        float(line)
+        return True
+    except ValueError:
+        return False
+
+def remove_numbers(text: str) -> str:
+    words = text.split()
+    not_number_words = []  # type: List[str]
+    for word in words:
+        if word.endswith('.'):
+            word = re.sub('\.+$', '', word)
+        if not is_number(word):
+            not_number_words.append(word)
+    return ' '.join(not_number_words)
+
+
+ROMAN_NUM_PAT = re.compile(r'^[ixv]+$', re.IGNORECASE)
+
+def is_roman_number(line: str) -> bool:
+    return bool(ROMAN_NUM_PAT.match(line))
+
+
+NUM_ROMAN_PAT = re.compile(r'(([\(\“\”]?([\.\d]+|[ivx\d\.]+\b)[\)\“\”]?|'
+                           r'[\(\“\”\.]?[a-z][\s\.\)\“\”])+)')
+
+def is_header_number(line: str) -> bool:
+    return bool(NUM_ROMAN_PAT.match(line))
+# SECHEAD_NUMBER_PAT = re.compile('^\d[\d\.]+$')
+# return SECHEAD_NUMBER_PAT.match(line)
+
+
+# ========== telephone or SSN ==========
 BIG_DASHED_DIGIT_PAT = re.compile(r'^(\d+)\-[\d\-]+$')
 def is_dashed_big_number_st(line: str) -> bool:
     mat = BIG_DASHED_DIGIT_PAT.match(line)
@@ -537,19 +586,6 @@ def is_dashed_big_number_st(line: str) -> bool:
             return True
     return False
 
-def extract_numbers(line: str) -> List[str]:
-    return re.findall(r'(\d*\.\d+|\d+\.\d*|\d+)', line)
-
-def count_numbers(line: str) -> int:
-    return len(extract_numbers(line))
-
-NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
-def find_number(line: str) -> bool:
-    return bool(NUM_10_PAT.search(line))
-
-
-def is_digit_core(line: str) -> bool:
-    return unicodedata.category(line) == 'Nd'
 
 DASH_ONLY_LINE = re.compile(r'^\s*-+\s*$')
 
@@ -561,6 +597,7 @@ def is_dashed_line(line: str) -> bool:
 def are_all_substrs_in_st(substr_list: List[str], line: str) -> bool:
     lc_text = line.lower()
     return all(substr in lc_text for substr in substr_list)
+
 
 def is_english_vowel(unich: str) -> bool:
     return unich in 'aeiouAEIOU'
@@ -576,11 +613,6 @@ def find_all_indices(sub_strx: str, text: str) -> List[int]:
 
 def count_date(line: str) -> int:
     return len(find_substr_indices(r'(\d{1,2}/\d{1,2}/(20|19)\d\d)', line))
-
-def count_number(line: str) -> int:
-    return len(find_substr_indices(r'\b\d[\d,]*\.?\d*\b', line))
-    # return len(find_substr_indices(r'(\d*\.\d+|\d+\.\d*|\d+)', line))
-
 
 # We encountered characters, 1, 2, 16, 31 in input to corenlp before.
 # These characters passed through the processing and appeared as they are

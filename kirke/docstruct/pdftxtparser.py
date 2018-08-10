@@ -1388,7 +1388,7 @@ def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
         linex = page_linex_list[i]
         linex.block_num = merged_block_num
         merged_linex_list.append(linex)
-        if strutils.find_number(linex.line_text):
+        if strutils.has_number(linex.line_text):
             num_line_with_number += 1
 
     # check to see if the merged block should be a table

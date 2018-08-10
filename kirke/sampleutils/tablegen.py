@@ -142,7 +142,7 @@ class TableGenerator:
                 # rate table related features
                 num_currency = table_text.count('$')
                 has_currency = num_currency > 0
-                num_number = strutils.count_number(table_text)
+                num_number = strutils.count_numbers(table_text)
                 has_number = num_number > 0
                 num_word = len(table_text.split())
                 num_nonnum_word = max(num_word - num_number, 0)
@@ -173,6 +173,8 @@ class TableGenerator:
                                                        prev_table_end,
                                                        doc_text).strip()
                 len_pre_table_text = len(pre_table_text)
+                num_rows = len(abbyy_table.ab_rows)
+                num_cols = abbyy_table.get_num_cols()
 
                 print("  sechead: {}".format(table_sechead))
                 print("  is_in_exhibit: {}".format(is_table_in_exhibit))
@@ -188,6 +190,8 @@ class TableGenerator:
                 print("  num_nonnum_word_div_100: {}".format(min(num_nonnum_word_div_100, 1.0)))
                 print("  perc_num_word: {}".format(perc_number_word))
                 print("  len_before_table_text: {}".format(len_pre_table_text))
+                print("  num_rows: {}".format(num_rows))
+                print("  num_cols: {}".format(num_cols))
 
                 for span_seq, (start, end) in enumerate(span_list):
 
@@ -223,7 +227,9 @@ class TableGenerator:
                                'is_num_nonnum_word_le20': is_num_nonnum_word_le20,
                                'num_word_div_100': num_word_div_100,
                                'num_nonnum_word_div_100': num_nonnum_word_div_100,
-                               'perc_number_word': perc_number_word}
+                               'perc_number_word': perc_number_word,
+                               'num_rows': num_rows,
+                               'num_cols': num_cols}
                 candidates.append(a_candidate)
                 group_id_list.append(group_id)
                 if is_label:

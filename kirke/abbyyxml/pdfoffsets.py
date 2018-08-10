@@ -1,3 +1,4 @@
+from collections import Counter
 import re
 import sys
 # pylint: disable=unused-import
@@ -134,6 +135,12 @@ class AbbyyTableBlock:
 
         # for indexining into page's ab_blocks
         self.page_block_seq = -1
+
+    def get_num_cols(self) -> int:
+        """Return the mode of the number of columns in a table."""
+        col_num_list = [len(ab_row.ab_cells) for ab_row in self.ab_rows]
+        col_counter = Counter(col_num_list)
+        return col_counter.most_common(1)[0][0]
 
 
 # pylint: disable=invalid-name

@@ -619,7 +619,7 @@ def train_eval_span_annotator(provision: str,
     # this is mainly for paragraph
     is_doc_structure = False
     if span_annotator.text_type == 'nlp_text' or \
-       config.get('is_doc_structure', False)
+       config.get('is_doc_structure', False):
         is_doc_structure = True
 
     if is_bespoke_mode:

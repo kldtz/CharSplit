@@ -11,6 +11,8 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction import DictVectorizer
 
+from kirke.utils import strutils
+
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -26,6 +28,7 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
         self.version = '1.0'
         self.min_max_scaler = preprocessing.MinMaxScaler()
 
+    # this returns a matrix
     # pylint: disable=unused-argument, invalid-name
     def candidates_to_matrix(self,
                              span_candidate_list: List[Dict],
@@ -36,11 +39,11 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
         for i, span_candidate in enumerate(span_candidate_list):
             prob = span_candidate['has_addr']
             numeric_matrix[i] = prob
-        if fit_mode:
-            numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
-        else:
-            numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
 
+        if fit_mode:
+            self.min_max_scaler.fit(numeric_matrix)
+
+        numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
         return numeric_matrix
 
     # return self
@@ -108,7 +111,7 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
         if fit_mode:
             self.prev_words_vectorizer.fit(prev_words_list)
             self.post_words_vectorizer.fit(post_words_list)
-            numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
+            self.min_max_scaler.fit(numeric_matrix)
             return self
 
         # prev_matrxi and post_matrix are spare_matrix, not sure what typing should be
@@ -188,9 +191,9 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
         start_time = time.time()
         self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
         end_time = time.time()
-        SurroundWordTransformer.fit_count += 1
+        SimpleTextTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                     self.name, SurroundWordTransformer.fit_count, len(span_candidate_list),
+                     self.name, SimpleTextTransformer.fit_count, len(span_candidate_list),
                      (end_time - start_time) * 1000)
         return self
 
@@ -201,12 +204,14 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
         start_time = time.time()
         X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
         end_time = time.time()
-        SurroundWordTransformer.transform_count += 1
+        SimpleTextTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                     self.name, SurroundWordTransformer.transform_count, len(span_candidate_list),
+                     self.name, SimpleTextTransformer.transform_count, len(span_candidate_list),
                      (end_time - start_time) * 1000)
         return X_out
 
+
+# pylint: disable=too-many-instance-attributes
 class CharacterTransformer(BaseEstimator, TransformerMixin):
     fit_count = 0
     transform_count = 0
@@ -293,8 +298,8 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
             self.char_vectorizer.fit(all_cands) # character ngram vectorizer
             self.generic_char_vectorizer.fit(generic_chars_list) # generic ngram vectorizer
             self.first_char_vectorizer.fit(all_first_chars) # vectorizer of first character
-            numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
-            self.cat_vectorizer.fit_transform(cat_dict_list)
+            self.min_max_scaler.fit(numeric_matrix)
+            self.cat_vectorizer.fit(cat_dict_list)
             return self
 
         chars_out = self.char_vectorizer.transform(all_cands)
@@ -314,7 +319,7 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         start_time = time.time()
         self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
         end_time = time.time()
-        SurroundWordTransformer.fit_count += 1
+        CharacterTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
                      self.name, CharacterTransformer.fit_count, len(span_candidate_list),
                      (end_time - start_time) * 1000)
@@ -327,8 +332,105 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
         start_time = time.time()
         X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
         end_time = time.time()
-        SurroundWordTransformer.transform_count += 1
+        CharacterTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
                      self.name, CharacterTransformer.transform_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
+        return X_out
+
+
+class TableTextTransformer(BaseEstimator, TransformerMixin):
+    fit_count = 0
+    transform_count = 0
+
+    def __init__(self) -> None:
+        self.name = 'TableTextTransformer'
+        self.version = '1.0'
+        self.words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
+        self.sechead_vectorizer = CountVectorizer(min_df=1,
+                                                  ngram_range=(1, 2),
+                                                  lowercase=True)
+        self.pre_table_vectorizer = CountVectorizer(min_df=2,
+                                                    ngram_range=(1, 2),
+                                                    lowercase=True)
+        self.min_max_scaler = preprocessing.MinMaxScaler()
+
+    # span_candidate_list should be a list of dictionaries
+    # pylint: disable=unused-argument, invalid-name, too-many-locals
+    def candidates_to_matrix(self,
+                             span_candidate_list: List[Dict],
+                             y: Optional[List[bool]],
+                             fit_mode: bool = False):
+
+        pre_table_words_list = []  # type: List[str]
+        sechead_words_list = []  # type: List[str]
+        words_list = []  # type: List[str]
+
+        numeric_matrix = np.zeros(shape=(len(span_candidate_list), 17))
+        for i, span_candidate in enumerate(span_candidate_list):
+            numeric_matrix[i, 0] = 1.0 if span_candidate['is_abbyy_original'] else 0.0
+            numeric_matrix[i, 1] = 1.0 if span_candidate['is_in_exhibit'] else 0.0
+            numeric_matrix[i, 2] = span_candidate['doc_percent']
+            numeric_matrix[i, 3] = span_candidate['num_word']
+            numeric_matrix[i, 4] = span_candidate['num_number']
+            numeric_matrix[i, 5] = span_candidate['num_currency']
+            numeric_matrix[i, 6] = 1.0 if span_candidate['has_currency'] else 0.0
+            numeric_matrix[i, 7] = 1.0 if span_candidate['has_number'] else 0.0
+            numeric_matrix[i, 8] = span_candidate['num_nonnum_word']
+            numeric_matrix[i, 9] = 1.0 if span_candidate['is_num_nonnum_word_le10'] else 0.0
+            numeric_matrix[i, 10] = 1.0 if span_candidate['is_num_nonnum_word_le20'] else 0.0
+            numeric_matrix[i, 11] = span_candidate['num_word_div_100']
+            numeric_matrix[i, 12] = span_candidate['num_nonnum_word_div_100']
+            numeric_matrix[i, 13] = span_candidate['perc_number_word']
+            numeric_matrix[i, 14] = span_candidate['len_pre_table_text']
+            numeric_matrix[i, 15] = span_candidate['num_rows']
+            numeric_matrix[i, 16] = span_candidate['num_cols']
+
+            table_text = span_candidate.get('text', '')
+            table_text_no_number = strutils.remove_numbers(table_text)
+            pre_table_words_list.append(span_candidate.get('pre_table_text', ''))
+            sechead_words_list.append(span_candidate.get('sechead_text', ''))
+            words_list.append(table_text_no_number)
+
+        if fit_mode:
+            self.words_vectorizer.fit(words_list)
+            self.pre_table_vectorizer.fit(pre_table_words_list)
+            self.sechead_vectorizer.fit(sechead_words_list)
+            self.min_max_scaler.fit(numeric_matrix)
+            return self
+
+        words_out = self.words_vectorizer.transform(words_list)
+        numeric_matrix = self.min_max_scaler.transform(numeric_matrix)
+        sechead_out = self.sechead_vectorizer.transform(sechead_words_list)
+        pre_table_out = self.pre_table_vectorizer.transform(pre_table_words_list)
+        X_out = sparse.hstack((words_out, numeric_matrix, sechead_out, pre_table_out))
+        return X_out
+
+
+    # return self
+    def fit(self,
+            span_candidate_list: List[Dict],
+            # pylint: disable=invalid-name
+            y: Optional[List[bool]] = None):
+        start_time = time.time()
+        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
+        end_time = time.time()
+        TableTextTransformer.fit_count += 1
+
+        logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
+                     self.name, TableTextTransformer.fit_count, len(span_candidate_list),
+                     (end_time - start_time) * 1000)
+        return self
+
+    # return X_out
+    # not sure what sparse matrix is represented in typing; use List for now
+    def transform(self,
+                  span_candidate_list: List[Dict]) -> List:
+        start_time = time.time()
+        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
+        end_time = time.time()
+        TableTextTransformer.transform_count += 1
+        logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
+                     self.name, TableTextTransformer.transform_count, len(span_candidate_list),
                      (end_time - start_time) * 1000)
         return X_out

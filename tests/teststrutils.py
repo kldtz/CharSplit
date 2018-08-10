@@ -29,14 +29,27 @@ class TestStrUtils(unittest.TestCase):
         self.assertEqual(strutils.split_words('- test kits'),
                          ['test', 'kits'])
 
-    def test_extract_numbers(self):
-        self.assertEqual(strutils.extract_numbers('123-456'), ['123', '456'])
-        self.assertEqual(strutils.extract_numbers('3 42.00 42.00 69.33'),
+    def test_find_numbers(self):
+        self.assertEqual(strutils.find_numbers('123-456'), ['123', '-456'])
+        self.assertEqual(strutils.find_numbers('3 42.00 42.00 69.33'),
                          ['3', '42.00', '42.00', '69.33'])
 
     def test_count_numbers(self):
         self.assertEqual(strutils.count_numbers('123-456'), 2)
         self.assertEqual(strutils.count_numbers('3 42.00 42.00 69.33'), 4)
+
+        line = '1) aba bd (b) a2df'
+        self.assertEqual(strutils.count_numbers(line), 1)
+
+        line = '1) 2.3 bd 4 0.4 (b) a2df'
+        self.assertEqual(strutils.count_numbers(line), 4)
+
+        line = '1) 2.3 bd 4 0.4 (b) 1,800,000 23.4 a2df'
+        self.assertEqual(strutils.count_numbers(line), 6)
+
+        line = '1) 2.3 bd 4 0.4 (b) 1,800,000 23.4 a2df a-3f'
+        self.assertEqual(strutils.count_numbers(line), 6)
+
 
     def test_using_split2(self):
         self.assertEqual(strutils.using_split2('a'),
@@ -150,17 +163,6 @@ class TestStrUtils(unittest.TestCase):
 
         start, end, word = strutils.find_previous_word(line, 6)
         self.assertEqual(word, 'aba')
-
-    def test_count_number(self):
-
-        line = '1) aba bd (b) a2df'
-        self.assertEqual(strutils.count_number(line), 1)
-
-        line = '1) 2.3 bd 4 0.4 (b) a2df'
-        self.assertEqual(strutils.count_number(line), 4)
-
-        line = '1) 2.3 bd 4 0.4 (b) 1,800,000 23.4 a2df'
-        self.assertEqual(strutils.count_number(line), 6)
 
 if __name__ == "__main__":
     unittest.main()
