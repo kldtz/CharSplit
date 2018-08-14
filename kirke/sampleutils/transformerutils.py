@@ -1,7 +1,8 @@
 from datetime import datetime
 import logging
 import time
-from typing import Dict, List, Optional
+# pylint: disable=unused-import
+from typing import Dict, List, Optional, Set
 
 import numpy as np
 from scipy import sparse
@@ -11,7 +12,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction import DictVectorizer
 
-from kirke.utils import strutils
 from kirke.sampleutils.tablegen import fix_rate_table_text
 
 # pylint: disable=invalid-name
@@ -348,16 +348,21 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
         self.name = 'TableTextTransformer'
         self.version = '1.0'
         self.words_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
-        self.sechead_vectorizer = CountVectorizer(min_df=2,
+        # min_df is set to 1 because not enough training data when doing
+        # cross validation on small set
+        self.sechead_vectorizer = CountVectorizer(min_df=1,
                                                   ngram_range=(1, 2))
-        self.row_header_vectorizer = CountVectorizer(min_df=2,
+        self.row_header_vectorizer = CountVectorizer(min_df=1,
                                                      ngram_range=(1, 2))
-        self.pre_table_vectorizer = CountVectorizer(min_df=2,
+        self.pre_table_vectorizer = CountVectorizer(min_df=1,
                                                     ngram_range=(1, 2))
         self.min_max_scaler = preprocessing.MinMaxScaler()
 
+        self.pos_word_set = set([])  # type: Set[str]
+
+
     # span_candidate_list should be a list of dictionaries
-    # pylint: disable=unused-argument, invalid-name, too-many-locals
+    # pylint: disable=unused-argument, invalid-name, too-many-locals, too-many-statements
     def candidates_to_matrix(self,
                              span_candidate_list: List[Dict],
                              y: Optional[List[bool]],
@@ -368,34 +373,79 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
         words_list = []  # type: List[str]
         row_header_words_list = []  # type: List[str]
 
-        numeric_matrix = np.zeros(shape=(len(span_candidate_list), 17))
+        # must get all the positive words first
+        if fit_mode:
+            pos_cand_text_list = []  # type: List[str]
+            pos_words_vectorizer = CountVectorizer(min_df=1,
+                                                   ngram_range=(1, 2))
+            if y:
+                bool_label_list = y  # type: List[bool]
+            else:
+                bool_label_list = [False for span_candidate in span_candidate_list]
+            for span_candidate, is_label in zip(span_candidate_list, bool_label_list):
+                if is_label:
+                    # table_text = fix_rate_table_text(span_candidate['text'])
+                    table_text_alphanum = span_candidate['text_alphanum']
+                    print("jj table_text_alphanum: [%s]" %
+                          table_text_alphanum.replace('\n', '~'))
+                    pos_cand_text_list.append(table_text_alphanum)
+            pos_words_vectorizer.fit(pos_cand_text_list)
+            print("pos_words_vectorizer.vocab = {}".format(pos_words_vectorizer.vocabulary_))
+            self.pos_word_set = set(pos_words_vectorizer.vocabulary_.keys())
+        # doesn't matter if min_df is 1 or 2
+        pos_word_tokenizer = self.words_vectorizer.build_tokenizer()
+
+        numeric_matrix = np.zeros(shape=(len(span_candidate_list), 36))
         for i, span_candidate in enumerate(span_candidate_list):
+            # table_text = fix_rate_table_text(span_candidate['text'])
+            table_text_alphanum = span_candidate['text_alphanum']
+            print("text_alphanum: [{}]".format(table_text_alphanum))
+            words_list.append(table_text_alphanum)
+            row_header_text = fix_rate_table_text(span_candidate['row_header_text'])
+            row_header_words_list.append(row_header_text)
+            pre_table_words_list.append(span_candidate['pre_table_text'])
+            sechead_words_list.append(fix_rate_table_text(span_candidate['sechead_text']))
+
             numeric_matrix[i, 0] = 1.0 if span_candidate['is_abbyy_original'] else 0.0
             numeric_matrix[i, 1] = 1.0 if span_candidate['is_in_exhibit'] else 0.0
             numeric_matrix[i, 2] = span_candidate['doc_percent']
             numeric_matrix[i, 3] = span_candidate['num_word']
             numeric_matrix[i, 4] = span_candidate['num_number']
             numeric_matrix[i, 5] = span_candidate['num_currency']
-            numeric_matrix[i, 6] = 1.0 if span_candidate['has_currency'] else 0.0
-            numeric_matrix[i, 7] = 1.0 if span_candidate['has_number'] else 0.0
-            numeric_matrix[i, 8] = span_candidate['num_nonnum_word']
-            numeric_matrix[i, 9] = 1.0 if span_candidate['is_num_nonnum_word_le10'] else 0.0
-            numeric_matrix[i, 10] = 1.0 if span_candidate['is_num_nonnum_word_le20'] else 0.0
-            numeric_matrix[i, 11] = span_candidate['num_word_div_100']
-            numeric_matrix[i, 12] = span_candidate['num_nonnum_word_div_100']
-            numeric_matrix[i, 13] = span_candidate['perc_number_word']
-            numeric_matrix[i, 14] = span_candidate['len_pre_table_text']
-            numeric_matrix[i, 15] = span_candidate['num_rows']
-            numeric_matrix[i, 16] = span_candidate['num_cols']
+            numeric_matrix[i, 6] = span_candidate['num_percent']
+            numeric_matrix[i, 7] = span_candidate['num_phone_number']
+            numeric_matrix[i, 8] = span_candidate['num_date']
+            numeric_matrix[i, 9] = span_candidate['num_alpha_word']
+            numeric_matrix[i, 10] = span_candidate['num_alphanum_word']
+            numeric_matrix[i, 11] = span_candidate['num_bad_word']
+            numeric_matrix[i, 12] = 1.0 if span_candidate['has_number'] else 0.0
+            numeric_matrix[i, 13] = 1.0 if span_candidate['has_currency'] else 0.0
+            numeric_matrix[i, 14] = 1.0 if span_candidate['has_percent'] else 0.0
+            numeric_matrix[i, 15] = 1.0 if span_candidate['has_phone_number'] else 0.0
+            numeric_matrix[i, 16] = 1.0 if span_candidate['has_date'] else 0.0
+            numeric_matrix[i, 17] = span_candidate['num_alpha_word']
+            numeric_matrix[i, 18] = 1.0 if span_candidate['is_num_alpha_word_le10'] else 0.0
+            numeric_matrix[i, 19] = 1.0 if span_candidate['is_num_alpha_word_le20'] else 0.0
+            numeric_matrix[i, 20] = span_candidate['num_word_div_100']
+            numeric_matrix[i, 21] = span_candidate['num_alpha_word_div_100']
+            numeric_matrix[i, 22] = span_candidate['perc_number_word']
+            numeric_matrix[i, 23] = span_candidate['perc_currency_word']
+            numeric_matrix[i, 24] = span_candidate['perc_percent_word']
+            numeric_matrix[i, 25] = span_candidate['perc_phone_word']
+            numeric_matrix[i, 26] = span_candidate['perc_date_word']
+            numeric_matrix[i, 27] = span_candidate['perc_alpha_word']
+            numeric_matrix[i, 28] = span_candidate['perc_alphanum_word']
+            numeric_matrix[i, 29] = span_candidate['perc_bad_word']
+            numeric_matrix[i, 30] = span_candidate['len_pre_table_text']
+            numeric_matrix[i, 31] = span_candidate['num_rows']
+            numeric_matrix[i, 32] = span_candidate['num_cols']
+            numeric_matrix[i, 33] = span_candidate['num_period_cap']
+            numeric_matrix[i, 34] = 1.0 if span_candidate['has_dollar_div'] else 0.0
 
-            table_text = fix_rate_table_text(span_candidate.get('text', ''))
-            table_text_no_number = strutils.remove_numbers(table_text)
-            words_list.append(table_text_no_number)
-            row_header_text = fix_rate_table_text(span_candidate.get('row_header_text', ''))
-            row_header_words_list.append(row_header_text)
-            pre_table_words_list.append(span_candidate.get('pre_table_text', ''))
-            sechead_words_list.append(span_candidate.get('sechead_text', ''))
-
+            # how compute the % words found in positive examples
+            table_word_list = pos_word_tokenizer(table_text_alphanum)
+            pos_word_list = [word for word in table_word_list if word in self.pos_word_set]
+            numeric_matrix[i, 35] = len(pos_word_list) / len(table_word_list)
 
         if fit_mode:
             self.words_vectorizer.fit(words_list)
@@ -403,6 +453,12 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
             self.sechead_vectorizer.fit(sechead_words_list)
             self.row_header_vectorizer.fit(row_header_words_list)
             self.min_max_scaler.fit(numeric_matrix)
+
+            print("----- fit:")
+            print("pretable_vocab = {}".format(self.pre_table_vectorizer.vocabulary_))
+            print("sechead_vocab = {}".format(self.sechead_vectorizer.vocabulary_))
+            print("row_header_vocab = {}".format(self.row_header_vectorizer.vocabulary_))
+            print("pos_word_list = {}".format(self.pos_word_set))
             return self
 
         words_out = self.words_vectorizer.transform(words_list)

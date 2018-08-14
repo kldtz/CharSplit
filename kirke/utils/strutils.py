@@ -519,10 +519,16 @@ is_digits = is_digit_st
 FLOAT_REGEX_ST = r'[-+]?\b[0-9]*\.?[0-9]+\b'
 FLOAT_PAT = re.compile(FLOAT_REGEX_ST)
 
-NUMBER_REGEX_ST = r'[-+]?\b[0-9,]*\.?[0-9]+\b'
-NUMBER_PAT = re.compile(NUMBER_REGEX_ST)
+NUMBER_REGEX_ST = r'[-+]?\b[0-9,]*\.?[0-9]+'
+NUMBER_PAT = re.compile(NUMBER_REGEX_ST + r'\b')
 
 ALL_NUMBER_PAT = re.compile(r'^' + NUMBER_REGEX_ST + r'$')
+CURRENCY_PAT = re.compile(r'^\$\s*' + NUMBER_REGEX_ST + r'$')
+PERCENT_PAT = re.compile(r'^' + NUMBER_REGEX_ST + r'\s*%$')
+# allowing '(201) 345-'
+PHONE_NUMBER_PAT = re.compile(r'^(\(\d+\)|\d+\-\d*|\(\d+\)\s*\d+\-\d*)')
+# allowing '(02/03/23]', but not for digit only prefix
+NAIVE_DATE_PAT = re.compile(r'^(\d+$[\/\-]\d+[\/\-]\d+|\d+[\/\-]\d+)')
 
 
 def find_numbers(line: str) -> List[str]:
@@ -543,6 +549,18 @@ def has_number(line: str) -> bool:
 def is_number(line: str) -> bool:
     return bool(ALL_NUMBER_PAT.search(line))
 
+def is_currency(line: str) -> bool:
+    return bool(CURRENCY_PAT.search(line))
+
+def is_percent(line: str) -> bool:
+    return bool(PERCENT_PAT.search(line))
+
+def is_phone_number(line: str) -> bool:
+    return bool(PHONE_NUMBER_PAT.search(line))
+
+def is_naive_date(line: str) -> bool:
+    return bool(NAIVE_DATE_PAT.search(line))
+
 # http://stackoverflow.com/questions/354038/how-do-i-check-if-a-string-is-a-number-float-in-python
 def is_number_v2(line: str) -> bool:
     try:
@@ -551,15 +569,111 @@ def is_number_v2(line: str) -> bool:
     except ValueError:
         return False
 
-def remove_numbers(text: str) -> str:
+
+# number, currency, percent,
+# phone_ date, num_alpha,
+# num_alphanum, num_bad_word,
+# num_word,
+# alphanum_words: str
+# pylint: disable=too-many-locals
+def remove_number_types(text: str) -> Tuple[int, int, int,
+                                            int, int, int,
+                                            int, int, int,
+                                            str]:
+    """This function is designed for tokenizing the text for table for
+    classification purpose.
+
+    A table contains a lot of condensed information which are not
+    sentences.  We want to know if the content is of various numeric
+    types.  One critical aspect we ant to capture is the number of
+    words that are not even English words or numbers due to OCR errors.
+    This is a reason why we are not using nltk's tokenizer.
+    Not capturing them will make the tokenized result looks similar
+    other sparse tables.
+    """
+
+    # words = re.split(r'[\s\,\'\"\-]+', text)
+    # replace all parens
+    text = re.sub(r'[\(\)\[\]]', ' ', text)
+    # put together $ 23.33
+    text = re.sub(r'\$\s+([\d.,]+)', r'$\1', text)
     words = text.split()
-    not_number_words = []  # type: List[str]
+    alpha_words = []  # type: List[str]
+    alphanum_words = []  # type: List[str]
+    num_number, num_currency, num_percent = 0, 0, 0
+    num_phone_number, num_date = 0, 0
+    num_alpha_word, num_alphanum_word = 0, 0
+    num_bad_word = 0
+
+    # this will double count "$180,000,000" has 1 currency, 2 numbers
     for word in words:
-        if word.endswith('.'):
-            word = re.sub('\.+$', '', word)
-        if not is_number(word):
-            not_number_words.append(word)
-    return ' '.join(not_number_words)
+
+        if not word.endswith('%'):
+            # replace any punctuations at the end of a word
+            word = re.sub(r'(\w)\W+$', r'\1', word)
+
+        # skip words with acronyms, such A.
+        if len(word) <= 1 and not is_number(word):
+            continue
+
+        # tried to handle "$", in $/Mwh
+        # but doing so usually causes drop in recall
+
+        # dates might have "/"
+        if is_naive_date(word):
+            num_date += 1
+        else:
+            tmp_word = word
+            for word in tmp_word.split('/'):
+
+                #if word == '$':
+                    # adding this cause drop in recall
+                    # alpha_words.append('SYMBOL_DOLLAR')
+                    # num_alpha_word += 1
+                #    pass
+
+                # if ALL_MONTH_REGEX.match(word):
+                #     word = 'SM_MONTH'
+
+                if is_currency(word):
+                    num_currency += 1
+                elif is_percent(word):
+                    num_percent += 1
+                elif is_number(word):
+                    num_number += 1
+                elif is_phone_number(word):
+                    num_phone_number += 1
+                else:
+                    # avoid all dashes and other stuff
+                    if re.search(r'^[a-zA-Z_]+$', word):
+                        alpha_words.append(word)
+                        num_alpha_word += 1
+                    elif re.search(r'^\w+$', word):
+                        alphanum_words.append(word)
+                        num_alphanum_word += 1
+                    else:
+                        num_bad_word += 1
+
+    # once higher than 40, not meaningful
+    num_number = min(num_number, 40)
+    num_currency = min(num_currency, 40)
+    num_percent = min(num_percent, 40)
+    num_date = min(num_date, 40)
+    num_phone_number = min(num_phone_number, 40)
+
+    out_alphanum_words = list(alpha_words)
+    out_alphanum_words.extend(alphanum_words)
+    num_words = num_number + num_currency + \
+                num_percent + num_phone_number + \
+                num_date + num_alpha_word + \
+                num_alphanum_word + num_bad_word
+
+    return (num_number, num_currency,
+            num_percent, num_phone_number,
+            num_date, num_alpha_word,
+            num_alphanum_word, num_bad_word,
+            num_words,
+            ' '.join(out_alphanum_words))
 
 
 ROMAN_NUM_PAT = re.compile(r'^[ixv]+$', re.IGNORECASE)

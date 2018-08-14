@@ -1083,6 +1083,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         else:  # none-of-above
             # check if sechead
             # if secheadutils.is_line_sechead_prefix(line.line_text):
+            # print("pdftxtparser 1, extract_sechead")
             sechead_tuple = secheadutils.extract_sechead(line.line_text)
             if sechead_tuple:
                 # print("  ggg check_sechead: [{}]".format(line.line_text))
@@ -1094,10 +1095,12 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                     shead_end = line.lineinfo.start + split_idx
                 else:
                     shead_end = line.lineinfo.end
-                if not sechead_st:
+                if not sechead_st or 'continue' in sechead_st.lower():
+                    # 'exhibit c - continue'
                     sechead_st = sechead_prefix
                 out_sechead = (line.lineinfo.start,
                                shead_end,
+                               sechead_prefix,
                                sechead_st,
                                page_num)
                 # print("sechead_tuple: {}".format(sechead_tuple))
@@ -1211,6 +1214,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     for line in apage.line_list[last_toc_line + 1:]:
         # sechead detection is applied later
         # sechead, prefix, head, split_idx
+        # print("pdftxtparser 2, extract_sechead")
         sechead_tuple = secheadutils.extract_sechead(line.line_text)
         is_sechead_prefix = secheadutils.is_line_sechead_prefix(line.line_text)
         if sechead_tuple or is_sechead_prefix:
@@ -1226,13 +1230,16 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                     shead_end = line.lineinfo.start + split_idx
                 else:
                     shead_end = line.lineinfo.end
-                if not sechead_st:
+                if not sechead_st or 'continue' in sechead_st.lower():
+                    # 'exhibit c - continue'
                     sechead_st = sechead_prefix
             else:
                 shead_end = line.lineinfo.end
                 sechead_st = line.line_text
+                sechead_prefix = ''
             out_sechead = (line.lineinfo.start,
                            shead_end,
+                           sechead_prefix,
                            sechead_st,
                            # ' '.join([sechead_prefix, sechead_st]).strip(),
                            page_num)

@@ -2,16 +2,17 @@ import logging
 import re
 from typing import Dict, List, Optional, Tuple
 
-from kirke.utils import ebantdoc5, ebsentutils, strutils
+from kirke.utils import ebantdoc5, ebsentutils, strutils, engutils
 from kirke.abbyyxml import tableutils
 
 def find_prev_sechead(start: int,
-                      sechead_list: List[Tuple[int, int, str, int]]) \
-                      -> Optional[Tuple[int, int, str, int]]:
+                      sechead_list: List[Tuple[int, int, str, str, int]]) \
+                      -> Optional[Tuple[int, int, str, str, int]]:
     # print("find_prev_sechead, table_start = {}".format(start))
     prev_sechead_tuple = None
     for sechead_tuple in sechead_list:
-        shead_start, unused_shead_end, unused_shead_st, unused_shead_page_num = sechead_tuple
+        shead_start, unused_shead_end, unused_shead_prefix, \
+            unused_shead_st, unused_shead_page_num = sechead_tuple
         if start <= shead_start:
             return prev_sechead_tuple
         prev_sechead_tuple = sechead_tuple
@@ -20,11 +21,12 @@ def find_prev_sechead(start: int,
 
 def find_prev_exhibit_in_page(start: int,
                               page_num: int,
-                              sechead_list: List[Tuple[int, int, str, int]]) \
-                              -> Optional[Tuple[int, int, str, int]]:
+                              sechead_list: List[Tuple[int, int, str, str, int]]) \
+                              -> Optional[Tuple[int, int, str, str, int]]:
     prev_exhibit_tuple = None
     for sechead_tuple in sechead_list:
-        shead_start, unused_shead_end, shead_st, shead_page_num = sechead_tuple
+        shead_start, unused_shead_end, unused_shead_prefix, \
+            shead_st, shead_page_num = sechead_tuple
         if start <= shead_start:
             return prev_exhibit_tuple
         if shead_page_num == page_num and \
@@ -37,8 +39,8 @@ def find_prev_exhibit_in_page(start: int,
 
 def is_in_exhibit_section(start: int,
                           page_num: int,
-                          sechead_list: List[Tuple[int, int, str, int]]) \
-                          -> Optional[Tuple[int, int, str, int]]:
+                          sechead_list: List[Tuple[int, int, str, str, int]]) \
+                          -> Optional[Tuple[int, int, str, str, int]]:
     """Returning the sechead_tuple so that we know where the exhibit
        is, for debugging purpose"""
     sechead_tuple = find_prev_exhibit_in_page(start,
@@ -51,16 +53,18 @@ def is_in_exhibit_section(start: int,
     sechead_tuple = find_prev_sechead(start,
                                       sechead_list)
     if sechead_tuple:
-        unused_shead_start, unused_shead_end, shead_st, unused_shead_page_num = \
-            sechead_tuple
-        if 'exhibit' in shead_st:
+        unused_shead_start, unused_shead_end, shead_prefix, \
+            shead_st, unused_shead_page_num = \
+                sechead_tuple
+        if 'exhibit' in shead_st.lower() or \
+           'exhibit' in shead_prefix.lower():
             return sechead_tuple
 
     return None
 
 def get_before_table_text(table_start: int,
-                          sechead_tuple: Optional[Tuple[int, int, str, int]],
-                          exhibit_tuple: Optional[Tuple[int, int, str, int]],
+                          sechead_tuple: Optional[Tuple[int, int, str, str, int]],
+                          exhibit_tuple: Optional[Tuple[int, int, str, str, int]],
                           prev_table_end: int,
                           doc_text: str) -> str:
     if sechead_tuple and exhibit_tuple:
@@ -75,8 +79,9 @@ def get_before_table_text(table_start: int,
     else:
         return ''
 
-    unused_shead_start, shead_end, unused_shead_st, unused_shead_page_num = \
-        last_tuple
+    unused_shead_start, shead_end, unused_shead_prefix, \
+        unused_shead_st, unused_shead_page_num = \
+            last_tuple
 
     if prev_table_end != -1 and \
        prev_table_end > shead_end:
@@ -138,20 +143,35 @@ class TableGenerator:
                 table_start, table_end = tableutils.get_pbox_text_offset(abbyy_table)
 
                 table_text = doc_text[table_start:table_end].strip()
+                table_text = fix_rate_table_text(table_text)
+
                 span_list = tableutils.get_pbox_text_span_list(abbyy_table, doc_text)
 
                 # rate table related features
-                num_currency = table_text.count('$')
-                has_currency = num_currency > 0
-                num_number = strutils.count_numbers(table_text)
+                num_number, num_currency, num_percent, \
+                    num_phone_number, num_date, num_alpha_word, \
+                    num_alphanum_word, num_bad_word, num_word, \
+                    table_text_alphanum = \
+                        strutils.remove_number_types(table_text)
                 has_number = num_number > 0
-                num_word = len(table_text.split())
-                num_nonnum_word = max(num_word - num_number, 0)
-                is_num_nonnum_word_le10 = num_nonnum_word <= 10
-                is_num_nonnum_word_le20 = num_nonnum_word <= 20
+                has_currency = num_currency > 0
+                has_percent = num_percent > 0
+                has_phone_number = num_phone_number > 0
+                has_date = num_date > 0
+
+                is_num_alpha_word_le10 = num_alpha_word <= 10
+                is_num_alpha_word_le20 = num_alpha_word <= 20
                 num_word_div_100 = num_word / 100.0
-                num_nonnum_word_div_100 = num_nonnum_word / 100
+                num_alpha_word_div_100 = num_alpha_word / 100
+
                 perc_number_word = num_number / num_word
+                perc_currency_word = num_currency / num_word
+                perc_percent_word = num_percent / num_word
+                perc_phone_word = num_phone_number / num_word
+                perc_date_word = num_date / num_word
+                perc_alpha_word = num_alpha_word / num_word
+                perc_alphanum_word = num_alphanum_word / num_word
+                perc_bad_word = (num_bad_word + num_alphanum_word) / num_word
 
                 print('\n\n==================================================')
                 print('ABBYY table count #{}, page_num = {}, table_start = {}'.format(table_count,
@@ -178,24 +198,43 @@ class TableGenerator:
                 num_cols = abbyy_table.get_num_cols()
                 row_header_text = abbyy_table.get_row(0).get_text()
 
-                print("  sechead: {}".format(table_sechead))
+                # approximate number of sentences
+                num_period_cap = engutils.num_letter_period_cap(table_text)
+                has_dollar_div = re.search(r'\$\s*[\d,\.]*\/[A-Z][a-zA-Z]+', table_text) != None
+
+                print("  table_text_alphanum: [{}]".format(table_text_alphanum))
+                print("  sechead: [{}]".format(table_sechead))
+                print("  row header_text: [{}]".format(row_header_text.replace('\n', '|')))
                 print("  is_in_exhibit: {}".format(is_table_in_exhibit))
                 print('  before_table text: [{}]'.format(pre_table_text))
                 print("  doc_percent: {:.2f}%".format(100.0 * doc_percent))
                 print("  num_number: {}".format(num_number))
                 print("  num_currency: {}".format(num_currency))
+                print("  num_percent: {}".format(num_percent))
+                print("  num_phone_number: {}".format(num_phone_number))
+                print("  num_date: {}".format(num_date))
+                print("  num_alpha_word: {}".format(num_alpha_word))
+                print("  num_alphanum_word: {}".format(num_alphanum_word))
+                print("  num_bad_word: {}".format(num_bad_word))
                 print("  num_word: {}".format(num_word))
                 print("  num_word_div_100: {}".format(min(num_word_div_100, 1.0)))
-                print("  num_nonnum_word: {}".format(num_nonnum_word))
-                print("  is_num_nonnum_word_le_10: {}".format(is_num_nonnum_word_le10))
-                print("  is_num_nonnum_word_le_10: {}".format(is_num_nonnum_word_le20))
-                print("  num_nonnum_word_div_100: {}".format(min(num_nonnum_word_div_100, 1.0)))
-                print("  perc_num_word: {}".format(perc_number_word))
+                print("  is_num_alpha_word_le_10: {}".format(is_num_alpha_word_le10))
+                print("  is_num_alpha_word_le_20: {}".format(is_num_alpha_word_le20))
+                print("  num_alpha_word_div_100: {}".format(min(num_alpha_word_div_100, 1.0)))
+                print("  perc_number_word: {}".format(perc_number_word))
+                print("  perc_currency_word: {}".format(perc_currency_word))
+                print("  perc_percent_word: {}".format(perc_percent_word))
+                print("  perc_phone_word: {}".format(perc_phone_word))
+                print("  perc_date_word: {}".format(perc_date_word))
+                print("  perc_alpha_word: {}".format(perc_alpha_word))
+                print("  perc_alphanum_word: {}".format(perc_alphanum_word))
+                print("  perc_bad_word: {}".format(perc_bad_word))
                 print("  len_before_table_text: {}".format(len_pre_table_text))
                 print("  num_rows: {}".format(num_rows))
                 print("  num_cols: {}".format(num_cols))
-                print("  row header_text: {}".format(row_header_text))
-                row_header_text2 =  fix_rate_table_text(row_header_text)
+                print("  num_period_cap: {}".format(num_period_cap))
+                print("  has_dollar_div: {}".format(has_dollar_div))
+                row_header_text2 = fix_rate_table_text(row_header_text)
                 if row_header_text2 != row_header_text:
                     print("  fixed_row header_text: {}".format(row_header_text2))
 
@@ -212,8 +251,17 @@ class TableGenerator:
                 is_label = ebsentutils.check_start_end_overlap(table_start,
                                                                table_end,
                                                                label_ant_list)
+
+                # reject really bad table here
+                if not is_label and num_word >= 10 and perc_bad_word >= 0.75:
+                    print("table rejected because too many weird words")
+                    continue
+
                 a_candidate = {'candidate_type': self.candidate_type,
-                               'text': table_text,
+                               'text': '\n'.join([sechead_text,
+                                                  table_text]),
+                               'text_alphanum': '\n'.join([sechead_text,
+                                                           table_text_alphanum]),
                                'start': table_start,
                                'end': table_end,
                                'span_list': span_dict_list,
@@ -223,19 +271,36 @@ class TableGenerator:
                                'is_abbyy_original': abbyy_table.is_abbyy_original,
                                'is_in_exhibit': is_table_in_exhibit,
                                'sechead_text': sechead_text,
-                               'num_word': num_word,
-                               'num_currency': num_currency,
                                'num_number': num_number,
-                               'has_currency': has_currency,
+                               'num_currency': num_currency,
+                               'num_percent': num_percent,
+                               'num_phone_number': num_phone_number,
+                               'num_date': num_date,
                                'has_number': has_number,
-                               'num_nonnum_word': num_nonnum_word,
-                               'is_num_nonnum_word_le10': is_num_nonnum_word_le10,
-                               'is_num_nonnum_word_le20': is_num_nonnum_word_le20,
+                               'has_currency': has_currency,
+                               'has_percent': has_percent,
+                               'has_phone_number': has_phone_number,
+                               'has_date': has_date,
+                               'num_word': num_word,
+                               'num_alpha_word': num_alpha_word,
+                               'num_alphanum_word': num_alphanum_word,
+                               'num_bad_word': num_bad_word,
+                               'is_num_alpha_word_le10': is_num_alpha_word_le10,
+                               'is_num_alpha_word_le20': is_num_alpha_word_le20,
                                'num_word_div_100': num_word_div_100,
-                               'num_nonnum_word_div_100': num_nonnum_word_div_100,
+                               'num_alpha_word_div_100': num_alpha_word_div_100,
                                'perc_number_word': perc_number_word,
+                               'perc_currency_word': perc_currency_word,
+                               'perc_percent_word': perc_percent_word,
+                               'perc_phone_word': perc_phone_word,
+                               'perc_date_word': perc_date_word,
+                               'perc_alpha_word': perc_alpha_word,
+                               'perc_alphanum_word': perc_alphanum_word,
+                               'perc_bad_word': perc_bad_word,
                                'num_rows': num_rows,
                                'num_cols': num_cols,
+                               'num_period_cap': num_period_cap,
+                               'has_dollar_div': has_dollar_div,
                                'row_header_text': row_header_text}
                 candidates.append(a_candidate)
                 group_id_list.append(group_id)
@@ -255,7 +320,8 @@ def fix_rate_table_text(text: str) -> str:
     text = re.sub(r'\b(r)\s+(ate)\b', r'\1\2', text, flags=re.I)
     return text
 
-"""
+# pylint: disable=pointless-string-statement
+r"""
 def fix_rate_table_text(text: str) -> str:
     text = text.replace('$', ' dollar_symbol ')
     # fix a missspelling

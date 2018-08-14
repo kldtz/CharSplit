@@ -16,6 +16,7 @@ from kirke.utils import strutils, stopwordutils
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+IS_DEBUG_SECHEAD = False
 DEBUG_MODE = False
 
 SUBHEAD_PREFIX_PAT = re.compile(r'^[\s§]*((Section\s*)?\d+(\s*\.\d+)+\.?\b|'
@@ -289,15 +290,34 @@ def extract_sechead(line: str,
                     prev_line_idx: int = -1,
                     is_combine_line: bool = True) \
                     -> Optional[Tuple[str, str, str, int]]:
-    # print("extract_sechead({})".format(line))
+    if IS_DEBUG_SECHEAD:
+        print("~12~ extract_sechead({})".format(line))
+        print('         prev_line = [{}]'.format(prev_line))
+        print('         prev_line_idx = {}'.format(prev_line_idx))
+        print('         is_combine_line = {}'.format(is_combine_line))
     shead_tuple = extract_sechead_aux(line,
                                       prev_line=prev_line,
                                       prev_line_idx=prev_line_idx,
                                       is_combine_line=is_combine_line)
+    # handling if all sechead prefix are capitalized, but the rest is not
+    # example: CONTRACT ENERGY RATE  By Commercial Operation Year
+    # return: CONTRACT ENERGY RATE
+    if shead_tuple:
+        shead_type, shead_prefix, shead_st, prefix = shead_tuple
+        if prefix == -1:
+            capital_words_prefix = trime_non_capital_words(shead_st)
+            if capital_words_prefix:
+                out_start, out_end,  out_st = capital_words_prefix
+                prefix_idx = line.find(out_st)
+                # shead_tuple = shead_type, shead_prefix, out_st, prefix_idx + len(out_st)
+                shead_tuple = shead_type, shead_prefix, out_st, -1
+
     if shead_tuple and not is_invalid_sechead(*shead_tuple):
-        # print('  result ex_sechead => {}'.format(shead_tuple))
+        if IS_DEBUG_SECHEAD:
+            print('       result ex_sechead => {}'.format(shead_tuple))
         return shead_tuple
-    # print('  not sechead')
+    if IS_DEBUG_SECHEAD:
+        print('       not sechead')
     return None
 
 
@@ -1169,9 +1189,15 @@ if DEBUG_MODE:
     print("sec_head_pat: {}".format(NUM_ROMAN_PAT))
 
 
-def is_valid_sechead_number(word):
+def is_valid_sechead_number(word: str) -> bool:
     mat = sec_head_pat.match(word)
-    return mat
+    if mat:
+        return bool(mat)
+    # run into Cyrillic Capitals
+    # http://www.codetable.net/decimal/1057
+    if len(word) < 2:
+        return True
+    return False
 
 invalid_sechead_words = set(['follow', 'follows', 'by:', 'page', 'pages',
                              'gals.', 'gal', 'gallons', 'lbs.', 'lbs', 'lb', 'pounds', 'pound',
@@ -1545,6 +1571,23 @@ line_sechead_strict_prefix_pat = re.compile(r'^\s*{}'.format(SECHEAD_PREFIX_STRI
 
 def is_line_sechead_strict_prefix(line: str):
     return line_sechead_strict_prefix_pat.match(line)
+
+
+def trime_non_capital_words(sechead: str) -> Optional[Tuple[int, int, str]]:
+    """if first few words are all capitalized, return only
+    the caplitalized section.
+
+    example: CONTRACT ENERGY RATE  By Commercial Operation Year
+    return: CONTRACT ENERGY RATE
+    """
+    mat = re.search(r'^(([A-Z]+\s+)+)(.*)', sechead)
+    # print("mat: {}".format(mat))
+    # print("mat.group(1): {}".format(mat.group(1)))
+    # print("mat.group(3): {}".format(mat.group(3)))
+    if mat and len(mat.group(1)) > 10 and \
+       len(mat.group(3)) > 10:
+        return mat.start(1), mat.end(1), mat.group(1)
+    return None
 
 
 def main():

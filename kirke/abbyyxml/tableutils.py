@@ -9,7 +9,7 @@ from kirke.abbyyxml.pdfoffsets import AbbyyBlock, AbbyyTextBlock, AbbyyTableBloc
 # pylint: disable=unused-import
 from kirke.abbyyxml.pdfoffsets import AbbyyLine, AbbyyPar, AbbyyCell, AbbyyRow
 from kirke.abbyyxml import abbyyutils, pdfoffsets
-from kirke.utils import mathutils
+from kirke.utils import mathutils, engutils
 
 IS_DEBUG_TABLE = True
 IS_PRINT_HEADER_TABLE = False
@@ -403,7 +403,6 @@ def merge_aligned_blocks(haligned_blocks: List[AbbyyTextBlock],
                 row_top_list.append(ab_line.attr_dict['@t'])
     """
 
-
     print("\nmerge_aligned_blocks()")
     for row_top in row_top_list:
         print("row_top = {}".format(row_top))
@@ -790,18 +789,67 @@ def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
     table_top_y, table_bottom_y = abbyyutils.table_block_to_y_top_bottom(ab_table)
     table_y_diff = table_bottom_y - table_top_y
     lc_table_text = table_text.lower()
+
+    # this code is not triggered for true abbyytables?
+    """
+    if ab_table.is_abbyy_original and \
+       ab_table.get_num_cols() == 1:
+        print("--- is_invalid_table(), col == 1")
+        print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
+        return True
+    """
+
     if table_text.count('...') >= 2 or \
        lc_table_text.count('exhibit') >= 2 or \
        lc_table_text.count('appendix') >= 2 or \
        lc_table_text.count('article') >= 2:
-        print("--- is_invalid_table()")
-        print("table_text: [{}]".format(table_text.replace('\n', r' ')))
+        print("--- is_invalid_table(), dash, toc")
+        print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
         return True
     if table_y_diff <= 100:
-        print("--- is_invalid_table()")
-        print("table_y_top_bottom: {}, {}, diff={}".format(table_top_y,
-                                                           table_bottom_y,
-                                                           table_y_diff))
-        print("table_text: [{}]".format(table_text.replace('\n', r' ')))
+        print("--- is_invalid_table(), too small y-diff")
+        print("  table_y_top_bottom: {}, {}, diff={}".format(table_top_y,
+                                                             table_bottom_y,
+                                                             table_y_diff))
+        print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
         return True
+
+    shorten_text = table_text[:150]
+    count_paren = shorten_text.count('(') + \
+                  shorten_text.count(')') + \
+                  shorten_text.count('[') + \
+                  shorten_text.count(']')
+    math_op_mat_list = re.findall(r'\)\s*[xX\+\-\*\/]\s*\(', shorten_text)
+
+    if re.search(r'\d+\s*[xX\+\-\*\/]\s*\(', shorten_text):
+        return True
+
+    len_math_op_mat = len(math_op_mat_list)
+    count_math_op = shorten_text.count(' x ') + \
+                    shorten_text.count(' X ') + \
+                    shorten_text.count(' + ') + \
+                    shorten_text.count(' - ') + \
+                    shorten_text.count(' * ') + \
+                    shorten_text.count(' / ') + \
+                    len_math_op_mat
+
+    print("checking for is_invalid_table({})".format(table_text[:150]))
+    print("count_paren= {}, count_math_op= {}".format(count_paren,
+                                                      count_math_op))
+    # this is a formula, not a table
+    if count_paren >= 6 and count_math_op >= 2:
+        print("--- is_invalid_table(), too mathy")
+        print("  count_paren= {}, count_math_op= {}".format(count_paren,
+                                                            count_math_op))
+        print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
+        return True
+
+    num_period_cap = engutils.num_letter_period_cap(table_text)
+    if num_period_cap >= 3:
+        print("--- is_invalid_table(), too sentency")
+        print("num_period_cap: {}".format(num_period_cap))
+        print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
+        return True
+
+
     return False
