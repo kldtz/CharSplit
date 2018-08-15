@@ -1,5 +1,6 @@
 import configparser
 from collections import defaultdict
+from datetime import datetime
 import fcntl
 from fcntl import LOCK_EX, LOCK_SH
 import os
@@ -7,6 +8,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
@@ -292,3 +294,11 @@ def atomic_dumps(text: str,
     with open(tmpFileName.name, 'wt') as fout:
         fout.write(text)
     shutil.move(tmpFileName.name, file_name)
+
+
+def get_minute_timestamp_str() -> str:
+    """Return a timestamp string, down to minutes."""
+    timestamp = int(time.time())
+    # datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    aline = datetime.fromtimestamp(timestamp).strftime('%Y%m%d-%H%M')
+    return aline

@@ -1,9 +1,11 @@
 import os
-import nltk
+from collections import namedtuple
 import re
 import math
+from typing import Dict, List
 
-from collections import namedtuple
+
+import nltk
 
 from kirke.utils import strutils, stopwordutils
 
@@ -13,7 +15,7 @@ PUNCT_PAT = re.compile(r'[\.,\?;:\{\}\(\)\[\]/\\\'’"`”“\*#@_ ]')
 
 ALPHAS_PAT = re.compile(r'^[a-zA-Z]+$')
 
-ANY_DIGIT_PAT = re.compile('.*\d+.*')
+ANY_DIGIT_PAT = re.compile(r'.*\d+.*')
 
 
 def remove_punct(line):
@@ -41,7 +43,7 @@ def line2words(line):
     return tokens
 
 
-def line2char_trigram(line):
+def line2char_trigram(line: str) -> List[str]:
     line = line.lower().replace('\t', ' ')
 
     trigrams = []
@@ -57,7 +59,8 @@ def line2char_trigram(line):
     return trigrams
 
 
-def files2ngram(adir, suffix='.txt', n=2):
+# pylint: disable=too-many-locals
+def files2ngram(adir: str, suffix: str = '.txt', unused_n: int = 2):
     corpus_freq = nltk.FreqDist()
     for filename in os.listdir(adir):
         if filename.endswith(suffix):
@@ -82,23 +85,23 @@ def files2ngram(adir, suffix='.txt', n=2):
 
     total_bigram = 0
     adict = {}
-    for k, v in corpus_freq.items():
-        if v >= 2:
-            # print("{}\t{} {}".format(v, k[0], k[1]))
-            total_bigram += v
-            adict[k] = v
+    for kval, vval in corpus_freq.items():
+        if vval >= 2:
+            # print("{}\t{} {}".format(vval, kval[0], kval[1]))
+            total_bigram += vval
+            adict[kval] = vval
 
     result = {}
-    for k, v in adict.items():
-        if v >= 2:
-            xlog = math.log(v / total_bigram)
-            print("{}\t{} {}\t{}".format(v, k[0], k[1], xlog))
-            result[k] = xlog
+    for kval, vval in adict.items():
+        if vval >= 2:
+            xlog = math.log(vval / total_bigram)
+            print("{}\t{} {}\t{}".format(vval, kval[0], kval[1], xlog))
+            result[kval] = xlog
 
     return result
 
 
-def files2unigram(adir, suffix='.txt'):
+def files2unigram(adir: str, suffix: str = '.txt') -> Dict[str, float]:
     corpus_freq = nltk.FreqDist()
     for filename in os.listdir(adir):
         if filename.endswith(suffix):
@@ -115,23 +118,23 @@ def files2unigram(adir, suffix='.txt'):
 
     total_bigram = 0
     adict = {}
-    for k, v in corpus_freq.items():
-        if v >= 2:
-            # print("{}\t{} {}".format(v, k[0], k[1]))
-            total_bigram += v
-            adict[k] = v
+    for kval, vval in corpus_freq.items():
+        if vval >= 2:
+            # print("{}\t{} {}".format(vval, kval[0], kval[1]))
+            total_bigram += vval
+            adict[kval] = vval
 
-    result = {}
-    for k, v in adict.items():
-        if v >= 2:
-            xlog = math.log(v / total_bigram)
-            print("{}\t{}\t{}".format(v, k, xlog))
-            result[k] = xlog
+    result = {}  # type: Dict[str, float]
+    for kval, vval in adict.items():
+        if vval >= 2:
+            xlog = math.log(vval / total_bigram)
+            print("{}\t{}\t{}".format(vval, kval, xlog))
+            result[kval] = xlog
 
     return result
 
 
-def files2char_ngram(adir, suffix='.txt', n=3):
+def files2char_ngram(adir: str, suffix: str = '.txt', unused_n: int = 3):
     corpus_freq = nltk.FreqDist()
     for filename in os.listdir(adir):
         if filename.endswith(suffix):
@@ -151,17 +154,17 @@ def files2char_ngram(adir, suffix='.txt', n=3):
 
     total_bigram = 0
     adict = {}
-    for k, v in corpus_freq.items():
-        if v >= 2:
-            total_bigram += v
-            adict[k] = v
+    for kval, vval in corpus_freq.items():
+        if vval >= 2:
+            total_bigram += vval
+            adict[kval] = vval
 
-    result = {}
-    for k, v in adict.items():
-        if v >= 2:
-            xlog = math.log(v / total_bigram)
-            print("{}\t{}\t{}".format(v, k, xlog))
-            result[k] = xlog
+    result = {}  # type: Dict[str, float]
+    for kval, vval in adict.items():
+        if vval >= 2:
+            xlog = math.log(vval / total_bigram)
+            print("{}\t{}\t{}".format(vval, kval, xlog))
+            result[kval] = xlog
 
     return result
 
@@ -171,13 +174,13 @@ def load_ngram_score(filename):
     with open(filename, 'rt') as fin:
         for line in fin:
             line = line.strip()
-            freq, ngram_st, score = line.split('\t')
+            unused_freq, ngram_st, score = line.split('\t')
             adict[ngram_st] = float(score)
     return adict
 
-unigram_score_map = load_ngram_score('dict/unigram300.tsv')
-bigram_score_map = load_ngram_score('dict/bigram300.tsv')
-char_trigram_score_map = load_ngram_score('dict/trigram300.char.tsv')
+UNIGRAM_SCORE_MAP = load_ngram_score('dict/unigram300.tsv')
+BIGRAM_SCORE_MAP = load_ngram_score('dict/bigram300.tsv')
+CHAR_TRIGRAM_SCORE_MAP = load_ngram_score('dict/trigram300.char.tsv')
 
 
 def bi2st(bigram):
@@ -195,17 +198,17 @@ def check_english(filename):
 
             words = line2words(line)
             if words:
-                scores = [unigram_score_map.get(word, -10.75)
+                scores = [UNIGRAM_SCORE_MAP.get(word, -10.75)
                           for word in words]
                 # print("scores = {}".format(scores))
                 avg_uni_score = sum(scores) / len(scores)
             else:
                 avg_uni_score = -10.75
-                
+
             bigrams = [bi2st(bigram) for bigram in line2bigrams(line)]
             if bigrams:
                 # print("bigrams = {}".format(list(bigrams)))
-                scores = [bigram_score_map.get(bigram, -11.5)
+                scores = [BIGRAM_SCORE_MAP.get(bigram, -11.5)
                           for bigram in bigrams]
                 # print("scores = {}".format(scores))
                 avg_bi_score = sum(scores) / len(scores)
@@ -215,7 +218,7 @@ def check_english(filename):
             char_trigrams = line2char_trigram(line)
             if char_trigrams:
                 # print("char_trigrams = {}".format(list(char_trigrams)))
-                scores = [char_trigram_score_map.get(trigram, -12.25)
+                scores = [CHAR_TRIGRAM_SCORE_MAP.get(trigram, -12.25)
                           for trigram in char_trigrams]
                 # print("scores = {}".format(scores))
                 avg_tri_score = sum(scores) / len(scores)
@@ -234,9 +237,9 @@ def classify_english_sentence_v1(line, debug_mode=False):
 
     if '.....' in line:
         return False
-    
+
     if words:
-        scores = [unigram_score_map.get(word, -10.75)
+        scores = [UNIGRAM_SCORE_MAP.get(word, -10.75)
                   for word in words]
         # print("scores = {}".format(scores))
         avg_uni_score = sum(scores) / len(scores)
@@ -246,7 +249,7 @@ def classify_english_sentence_v1(line, debug_mode=False):
     bigrams = [bi2st(bigram) for bigram in line2bigrams(line)]
     if bigrams:
         # print("bigrams = {}".format(list(bigrams)))
-        scores = [bigram_score_map.get(bigram, -11.5)
+        scores = [BIGRAM_SCORE_MAP.get(bigram, -11.5)
                   for bigram in bigrams]
         # print("scores = {}".format(scores))
         avg_bi_score = sum(scores) / len(scores)
@@ -256,7 +259,7 @@ def classify_english_sentence_v1(line, debug_mode=False):
     char_trigrams = line2char_trigram(line)
     if char_trigrams:
         # print("char_trigrams = {}".format(list(char_trigrams)))
-        scores = [char_trigram_score_map.get(trigram, -12.25)
+        scores = [CHAR_TRIGRAM_SCORE_MAP.get(trigram, -12.25)
                   for trigram in char_trigrams]
         # print("scores = {}".format(scores))
         avg_tri_score = sum(scores) / len(scores)
@@ -265,7 +268,7 @@ def classify_english_sentence_v1(line, debug_mode=False):
 
     if avg_tri_score < -11.0:
         return False
-    
+
     result = ((len(words) >= 15 and avg_uni_score >= -8.5) or
               (avg_tri_score >= -8.0 and avg_uni_score >= -8.0) or
               (avg_tri_score >= -8.0 and avg_uni_score >= -8.2 and
@@ -296,8 +299,8 @@ def is_math_equation(line):
     if len(line) < 150:
         if operator_count + eq_count >= 10:   # something else is going on, not equation
             return False
-        if (eq_count > 0 or (operator_count + eq_count >= 3) or
-            (operator_count + eq_count >= 2 and digit_count >= 2)):
+        if eq_count > 0 or (operator_count + eq_count >= 3) or \
+           (operator_count + eq_count >= 2 and digit_count >= 2):
             return True
     return False
 
@@ -309,12 +312,13 @@ def is_itemize_prefix(line):
     return ITEM_PREFIX_PAT.match(line)
 
 
-def classify_english_sentence(line: str, debug_mode=False) -> bool:
+# pylint: disable=too-many-return-statements, too-many-branches
+def classify_english_sentence(line: str, debug_mode: bool = False) -> bool:
     words = line2words(line)
 
     if debug_mode:
         print('len(words) =', len(words))
-        
+
     # if a line is itemized, it is probably NOT inside a table
     # it can be non-English sentence though, but assume not the case
     if is_itemize_prefix(line) and len(words) >= 4:
@@ -363,7 +367,7 @@ def classify_english_sentence(line: str, debug_mode=False) -> bool:
 
     if cht_count.num_alpha / cht_count.length < 0.3:
         return False
-    
+
     if cht_count.num_digit / cht_count.length > 0.3:
         return False
 
@@ -398,6 +402,7 @@ def count_char_type(line):
     num_consonant, num_vowel = 0, 0
     length = len(line)
     if line:
+        # pylint: disable=invalid-name
         for ch in line:
             if strutils.is_uc(ch):
                 num_uc += 1
@@ -410,7 +415,7 @@ def count_char_type(line):
                 if strutils.is_english_vowel(ch):
                     num_vowel += 1
                 else:
-                    num_consonant += 1                
+                    num_consonant += 1
             elif strutils.is_space(ch):
                 num_space += 1
             elif strutils.is_digit_core(ch):
@@ -433,30 +438,30 @@ MONTH_ST_LIST = ['January', 'February', 'March', 'April', 'May',
                  'Jun', 'Jul', 'Aug', 'Sep', 'Oct',
                  'Nov', 'Dec']
 
-date_pat = re.compile(r'({})\b.*\d\d\d\d\b'.format('|'.join(MONTH_ST_LIST)),
+DATE_PAT = re.compile(r'({})\b.*\d\d\d\d\b'.format('|'.join(MONTH_ST_LIST)),
                       re.IGNORECASE)
 
 # the xxx day of xxx 2016
-date2_pat = re.compile(r'\bday of\b.*\d\d\d\d\b', re.IGNORECASE)
+DATE2_PAT = re.compile(r'\bday of\b.*\d\d\d\d\b', re.IGNORECASE)
 
-date3_pat = re.compile(r'\b(dated|\d{4})\b', re.IGNORECASE)
+DATE3_PAT = re.compile(r'\b(dated|\d{4})\b', re.IGNORECASE)
 
 
 def is_date_line(line):
     if len(line) > 50:  # don't want to match line "BY AND BETWEEN" in title page
         return False
-    mat = date_pat.search(line) or date2_pat.search(line)
+    mat = DATE_PAT.search(line) or DATE2_PAT.search(line)
     return mat
 
 
 def has_date(line):
-    if (date_pat.search(line) or date2_pat.search(line) or
-        date3_pat.search(line)):
+    if DATE_PAT.search(line) or DATE2_PAT.search(line) or \
+       DATE3_PAT.search(line):
         return True
     return False
 
 
-skip_template_pat = re.compile(r'(ACT OF 1933|ACT of 1934|all rights? reserved)', re.IGNORECASE)
+SKIP_TEMPLATE_PAT = re.compile(r'(ACT OF 1933|ACT of 1934|all rights? reserved)', re.IGNORECASE)
 
 # bad example of above regex
 """[This Convertible Promissory Note is one of a series of duly
@@ -475,6 +480,6 @@ Purchase Agreement.]
 
 
 def is_skip_template_line(line):
-    if skip_template_pat.search(line) and not has_date(line):
+    if SKIP_TEMPLATE_PAT.search(line) and not has_date(line):
         return True
     return False

@@ -7,7 +7,7 @@ import os
 
 from kirke.utils import osutils, ebantdoc4
 
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -107,14 +107,15 @@ def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structu
                     X_train_positive.append(fn_ebantdoc_map[fname])
 
             # print("fnxxx = [{}], id= [{}]".format(fname, mat.group(1)))
-        print("provision: {}, len(train)= {}, len(test)= {}, len(train_pos)".format(provision,
-                                                                                    len(X_train),
-                                                                                    len(X_test),
-                                                                                    len(X_train_positive)))
+        print("provision: %s, len(train)= %d, len(test)= %d, len(train_pos)= %d" %
+              (provision,
+               len(X_train),
+               len(X_test),
+               len(X_train_positive)))
 
         if len(X_train) < 3:  # skip provisions with insufficient data
             logger.info("skipping '%s' in split_provision_trte(), len(X_train) = %d is < 3",
-                         provision, len(X_train))
+                        provision, len(X_train))
             continue
 
         for moddir in model_dir_list:

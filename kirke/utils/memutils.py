@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
+from typing import Any
+
 from pympler import asizeof
 
-from typing import Any
 
 # https://stackoverflow.com/questions/33978/find-out-how-much-memory-is-being-used-by-an-object-in-python
 
@@ -23,18 +24,18 @@ class StartEndPair2(object):
 StartEndNamedPair = namedtuple('StartEndNamedPair', 'start end')
 
 def get_size(obj: Any) -> int:
-    return asizeof.asizeof(obj);
+    return asizeof.asizeof(obj)
 
-
+# pylint: disable=invalid-name
 get_size_bytes = get_size
 
 
 def get_size_kbytes(obj: Any) -> float:
-    return asizeof.asizeof(obj) / 1000.0;
+    return asizeof.asizeof(obj) / 1000.0
 
 
 def get_size_mbytes(obj: Any) -> float:
-    return asizeof.asizeof(obj) / 1000000.0;
+    return asizeof.asizeof(obj) / 1000000.0
 
 
 if __name__ == '__main__':
