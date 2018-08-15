@@ -386,11 +386,11 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
                 if is_label:
                     # table_text = fix_rate_table_text(span_candidate['text'])
                     table_text_alphanum = span_candidate['text_alphanum']
-                    print("jj table_text_alphanum: [%s]" %
-                          table_text_alphanum.replace('\n', '~'))
+                    # print("jj table_text_alphanum: [%s]" %
+                    #       table_text_alphanum.replace('\n', '~'))
                     pos_cand_text_list.append(table_text_alphanum)
             pos_words_vectorizer.fit(pos_cand_text_list)
-            print("pos_words_vectorizer.vocab = {}".format(pos_words_vectorizer.vocabulary_))
+            # print("pos_words_vectorizer.vocab = {}".format(pos_words_vectorizer.vocabulary_))
             self.pos_word_set = set(pos_words_vectorizer.vocabulary_.keys())
         # doesn't matter if min_df is 1 or 2
         pos_word_tokenizer = self.words_vectorizer.build_tokenizer()
@@ -399,7 +399,7 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
         for i, span_candidate in enumerate(span_candidate_list):
             # table_text = fix_rate_table_text(span_candidate['text'])
             table_text_alphanum = span_candidate['text_alphanum']
-            print("text_alphanum: [{}]".format(table_text_alphanum))
+            # print("text_alphanum: [{}]".format(table_text_alphanum))
             words_list.append(table_text_alphanum)
             row_header_text = fix_rate_table_text(span_candidate['row_header_text'])
             row_header_words_list.append(row_header_text)
@@ -454,11 +454,11 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
             self.row_header_vectorizer.fit(row_header_words_list)
             self.min_max_scaler.fit(numeric_matrix)
 
-            print("----- fit:")
-            print("pretable_vocab = {}".format(self.pre_table_vectorizer.vocabulary_))
-            print("sechead_vocab = {}".format(self.sechead_vectorizer.vocabulary_))
-            print("row_header_vocab = {}".format(self.row_header_vectorizer.vocabulary_))
-            print("pos_word_list = {}".format(self.pos_word_set))
+            # print("----- fit:")
+            # print("pretable_vocab = {}".format(self.pre_table_vectorizer.vocabulary_))
+            # print("sechead_vocab = {}".format(self.sechead_vectorizer.vocabulary_))
+            # print("row_header_vocab = {}".format(self.row_header_vectorizer.vocabulary_))
+            # print("pos_word_list = {}".format(self.pos_word_set))
             return self
 
         words_out = self.words_vectorizer.transform(words_list)
