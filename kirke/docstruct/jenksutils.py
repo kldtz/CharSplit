@@ -73,7 +73,7 @@ def getGVF(data_list, num_class):
     listMean = sum(data_list) / len(data_list)
     print(listMean)
     SDAM = 0.0
-    for i, data in enumerate(data_list):
+    for data in data_list:
         sqDev = (data - listMean) ** 2
         SDAM += sqDev
     SDCM = 0.0

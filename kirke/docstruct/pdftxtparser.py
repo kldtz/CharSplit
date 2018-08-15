@@ -16,7 +16,7 @@ from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInf
 from kirke.utils import strutils, txtreader, mathutils
 from kirke.utils.textoffset import TextCpointCunitMapper
 
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -57,7 +57,7 @@ def text_offsets_to_nl(base_fname: str,
             pass
         else:
             logger.warning("text_offsets_to_nl(%s), len= %d, lnbrk_offset = %d",
-                            base_fname, len_doc_text, lbrk_offset)
+                           base_fname, len_doc_text, lbrk_offset)
     ch_list = list(orig_doc_text)
     for linebreak_offset in linebreak_offset_list:
         ch_list[linebreak_offset] = '\n'
@@ -595,18 +595,18 @@ def parse_document(file_name: str,
     base_fname = os.path.basename(file_name)
 
     doc_text = strutils.loads(file_name)
-    len_doc_text = len(doc_text)
+    # len_doc_text = len(doc_text)
 
     cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
-    unused_doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = \
+    unused_doc_len, str_offsets, line_breaks, unused_pblock_offsets, page_offsets = \
         pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name), cpoint_cunit_mapper)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
-    nl_text, linebreak_offset_list = text_offsets_to_nl(base_fname,
-                                                        doc_text,
-                                                        line_breaks,
-                                                        work_dir=work_dir,
-                                                        debug_mode=debug_mode)
+    nl_text, unused_linebreak_offset_list = text_offsets_to_nl(base_fname,
+                                                               doc_text,
+                                                               line_breaks,
+                                                               work_dir=work_dir,
+                                                               debug_mode=debug_mode)
 
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
     min_diff = float("inf")
@@ -628,7 +628,7 @@ def parse_document(file_name: str,
         y_diff = yStart - prev_y
 
         if y_diff < min_diff and y_diff > 0:
-            all_diffs.append(y_diff)    
+            all_diffs.append(y_diff)
         prev_y = yStart
         str_text = nl_text[start:end]
         if yStart < 100 and not str_text.strip():
@@ -639,7 +639,7 @@ def parse_document(file_name: str,
 
     pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]]
     bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
-    tmp_prev_end = 0
+    # tmp_prev_end = 0
     block_num = 0
     mode_diff = int(max(set(all_diffs), key=all_diffs.count))
     tmp_end = 0
@@ -653,10 +653,12 @@ def parse_document(file_name: str,
         tmp_start = lxid_strinfos_map[line_num][0].start
         tmp_end = lxid_strinfos_map[line_num][0].end
         line_len = len(nl_text[tmp_start:tmp_end].split())
-        
-        # checks the difference in y val between this line and the next, if below the mode, join into a block, otherwise add block to block_info
+
+        # checks the difference in y val between this line and the next,
+        # if below the mode, join into a block, otherwise add block to block_info
         if line_num+1 in lxid_strinfos_map.keys() and line_len > 0:
-            y_diff = int(lxid_strinfos_map[line_num+1][0].yStart - lxid_strinfos_map[line_num][0].yStart)
+            y_diff = int(lxid_strinfos_map[line_num+1][0].yStart -
+                         lxid_strinfos_map[line_num][0].yStart)
         else:
             y_diff = -1
         if tmp_start != tmp_end and (y_diff < 0 or y_diff > mode_diff+1):
@@ -666,8 +668,13 @@ def parse_document(file_name: str,
                 start = tmp_start
             end = tmp_end
             page_num = page_nums[line_num]
-            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, block_num, tmp_strinfos))
-            para_line, unused_is_multi_lines, unused_not_linebreaks = pdfutils.para_to_para_list(nl_text[start:end])
+            bxid_lineinfos_map[block_num].append(LineInfo3(start,
+                                                           end,
+                                                           line_num,
+                                                           block_num,
+                                                           tmp_strinfos))
+            para_line, unused_is_multi_lines, unused_not_linebreaks = \
+                pdfutils.para_to_para_list(nl_text[start:end])
             block_info = PBlockInfo(start,
                                     end,
                                     block_num,
@@ -683,7 +690,7 @@ def parse_document(file_name: str,
             if not start:
                 start = lxid_strinfos_map[line_num][0].start
             tmp_strinfos.extend(lxid_strinfos_map[line_num])
-            
+
     pageinfo_list = []  # type: List[PageInfo3]
     for page_offset in page_offsets:
         #id, start, end

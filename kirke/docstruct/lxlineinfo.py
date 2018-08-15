@@ -1,8 +1,8 @@
-from collections import namedtuple, Counter
+from collections import Counter
 import copy
 from functools import total_ordering
 import re
-import json
+# pylint: disable=unused-import
 from typing import Any, Dict, List, Optional, Tuple
 
 from kirke.docstruct import tokenizer
@@ -25,16 +25,19 @@ SHORT_SENT_WORD_THRESHOLD = 40
 def is_short_sent_by_length(xlen: int) -> bool:
     return xlen < SHORT_SENT_WORD_THRESHOLD
 
-    # is_relax_check is only True when on first page
-def is_line_centered(line: str, xStart: float, xEnd: float, is_relax_check: bool=False) -> bool:
-    
+# is_relax_check is only True when on first page
+# pylint: disable=too-many-return-statements
+def is_line_centered(line: str, x_start: float, x_end: float,
+                     # pylint: disable=unused-argument
+                     is_relax_check=False) -> bool:
+
     if len(line) > 65:
         return False
     if strutils.is_all_caps_space(line) and len(line) > 52:
         return False
-    
-    right_diff = 612 - xEnd   # (0, 0, 595, 842);
-    left_diff = xStart
+
+    right_diff = 612 - x_end   # (0, 0, 595, 842);
+    left_diff = x_start
 
     # print("left_diff = {}, right_diff= {}, diff = {}".
     # format(left_diff, right_diff, abs(right_diff - left_diff)))
@@ -43,48 +46,58 @@ def is_line_centered(line: str, xStart: float, xEnd: float, is_relax_check: bool
         return True
 
     # there are some short lines that are not really centered
-    if (xEnd - xStart < 100 and
-        left_diff > 100 and abs(right_diff - left_diff) < 80):
+    if x_end - x_start < 100 and \
+       left_diff > 100 and \
+       abs(right_diff - left_diff) < 80:
         return True
 
     # there are some short lines that are not really centered
-    if (xEnd - xStart < 100 and
-        left_diff > 100 and abs(right_diff - left_diff) < 80):
+    if x_end - x_start < 100 and \
+       left_diff > 100 and \
+       abs(right_diff - left_diff) < 80:
         return True
 
-    if (xEnd - xStart < 340 and
-        left_diff > 100 and abs(right_diff - left_diff) < 50):
+    if x_end - x_start < 340 and \
+       left_diff > 100 and \
+       abs(right_diff - left_diff) < 50:
         return True
 
     return False
 
 
 # currently is_relax_check is not used
-def calc_align_label(line: str, xStart: float, xEnd: float, is_relax_check: bool=False) -> str:
-    if is_line_centered(line, xStart, xEnd):
+def calc_align_label(line: str, x_start: float, x_end: float,
+                     # pylint: disable=unused-argument
+                     is_relax_check=False) -> str:
+    if is_line_centered(line, x_start, x_end):
         return "CN"
-    if xStart < 90:
+    if x_start < 90:
         return "LF1"
-    if xStart < 115:
+    if x_start < 115:
         return "LF2"
-    if xStart < 130:
-        return "LF3"    
-    if xStart > 450:
+    if x_start < 130:
+        return "LF3"
+    if x_start > 450:
         return "RT"
     return ""
 
 @total_ordering
+# pylint: disable=too-many-instance-attributes
 class LineInfo:
 
-    def __init__(self, start: int, end: int, sid: int, xStart: float, xEnd: float, yStart: float,
+    # pylint: disable=too-many-arguments
+    def __init__(self, start: int, end: int, sid: int, x_start: float, x_end: float, y_start: float,
                  para: int, page: int, text: str, length: int,
                  words: List[str], non_punct_words: List[str]) -> None:
         self.start = start
         self.end = end
         self.sid = sid
-        self.xStart = xStart
-        self.xEnd = xEnd
-        self.yStart = yStart
+        # pylint: disable=invalid-name
+        self.xStart = x_start
+        # pylint: disable=invalid-name
+        self.xEnd = x_end
+        # pylint: disable=invalid-name
+        self.yStart = y_start
         self.para = para
         self.page = page
         self.text = text
@@ -92,7 +105,7 @@ class LineInfo:
         self.words = words
         self.non_punct_words = non_punct_words
         self.category = None  # type: Optional[str]
-        self.align_label = calc_align_label(text, xStart, xEnd)
+        self.align_label = calc_align_label(text, x_start, x_end)
         # False means it is EITHER unknown or is not True
         self.is_close_prev_line = False
         self.is_english = engutils.classify_english_sentence(text)
@@ -149,19 +162,23 @@ class LineInfo:
         # self.words is not printed, intentionally
         return '%-25s\t%s\t%s' % (tags_st, not_en_mark, text[self.start:self.end])
 
-    
+
     def is_center(self) -> bool:
         return self.align_label == 'CN'
 
+    # pylint: disable=invalid-name
     def is_LF(self) -> bool:
         return bool(self.align_label) and self.align_label.startswith('LF')
 
+    # pylint: disable=invalid-name
     def is_LF1(self) -> bool:
         return self.align_label == 'LF1'
 
+    # pylint: disable=invalid-name
     def is_LF2(self) -> bool:
         return self.align_label == 'LF2'
 
+    # pylint: disable=invalid-name
     def is_LF3(self) -> bool:
         return self.align_label == 'LF3'
 
@@ -179,9 +196,9 @@ class LineInfo:
     #        return "CN"
     #    tmp_aligned = xstart_to_aligned(self.xStart)
     # return tmp_aligned
-        
 
-    # TODO, jshaw, hack    
+
+    # TODO, jshaw, hack
     #def is_aligned_right(self):
     #    return self.xStart > 300
 
@@ -205,16 +222,16 @@ def toTypedLineInfo(lineinfo, category):
                          category,
                          lineinfo.is_center(),
                          lineinfo.is_aligned_left(),
-                         lineinfo.is_aligned_right(),                         
+                         lineinfo.is_aligned_right(),
                          False)
 """
 
 def mark_close_adjacent_lines(lineinfo_list: List[LineInfo]) -> None:
     """Set lineinfo.is_close_prev_line if their Y are less than 22 points apart.
-    
+
     Args:
         lineinfo_list: the lineinfo of a document
-        
+
     Returns:
         In-place modified lineinfo list.
     """
@@ -232,7 +249,7 @@ def mark_close_adjacent_lines(lineinfo_list: List[LineInfo]) -> None:
     # print("ydiff_count.top = {}".format(ydiff_counter.most_common(1)))
     max_isclose_ydiff = ydiff_counter.most_common(1)[0][0] * 1.5
     # print("max_isclose_ydiff = {}".format(max_isclose_ydiff))
-        
+
     prev_ystart = lineinfo_list[0].yStart
     for lineinfo in lineinfo_list[1:]:
         ydiff = lineinfo.yStart - prev_ystart
@@ -249,7 +266,7 @@ def text2page_lineinfos_list(text: str, line_offsets: List[Dict]) -> List[LineIn
     # line_st_list = []
     for i, line_offset in enumerate(line_offsets):
         start = line_offset['start']
-        end = line_offset['end']        
+        end = line_offset['end']
         line = text[start:end]
 
 #        if not line.strip():  # blank line, or line with only spaces
@@ -326,15 +343,15 @@ def text2page_lineinfos_list(text: str, line_offsets: List[Dict]) -> List[LineIn
 
 # SEC_HEAD_PAT = re.compile(r"^(\d+\.)\s+(([\w\-]+;?\s*)+[\.:])\s*(.*)$")
 # SEC_HEAD_CHECK_PAT = re.compile(r"^(\d+\.)\s+((\w[\w\-]+;?\s*)+[\.:])(.*)$")
-SEC_HEAD_CHECK_PAT = re.compile(r"^(\d+\.)\s+([^\.:]+[\.:])(.*)$")    
+SEC_HEAD_CHECK_PAT = re.compile(r"^(\d+\.)\s+([^\.:]+[\.:])(.*)$")
 SEC_HEAD_PAT = re.compile(r"^(\d+\.)\s+(([a-zA-Z\-]+;?\s*)+[\.:])(.*)$")
 
 SEC_HEAD_FULL_LINE_PAT = re.compile(r"^(\d+\.)\s+(.+)$")
 
 
-def find_sechead_prefix_part_line(st):
+def find_sechead_prefix_part_line(line):
     # first check if full line is a heading, let other deal with it
-    mat = SEC_HEAD_FULL_LINE_PAT.match(st)
+    mat = SEC_HEAD_FULL_LINE_PAT.match(line)
     if mat:
         sec_words_st = mat.group(2)
         sec_words = stopwordutils.tokens_remove_stopwords(sec_words_st.split())
@@ -342,12 +359,13 @@ def find_sechead_prefix_part_line(st):
         # need to treate "re:" as a regular word instead of relying on the punctuation
         # "9. OPA Obligations re: Other Contracts"
         sec_words = [word for word in sec_words if word not in set(['re:'])]
-        if len(sec_words) <= 5 and strutils.is_all_title_words(sec_words):   # this is full section head per line
-            # print("hhhhhhhhhhhhhhhhhhhhh: {}".format(st))              # skip
-            return None        
-    
+        if len(sec_words) <= 5 and strutils.is_all_title_words(sec_words):
+            # this is full section head per line
+            # print("hhhhhhhhhhhhhhhhhhhhh: {}".format(line))              # skip
+            return None
+
     # the above regex, 2nd one is VERY slow if the check is not enforced
-    mat = SEC_HEAD_CHECK_PAT.match(st)
+    mat = SEC_HEAD_CHECK_PAT.match(line)
     if not mat:
         return None
     if mat and not mat.group(3).strip():  # matched, but empty rest text
@@ -360,7 +378,7 @@ def find_sechead_prefix_part_line(st):
 
     # TODO, jshaw, something is wrong with the regex that it is slow.
     # Some backtrack is triggered
-    mat = SEC_HEAD_PAT.match(st)
+    mat = SEC_HEAD_PAT.match(line)
     if mat:
         # sec_num = mat.group(1)
         sec_words_st = mat.group(2)[:-1]
@@ -375,10 +393,9 @@ def find_sechead_prefix_part_line(st):
 
 # this is destructive
 def split_sechead_lineinfos(lineinfo_list: List[LineInfo]) -> List[LineInfo]:
-    debug_mode = True
     split_sid = 0
     result = []
-    for i, linfo in enumerate(lineinfo_list):
+    for linfo in lineinfo_list:
 
         # print("linfo_id = {}".format(linfo.sid))
         if not linfo.is_close_prev_line:
@@ -396,7 +413,7 @@ def split_sechead_lineinfos(lineinfo_list: List[LineInfo]) -> List[LineInfo]:
                 acopy.update_text(sechead_text)
                 acopy.category = 'sechead'
                 # modify lininfo
-                result.append(acopy)                
+                result.append(acopy)
 
                 # at this point, xStart, xEnd, yStart are meaningless after lineinfo transformation
                 # aligned label is also incorrect
@@ -408,16 +425,16 @@ def split_sechead_lineinfos(lineinfo_list: List[LineInfo]) -> List[LineInfo]:
                 linfo.sid = split_sid
                 result.append(linfo)
             else:
-                linfo.sid = split_sid                
+                linfo.sid = split_sid
                 result.append(linfo)
         else:
-            linfo.sid = split_sid            
-            result.append(linfo)            
+            linfo.sid = split_sid
+            result.append(linfo)
 
         split_sid += 1  # always increase by 1
-    
+
     return result
-                
+
 
 """
 def merge_samey_adjacent_lineinfos(lineinfo_list: List[LineInfo], text: str) -> List[LineInfo]:
@@ -534,14 +551,16 @@ def is_item_prefix(lineinfo):
     if not lineinfo.words:  # if it has no words
         return False
     # first check is for 'a)', or '10)'
-    if (len(lineinfo.words[0]) <= 2 and len(lineinfo.words) >= 2 and
-        lineinfo.words[1] in [')', '.']):
+    if len(lineinfo.words[0]) <= 2 and \
+       len(lineinfo.words) >= 2 and \
+        lineinfo.words[1] in [')', '.']:
         return True
-    if (len(lineinfo.words[0]) <= 2 and len(lineinfo.words) >= 3 and
-        (lineinfo.words[1] in [')', '.'] or lineinfo.words[2] in [')', '.'])):
-        return True    
+    if len(lineinfo.words[0]) <= 2 and \
+       len(lineinfo.words) >= 3 and \
+       (lineinfo.words[1] in [')', '.'] or lineinfo.words[2] in [')', '.']):
+        return True
     return False
-            
+
 def is_itemized_list(lineinfo_list):
     count_item_prefix = 0
     # count_lc_start = 0
@@ -552,5 +571,3 @@ def is_itemized_list(lineinfo_list):
         #    count_lc_start += 1
 
     return count_item_prefix >= 4
-    
-
