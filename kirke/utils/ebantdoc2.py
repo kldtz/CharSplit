@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 import concurrent.futures
 from enum import Enum
 import json
@@ -8,12 +9,13 @@ import shutil
 import sys
 import tempfile
 import time
-from typing import Any, DefaultDict, Dict, List, Optional, Tuple
+# pylint: disable=unused-import
+from typing import Any, Dict, List, Optional, Tuple
 
 from sklearn.externals import joblib
 
 from kirke.eblearn import sent2ebattrvec
-from kirke.docstruct import docutils, fromtomapper, htmltxtparser, pdftxtparser
+from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdftxtparser
 from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
 from kirke.utils.textoffset import TextCpointCunitMapper
 
@@ -33,8 +35,8 @@ def get_nlp_fname(txt_basename, work_dir):
 
 
 def get_ebant_fname(txt_basename, work_dir):
-    base_fn =  txt_basename.replace('.txt',
-                                    '.ebantdoc.v{}.pkl'.format(EBANTDOC_VERSION))
+    base_fn = txt_basename.replace('.txt',
+                                   '.ebantdoc.v{}.pkl'.format(EBANTDOC_VERSION))
     return '{}/{}'.format(work_dir, base_fn)
 
 
@@ -47,9 +49,10 @@ class EbDocFormat(Enum):
 
 EB_NUMERIC_FILE_ID_PAT = re.compile(r'\-(\d+)\.txt')
 
+# pylint: disable=too-many-instance-attributes
 class EbAnnotatedDoc2:
 
-    # pylint: disable=R0913
+    # pylint: disable=too-many-locals
     def __init__(self,
                  *,   # force specify all parameters by keyword
                  file_name,
@@ -170,13 +173,16 @@ def load_cached_ebantdoc2(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc2]:
                          eb_antdoc_fn, (end_time - start_time) * 1000)
 
             return eb_antdoc
+        # pylint: disable=bare-except
         except:  # failed to load cache using joblib.load()
-            logging.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.", eb_antdoc_fn)
+            logging.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.",
+                            eb_antdoc_fn)
             return None
 
     return None
 
 
+# pylint: disable=too-many-arguments, too-many-locals
 def nlptxt_to_attrvec_list(para_doc_text,
                            txt_file_name,
                            txt_base_fname,
@@ -223,7 +229,8 @@ def nlptxt_to_attrvec_list(para_doc_text,
                                                            corenlp_json,
                                                            para_doc_text,
                                                            is_doc_structure=True)
-    # ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json, para_doc_text)
+    # ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name, corenlp_json,
+    # para_doc_text)
     # print('number of sentences: {}'.format(len(ebsent_list)))
 
     if paras_with_attrs:
@@ -235,16 +242,18 @@ def nlptxt_to_attrvec_list(para_doc_text,
     # We only handle up to "exhibit_appendix,exhibit_appendix_complete"
     for ebsent in ebsent_list:
         ebsentutils.fix_ner_tags(ebsent)
-        ebsentutils.populate_ebsent_entities(ebsent, para_doc_text[ebsent.start:ebsent.end], lang=doc_lang)
+        ebsentutils.populate_ebsent_entities(ebsent, para_doc_text[ebsent.start:ebsent.end],
+                                             lang=doc_lang)
 
         overlap_provisions = (ebsentutils.get_labels_if_start_end_overlap(ebsent.start,
                                                                           ebsent.end,
                                                                           nlp_prov_ant_list)
                               if nlp_prov_ant_list else [])
-        # logging.info("overlap_provisions ({}, {}): {} [{}]".format(ebsent.start,
-        #                                                           ebsent.end,
-        #                                                           overlap_provisions,
-        #                                                           para_doc_text[ebsent.start:ebsent.end]))
+        # logging.info("overlap_provisions ({}, {}): {} [{}]".
+        #               format(ebsent.start,
+        #                      ebsent.end,
+        #                      overlap_provisions,
+        #                      para_doc_text[ebsent.start:ebsent.end]))
         ebsent.set_labels(overlap_provisions)
 
     attrvec_list = []
@@ -270,10 +279,11 @@ def nlptxt_to_attrvec_list(para_doc_text,
 
 
 # stop at 'exhibit_appendix' or 'exhibit_appendix_complete'
+# pylint: disable=too-many-locals
 def html_no_docstruct_to_ebantdoc2(txt_file_name,
                                    work_dir,
                                    is_cache_enabled=True,
-                                   doc_lang="en"):
+                                   doc_lang="en") -> EbAnnotatedDoc2:
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
@@ -281,7 +291,7 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
-    paras_with_attrs = []
+    paras_with_attrs = []  # type: List
     attrvec_list, nlp_prov_ant_list, _, _ = nlptxt_to_attrvec_list(doc_text,
                                                                    txt_file_name,
                                                                    txt_base_fname,
@@ -294,9 +304,9 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
     # there is no nlp.txt
     para_doc_text = doc_text
     nlp_prov_ant_list = prov_annotation_list
-    origin_sx_lnpos_list = []
-    nlp_sx_lnpos_list = []
-    gap_span_list = []
+    origin_sx_lnpos_list = []  # type: List
+    nlp_sx_lnpos_list = []  # type: List
+    gap_span_list = []  # type: List
     eb_antdoc = EbAnnotatedDoc2(file_name=txt_file_name,
                                 doc_format=EbDocFormat.html_nodocstruct,
                                 text=doc_text,
@@ -318,9 +328,9 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
         t2_start_time = time.time()
-        tmpFileName = tempfile.NamedTemporaryFile(delete=False)
-        joblib.dump(eb_antdoc, eb_antdoc_fn)
-        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        tmp_file_name = tempfile.NamedTemporaryFile(delete=False)
+        joblib.dump(eb_antdoc, tmp_file_name.name)
+        shutil.move(tmp_file_name.name, eb_antdoc_fn)
         t2_end_time = time.time()
         if (t2_end_time - t2_start_time) * 1000 > 30000:
             logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
@@ -335,12 +345,14 @@ def html_no_docstruct_to_ebantdoc2(txt_file_name,
 def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode=False):
     doc_text = txtreader.loads(txt_file_name)
     cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
-    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper)
+    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
+                                                                          cpoint_cunit_mapper)
     max_txt_size = len(doc_text)
     is_chopped = False
     for prov_ant in prov_annotation_list:
         if prov_ant.label in set(['exhibit_appendix', 'exhibit_appendix_complete']):
-            # print('{}\t{}\t{}\t{}'.format(txt_file_name, prov_ant.start, prov_ant.end, prov_ant.label))
+            # print('{}\t{}\t{}\t{}'.format(txt_file_name, prov_ant.start, prov_ant.end,
+            #       prov_ant.label))
             if prov_ant.start < max_txt_size:
                 max_txt_size = prov_ant.start
                 is_chopped = True
@@ -371,11 +383,12 @@ def chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode
 def html_to_ebantdoc2(txt_file_name,
                       work_dir,
                       is_cache_enabled=True,
-                      doc_lang='en'):
+                      doc_lang='en') -> EbAnnotatedDoc2:
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
-    # print("html_to_ebantdoc2({}, {}, is_cache_eanbled={}".format(txt_file_name, work_dir, is_cache_enabled))
+    # print("html_to_ebantdoc2({}, {}, is_cache_eanbled={}".format(txt_file_name,
+    #                                                              work_dir, is_cache_enabled))
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
@@ -420,9 +433,9 @@ def html_to_ebantdoc2(txt_file_name,
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled:
         t2_start_time = time.time()
-        tmpFileName = tempfile.NamedTemporaryFile(delete=False)
-        joblib.dump(eb_antdoc, eb_antdoc_fn)
-        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        tmp_file_name = tempfile.NamedTemporaryFile(delete=False)
+        joblib.dump(eb_antdoc, tmp_file_name.name)
+        shutil.move(tmp_file_name.name, eb_antdoc_fn)
         t2_end_time = time.time()
         if (t2_end_time - t2_start_time) * 1000 > 30000:
             logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
@@ -449,7 +462,7 @@ def pdf_to_ebantdoc2(txt_file_name,
                      offsets_file_name,
                      work_dir,
                      is_cache_enabled=True,
-                     doc_lang='en'):
+                     doc_lang='en') -> EbAnnotatedDoc2:
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
@@ -475,7 +488,8 @@ def pdf_to_ebantdoc2(txt_file_name,
         paraline_text, unused_para_not_linebreak_arr, cpoint_cunit_mapper = \
             pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
 
-    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name, cpoint_cunit_mapper)
+    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
+                                                                          cpoint_cunit_mapper)
 
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)
 
@@ -490,7 +504,10 @@ def pdf_to_ebantdoc2(txt_file_name,
     # pages with only 1 block.  Cannot really switch to *.paraline.txt now because double-lined text
     # might cause more trouble.
     paras2_with_attrs, para2_doc_text, gap2_span_list = \
-        pdftxtparser.to_paras_with_attrs(pdf_text_doc, txt_file_name, work_dir=work_dir, debug_mode=False)
+        pdftxtparser.to_paras_with_attrs(pdf_text_doc,
+                                         txt_file_name,
+                                         work_dir=work_dir,
+                                         debug_mode=False)
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para2_doc_text, text4nlp_fn)
@@ -533,9 +550,9 @@ def pdf_to_ebantdoc2(txt_file_name,
         t2_start_time = time.time()
         # to avoid the possibility ot reading and writing a file at the same
         # time when multiple bespoke trainings are going on
-        tmpFileName = tempfile.NamedTemporaryFile(delete=False)
-        joblib.dump(eb_antdoc, tmpFileName.name)
-        shutil.move(tmpFileName.name, eb_antdoc_fn)
+        tmp_file_name = tempfile.NamedTemporaryFile(delete=False)
+        joblib.dump(eb_antdoc, tmp_file_name.name)
+        shutil.move(tmp_file_name.name, eb_antdoc_fn)
         t2_end_time = time.time()
         if (t2_end_time - t2_start_time) * 1000 > 30000:
             logging.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
@@ -561,7 +578,8 @@ def text_to_corenlp_json(doc_text,  # this is what is really processed by corenl
         if os.path.exists(json_fn):
             corenlp_json = json.loads(strutils.loads(json_fn))
             end_time = time.time()
-            logging.info("loading from cache: %s, took %.0f msec", json_fn, (end_time - start_time) * 1000)
+            logging.info("loading from cache: %s, took %.0f msec",
+                         json_fn, (end_time - start_time) * 1000)
 
             if isinstance(corenlp_json, str):
                 # Error in corenlp json file.  Probably caused invalid
@@ -573,12 +591,14 @@ def text_to_corenlp_json(doc_text,  # this is what is really processed by corenl
                 corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
                 strutils.dumps(json.dumps(corenlp_json), json_fn)
                 end_time = time.time()
-                logging.info("wrote cache file: %s, took %.0f msec", json_fn, (end_time - start_time) * 1000)
+                logging.info("wrote cache file: %s, took %.0f msec",
+                             json_fn, (end_time - start_time) * 1000)
         else:
             corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
             strutils.dumps(json.dumps(corenlp_json), json_fn)
             end_time = time.time()
-            logging.info("wrote cache file: %s, took %.0f msec", json_fn, (end_time - start_time) * 1000)
+            logging.info("wrote cache file: %s, took %.0f msec",
+                         json_fn, (end_time - start_time) * 1000)
     else:
         corenlp_json = corenlputils.annotate_for_enhanced_ner(doc_text, doc_lang=doc_lang)
         end_time = time.time()
@@ -610,8 +630,9 @@ def text_to_ebantdoc2(txt_fname,
                 # regarless of the existing PDF or HtML or is_doc_structure
                 eb_antdoc = load_cached_ebantdoc2(eb_antdoc_fn)
                 if is_bespoke_mode and eb_antdoc:
-                    tmp_prov_ant_list, is_test = ebsentutils.load_prov_annotation_list(txt_fname,
-                                                                                       eb_antdoc.codepoint_to_cunit_mapper)
+                    tmp_prov_ant_list, unused_is_test = \
+                        ebsentutils.load_prov_annotation_list(txt_fname,
+                                                              eb_antdoc.codepoint_to_cunit_mapper)
                     if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
                         eb_antdoc.file_id = txt_fname
                         return eb_antdoc
@@ -619,14 +640,18 @@ def text_to_ebantdoc2(txt_fname,
                 if eb_antdoc:
                     eb_antdoc.file_id = txt_fname
                     return eb_antdoc
+            # pylint: disable=broad-except
             except Exception:
-                logging.error("failed to load ebandoc2 cache file: [%s].  Load without cache.", eb_antdoc_fn)
+                logging.error("failed to load ebandoc2 cache file: [%s].  Load without cache.",
+                              eb_antdoc_fn)
                 # simply fall through to load the document without the loading cache file
 
         pdf_offsets_filename = txt_fname.replace('.txt', '.offsets.json')
         # if no doc_structure, simply do the simplest
         if not is_doc_structure:
-            eb_antdoc = html_no_docstruct_to_ebantdoc2(txt_fname, work_dir=work_dir, doc_lang=doc_lang)
+            eb_antdoc = html_no_docstruct_to_ebantdoc2(txt_fname,
+                                                       work_dir=work_dir,
+                                                       doc_lang=doc_lang)
         elif os.path.exists(pdf_offsets_filename):
             eb_antdoc = pdf_to_ebantdoc2(txt_fname, pdf_offsets_filename, work_dir=work_dir,
                                          is_cache_enabled=is_cache_enabled, doc_lang=doc_lang)
@@ -636,24 +661,25 @@ def text_to_ebantdoc2(txt_fname,
 
         ## in doclist, we only want "export-train" dir, not "work_dir"
         # We need to keep .txt with .ebdata together
-        eb_antdoc.file_id = txt_fname
+        if eb_antdoc:
+            eb_antdoc.file_id = txt_fname
         return eb_antdoc
     except IndexError:
         # currently, don't want to indicate it's index error to user.  Too detailed.
         # For developers, we switched the double quote and quote in the message.
-        unused_error_type, error_instance, traceback  = sys.exc_info()
-        error_instance.filename = txt_fname
-        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % \
-                                      (txt_base_fname, doc_lang)
-        error_instance.__traceback__ = traceback
-        raise error_instance
+        unused_error_type, error_instance, traceback = sys.exc_info()
+        error_instance.filename = txt_fname  # type: ignore
+        # pylint: disable=line-too-long
+        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.__traceback__ = traceback  # type: ignore
+        raise error_instance  # type: ignore
     except Exception:  # pylint: disable=broad-except
         unused_error_type, error_instance, traceback = sys.exc_info()
-        error_instance.filename = txt_fname
-        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % \
-                                      (txt_base_fname, doc_lang)
-        error_instance.__traceback__ = traceback
-        raise error_instance
+        error_instance.filename = txt_fname  # type: ignore
+        # pylint: disable=line-too-long
+        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.__traceback__ = traceback  # type: ignore
+        raise error_instance  # type: ignore
 
 
 def doclist_to_ebantdoc_list_linear(doclist_file,
@@ -668,7 +694,7 @@ def doclist_to_ebantdoc_list_linear(doclist_file,
 
     eb_antdoc_list = []
     with open(doclist_file, 'rt') as fin:
-        for i, txt_file_name in enumerate(fin, 1):
+        for txt_file_name in fin:
             txt_file_name = txt_file_name.strip()
             eb_antdoc = text_to_ebantdoc2(txt_file_name,
                                           work_dir,
@@ -680,8 +706,8 @@ def doclist_to_ebantdoc_list_linear(doclist_file,
     return eb_antdoc_list
 
 
-def doclist_to_ebantdoc_list(doclist_file,
-                             work_dir,
+def doclist_to_ebantdoc_list(doclist_file: str,
+                             work_dir: str,
                              is_cache_enabled=True,
                              is_bespoke_mode=False,
                              is_doc_structure=False):
@@ -712,10 +738,8 @@ def doclist_to_ebantdoc_list(doclist_file,
     for txt_fn in txt_fn_list:
         eb_antdoc_list.append(fn_eb_antdoc_map[txt_fn])
 
-    logging.debug('Finished doclist_to_ebantdoc_list({}, {}), len= {}'.format(doclist_file,
-                                                                              work_dir,
-                                                                              len(txt_fn_list)))
-
+    logging.debug('Finished doclist_to_ebantdoc_list(%s, %s), len= %d',
+                  doclist_file, work_dir, len(txt_fn_list))
     return eb_antdoc_list
 
 
@@ -754,9 +778,10 @@ class EbAntdocProvSet:
         return self.provset
 
 
+# pylint: disable=invalid-name
 def fnlist_to_fn_ebantdoc_provset_map(fn_list: List[str],
                                       work_dir: str,
-                                      is_doc_structure: bool=False) -> Dict[str, EbAntdocProvSet]:
+                                      is_doc_structure: bool = False) -> Dict[str, EbAntdocProvSet]:
     logging.debug('fnlist_to_fn_ebantdoc_map(len(list)=%d, work_dir=%s)', len(fn_list), work_dir)
     if work_dir is not None and not os.path.isdir(work_dir):
         logging.debug("mkdir %s", work_dir)
@@ -765,7 +790,7 @@ def fnlist_to_fn_ebantdoc_provset_map(fn_list: List[str],
     fn_ebantdoc_map = {}
     for i, txt_file_name in enumerate(fn_list, 1):
         # if i % 10 == 0:
-        logging.info("loading #{} ebantdoc: {}".format(i, txt_file_name))
+        logging.info("loading #%d ebantdoc: %s", i, txt_file_name)
 
         eb_antdoc = text_to_ebantdoc2(txt_file_name,
                                       work_dir,
@@ -778,6 +803,7 @@ def fnlist_to_fn_ebantdoc_provset_map(fn_list: List[str],
 
 
 # para_list has the following format
+# pylint: disable=line-too-long
 # ([((2206, 2344, 11), (2183, 2321, 11))], '(a)           The definition of "Applicable Committed Loan Margin" in Article 1 is hereby amended and restated to read in full as follows:', [('sechead', '2.', 'Amendments  to  Credit  Agreement.     ', 52)]),
 # the type is
 # List, a tuple of
@@ -796,8 +822,9 @@ def print_para_list(eb_antdoc):
     doc_text = eb_antdoc.text
     for i, para_with_attr in enumerate(eb_antdoc.paras_with_attrs, 1):
         # print('xxxx\t{}\t{}'.format(i, para_with_attr))
-        span_frto_list, para_text, attr_list = para_with_attr
-        (orig_start, orig_end), (to_start, to_end) = docutils.span_frto_list_to_fromto(span_frto_list)
+        span_frto_list, unused_para_text, attr_list = para_with_attr
+        (orig_start, orig_end), (unused_to_start, unused_to_end) = \
+            docutils.span_frto_list_to_fromto(span_frto_list)
         #  orig_start, orig_end = orig_offsets
         para_text2 = doc_text[orig_start:orig_end].replace(r'[\n\t]', ' ')[:30]
 
@@ -829,7 +856,7 @@ def print_attrvec_list(eb_antdoc):
 
 
 def print_line_list(eb_antdoc):
-    doc_text = eb_antdoc.text
+    # doc_text = eb_antdoc.text
     for i, para_with_attr in enumerate(eb_antdoc.paras_with_attrs, 1):
         print('{}\t{}'.format(i, para_with_attr))
         """
@@ -945,15 +972,13 @@ def doclist_to_traindoc_list(doclist_file,
             data = future.result()
             fn_eb_traindoc_map[txt_fn] = data
             if count % 25 == 0:
-                logging.info('doclist_to_traindoc_list(), count = {}'.format(count))
+                logging.info('doclist_to_traindoc_list(), count = %d', count)
 
     eb_traindoc_list = [fn_eb_traindoc_map[txt_fn]
                         for txt_fn in txt_fn_list]
 
-    logging.debug('Finished doclist_to_traindoc_list({}, {}), len= {}'.format(doclist_file,
-                                                                              work_dir,
-                                                                              len(txt_fn_list)))
-
+    logging.debug('Finished doclist_to_traindoc_list(%s, %s), len= %d',
+                  doclist_file, work_dir, len(txt_fn_list))
     return eb_traindoc_list
 
 
@@ -966,17 +991,20 @@ def traindoc_list_to_antdoc_list(traindoc_list, work_dir):
 
 # this is in-place operations
 def prov_ants_cpoint_to_cunit(prov_ants_map, cpoint_to_cunit_mapper):
-    for prov, ant_list in prov_ants_map.items():
+    for unused_prov, ant_list in prov_ants_map.items():
         for ant_json in ant_list:
             ant_json['cpoint_start'], ant_json['cpoint_end'] = ant_json['start'], ant_json['end']
-            ant_json['start'], ant_json['end'] = cpoint_to_cunit_mapper.to_cunit_offsets(ant_json['start'],
-                                                                                      ant_json['end'])
+            ant_json['start'], ant_json['end'] = \
+                cpoint_to_cunit_mapper.to_cunit_offsets(ant_json['start'],
+                                                        ant_json['end'])
 
             try:
                 ant_json['span_list']
             except KeyError:
                 ant_json['span_list'] = [{'start': ant_json['start'], 'end': ant_json['end']}]
             for span_json in ant_json['span_list']:
-                span_json['cpoint_start'], span_json['cpoint_end'] = span_json['start'], span_json['end']
-                span_json['start'], span_json['end'] = cpoint_to_cunit_mapper.to_cunit_offsets(span_json['start'],
-                                                                                            span_json['end'])
+                span_json['cpoint_start'], span_json['cpoint_end'] = \
+                    span_json['start'], span_json['end']
+                span_json['start'], span_json['end'] = \
+                    cpoint_to_cunit_mapper.to_cunit_offsets(span_json['start'],
+                                                            span_json['end'])
