@@ -2,6 +2,8 @@
 
 from abc import ABC, abstractmethod
 import logging
+# pylint: disable=unused-import
+from typing import Any, Dict
 
 from kirke.utils import ebantdoc4, osutils
 
@@ -14,19 +16,19 @@ GLOBAL_THRESHOLD = 0.12
 
 class EbClassifier(ABC):
 
-    def __init__(self, provision):
+    def __init__(self, provision: str) -> None:
+        super().__init__()
         self.provision = provision
         self.threshold = GLOBAL_THRESHOLD
-        self.pred_status = {}
-        super(EbClassifier, self).__init__()
+        self.pred_status = {}  # type: Dict[str, Any]
 
-    def set_threshold(self, val):
+    def set_threshold(self, val: float):
         self.threshold = val
 
     def get_pred_status(self):
         return self.pred_status
 
-    def save(self, model_file_name):
+    def save(self, model_file_name: str):
         logger.info("saving model file: %s", model_file_name)
         # joblib.dump(self, model_file_name)
         osutils.joblib_atomic_dump(self, model_file_name)

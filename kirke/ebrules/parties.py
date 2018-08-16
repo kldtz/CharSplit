@@ -1073,7 +1073,7 @@ def is_empty_parties_term_offset_list(parties_term_offset_list: List[Tuple[List[
     if not parties_term_offset_list:
         return True
     if len(parties_term_offset_list) == 1:
-        parties_offset_list, term_offset = parties_term_offset_list[0]
+        parties_offset_list, unused_term_offset = parties_term_offset_list[0]
         # only term, not parties
         if not parties_offset_list:
             return True

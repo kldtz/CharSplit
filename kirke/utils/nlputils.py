@@ -26,9 +26,13 @@ IS_DEBUG_RERANK_DEFINED_TERM = False
 
 # bank is after 'n.a.' because 'bank, n.a.' is more desirable
 # 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
+# pylint: disable=fixme
 # TODO, handle "The bank of Nova Scotia", this is NOT org suffix case
+# pylint: disable=fixme
 # TODO, not handling 'real estate holdings fiv'
+# pylint: disable=fixme
 # TODO, remove 'AS AMENDED' as a party, 'the customer'?
+# pylint: disable=fixme
 # TODO, 'seller, seller' the context?
 ORG_SUFFIX_LIST = strutils.load_non_empty_str_list('dict/parties/organization.suffix.list')
 PERS_SUFFIX_LIST = strutils.load_non_empty_str_list('dict/parties/person.suffix.list')
@@ -80,10 +84,10 @@ def is_a_location(line: str) -> bool:
     if is_us_state_abbrv(words[-1]):
         # xxxx MA
         return True
-    if words[-1].lower() in set([ 'avenue', 'ave', 'ave.',
-                                  'drive', 'dr', 'dr.',
-                                  'road', 'rd', 'rd.',
-                                  'street', 'st', 'st.']):
+    if words[-1].lower() in set(['avenue', 'ave', 'ave.',
+                                 'drive', 'dr', 'dr.',
+                                 'road', 'rd', 'rd.',
+                                 'street', 'st', 'st.']):
         return True
 
     return line.lower() in LC_LOCATION_SET
@@ -92,11 +96,11 @@ def is_a_location(line: str) -> bool:
 # print("org_person_suffix_pattern_st:")
 # print(regexutils.phrases_to_igs_pattern_st(ORG_PERSON_SUFFIX_LIST))
 
-def org_person_suffix_search(line: str) -> Match[str]:
+def org_person_suffix_search(line: str) -> Optional[Match[str]]:
     return ORG_PERSON_SUFFIX_PAT.search(line)
 
 
-def org_person_suffix_match(line: str) -> Match[str]:
+def org_person_suffix_match(line: str) -> Optional[Match[str]]:
     return ORG_PERSON_SUFFIX_PAT.match(line)
 
 
@@ -361,6 +365,7 @@ def word_punct_tokenize(line: str) -> List[str]:
     return se_tokens
 
 
+# pylint: disable=too-many-branches
 def fix_nltk_pos(wpos_list: List[Tuple[str, str]],
                  t2_map: Dict[str, Tuple[str, str]] = None) -> List[Tuple[str, str]]:
     result = []
@@ -420,7 +425,7 @@ def pos_tag(tokens: List[str], t2_map: Dict[str, Tuple[str, str]] = None) \
     fixed_list = fix_nltk_pos(postag_list, t2_map)
     return fixed_list
 
-
+# pylint: disable=fixme
 # TODO: maybe remove in future
 # NLTK_TOKENIZER = WhitespaceTokenizer()
 # This doesn't handle number correctly
@@ -550,7 +555,7 @@ def split_jj_xnnp_chunk_aux(chunk: Union[Tree, Tuple[str, str]]) \
                               Union[Tree, Tuple[str, str]]]]:
     # we know the chunk is already xnnp
     postags = chunk_to_postag_list(chunk)
-    postags_out = []  # type: List[Tuple[str, str]]
+    # postags_out = []  # type: List[Tuple[str, str]]
     jj_index = -1
     split_index = -1
     for i, word_pos in enumerate(postags):
@@ -631,8 +636,9 @@ def split_chunk_with_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
             postag_list = chunk_to_postag_list(chunk)
 
             # 'the Canada Business Corporation Act'
-            last_word, last_tag = postag_list[-1]
-            if last_word.lower() == 'act' and last_word[0] == 'A':
+            last_word, unused_last_tag = postag_list[-1]
+            if isinstance(chunk, Tree) and \
+               last_word.lower() == 'act' and last_word[0] == 'A':
                 chunk.set_label('NNP')
                 result.append(chunk)
                 continue
@@ -1301,10 +1307,9 @@ def mark_org_prev_xnnp_as_xorgp(chunk_list: List[Union[Tree, Tuple[str, str]]]) 
     prev2_chunk = None
     while i < len(chunk_list):
         chunk = chunk_list[i]
-        if (is_chunk_org(chunk) or
-            is_chunk_xpv_org(chunk)) and \
-           (is_chunk_comma(prev_chunk) or
-            is_chunk_and(prev_chunk)) and \
+        # pylint: disable=too-many-boolean-expressions
+        if (is_chunk_org(chunk) or is_chunk_xpv_org(chunk)) and \
+           (is_chunk_comma(prev_chunk) or is_chunk_and(prev_chunk)) and \
            is_chunk_xnnp(prev2_chunk) and \
            chunk_num_tokens(prev2_chunk) > 1:
             if is_chunk_all_caps(chunk) and \
@@ -1318,12 +1323,14 @@ def mark_org_prev_xnnp_as_xorgp(chunk_list: List[Union[Tree, Tuple[str, str]]]) 
         elif is_chunk_label(chunk, 'xNNP') and \
              is_chunk_a_corporation(chunk) and \
              is_chunk_comma(prev_chunk) and \
-             is_chunk_xnnp(prev2_chunk):
+             is_chunk_xnnp(prev2_chunk) and \
+             isinstance(prev2_chunk, Tree):
             prev2_chunk.set_label('xORGP')
 
         # Dennis J. XXX ("Executive")
         elif is_chunk_label(chunk, 'xPAREN') and \
-             is_chunk_likely_person_name(prev_chunk):
+             is_chunk_likely_person_name(prev_chunk) and \
+             isinstance(prev_chunk, Tree):
             prev_chunk.set_label('xORGP')
 
         prev2_chunk = prev_chunk
@@ -1340,10 +1347,9 @@ def mark_org_next_xnnp_as_xorgp(chunk_list: List[Union[Tree, Tuple[str, str]]]) 
     next_chunk = get_next_chunk(chunk_list, i)
     next2_chunk = get_next_chunk(chunk_list, i+1)
     while i < len(chunk_list) - 2:
-        if (is_chunk_org(chunk) or
-            is_chunk_xpv_org(chunk)) and \
-           (is_chunk_comma(next_chunk) or
-            is_chunk_and(next_chunk)) and \
+        # pylint: disable=too-many-boolean-expressions
+        if (is_chunk_org(chunk) or is_chunk_xpv_org(chunk)) and \
+           (is_chunk_comma(next_chunk) or is_chunk_and(next_chunk)) and \
            is_chunk_xnnp(next2_chunk) and \
            chunk_num_tokens(next2_chunk) > 1:
             if is_chunk_all_caps(chunk) and \
@@ -1413,8 +1419,8 @@ def get_org_aware_chunks(sent_line: str):
     # semantic chunking.  Several party names might
     # next to each other.  Cannot group them all together.
     chunk_taken_idx = 0
-    prev_chunk = None
-    prev2_chunk = None
+    # prev_chunk = None
+    # prev2_chunk = None
     while chunk_idx < chunk_list_len:
         chunk = chunk_list[chunk_idx]
         if isinstance(chunk, Tree) and \
@@ -1445,6 +1451,7 @@ def get_org_aware_chunks(sent_line: str):
                                                    chunk_list,
                                                    chunk_idx)
                 chunk_taken_idx = chunk_idx
+                # pylint: disable=pointless-string-statement
                 """
             elif is_chunk_label(chunk, 'xNNP') and \
                  is_chunk_comma(prev_chunk) and \
@@ -1461,8 +1468,8 @@ def get_org_aware_chunks(sent_line: str):
             # print('pos_tag #{}\t{}'.format(i, tree))
             # pass
             result.append(chunk)
-        prev2_chunk = prev_chunk
-        prev_chunk = chunk
+        # prev2_chunk = prev_chunk
+        # prev_chunk = chunk
         chunk_idx += 1
 
     # mark_an_org_not_org(chunk_list)
@@ -1594,6 +1601,7 @@ class SpanChunk:
 
 class PhrasedSent:
 
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, sent_line: str, is_chopped: bool) -> None:
         if IS_DEBUG_CHUNK:
             print('PhrasedSent("{}")'.format(sent_line))
@@ -1926,6 +1934,7 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
             # (registered number SC183333)
             pass
         elif re.search(r'\bparty\b.*and.*collectively.*parties.*', span_chunk.text, re.I):
+            # pylint: disable=fixme
             # TODO, not sure why adding following caused failure in
             # export-train/52082.txt failed??
             # or \
@@ -2022,47 +2031,47 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
         if re.search(r'\b(acting|through)\b', span_chunk.text, re.I):
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, "acting through"')
-            pass
+            # pass
         elif re.search(r'\bbranch$', span_chunk.text, re.I):
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, "branch"')
-            pass
+            # pass
         elif re.search(r'\bc/o\b', span_chunk.text, re.I) or \
              re.match(r'a ', span_chunk.text, re.I):
             # 'a Corporation'
             # c/o XXX Agency
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, "a, c/o"')
-            pass
+            # pass
         elif re.search(r'\d+$', span_chunk.text, re.I):
             # 'Suite 123', 'CO 23534'
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, ends in a number')
-            pass
+            # pass
         elif re.search(r'\b(agreement|extension|amendment)\b', span_chunk.text, re.I):
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid word')
-            pass
+            # pass
         elif re.match(r'_+$', span_chunk.text):
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, only ___')
-            pass
+            # pass
         elif is_a_location(span_chunk.text):
             # such as 'Wales' or 'London'
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, is_location({})'.format(span_chunk.text))
-            pass
+            # pass
         elif len(span_chunk.text) < 3:  # never happened before
             # too short
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, len({}) < 3'.format(span_chunk.text))
-            pass
+            # pass
         elif re.match(r'(this|agreement|lease|now|therefore)\b', span_chunk.text, re.I):
             # Sometimes got have the first part of a sentence,
             # got the wrong heading instead.
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid prefix({})'.format(span_chunk.text))
-            pass
+            # pass
         else:
             result.append(span_chunk)
     return result
@@ -2119,15 +2128,15 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
         if len(paren_list) == 1:
             term = [chop_spanchunk_paren(paren_list[0])]
         else:  # there are multiple
-            """
-            # if the 2nd paren has 'each a  "Party", and collectively the "Parties"'
-            last_paren = paren_list[-1]
-            if re.search(r'\b(parties)\b', last_paren.text, re.I):
-                # if 'parties' is the last one, now take the first one instead
-                term = [chop_spanchunk_paren(paren_list[0])]
-            else:
-                term = [chop_spanchunk_paren(last_paren)]
-            """
+
+
+            # # if the 2nd paren has 'each a  "Party", and collectively the "Parties"'
+            # last_paren = paren_list[-1]
+            # if re.search(r'\b(parties)\b', last_paren.text, re.I):
+            #     # if 'parties' is the last one, now take the first one instead
+            #     term = [chop_spanchunk_paren(paren_list[0])]
+            # else:
+            #     term = [chop_spanchunk_paren(last_paren)]
 
             ordered_paren_list = rerank_defined_term_parens(paren_list, org_list)
             term = [chop_spanchunk_paren(ordered_paren_list[0])]
@@ -2329,7 +2338,7 @@ def find_for_value_tok_index(span_chunk_list: List[SpanChunk]) -> int:
                next2_spchunk and \
                next_spchunk.get_words() == ['value'] and \
                next2_spchunk.is_lc_word('received'):
-                   return spchunk.tok_idx
+                return spchunk.tok_idx
     return -1
 
 

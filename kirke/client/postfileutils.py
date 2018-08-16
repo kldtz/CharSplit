@@ -68,6 +68,7 @@ def post_unittest_annotate_document(file_name: str) -> str:
     return result
 
 
+# pylint: disable=too-many-locals
 def upload_train_dir(custid: str,
                      upload_dir: str,
                      candidate_types: str,

@@ -2,46 +2,46 @@
 
 import logging
 import time
+# pylint: disable=unused-import
+from typing import List
 
-from nltk import FreqDist
 import numpy as np
-from scipy import sparse
-from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from kirke.eblearn import igain, bigramutils
-from kirke.utils import stopwordutils, strutils
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 DEBUG_MODE = False
+
 
 class EbTransformerBase(BaseEstimator, TransformerMixin):
 
     fit_count = 0
     transform_count = 0
 
-    def __init__(self, provision):
+    def __init__(self, provision: str) -> None:
         self.provision = provision
         self.num_instances = 0
         self.num_pos_instances = 0
         self.num_neg_instances = 0
-        
+        # TODO, will check what the real type for
+        # this is and update.
+        self.cols_to_keep = []  # type: List
 
     def fit(self, attrvec_list, label_list=None):
         self.num_pos_instances = 0
         for label in label_list:
             if label:
                 self.num_pos_instances += 1
-        logger.info("fitting #%s called, len(attrvec_list) = %d, len(label_list) = %d, num_pos = %d",
-                    EbTransformerBase.fit_count,
-                    len(attrvec_list),
-                    len(label_list),
-                    self.num_pos_instances)
-        
+                logger.info("fitting #%s called, len(attrvec_list) = %d, "
+                            "len(label_list) = %d, num_pos = %d",
+                            EbTransformerBase.fit_count,
+                            len(attrvec_list),
+                            len(label_list),
+                            self.num_pos_instances)
 
-        start_time = time.time()        
+        start_time = time.time()
         # ignore the result X.  The goal here is to set up the vars.
         self.ebantdoc_list_to_csr_matrix(attrvec_list,
                                          label_list,
@@ -55,7 +55,7 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
         EbTransformerBase.fit_count += 1
         return self
 
-    
+
     def transform(self, attrvec_list):
         # pylint: disable=C0103
         start_time = time.time()
@@ -80,7 +80,7 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
                                     fit_mode=False):
         pass
 
-    
+
     # pylint: disable=C0103
     def remove_zero_column(self, X, fit_mode=False):
         # print("remove_zero_column(), shape of matrix X = ", X.shape)
@@ -98,4 +98,3 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
         X = X[:, self.cols_to_keep] #  remove cols where sum is zero
         # print("after remove_zero_column(), shape of matrix X = ", X.shape)
         return X
-    

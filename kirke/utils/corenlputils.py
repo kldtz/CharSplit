@@ -9,6 +9,7 @@ from kirke.utils.corenlpsent import EbSentence
 from kirke.utils.strutils import corenlp_normalize_text
 from kirke.utils.textoffset import TextCpointCunitMapper
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # disable logging from 'requests'
@@ -20,6 +21,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 NLP_SERVER = None
 
 def init_corenlp_server():
+    # pylint: disable=global-statement
     global NLP_SERVER
     if NLP_SERVER is None:
         NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
@@ -38,6 +40,7 @@ def init_corenlp_server():
 def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
     # to get rid of mypy error: NLP_SERVER has no attribute 'annotate'
     # init_corenlp_server()
+    # pylint: disable=global-statement
     global NLP_SERVER
     if NLP_SERVER is None:
         NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
@@ -200,7 +203,7 @@ def align_first_word_offset(json_sent_list, atext):
     # we want start = 3, end =4
     # verified nbsp.isspace() == True, so cannot use that.
     adjust = 0
-    for i in range(len(atext)):
+    for i, unused_char in enumerate(atext):
         if ord(atext[i]) <= 32:  # ord(SPACE) = 32
             adjust += 1
         else:

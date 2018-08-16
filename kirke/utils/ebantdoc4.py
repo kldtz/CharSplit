@@ -137,7 +137,11 @@ class EbAnnotatedDoc4:
     def set_provision_annotations(self, ant_list: List[ProvisionAnnotation]) -> None:
         self.prov_annotation_list = ant_list
 
-    def get_provision_annotations(self) -> List[ProvisionAnnotation]:
+    def get_provision_annotations(self, provision: Optional[str] = None) \
+        -> List[ProvisionAnnotation]:
+        if provision:
+            return [prov_ant for prov_ant in self.prov_annotation_list
+                    if prov_ant.label == provision]
         return self.prov_annotation_list
 
     def has_provision_ant(self, provision: str) -> bool:
@@ -802,18 +806,19 @@ def text_to_ebantdoc4(txt_fname: str,
         # currently, don't want to indicate it's index error to user.  Too detailed.
         # For developers, we switched the double quote and quote in the message.
         unused_error_type, error_instance, traceback = sys.exc_info()
-        error_instance.filename = txt_fname
-        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % \
-                                      (txt_base_fname, doc_lang)
-        error_instance.__traceback__ = traceback
-        raise error_instance
-    except Exception:  # pylint: disable=broad-except
+        error_instance.filename = txt_fname  # type: ignore
+        # pylint: disable=line-too-long
+        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.__traceback__ = traceback  # type: ignore
+        raise error_instance  # type: ignore
+    # pylint: disable=broad-except
+    except Exception:
         unused_error_type, error_instance, traceback = sys.exc_info()
-        error_instance.filename = txt_fname
-        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % \
-                                      (txt_base_fname, doc_lang)
-        error_instance.__traceback__ = traceback
-        raise error_instance
+        error_instance.filename = txt_fname  # type: ignore
+        # pylint: disable=line-too-long
+        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.__traceback__ = traceback  # type: ignore
+        raise error_instance  # type: ignore
 
 
 def doclist_to_ebantdoc_list_linear(doclist_file: str,
@@ -884,7 +889,7 @@ def doclist_to_ebantdoc_list(doclist_file: str,
             data = future.result()
             fn_eb_antdoc_map[txt_fn] = data
             if count % 25 == 0:
-                logging.info('doclist_to_antdoc_list(), count = {}'.format(count))
+                logging.info('doclist_to_antdoc_list(), count = %d', count)
                 memory_use = EBRUN_PROCESS.memory_info()[0] / 2**20
                 # pylint: disable=line-too-long
                 logger.info('after loading %d ebantdocs, mem = %.2f Mbytes, diff %.2f Mbytes',

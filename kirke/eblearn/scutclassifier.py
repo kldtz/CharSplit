@@ -11,9 +11,8 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import GroupKFold
 
-from sklearn.model_selection import cross_val_predict
-
-from kirke.eblearn import ebpostproc
+# pylint: disable=unused-import
+from kirke.eblearn import ebattrvec, ebpostproc
 from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformer import EbTransformer
 from kirke.utils import evalutils
@@ -96,10 +95,9 @@ class ShortcutClassifier(EbClassifier):
     # pylint: disable=too-many-statements, too-many-locals
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name) -> None:
         logger.info('train_antdoc_list()...')
-        is_debug = True
 
         sent_list = []
-        attrvec_list, group_id_list = [], []
+        attrvec_list, group_id_list = [], []  # type: List[ebattrvec.EbAttrVec], List[int]
         for group_id, eb_antdoc in enumerate(ebantdoc_list):
             tmp_attrvec_list = eb_antdoc.get_attrvec_list()
             attrvec_list.extend(tmp_attrvec_list)

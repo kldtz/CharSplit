@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 from pathlib import Path
-import requests
 import sys
 
+import requests
 
-# pylint: disable=C0103
-if __name__ == '__main__':
+def main():
 
     parser = argparse.ArgumentParser(description='identify the language')
     parser.add_argument('-v', '--verbosity', help='increase output verbosity')
@@ -22,15 +20,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.verbosity:
         print('verbosity turned on')
-    if args.debug:
-        isDebug = True
 
     url = 'http://127.0.0.1:8000/custom-train-import'
     # use url='http://127.0.0.1:8000/detect-langs' to detect top langs with probabilities
     if args.url:
         url = args.url
 
-    payload = {}
+    # payload = {}
     # payload = {'types': 'party'}
     # payload = {'types': 'party,change_control'}
     # payload = {'types': 'termination,term,confidentiality,cust_3566'}
@@ -43,3 +39,7 @@ if __name__ == '__main__':
         print(req.text)
     else:
         print("file '{}' is not a valid file".format(args.filename), file=sys.stderr)
+
+
+if __name__ == '__main__':
+    main()

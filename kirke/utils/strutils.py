@@ -16,6 +16,7 @@ import urllib.parse
 from nltk.tokenize import TreebankWordTokenizer
 from nltk.tokenize.regexp import RegexpTokenizer
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -46,7 +47,7 @@ def loads(file_name: str) -> str:
             xst = myfile.read()
     except IOError as exc:
         logger.error("I/O error: %s in strutils.loads(%s)",
-                      exc, file_name)
+                     exc, file_name)
     except Exception as exc:  # handle other exceptions such as attribute errors
         # handle any other exception
         logger.error("Error %s", exc)
@@ -84,7 +85,7 @@ def dumps(xst: str, file_name: str) -> None:
             myfile.write(os.linesep)
     except IOError as exc:
         logger.error("I/O error(%s) in strutils.loads(%s)",
-                      exc, file_name)
+                     exc, file_name)
     # pylint: disable=W0703
     except Exception as exc:  # handle other exceptions such as attribute errors
         # handle any other exception
