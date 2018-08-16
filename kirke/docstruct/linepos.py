@@ -6,6 +6,7 @@ from typing import Any, Dict, Tuple, Union
 # # set the defautls for line_num and is_gap
 # LnPos.__new__.__defaults__ = (-1, False)
 
+# pylint: disable=too-few-public-methods
 class LnPos:
     __slots__ = ['start', 'end', 'line_num', 'is_gap']
 

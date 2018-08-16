@@ -42,7 +42,7 @@ def load_pdf_offsets(file_name: str, cpoint_cunit_mapper: TextCpointCunitMapper)
             ajson.get('blockOffsets'), ajson.get('pageOffsets'))
 
 
-# pylint: disable=too-many-branches
+# pylint: disable=too-many-branches, too-many-locals, too-many-return-statements
 def para_to_para_list(line: str) -> Tuple[str, bool, List[int]]:
     """Convert a multi-line into one line or keep as is.
 

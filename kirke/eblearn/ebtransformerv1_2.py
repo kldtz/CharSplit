@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 
 import logging
-import time
 
 from nltk import FreqDist
 import numpy as np
 from scipy import sparse
 from sklearn import preprocessing
-from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.feature_extraction.text import CountVectorizer
 
 from kirke.eblearn import ebattrvec
 from kirke.eblearn import igain, bigramutils
+from kirke.eblearn.ebtransformerbase import EbTransformerBase
 from kirke.utils import stopwordutils, strutils
 
-from kirke.eblearn.ebtransformerbase import EbTransformerBase
 
-from sklearn.feature_extraction.text import CountVectorizer
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -40,6 +38,7 @@ def get_transformer_attr_list_by_provision(provision: str):
 
 # this is a class specific transformer because of information gain and
 # class-specific cols_to_keep array.
+# pylint: disable=too-many-instance-attributes
 class EbTransformerV1_2(EbTransformerBase):
 
     # MAX_NUM_TOP_WORDS_IN_BAG = 25000
@@ -52,7 +51,7 @@ class EbTransformerV1_2(EbTransformerBase):
         super(EbTransformerV1_2, self).__init__(provision)
         self.version = '1.2'
 
-        logger.info('EbTransformerV1_2({})'.format(self.provision))
+        logger.info('EbTransformerV1_2(%s)', self.provision)
         (binary_attr_list, numeric_attr_list, categorical_attr_list) = \
                 get_transformer_attr_list_by_provision(self.provision)
 
@@ -68,13 +67,16 @@ class EbTransformerV1_2(EbTransformerBase):
 
         self.n_top_positive_words = []
         self.vocab_id_map = {}
-        self.positive_vocab = {}
+        self.positive_vocabs = {}
 
         self.vocabulary = {}  # used for bi_topgram_matrix generation
 
+        # handling sechead, with min appearance in sentence = 5
+        # now changed to 2 because custom training corpus might have only 6 docs
+        self.sechead_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
 
     # label_list is a list of booleans
-    # pylint: disable=R0912, R0914
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     def ebantdoc_list_to_csr_matrix(self,
                                     attrvec_list,
                                     label_list,
@@ -158,6 +160,8 @@ class EbTransformerV1_2(EbTransformerBase):
 
             # handling sechead, with min appearance in sentence = 5
             # now changed to 2 because custom training corpus might have only 6 docs
+            # Before 08/15/2018, self.sechead_vectorizer is not in _init_(),
+            # so do here as before, just in case
             self.sechead_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
             # If there is no section head vocab due to some reason, such as a very small
             # custom training corpus, simply add a dummpy vocab.
@@ -217,6 +221,7 @@ class EbTransformerV1_2(EbTransformerBase):
         # return sparse_comb_matrix, bi_topgram_matrix, sent_st_list
         return X
 
+    # pylint: disable=too-many-locals
     def gen_bi_topgram_matrix(self, sent_st_list, fit_mode=False):
         # print("len(sent_st_list)= {}".format(len(sent_st_list)))
         # for each sentence, find which top words it contains.  Then generate all pairs of these,

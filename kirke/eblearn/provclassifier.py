@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import copy
 import logging
 from pprint import pprint
 from time import time
@@ -17,6 +16,7 @@ from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.utils import evalutils
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -45,6 +45,7 @@ PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
                                        ebattrvec.DEFAULT_NUMERIC_ATTR_LIST,
                                        ebattrvec.DEFAULT_CATEGORICAL_ATTR_LIST)}
 
+# pylint: disable=invalid-name
 def get_transformer_attr_list_by_provision(provision: str):
     if PROVISION_ATTRLISTS_MAP.get(provision):
         return PROVISION_ATTRLISTS_MAP.get(provision)
@@ -158,7 +159,6 @@ class ProvisionClassifier(EbClassifier):
                         for attrvec in attrvec_list]
         overrides = ebpostproc.gen_provision_overrides(self.provision,
                                                        sent_st_list)
-        
         probs = self.eb_grid_search.predict_proba(attrvec_list)[:, 1]
 
         # do the override

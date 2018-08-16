@@ -6,7 +6,6 @@ from typing import Any, List, Tuple
 from kirke.utils import ebantdoc4, evalutils
 
 from kirke.docstruct import fromtomapper, htmltxtparser, linepos
-from kirke.ebrules import parties
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -120,11 +119,11 @@ class LineAnnotator:
                         term_start, term_end = term_ox
                         term_st = paras_text[term_start:term_end]
                         prov_annotations.append({'end': term_end,
-                                                     'label': self.provision,
-                                                     'id': i,
-                                                     'start': term_start,
-                                                     'prob': 0.91,
-                                                     'text': term_st})
+                                                 'label': self.provision,
+                                                 'id': i,
+                                                 'start': term_start,
+                                                 'prob': 0.91,
+                                                 'text': term_st})
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
 
         elif self.provision == 'date':
