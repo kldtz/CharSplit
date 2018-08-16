@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import logging
+# pylint: disable=unused-import
+from typing import Dict, List, Set
 
 from nltk import FreqDist
 import numpy as np
@@ -46,9 +48,9 @@ class EbTransformerV1_2(EbTransformerBase):
     MAX_NUM_BI_TOPGRAM_WORDS = 175
 
     """Transform a list ebantdoc to matrix."""
-    def __init__(self, provision):
+    def __init__(self, provision: str) -> None:
         # provision is needed because of infogain computation need to know the classes
-        super(EbTransformerV1_2, self).__init__(provision)
+        super().__init__(provision)
         self.version = '1.2'
 
         logger.info('EbTransformerV1_2(%s)', self.provision)
@@ -65,11 +67,12 @@ class EbTransformerV1_2(EbTransformerBase):
         self.min_max_scaler = preprocessing.MinMaxScaler()
         self.one_hot_encoder = preprocessing.OneHotEncoder(handle_unknown='ignore')
 
-        self.n_top_positive_words = []
-        self.vocab_id_map = {}
-        self.positive_vocabs = {}
+        self.n_top_positive_words = []  # type: List[str]
+        self.vocab_id_map = {}  # type: Dict[str, int]
+        self.positive_vocabs = set([])  # type: Set[str]
 
-        self.vocabulary = {}  # used for bi_topgram_matrix generation
+        # used for bi_topgram_matrix generation
+        self.vocabulary = {}  # type: Dict[str, int]
 
         # handling sechead, with min appearance in sentence = 5
         # now changed to 2 because custom training corpus might have only 6 docs
@@ -231,7 +234,8 @@ class EbTransformerV1_2(EbTransformerBase):
         data = []
         for sent_st in sent_st_list:
             sent_words = set(sent_st.split())   # TODO, a little repetitive, split again
-            found_words = [common_word for common_word in self.n_top_positive_words if common_word in sent_words]
+            found_words = [common_word for common_word
+                           in self.n_top_positive_words if common_word in sent_words]
 
             for index_w1, tmp_w1 in enumerate(found_words):
                 for index_w2 in range(index_w1 + 1, len(found_words)):

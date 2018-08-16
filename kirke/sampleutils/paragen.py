@@ -1,8 +1,7 @@
 import logging
 import re
-from typing import Dict, List, Pattern, Tuple
-from operator import itemgetter
-from kirke.utils import ebantdoc4, ebsentutils, strutils
+from typing import Dict, List, Tuple
+from kirke.utils import ebantdoc4, ebsentutils
 
 # pylint: disable=too-few-public-methods
 class ParagraphGenerator:
@@ -11,13 +10,13 @@ class ParagraphGenerator:
                  candidate_type: str) -> None:
         self.candidate_type = candidate_type
 
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals, too-many-statements
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                             label: str = None)  -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                               List[Dict],
-                                                               List[bool],
-                                                               List[int]]]:
+                                antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                                label: str = None)  -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                                                  List[Dict],
+                                                                  List[bool],
+                                                                  List[int]]]:
 
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]

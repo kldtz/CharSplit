@@ -3,6 +3,7 @@
 from collections import defaultdict
 import json
 import re
+from typing import List
 
 from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
@@ -21,8 +22,8 @@ def load_doccat_maps(file_name: str):
     # valid_tags = set([])
     with open(file_name, 'rt') as fin:
         for line in fin:
-            tag, freq, catid, is_valid = line.strip().split('\t')
-            catid = int(catid)
+            tag, unused_freq, catid_st, unused_is_valid = line.strip().split('\t')
+            catid = int(catid_st)
             # print("tag [{}], freq[{}], catid=[{}]".format(tag, freq, catid))
             catname_list.append(tag)
             catname_catid_map[tag] = catid
@@ -44,14 +45,15 @@ def load_doccat_prod_maps(file_name: str):
     catname_catid_map = {}
     with open(file_name, 'rt') as fin:
         for line in fin:
-            tag, catid = line.strip().split('\t')
-            catid = int(catid)
+            tag, catid_st = line.strip().split('\t')
+            catid = int(catid_st)
             catname_list.append(tag)
             catname_catid_map[tag] = catid
     return catname_list, catname_catid_map
 
 
 # Only load files with valid tags, otherwise we will be training on them
+# pylint: disable=too-many-locals
 def load_data(txt_fn_list_fn, catname_catid_map, valid_tags):
 
     doc_text_list = []
@@ -108,14 +110,15 @@ def report_to_eval_scores(lines):
     return -1, -1, -1
 
 
-def avg_list(alist):
-    sum = 0.0
-    for x in alist:
-        sum += x
-    return sum / len(alist)
+def avg_list(alist: List):
+    asum = 0.0
+    for aval in alist:
+        asum += aval
+    return asum / len(alist)
 
 # TAG_NUMS_PAT = re.compile(r'^\s+(.+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+(\d+)(.*)')
 # TAG_NUMS_PAT = re.compile(r'^\s+(.+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+(.+)')
+# pylint: disable=too-many-locals, too-many-statements
 def print_combined_reports(report_list, valid_tags, threshold=None,
                            prod_status_fname=None):
 
@@ -162,6 +165,7 @@ def print_combined_reports(report_list, valid_tags, threshold=None,
         f1_list = []
         support_list = []
         for arun in tag_result_map[tag]:
+            # pylint: disable=invalid-name
             prec, recall, f1, support = arun
 
             if f1 != 0.0:
@@ -194,14 +198,15 @@ def print_combined_reports(report_list, valid_tags, threshold=None,
             status_line_list.append(status_line)
 
             prod_tag_list.append(tag)  # remember them for final training
-            st_list = [str(prec_list),
-                       str(recall_list),
-                       str(f1_list),
-                       str(support_list)]
+            # st_list = [str(prec_list),
+            #           str(recall_list),
+            #           str(f1_list),
+            #           str(support_list)]
             # print("\n{}\t{}".format(tag, "\t".join(st_list)))
         else:
-            st_list = [str(arun) for arun in tag_result_map[tag]]
+            # st_list = [str(arun) for arun in tag_result_map[tag]]
             # print("skip {}\t{}".format(tag, "\t".join(st_list)))
+            pass
     print()
     print("{:>36s}{:11.2f}{:10.2f}{:10.2f}{:10d}".format('avg / total',
                                                          avg_list(avg_prec_list),

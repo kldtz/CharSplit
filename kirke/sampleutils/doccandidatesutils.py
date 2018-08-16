@@ -1,12 +1,13 @@
-from abc import ABC, abstractmethod
-from typing import Dict, List
+from abc import abstractmethod
+from typing import Dict
 
+
+# pylint: disable=too-few-public-methods
 class DocCandidatesTransformer:
 
     def __init__(self) -> None:
         self.label = 'span_default_base'
 
-    @abstractmethod        
+    @abstractmethod
     def enrich(self, candidate: Dict) -> None:
         pass
-    

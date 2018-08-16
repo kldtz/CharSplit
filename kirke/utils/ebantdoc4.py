@@ -137,7 +137,11 @@ class EbAnnotatedDoc4:
     def set_provision_annotations(self, ant_list: List[ProvisionAnnotation]) -> None:
         self.prov_annotation_list = ant_list
 
-    def get_provision_annotations(self) -> List[ProvisionAnnotation]:
+    def get_provision_annotations(self, provision: Optional[str] = None) \
+        -> List[ProvisionAnnotation]:
+        if provision:
+            return [prov_ant for prov_ant in self.prov_annotation_list
+                    if prov_ant.label == provision]
         return self.prov_annotation_list
 
     def has_provision_ant(self, provision: str) -> bool:

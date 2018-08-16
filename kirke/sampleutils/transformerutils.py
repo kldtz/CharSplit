@@ -207,6 +207,8 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
                      (end_time - start_time) * 1000)
         return X_out
 
+
+# pylint: disable=too-many-instance-attributes
 class CharacterTransformer(BaseEstimator, TransformerMixin):
     fit_count = 0
     transform_count = 0

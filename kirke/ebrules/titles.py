@@ -123,15 +123,15 @@ def process_as_line(astr: str):
 
 with open(DATA_DIR + 'past_titles_train.list') as fin:
     # pylint: disable=invalid-name
-    titles = {process_as_title(t) for t in fin.read().split('\n') if t.strip()}
+    TITLES = {process_as_title(t) for t in fin.read().split('\n') if t.strip()}
 
 with open(DATA_DIR + 'uk_titles_train.list') as fin:
     # pylint: disable=invalid-name
-    uk_titles = {process_as_title(t) for t in fin.read().split('\n') if t.strip()}
+    UK_TITLES = {process_as_title(t) for t in fin.read().split('\n') if t.strip()}
 
 # print("titles:")
 # print(titles)
-titles.update(uk_titles)
+TITLES.update(UK_TITLES)
 
 
 # pylint: disable=too-many-return-statements
@@ -327,6 +327,17 @@ def calc_jaccard_title_list_aux(line_wordset: Set[str],
 # We want this to be more than 1/3 or 0.33
 MIN_JACCARD = 0.34
 
+
+# pylint: disable=too-few-public-methods
+class Title:
+
+    def __init__(self, start: int, end: int, score: float, intersect: int) -> None:
+        self.start = start
+        self.end = end
+        self.score = score
+        self.intersect = intersect
+
+
 # pylint: disable=too-many-branches, too-many-statements
 def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[int],
                                                                       Optional[int]]:
@@ -353,7 +364,8 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
                 print("      \t{}".format(norm_ling))
 
     # Placeholder title. offsets: start, end, end_char (exclusive)
-    title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1, 'intersect': -1}
+    # title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1, 'intersect': -1}
+    title = Title(start=-1, end=-1, score=-1.0, intersect=-1)
 
     title_candidate_list = []  # type: List[Tuple[str, int, int, int]]
 
@@ -387,20 +399,21 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
                                     line_wordset=line_wordset,
                                     title_wordset_list=train_title_wordset_list)
 
-        score_list.append((score, num_intersect, num_union, best_title, linex['start'], linex['end']))
+        score_list.append((score, num_intersect, num_union,
+                           best_title, linex['start'], linex['end']))
 
-        if score == title['score'] and num_intersect > title['intersect']:
-            title = {'start': linex['start'],
-                     'end':  linex['end'],
-                     'score': score,
-                     'intersect': num_intersect}
+        if score == title.score and num_intersect > title.intersect:
+            title = Title(start=linex['start'],
+                          end=linex['end'],
+                          score=score,
+                          intersect=num_intersect)
             if score > MIN_JACCARD:
                 found_title_try_limited = 5
-        elif score > title['score']:
-            title = {'start': linex['start'],
-                     'end':  linex['end'],
-                     'score': score,
-                     'intersect': num_intersect}
+        elif score > title.score:
+            title = Title(start=linex['start'],
+                          end=linex['end'],
+                          score=score,
+                          intersect=num_intersect)
             if score > MIN_JACCARD:
                 found_title_try_limited = 5
 
@@ -429,34 +442,35 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
             score_list.append((score, num_intersect, num_union, best_title,
                                linex['start'], next_linex['end']))
 
-            if score == title['score'] and num_intersect > title['intersect']:
-                title = {'start': linex['start'],
-                         'end':  next_linex['end'],
-                         'score': score,
-                         'intersect': num_intersect}
+            if score == title.score and num_intersect > title.intersect:
+                title = Title(start=linex['start'],
+                              end=next_linex['end'],
+                              score=score,
+                              intersect=num_intersect)
                 if score > MIN_JACCARD:
                     found_title_try_limited = 5
-            elif score > title['score']:
-                title = {'start': linex['start'],
-                         'end':  next_linex['end'],
-                         'score': score,
-                         'intersect': num_intersect}
+            elif score > title.score:
+                title = Title(start=linex['start'],
+                              end=next_linex['end'],
+                              score=score,
+                              intersect=num_intersect)
                 if score > MIN_JACCARD:
                     found_title_try_limited = 5
 
 
     if IS_DEBUG_MODE:
         print('\n\n')
-        for score, num_intersect, num_union, best_title, tstart, tend in sorted(score_list, reverse=True):
+        for score, num_intersect, num_union, best_title, tstart, tend in sorted(score_list,
+                                                                                reverse=True):
             print('score {}, itx={}, un={}({}, {}), best_title = [{}]'.format(score,
                                                                               num_intersect,
                                                                               num_union,
                                                                               tstart, tend,
                                                                               best_title))
 
-    if title['score'] > MIN_JACCARD:
-        line_start = title['start']
-        line_end = title['end']
+    if title.score > MIN_JACCARD:
+        line_start = title.start
+        line_end = title.end
 
         if IS_DEBUG_MODE:
             print("line_start = {}".format(line_start))
@@ -489,14 +503,14 @@ def extract_offsets_not_line(paras_attr_list, paras_text: str) -> Tuple[Optional
     Example: 'This consuting agreement (the "agreement")...
     """
     offset = 0
-    for i, (line_st, para_attrs) in enumerate(paras_attr_list):
+    for line_st, para_attrs in paras_attr_list:
         line_st_len = len(line_st)
 
         if 'party_line' in para_attrs:
             # must start from ebgin of a sentence
             mat = re.match(r'((\w+)(\s+\w+)+)\s+\(the [“"”]agreement[“"”]\)', line_st, re.I)
             if mat and len(mat.group(3).split()) < 5:
-                maybe_title_st = mat.group(1)
+                # maybe_title_st = mat.group(1)
                 first_word = mat.group(2)
                 span_start = offset + mat.start(1)
                 if first_word in set(['the', 'this']):
@@ -521,7 +535,8 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
     se_lines = list(txtreader.text_to_lines_with_offsets(nl_text))
 
     # Placeholder title. offsets: start, end, end_char (exclusive)
-    title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1, 'intersect': -1}
+    # title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1, 'intersect': -1}
+    title = Title(start=-1, end=-1, score=-1.0, intersect=-1)
 
     title_candidate_list = []  # type: List[Tuple[str, int, int, int]]
 
@@ -558,19 +573,19 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
         score_list.append((score, num_intersect, num_union, best_title, start, end))
 
         if score > MIN_JACCARD and \
-           ((score == title['score'] and num_intersect > title['intersect']) or \
-            score > title['score']):
+           ((score == title.score and num_intersect > title.intersect) or \
+            score > title.score):
 
-            title = {'start': start,
-                     'end':  end,
-                     'score': score,
-                     'intersect': num_intersect}
+            title = Title(start=start,
+                          end=end,
+                          score=score,
+                          intersect=num_intersect)
             found_title_try_limited = 5
 
         # now try 2 lines
         # try to add the next line
         if i + 1 < len(se_lines):
-            next_start, next_end, next_line_st = se_lines[i+1]
+            unused_next_start, next_end, next_line_st = se_lines[i+1]
 
             two_lines = line_st + ' ' + next_line_st
 
@@ -591,25 +606,26 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
                                start, next_end))
 
             if score > MIN_JACCARD and \
-               ((score == title['score'] and num_intersect > title['intersect']) or \
-                score > title['score']):
-                title = {'start': start,
-                         'end':  next_end,
-                         'score': score,
-                         'intersect': num_intersect}
+               ((score == title.score and num_intersect > title.intersect) or \
+                score > title.score):
+                title = Title(start=start,
+                              end=next_end,
+                              score=score,
+                              intersect=num_intersect)
                 found_title_try_limited = 5
 
     if IS_DEBUG_MODE:
         print('\n\n')
-        for score, num_intersect, num_union, best_title, tstart, tend in sorted(score_list, reverse=True):
+        for score, num_intersect, num_union, best_title, tstart, tend in sorted(score_list,
+                                                                                reverse=True):
             print('score {}, itx={}, un={}({}, {}), best_title = [{}]'.format(score,
                                                                               num_intersect,
                                                                               num_union,
                                                                               tstart, tend,
                                                                               best_title))
 
-    if title['score'] > MIN_JACCARD:
-        span_start, span_end = title['start'], title['end']
+    if title.score > MIN_JACCARD:
+        span_start, span_end = title.start, title.end
         span_text = nl_text[span_start:span_end]
         # clean up spaces at the end
         end_space_mat = re.search(r'\s+$', span_text)
@@ -642,7 +658,7 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
         # must start from ebgin of a sentence
         mat = re.match(r'((\w+)(\s+\w+)+)\s+\(the [“"”]agreement[“"”]\)', line, re.I)
         if mat and len(mat.group(3).split()) < 5:
-            maybe_title_st = mat.group(1)
+            # maybe_title_st = mat.group(1)
             first_word = mat.group(2)
             span_start = mat.start(1)
             if first_word in set(['the', 'this']):
@@ -696,4 +712,3 @@ class TitleAnnotator:
 
         # print("tag date: {}".format(tag('12 January 2017')))
         return extract_nl_offsets(nl_text)
-

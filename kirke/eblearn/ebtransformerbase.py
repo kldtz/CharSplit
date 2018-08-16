@@ -20,7 +20,7 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
     fit_count = 0
     transform_count = 0
 
-    def __init__(self, provision):
+    def __init__(self, provision: str) -> None:
         self.provision = provision
         self.num_instances = 0
         self.num_pos_instances = 0
