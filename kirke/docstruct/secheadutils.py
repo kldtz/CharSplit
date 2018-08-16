@@ -1585,7 +1585,9 @@ def trime_non_capital_words(sechead: str) -> Optional[Tuple[int, int, str]]:
     # print("mat.group(1): {}".format(mat.group(1)))
     # print("mat.group(3): {}".format(mat.group(3)))
     if mat and len(mat.group(1)) > 10 and \
-       len(mat.group(3)) > 10:
+       len(mat.group(3)) > 10 and \
+       not (mat.group(3).startswith("&") or
+            re.search(r'^(and|or)\b', mat.group(3), flags=re.I)):
         return mat.start(1), mat.end(1), mat.group(1)
     return None
 

@@ -149,7 +149,11 @@ class EbAnnotatedDoc:
     def set_provision_annotations(self, ant_list: List[ProvisionAnnotation]) -> None:
         self.prov_annotation_list = ant_list
 
-    def get_provision_annotations(self) -> List[ProvisionAnnotation]:
+    def get_provision_annotations(self, provision: Optional[str] = None) \
+        -> List[ProvisionAnnotation]:
+        if provision:
+            return [prov_ant for prov_ant in self.prov_annotation_list
+                    if prov_ant.label == provision]
         return self.prov_annotation_list
 
     def has_provision_ant(self, provision: str) -> bool:
@@ -819,7 +823,8 @@ def text_to_ebantdoc(txt_fname: str,
         unused_error_type, error_instance, traceback = sys.exc_info()
         error_instance.filename = txt_fname  # type: ignore
         # pylint: disable=line-too-long
-        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % \
+                                      (txt_base_fname, doc_lang)  # type: ignore
         error_instance.__traceback__ = traceback  # type: ignore
         raise error_instance  # type: ignore
 
@@ -828,7 +833,8 @@ def text_to_ebantdoc(txt_fname: str,
         unused_error_type, error_instance, traceback = sys.exc_info()
         error_instance.filename = txt_fname  # type: ignore
         # pylint: disable=line-too-long
-        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % \
+                                      (txt_base_fname, doc_lang)  # type: ignore
         error_instance.__traceback__ = traceback  # type: ignore
         raise error_instance  # type: ignore
 
