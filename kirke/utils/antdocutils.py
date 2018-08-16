@@ -5,7 +5,7 @@ from typing import Any, List
 
 
 def get_ant_out_json(json_fn: str) -> Any:
-    with open(json_fn, 'rt') as handle:    
+    with open(json_fn, 'rt') as handle:
         ajson = json.load(handle)
     return ajson
 
@@ -23,7 +23,7 @@ def get_ant_out_json_prov_list(ajson,
 
 
 def get_ant_out_file_lang(json_fn: str):
-    ajson = get_ant_out_json(json_fn)    
+    ajson = get_ant_out_json(json_fn)
     return get_ant_out_json_lang(ajson)
 
 
@@ -32,7 +32,7 @@ def get_ant_out_json_lang(ajson) -> str:
 
 
 def get_ant_out_file_doccat(json_fn: str) -> str:
-    ajson = get_ant_out_json(json_fn)        
+    ajson = get_ant_out_json(json_fn)
     return get_ant_out_json_doccat(ajson)
 
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from kirke.ebrules import dates
 from kirke.utils import ebantdoc5, ebsentutils, strutils
@@ -107,10 +107,11 @@ class DateSpanGenerator:
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
-                                label: str = None) -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
-                                                                 List[Dict],
-                                                                 List[bool],
-                                                                 List[int]]]:
+                                label: Optional[str] = None) \
+                                -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
+                                              List[Dict],
+                                              List[bool],
+                                              List[int]]]:
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc5.EbAnnotatedDoc, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):

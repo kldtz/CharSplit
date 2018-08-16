@@ -613,6 +613,7 @@ def parse_document(file_name: str,
     base_fname = os.path.basename(file_name)
 
     doc_text = strutils.loads(file_name)
+    # len_doc_text = len(doc_text)
 
     cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
     unused_doc_len, str_offsets, line_breaks, unused_pblock_offsets, page_offsets = \
@@ -656,6 +657,8 @@ def parse_document(file_name: str,
 
     pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]]
     bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
+
+    # tmp_prev_end = 0
     block_num = 0
     mode_diff = int(max(set(all_diffs), key=all_diffs.count))
     tmp_end = 0
@@ -670,11 +673,11 @@ def parse_document(file_name: str,
         tmp_end = lxid_strinfos_map[line_num][0].end
         line_len = len(nl_text[tmp_start:tmp_end].split())
 
-        # checks the difference in y val between this line and the next, if below
-        # the mode, join into a block, otherwise add block to block_info
+        # checks the difference in y val between this line and the next,
+        # if below the mode, join into a block, otherwise add block to block_info
         if line_num+1 in lxid_strinfos_map.keys() and line_len > 0:
-            # pylint: disable=line-too-long
-            y_diff = int(lxid_strinfos_map[line_num+1][0].yStart - lxid_strinfos_map[line_num][0].yStart)
+            y_diff = int(lxid_strinfos_map[line_num+1][0].yStart -
+                         lxid_strinfos_map[line_num][0].yStart)
         else:
             y_diff = -1
         if tmp_start != tmp_end and (y_diff < 0 or y_diff > mode_diff+1):

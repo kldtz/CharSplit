@@ -16,7 +16,7 @@ class LRUCache:
             return value
         except KeyError:
             return None
-            
+
     def set(self, key, value):
         try:
             self.cache.pop(key)
@@ -42,10 +42,10 @@ class LRUCache2:
             return value
         except KeyError:
             return None
-        
+
     def set(self, key, value):
         try:
-            old_value = self.cache[key]
+            # old_value = self.cache[key]
             self.deque.remove(key)  # this could be very slow
         except KeyError:
             if len(self.deque) >= self.deque.maxlen:
@@ -61,23 +61,26 @@ class LRUCache2:
         return 'deque = {}\nlen(dict) = {}\t{}'.format(self.deque,
                                                        len(self.cache),
                                                        str(alist))
-    
-if __name__ == '__main__':
+
+def main():
     cache = LRUCache(2)
     # cache = LRUCache2(2)
 
-    cache.set(1, 1);
-    cache.set(2, 2);
+    cache.set(1, 1)
+    cache.set(2, 2)
     print("cache: {}".format(cache))
-    value = cache.get(1);       # returns 1
+    value = cache.get(1)       # returns 1
     print("should be 1, got {}".format(value))
-    cache.set(3, 3);    # evicts key 2
-    value = cache.get(2);       # returns -1 (not found)
+    cache.set(3, 3)    # evicts key 2
+    value = cache.get(2)       # returns -1 (not found)
     print("should be None, got {}".format(value))
-    cache.set(4, 4);    # evicts key 1
-    value = cache.get(1);       # returns -1 (not found)
-    print("should be None, got {}".format(value))    
-    value = cache.get(3);       # returns 3]
-    print("should be 3, got {}".format(value))        
-    value = cache.get(4);       # returns 4
+    cache.set(4, 4)    # evicts key 1
+    value = cache.get(1)       # returns -1 (not found)
+    print("should be None, got {}".format(value))
+    value = cache.get(3)       # returns 3]
+    print("should be 3, got {}".format(value))
+    value = cache.get(4)       # returns 4
     print("should be 4, got {}".format(value))
+
+if __name__ == '__main__':
+    main()

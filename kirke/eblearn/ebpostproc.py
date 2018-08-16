@@ -380,12 +380,12 @@ def extract_ea_employer(sent_start, sent_end, attrvec_entities, doc_text) -> Opt
 
             entity_doc_st = doc_text[entity.start:entity.end]
             # pylint: disable=too-many-boolean-expressions
-            if ("Company" in entity_doc_st or \
-                "COMPANY" in entity_doc_st or \
-                "Corporation" in entity_doc_st or \
-                "CORPORATION" in entity_doc_st or \
-                "Employer" in entity_doc_st or \
-                "EMPLOYER" in entity_doc_st):
+            if "Company" in entity_doc_st or \
+               "COMPANY" in entity_doc_st or \
+               "Corporation" in entity_doc_st or \
+               "CORPORATION" in entity_doc_st or \
+               "Employer" in entity_doc_st or \
+               "EMPLOYER" in entity_doc_st:
                 found_provision_list.append((entity_doc_st,
                                              entity.start,
                                              entity.end, 'x1'))

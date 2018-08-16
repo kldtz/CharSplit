@@ -149,7 +149,12 @@ class EbAnnotatedDoc:
     def set_provision_annotations(self, ant_list: List[ProvisionAnnotation]) -> None:
         self.prov_annotation_list = ant_list
 
-    def get_provision_annotations(self) -> List[ProvisionAnnotation]:
+    def get_provision_annotations(self,
+                                  provision: Optional[str] = None) \
+                                  -> List[ProvisionAnnotation]:
+        if provision:
+            return [prov_ant for prov_ant in self.prov_annotation_list
+                    if prov_ant.label == provision]
         return self.prov_annotation_list
 
     def has_provision_ant(self, provision: str) -> bool:
@@ -749,7 +754,7 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
 
 
 def text_to_ebantdoc(txt_fname: str,
-                     work_dir: str = None,
+                     work_dir: Optional[str] = None,
                      is_cache_enabled: bool = True,
                      is_bespoke_mode: bool = False,
                      is_doc_structure: bool = True,

@@ -392,22 +392,24 @@ def custom_train(cust_id: str):
                                                                              next_model_num,
                                                                              SCUT_CLF_VERSION)
                     if doc_lang != "en":
-                        base_model_fname = '{}.{}_{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                                    next_model_num,
-                                                                                    doc_lang,
-                                                                                    SCUT_CLF_VERSION)
+                        base_model_fname = \
+                            '{}.{}_{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                     next_model_num,
+                                                                     doc_lang,
+                                                                     SCUT_CLF_VERSION)
                 else:
-                    base_model_fname = '{}.{}_{}_annotator.v{}.pkl'.format(provision,
-                                                                           next_model_num,
-                                                                           "-".join(candidate_types),
-                                                                           CANDG_CLF_VERSION)
+                    base_model_fname = \
+                        '{}.{}_{}_annotator.v{}.pkl'.format(provision,
+                                                            next_model_num,
+                                                            "-".join(candidate_types),
+                                                            CANDG_CLF_VERSION)
                     if doc_lang != "en":
-                        base_model_fname = '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
-                                                                                  next_model_num,
-                                                                                  doc_lang,
-                                                                                  # pylint: disable=line-too-long
-                                                                                  "-".join(candidate_types),
-                                                                                  CANDG_CLF_VERSION)
+                        base_model_fname = \
+                            '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                   next_model_num,
+                                                                   doc_lang,
+                                                                   "-".join(candidate_types),
+                                                                   CANDG_CLF_VERSION)
 
                 # Intentionally not passing is_doc_structure=True
                 # For spanannotator, currently we use is_doc_structure=False to not missing
@@ -472,16 +474,16 @@ def custom_train(cust_id: str):
                 'traceback': error}
         if hasattr(e, 'user_message'):
             # pylint: disable=no-member
-            data['user_message'] = e.user_message
+            data['user_message'] = e.user_message  # type: ignore
         if hasattr(e, 'filename'):
             # pylint: disable=no-member
-            data['filename'] = e.filename
+            data['filename'] = e.filename  # type: ignore
         data_st = json.dumps(data)
-        status = 500
+        status_code = 500
         response_headers = [
             ('Content-type', 'application/json')
         ]
-        return data_st, status, response_headers
+        return data_st, status_code, response_headers
 
 
 # https://github.com/Mimino666/langdetect

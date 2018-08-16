@@ -42,6 +42,7 @@ SECHEAD_PREFIX_PAT = re.compile(r'^[\s§]*((Section\s*|Article\s*|Appendix\s*)?\
 SECHEAD_DIGIT_PAT = re.compile(r'\b(\d+|[A-Z]|[VIXM]+)\.$')
 
 
+# pylint: disable=too-many-instance-attributes, too-few-public-methods
 class SectionHead:
 
     # pylint: disable=too-many-arguments, too-many-instance-attributes, too-few-public-methods
@@ -194,10 +195,10 @@ def split_subsection_head3(line) -> int:
     linelen = len(line)
     mat = re.search(WORD_WITH_PERIOD_PAT, line)
     # make sure it is at the beginning of the string
-    # TODO, jshaw, is_relaxed_number() should handle '1.14b' and other valid
-    # sechead numbers
-    if mat and (strutils.is_header_number(mat.group()) or
-                strutils.is_digit_core(mat.group()[0])) and mat.start() < 30:
+    # TODO, jshaw, is_relaxed_number() should handle '1.14b' and other valid sechead numbers
+    if mat and \
+       (strutils.is_header_number(mat.group()) or strutils.is_digit_core(mat.group()[0])) and \
+       mat.start() < 30:
         matched_line = line[mat.end():]
         if '.' not in matched_line and \
            ':' not in matched_line and \
@@ -210,9 +211,9 @@ def split_subsection_head3(line) -> int:
                 return -1
             period_index = mat.end() + mat2.end()
             # print("period_index %d" % (period_index, ))
-            if (mat2.group().endswith('.') or \
-                mat2.group().endswith(':') or \
-                mat2.group().endswith('   ')) and period_index < 70:
+            if (mat2.group().endswith('.') or mat2.group().endswith(':') or \
+                mat2.group().endswith('   ')) and \
+               period_index < 70:
                 if period_index < linelen:
                     space_idx = period_index
                     while space_idx < linelen and \
@@ -245,6 +246,7 @@ def is_maybe_sechead_title(line):
     return False
 
 
+# pylint: disable=too-many-return-statements
 def is_invalid_sechead(unused_sechead_type: str,
                        prefix: str,
                        head: str,
@@ -307,8 +309,8 @@ def extract_sechead(line: str,
         if prefix == -1:
             capital_words_prefix = trime_non_capital_words(shead_st)
             if capital_words_prefix:
-                out_start, out_end,  out_st = capital_words_prefix
-                prefix_idx = line.find(out_st)
+                unused_out_start, unused_out_end, out_st = capital_words_prefix
+                # prefix_idx = line.find(out_st)
                 # shead_tuple = shead_type, shead_prefix, out_st, prefix_idx + len(out_st)
                 shead_tuple = shead_type, shead_prefix, out_st, -1
 
@@ -447,6 +449,7 @@ def extract_sechead_aux(line: str,
         return ('sechead-comb', comb_prefix, comb_head, split_idx)
     # exhibit 10.2
     # 'agreement', 'recitals'
+    # pylint: disable=too-many-boolean-expressions
     elif (not (comb_prefix or comb_head) and head and not prefix) or \
          (not (comb_prefix or comb_head) and prefix and not head) or \
          (not (comb_prefix or comb_head) and (prefix or head)):
@@ -460,7 +463,10 @@ def extract_sechead_aux(line: str,
     # this is a little messy, questionable
     # 'Agreement\n1. Recitals.'
     # got comb_prefix=[], comb_head=[Agreement 1. Recitals.], prefix=[Recitals 1.], head = [.]
-    elif prefix and comb_head and (not comb_prefix) and len(comb_head) >= len(prefix) + len(head):
+    elif prefix and \
+         comb_head and \
+         (not comb_prefix) and \
+         len(comb_head) >= len(prefix) + len(head):
         return ('sechead-comb', '', comb_head, -1)
     # 'Defintions\nIn this Agreement'
     # 'Backgroun\nA."
@@ -508,8 +514,9 @@ def extract_sechead_aux(line: str,
 
 
 # sck, maybe this is not used anymore
-def parse_sec_head(line: str, debug_mode: bool = False) \
-    -> Tuple[Optional[str], str, str]:
+def parse_sec_head(line: str,
+                   debug_mode: bool = False) \
+                   -> Tuple[Optional[str], str, str]:
     """
     return (sechead|subsechead|None, prefix, rest)
     In future, we might want to return prefix_num, the exact section number.
@@ -536,6 +543,7 @@ def parse_sec_head(line: str, debug_mode: bool = False) \
 
     mat = SUBHEAD_PREFIX_PAT.match(line)
     mat2 = SUBHEAD_PREFIX_PAT2.match(line)
+    # pylint: disable=too-many-nested-blocks
     if mat2:
         if debug_mode:
             print("matching mat2, subhead_prefix_pat2")
@@ -664,6 +672,7 @@ TOP_SEC_PREFIX_EXH_PAT = re.compile(r'^(exhibit|exmllit)\s*(\S+)\.?$', re.IGNORE
 
 prev_top_sechead_num = 1
 
+# pylint: disable=too-many-return-statements
 def verify_sechead_prefix(line):
     # pylint: disable=global-statement
     global prev_top_sechead_num
@@ -900,7 +909,7 @@ def cmp_to_key(mycmp):
     # pylint: disable=too-few-public-methods
     class K:
         # pylint: disable=unused-argument
-        def __init__(self, obj, *args):
+        def __init__(self, obj, *unused_args):
             self.obj = obj
         def __lt__(self, other):
             return mycmp(self.obj, other.obj) < 0
@@ -924,6 +933,7 @@ def find_paged_section_header(paged_lineinfo_list,
     sechead_lineinfo_results = []  # type: List
 
     cur_sechead = None
+    # pylint: disable=too-many-nested-blocks
     for page_num, paged_lineinfos in enumerate(paged_lineinfo_list, 1):
         # if page_num == 44:
         #   print("hellolllll")
@@ -933,7 +943,7 @@ def find_paged_section_header(paged_lineinfo_list,
         ybased_lineinfo_list = sorted(paged_lineinfo_list, key=cmp_to_key(y_comparator))
         linfo_index = 0
         max_linfo_index = len(ybased_lineinfo_list)
-
+        # prev_y_start = -1
         while linfo_index < max_linfo_index:
             lineinfo = ybased_lineinfo_list[linfo_index]
 
@@ -1063,6 +1073,8 @@ def find_paged_section_header(paged_lineinfo_list,
                         if cur_sechead:
                             cur_sechead.append_lineinfo(lineinfo)
             linfo_index += 1
+            # prev_y_start = lineinfo.yStart
+            # prevPageNum = lineinfo.page
     return sechead_results, sechead_lineinfo_results
 
 
@@ -1149,7 +1161,6 @@ V2_SECHEAD_PAT2 = r'[\s§]*{}\s*([\;\:\.\–\-\—\s]*)(.*)$'.format(NUM_ROMAN_P
 # (5| - 5 - |--) 5.1 XXX
 V2_SECHEAD_EXTRA_NUM_PAT2 = r'[\s§]*\d+\s+{}\s*([\;\:\.\–\-\—\s]*)(.*)$'.format(NUM_ROMAN_PAT)
 
-# V2_SECHEAD_PAGE_PAT2 = r'\s*(\-+\s*\d+\s*\-+|\-+)(.*)$'.format(NUM_ROMAN_PAT)
 V2_SECHEAD_PAGE_PAT2 = r'\s*(\-+\s*\d+\s*\-+|\-+)(.*)$'
 
 
@@ -1207,7 +1218,7 @@ invalid_sechead_words = set(['follow', 'follows', 'by:', 'page', 'pages',
                              'esq.', 'esq', 'psc', 'jr.', 'jr', 'sr.', 'sr',
                              'llc', 'l.l.c.', 'inc.', 'corp.', 'corp', 'inc', 'l.l.c'])
 
-# pylint: disable=too-many-branches
+# pylint: disable=too-many-return-statements, too-many-branches
 def reject_sechead(lc_line):
     lc_line = lc_line.strip()
 
@@ -1314,7 +1325,8 @@ def reject_sechead(lc_line):
         # 'background a.'
         if len(words) == 2 and \
            not strutils.is_all_alphas_dot(words[0]) and \
-           len(words[1]) == 2 and words[1][-1] == '.':
+           len(words[1]) == 2 and \
+           words[1][-1] == '.':
             return True
 
         if len(words) >= 2:
@@ -1360,6 +1372,7 @@ def parse_line_v3(line, debug_mode=False):
 
 
 # returns prefix_st, num_st, head_st, end_idx
+# pylint: disable=too-many-return-statements
 def parse_line_aux(line, debug_mode=False):
     lc_line = line.lower()
 
@@ -1418,7 +1431,8 @@ def parse_line_aux(line, debug_mode=False):
                 head_st = mat.group(2)[-1] + mat.group(6)
                 if debug_mode:
                     print("**prefix2=[{}]\tnum=[{}]\thead=[{}]".format(mat.group(1),
-                                                                       num_st, head_st))
+                                                                       num_st,
+                                                                       head_st))
             else:
                 prefix_st = mat.group(1)
                 num_st = mat.group(2)
@@ -1487,7 +1501,8 @@ def parse_line_aux(line, debug_mode=False):
         head_st = mat.group(5)
         if debug_mode:
             print("prefix5=[{}]\tspc=[{}]\thead=[{}]".format(mat.group(1),
-                                                             mat.group(4), mat.group(5)))
+                                                             mat.group(4),
+                                                             mat.group(5)))
         return prefix_st, '', head_st, mat.end(5)
 """
 
@@ -1498,7 +1513,8 @@ def parse_line_aux(line, debug_mode=False):
         head_st = mat.group(5)
         if debug_mode:
             print("prefix6=[{}]\tspc=[{}]\thead=[{}]".format(mat.group(1),
-                                                             mat.group(4), mat.group(5)))
+                                                             mat.group(4),
+                                                             mat.group(5)))
         return prefix_st, '', head_st
 """
     # print("jjjj8 here: [{}]".format(line))
@@ -1585,7 +1601,9 @@ def trime_non_capital_words(sechead: str) -> Optional[Tuple[int, int, str]]:
     # print("mat.group(1): {}".format(mat.group(1)))
     # print("mat.group(3): {}".format(mat.group(3)))
     if mat and len(mat.group(1)) > 10 and \
-       len(mat.group(3)) > 10:
+       len(mat.group(3)) > 10 and \
+       not (mat.group(3).startswith("&") or
+            re.search(r'^(and|or)\b', mat.group(3), flags=re.I)):
         return mat.start(1), mat.end(1), mat.group(1)
     return None
 

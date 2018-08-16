@@ -133,7 +133,7 @@ def train_span_annotator(label: str,
                                             383838,
                                             'en',
                                             nbest,
-                                            candidate_type=candidate_type,
+                                            candidate_types=candidate_types,
                                             work_dir=work_dir,
                                             model_dir=model_dir)
 
@@ -359,7 +359,7 @@ def main():
     args = parser.parse_args()
     cmd = args.cmd
     provision = args.provision
-    provisions = args.provisions
+    # provisions = args.provisions
     txt_fn_list_fn = args.docs
     work_dir = args.work_dir
     model_dir = args.model_dir
@@ -438,7 +438,11 @@ def main():
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         print("\nannotate_document() result:")
-        prov_ants_map = annotate_document(args.doc, work_dir, model_dir, custom_model_dir, is_doc_structure=True)
+        prov_ants_map = annotate_document(args.doc,
+                                          work_dir,
+                                          model_dir,
+                                          custom_model_dir,
+                                          is_doc_structure=True)
         pprint.pprint(dict(prov_ants_map))
         party_ant_list = prov_ants_map['party']
         result = []

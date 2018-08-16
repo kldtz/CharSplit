@@ -94,6 +94,7 @@ PARTY_CATEGORICAL_ATTR_LIST = [attr_type[0] for attr_type
 # print("party_numeric_attr_list: {}".format(PARTY_NUMERIC_ATTR_LIST))
 # print("party_categorical_attr_list: {}".format(PARTY_CATEGORICAL_ATTR_LIST))
 
+# pylint: disable=invalid-name
 v1name_to_v1_2name_map = {
     'le-3-word': 'le_3_word',
     'le-5-word': 'le_5_word',
@@ -152,12 +153,12 @@ class EbAttrVec:
                  'endChar',
                  'hr',
                  'contains_prep_phrase',
-                 'has_person', 'has_location', 'has_organization', 'has_date'
-    ]
+                 'has_person', 'has_location', 'has_organization', 'has_date']
 
 
     # pylint: disable=too-many-arguments
     def __init__(self,
+                 # pylint: disable=unused-argument
                  file_id: Optional[str],
                  start: int,
                  end: int,
@@ -199,4 +200,5 @@ class EbAttrVec:
         attr_val_list.append(('labels', self.labels))
         attr_val_list.append(('sechead', self.sechead))
         attr_val_list.append(('words', self.bag_of_words))
-        return '(attrvec ' + ', '.join(['{}={}'.format(attrval[0], attrval[1]) for attrval in attr_val_list]) + ')'
+        return '(attrvec ' + ', '.join(['{}={}'.format(attrval[0], attrval[1])
+                                        for attrval in attr_val_list]) + ')'

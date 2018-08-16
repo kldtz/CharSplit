@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
-from kirke.utils import strutils
 from typing import List
+
+from kirke.utils import strutils
+
 
 def get_sklearn_stopwords():
     file_name = 'dict/sklearn_stopwords.txt'
@@ -63,7 +65,7 @@ def is_eb_stopword(word, is_lower=False):
 
     if is_lower:  # lower if needed
         word = word.lower()
-        
+
     if word in PUNCT_STOPWORDS:
         return True
     if len(word) < 2:  # one char words are ambiguous

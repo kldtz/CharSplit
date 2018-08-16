@@ -1,10 +1,13 @@
-from fuzzywuzzy import fuzz, process
+
 from math import ceil
 import re
 import string
-from typing import Dict, List, Tuple
+# pylint: disable=unused-import
+from typing import Dict, List
 
 from scipy import stats
+
+from fuzzywuzzy import fuzz, process
 
 from kirke.utils import regexutils
 
@@ -13,7 +16,7 @@ from kirke.utils import regexutils
 # Keeping the old code for now because kirke/ebrules/parties.py is
 # calling title_ratio().  Should try toremove this module in the future.
 
-is_debug = False
+IS_DEBUG = False
 
 """Config. Weights: ratio, length, title, maybe_title. Last two not reliable."""
 
@@ -29,29 +32,29 @@ MIN_TITLE_RATIO = 0.5
 """Process strings as lines."""
 
 
-alnum = set(string.ascii_letters).union(string.digits)
-non_title_labels = [r'exhibit[^A-Za-z0-9]+\d+(?:\.\d+)*',
+ALNUM = set(string.ascii_letters).union(string.digits)
+NON_TITLE_LABELS = [r'exhibit[^A-Za-z0-9]+\d+(?:\.\d+)*',
                     r'execution[^A-Za-z0-9]+copy']
-label_regexes = [re.compile(label) for label in non_title_labels]
+LABEL_REGEXES = [re.compile(label) for label in NON_TITLE_LABELS]
 
 
-def alnum_strip(s):
-    non_alnum = set(s) - alnum
-    return s.strip(str(non_alnum)) if non_alnum else s
+def alnum_strip(line: str):
+    non_alnum = set(line) - ALNUM
+    return line.strip(str(non_alnum)) if non_alnum else line
 
 
-def remove_label_regexes(s):
-    for label_regex in label_regexes:
-        s = label_regex.sub('', s)
-    return s
+def remove_label_regexes(line: str):
+    for label_regex in LABEL_REGEXES:
+        line = label_regex.sub('', line)
+    return line
 
 
 def process_as_line(astr: str):
     if astr:
         # print("process_as_line({})".format(astr))
-        x = alnum_strip(remove_label_regexes(alnum_strip(astr.lower())))
+        out = alnum_strip(remove_label_regexes(alnum_strip(astr.lower())))
         # print("   return: {}".format(x))
-        return x
+        return out
     return astr
 
 
@@ -59,76 +62,78 @@ def process_as_line(astr: str):
 
 
 def regex_of(category):
-    with open(DATA_DIR + category + '.list') as f:
-        terms = [t.lower() for t in f.read().split('\n') if t.strip()]
+    with open(DATA_DIR + category + '.list') as fin_outer1:
+        terms = [t.lower() for t in fin_outer1.read().split('\n') if t.strip()]
     return re.compile(r'\b({})\b'.format('|'.join(terms)))
 
 
-tag_regexes = [(re.compile(r'\d'), 1), (regex_of('cardinals'), 4),
-               (regex_of('ordinals'), 6), (re.compile(r'1+(?:st|nd|rd|th)'), 6),
-               (regex_of('months'), 7), (regex_of('states'), 9)]
+TAG_REGEXES_1 = [(re.compile(r'\d'), 1), (regex_of('cardinals'), 4),
+                 (regex_of('ordinals'), 6), (re.compile(r'1+(?:st|nd|rd|th)'), 6),
+                 (regex_of('months'), 7), (regex_of('states'), 9)]
 
-tag_regexes = [(regex, str(tag) * tag) for (regex, tag) in tag_regexes]
-
-
-def tag(s):
-    for (regex, tag) in tag_regexes:
-        s = regex.sub(tag, s)
-    return s
+TAG_REGEXES = [(regex, str(tag) * tag) for (regex, tag) in TAG_REGEXES_1]
 
 
-def process_as_title(s):
+def tag(line):
+    for (regex, atag) in TAG_REGEXES:
+        line = regex.sub(atag, line)
+    return line
+
+
+def process_as_title(line):
     """Must lower before tag (1st) & tag before remove whitespace (New York)"""
-    return ''.join(tag(alnum_strip(s.lower())).split())
+    return ''.join(tag(alnum_strip(line.lower())).split())
 
 
 """Get and process past titles to match against."""
 
 
-with open(DATA_DIR + 'past_titles_train.list') as f:
-    titles = {process_as_title(t) for t in f.read().split('\n') if t.strip()}
+with open(DATA_DIR + 'past_titles_train.list') as fin_outer2:
+    TITLES = {process_as_title(t) for t in fin_outer2.read().split('\n') if t.strip()}
 
-with open(DATA_DIR + 'uk_titles_train.list') as f:
-    uk_titles = {process_as_title(t) for t in f.read().split('\n') if t.strip()}
+with open(DATA_DIR + 'uk_titles_train.list') as fin_outer3:
+    UK_TITLES = {process_as_title(t) for t in fin_outer3.read().split('\n') if t.strip()}
 
 # print("titles:")
 # print(titles)
-titles.update(uk_titles)
+TITLES.update(UK_TITLES)
 
 
 """Extract and format lines from a file"""
 
 
-cant_begin = ['and', 'for', 'to']
-cant_end = ['and', 'co', 'corp', 'for', 'limited', 'the', 'this', 'to']
+CANT_BEGIN = ['and', 'for', 'to']
+CANT_END = ['and', 'co', 'corp', 'for', 'limited', 'the', 'this', 'to']
 # any line cannot have 'cant_have' words
-cant_have = ['among', 'amongst', 'between', 'by and', 'date', 'dated',
+CANT_HAVE = ['among', 'amongst', 'between', 'by and', 'date', 'dated',
              'effective', 'entered', 'for', 'this', 'vice']
-cant_begin_regex = re.compile(r'(?:{})\b'.format('|'.join(cant_begin)))
-cant_end_regex = re.compile(r'\b(?:{})$'.format('|'.join(cant_end)))
-cant_have_pattern = r'^(?:(.*?)\s+)??(?:{})\b'
-cant_have_regex = re.compile(cant_have_pattern.format('|'.join(cant_have)))
+CANT_BEGIN_REGEX = re.compile(r'(?:{})\b'.format('|'.join(CANT_BEGIN)))
+CANT_END_REGEX = re.compile(r'\b(?:{})$'.format('|'.join(CANT_END)))
+CANT_HAVE_PATTERN = r'^(?:(.*?)\s+)??(?:{})\b'
+CANT_HAVE_REGEX = re.compile(CANT_HAVE_PATTERN.format('|'.join(CANT_HAVE)))
 
 # the goal here is to find lines that might have titles
+# pylint: disable=too-many-locals
 def extract_lines_v2(paras_attr_list):
     lines = []  # type: List[Dict]
     start_end_list = []
 
     offset = 0
-    is_found_party_line, is_found_first_eng_para = False, False
+    is_found_party_line, unused_is_found_first_eng_para = False, False
     is_found_toc = False
     max_maybe_title_lines = 75
     # num_maybe_title_lines = -1
     num_lines_before_first_eng_para = 0
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
-        if is_debug:
+        if IS_DEBUG:
             attrs_st = '|'.join([str(attr) for attr in para_attrs])
-            print("titles.extract_line_v2()\t{}".format('\t'.join([attrs_st, '[{}]'.format(line_st)])))
+            print("titles.extract_line_v2()\t{}".format('\t'.join([attrs_st,
+                                                                   '[{}]'.format(line_st)])))
 
         line_st_len = len(line_st)
 
-        if (i >= max_maybe_title_lines or
-            'toc' in para_attrs):
+        if i >= max_maybe_title_lines or \
+           'toc' in para_attrs:
             is_found_toc = True
             break
         if 'party_line' in para_attrs:
@@ -158,9 +163,10 @@ def extract_lines_v2(paras_attr_list):
     return lines[:num_lines_before_first_eng_para], start_end_list
 
 
+# pylint: disable=too-many-locals
 def extract_lines_v2_old(paras_attr_list):
     lines = []
-    num_lines_before_first_eng_para = 0    
+    num_lines_before_first_eng_para = 0
     offset = 0
     start_end_list = []
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
@@ -189,8 +195,9 @@ def extract_lines_v2_old(paras_attr_list):
         lines = lines[:num_lines_before_first_eng_para]
 
     # Terminate at first cant_have word
+    # pylint: disable=consider-using-enumerate
     for i in range(len(lines)):
-        match = cant_have_regex.findall(lines[i]['line'])
+        match = CANT_HAVE_REGEX.findall(lines[i]['line'])
         if match:
             if match[0]:
                 lines[i]['line'] = match[0]
@@ -207,8 +214,8 @@ def extract_lines_v2_old(paras_attr_list):
     # Some words should not start and/or end a title
     new_line = [lines[0]]
     for i in range(1, len(lines)):
-        prev_cant_end = cant_end_regex.search(new_line[-1]['line'])
-        cant_begin = cant_begin_regex.match(lines[i]['line'])
+        prev_cant_end = CANT_END_REGEX.search(new_line[-1]['line'])
+        cant_begin = CANT_BEGIN_REGEX.match(lines[i]['line'])
         if prev_cant_end or cant_begin:
             new_line[-1]['line'] += ' ' + lines[i]['line']
             new_line[-1]['end'] = lines[i]['end']
@@ -231,8 +238,8 @@ def extract_lines(filepath):
     """Grab lines before party_line if it exists else before first_eng_para"""
     lines = []
     num_lines_before_first_eng_para = 0
-    with open(filepath, encoding='utf-8') as f:
-        for i, line in enumerate(f):
+    with open(filepath, encoding='utf-8') as fin:
+        for i, line in enumerate(fin):
             tags = line.split('\t')[0].split('|')
             if 'party_line' in tags:
                 break
@@ -254,8 +261,9 @@ def extract_lines(filepath):
             lines = lines[:num_lines_before_first_eng_para]
 
     # Terminate at first cant_have word
+    # pylint: disable=consider-using-enumerate
     for i in range(len(lines)):
-        match = cant_have_regex.findall(lines[i]['line'])
+        match = CANT_HAVE_REGEX.findall(lines[i]['line'])
         if match:
             if match[0]:
                 lines[i]['line'] = match[0]
@@ -272,8 +280,8 @@ def extract_lines(filepath):
     # Some words should not start and/or end a title
     new_line = [lines[0]]
     for i in range(1, len(lines)):
-        prev_cant_end = cant_end_regex.search(new_line[-1]['line'])
-        cant_begin = cant_begin_regex.match(lines[i]['line'])
+        prev_cant_end = CANT_END_REGEX.search(new_line[-1]['line'])
+        cant_begin = CANT_BEGIN_REGEX.match(lines[i]['line'])
         if prev_cant_end or cant_begin:
             new_line[-1]['line'] += ' ' + lines[i]['line']
             new_line[-1]['end'] = lines[i]['end']
@@ -290,32 +298,35 @@ def extract_lines(filepath):
 """Extract title from a file"""
 
 
-num_titles_to_match = ceil(TITLES_MATCH_PCT / 100 * len(titles))
+NUM_TITLES_TO_MATCH = ceil(TITLES_MATCH_PCT / 100 * len(TITLES))
 
 
-def title_ratio(s):
-    s = process_as_title(s)
-    if s:
+def title_ratio(line: str):
+    line = process_as_title(line)
+    if line:
         # To handle some UK documents, the score of those special cases
         # are not high enough (50's).  Set artificial high scores.
-        if (s == "ownersconsent" or \
-            s == "occupiersconsent"):
+        if (line == "ownersconsent" or \
+            line == "occupiersconsent"):
             return 88
-        if s.startswith("leaseofland"):
+        if line.startswith("leaseofland"):
             return 88
         # end of special cases
 
-        ratios = process.extract(s, titles, scorer=fuzz.ratio,
-                                 limit = num_titles_to_match)
+        ratios = process.extract(line,
+                                 TITLES,
+                                 scorer=fuzz.ratio,
+                                 limit=NUM_TITLES_TO_MATCH)
         # print("titlxxx: ratios = {}".format(ratios))
         ratios = [ratio[1] for ratio in ratios]
         if 0 not in ratios:
             return stats.hmean(ratios)
-    
+
     # If either s is empty after processing or a ratio was 0
     return 0
 
 
+# pylint: disable=too-many-locals
 def extract_title(filepath):
     # Grab lines from the file
     lines = extract_lines(filepath)
@@ -330,7 +341,9 @@ def extract_title(filepath):
     title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1}
 
     # Find best title; all individual scores range from 0 to 1
+    # pylint: disable=consider-using-enumerate
     for i in range(len(lines)):
+        # pylint: disable=consider-using-enumerate
         for j in range(i, min(i + MAX_TITLE_LINES, len(lines))):
             # Ratio score
             ratios = title_ratios[i:j + 1]
@@ -365,7 +378,7 @@ def extract_offsets(paras_attr_list, paras_text):
     if not lines:
         return None, None
 
-    if is_debug:
+    if IS_DEBUG:
         for line2, start_end2 in zip(lines, start_end_list):
             print("{}\t{}".format(start_end2, line2))
 
@@ -377,6 +390,7 @@ def extract_offsets(paras_attr_list, paras_text):
     title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1}
 
     # Find best title; all individual scores range from 0 to 1
+    # pylint: disable=consider-using-enumerate
     for i in range(len(lines)):
         for j in range(i, min(i + MAX_TITLE_LINES, len(lines))):
             # Ratio score
@@ -416,8 +430,9 @@ def extract_offsets(paras_attr_list, paras_text):
                          'score': score, 'ratio': ratio_score}
 
     # Return the title's start and end lines
-    line_start, line_end, chopped_offset = title['offsets'] if title['ratio'] >= MIN_TITLE_RATIO else (None, None, None)
-    if is_debug:
+    line_start, line_end, chopped_offset = \
+        title['offsets'] if title['ratio'] >= MIN_TITLE_RATIO else (None, None, None)
+    if IS_DEBUG:
         print("line_start = {}, line_end = {}, chopped_offset = {}".format(line_start,
                                                                            line_end,
                                                                            chopped_offset))
@@ -428,17 +443,19 @@ def extract_offsets(paras_attr_list, paras_text):
         else:
             end_offset = start_end_list[line_end][0] + chopped_offset
         return start_offset, end_offset
-        
+
     return None, None
 
 
+# pylint: disable=too-few-public-methods
 class TitleAnnotator:
 
-    def __init__(self, provision):
+    # pylint: disable=unused-argument
+    def __init__(self, provision: str) -> None:
         self.provision = 'title'
 
+    # pylint: disable=no-self-use
     def extract_provision_offsets(self, paras_with_attrs, paras_text):
-        if is_debug:
+        if IS_DEBUG:
             print("title called extract_provision_offsets()")
         return extract_offsets(paras_with_attrs, paras_text)
-        

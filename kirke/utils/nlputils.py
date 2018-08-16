@@ -26,9 +26,13 @@ IS_DEBUG_RERANK_DEFINED_TERM = False
 
 # bank is after 'n.a.' because 'bank, n.a.' is more desirable
 # 'Credit Suisse Ag, New York Branch', 39893.txt,  why 'branch' is early
+# pylint: disable=fixme
 # TODO, handle "The bank of Nova Scotia", this is NOT org suffix case
+# pylint: disable=fixme
 # TODO, not handling 'real estate holdings fiv'
+# pylint: disable=fixme
 # TODO, remove 'AS AMENDED' as a party, 'the customer'?
+# pylint: disable=fixme
 # TODO, 'seller, seller' the context?
 ORG_SUFFIX_LIST = strutils.load_non_empty_str_list('dict/parties/organization.suffix.list')
 PERS_SUFFIX_LIST = strutils.load_non_empty_str_list('dict/parties/person.suffix.list')
@@ -421,7 +425,7 @@ def pos_tag(tokens: List[str], t2_map: Dict[str, Tuple[str, str]] = None) \
     fixed_list = fix_nltk_pos(postag_list, t2_map)
     return fixed_list
 
-
+# pylint: disable=fixme
 # TODO: maybe remove in future
 # NLTK_TOKENIZER = WhitespaceTokenizer()
 # This doesn't handle number correctly
@@ -633,7 +637,8 @@ def split_chunk_with_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
 
             # 'the Canada Business Corporation Act'
             last_word, unused_last_tag = postag_list[-1]
-            if last_word.lower() == 'act' and last_word[0] == 'A':
+            if isinstance(chunk, Tree) and \
+               last_word.lower() == 'act' and last_word[0] == 'A':
                 chunk.set_label('NNP')
                 result.append(chunk)
                 continue
@@ -1599,6 +1604,7 @@ class SpanChunk:
 # pylint: disable=too-many-instance-attributes
 class PhrasedSent:
 
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, sent_line: str, is_chopped: bool) -> None:
         if IS_DEBUG_CHUNK:
             print('PhrasedSent("{}")'.format(sent_line))
@@ -1931,6 +1937,7 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
             # (registered number SC183333)
             pass
         elif re.search(r'\bparty\b.*and.*collectively.*parties.*', span_chunk.text, re.I):
+            # pylint: disable=fixme
             # TODO, not sure why adding following caused failure in
             # export-train/52082.txt failed??
             # or \
@@ -2136,8 +2143,8 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             term = [chop_spanchunk_paren(ordered_paren_list[0])]
 
             # in future, might check if term/paren doesn't overlap with org
-            # pylint: disable=line-too-long
-            # if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:  # parent is really at the end of phrase
+            # if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:
+            #     # parent is really at the end of phrase
             #     term = last_paren
             # else:
             #     term = paren_list[0]

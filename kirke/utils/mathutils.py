@@ -1,4 +1,6 @@
+# pylint: disable=unused-import
 from typing import Dict, FrozenSet, List, Set, Tuple
+
 
 def start_end_overlap(stend1, stend2):
     start1, end1 = stend1
@@ -59,11 +61,12 @@ def find_in_list_of_set(list_of_set, elt):
 # pairs is a list of 2-tuples
 def pairs_to_sets(pairs):
     result = []  # list of sets
+    # pylint: disable=invalid-name
     for x1, x2 in pairs:
         set1 = find_in_list_of_set(result, x1)
         if set1:
             if x2 in set1:  # they are already in a set, done
-                pair_finished = True
+                # pair_finished = True
                 pass
             else:  # x1 is found, but x2 is not in the same set!?
                 set2 = find_in_list_of_set(result, x2)
@@ -81,25 +84,27 @@ def pairs_to_sets(pairs):
     return result
 
 
-def choose_after(x: int, other_list: List[int]):
-    for y in other_list:
-        if y > x:
-            return y
+def choose_after(xval: int, other_list: List[int]) -> int:
+    for yval in other_list:
+        if yval > xval:
+            return yval
     # if not found, just take first one
     return other_list[0]
 
 
-def choose_before(x: int, other_list: List[int]):
-    for y in other_list:
-        if y < x:
-            return y
+def choose_before(xval: int, other_list: List[int]) -> int:
+    for yval in other_list:
+        if yval < xval:
+            return yval
     # if not found, just take first one
     return other_list[0]
 
-def choose_closest(x: int, other_list: List[int]):
-    diff_list = []  # list of (diff, index)
-    for idx, y in enumerate(other_list):
-        diff_list.append((abs(y - x), idx))
+
+def choose_closest(xval: int,
+                   other_list: List[int]) -> int:
+    diff_list = []  # type: List[Tuple[int, int]]
+    for idx, yval in enumerate(other_list):
+        diff_list.append((abs(yval - xval), idx))
     sorted_diff_list = sorted(diff_list)
     _, chosen_idx = sorted_diff_list[0]
     return other_list[chosen_idx]
@@ -117,6 +122,7 @@ def find_overlap_ids(id_se: Tuple[int, int, int],
 def find_overlaps_in_id_se_list(id_se_list: List[Tuple[int, int, int]]) -> List[List[int]]:
     overlap_pair_list = []  # type: List[Tuple[int, int]]
     id_overlap_ids_map = {}  # type: Dict[int, Set[int]]
+    # pylint: disable=consider-using-enumerate
     for count_i in range(len(id_se_list)):
         i_id_se = id_se_list[count_i]
 
@@ -129,8 +135,7 @@ def find_overlaps_in_id_se_list(id_se_list: List[Tuple[int, int, int]]) -> List[
 
     # for tid, overlap_ids in id_overlap_ids_map.items():
     #     print("  id = {}, overlap_ids = {}".format(tid, overlap_ids))
-
-    for tid in id_overlap_ids_map.keys():
+    for tid in id_overlap_ids_map:
 
         overlap_ids = id_overlap_ids_map[tid]
 
@@ -148,7 +153,7 @@ def find_overlaps_in_id_se_list(id_se_list: List[Tuple[int, int, int]]) -> List[
 
     out_group_list = []  # type: List[List[int]]
     seen_set = set([])  # type: Set[FrozenSet[int]]
-    for tid in id_overlap_ids_map.keys():
+    for tid in id_overlap_ids_map:
         overlap_set = frozenset(id_overlap_ids_map[tid])
         if len(overlap_set) > 1 and \
            overlap_set not in seen_set:

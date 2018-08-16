@@ -140,7 +140,12 @@ class EbAnnotatedDoc4:
     def set_provision_annotations(self, ant_list: List[ProvisionAnnotation]) -> None:
         self.prov_annotation_list = ant_list
 
-    def get_provision_annotations(self) -> List[ProvisionAnnotation]:
+    def get_provision_annotations(self,
+                                  provision: Optional[str] = None) \
+                                  -> List[ProvisionAnnotation]:
+        if provision:
+            return [prov_ant for prov_ant in self.prov_annotation_list
+                    if prov_ant.label == provision]
         return self.prov_annotation_list
 
     def has_provision_ant(self, provision: str) -> bool:
@@ -480,7 +485,7 @@ def html_to_ebantdoc4(txt_file_name: str,
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
-    paras_with_attrs, para_doc_text, gap_span_list, _ = \
+    paras_with_attrs, para_doc_text, gap_span_list, unused_orig_doc_text, unused_sechead_list = \
             htmltxtparser.parse_document(txt_file_name,
                                          work_dir=work_dir,
                                          is_combine_line=True)
@@ -748,7 +753,7 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
 
 
 def text_to_ebantdoc4(txt_fname: str,
-                      work_dir: str = None,
+                      work_dir: Optional[str] = None,
                       is_cache_enabled: bool = True,
                       is_bespoke_mode: bool = False,
                       is_doc_structure: bool = True,
@@ -822,18 +827,19 @@ def text_to_ebantdoc4(txt_fname: str,
         # currently, don't want to indicate it's index error to user.  Too detailed.
         # For developers, we switched the double quote and quote in the message.
         unused_error_type, error_instance, traceback = sys.exc_info()
-        error_instance.filename = txt_fname
-        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % \
-                                      (txt_base_fname, doc_lang)
-        error_instance.__traceback__ = traceback
-        raise error_instance
-    except Exception:  # pylint: disable=broad-except
+        error_instance.filename = txt_fname  # type: ignore
+        # pylint: disable=line-too-long
+        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.__traceback__ = traceback  # type: ignore
+        raise error_instance  # type: ignore
+    # pylint: disable=broad-except
+    except Exception:
         unused_error_type, error_instance, traceback = sys.exc_info()
-        error_instance.filename = txt_fname
-        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % \
-                                      (txt_base_fname, doc_lang)
-        error_instance.__traceback__ = traceback
-        raise error_instance
+        error_instance.filename = txt_fname  # type: ignore
+        # pylint: disable=line-too-long
+        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.__traceback__ = traceback  # type: ignore
+        raise error_instance  # type: ignore
 
 
 def doclist_to_ebantdoc_list_linear(doclist_file: str,
