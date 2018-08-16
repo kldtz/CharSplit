@@ -824,8 +824,7 @@ def text_to_ebantdoc(txt_fname: str,
         unused_error_type, error_instance, traceback = sys.exc_info()
         error_instance.filename = txt_fname  # type: ignore
         # pylint: disable=line-too-long
-        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % \
-                                      (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.user_message = "Problem with parsing document '%s', lang=%s." % (txt_base_fname, doc_lang)  # type: ignore
         error_instance.__traceback__ = traceback  # type: ignore
         raise error_instance  # type: ignore
 
@@ -834,8 +833,7 @@ def text_to_ebantdoc(txt_fname: str,
         unused_error_type, error_instance, traceback = sys.exc_info()
         error_instance.filename = txt_fname  # type: ignore
         # pylint: disable=line-too-long
-        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % \
-                                      (txt_base_fname, doc_lang)  # type: ignore
+        error_instance.user_message = 'Problem with parsing document "%s", lang=%s.' % (txt_base_fname, doc_lang)  # type: ignore
         error_instance.__traceback__ = traceback  # type: ignore
         raise error_instance  # type: ignore
 
