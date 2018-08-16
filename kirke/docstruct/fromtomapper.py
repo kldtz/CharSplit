@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Tuple
 from kirke.docstruct import linepos
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -116,10 +116,10 @@ def paras_to_fromto_lists(para_list: List[Tuple[List[Tuple[linepos.LnPos,
 
 def paras_to_fromto_lnpos_lists(para_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                                  linepos.LnPos]],
-                                                # str,
-                                                List[Tuple[Any]]]]) \
-                                                -> Tuple[List[linepos.LnPos],
-                                                         List[linepos.LnPos]]:
+                                                      # str,
+                                                      List[Tuple[Any]]]]) \
+                                                      -> Tuple[List[linepos.LnPos],
+                                                               List[linepos.LnPos]]:
     sorted_alist = paras_to_fromto_lists_aux(para_list)
 
     # a = to_lnpos.start

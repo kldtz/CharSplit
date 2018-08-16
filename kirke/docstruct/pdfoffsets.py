@@ -1,4 +1,4 @@
-from collections import namedtuple, Counter, defaultdict
+from collections import namedtuple, defaultdict
 from functools import total_ordering
 import os
 import sys
@@ -15,8 +15,10 @@ MAX_Y_DIFF = 10000
 MIN_X_END = -1
 
 
+# pylint: disable=too-many-instance-attributes
 class PageInfo3:
 
+    # pylint: disable=too-many-arguments, too-many-locals
     def __init__(self, doc_text, start, end, page_num, pblockinfo_list) -> None:
         self.start = start
         self.end = end
@@ -40,27 +42,29 @@ class PageInfo3:
         # xstart_list, page_num))
         if lineinfo_list:  # not an empty page
             if len(xstart_list) == 1:
-                xstart_list.append(xstart_list[0])  # duplicate itself to avoid jenks error with only element
+                # duplicate itself to avoid jenks error with only element
+                xstart_list.append(xstart_list[0])
             jenks = jenksutils.Jenks(xstart_list)
 
         line_attrs = []
+        # pylint: disable=invalid-name
         prev_yStart = 0
         for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
-          ydiff = lineinfo.yStart - prev_yStart
-          # it possible for self.avg_single_line_break_ydiff to be 0 when
-          # the document has only vertical lines.
-          if self.avg_single_line_break_ydiff == 0:
-              num_linebreak = 1  # hopeless, default to 1 for now
-          else:
-              num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
-          align = jenks.classify(lineinfo.xStart)
-          line_text = doc_text[lineinfo.start:lineinfo.end]
-          is_english = engutils.classify_english_sentence(line_text)
-          is_centered = docstructutils.is_line_centered(line_text, lineinfo.xStart, lineinfo.xEnd)
-          line_attrs.append(LineWithAttrs(page_line_num,
-                                          lineinfo, line_text, page_num, ydiff, num_linebreak,
-                                          align, is_centered, is_english))
-          prev_yStart = lineinfo.yStart
+            ydiff = lineinfo.yStart - prev_yStart
+            # it possible for self.avg_single_line_break_ydiff to be 0 when
+            # the document has only vertical lines.
+            if self.avg_single_line_break_ydiff == 0:
+                num_linebreak = 1  # hopeless, default to 1 for now
+            else:
+                num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
+            align = jenks.classify(lineinfo.xStart)
+            line_text = doc_text[lineinfo.start:lineinfo.end]
+            is_english = engutils.classify_english_sentence(line_text)
+            is_centered = docstructutils.is_line_centered(line_text, lineinfo.xStart, lineinfo.xEnd)
+            line_attrs.append(LineWithAttrs(page_line_num,
+                                            lineinfo, line_text, page_num, ydiff, num_linebreak,
+                                            align, is_centered, is_english))
+            prev_yStart = lineinfo.yStart
         self.line_list = line_attrs
         # attrs of page, such as 'page_num_index'
         self.attrs = {}  # type: Dict[str, Any]
@@ -71,7 +75,7 @@ class PageInfo3:
         #   - header, footer
         self.content_line_list = []  # type: List[LineWithAttrs]
 
-
+    # pylint: disable=invalid-name
     def compute_avg_single_line_break_ydiff(self):
         total_merged_ydiff, total_merged_lines = 0, 0
         for pblockinfo in self.pblockinfo_list:
@@ -115,6 +119,7 @@ class PDFTextDoc:
         self.num_pages = len(page_list)
         # each page is a list of grouped_block
         self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
+        # pylint: disable=line-too-long
         self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
         self.sechead_list = []  # type: List[Tuple[int, int, str, str, int]]
 
@@ -139,12 +144,17 @@ class PDFTextDoc:
             for grouped_block in grouped_block_list:
                 print()
                 for linex in grouped_block.line_list:
-                    print('{}\t{}'.format(linex.tostr3(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
+                    print('{}\t{}'.format(linex.tostr3(),
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
         for block_type, span_list in sorted(self.special_blocks_map.items()):
             print("\nblock_type: {}".format(block_type))
             for start, end, adict in span_list:
                 alist = [(attr, value) for attr, value in sorted(adict.items())]
-                print("\t{}\t{}\t{}\t[{}...]".format(start, end, alist, self.doc_text[start:end][:15].replace('\n', ' ')))
+                print("\t{}\t{}\t{}\t[{}...]".format(start,
+                                                     end,
+                                                     alist,
+                                                     # pylint: disable=line-too-long
+                                                     self.doc_text[start:end][:15].replace('\n', ' ')))
 
     def save_debug_pages(self, extension: str, work_dir='dir-work'):
         base_fname = os.path.basename(self.file_name)
@@ -155,13 +165,17 @@ class PDFTextDoc:
                       (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
 
                 if page.attrs:
-                    print('  attrs: {}'.format(', '.join(strutils.dict_to_sorted_list(page.attrs))), file=fout)
+                    print('  attrs: {}'.format(', '.join(strutils.dict_to_sorted_list(page.attrs))),
+                          file=fout)
 
                 grouped_block_list = line_list_to_grouped_block_list(page.line_list, page.page_num)
                 for grouped_block in grouped_block_list:
                     print(file=fout)
                     for linex in grouped_block.line_list:
-                        print('{}\t{}'.format(linex.tostr5(), self.doc_text[linex.lineinfo.start:linex.lineinfo.end]), file=fout)
+                        print('{}\t{}'.format(linex.tostr5(),
+                                              # pylint: disable=line-too-long
+                                              self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
+                              file=fout)
 
         print('wrote {}'.format(paged_debug_fname), file=sys.stderr)
 
@@ -176,14 +190,16 @@ class PDFTextDoc:
                 print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
                       (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
                 if page.attrs:
-                    print('  attrs: {}'.format(', '.join(strutils.dict_to_sorted_list(page.attrs))), file=fout)
+                    print('  attrs: {}'.format(', '.join(strutils.dict_to_sorted_list(page.attrs))),
+                          file=fout)
 
                 prev_block_num = -1
                 for linex in page.line_list:
                     if linex.lineinfo.obid != prev_block_num:  # separate blocks
                         print(file=fout)
                     print('{}\t{}'.format(linex.tostr2(),
-                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]), file=fout)
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
+                          file=fout)
                     prev_block_num = linex.lineinfo.obid
 
         print('wrote {}'.format(paged_fname), file=sys.stderr)
@@ -209,7 +225,8 @@ class PDFTextDoc:
                     if linex.block_num != prev_block_num:  # this is not obid
                         print(file=fout)
                     print('{}\t{}'.format(linex.tostr2(),
-                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]), file=fout)
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
+                          file=fout)
                     prev_block_num = linex.block_num
 
         print('wrote {}'.format(paged_fname), file=sys.stderr)
@@ -236,11 +253,13 @@ class PDFTextDoc:
                     if linex.block_num != prev_block_num:  # this is not obid
                         print(file=fout)
                     print('{}\t{}'.format(linex.tostr2(),
-                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]), file=fout)
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
+                          file=fout)
                     prev_block_num = linex.block_num
 
         print('wrote {}'.format(paged_fname), file=sys.stderr)
 
+    # pylint: disable=too-many-locals
     def save_str_text(self, file: TextIO) -> None:
         lineinfo_list = []  # type: List[LineInfo3]
         doc_text = self.doc_text
@@ -254,17 +273,21 @@ class PDFTextDoc:
                         start = strinfo.start
                         end = strinfo.end
                         multiplier = 300.0 / 72
+                        # pylint: disable=invalid-name
                         x = int(strinfo.xStart * multiplier)
+                        # pylint: disable=invalid-name
                         y = int(strinfo.yStart * multiplier)
-                        str_text = doc_text[start:end]
-                        # pylint: disable=line-too-ling
-                        print("        strinfo se={}, x,y={}    [{}]".format((start, end), (x, y), doc_text[start:end]), file=file)
+                        print("        strinfo se={}, x,y={}    [{}]".format((start, end),
+                                                                             (x, y),
+                                                                             doc_text[start:end]),
+                              file=file)
 
 
 
 
 class LineInfo3:
 
+    # pylint: disable=too-many-arguments
     def __init__(self, start, end, line_num, block_num, strinfo_list) -> None:
         self.start = start
         self.end = end
@@ -273,7 +296,9 @@ class LineInfo3:
         self.bid = block_num    # ordered by block's yStart
         self.strinfo_list = strinfo_list
 
+        # pylint: disable=invalid-name
         min_xStart, min_yStart = MAX_Y_DIFF, MAX_Y_DIFF
+        # pylint: disable=invalid-name
         max_xEnd = MIN_X_END
         for strinfo in self.strinfo_list:
             syStart = strinfo.yStart
@@ -297,8 +322,11 @@ class LineInfo3:
             if sxEnd > max_xEnd:
                 max_xEnd = sxEnd
 
+        # pylint: disable=invalid-name
         self.xStart = min_xStart
+        # pylint: disable=invalid-name
         self.xEnd = max_xEnd
+        # pylint: disable=invalid-name
         self.yStart = min_yStart
         # jshaw, maybe this is simpler?
         # self.xStart = self.strinfo_list[0].xStart
@@ -306,15 +334,14 @@ class LineInfo3:
         #self.xEnd = self.strinfo_list[-1].xEnd
 
     def tostr2(self):
-        return 'se=(%d, %d), bid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f' % (self.start, self.end,
-                                                                                self.bid, self.obid,
-                                                                                self.xStart,
-                                                                                self.xEnd,
-                                                                                self.yStart)
+        return 'se=(%d, %d), bid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f' % \
+            (self.start, self.end,
+             self.bid, self.obid,
+             self.xStart, self.xEnd, self.yStart)
 
     def tostr3(self):
-        return 'se=(%d, %d), bid= %d, obid = %d, pn= %d' % (self.start, self.end,
-                                                            self.bid, self.obid, self.page_num)
+        return 'se=(%d, %d), bid= %d, obid = %d' % (self.start, self.end,
+                                                    self.bid, self.obid)
 
 
     def tostr4(self):
@@ -322,7 +349,9 @@ class LineInfo3:
 
     def tostr5(self):
         multiplier = 300.0 / 72
+        # pylint: disable=invalid-name
         x = int(self.xStart * multiplier)
+        # pylint: disable=invalid-name
         y = int(self.yStart * multiplier)
 
         return 'se=(%d, %d), xs=%d, ys=%d' % (self.start, self.end, x, y)
@@ -330,6 +359,7 @@ class LineInfo3:
 
 class LineWithAttrs:
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  page_line_num: int,
                  lineinfo: LineInfo3,
@@ -475,8 +505,10 @@ class LineWithAttrs:
 
 
 @total_ordering
+# pylint: disable=too-few-public-methods
 class PBlockInfo:
 
+    # pylint: disable=too-many-arguments, too-many-locals
     def __init__(self,
                  start: int,
                  end: int,
@@ -495,17 +527,22 @@ class PBlockInfo:
         self.lineinfo_list = lineinfo_list
         self.is_multi_lines = is_multi_lines
 
+        # pylint: disable=invalid-name
         pb_min_xStart, pb_min_yStart = MAX_Y_DIFF, MAX_Y_DIFF
+        # pylint: disable=invalid-name
         pb_max_xEnd, pb_max_yEnd = MIN_X_END, MIN_X_END
 
         for lineinfo in self.lineinfo_list:
+            # pylint: disable=invalid-name
             lx_min_xStart, lx_min_yStart = lineinfo.xStart, lineinfo.yStart
+            # pylint: disable=invalid-name
             lx_max_xEnd = lineinfo.xEnd
 
             if lx_min_yStart < pb_min_yStart:
                 pb_min_yStart = lx_min_yStart
                 pb_min_xStart = lx_min_xStart
-                #print("block_id = {}, is_multi_lines = {}, len(lxinfo_list)= {}, sxEnd = {}, pb_max_xEnd = {}".format(
+                #print("block_id = {}, is_multi_lines = {}, len(lxinfo_list)= {}, sxEnd = {}, "
+                #      "pb_max_xEnd = {}".format(
                 #      bid, is_multi_lines, len(lineinfo_list), sxEnd, pb_max_xEnd))
                 # if (len(lineinfo_list) == 1 or is_multi_lines) and sxEnd > pb_max_xEnd:
             if lx_max_xEnd > pb_max_xEnd:
@@ -517,7 +554,8 @@ class PBlockInfo:
         self.xEnd = pb_max_xEnd
         self.yStart = pb_min_yStart
         self.yEnd = pb_max_yEnd
-        # print("self.xStart = {}, xEnd = {}, yStart= {}".format(self.xStart, self.xEnd, self.yStart))
+        # print("self.xStart = {}, xEnd = {}, yStart= {}".format(self.xStart, self.xEnd,
+        #                                                        self.yStart))
         self.is_english = engutils.classify_english_sentence(text)
         self.ydiff = MAX_Y_DIFF  # will compute this across PBlockInfo
 
@@ -586,6 +624,7 @@ class PBlockInfo:
 """
 
 
+# pylint: disable=too-few-public-methods
 class GroupedBlockInfo:
 
     def __init__(self,
@@ -655,8 +694,8 @@ def line_list_to_grouped_block_list(linex_list: List[LineWithAttrs],
                                     -> List[GroupedBlockInfo]:
     tmp_block_list = docstructutils.line_list_to_block_list(linex_list)
     grouped_block_list = []  # type: List[GroupedBlockInfo]
-    for linex_list in tmp_block_list:
-        block_num = linex_list[0].block_num
-        grouped_block_list.append(GroupedBlockInfo(page_num, block_num, linex_list))
+    for tmp_linex_list in tmp_block_list:
+        block_num = tmp_linex_list[0].block_num
+        grouped_block_list.append(GroupedBlockInfo(page_num, block_num, tmp_linex_list))
 
     return grouped_block_list

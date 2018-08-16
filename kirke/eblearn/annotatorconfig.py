@@ -11,7 +11,7 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
 
 from kirke.sampleutils import postproc
-from kirke.ebrules import addrannotator, dummyannotator, dates
+from kirke.ebrules import dummyannotator, dates
 from kirke.utils import ebantdoc5
 from kirke.sampleutils import addrgen, idnumgen, dategen, paragen, tablegen
 from kirke.sampleutils import regexgen, transformerutils
@@ -206,9 +206,9 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                   random_state=42,
                                                                   class_weight={True: 3,
                                                                                 False: 1}))]),
-                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
-                          'threshold': 0.25,
-                          'kfold': 3})
+                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                      'threshold': 0.25,
+                      'kfold': 3})
 ]
 
 
@@ -294,7 +294,7 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
             _, _, prop = configx
             generic_prop['doc_to_candidates'].extend(prop['doc_to_candidates'])
         else:
-            logger.error('Invalid Candidate Type: '+label)
+            logger.error('Invalid Candidate Type: %s', label)
             exit(1)
     return generic_prop
 

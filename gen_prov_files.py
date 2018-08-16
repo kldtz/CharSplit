@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 
 import argparse
+from collections import defaultdict
 import json
 import os
 
-from collections import defaultdict
+from kirke.utils import osutils
 
-from sklearn.model_selection import train_test_split
-
-from kirke.utils import splittrte, osutils
-
+# pylint: disable=invalid-name
 def load_provisions_istest_in_ebdata(filename):
     result = []
     is_test_set = False
@@ -28,11 +26,11 @@ def load_provisions_istest_in_ebdata(filename):
     return result, is_test_set, list(positive_provs), list(negative_provs)
 
 
-if __name__ == '__main__':
-
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def main():
     parser = argparse.ArgumentParser(description='Generate prov filesin dir-provfiles.')
-    parser.add_argument("-v","--verbosity", help="increase output verbosity")
-    parser.add_argument("-d","--debug", action="store_true", help="print debug information")
+    parser.add_argument("-v", "--verbosity", help="increase output verbosity")
+    parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
     # parser.add_argument('--docs', required=True, help='a file containing list of .txt files')
     # parser.add_argument('--work_dir', required=True, help='output directory for cached documents')
     # parser.add_argument('--model_dirs', required=True, help='output directory for trained models')
@@ -63,7 +61,7 @@ if __name__ == '__main__':
 
     data_dir = 'export-train'
     if args.data_dir is not None:
-        dir_data = args.data_dir
+        data_dir = args.data_dir
 
     fileid_fnlist_map = defaultdict(list)
     num_ebdata = 0
@@ -81,7 +79,7 @@ if __name__ == '__main__':
         elif file_name.endswith('.html'):
             fileid = file_name[:-5]
             filetype = 'htm'
-            fileid_fnlist_map[fileid].append((filetype, file_name))            
+            fileid_fnlist_map[fileid].append((filetype, file_name))
         elif file_name.endswith('.pdf'):
             fileid = file_name[:-4]
             filetype = 'pdf'
@@ -121,12 +119,12 @@ if __name__ == '__main__':
             # lowest priority
             # elif ftype == 'txt' and not fname:
             elif ftype == 'txt':
-                fname = fn         
-            
+                fname = fn
+
         prov_list, is_test, pos_list, neg_list = load_provisions_istest_in_ebdata(ebdata_fn)
 
         # print('is_test = {}'.format(is_test))
-        
+
         for label in prov_list:
 
             prov_fnlist_map[label].append(fname)
@@ -165,7 +163,6 @@ if __name__ == '__main__':
                 print(fn, file=fout)
         print('wrote {}'.format(out_fn))
 
-
     for prov, fnlist in prov_pos_fnlist_map.items():
         out_fn = '{}/{}_pos_doclist.txt'.format(provfile_dir, prov)
         with open(out_fn, 'wt') as fout:
@@ -185,3 +182,6 @@ if __name__ == '__main__':
             for fn in fnlist:
                 print(fn, file=fout)
         print('wrote {}'.format(out_fn))
+
+if __name__ == '__main__':
+    main()

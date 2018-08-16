@@ -49,7 +49,7 @@ class TestBespokeSent(unittest.TestCase):
         self.assertEqual(tn, 0)
         self.assertAlmostEqual(fp, 1, delta=2)
         self.assertAlmostEqual(fn, 6, delta=6)
-        self.assertAlmostEqual(tp, 143, delta=6)
+        self.assertAlmostEqual(tp, 143, delta=7)
 
         # round(ant_result['f1'], 2),
         # 1.0

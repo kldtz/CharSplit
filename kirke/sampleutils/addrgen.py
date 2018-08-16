@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from kirke.ebrules import addresses
 from kirke.utils import ebantdoc5, ebsentutils, strutils
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -19,12 +20,12 @@ class AddrContextGenerator:
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
-                             label: str = None) -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
-                                                              List[Dict],
-                                                              List[bool],
-                                                              List[int]]]:
-
+                                antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                                label: Optional[str] = None) \
+                                -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
+                                              List[Dict],
+                                              List[bool],
+                                              List[int]]]:
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc5.EbAnnotatedDoc, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc5
@@ -87,14 +88,14 @@ class AddrContextGenerator:
                     bow_end = post_spans[-1][-1]
 
                 a_candidate = {'candidate_type': self.candidate_type,
-                            'bow_start': bow_start,
-                            'bow_end': bow_end,
-                            'text': new_bow,
-                            'start': addr_start,
-                            'end': addr_end,
-                            'prev_n_words': ' '.join(prev_n_words_plus),
-                            'post_n_words': ' '.join(post_n_words_plus),
-                            'has_addr': True}
+                               'bow_start': bow_start,
+                               'bow_end': bow_end,
+                               'text': new_bow,
+                               'start': addr_start,
+                               'end': addr_end,
+                               'prev_n_words': ' '.join(prev_n_words_plus),
+                               'post_n_words': ' '.join(post_n_words_plus),
+                               'has_addr': True}
                 candidates.append(a_candidate)
 
                 #update group ids and label list

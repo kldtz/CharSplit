@@ -10,7 +10,7 @@ def is_word_overlap_ge_66p(st1: str, st2: str) -> bool:
     st1 = st1.lower()
     st2 = st2.lower()
     words1 = get_all_words_ge_2chars(st1)
-    len1 = len(words1)    
+    len1 = len(words1)
     words2 = get_all_words_ge_2chars(st2)
     len2 = len(words2)
     if len1 == 0 and len2 == 0:  # 2 empty string, even after norm, cannot be empty
@@ -30,5 +30,5 @@ def is_word_overlap_ge_66p(st1: str, st2: str) -> bool:
         # there is a possibility that there might be duplicate words in
         # set1 or set2, but ignore them for now.
         return float(len(overlap)) / len2 >= 0.65
-    else:
-        return False
+
+    return False

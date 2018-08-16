@@ -16,6 +16,7 @@ from kirke.eblearn import lineannotator, ruleannotator, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import  ebantdoc5, evalutils, splittrte, strutils, txtreader
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -402,12 +403,12 @@ def train_eval_annotator(provision: str,
         else:
             num_doc_neg += 1
     logger.info("provision: %s, num_doc_pos= %d, num_doc_neg= %d",
-                 provision, num_doc_pos, num_doc_neg)
+                provision, num_doc_pos, num_doc_neg)
 
     # TODO, jshaw, hack, such as for sechead
     if num_doc_neg < 2:
-        y[0] = 0
-        y[1] = 0
+        y[0] = False
+        y[1] = False
 
     # make sure nbest is know to everyone else
     eb_classifier.nbest = nbest
@@ -419,7 +420,7 @@ def train_eval_annotator(provision: str,
     if is_bespoke_mode:
         # pylint: disable=line-too-long
         logger.info("training using cross validation with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
-                     len(attrvec_list), num_pos_label, num_neg_label)
+                    len(attrvec_list), num_pos_label, num_neg_label)
 
         X_train = X
         train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir, provision, doc_lang)
@@ -442,7 +443,7 @@ def train_eval_annotator(provision: str,
 
     # pylint: disable=line-too-long
     logger.info("training using train/test split with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
-                 len(attrvec_list), num_pos_label, num_neg_label)
+                len(attrvec_list), num_pos_label, num_neg_label)
 
     if is_bespoke_mode:
         test_size = 0.25
@@ -525,7 +526,7 @@ def train_eval_annotator_with_trte(provision: str,
                                                  is_doc_structure=is_doc_structure,
                                                  is_sort_by_file_id=True)
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
-    X_train = None  # free that memory
+    X_train = []  # free that memory
 
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
     # pylint: disable=invalid-name
@@ -626,15 +627,17 @@ def train_eval_span_annotator(provision: str,
         # converts all docs to ebantdocs
         # intentially don't specify is_no_corenlp here.  It has to be done
         # using ebantdoc5.doclist_to_antdoc_list_no_corenlp
-        eb_antdoc_list = span_annotator.doclist_to_antdoc_list(txt_fn_list,
-                                                               work_dir,
-                                                               is_bespoke_mode=is_bespoke_mode,
-                                                               is_doc_structure=is_doc_structure,
-                                                               is_use_corenlp=span_annotator.get_is_use_corenlp(),
-                                                               # we need the files to be sorted in order to
-                                                               # ensure stable training.
-                                                               is_sort_by_file_id=True)
-        num_docs = len(eb_antdoc_list)
+        eb_antdoc_list = \
+            span_annotator.doclist_to_antdoc_list(txt_fn_list,
+                                                  work_dir,
+                                                  is_bespoke_mode=is_bespoke_mode,
+                                                  is_doc_structure=is_doc_structure,
+                                                  # pylint: disable=line-too-long
+                                                  is_use_corenlp=span_annotator.get_is_use_corenlp(),
+                                                  # we need the files to be sorted in order to
+                                                  # ensure stable training.
+                                                  is_sort_by_file_id=True)
+        # num_docs = len(eb_antdoc_list)
 
         #split training and test data, save doclists
         X = eb_antdoc_list
@@ -653,7 +656,7 @@ def train_eval_span_annotator(provision: str,
 
         # pylint: disable=line-too-long
         logger.info("%s training using cross validation with %d candidates.  num_inst_pos= %d, num_inst_neg= %d",
-                     candidate_types, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
+                    candidate_types, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
 
         prov_annotator2, combined_log_json = \
             cv_candg_train_at_annotation_level(provision,
@@ -671,27 +674,30 @@ def train_eval_span_annotator(provision: str,
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
     # loads existing doclists
-    X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
-                                                    work_dir,
-                                                    is_bespoke_mode=is_bespoke_mode,
-                                                    is_doc_structure=is_doc_structure,
-                                                    is_use_corenlp=span_annotator.get_is_use_corenlp(),
-                                                    # we need the file order to be stable, even if input file
-                                                    # order is changed.
-                                                    is_sort_by_file_id=True)
+    X_train = \
+        span_annotator.doclist_to_antdoc_list(train_doclist_fn,
+                                              work_dir,
+                                              is_bespoke_mode=is_bespoke_mode,
+                                              is_doc_structure=is_doc_structure,
+                                              is_use_corenlp=span_annotator.get_is_use_corenlp(),
+                                              # we need the file order to be stable, even if input
+                                              # file order is changed.
+                                              is_sort_by_file_id=True)
     # we don't care about the file order for testing
     X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
                                                    work_dir,
                                                    is_bespoke_mode=is_bespoke_mode,
                                                    is_doc_structure=is_doc_structure,
+                                                   # pylint: disable=line-too-long
                                                    is_use_corenlp=span_annotator.get_is_use_corenlp())
 
     # candidate generation on training set
     train_antdoc_candidatex_list = \
         span_annotator.documents_to_candidates(X_train, provision)
+    # We use the whole doc for test later, in span_annotator.test_antdoc_list(X_test, ...)
     # candidate generation on test set
-    test_antdoc_candidatex_list = \
-        span_annotator.documents_to_candidates(X_test, provision)
+    # test_antdoc_candidatex_list = \
+    #     span_annotator.documents_to_candidates(X_test, provision)
 
     train_candidates, train_label_list, train_group_ids = \
         spanannotator.antdoc_candidatex_list_to_candidatex(train_antdoc_candidatex_list)
@@ -711,7 +717,7 @@ def train_eval_span_annotator(provision: str,
     # pred_status = \
     #     span_annotator.predict_and_evaluate(test_candidates,
     #                                         test_label_list,
-    #                                        work_dir)
+    #                                         work_dir)
 
     unused_ant_status, log_json = \
         span_annotator.test_antdoc_list(X_test,
@@ -746,10 +752,11 @@ def eval_rule_annotator_with_trte(label: str,
     else:
         test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, label)
 
-    test_antdoc_list = rule_annotator.doclist_to_antdoc_list(test_doclist_fn,
-                                                             work_dir,
-                                                             is_doc_structure=False,
-                                                             is_use_corenlp=rule_annotator.get_is_use_corenlp())
+    test_antdoc_list = \
+        rule_annotator.doclist_to_antdoc_list(test_doclist_fn,
+                                              work_dir,
+                                              is_doc_structure=False,
+                                              is_use_corenlp=rule_annotator.get_is_use_corenlp())
 
     # the eval result is already saved in span_annotator
     unused_ant_status = rule_annotator.test_antdoc_list(test_antdoc_list)

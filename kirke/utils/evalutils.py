@@ -11,6 +11,7 @@ from kirke.utils.ebsentutils import ProvisionAnnotation
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# pylint: disable=fixme
 # TODO, verify IS_DIAGNOSE_MODE is used for logformat?
 IS_DIAGNOSE_MODE = True
 IS_DEBUG = False
@@ -64,7 +65,8 @@ def calc_precision_recall_f1(tn: int,
                              fp: int,
                              fn: int,
                              tp: int,
-                             title: str = None) -> Tuple[float, float, float]:
+                             title: Optional[str] = None) \
+                             -> Tuple[float, float, float]:
     if title:
         print("\n" + title)
     actual_true = fn + tp

@@ -273,9 +273,8 @@ def make_copy_custid_in_ant_fn_list(cust_id: str,
 
 
 def ebdata_to_ant_file(ebdata_fname: str, ant_fname: str) -> None:
-    prov_ant_list, is_test_set = load_prov_ebdata(ebdata_fname)
+    prov_ant_list, unused_is_test_set = load_prov_ebdata(ebdata_fname)
 
     ant_list = [prov_ant.to_dict() for prov_ant in prov_ant_list]
     with open(ant_fname, 'wt') as fout:
         print(json.dumps(ant_list), file=fout)
-

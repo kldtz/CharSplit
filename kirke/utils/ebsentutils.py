@@ -232,6 +232,7 @@ def _extract_entities(tokens, wanted_ner_names):
 NAME_POS_SET = set(['NNS', 'CD', 'NNP', 'NN', 'POS'])
 
 # this is destructive/in-place
+# pylint: disable=fixme
 # TODO, recursive import
 # tokens: List[corenlpsent.EbToken]
 # pylint: disable=too-many-branches
@@ -299,6 +300,7 @@ def get_sechead_attr(attrs):
 
 
 # this is in-place
+# pylint: disable=fixme
 # TODO, this type declaration will cause recursive import.
 # Should move to a better location.
 # def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],

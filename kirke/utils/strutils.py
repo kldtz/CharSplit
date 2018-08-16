@@ -624,6 +624,7 @@ def remove_number_types(text: str) -> Tuple[int, int, int,
             num_date += 1
         else:
             tmp_word = word
+            # pylint: disable=redefined-outer-name
             for word in tmp_word.split('/'):
 
                 #if word == '$':

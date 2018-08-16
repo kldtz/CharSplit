@@ -54,8 +54,11 @@ class DateNormalizer(DocCandidatesTransformer):
             # set dayfirst=True for UK dates, revisit later
             # print("parse_date({})".format(line))
             # Please Note: We changed the returns result to be a dict instead of datetime.datetime
-            # typically parser.parse requires a datetime object as a default but we pass the function NoDefaultDate to return a dict
-            norm = parser.parse(line, fuzzy=True, default=NoDefaultDate())  # type: Dict[str, int]
+            # typically parser.parse requires a datetime object as a default but we pass
+            # the function NoDefaultDate to return a dict
+            # This type initiation is to bypass the mypy checking
+            norm = {'day': -1}  # type: Dict[str, int]
+            norm = parser.parse(line, fuzzy=True, default=NoDefaultDate())  # type: ignore
         except ValueError:
             # logger.debug("Failed to parse_date(%s) as a date.  Branch 1.", line)
             return None

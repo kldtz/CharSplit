@@ -1,11 +1,16 @@
-from kirke.utils import strutils
+
 from typing import List
+
+from kirke.utils import strutils
 
 DEBUG_MODE = False
 
+
+# pylint: disable=too-many-locals
 def is_energy_rate_table(st_list: List[str]):
     num_year = 0
-    num_list = []
+    num_list = []  # type: List[int]
+    # pylint: disable=invalid-name
     found_MWh = False
     found_contract_rate = False
     found_payment_rate = False
@@ -18,7 +23,7 @@ def is_energy_rate_table(st_list: List[str]):
         table_text = ' '.join(st_list)
         print("table_text =[{}]".format(table_text))
 
-    for linenum, line_st in enumerate(st_list):
+    for unused_linenum, line_st in enumerate(st_list):
         words = line_st.split()
         lc_line_st = line_st.lower()
 
@@ -64,33 +69,21 @@ def is_energy_rate_table(st_list: List[str]):
         print("found_column_year = {}".format(found_column_year))
         print("found_dollar = {}".format(found_dollar))
 
-    if (found_exhibit
-        and
-        (found_contract_rate or
-         found_payment_rate or
-         found_pricing)
-        and
-        (found_MWh or num_year > 3 or has_num_seq)):
+    if found_exhibit and \
+       (found_contract_rate or found_payment_rate or found_pricing) and \
+       (found_MWh or num_year > 3 or has_num_seq):
         return True
 
     # a relax constraint, because "exhibit is missing"?
-    if  ((found_contract_rate or
-          found_payment_rate or
-          found_pricing)
-         and
-         found_column_year
-         and
-         found_dollar):
+    if  (found_contract_rate or found_payment_rate or found_pricing) and \
+        found_column_year and \
+        found_dollar:
         return True
 
     # no exhibit
-    if ((found_contract_rate or
-         found_payment_rate or
-         found_pricing)
-        and
-        found_MWh
-        and
-        num_year > 3):
+    if (found_contract_rate or found_payment_rate or found_pricing) and \
+       found_MWh and \
+       num_year > 3:
         return True
 
     return False
@@ -116,6 +109,7 @@ def classify_table_list(table_span_list, doc_text):
 
 
 # this is a hack, not really work for any numeric list
+"""
 def find_any_numeric_seq(num_list):
     if len(num_list) < 3:
         return False
@@ -127,6 +121,7 @@ def find_any_numeric_seq(num_list):
         if index3 < index4 and index4 < index5:
             return True
     return False
+"""
 
 
 def find_any_numeric_seq(num_list):

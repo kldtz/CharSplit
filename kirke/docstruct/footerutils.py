@@ -1,14 +1,16 @@
 from collections import Counter
 import itertools
 import re
-from typing import List, Match, Set
+# pylint: disable=unused-import
+from typing import List, Set
 
 from kirke.docstruct import lxlineinfo
 from kirke.utils import strutils
 
 
 # [\dl] with "l" is for "1", but ocr sometimes mistaken l
-PAGENUM_PAT = re.compile(r'^\s*(\bpages?)?\(\s*?\-*(\d+|[ivxm]+|[A-Z]-[\dl]+)\-*\s*\)?\s*$', re.IGNORECASE)
+PAGENUM_PAT = re.compile(r'^\s*(\bpages?)?\(\s*?\-*(\d+|[ivxm]+|[A-Z]-[\dl]+)\-*\s*\)?\s*$',
+                         re.IGNORECASE)
 
 
 PAGENUM_SIMPLE1_PAT = re.compile(r'^\s*(\-*\s*\d+\s*\-*)\s*$')
@@ -29,21 +31,24 @@ PAGENUM_PAT4 = re.compile(r'^\s*\-?[ivxm]+\-?\s*$', re.IGNORECASE)
 PAGENUM_PAT5 = re.compile(r'^\s*pages?\s*\d+\s*of\s*\d+\s*$', re.IGNORECASE)
 
 # borrowed from secheadutils.py
-SECHEAD_PREFIX_PAT = re.compile(r'(article|appendix|section|exhibit|recital)\s*\d+\s*', re.IGNORECASE)
+SECHEAD_PREFIX_PAT = re.compile(r'(article|appendix|section|exhibit|recital)\s*\d+\s*',
+                                re.IGNORECASE)
 
-def get_first_last_n_elements(alist: List, n=1) -> List:
+def get_first_last_n_elements(alist: List, nval=1) -> List:
     # only add new lineinfo, sometimes a page can have less than 3 lines
     result = []
     seen_set = set([])  # type: Set
-    for elmt in itertools.chain(alist[:n],
-                                alist[-n:]):
+    for elmt in itertools.chain(alist[:nval],
+                                alist[-nval:]):
         if elmt not in seen_set:
             result.append(elmt)
             seen_set.add(elmt)
     return result
 
 
-def get_first_last_n_prev_infos(alist: List, lineinfo_list) -> List:
+def get_first_last_n_prev_infos(alist: List,
+                                # pylint: disable=unused-argument
+                                lineinfo_list) -> List:
     # only add new lineinfo, sometimes a page can have less than 3 lines
     sent_seq_list = [linfo.sid for linfo in alist]
 
@@ -57,6 +62,7 @@ def get_first_last_n_prev_infos(alist: List, lineinfo_list) -> List:
     return prev_sent_list
 
 
+# pylint: disable=too-many-return-statements
 def classify_line_page_number(line: str):
     if PAGENUM_SIMPLE1_PAT.match(line):
         # print("pagenumber x1: {}".format(line))
@@ -93,8 +99,8 @@ def classify_line_page_number(line: str):
     # page 4 of 5
     if PAGENUM_PAT5.match(line):
         # print("pagenumber x3: {}".format(line))
-        return True    
-    
+        return True
+
     return False
 
 
@@ -113,24 +119,26 @@ tmpst = 'article14'
 print("is_seaction_head({}) = {}".format(tmpst, is_sechead(tmpst)))
 """
 
-
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def find_pagenum_footer(page_lineinfos_list):
     num_pages = len(page_lineinfos_list)
 
     pagenum_results = []
     word_counter = Counter()
     page_num_candidates = []
-    
+
     # only take the first 3 and last 3 sentence of a page
     for page_lineinfo_list in page_lineinfos_list:
         # only add new lineinfo, sometimes a page can have less than 3 lines
         first_last_n_infos = get_first_last_n_elements(page_lineinfo_list, 3)
-        # first_last_n_prev_infos = get_first_last_n_prev_infos(first_last_n_infos, page_lineinfo_list)
+        # first_last_n_prev_infos = get_first_last_n_prev_infos(first_last_n_infos,
+        #                                                       page_lineinfo_list)
 
         xpage_pagenum_results = []
         for lineinfo in first_last_n_infos:
             if lxlineinfo.is_short_sent_by_length(lineinfo.length):
-                # print('short line #{} len={}: {}'.format(lineinfo.sid, lineinfo.length, lineinfo.text))
+                # print('short line #{} len={}: {}'.format(lineinfo.sid,
+                #                                          lineinfo.length, lineinfo.text))
                 # for word in lineinfo.words:
                 #    print("    word {}".format(word))
                 word_counter.update(lineinfo.words)
@@ -149,7 +157,7 @@ def find_pagenum_footer(page_lineinfos_list):
             xpage_pagenum.category = 'pagenum'
             pagenum_results.append(xpage_pagenum)
 
-# can remove this once more comfortable            
+# can remove this once more comfortable
         """
 def find_pagenum_footer(page_lineinfos_list):
     num_pages = len(page_lineinfos_list)
@@ -160,7 +168,7 @@ def find_pagenum_footer(page_lineinfos_list):
     for page_lineinfo_list in page_lineinfos_list:
         # only add new lineinfo, sometimes a page can have less than 3 lines
         lineinfo_list.extend(get_first_last_n_elements(page_lineinfo_list, 3))
-                
+
     word_counter = Counter()
     page_num_candidates = []
     for lineinfo in lineinfo_list:
@@ -177,14 +185,15 @@ def find_pagenum_footer(page_lineinfos_list):
 """
     pagenum_lineinfo_set = set(pagenum_results)
 
+    # pylint: disable=invalid-name
     MIN_FOOTER_FREQ = num_pages / 2
     freq_word_10 = []
     for word, freq in word_counter.most_common(10):
         # print("({}), freq={}".format(word, freq))
         # jshaw, TODO, weird, need to check for word of size 0???
-        if (word and not strutils.is_punct(word[0]) and
-            word not in ['not', 'an'] and
-            freq >= MIN_FOOTER_FREQ):
+        if word and not strutils.is_punct(word[0]) and \
+           word not in ['not', 'an'] and \
+           freq >= MIN_FOOTER_FREQ:
             freq_word_10.append(word)
     #print("num_pages", num_pages)
     #print("top 10")
@@ -199,7 +208,7 @@ def find_pagenum_footer(page_lineinfos_list):
         # footer and pagenumber are separate
         if lineinfo in pagenum_lineinfo_set:
             continue
-        
+
         count_freq_word = 0
         lineinfo_char_count = 0
         char_overlap_count = 0
@@ -210,21 +219,21 @@ def find_pagenum_footer(page_lineinfos_list):
             if word in freq_word_10_set:
                 count_freq_word += 1
                 char_overlap_count += len(word)
-            if (strutils.is_both_alpha_and_num(word) or
-                strutils.has_digit(word) or
-                strutils.is_all_punct(word)):
+            if strutils.is_both_alpha_and_num(word) or \
+               strutils.has_digit(word) or \
+               strutils.is_all_punct(word):
                 num_both_alphanum_word += 1
             if strutils.is_alpha_word(word):
                 num_alpha_word += 1
 
         # '7%', part of a table
-        if (strutils.is_num_perc(lineinfo.text) or
-            strutils.is_num_period(lineinfo.text) or
-            strutils.is_dollar_num(lineinfo.text)):
+        if strutils.is_num_perc(lineinfo.text) or \
+           strutils.is_num_period(lineinfo.text) or \
+           strutils.is_dollar_num(lineinfo.text):
             continue
         if is_sechead(lineinfo.text):
-            continue        
-        
+            continue
+
         # perc = count_freq_word / lineinfo.length
         perc = 0
         if lineinfo_char_count:  # to avoid division by zero
@@ -246,7 +255,7 @@ def find_pagenum_footer(page_lineinfos_list):
             footer_results.append(lineinfo)
 
     # check if the footers found are valid footers
-    tmp_footer_results = [] 
+    tmp_footer_results = []
     for linfo in footer_results:
         if '%' in linfo.text:  # remove any "22%", probably from tables
             continue
@@ -269,19 +278,19 @@ def find_pagenum_footer(page_lineinfos_list):
                 # print("last_linfo: {}".format(last_linfo))
                 # print("next_last_linfo: {}".format(next_last_linfo))
 
-                if next_last_linfo.category == 'pagenum' and last_linfo.is_english == False:
+                if next_last_linfo.category == 'pagenum' and last_linfo.is_english is False:
                     last_linfo.category = 'footer'
                     footer_results.append(last_linfo)
-                elif last_linfo.category == 'pagenum' and next_last_linfo.is_english == False:
+                elif last_linfo.category == 'pagenum' and next_last_linfo.is_english is False:
                     next_last_linfo.category = 'footer'
-                    footer_results.append(next_last_linfo)                
-        
+                    footer_results.append(next_last_linfo)
+
     # there is no guarantee that the footer will be the last 3 line because pdf transformer
     # can reorder lines, especially lines related to address or signature might interfere.
     footer_st_set = set([lineinfo.text for lineinfo in footer_results])
     footer_lineinfo_set = set(footer_results)
     # print('footer_st_list = {}'.format(footer_st_set))
-    for page_lineinfo_list in page_lineinfos_list:    
+    for page_lineinfo_list in page_lineinfos_list:
         for lineinfo in page_lineinfo_list:
             if lineinfo not in footer_lineinfo_set:
                 if lineinfo.text in footer_st_set:  # add new one
@@ -291,7 +300,7 @@ def find_pagenum_footer(page_lineinfos_list):
 
     # probably should sort footer_results here
     footer_results = sorted(footer_results)
-            
+
     #if are_words_numbers([lineinfo.words[0] for lineinfo in footer_lineinfo_list], 0.6):
     #    for pnum, lineinfo in zip(result, footer_lineinfo_list):
     #        pnum.page_number = lineinfo.words[0]

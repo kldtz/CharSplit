@@ -1,4 +1,6 @@
 import re
+# pylint: disable=unused-import
+from typing import List, Set, Tuple
 
 from kirke.utils import mathutils
 
@@ -62,23 +64,23 @@ US_STATES_ST = r'\b(' + '|'.join([state.lower() for state in US_STATE_LIST]) + r
 US_STATES_PAT = re.compile(r'\b(' + '|'.join([state.lower() for state in US_STATE_LIST]) + r')\b', re.IGNORECASE)
 # print("states = {}".format(US_STATES_ST))
 
-def extract_states(line):
-    state_list = []
-    for m in US_STATES_PAT.finditer(line):
-        start = m.start(1)
-        end = m.end(1)
+def extract_states(line: str) -> List[Tuple[int, int, str]]:
+    state_list = []  # type: List[Tuple[int, int, str]]
+    for mat in US_STATES_PAT.finditer(line):
+        start = mat.start(1)
+        end = mat.end(1)
         # print("found ({}, {}) [{}]".format(start, end, az_st[start:end]))
-        state_list.append((start, end, m.group(1)))
+        state_list.append((start, end, mat.group(1)))
     return state_list
 
 
-def extract_unique_states(line):
-    state_list = []
-    found_state_set = set([])
-    for m in US_STATES_PAT.finditer(line):
-        start = m.start(1)
-        end = m.end(1)
-        state = m.group(1)
+def extract_unique_states(line: str) -> List[Tuple[int, int, str]]:
+    state_list = []  # type: List[Tuple[int, int, str]]
+    found_state_set = set([])  # type: Set[str]
+    for mat in US_STATES_PAT.finditer(line):
+        start = mat.start(1)
+        end = mat.end(1)
+        state = mat.group(1)
         # print("found ({}, {}) [{}]".format(start, end, az_st[start:end]))
         if state not in found_state_set:
             state_list.append((start, end, state))

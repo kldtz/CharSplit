@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 
 import logging
-import time
+# pylint: disable=unused-import
+from typing import Dict, List, Set
 
 from nltk import FreqDist
 import numpy as np
 from scipy import sparse
 from sklearn import preprocessing
-from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.feature_extraction.text import CountVectorizer
 
 from kirke.eblearn import ebattrvec
 from kirke.eblearn import igain, bigramutils
+from kirke.eblearn.ebtransformerbase import EbTransformerBase
 from kirke.utils import stopwordutils, strutils
 
-from kirke.eblearn.ebtransformerbase import EbTransformerBase
 
-from sklearn.feature_extraction.text import CountVectorizer
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -40,6 +40,7 @@ def get_transformer_attr_list_by_provision(provision: str):
 
 # this is a class specific transformer because of information gain and
 # class-specific cols_to_keep array.
+# pylint: disable=too-many-instance-attributes
 class EbTransformerV1_2(EbTransformerBase):
 
     # MAX_NUM_TOP_WORDS_IN_BAG = 25000
@@ -47,12 +48,12 @@ class EbTransformerV1_2(EbTransformerBase):
     MAX_NUM_BI_TOPGRAM_WORDS = 175
 
     """Transform a list ebantdoc to matrix."""
-    def __init__(self, provision):
+    def __init__(self, provision: str) -> None:
         # provision is needed because of infogain computation need to know the classes
-        super(EbTransformerV1_2, self).__init__(provision)
+        super().__init__(provision)
         self.version = '1.2'
 
-        logger.info('EbTransformerV1_2({})'.format(self.provision))
+        logger.info('EbTransformerV1_2(%s)', self.provision)
         (binary_attr_list, numeric_attr_list, categorical_attr_list) = \
                 get_transformer_attr_list_by_provision(self.provision)
 
@@ -66,15 +67,19 @@ class EbTransformerV1_2(EbTransformerBase):
         self.min_max_scaler = preprocessing.MinMaxScaler()
         self.one_hot_encoder = preprocessing.OneHotEncoder(handle_unknown='ignore')
 
-        self.n_top_positive_words = []
-        self.vocab_id_map = {}
-        self.positive_vocab = {}
+        self.n_top_positive_words = []  # type: List[str]
+        self.vocab_id_map = {}  # type: Dict[str, int]
+        self.positive_vocabs = set([])  # type: Set[str]
 
-        self.vocabulary = {}  # used for bi_topgram_matrix generation
+        # used for bi_topgram_matrix generation
+        self.vocabulary = {}  # type: Dict[str, int]
 
+        # handling sechead, with min appearance in sentence = 5
+        # now changed to 2 because custom training corpus might have only 6 docs
+        self.sechead_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
 
     # label_list is a list of booleans
-    # pylint: disable=R0912, R0914
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     def ebantdoc_list_to_csr_matrix(self,
                                     attrvec_list,
                                     label_list,
@@ -158,6 +163,8 @@ class EbTransformerV1_2(EbTransformerBase):
 
             # handling sechead, with min appearance in sentence = 5
             # now changed to 2 because custom training corpus might have only 6 docs
+            # Before 08/15/2018, self.sechead_vectorizer is not in _init_(),
+            # so do here as before, just in case
             self.sechead_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
             # If there is no section head vocab due to some reason, such as a very small
             # custom training corpus, simply add a dummpy vocab.
@@ -217,6 +224,7 @@ class EbTransformerV1_2(EbTransformerBase):
         # return sparse_comb_matrix, bi_topgram_matrix, sent_st_list
         return X
 
+    # pylint: disable=too-many-locals
     def gen_bi_topgram_matrix(self, sent_st_list, fit_mode=False):
         # print("len(sent_st_list)= {}".format(len(sent_st_list)))
         # for each sentence, find which top words it contains.  Then generate all pairs of these,
@@ -226,7 +234,8 @@ class EbTransformerV1_2(EbTransformerBase):
         data = []
         for sent_st in sent_st_list:
             sent_words = set(sent_st.split())   # TODO, a little repetitive, split again
-            found_words = [common_word for common_word in self.n_top_positive_words if common_word in sent_words]
+            found_words = [common_word for common_word
+                           in self.n_top_positive_words if common_word in sent_words]
 
             for index_w1, tmp_w1 in enumerate(found_words):
                 for index_w2 in range(index_w1 + 1, len(found_words)):

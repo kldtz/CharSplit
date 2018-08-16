@@ -1,5 +1,5 @@
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from kirke.utils import ebantdoc5, ebsentutils, strutils
 
@@ -13,12 +13,12 @@ class LineSpanGenerator:
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
-                             label: str = None) -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
-                                                              List[Dict],
-                                                              List[bool],
-                                                              List[int]]]:
-
+                                antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                                label: Optional[str] = None) \
+                                -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
+                                              List[Dict],
+                                              List[bool],
+                                              List[int]]]:
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc5.EbAnnotatedDoc, List[Dict], List[bool], List[int]]]
         # each candidate is the date regex +
@@ -65,12 +65,12 @@ class LineSpanGenerator:
                                                                end,
                                                                label_ant_list)
                 a_candidate = {'candidate_type': 'line',
-                            'start': start,
-                            'end': end,
-                            'line_seq': notempty_line_seq,
-                            'text': nl_text[start:end],
-                            'prev_n_words': ' '.join(prev_n_words),
-                            'post_n_words': ' '.join(post_n_words)}
+                               'start': start,
+                               'end': end,
+                               'line_seq': notempty_line_seq,
+                               'text': nl_text[start:end],
+                               'prev_n_words': ' '.join(prev_n_words),
+                               'post_n_words': ' '.join(post_n_words)}
                 notempty_line_seq += 1
 
                 if is_label:

@@ -182,10 +182,11 @@ class ProvisionAnnotator:
             out_list = [(prob, attrvec.start, attrvec) for prob, attrvec in prob_attrvec_list]
             out_list = sorted(out_list, reverse=True)
             for sent_count, (prob, tmp_start, attrvec) in enumerate(out_list):
-                print("~~ prob {}: {:.3f}, [{}] sechead={}".format(sent_count,
-                                                                   prob,
-                                                                   nlp_text[attrvec.start:attrvec.end],
-                                                                   attrvec.sechead))
+                print("~~ prob {}: {:.3f}, [{}] sechead={}".
+                      format(sent_count,
+                             prob,
+                             nlp_text[attrvec.start:attrvec.end],
+                             attrvec.sechead))
         """
 
         try:

@@ -1,5 +1,4 @@
 import logging
-import re
 from typing import Dict, List, Optional, Pattern, Tuple
 
 from kirke.utils import ebantdoc5, ebsentutils, strutils

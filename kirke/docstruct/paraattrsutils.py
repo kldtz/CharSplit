@@ -1,11 +1,15 @@
 
-from typing import Dict, List, Tuple
+# pylint: disable=unused-import
+from typing import Any, List, Dict, Tuple, Union
 
 from kirke.docstruct import linepos
 
 # pylint: disable=too-many-locals
+# for pdftxtparser, the 2nd argument in paras_with_attrs is a List
+# for abbyxmlparser, the 2nd attribute in paras_with_attrs is a Dict
+# but this doesn't work, Union[Dict, List]]]
 def print_paras_with_attrs(paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-                                                        Dict]],
+                                                        Any]],
                            doc_text: str,
                            nlp_text: str,
                            out_file_name: str) -> None:

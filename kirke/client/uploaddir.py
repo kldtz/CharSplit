@@ -6,12 +6,13 @@ import os
 import requests
 
 
-def upload_train_dir(url_st: str, upload_dir: str, candidate_types: str, nbest: int = -1):
+# pylint: disable=too-many-locals
+def upload_train_dir(url_st: str, upload_dir: str, candidate_types: str, nbest: int = -1) -> None:
     txt_fnames, ant_fnames = [], []
     offsets_fnames = []
     pdfxml_fnames = []
     for file in os.listdir(upload_dir):
-        fname = '{}/{}'.format(args.upload_dir, file)
+        fname = '{}/{}'.format(upload_dir, file)
         if file.endswith(".txt"):
             txt_fnames.append(fname)
         elif file.endswith(".ant"):
@@ -23,7 +24,7 @@ def upload_train_dir(url_st: str, upload_dir: str, candidate_types: str, nbest: 
 
     if not txt_fnames:
         print("cannot find any .txt files", file=sys.stderr)
-        return -1
+        return
 
     file_tuple_list = []
     ant_fname_set = set(ant_fnames)
@@ -60,19 +61,18 @@ def upload_train_dir(url_st: str, upload_dir: str, candidate_types: str, nbest: 
     print("Number of file uploaded: {}".format(len(file_tuple_list)))
     # print("file_tuple_list = {}".format(file_tuple_list))
     # payload = {'custom_id': 'custom_id2'}
-    resp = requests.post(url_st, files=file_tuple_list, data=payload, timeout=6000)
+    resp = requests.post(url_st, files=file_tuple_list, data=payload, timeout=6000)  # type: ignore
     print(resp.text)
 
 
-
-# pylint: disable=C0103
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='identify the language')
     parser.add_argument('-v', '--verbosity', help='increase output verbosity')
     parser.add_argument('--url', help='url to post the files')
     parser.add_argument('--custid', default='12345', help='custom-id')
     parser.add_argument('--provision', help='custom-id')
-    parser.add_argument('--candidate_types', default='SENTENCE', help='SENTENCE, CURRENCY, DATE, ADDRESS, NUMBER, PERCENT')
+    parser.add_argument('--candidate_types', default='SENTENCE',
+                        help='SENTENCE, CURRENCY, DATE, ADDRESS, NUMBER, PERCENT')
     parser.add_argument('--nbest', default=-1, help='url to post the files')
     parser.add_argument('upload_dir', help='directory to upload')
 
@@ -92,3 +92,7 @@ if __name__ == '__main__':
 
     # provision = 'cust_{}'.format(args.custid)
     upload_train_dir(url, args.upload_dir, args.candidate_types, nbest)
+
+
+if __name__ == '__main__':
+    main()

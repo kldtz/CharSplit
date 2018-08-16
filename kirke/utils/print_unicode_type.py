@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
+from collections import defaultdict
 import sys
 import unicodedata
-from collections import defaultdict
+# pylint: disable=unused-import
+from typing import DefaultDict, List
+
 
 print("max unicode = " + str(sys.maxunicode))
 
+UNICODE_CATEGORY = defaultdict(list)  # type: DefaultDict[str, List[str]]
 
-UNICODE_CATEGORY = defaultdict(list)
 for c in map(chr, range(sys.maxunicode + 1)):
     UNICODE_CATEGORY[unicodedata.category(c)].append(c)
 

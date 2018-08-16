@@ -5,6 +5,7 @@ import logging
 
 from kirke.utils import stopwordutils, strutils
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -50,9 +51,9 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
             if label_tf:
                 pos_word_freq_map[word] += 1
 
-    logger.debug("len(word_freq_map) = {}".format(len(word_freq_map)))
-    logger.debug("len(pos_word_freq_map) = {}".format(len(pos_word_freq_map)))
-    logger.debug("positive_sent_count = {}".format(positive_st_count))
+    logger.debug("len(word_freq_map) = %d", len(word_freq_map))
+    logger.debug("len(pos_word_freq_map) = %d", len(pos_word_freq_map))
+    logger.debug("positive_sent_count = %d", positive_st_count)
 
     vocabs = set([])
     positive_vocabs = set([])
@@ -64,11 +65,11 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
             break
         vocabs.add(word)
         positive_vocabs.add(word)
-    logger.debug("len(positive vocab) = {}".format(len(vocabs)))
+    logger.debug("len(positive vocab) = %d", len(vocabs))
 
     for word, freq in sorted(word_freq_map.items(), key=operator.itemgetter(1), reverse=True):
         if word_count > NUMBER_OF_TOP_WORDS:
-            logger.debug("skipping word with freq less than {}".format(freq))
+            logger.debug("skipping word with freq less than %d", freq)
             break
         if word not in vocabs:
             word_count += 1
