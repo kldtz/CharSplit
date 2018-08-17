@@ -15,6 +15,7 @@ def start_end_subsume(stend1, stend2):
     start2, end2 = stend2
     return start1 <= start2 and end1 >= end2
 
+
 def is_subsumed(alist, elt):
     # print("is_subsumed(): {}".format(alist))
     for anitem in alist:
@@ -24,6 +25,7 @@ def is_subsumed(alist, elt):
                               elt[1])):
             return True
     return False
+
 
 def remove_subsumed(alist):
     if not alist:
@@ -41,11 +43,13 @@ def remove_subsumed(alist):
             result.append(elt)
     return result
 
+
 def offset_percentage(offsets1, offsets2):
     """A metric for how exact a true positive matches an annotated provision."""
     distance = abs(offsets2[0] - offsets1[0]) + abs(offsets2[1] - offsets1[1])
     total_characters = (offsets1[1] - offsets1[0]) + (offsets2[1] - offsets2[0])
     return 100 * max(1 - distance / total_characters, 0)
+
 
 def offset_score(answers_offsets, pred_offsets):
     """Returns the best offset_percentage. Returned 0s should be ignored."""
@@ -57,6 +61,7 @@ def find_in_list_of_set(list_of_set, elt):
         if elt in aset:
             return aset
     return set()
+
 
 # pairs is a list of 2-tuples
 def pairs_to_sets(pairs):
@@ -119,6 +124,7 @@ def find_overlap_ids(id_se: Tuple[int, int, int],
             result.append(yid)
     return result
 
+
 def find_overlaps_in_id_se_list(id_se_list: List[Tuple[int, int, int]]) -> List[List[int]]:
     overlap_pair_list = []  # type: List[Tuple[int, int]]
     id_overlap_ids_map = {}  # type: Dict[int, Set[int]]
@@ -171,3 +177,31 @@ def calc_float_list_mode(ilist: List[float], ndigits: int = 2) -> float:
     # This can be more optimized using a defaultdict.
     # Repeatedly calling ilist.count is not efficient.
     return max(set(ilist), key=ilist.count)
+
+
+def calc_interval_overlap_percent(top: int,
+                                  bot: int,
+                                  prev_block_top: int,
+                                  prev_block_bot: int) -> float:
+    diff = min(bot, prev_block_bot) - max(top, prev_block_top)
+    if prev_block_bot - prev_block_top > bot - top:
+        return diff / (prev_block_bot - prev_block_top)
+    return diff / (bot - top)
+
+
+def is_interval_overlap(top: int,
+                        bot: int,
+                        prev_block_top: int,
+                        prev_block_bot: int,
+                        threshold: float = 0.4) \
+                        -> bool:
+    is_overlap = top < prev_block_bot and \
+                 prev_block_top < bot
+    if is_overlap:
+        perc_overlap = calc_interval_overlap_percent(top,
+                                                     bot,
+                                                     prev_block_top,
+                                                     prev_block_bot)
+        if perc_overlap >= threshold:
+            return True
+    return False

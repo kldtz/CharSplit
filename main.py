@@ -433,6 +433,19 @@ def main():
                                           provision_set=provs,
                                           is_doc_structure=True)
         pprint.pprint(dict(prov_ants_map))
+    elif cmd == 'print_table_cand':
+        if not args.doc:
+            print('please specify --doc', file=sys.stderr)
+            sys.exit(1)
+        provs = set(['TABLE'])
+        print("\nprint_table_cand() result:")
+        prov_ants_map = annotate_document(args.doc,
+                                          work_dir,
+                                          model_dir,
+                                          custom_model_dir,
+                                          provision_set=provs,
+                                          is_doc_structure=True)
+        pprint.pprint(dict(prov_ants_map))
     elif cmd == 'print_doc_parties':
         if not args.doc:
             print('please specify --doc', file=sys.stderr)

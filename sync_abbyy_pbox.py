@@ -3,14 +3,12 @@
 import argparse
 import logging
 import os
-import sys
-from typing import TextIO
 
 from kirke.docstruct import pdftxtparser
 
-from kirke.abbyxml import abbyxmlparser
-from kirke.abbyxml.pdfoffsets import AbbyTableBlock, AbbyTextBlock, AbbyXmlDoc
-from kirke.abbyxml.abbypbox_syncher import sync_doc_offsets, print_abby_pbox_sync, print_abby_pbox_unsync
+from kirke.abbyyxml import abbyyxmlparser
+from kirke.abbyyxml.abbyypbox_syncher import sync_doc_offsets, print_abbyy_pbox_sync
+from kirke.abbyyxml.abbyypbox_syncher import print_abbyy_pbox_unsync
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(levelname)s : %(message)s')
@@ -36,8 +34,8 @@ if __name__ == '__main__':
     xml_fname = fname.replace('.txt', '.pdf.xml')
 
     work_dir = 'dir-work'
-    abby_xml_doc = abbyxmlparser.parse_document(xml_fname, work_dir=work_dir)
-    # abby_xml_doc.print_text()
+    abbyy_xml_doc = abbyyxmlparser.parse_document(xml_fname, work_dir=work_dir)
+    # abbyy_xml_doc.print_text()
 
     txt_fname = fname
     pdf_txt_doc = pdftxtparser.parse_document(txt_fname, work_dir=work_dir)
@@ -53,35 +51,35 @@ if __name__ == '__main__':
         pdf_txt_doc.save_str_text(file=fout)
         print('wrote {}'.format(txt_str_fname))
 
-    sync_doc_offsets(abby_xml_doc, pdf_txt_doc)
+    sync_doc_offsets(abbyy_xml_doc, pdf_txt_doc)
 
     txt_infer_fname = work_fname.replace('.txt', '.txt.infer')
     with open(txt_infer_fname, 'wt') as fout:
-        abby_xml_doc.print_infer_text(file=fout)
+        abbyy_xml_doc.print_infer_text(file=fout)
         print('wrote {}'.format(txt_infer_fname))
 
     # has both infer_attr_dict and attr_dict
     txt_debug_fname = work_fname.replace('.txt', '.txt.debug')
     with open(txt_debug_fname, 'wt') as fout:
-        abby_xml_doc.print_debug_text(file=fout)
+        abbyy_xml_doc.print_debug_text(file=fout)
         print('wrote {}'.format(txt_debug_fname))
 
-    # abby_xml_doc.print_text()
+    # abbyy_xml_doc.print_text()
     txt_meta_fname = work_fname.replace('.txt', '.txt.meta')
     with open(txt_meta_fname, 'wt') as fout:
-        abby_xml_doc.print_text_with_meta(file=fout)
+        abbyy_xml_doc.print_text_with_meta(file=fout)
         print('wrote {}'.format(txt_meta_fname))
 
     txt_sync_fname = work_fname.replace('.txt', '.txt.sync')
     with open(txt_sync_fname, 'wt') as sync_fout:
-        print_abby_pbox_sync(abby_xml_doc,
-                             pdf_txt_doc.doc_text,
-                             file=sync_fout)
+        print_abbyy_pbox_sync(abbyy_xml_doc,
+                              pdf_txt_doc.doc_text,
+                              file=sync_fout)
         print('wrote {}'.format(txt_sync_fname))
 
 
     txt_unsync_fname = work_fname.replace('.txt', '.txt.unsync')
     with open(txt_unsync_fname, 'wt') as unsync_fout:
-        print_abby_pbox_unsync(abby_xml_doc,
-                               file=unsync_fout)
+        print_abbyy_pbox_unsync(abbyy_xml_doc,
+                                file=unsync_fout)
         print('wrote {}'.format(txt_unsync_fname))

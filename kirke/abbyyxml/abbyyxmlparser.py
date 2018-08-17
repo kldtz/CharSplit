@@ -498,7 +498,8 @@ def parse_document(file_name: str,
     abbyyutils.infer_header_footer_doc(ab_xml_doc)
 
     # set page number block number at the end
-    set_abbyy_page_numbers(ab_xml_doc)
+    # This also setup page.text_blocks, table_blocks, and signature_blocks
+    set_abbyy_page_numbers_tables(ab_xml_doc)
 
     return ab_xml_doc
 
@@ -514,7 +515,9 @@ def parse_document(file_name: str,
     print_text(ajson, doc_attrs)
     """
 
-def set_abbyy_page_numbers(ab_doc: AbbyyXmlDoc) -> None:
+def set_abbyy_page_numbers_tables(ab_doc: AbbyyXmlDoc) -> None:
+    """This sets page numbers, and also ab_page.table_block, text_blocks, and signature blocks.
+    """
     block_id = 0
     par_id = 0
     lid = 0
@@ -525,7 +528,9 @@ def set_abbyy_page_numbers(ab_doc: AbbyyXmlDoc) -> None:
         abbyy_page.num = pnum
 
         for ab_block in abbyy_page.ab_blocks:
-            if isinstance(ab_block, AbbyyTextBlock):
+            if tableutils.is_signature_block(ab_block):
+                abbyy_page.ab_signature_blocks.append(ab_block)
+            elif isinstance(ab_block, AbbyyTextBlock):
                 abbyy_page.ab_text_blocks.append(ab_block)
             elif isinstance(ab_block, AbbyyTableBlock):
                 abbyy_page.ab_table_blocks.append(ab_block)

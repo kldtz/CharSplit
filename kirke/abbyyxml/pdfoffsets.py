@@ -93,6 +93,21 @@ class AbbyyTextBlock:
                                                                      ab_line.attr_dict))
         return '\n'.join(st_list)
 
+    def is_centered(self) -> bool:
+        if not self.ab_pars:
+            return False
+        for ab_par in self.ab_pars:
+            if not _is_par_centered(ab_par.infer_attr_dict):
+                return False
+        return True
+
+    def get_text(self) -> str:
+        st_list = []  # type: List[str]
+        for ab_par in self.ab_pars:
+            for unused_lid, ab_line in enumerate(ab_par.ab_lines):
+                st_list.append(ab_line.text)
+        return '\n'.join(st_list)
+
 
 # pylint: disable=too-few-public-methods
 class AbbyyCell:
@@ -253,6 +268,7 @@ class AbbyyPage:
         self.ab_blocks = ab_blocks
         self.ab_text_blocks = []  # type: List[AbbyyTextBlock]
         self.ab_table_blocks = []  # type: List[AbbyyTableBlock]
+        self.ab_signature_blocks = []  # type: List[AbbyyBlock]
 
         # enable the ability to access prev and next ab_blocks
         for block_seq, ab_block in enumerate(ab_blocks):
