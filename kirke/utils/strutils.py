@@ -540,7 +540,7 @@ extract_numbers = find_numbers
 def count_numbers(line: str) -> int:
     return len(find_numbers(line))
 
-def find_number(line: str) -> Match[str]:
+def find_number(line: str) -> Optional[Match[str]]:
     return NUMBER_PAT.search(line)
 
 def has_number(line: str) -> bool:
