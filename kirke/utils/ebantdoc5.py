@@ -26,6 +26,7 @@ from kirke.utils.textoffset import TextCpointCunitMapper
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
 from kirke.docstruct import paraattrsutils
+from kirke.docstruct.secheadutils import SecHeadTuple
 
 
 # pylint: disable=invalid-name
@@ -85,7 +86,7 @@ class EbAnnotatedDoc:
                  # para_doc_text,      # adjusted
                  para_prov_ant_list,   # nlp_offset adjusted
                  attrvec_list: List[ebattrvec.EbAttrVec],         # nlp offset adjusted
-                 sechead_list: List[Tuple[int, int, str, str, int]],
+                 sechead_list: List[SecHeadTuple],
                  paras_with_attrs,     # nlp_offset adjusted
                  origin_lnpos_list: List[linepos.LnPos],
                  nlp_lnpos_list: List[linepos.LnPos],

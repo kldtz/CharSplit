@@ -13,6 +13,7 @@ from kirke.docstruct import docstructutils, linepos
 from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
 from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, LineWithAttrs
 from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInfo
+from kirke.docstruct.secheadutils import SecHeadTuple
 from kirke.utils import strutils, txtreader, mathutils
 from kirke.utils.textoffset import TextCpointCunitMapper
 
@@ -1101,11 +1102,11 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                 if not sechead_st or 'continue' in sechead_st.lower():
                     # 'exhibit c - continue'
                     sechead_st = sechead_prefix
-                out_sechead = (line.lineinfo.start,
-                               shead_end,
-                               sechead_prefix,
-                               sechead_st,
-                               page_num)
+                out_sechead = SecHeadTuple(line.lineinfo.start,
+                                           shead_end,
+                                           sechead_prefix,
+                                           sechead_st,
+                                           page_num)
                 # print("sechead_tuple: {}".format(sechead_tuple))
                 # print("             : {}".format(out_sechead))
                 pdf_txt_doc.sechead_list.append(out_sechead)
@@ -1240,12 +1241,12 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                 shead_end = line.lineinfo.end
                 sechead_st = line.line_text
                 sechead_prefix = ''
-            out_sechead = (line.lineinfo.start,
-                           shead_end,
-                           sechead_prefix,
-                           sechead_st,
-                           # ' '.join([sechead_prefix, sechead_st]).strip(),
-                           page_num)
+            out_sechead = SecHeadTuple(line.lineinfo.start,
+                                       shead_end,
+                                       sechead_prefix,
+                                       sechead_st,
+                                       # ' '.join([sechead_prefix, sechead_st]).strip(),
+                                       page_num)
             # print("sechead_tuple2: {}".format(sechead_tuple))
             # print("              : {}".format(out_sechead))
             pdf_txt_doc.sechead_list.append(out_sechead)

@@ -2,6 +2,7 @@
 # pylint: disable=too-many-lines
 
 import argparse
+from collections import namedtuple
 import logging
 import re
 # pylint: disable=unused-import
@@ -18,6 +19,26 @@ logger.setLevel(logging.INFO)
 
 IS_DEBUG_SECHEAD = False
 DEBUG_MODE = False
+
+
+SecHeadTuple = namedtuple('SecHeadTuple', ['start', 'end', 'head_prefix', 'head_st', 'page_num'])
+"""
+# pylint: disable=too-few-public-methods
+class SecHeadTuple:
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, start: int, end: int, head_prefix: str, head_st: str, page_num: int) \
+        -> None:
+        self.start = start
+        self.end = end
+        self.head_prefix = head_prefix
+        self.head_st = head_st
+        self.page_num = page_num
+
+    def to_tuple(self) -> Tuple[int, int, str, str, int]:
+        return self.start, self.end, self.head_prefix, self.head_st, self.page_num
+"""
+
 
 SUBHEAD_PREFIX_PAT = re.compile(r'^[\s§]*((Section\s*)?\d+(\s*\.\d+)+\.?\b|'
                                 r'\(?[a-zA-Z0-9]+\)|[a-zA-Z0-9]+\.|\(\d+)\s*(.*)$',

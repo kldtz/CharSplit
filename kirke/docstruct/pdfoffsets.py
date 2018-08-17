@@ -5,6 +5,8 @@ import sys
 from typing import Any, DefaultDict, Dict, List, TextIO, Tuple
 
 from kirke.docstruct import jenksutils, docstructutils
+# pylint: disable=unused-import
+from kirke.docstruct.secheadutils import SecHeadTuple
 from kirke.utils import engutils, strutils
 
 
@@ -121,7 +123,7 @@ class PDFTextDoc:
         self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
         # pylint: disable=line-too-long
         self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
-        self.sechead_list = []  # type: List[Tuple[int, int, str, str, int]]
+        self.sechead_list = []  # type: List[SecHeadTuple]
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]

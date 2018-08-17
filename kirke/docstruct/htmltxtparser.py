@@ -9,6 +9,7 @@ from kirke.docstruct import footerutils, partyutils, secheadutils
 from kirke.utils import ebsentutils, engutils, strutils, txtreader
 
 from kirke.docstruct import linepos
+from kirke.docstruct.secheadutils import SecHeadTuple
 
 DEBUG_MODE = False
 
@@ -25,7 +26,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                                         str,
                                                         List[Any]]],
                                              # sechead_list
-                                             List[Tuple[int, int, str, str, int]],
+                                             List[SecHeadTuple],
                                              str]:
     """Convert a text into lineinfos_with_attrs.
 
@@ -43,7 +44,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
     lineinfo_list = []  # type: List[Tuple[Tuple[int, int], Tuple[int, int], str, List[Any]]]
     split_idx = -1
     to_offset = 0
-    sechead_list = []  # type: List[Tuple[int, int, str, str, int]]
+    sechead_list = []  # type: List[SecHeadTuple]
 
     prev_output_line = ''
     # These are for handling inconsistent ways html text split section number and heading.
@@ -93,11 +94,11 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                     else:
                         sechead_st = prefix_num
                         prefix_num = ''
-                    out_sechead = (start,
-                                   end,
-                                   prefix_num,
-                                   sechead_st,
-                                   -1)
+                    out_sechead = SecHeadTuple(start,
+                                               end,
+                                               prefix_num,
+                                               sechead_st,
+                                               -1)
                     # print("html sechead_tuple: {}".format(out_sechead))
                     sechead_list.append(out_sechead)
                 else:
@@ -134,12 +135,12 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                     else:
                         sechead_st = prefix_num
                         prefix_num = ''
-                    out_sechead = (start,
-                                   start + split_idx,
-                                   prefix_num,
-                                   sechead_st,
-                                   # first_line,
-                                   -1)
+                    out_sechead = SecHeadTuple(start,
+                                               start + split_idx,
+                                               prefix_num,
+                                               sechead_st,
+                                               # first_line,
+                                               -1)
                     # print("html sechead_tuple2: {}".format(out_sechead))
                     sechead_list.append(out_sechead)
             else:  # no attr_list, but maybe a page number
@@ -705,7 +706,7 @@ def parse_document(file_name: str,
                             str,
                             List[Tuple[int, int]],
                             str,
-                            List[Tuple[int, int, str, str, int]]]:
+                            List[SecHeadTuple]]:
     debug_mode = False
     base_fname = os.path.basename(file_name)
     orig_doc_text = txtreader.loads(file_name)
@@ -723,9 +724,10 @@ def parse_document(file_name: str,
         html_sechead_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt',
                                                                          '.html.sechead.list'))
         with open(html_sechead_fname, 'wt') as fout:
-            for i, (start, end, prefix_num, sechead_st, unused_page_num) in enumerate(sechead_list):
+            for i, sechead_tuple in enumerate(sechead_list):
+                start, end, head_prefix, sechead_st, unused_page_num = sechead_tuple
                 print("html sechead #{}: {} {} [{}] [{}] {}".format(i, start, end,
-                                                                    prefix_num,
+                                                                    head_prefix,
                                                                     sechead_st, unused_page_num),
                       file=fout)
         print('wrote {}'.format(html_sechead_fname), file=sys.stderr)

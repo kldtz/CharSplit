@@ -3,6 +3,7 @@ import os
 import re
 from typing import Dict, List, Optional, Tuple
 
+from kirke.docstruct.secheadutils import SecHeadTuple
 from kirke.utils import ebantdoc5, engutils, ebsentutils, osutils, strutils
 from kirke.abbyyxml import tableutils
 from kirke.abbyyxml.pdfoffsets import AbbyyTableBlock
@@ -11,8 +12,8 @@ IS_DEBUG_TABLE = True
 IS_DEBUG_INVALID_TABLE = True
 
 def find_prev_sechead(start: int,
-                      sechead_list: List[Tuple[int, int, str, str, int]]) \
-                      -> Optional[Tuple[int, int, str, str, int]]:
+                      sechead_list: List[SecHeadTuple]) \
+                      -> Optional[SecHeadTuple]:
     # print("find_prev_sechead, table_start = {}".format(start))
     prev_sechead_tuple = None
     for sechead_tuple in sechead_list:
@@ -26,8 +27,8 @@ def find_prev_sechead(start: int,
 
 def find_prev_exhibit_in_page(start: int,
                               page_num: int,
-                              sechead_list: List[Tuple[int, int, str, str, int]]) \
-                              -> Optional[Tuple[int, int, str, str, int]]:
+                              sechead_list: List[SecHeadTuple]) \
+                              -> Optional[SecHeadTuple]:
     prev_exhibit_tuple = None
     for sechead_tuple in sechead_list:
         shead_start, unused_shead_end, unused_shead_prefix, \
@@ -44,8 +45,8 @@ def find_prev_exhibit_in_page(start: int,
 
 def is_in_exhibit_section(start: int,
                           page_num: int,
-                          sechead_list: List[Tuple[int, int, str, str, int]]) \
-                          -> Optional[Tuple[int, int, str, str, int]]:
+                          sechead_list: List[SecHeadTuple]) \
+                          -> Optional[SecHeadTuple]:
     """Returning the sechead_tuple so that we know where the exhibit
        is, for debugging purpose"""
     sechead_tuple = find_prev_exhibit_in_page(start,
@@ -59,8 +60,7 @@ def is_in_exhibit_section(start: int,
                                       sechead_list)
     if sechead_tuple:
         unused_shead_start, unused_shead_end, shead_prefix, \
-            shead_st, unused_shead_page_num = \
-                sechead_tuple
+            shead_st, unused_shead_page_num = sechead_tuple
         if 'exhibit' in shead_st.lower() or \
            'exhibit' in shead_prefix.lower():
             return sechead_tuple
@@ -68,12 +68,13 @@ def is_in_exhibit_section(start: int,
     return None
 
 def get_before_table_text(table_start: int,
-                          sechead_tuple: Optional[Tuple[int, int, str, str, int]],
-                          exhibit_tuple: Optional[Tuple[int, int, str, str, int]],
+                          sechead_tuple: Optional[SecHeadTuple],
+                          exhibit_tuple: Optional[SecHeadTuple],
                           prev_table_end: int,
-                          doc_text: str) -> str:
+                          doc_text: str) \
+                          -> str:
     if sechead_tuple and exhibit_tuple:
-        if sechead_tuple[1] <= exhibit_tuple[1]:
+        if sechead_tuple.end <= exhibit_tuple.end:
             last_tuple = exhibit_tuple
         else:
             last_tuple = sechead_tuple
@@ -85,8 +86,7 @@ def get_before_table_text(table_start: int,
         return ''
 
     unused_shead_start, shead_end, unused_shead_prefix, \
-        unused_shead_st, unused_shead_page_num = \
-            last_tuple
+        unused_shead_st, unused_shead_page_num = last_tuple
 
     if prev_table_end != -1 and \
        prev_table_end > shead_end:
@@ -102,6 +102,7 @@ def get_before_table_text(table_start: int,
 
 
 def is_invalid_table(table_candidate: Dict,
+                     # pylint: disable=unused-argument
                      ab_table_block: AbbyyTableBlock) -> bool:
     """Return False if a table is not valid.
 
@@ -211,11 +212,11 @@ class TableGenerator:
                 table_sechead = find_prev_sechead(table_start, sechead_list)
                 sechead_text = ''
                 if table_sechead:
-                    if table_sechead[3]:
-                        sechead_text = table_sechead[3]
+                    if table_sechead.head_st:
+                        sechead_text = table_sechead.head_st
                     else:
                         # will take prefix is no head_st found
-                        sechead_text = table_sechead[2]
+                        sechead_text = table_sechead.head_prefix
 
                 lc_sechead_text = sechead_text.lower()
                 # remove useless and confusing secheads
@@ -425,7 +426,3 @@ def save_tgen_tables_to_html_file(fname: str,
         print('\n'.join(st_list), file=fout)
 
         print('wrote "{}"'.format(out_fname))
-
-
-
-
