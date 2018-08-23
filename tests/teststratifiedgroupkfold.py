@@ -9,7 +9,7 @@ from sklearn.model_selection import GroupKFold
 from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
 
 
-def split_out_to_list(split_out: Iterator[Tuple[np.ndarray[int], np.ndarray[int]]]) \
+def split_out_to_list(split_out: Iterator[Tuple[np.ndarray, np.ndarray]]) \
     -> List[Tuple[List[int], List[int]]]:
     out_list = []  # type: List[Tuple[List[int], List[int]]]
     for train_ndarray, test_ndarray in split_out:

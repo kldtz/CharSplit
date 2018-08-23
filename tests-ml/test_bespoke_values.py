@@ -39,6 +39,8 @@ class TestBespokeValues(unittest.TestCase):
         # {'fn': 18, 'fp': 11, 'tn': 0, 'tp': 24}
         # [[0, 11], [18, 24]]
 
+        # [[0, 11], [21, 21]]
+
         tn = conf_matrix[0][0]
         fp = conf_matrix[0][1]
         fn = conf_matrix[1][0]

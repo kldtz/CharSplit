@@ -34,8 +34,8 @@ class TestBespokeRegex(unittest.TestCase):
         print(ant_result)
 
         conf_matrix = ant_result['confusion_matrix']
-        # {'fn': 3, 'fp': 21, 'tn': 0, 'tp': 101})
-        # [[0, 21], [3, 101]])
+        # {'fn': 3, 'fp': 24, 'tn': 0, 'tp': 101})
+        # [[0, 24], [3, 101]]
 
         tn = conf_matrix[0][0]
         fp = conf_matrix[0][1]
