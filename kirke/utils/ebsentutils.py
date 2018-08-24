@@ -3,7 +3,6 @@ from enum import Enum
 import json
 import os
 from pathlib import Path
-import re
 # pylint: disable=unused-import
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -290,7 +289,6 @@ def _extract_entities_v2(tokens,
     #for i, token in enumerate(tokens, 1):
     #    print('x234 {}\t{}'.format(i, token))
 
-
 def get_sechead_attr(attrs):
     for attr in attrs:
         # print("is_attr_section_head: {} || {}".format(attr, attr[2]))
@@ -298,67 +296,6 @@ def get_sechead_attr(attrs):
             return attr
     return ''
 
-
-# this is in-place
-# pylint: disable=fixme
-# TODO, this type declaration will cause recursive import.
-# Should move to a better location.
-# def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
-#                                 paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
-#                                                                        linepos.LnPos]],
-#                                                             List[Any]]]) \
-#                                                             -> None:
-# pylint: disable=too-many-locals
-def update_ebsents_with_sechead(ebsent_list,
-                                paras_with_attrs) -> None:
-    if not ebsent_list:  # if there is no data
-        return
-
-    para_i, len_paras = 0, len(paras_with_attrs)
-    ebsent_i, len_ebsents = 0, len(ebsent_list)
-    ebsent = ebsent_list[ebsent_i]
-    ebsent_start, ebsent_end = ebsent.start, ebsent.end
-
-    while para_i < len_paras and ebsent_i < len_ebsents:
-        span_se_list, attrs = paras_with_attrs[para_i]
-        (unused_para_from_start, unused_para_from_end), (para_to_start, para_to_end) = \
-            docutils.span_frto_list_to_fromto(span_se_list)
-
-        if para_to_start == para_to_end:  # empty line, move on
-            para_i += 1
-            continue
-        sechead_attr = get_sechead_attr(attrs)
-        if sechead_attr:
-            # print("attrs: {}".format(attrs[0]))
-            unused_sechead_type, unused_sh_prefix_num, sh_header, unused_sh_idx = \
-                sechead_attr
-        else:
-            sh_header = ''
-        # print("para #{}: {}".format(para_i, paras_with_attrs[para_i]))
-        while ebsent_start <= para_to_end:
-            if mathutils.start_end_overlap((ebsent_start, ebsent_end),
-                                           (para_to_start, para_to_end)):
-                # print("\tebsent set sechead ({}, {}): {}". \
-                #       format(ebsent_start, ebsent_end, sh_header))
-                if sh_header:
-                    ebsent.set_sechead(' '. \
-                        join(stopwordutils. \
-                        tokens_remove_stopwords([word.lower()
-                                                 for word in re.findall(r'\w+',
-                                                                        sh_header)],
-                                                is_lower=True)))
-                # else, don't even set it
-            ebsent_i += 1
-            if ebsent_i < len_ebsents:
-                ebsent = ebsent_list[ebsent_i]
-                ebsent_start, ebsent_end = ebsent.start, ebsent.end
-            else:
-                ebsent_start = para_to_end + 1  # end the loop
-        para_i += 1
-    #ebsent_i = 0
-    #while ebsent_i < len_ebsents:
-    #    print("sent #{}: {}".format(ebsent_i, ebsent_list[ebsent_i]))
-    #    ebsent_i += 1
 
 def populate_ebsent_entities(ebsent, raw_sent_text, lang: str = 'en'):
     tokens = ebsent.get_tokens()

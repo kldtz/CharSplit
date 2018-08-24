@@ -1,9 +1,10 @@
 
 import bisect
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 from kirke.docstruct import linepos
+from kirke.docstruct.docutils import PLineAttrs
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
@@ -71,8 +72,7 @@ def find_offset_to_linear(fromx: int,
 
 def paras_to_fromto_lists_aux(para_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                                linepos.LnPos]],
-                                                    # str,
-                                                    List[Tuple[Any]]]]) \
+                                                    PLineAttrs]]) \
                                                     -> List[Tuple[int, int, int,
                                                                   linepos.LnPos,
                                                                   linepos.LnPos]]:
@@ -98,8 +98,7 @@ def paras_to_fromto_lists_aux(para_list: List[Tuple[List[Tuple[linepos.LnPos,
 
 def paras_to_fromto_lists(para_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                            linepos.LnPos]],
-                                                # str,
-                                                List[Tuple[Any]]]]) \
+                                                PLineAttrs]]) \
                                                 -> Tuple[List[Tuple[int, linepos.LnPos]],
                                                          List[Tuple[int, linepos.LnPos]]]:
     sorted_alist = paras_to_fromto_lists_aux(para_list)
@@ -116,8 +115,7 @@ def paras_to_fromto_lists(para_list: List[Tuple[List[Tuple[linepos.LnPos,
 
 def paras_to_fromto_lnpos_lists(para_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                                  linepos.LnPos]],
-                                                      # str,
-                                                      List[Tuple[Any]]]]) \
+                                                      PLineAttrs]]) \
                                                       -> Tuple[List[linepos.LnPos],
                                                                List[linepos.LnPos]]:
     sorted_alist = paras_to_fromto_lists_aux(para_list)
@@ -450,8 +448,7 @@ class FromToMapper:
 # pylint: disable=invalid-name
 def paras_to_fromto_mapper_sorted_by_from(para_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                                            linepos.LnPos]],
-                                                                # str,
-                                                                List[Tuple[Any]]]]) -> FromToMapper:
+                                                                PLineAttrs]]) -> FromToMapper:
     alist = []
     for span_se_list, unused_attr_list in para_list:
         # print("  span_se_list: {}".format(span_se_list))

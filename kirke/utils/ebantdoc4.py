@@ -19,8 +19,10 @@ import psutil
 from sklearn.externals import joblib
 
 from kirke.eblearn import ebattrvec, sent2ebattrvec
-from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdftxtparser
+from kirke.docstruct import docstructutils, docutils, fromtomapper, htmltxtparser
+from kirke.docstruct import linepos, pdftxtparser
 from kirke.docstruct.pdfoffsets import PDFTextDoc
+from kirke.docstruct.docutils import PLineAttrs
 from kirke.utils import corenlputils, ebsentutils, memutils, osutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
 from kirke.utils.ebsentutils import ProvisionAnnotation
@@ -255,8 +257,7 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
                            txt_base_fname: str,
                            prov_annotation_list,
                            paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-                                                        # str,
-                                                        List[Any]]],
+                                                        PLineAttrs]],
                            work_dir: str,
                            is_cache_enabled: bool,
                            doc_lang: str = 'en',
@@ -312,7 +313,7 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
 
         if paras_with_attrs:
             # still haven't add the sechead info back into
-            ebsentutils.update_ebsents_with_sechead(ebsent_list, paras_with_attrs)
+            docstructutils.update_ebsents_with_sechead(ebsent_list, paras_with_attrs)
 
         # fix any domain specific entity extraction, such as 'Lessee' as a location
         # this is a in-place replacement
@@ -368,7 +369,8 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
-    paras_with_attrs = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], List[Any]]]
+    # pylint: disable=line-too-long
+    paras_with_attrs = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], PLineAttrs]]
     attrvec_list, nlp_prov_ant_list, _, _ = nlptxt_to_attrvec_list(doc_text,
                                                                    txt_file_name,
                                                                    txt_base_fname,

@@ -5,6 +5,7 @@ import sys
 from typing import Any, DefaultDict, Dict, List, Tuple
 
 from kirke.docstruct import jenksutils, docstructutils
+from kirke.docstruct.docutils import PLineAttrs
 from kirke.utils import engutils, strutils
 
 
@@ -13,6 +14,34 @@ StrInfo = namedtuple('StrInfo', ['start', 'end',
 
 MAX_Y_DIFF = 10000
 MIN_X_END = -1
+
+
+# pylint: disable=too-few-public-methods
+class PageAttrs:
+
+    def __init__(self) -> None:
+        self.has_toc = False
+        # these are set using setattr() in reset_all_is_english()
+        self.has_signature = False
+        self.has_address = False
+        self.has_table = False
+        # page_num_index points to the line that has the page number
+        # so we can detect footers after page_num, 1-based
+        self.page_num_index = -1
+
+    def __str__(self) -> str:
+        alist = []  # List[str]
+        if self.has_toc != -1:
+            alist.append('{}={}'.format('has_toc', self.has_toc))
+        if self.has_signature != -1:
+            alist.append('{}={}'.format('has_signature', self.has_signature))
+        if self.has_address != -1:
+            alist.append('{}={}'.format('has_address', self.has_address))
+        if self.has_table != -1:
+            alist.append('{}={}'.format('has_table', self.has_table))
+        if self.page_num_index != -1:
+            alist.append('{}={}'.format('page_num_index', self.page_num_index))
+        return '|'.join(alist)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -67,7 +96,7 @@ class PageInfo3:
             prev_yStart = lineinfo.yStart
         self.line_list = line_attrs
         # attrs of page, such as 'page_num_index'
-        self.attrs = {}  # type: Dict[str, Any]
+        self.attrs = PageAttrs()  # type: PageAttrs
 
         # conent_line_list is for lines that are not
         #   - toc
@@ -164,7 +193,7 @@ class PDFTextDoc:
                       (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
 
                 if page.attrs:
-                    print('  attrs: {}'.format(', '.join(strutils.dict_to_sorted_list(page.attrs))),
+                    print('  attrs: {}'.format(str(page.attrs)),
                           file=fout)
 
                 grouped_block_list = line_list_to_grouped_block_list(page.line_list, page.page_num)
@@ -189,7 +218,7 @@ class PDFTextDoc:
                 print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
                       (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
                 if page.attrs:
-                    print('  attrs: {}'.format(', '.join(strutils.dict_to_sorted_list(page.attrs))),
+                    print('  attrs: {}'.format(str(page.attrs)),
                           file=fout)
 
                 prev_block_num = -1
@@ -345,7 +374,7 @@ class LineWithAttrs:
         self.align = align  # inferred
         self.is_centered = is_centered
         self.is_english = is_english
-        self.attrs = {}  # type: Dict[str, Any]
+        self.attrs = PLineAttrs()  # type: PLineAttrs
 
     def __lt__(self, other):
 
@@ -363,8 +392,7 @@ class LineWithAttrs:
             alist.append('center')
         if not self.is_english:
             alist.append('not_en')
-        for attr, value in self.attrs.items():
-            alist.append('{}={}'.format(attr, value))
+        alist.append(str(self.attrs))
         alist.append('  ||')
         return ', '.join(alist)
 
@@ -385,8 +413,7 @@ class LineWithAttrs:
             alist.append('center')
         if not self.is_english:
             alist.append('not_en')
-        for attr, value in sorted(self.attrs.items()):
-            alist.append('{}={}'.format(attr, value))
+        alist.append(str(self.attrs))
         alist.append('  ||')
         return ', '.join(alist)
 
@@ -402,8 +429,7 @@ class LineWithAttrs:
             alist.append('center')
         if not self.is_english:
             alist.append('not_en')
-        for attr, value in self.attrs.items():
-            alist.append('{}={}'.format(attr, value))
+        alist.append(str(self.attrs))
         return ', '.join(alist)
 
     # mainly for detailed debugging purpose
@@ -423,49 +449,29 @@ class LineWithAttrs:
             alist.append('center')
         if not self.is_english:
             alist.append('not_en')
-        for attr, value in self.attrs.items():
-            alist.append('{}={}'.format(attr, value))
+        alist.append(str(self.attrs))
+        # for attr, value in self.attrs.items():
+        #    alist.append('{}={}'.format(attr, value))
         return ', '.join(alist)
 
-    def to_attrvals(self) -> Dict[str, Any]:
-        """returns a dict()"""
-        adict = {}
-        adict['pnum'] = self.page_num
-        adict['bnum'] = self.block_num
-        # adict.append(('bn', self.lineinfo.block_num))
-        # adict.append(('align', self.align))
+    def to_attrvals(self) -> PLineAttrs:
+        """returns a copy of PLineAttrs"""
+        attrs = PLineAttrs()
+
+        attrs.pnum = self.page_num
+        attrs.bnum = self.block_num
         if self.is_centered:
-            adict['center'] = 1
+            attrs.center = True
         if not self.is_english:
-            adict['not_en'] = 1
-        adict.update(self.attrs)
-        return adict
+            attrs.not_en = True
+        attrs.toc = self.attrs.toc
+        attrs.signature = self.attrs.signature
+        attrs.sechead = self.attrs.sechead
+        return attrs
 
     def __str__(self):
         return str(self.to_attrvals())
 
-    def to_para_attrvals(self) -> List[Any]:
-        """returns a dict()"""
-        adict = {}
-        adict['pnum'] = self.page_num
-        adict['bnum'] = self.block_num
-        # adict.append(('bn', self.lineinfo.block_num))
-        # adict.append(('align', self.align))
-        if self.is_centered:
-            adict['center'] = True
-        if not self.is_english:
-            adict['not_en'] = True
-        adict.update(self.attrs)
-
-        result = []  # type: List[Any]
-        for attr, value in adict.items():
-            if attr == 'sechead':
-                if value:  # value is false sometimes?? TODO, jshaw, fix
-                    result.append(value)
-                # else: pass
-            else:
-                result.append((attr, value))
-        return sorted(result)
 
 
 @total_ordering

@@ -7,11 +7,12 @@ import logging
 import os
 import sys
 # pylint: disable=unused-import
-from typing import Any, Dict, DefaultDict, List, Set, Tuple
+from typing import Any, Dict, DefaultDict, List, Optional, Set, Tuple
 
 from kirke.docstruct import docstructutils, linepos
 from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
 from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, LineWithAttrs
+from kirke.docstruct.pdfoffsets import PLineAttrs
 from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInfo
 from kirke.utils import strutils, txtreader, mathutils
 from kirke.utils.textoffset import TextCpointCunitMapper
@@ -336,8 +337,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                         work_dir: str,
                         debug_mode: bool = False) \
                         -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-                                            # str,
-                                            List[Any]]],
+                                            PLineAttrs]],
                                  str,
                                  List[Tuple[int, int]]]:
     """Convert a pdfbox's text into NLP text, with page number gaps.
@@ -353,14 +353,14 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     offset = 0
     out_line_list = []
     # pylint: disable=line-too-long
-    offsets_line_list = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], List[Any]]]
+    offsets_line_list = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], PLineAttrs]]
 
 
     # para_with_attrs, from_z, to_z, line_text, attrs (toc, header, footer, sechead)
     # sechead_context is now either
     #    sechead_context = [[]], type= <class 'list'>
     #    sechead_context = [('sechead', 'Section 9.02.', "Vendors' Warranties. ", 35)], type= <class 'tuple'>
-    sechead_context = []  # type: List[Any]
+    sechead_context = None  # type: Optional[Tuple[str, str, str, int]]
     not_gapped_line_nums = set([])  # type: Set[int]
 
     # not_empty_line_num = 0
@@ -378,31 +378,32 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 for linex in grouped_block.line_list:
                     out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
                     # sorted(linex.attrs.items())
-                    attr_list = linex.to_para_attrvals()  # type: List[Any]
+                    pline_attrs = linex.to_attrvals()  # type: PLineAttrs
 
-                    if linex.line_text and linex.attrs.get('sechead'):
-                        sechead_context = linex.attrs.get('sechead', [])
+                    if linex.line_text and linex.attrs.sechead:
+                        sechead_context = linex.attrs.sechead
                     elif sechead_context:
-                        attr_list.append(sechead_context)
+                        pline_attrs.sechead = sechead_context
 
                     out_line_list.append(out_line)
-                    span_se_list = [(linepos.LnPos(linex.lineinfo.start, linex.lineinfo.end),
+                    span_se_list = [(linepos.LnPos(linex.lineinfo.start,
+                                                   linex.lineinfo.end),
                                      linepos.LnPos(offset, offset + len(out_line)))]
-                    offsets_line_list.append((span_se_list, attr_list))
+                    offsets_line_list.append((span_se_list, pline_attrs))
                     offset += len(out_line) + 1  # to add eoln
 
                     not_gapped_line_nums.add(linex.lineinfo.line_num)
             else:
                 block_lines = []
                 first_linex = grouped_block.line_list[0]
-                attr_list = first_linex.to_para_attrvals()  # sorted(linex.attrs.items())
+                pline_attrs = first_linex.to_attrvals()
 
                 # don't check for block.line_list length here
                 # There are lines with sechead followed by sentences
-                if first_linex.line_text and first_linex.attrs.get('sechead'):
-                    sechead_context = first_linex.attrs.get('sechead', [])
+                if first_linex.line_text and first_linex.attrs.sechead:
+                    sechead_context = first_linex.attrs.sechead
                 elif sechead_context:
-                    attr_list.append(sechead_context)
+                    pline_attrs.sechead = sechead_context
 
                 prev_page_num = -1
                 prev_linex = None
@@ -443,12 +444,14 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
                 block_text = ' '.join(block_lines)
                 out_line_list.append(block_text)
-                offsets_line_list.append((span_se_list, attr_list))
+                offsets_line_list.append((span_se_list, pline_attrs))
 
             out_line_list.append('')
             span_se_list = [(linepos.LnPos(linex.lineinfo.end+2, linex.lineinfo.end+2),
                              linepos.LnPos(offset, offset))]
-            offsets_line_list.append((span_se_list, []))
+            # in future, maybe make this into a constant
+            empty_pline_attrs = PLineAttrs()
+            offsets_line_list.append((span_se_list, empty_pline_attrs))
             offset += 1
 
     # compute the not_empty_line_num for original text and nlp text
@@ -506,8 +509,8 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                                                                        '.pdf.nlp.debug.tsv'))
         with open(pdf_nlp_debug_fn, 'wt') as fout2:
             # for from_to_span_list, out_line, attr_list in offsets_line_list:
-            for from_to_span_list, attr_list in offsets_line_list:
-                print('{}\t{}'.format(from_to_span_list, attr_list), file=fout2)
+            for from_to_span_list, pline_attrs in offsets_line_list:
+                print('{}\t{}'.format(from_to_span_list, pline_attrs), file=fout2)
         print('wrote {}'.format(pdf_nlp_debug_fn), file=sys.stderr)
     return offsets_line_list, paraline_text, gap_span_list
 
@@ -742,13 +745,13 @@ def merge_if_continue_to_next_page(prev_page, cur_page):
         return
 
     # dont' join sechead or anything that's centered
-    if first_line.is_centered or first_line.attrs.get('sechead'):
+    if first_line.is_centered or first_line.attrs.sechead:
         return
 
 
     # 8 because average word per sentence is known to be around 7
     if len(words) >= 8 and (words[-1][-1].islower() or strutils.is_not_sent_punct(words[-1][-1])):
-        if not first_line.attrs.get('sechead'):
+        if not first_line.attrs.sechead:
             first_line_block_num = first_line.block_num
             for linex in cur_page.content_line_list:
                 if linex.block_num == first_line_block_num:
@@ -765,8 +768,8 @@ def reset_all_is_english(pdftxt_doc):
             block_list_map[block_num].append(linex)
             # set up a page's special attrs for optimization later
             for special_attr in page_special_attrs:
-                if linex.attrs.get(special_attr):
-                    apage.attrs['has_{}'.format(special_attr)] = True
+                if getattr(linex.attrs, special_attr):
+                    setattr(apage.attrs, 'has_{}'.format(special_attr), True)
 
     # special_attrs = ['signature', 'address', 'table', 'chart']
     special_attrs = ['signature', 'address']
@@ -781,25 +784,25 @@ def reset_all_is_english(pdftxt_doc):
             special_attr_map = {}
             for special_attr in special_attrs:
                 for linex in linex_list:
-                    if linex.attrs.get(special_attr):
+                    if getattr(linex.attrs, special_attr):
                         special_attr_map[special_attr] = True
 
             # distribute special attribute to all linex
             for special_attr in special_attrs:
                 if special_attr_map.get(special_attr):
                     for linex in linex_list:
-                        linex.attrs[special_attr] = True
+                        setattr(linex.attrs, special_attr, True)
 
 # pylint: disable=invalid-name
 def merge_adjacent_line_with_special_attr(apage):
     special_attrs = ['signature', 'address']
     for special_attr in special_attrs:
-        if apage.attrs.get('has_{}'.format(special_attr)):
+        if getattr(apage.attrs, 'has_{}'.format(special_attr)):
             prev_line = apage.content_line_list[0]
             prev_block_num = prev_line.block_num
-            prev_has_special_attr = prev_line.attrs.get(special_attr)
+            prev_has_special_attr = getattr(prev_line.attrs, special_attr)
             for linex in apage.content_line_list[1:]:
-                has_special_attr = linex.attrs.get(special_attr)
+                has_special_attr = getattr(linex.attrs, special_attr)
                 if has_special_attr and prev_has_special_attr:
                     linex.block_num = prev_block_num
 
@@ -814,10 +817,10 @@ def adjust_blocks_in_page(apage,
 
     is_adjusted = False
     for block in tmp_block_list:
-        if block[0].attrs.get('header'):
+        if block[0].attrs.header:
             not_header_index = -1
             for line_seq, linex in enumerate(block[1:], 1):
-                if not linex.attrs.get('header'):
+                if not linex.attrs.header:
                     not_header_index = line_seq
                     break
 
@@ -839,7 +842,7 @@ def adjust_blocks_in_page(apage,
                 to the seller
                 """
                 for linex in block:
-                    linex.attrs['header'] = True
+                    linex.attrs.header = True
                     is_adjusted = True
 
     if not is_adjusted:
@@ -848,7 +851,7 @@ def adjust_blocks_in_page(apage,
     # now remove potential newly added toc lines
     tmp_list = []
     for linex in apage.content_line_list:
-        if not linex.attrs.get('header'):
+        if not linex.attrs.header:
             tmp_list.append(linex)
     apage.content_line_list = tmp_list
 
@@ -912,7 +915,7 @@ def add_sections_to_page(apage, pdf_txt_doc):
     is_skip_table_and_chart_detection = False
     special_attrs = ['signature', 'address']
     for special_attr in special_attrs:
-        if apage.attrs.get('has_{}'.format(special_attr)):
+        if getattr(apage.attrs, 'has_{}'.format(special_attr)):
             # print("skip table_and_char_detection because of has_{}".format(special_attr))
             is_skip_table_and_chart_detection = True
 
@@ -923,7 +926,7 @@ def add_sections_to_page(apage, pdf_txt_doc):
     grouped_block_list = apage.grouped_block_list
     # if successful, markup_table_block_by_non_english will set 'has_table', a page attribute
     markup_table_block_by_non_english(grouped_block_list, apage)
-    if not apage.attrs.get('has_table'):
+    if not getattr(apage.attrs, 'has_table'):
         markup_table_block_by_columns(grouped_block_list, page_num)
 
     # create the annotation for table and chart from apage.content_line_list
@@ -942,7 +945,7 @@ def markup_table_block_by_non_english(grouped_block_list, apage):
             if len(linex.line_text) < 30 and \
                not linex.is_english and linex.is_centered and \
                len(linex.line_text.split()) >= 2 and \
-               not linex.attrs.get('sechead') and \
+               not linex.attrs.sechead and \
                not secheadutils.is_line_sechead_prefix(linex.line_text):
                 num_non_english_line += 1
             if not linex.is_english and len(strutils.extract_numbers(linex.line_text)) > 2:
@@ -954,14 +957,14 @@ def markup_table_block_by_non_english(grouped_block_list, apage):
         if (num_non_english_line >= 4 and float(num_non_english_line) / num_group_line >= 0.2) or \
            (num_numeric_line >= 2 and float(num_numeric_line) / num_group_line >= 0.4):
             # this is a tables
-            apage.attrs['has_table'] = True  # so that other table routine doesn't have to fire
+            apage.attrs.has_table = True  # so that other table routine doesn't have to fire
 
             merged_linex_list = grouped_block.line_list
             table_prefix = 'table'
             table_count = 300
             table_name = '{}-p{}-{}'.format(table_prefix, apage.page_num, table_count)
             for linex in merged_linex_list:
-                linex.attrs[table_prefix] = table_name
+                linex.attrs.table = table_name
 
             block_first_linex = merged_linex_list[0]
             # merge blocks as we see fit
@@ -978,8 +981,8 @@ def extract_tables_from_markups(apage, pdf_txt_doc):
     tableid_lines_map = defaultdict(list)
     chartid_lines_map = defaultdict(list)
     for linex in apage.content_line_list:
-        table_id = linex.attrs.get('table')
-        chart_id = linex.attrs.get('chart')
+        table_id = linex.attrs.table
+        chart_id = linex.attrs.chart
         if table_id:
             tableid_lines_map[table_id].append(linex)
         elif chart_id:
@@ -1014,13 +1017,13 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False
         if docstructutils.is_line_toc_heading(line.line_text):
-            line.attrs['toc'] = True
+            line.attrs.toc = True
             has_toc_heading = True
             num_toc_line += 10  # I know this is not true yet
             is_skip = True
             toc_block_list.append(line)
         elif docstructutils.is_line_toc(line.line_text):
-            line.attrs['toc'] = True
+            line.attrs.toc = True
             num_toc_line += 1
             if num_toc_line >= 5:
                 is_skip = True
@@ -1031,9 +1034,9 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                                              line.linebreak,
                                              line.lineinfo.yStart,
                                              line.is_centered):
-            line.attrs['page_num'] = True
+            line.attrs.has_page_num = True
             # so we can detect footers after page_num, 1-based
-            apage.attrs['page_num_index'] = line_num
+            apage.attrs.page_num_index = line_num
             pdf_txt_doc.special_blocks_map['pagenum'].append(pdfoffsets \
                                                              .line_to_block_offsets(line,
                                                                                     'pagenum',
@@ -1047,29 +1050,29 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                                            line.align,
                                            num_line_in_page,
                                            header_set=docstructutils.GLOBAL_PAGE_HEADER_SET):
-            line.attrs['header'] = True
+            line.attrs.header = True
             pdf_txt_doc.special_blocks_map['header'].append(pdfoffsets \
                                                             .line_to_block_offsets(line,
                                                                                    'header',
                                                                                    page_num))
             is_skip = True
         elif docstructutils.is_line_signature_prefix(line.line_text):
-            line.attrs['signature'] = True
+            line.attrs.signature = True
             # not skipped
         elif (docstructutils.is_line_address_prefix(line.line_text) or
               docstructutils.is_line_address(line.line_text,
                                              is_english=line.is_english,
                                              # pylint: disable=line-too-long
                                              is_sechead=secheadutils.is_line_sechead_prefix(line.line_text))):
-                                             # is_sechead=line.attrs.get('sechead'))):
-            line.attrs['address'] = True
+                                             # is_sechead=line.attrs.sechead)):
+            line.attrs.address = True
             # not skipped
         else:  # none-of-above
             # check if sechead
             if secheadutils.is_line_sechead_prefix(line.line_text):
                 sechead_tuple = docstructutils.extract_line_sechead(line.line_text)
                 if sechead_tuple:
-                    line.attrs['sechead'] = sechead_tuple
+                    line.attrs.sechead = sechead_tuple
 
         # 2nd stage of rules
         is_footer, unused_score = docstructutils.is_line_footer(line.line_text,
@@ -1077,14 +1080,13 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                                                                 num_line_in_page,
                                                                 line.linebreak,
                                                                 # 1-based
-                                                                apage.attrs.get('page_num_index',
-                                                                                -1),
+                                                                apage.attrs.page_num_index,
                                                                 line.is_english,
                                                                 line.is_centered,
                                                                 line.align,
                                                                 line.lineinfo.yStart)
         if is_footer:
-            line.attrs['footer'] = True
+            line.attrs.footer = True
             is_skip = True
             pdf_txt_doc.special_blocks_map['footer'].append(pdfoffsets \
                                                             .line_to_block_offsets(line,
@@ -1108,21 +1110,21 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     if footer_yStart != MAX_FOOTER_YSTART:
         for linex in apage.line_list:
             if linex.lineinfo.yStart >= footer_yStart:
-                linex.attrs['footer'] = True
+                linex.attrs.footer = True
     apage.content_line_list = content_line_list
     # now decide if this is a toc page, based on
     # there are more than 4 toc lines
     if num_toc_line >= 5 or has_toc_heading:
-        apage.attrs['has_toc'] = True
+        apage.attrs.has_toc = True
     else:
         # this is probably not a toc page
         # remove all toc from the lines
         for linex in apage.line_list:
-            if linex.attrs.get('toc'):
-                del linex.attrs['toc']
+            if linex.attrs.toc:
+                linex.attrs.toc = False
         toc_block_list = []
-        if apage.attrs.get('has_toc'):
-            del apage.attrs['has_toc']
+        if apage.attrs.has_toc:
+            apage.attrs.has_toc = False
 
     # if a whole page is all sechead, a toc
     num_sechead = 0
@@ -1137,11 +1139,11 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     if len(content_line_list) > 5 and num_sechead / len(content_line_list) >= 0.8:
         for line_seq, linex in enumerate(content_line_list):
             if line_seq >= first_sechead and line_seq <= last_sechead:
-                linex.attrs['toc'] = True
-        apage.attrs['has_toc'] = True
+                linex.attrs.toc = True
+        apage.attrs.has_toc = True
 
     # if there is no toc line, we are done here
-    if not apage.attrs.get('has_toc'):
+    if not apage.attrs.has_toc:
         return
 
     # remove secheads after toc section
@@ -1152,15 +1154,15 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     for line_seq, linex in enumerate(apage.line_list):  # this is line_list, not content_line_list
         if docstructutils.is_line_toc_heading(linex.line_text):
             table_of_content_line_idx = line_seq
-        if linex.attrs.get('toc'):
+        if linex.attrs.toc:
             tmp_toc_lines.append((line_seq, linex))
 
     if len(tmp_toc_lines) <= 3 and apage.page_num > 10 and table_of_content_line_idx == -1:
         # there is no toc, just ocr error
         for linex in apage.line_list:
-            if linex.attrs.get('toc'):
-                linex.attrs['toc'] = False
-        apage.attrs['has_toc'] = False
+            if linex.attrs.toc:
+                linex.attrs.toc = False
+        apage.attrs.has_toc = False
         return
 
     # we are here, so there must be toc lines
@@ -1169,10 +1171,10 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     if len(tmp_toc_lines) >= 10:
         if table_of_content_line_idx != -1:
             for linex in apage.line_list[table_of_content_line_idx:last_toc_line+1]:
-                linex.attrs['toc'] = True
+                linex.attrs.toc = True
         else:
             for linex in apage.line_list[first_toc_line:last_toc_line+1]:
-                linex.attrs['toc'] = True
+                linex.attrs.toc = True
 
     deactivate_toc_detection = False
     non_sechead_count = 0
@@ -1182,9 +1184,9 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         sechead_tuple = docstructutils.extract_line_sechead(line.line_text, prev_line_text)
         is_sechead_prefix = secheadutils.is_line_sechead_prefix(line.line_text)
         if sechead_tuple or is_sechead_prefix:
-            if apage.attrs.get('has_toc') and not deactivate_toc_detection:
-                line.attrs['toc'] = True
-            line.attrs['sechead'] = sechead_tuple
+            if apage.attrs.has_toc and not deactivate_toc_detection:
+                line.attrs.toc = True
+            line.attrs.sechead = sechead_tuple
         else:
             non_sechead_count += 1
 
@@ -1197,7 +1199,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     tmp_toc_lines = []
     # this is line_list, not content_line_list
     for line_seq, linex in enumerate(apage.line_list):
-        if linex.attrs.get('toc'):
+        if linex.attrs.toc:
             tmp_toc_lines.append((line_seq, linex))
 
     first_toc_line, _ = tmp_toc_lines[0]
@@ -1208,25 +1210,25 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     for line_seq, linex in enumerate(apage.line_list):
         if line_seq >= first_toc_line and line_seq <= last_toc_line:
             # collect all missed lines
-            if not linex.attrs.get('toc'):
+            if not linex.attrs.toc:
                 not_toc_lines_between.append(linex)
         else:
             outside_lines.append(linex)
     # if missed toc lines between tocs is too small, mark them as toc lines
     if len(not_toc_lines_between) / len(tmp_toc_lines) <= 0.4:
         for linex in apage.line_list:
-            if linex.attrs.get('toc'):
+            if linex.attrs.toc:
                 pass
             # don't expect to see address or signature with toc
-            elif linex.attrs.get('footer') or linex.attrs.get('header') or \
-                 linex.attrs.get('page_num'):
+            elif linex.attrs.footer or linex.attrs.header or \
+                 linex.attrs.has_page_num:
                 pass
             else:
-                linex.attrs['toc'] = True
+                linex.attrs.toc = True
 
 def get_longest_consecutive_line_group(linex_list):
     # linex_list = remove_linex_with_sechead(linex_list)
-    # linex_list = list(filter(lambda linex: not linex.attrs.get('sechead'), linex_list))
+    # linex_list = list(filter(lambda linex: not linex.attrs.sechead, linex_list))
     group_list = []
     prev_block_num = linex_list[0].block_num
     prev_align = linex_list[0].align
@@ -1265,7 +1267,7 @@ def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
         if num_line_in_block == 1:
             linex = grouped_block.line_list[0]
             if len(linex.line_text) < 30 and not linex.is_english and \
-               not linex.attrs.get('sechead') and \
+               not linex.attrs.sechead and \
                not secheadutils.is_line_sechead_prefix(linex.line_text):
                 num_table_one_line_block += 1
                 blocks_with_one_line.append(linex)
@@ -1309,7 +1311,8 @@ def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
     while line_index >= 0:  # merge if align and not en
         linex = page_linex_list[line_index]
         if not linex.is_english and linex.align == first_merged_linex.align and \
-           not (linex.attrs.get('sechead') or secheadutils.is_line_sechead_prefix(linex.line_text)):
+           not (linex.attrs.sechead or \
+                secheadutils.is_line_sechead_prefix(linex.line_text)):
             line_index -= 1
         else:
             break
@@ -1321,7 +1324,7 @@ def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
     while line_index < last_index:  # merge if align and not en
         linex = page_linex_list[line_index]
         if not linex.is_english and linex.align == first_merged_linex.align and \
-           not (linex.attrs.get('sechead') or secheadutils.is_line_sechead_prefix(linex.line_text)):
+           not (linex.attrs.sechead or secheadutils.is_line_sechead_prefix(linex.line_text)):
             line_index += 1
         else:
             break
@@ -1344,7 +1347,7 @@ def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
         table_count = 200
         table_name = '{}-p{}-{}'.format(table_prefix, page_num, table_count)
         for linex in merged_linex_list:
-            linex.attrs[table_prefix] = table_name
+            linex.attrs.table = table_name
 
         block_first_linex = merged_linex_list[0]
         # merge blocks as we see fit
@@ -1463,7 +1466,7 @@ def markup_table_block_by_columns(grouped_block_list, page_num):
         for block_num in block_num_set:
             block_lines = block_lines_map[block_num]
             for linex in block_lines:
-                linex.attrs[table_prefix] = table_name
+                linex.attrs.table = table_name
                 linex.block_num = min_block_num
         table_count += 1
 
@@ -1472,18 +1475,18 @@ def markup_table_block_by_columns(grouped_block_list, page_num):
     prev_table_label = ''
     prev_table_block_num = -1
     for linex in page_linex_list:
-        cur_table_label = linex.attrs.get('table', '')
+        cur_table_label = linex.attrs.table
         if cur_table_label and prev_table_label:
             if cur_table_label != prev_table_label:
-                linex.attrs['table'] = prev_table_label
-                linex.attrs['table-row'] = linex.block_num
+                linex.attrs.table = prev_table_label
+                linex.attrs.table_row = linex.block_num
                 linex.block_num = prev_table_block_num
             else:  # if they are equal, do nothing
-                linex.attrs['table-row'] = linex.block_num
+                linex.attrs.table_row = linex.block_num
         elif cur_table_label and not prev_table_label:  # found a new table
             prev_table_label = cur_table_label
             prev_table_block_num = linex.block_num
-            linex.attrs['table-row'] = linex.block_num
+            linex.attrs.table_row = linex.block_num
             # current label is already correct
         elif not cur_table_label:  # both prev_table_label is empty or has value
             prev_table_label = ''
@@ -1491,7 +1494,7 @@ def markup_table_block_by_columns(grouped_block_list, page_num):
 
     table_lines_map = defaultdict(list)
     for linex in page_linex_list:
-        table_label = linex.attrs.get('table')
+        table_label = linex.attrs.table
         if table_label:
             table_lines_map[table_label].append(linex)
 
@@ -1514,15 +1517,15 @@ def markup_table_block_by_columns(grouped_block_list, page_num):
 
         if len(align_count_gt_2_list) <= 1:  # 0 means short table
             # table_prefix = 'table'
-            # no need to do anything, linex.attrs['table'] is correct already
+            # no need to do anything, linex.attrs.table is correct already
             table_prefix = 'table'
-            table_name = block_first_linex.attrs['table']
+            table_name = block_first_linex.attrs.table
         else:
             table_prefix = 'chart'
             for linex in linex_list:
-                linex.attrs['chart'] = linex.attrs['table'].replace('table', 'chart')
-                del linex.attrs['table']
-            table_name = block_first_linex.attrs['chart']
+                linex.attrs.chart = linex.attrs.table.replace('table', 'chart')
+                linex.attrs.table = ''
+            table_name = block_first_linex.attrs.chart
 
         # merge blocks as we see fit
         if block_first_linex:
@@ -1534,10 +1537,10 @@ def markup_table_block_by_columns(grouped_block_list, page_num):
                                               table_name)
 
 
-def get_merge_reason(linex):
+def get_merge_reason(linex: LineWithAttrs) -> str:
     special_attrs = ['signature', 'address', 'table', 'chart']
     for special_attr in special_attrs:
-        if linex.attrs.get(special_attr):
+        if getattr(linex.attrs, special_attr):
             return special_attr
     return ''
 
@@ -1579,18 +1582,18 @@ def merge_centered_lines_before_table(line_num,
                     print("break1")
                 break
             # if not english, merge with the table by block
-            if linex.attrs.get('sechead'):
+            if linex.attrs.sechead:
                 if debug_mode:
                     print('linex is sechead....')
                 # we take sechead before a table, but sechead block_num stays
                 # linex.block_num = block_num
-                linex.attrs[table_prefix] = table_name
+                setattr(linex.attrs, table_prefix, table_name)
                 # there might be multiple sechead lines before
                 table_start_idx -= 1
                 while table_start_idx >= 0:
                     tmp_linex = content_linex_list[table_start_idx]
-                    if tmp_linex.attrs.get('sechead'):
-                        tmp_linex.attrs[table_prefix] = table_name
+                    if tmp_linex.attrs.sechead:
+                        setattr(tmp_linex.attrs, table_prefix, table_name)
                         table_start_idx -= 1
                     else:
                         break
@@ -1605,12 +1608,12 @@ def merge_centered_lines_before_table(line_num,
                 if debug_mode:
                     print('linex is centered....')
                 linex.block_num = block_num
-                linex.attrs[table_prefix] = table_name
+                setattr(linex.attrs, table_prefix, table_name)
             elif not linex.is_english:
                 if debug_mode:
                     print('linex is not english....')
                 linex.block_num = block_num
-                linex.attrs[table_prefix] = table_name
+                setattr(linex.attrs, table_prefix, table_name)
             else:
                 if debug_mode:
                     print('linex is breaking....')
@@ -1644,7 +1647,7 @@ def merge_centered_lines_before_table(line_num,
             max_english_lines_in_block = 0
             for linex_list in prev_block_list:
                 first_linex = linex_list[0]
-                if first_linex.is_centered or first_linex.attrs.get('sechead'):
+                if first_linex.is_centered or first_linex.attrs.sechead:
                     num_is_header_block += 1
                 elif len(linex_list) <= 3:   # short descripton shouldn't be more than 3 lines
                     num_is_header_block += 1
@@ -1669,7 +1672,7 @@ def merge_centered_lines_before_table(line_num,
                                   len(content_linex_list)))
                 tmp_linex = content_linex_list[table_start_idx]
                 if not tmp_linex.is_english:
-                    tmp_linex.attrs[table_prefix] = table_name
+                    setattr(tmp_linex.attrs, table_prefix, table_name)
                     table_start_idx -= 1
                 else:
                     break
@@ -1679,7 +1682,7 @@ def merge_centered_lines_before_table(line_num,
                     print("zz2 table_start_idx = %d, len(content_linex_list) = %d",
                           (table_start_idx, len(content_linex_list)))
                 tmp_linex = content_linex_list[table_start_idx]
-                tmp_linex.attrs[table_prefix] = table_name
+                setattr(tmp_linex.attrs, table_prefix, table_name)
                 table_start_idx -= 1
 
 
