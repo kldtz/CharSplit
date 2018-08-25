@@ -289,13 +289,6 @@ def _extract_entities_v2(tokens,
     #for i, token in enumerate(tokens, 1):
     #    print('x234 {}\t{}'.format(i, token))
 
-def get_sechead_attr(attrs):
-    for attr in attrs:
-        # print("is_attr_section_head: {} || {}".format(attr, attr[2]))
-        if len(attr) > 3 and attr[0] == 'sechead':
-            return attr
-    return ''
-
 
 def populate_ebsent_entities(ebsent, raw_sent_text, lang: str = 'en'):
     tokens = ebsent.get_tokens()

@@ -76,14 +76,17 @@ class EbAnnotatedDoc4:
                  prov_ant_list: List[ProvisionAnnotation],
                  is_test: bool,
                  # para_doc_text,      # adjusted
-                 para_prov_ant_list,   # nlp_offset adjusted
+                 # nlp_offset adjusted
+                 para_prov_ant_list: List[ebsentutils.ProvisionAnnotation],
                  attrvec_list: List[ebattrvec.EbAttrVec],         # nlp offset adjusted
-                 paras_with_attrs,     # nlp_offset adjusted
+                 # nlp_offset adjusted
+                 paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                              PLineAttrs]],
                  origin_lnpos_list: List[linepos.LnPos],
                  nlp_lnpos_list: List[linepos.LnPos],
                  gap_span_list,  # TODO, jshaw, maybe del in future
                  linebreak_arr: ArrayType,
-                 page_offsets_list=None,
+                 page_offsets_list: Optional[List[Tuple[int, int]]] = None,
                  para_not_linebreak_arr: ArrayType,
                  doc_lang: str = 'en') \
                  -> None:

@@ -15,7 +15,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from sklearn.externals import joblib
 
 from kirke.eblearn import sent2ebattrvec
-from kirke.docstruct import docutils, fromtomapper, htmltxtparser, linepos, pdftxtparser
+from kirke.docstruct import docutils, docstructutils
+from kirke.docstruct import fromtomapper, htmltxtparser, linepos, pdftxtparser
 from kirke.utils import corenlputils, strutils, osutils, txtreader, ebsentutils
 from kirke.utils.textoffset import TextCpointCunitMapper
 
@@ -235,7 +236,7 @@ def nlptxt_to_attrvec_list(para_doc_text,
 
     if paras_with_attrs:
         # still haven't add the sechead info back into
-        ebsentutils.update_ebsents_with_sechead(ebsent_list, paras_with_attrs)
+        docstructutils.update_ebsents_with_sechead(ebsent_list, paras_with_attrs)
 
     # fix any domain specific entity extraction, such as 'Lessee' as a location
     # this is a in-place replacement

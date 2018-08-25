@@ -3,13 +3,15 @@ import sys
 # pylint: disable=unused-import
 from typing import Any, List, Optional, Tuple
 
-from kirke.docstruct import footerutils, htmldocutils, linepos, partyutils, secheadutils
-from kirke.docstruct.docutils import PLineAttrs
+
+from kirke.docstruct import footerutils, htmldocutils, partyutils, secheadutils
 from kirke.utils import ebsentutils, engutils, strutils, txtreader
+from kirke.docstruct.docutils import PLineAttrs
 
-
+from kirke.docstruct import linepos
 
 DEBUG_MODE = False
+
 
 # pylint: disable=too-few-public-methods
 class HPLineAttrs:
@@ -18,7 +20,6 @@ class HPLineAttrs:
         self.sechead = None  # type: Optional[Tuple[str, str, str, int]]
         self.xsplit = False
         self.has_page_num = False
-
 
     def __str__(self) -> str:
         alist = []  # List[str]
@@ -31,6 +32,8 @@ class HPLineAttrs:
 
         return '|'.join(alist)
 
+    def has_any_attrs(self) -> bool:
+        return bool(self.sechead or self.xsplit or self.has_page_num)
 
 # returning List[((from_start, from_end),
 #                 (to_start, to_end)),
@@ -50,7 +53,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
        1. lineinfo_list.append(((start, end),
                                 (to_offset, to_offset + len(line)),
                                 line,
-                                HPLineAttrs))
+                                hpline_attrs))
        2. text
 
     attr_list is usually a 'str', but sometimes (sechead_type, prefix_num, sec_head, split_idx)
@@ -161,6 +164,8 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
     return lineinfo_list, doc_text
 
 
+EMPTY_PLINE_ATTRS = PLineAttrs()
+
 # This distribute sechead to all the lines after it
 # and remove pagenum.
 # TODO, Should add footer and header in the future.
@@ -178,12 +183,15 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
     # will be easier to remove pagenum
     tmp_list = list(lineinfos)
 
+    # The 4th field is sechead.  This is intentional
+    tmp2_list = []  # type: List[Tuple[int, int, str, Optional[Tuple[str, str, str, int]]]]
+
     len_tmp_list = len(tmp_list)
     omit_line_set = set([])
-    cur_attr = HPLineAttrs()  # type: HPLineAttrs
+    cur_attr = None  # type: Optional[Tuple[str, str, str, int]]
     prev_line = ''
-    tmp2_list = []  # type: List[Tuple[int, int, str, HPLineAttrs]]
-    prev_notempty_line, prev_attr_list = 'Not Empty Line.', HPLineAttrs()  # type: str, HPLineAttrs
+    prev_notempty_line = 'Not Empty Line.'
+    prev_hpline_attrs = HPLineAttrs()  # type: HPLineAttrs
     gap_span_list = []  # type: List[Tuple[int, int]]
     prefix = 'fake_prefix'
     # pylint: disable=too-many-nested-blocks
@@ -191,7 +199,17 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
         (start, end), (unused_to_start_2, unused_to_end_2), line, hpline_attrs = linfo
         # print('line #{}\t[{}]'.format(i, line))
 
-            # if there is a pagenum, remove the line between it, previous and the next
+        if not hpline_attrs.has_any_attrs():
+            # "interactive Intell SOW CNG 000 Child.pdf" failed the "not prev_line" test.
+            # need to compute the ydiff, and somehow add line breaks to lineinfos (not in file,
+            # but only in memory).
+
+            # if not prev_line and prefix == 'toc':  # we don't continue TOC, if
+            # previous prefix is toc
+            if prefix == 'toc':  # there is no attribute, we don't continue 'toc'
+                cur_attr = None
+
+        # if there is a pagenum, remove the line between it, previous and the next
         if hpline_attrs.has_page_num:
             omit_line_set.add(i)
             gap_span_list.append((start, end))
@@ -232,50 +250,39 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
                 # xxx failed
                 # pylint: disable=line-too-long
                 # diff dir-data/40213.clean.txt.lineinfo.paras /tmp/40213.clean.txt.lineinfo.paras
-                if omit_list and prev_attr_list.sechead:
+                if omit_list and prev_hpline_attrs.sechead:
                     omit_line_set.add(omit_list[0])
                 elif strutils.is_all_alphas(prev_notempty_line[-1]) or \
                      prev_notempty_line[-1] in set([',', '-']):
                     omit_line_set |= set(omit_list)
                 elif omit_list:
                     omit_line_set.add(omit_list[0])
-        elif hpline_attrs.xsplit:
-            pass
-        elif hpline_attrs.sechead:
+        # if hpline_attrs.xsplit:
+        #     pass
+        if hpline_attrs.sechead:
             # "cur_attr" is how sechead info is distribute to the lines below it.
-            unused_sec_type, prefix, unused_head, unused_idx = hpline_attrs.sechead
-            cur_attr = hpline_attrs
-        else: # attr_list is empty
-            # "interactive Intell SOW CNG 000 Child.pdf" failed the "not prev_line" test.
-            # need to compute the ydiff, and somehow add line breaks to lineinfos (not in file,
-            # but only in memory).
+            unused_sec_type, prefix, unused_head, _ = hpline_attrs.sechead
+            cur_attr = hpline_attrs.sechead
+            # omit_line_set.add(i)
 
-            # if not prev_line and prefix == 'toc':  # we don't continue TOC, if
-            # previous prefix is toc
-            if prefix == 'toc':  # there is no attribute, we don't continue 'toc'
-                cur_attr = HPLineAttrs()
+        if not prev_line and not line:
+            omit_line_set.add(i)
 
-            if not prev_line and not line:
-                omit_line_set.add(i)
+        tmp2_list.append((start, end, line, cur_attr))
+        prev_line = line
+        prev_hpline_attrs = hpline_attrs
 
-            tmp2_list.append((start, end, line, cur_attr))
-            prev_line = line
-            prev_attr_list = hpline_attrs
-
+    # We intentionally pass back PLineAttrs to keep consistency with
+    # pdftxtparser's paras_attrs
     # pylint: disable=line-too-long
-    result = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], PLineAttrs]]
     doc_lines = []  # type: List[str]  # lines for nlp_text
-
     out_offset = 0
-
     non_empty_line_num = 0
-
-    empty_pline_attrs = PLineAttrs()
+    result = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], PLineAttrs]]
     for i, linfo2 in enumerate(tmp2_list):
 
         if i not in omit_line_set:
-            start, end, line, hpline_attrs = linfo2
-            sechead_attr = hpline_attrs.sechead
+            start, end, line, sechead_attr = linfo2
             # TODO, jshaw
             # The logic to handle non-empty_line_num is not exactly
             # the same as in pdftxtparser.  In pdftxtparser, not_empty_line_num
@@ -291,19 +298,16 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
             # print("span_frto_list: {}".format(span_frto_list))
             if sechead_attr:
                 if line:
-                    # for HTML document, the only useful info for
-                    # paragraph seems to be sechead only.  'center'
-                    # and page num info are not available
                     pline_attrs = PLineAttrs()
                     pline_attrs.sechead = sechead_attr
                     result.append((span_frto_list, pline_attrs))
                     doc_lines.append(line)
                 else:
-                    result.append((span_frto_list, empty_pline_attrs))
+                    result.append((span_frto_list, EMPTY_PLINE_ATTRS))
                     doc_lines.append(line)
             else:
                 # result.append(((start, end), (out_offset, out_offset + len(line)), line, []))
-                result.append((span_frto_list, empty_pline_attrs))
+                result.append((span_frto_list, EMPTY_PLINE_ATTRS))
                 doc_lines.append(line)
             out_offset += len(line) + 1
 
@@ -333,8 +337,9 @@ def parse_document(file_name: str,
     if debug_mode:
         lineinfo_fname = '{}/{}.lineinfo.v1'.format(work_dir, base_fname).replace('.txt', '')
         with open(lineinfo_fname, 'wt') as fout:
-            for i, (from_se, to_se, line, attr_list) in enumerate(lineinfos_with_attrs):
-                print("line #{}\t{}\t{}\t{}\t[{}]".format(i, from_se, to_se, attr_list, line),
+            for i, (from_se, to_se, line, hpline_attrs) in enumerate(lineinfos_with_attrs):
+                print("line #{}\t{}\t{}\t{}\t[{}]".format(i, from_se, to_se, str(hpline_attrs),
+                                                          line),
                       file=fout)
             # txtreader.dumps(lineinfo_doc_text, lineinfo_fname)
         print('wrote {}'.format(lineinfo_fname), file=sys.stderr)
@@ -367,8 +372,8 @@ def parse_document(file_name: str,
         with open(sechead_fname, 'wt') as fout2:
 
             prev_out_line = ''
-            for span_frto_list, hpline_attrs in lineinfos_paras:
-                sechead_attr = hpline_attrs.sechead
+            for span_frto_list, pline_attrs in lineinfos_paras:
+                sechead_attr = pline_attrs.sechead
 
                 to_se_list = [span_frto[1] for span_frto in span_frto_list]
                 to_start = to_se_list[0].start    # to_se_list[0] = to_lpos

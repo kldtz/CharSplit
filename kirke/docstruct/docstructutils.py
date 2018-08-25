@@ -448,14 +448,6 @@ def line_list_to_block_list(linex_list):
 
 
 # this is in-place
-# pylint: disable=fixme
-# TODO, this type declaration will cause recursive import.
-# Should move to a better location.
-# def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
-#                                 paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
-#                                                                        linepos.LnPos]],
-#                                                             PLineAttrs]]) \
-#                                                             -> None:
 # pylint: disable=too-many-locals
 def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
                                 paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
@@ -479,6 +471,7 @@ def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
         if para_to_start == para_to_end:  # empty line, move on
             para_i += 1
             continue
+
         sechead_attr = pline_attrs.sechead
         if sechead_attr:
             # print("attrs: {}".format(attrs[0]))
@@ -486,7 +479,11 @@ def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
                 sechead_attr
         else:
             sh_header = ''
-        # print("para #{}: {}".format(para_i, paras_with_attrs[para_i]))
+        # ttx_span_se_list, ttx_pline_attrs = paras_with_attrs[para_i]
+        # print("para #{}: ({}, {})".format(para_i, ttx_span_se_list,
+        #                                   # this is to make the output look the same as
+        #                                   # before 2018-08-25, can be removed in the future
+        #                                   '[' + str(ttx_pline_attrs)[8:] + ']'))
         while ebsent_start <= para_to_end:
             if mathutils.start_end_overlap((ebsent_start, ebsent_end),
                                            (para_to_start, para_to_end)):

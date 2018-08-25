@@ -633,6 +633,22 @@ def dict_to_sorted_list(adict: Dict[Any, Any]) -> List[str]:
     return ['{}={}'.format(attr, value) for attr, value in sorted(adict.items())]
 
 
+def dict_to_sorted_dict_st(adict: Dict[Any, Any]) -> str:
+    st_list = dict_to_sorted_list(adict)
+    return '{' + ', '.join(st_list) + '}'
+
+
+def set_to_sorted_set_st(aset: Set) -> str:
+    """Convert a set to a string, but in sorted order."""
+    st_list = []  # type: List[str]
+    for aval in sorted(aset):
+        if isinstance(aval, str):
+            st_list.append("'{}'".format(aval))
+        else:
+            st_list.append(str(aval))
+    return '{' + ', '.join(st_list) + '}'
+
+
 def space_repl_same_length(mat: Match[str]) -> str:
     return ' ' * len(mat.group())
 
