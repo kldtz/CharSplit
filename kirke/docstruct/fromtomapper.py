@@ -266,16 +266,21 @@ class FromToMapper:
 
         to_start_lnpos_ediff_list = []  # type: List[StartLnPosDiff]
         for i in range(start_idx, end_idx + 1):
-            if self.to_start_lnpos_list[i][1].is_gap or \
-               self.to_start_lnpos_list[i][1].start != self.to_start_lnpos_list[i][1].end:
-                # need to set the potential_end_diff, just in case if the line got swapped to
-                # be the last line for end_offset
-                potential_end_diff = self.to_start_lnpos_list[i][1].end - \
-                                     self.to_start_lnpos_list[i][1].start
-                # Originally use a list instead of tuple for assign
-                # Now, use StartLnPosDiff instead for typing
-                to_start_lnpos_ediff_list.append(StartLnPosDiff(self.to_start_lnpos_list[i],
-                                                                potential_end_diff))
+            # jshaw, 2018-08-25
+            # modifed because there is no more "is_gap" attribute in lnpos.LinePos
+            # but checking for start == end plus the other check in the boolean expression
+            # is always True.
+            # if self.to_start_lnpos_list[i][1].is_gap or \
+            #    self.to_start_lnpos_list[i][1].start != self.to_start_lnpos_list[i][1].end:
+
+            # need to set the potential_end_diff, just in case if the line got swapped to
+            # be the last line for end_offset
+            potential_end_diff = self.to_start_lnpos_list[i][1].end - \
+                                 self.to_start_lnpos_list[i][1].start
+            # Originally use a list instead of tuple for assign
+            # Now, use StartLnPosDiff instead for typing
+            to_start_lnpos_ediff_list.append(StartLnPosDiff(self.to_start_lnpos_list[i],
+                                                            potential_end_diff))
 
         # if there is only 1 line, no chance of diff being different, skip
         # print("len(to_start_lnpos_ediff_list) = {}".format(len(to_start_lnpos_ediff_list)))

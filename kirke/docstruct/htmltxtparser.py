@@ -312,7 +312,8 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
             out_offset += len(line) + 1
 
     # doc_lines = [line for _, line, _ in result]
-    doc_text = '\n'.join(doc_lines)
+    # the last '\n' is for the last line
+    doc_text = '\n'.join(doc_lines) + '\n'
 
     return result, doc_text, gap_span_list
 

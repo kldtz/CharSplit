@@ -452,8 +452,7 @@ def pdf_to_ebantdoc3(txt_file_name,
     paras2_with_attrs, para2_doc_text, gap2_span_list = \
         pdftxtparser.to_paras_with_attrs(pdf_text_doc,
                                          txt_file_name,
-                                         work_dir=work_dir,
-                                         debug_mode=False)
+                                         work_dir=work_dir)
 
     # text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     # txtreader.dumps(para2_doc_text, text4nlp_fn)

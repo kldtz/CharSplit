@@ -6,7 +6,7 @@ from typing import Any, DefaultDict, Dict, List, Tuple
 
 from kirke.docstruct import jenksutils, docstructutils
 from kirke.docstruct.docutils import PLineAttrs
-from kirke.utils import engutils, strutils
+from kirke.utils import engutils
 
 
 StrInfo = namedtuple('StrInfo', ['start', 'end',
@@ -31,262 +31,27 @@ class PageAttrs:
 
     def __str__(self) -> str:
         alist = []  # List[str]
-        if self.has_toc != -1:
+        if self.has_toc:
             alist.append('{}={}'.format('has_toc', self.has_toc))
-        if self.has_signature != -1:
+        if self.has_signature:
             alist.append('{}={}'.format('has_signature', self.has_signature))
-        if self.has_address != -1:
+        if self.has_address:
             alist.append('{}={}'.format('has_address', self.has_address))
-        if self.has_table != -1:
+        if self.has_table:
             alist.append('{}={}'.format('has_table', self.has_table))
         if self.page_num_index != -1:
             alist.append('{}={}'.format('page_num_index', self.page_num_index))
         return '|'.join(alist)
 
+    def has_any_attrs(self) -> bool:
+        return (self.has_toc or
+                self.has_signature or
+                self.has_address or
+                self.has_table or
+                self.page_num_index != -1)
+
 
 # pylint: disable=too-many-instance-attributes
-class PageInfo3:
-
-    # pylint: disable=too-many-arguments, too-many-locals
-    def __init__(self, doc_text, start, end, page_num, pblockinfo_list) -> None:
-        self.start = start
-        self.end = end
-        self.page_num = page_num
-
-        # need to order the blocks by their yStart first.
-        # this impact the line list also.
-        # Fixes header and footer issues due to out of order lines.
-        # Also out of order blocks due to tables and header.  p76 carousel.txt
-        self.pblockinfo_list = sorted(pblockinfo_list, key=lambda x: x.start)
-        self.avg_single_line_break_ydiff = self.compute_avg_single_line_break_ydiff()
-
-        # self.line_list = init_line_with_attr_list()
-
-        lineinfo_list = [lineinfo
-                         for pblockinfo in self.pblockinfo_list
-                         for lineinfo in pblockinfo.lineinfo_list]
-        xstart_list = [lineinfo.xStart for lineinfo in lineinfo_list]
-
-        # print("leninfo_list = {}, xstart_list = {}, page_num = {}".format(len(lineinfo_list),
-        # xstart_list, page_num))
-        if lineinfo_list:  # not an empty page
-            if len(xstart_list) == 1:
-                # duplicate itself to avoid jenks error with only element
-                xstart_list.append(xstart_list[0])
-            jenks = jenksutils.Jenks(xstart_list)
-
-        line_attrs = []
-        # pylint: disable=invalid-name
-        prev_yStart = 0
-        for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
-            ydiff = lineinfo.yStart - prev_yStart
-            # it possible for self.avg_single_line_break_ydiff to be 0 when
-            # the document has only vertical lines.
-            if self.avg_single_line_break_ydiff == 0:
-                num_linebreak = 1  # hopeless, default to 1 for now
-            else:
-                num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
-            align = jenks.classify(lineinfo.xStart)
-            line_text = doc_text[lineinfo.start:lineinfo.end]
-            is_english = engutils.classify_english_sentence(line_text)
-            is_centered = docstructutils.is_line_centered(line_text, lineinfo.xStart, lineinfo.xEnd)
-            line_attrs.append(LineWithAttrs(page_line_num,
-                                            lineinfo, line_text, page_num, ydiff, num_linebreak,
-                                            align, is_centered, is_english))
-            prev_yStart = lineinfo.yStart
-        self.line_list = line_attrs
-        # attrs of page, such as 'page_num_index'
-        self.attrs = PageAttrs()  # type: PageAttrs
-
-        # conent_line_list is for lines that are not
-        #   - toc
-        #   - page_num
-        #   - header, footer
-        self.content_line_list = []  # type: List[LineWithAttrs]
-
-    # pylint: disable=invalid-name
-    def compute_avg_single_line_break_ydiff(self):
-        total_merged_ydiff, total_merged_lines = 0, 0
-        for pblockinfo in self.pblockinfo_list:
-            is_multi_lines = pblockinfo.is_multi_lines
-            if not (is_multi_lines or len(pblockinfo.lineinfo_list) == 1):
-                total_merged_ydiff += pblockinfo.yEnd - pblockinfo.yStart
-                total_merged_lines += len(pblockinfo.lineinfo_list) - 1
-
-        result = 14.0  # default value, just in case
-        if total_merged_lines != 0:
-            result = total_merged_ydiff / total_merged_lines
-        # print("\npage #{}, avg_single_line_ydiff = {}".format(self.page_num, result))
-        return result
-
-    def get_blocked_lines(self):
-        if not self.line_list:
-            return []
-        prev_block_num = -1
-        cur_block = []
-        block_list = [cur_block]
-        for linex in self.line_list:
-            if linex.lineinfo.obid != prev_block_num:  # separate blocks
-                if cur_block:
-                    cur_block = []
-                    block_list.append(cur_block)
-            cur_block.append(linex)
-            prev_block_num = linex.lineinfo.obid
-        return block_list
-
-
-
-class PDFTextDoc:
-
-    def __init__(self,
-                 file_name: str,
-                 doc_text: str,
-                 page_list: List[PageInfo3]) -> None:
-        self.file_name = file_name
-        self.doc_text = doc_text
-        self.page_list = page_list
-        self.num_pages = len(page_list)
-        # each page is a list of grouped_block
-        self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
-        # pylint: disable=line-too-long
-        self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
-
-    def get_page_offsets(self) -> List[Tuple[int, int]]:
-        return [(page.start, page.end) for page in self.page_list]
-
-    def print_debug_blocks(self):
-        for page_num, grouped_block_list in enumerate(self.paged_grouped_block_list, 1):
-            print('\n===== page #%d, len(block_list)= %d' % (page_num, len(grouped_block_list)))
-
-            apage = self.page_list[page_num - 1]
-            if apage.attrs:
-                print('  attrs: {}'.format(', '.join(strutils.dict_to_sorted_list(apage.attrs))))
-            """
-            attr_list = []
-            for attr, value in sorted(apage.attrs.items()):
-                attr_list.append('{}={}'.format(attr, value))
-            if attr_list:
-                print('  attrs: {}'.format(', '.join(attr_list)))
-            """
-
-            for grouped_block in grouped_block_list:
-                print()
-                for linex in grouped_block.line_list:
-                    print('{}\t{}'.format(linex.tostr3(),
-                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]))
-        for block_type, span_list in sorted(self.special_blocks_map.items()):
-            print("\nblock_type: {}".format(block_type))
-            for start, end, adict in span_list:
-                alist = [(attr, value) for attr, value in sorted(adict.items())]
-                print("\t{}\t{}\t{}\t[{}...]".format(start,
-                                                     end,
-                                                     alist,
-                                                     # pylint: disable=line-too-long
-                                                     self.doc_text[start:end][:15].replace('\n', ' ')))
-
-    def save_debug_pages(self, extension: str, work_dir='dir-work'):
-        base_fname = os.path.basename(self.file_name)
-        paged_debug_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
-        with open(paged_debug_fname, 'wt') as fout:
-            for page in self.page_list:
-                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
-                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
-
-                if page.attrs:
-                    print('  attrs: {}'.format(str(page.attrs)),
-                          file=fout)
-
-                grouped_block_list = line_list_to_grouped_block_list(page.line_list, page.page_num)
-                for grouped_block in grouped_block_list:
-                    print(file=fout)
-                    for linex in grouped_block.line_list:
-                        print('{}\t{}'.format(linex.tostr5(),
-                                              # pylint: disable=line-too-long
-                                              self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
-                              file=fout)
-
-        print('wrote {}'.format(paged_debug_fname), file=sys.stderr)
-
-
-    def save_raw_pages(self,
-                       extension: str,
-                       work_dir: str = 'dir-work'):
-        base_fname = os.path.basename(self.file_name)
-        paged_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
-        with open(paged_fname, 'wt') as fout:
-            for page in self.page_list:
-                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
-                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
-                if page.attrs:
-                    print('  attrs: {}'.format(str(page.attrs)),
-                          file=fout)
-
-                prev_block_num = -1
-                for linex in page.line_list:
-                    if linex.lineinfo.obid != prev_block_num:  # separate blocks
-                        print(file=fout)
-                    print('{}\t{}'.format(linex.tostr2(),
-                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
-                          file=fout)
-                    prev_block_num = linex.lineinfo.obid
-
-        print('wrote {}'.format(paged_fname), file=sys.stderr)
-
-
-    def save_debug_lines(self, extension, work_dir='dir-work'):
-        base_fname = os.path.basename(self.file_name)
-        paged_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
-        with open(paged_fname, 'wt') as fout:
-            for page in self.page_list:
-                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
-                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
-
-                attr_list = []
-                for attr, value in page.attrs.items():
-                    attr_list.append('{}={}'.format(attr, value))
-                if attr_list:
-                    print('  attrs: {}'.format(', '.join(attr_list)), file=fout)
-
-                prev_block_num = -1
-                for linex in page.line_list:
-
-                    if linex.block_num != prev_block_num:  # this is not obid
-                        print(file=fout)
-                    print('{}\t{}'.format(linex.tostr2(),
-                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
-                          file=fout)
-                    prev_block_num = linex.block_num
-
-        print('wrote {}'.format(paged_fname), file=sys.stderr)
-
-
-    # we do not do our own block merging in pwc version
-    def save_debug_lines_pwc(self, extension, work_dir='dir-work'):
-        base_fname = os.path.basename(self.file_name)
-        paged_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
-        with open(paged_fname, 'wt') as fout:
-            for page in self.page_list:
-                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
-                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
-
-                attr_list = []
-                for attr, value in page.attrs.items():
-                    attr_list.append('{}={}'.format(attr, value))
-                if attr_list:
-                    print('  attrs: {}'.format(', '.join(attr_list)), file=fout)
-
-                prev_block_num = -1
-                for linex in page.line_list:
-
-                    if linex.block_num != prev_block_num:  # this is not obid
-                        print(file=fout)
-                    print('{}\t{}'.format(linex.tostr2(),
-                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
-                          file=fout)
-                    prev_block_num = linex.block_num
-
-        print('wrote {}'.format(paged_fname), file=sys.stderr)
-
 class LineInfo3:
 
     # pylint: disable=too-many-arguments
@@ -350,6 +115,7 @@ class LineInfo3:
         return 'bid= %d, obid= %d' % (self.bid, self.obid)
 
 
+# pylint: disable=too-many-instance-attributes
 class LineWithAttrs:
 
     # pylint: disable=too-many-arguments
@@ -376,7 +142,7 @@ class LineWithAttrs:
         self.is_english = is_english
         self.attrs = PLineAttrs()  # type: PLineAttrs
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
 
         return (self.block_num, self.lineinfo.start).__lt__((other.block_num, other.lineinfo.start))
 
@@ -473,9 +239,8 @@ class LineWithAttrs:
         return str(self.to_attrvals())
 
 
-
 @total_ordering
-# pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods, too-many-instance-attributes
 class PBlockInfo:
 
     # pylint: disable=too-many-arguments, too-many-locals
@@ -592,6 +357,273 @@ class PBlockInfo:
     def is_LF3(self) -> bool:
         return self.align_label == 'LF3'
 """
+
+# pylint: disable=too-many-locals
+def init_lines_with_attr(pblockinfo_list: List[PBlockInfo],
+                         avg_single_line_break_ydiff: float,
+                         doc_text: str,
+                         page_num: int) \
+                         -> List[LineWithAttrs]:
+    lineinfo_list = [lineinfo
+                     for pblockinfo in pblockinfo_list
+                     for lineinfo in pblockinfo.lineinfo_list]
+    xstart_list = [lineinfo.xStart for lineinfo in lineinfo_list]
+
+    # print("leninfo_list = {}, xstart_list = {}, page_num = {}".format(len(lineinfo_list),
+    # xstart_list, page_num))
+    if lineinfo_list:  # not an empty page
+        if len(xstart_list) == 1:
+            # duplicate itself to avoid jenks error with only element
+            xstart_list.append(xstart_list[0])
+        jenks = jenksutils.Jenks(xstart_list)
+
+    line_attrs = []  # type: List[LineWithAttrs]
+    # pylint: disable=invalid-name
+    prev_yStart = 0
+    for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
+        ydiff = lineinfo.yStart - prev_yStart
+        # it possible for self.avg_single_line_break_ydiff to be 0 when
+        # the document has only vertical lines.
+        if avg_single_line_break_ydiff == 0:
+            num_linebreak = 1.0  # hopeless, default to 1 for now
+        else:
+            num_linebreak = round(ydiff / avg_single_line_break_ydiff, 1)
+        align = jenks.classify(lineinfo.xStart)
+        line_text = doc_text[lineinfo.start:lineinfo.end]
+        is_english = engutils.classify_english_sentence(line_text)
+        is_centered = docstructutils.is_line_centered(line_text,
+                                                      lineinfo.xStart,
+                                                      lineinfo.xEnd)
+        line_attrs.append(LineWithAttrs(page_line_num,
+                                        lineinfo,
+                                        line_text,
+                                        page_num,
+                                        ydiff,
+                                        num_linebreak,
+                                        align,
+                                        is_centered,
+                                        is_english))
+        prev_yStart = lineinfo.yStart
+
+    return line_attrs
+
+
+# pylint: disable=invalid-name
+def compute_avg_single_line_break_ydiff(pblockinfo_list: List[PBlockInfo]) \
+    -> float:
+    total_merged_ydiff, total_merged_lines = 0, 0
+    for pblockinfo in pblockinfo_list:
+        is_multi_lines = pblockinfo.is_multi_lines
+        if not (is_multi_lines or len(pblockinfo.lineinfo_list) == 1):
+            total_merged_ydiff += pblockinfo.yEnd - pblockinfo.yStart
+            total_merged_lines += len(pblockinfo.lineinfo_list) - 1
+
+    result = 14.0  # default value, just in case
+    if total_merged_lines != 0:
+        result = total_merged_ydiff / total_merged_lines
+    # print("\npage #{}, avg_single_line_ydiff = {}".format(self.page_num, result))
+    return result
+
+
+# pylint: disable=too-many-instance-attributes
+class PageInfo3:
+
+    # pylint: disable=too-many-arguments, too-many-locals
+    def __init__(self,
+                 doc_text: str,
+                 start: int,
+                 end: int,
+                 page_num: int,
+                 pblockinfo_list) \
+                 -> None:
+        self.start = start
+        self.end = end
+        self.page_num = page_num
+
+        # Fixes header and footer issues due to out of order lines.
+        # Also out of order blocks due to tables and header.  p76 carousel.txt
+        self.pblockinfo_list = sorted(pblockinfo_list, key=lambda x: x.start)
+
+        avg_single_line_break_ydiff = \
+            compute_avg_single_line_break_ydiff(self.pblockinfo_list)
+        self.line_list = init_lines_with_attr(self.pblockinfo_list,
+                                              avg_single_line_break_ydiff,
+                                              doc_text=doc_text,
+                                              page_num=page_num)
+
+        self.attrs = PageAttrs()  # type: PageAttrs
+
+        # conent_line_list is for lines that are not
+        #   - toc
+        #   - page_num
+        #   - header, footer
+        self.content_line_list = []  # type: List[LineWithAttrs]
+
+
+    def get_blocked_lines(self) -> List[List[LineWithAttrs]]:
+        if not self.line_list:
+            return []
+        prev_block_num = -1
+        cur_block = []  # type: List[LineWithAttrs]
+        block_list = [cur_block]  # type: List[List[LineWithAttrs]]
+        for linex in self.line_list:
+            if linex.lineinfo.obid != prev_block_num:  # separate blocks
+                if cur_block:
+                    cur_block = []
+                    block_list.append(cur_block)
+            cur_block.append(linex)
+            prev_block_num = linex.lineinfo.obid
+        return block_list
+
+
+class PDFTextDoc:
+
+    def __init__(self,
+                 file_name: str,
+                 doc_text: str,
+                 page_list: List[PageInfo3]) -> None:
+        self.file_name = file_name
+        self.doc_text = doc_text
+        self.page_list = page_list
+        self.num_pages = len(page_list)
+        # each page is a list of grouped_block
+        self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
+        # pylint: disable=line-too-long
+        self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
+
+    def get_page_offsets(self) -> List[Tuple[int, int]]:
+        return [(page.start, page.end) for page in self.page_list]
+
+    # pylint: disable=too-many-locals
+    def save_debug_blocks(self, extension: str, work_dir='dir-work') -> None:
+        base_fname = os.path.basename(self.file_name)
+        out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+        with open(out_fname, 'wt') as fout:
+            for page_num, grouped_block_list in enumerate(self.paged_grouped_block_list, 1):
+                print('\n===== page #%d, len(block_list)= %d' % (page_num, len(grouped_block_list)),
+                      file=fout)
+
+                apage = self.page_list[page_num - 1]
+                if apage.attrs.has_any_attrs():
+                    print('  attrs: {}'.format(str(apage.attrs)), file=fout)
+
+                for grouped_block in grouped_block_list:
+                    print()
+                    for linex in grouped_block.line_list:
+                        print('{}\t{}'.format(linex.tostr3(),
+                                              # pylint: disable=line-too-long
+                                              self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
+                              file=fout)
+            for block_type, span_list in sorted(self.special_blocks_map.items()):
+                print("\nblock_type: {}".format(block_type), file=fout)
+                for start, end, adict in span_list:
+                    alist = [(attr, value) for attr, value in sorted(adict.items())]
+                    print("\t{}\t{}\t{}\t[{}...]".format(start,
+                                                         end,
+                                                         alist,
+                                                         # pylint: disable=line-too-long
+                                                         self.doc_text[start:end][:15].replace('\n', ' ')), file=fout)
+        print('wrote {}'.format(out_fname), file=sys.stderr)
+
+    def save_debug_pages(self, extension: str, work_dir='dir-work'):
+        base_fname = os.path.basename(self.file_name)
+        out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+        with open(out_fname, 'wt') as fout:
+            for page in self.page_list:
+                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
+
+                if page.attrs:
+                    print('  attrs: {}'.format(str(page.attrs)),
+                          file=fout)
+
+                grouped_block_list = line_list_to_grouped_block_list(page.line_list, page.page_num)
+                for grouped_block in grouped_block_list:
+                    print(file=fout)
+                    for linex in grouped_block.line_list:
+                        print('{}\t{}'.format(linex.tostr5(),
+                                              # pylint: disable=line-too-long
+                                              self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
+                              file=fout)
+
+        print('wrote {}'.format(out_fname), file=sys.stderr)
+
+
+    def save_raw_pages(self,
+                       extension: str,
+                       work_dir: str = 'dir-work'):
+        base_fname = os.path.basename(self.file_name)
+        out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+        with open(out_fname, 'wt') as fout:
+            for page in self.page_list:
+                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
+                if page.attrs:
+                    print('  attrs: {}'.format(str(page.attrs)),
+                          file=fout)
+
+                prev_block_num = -1
+                for linex in page.line_list:
+                    if linex.lineinfo.obid != prev_block_num:  # separate blocks
+                        print(file=fout)
+                    print('{}\t{}'.format(linex.tostr2(),
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
+                          file=fout)
+                    prev_block_num = linex.lineinfo.obid
+
+        print('wrote {}'.format(out_fname), file=sys.stderr)
+
+
+    def save_debug_lines(self, extension, work_dir='dir-work'):
+        base_fname = os.path.basename(self.file_name)
+        out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+        with open(out_fname, 'wt') as fout:
+            for page in self.page_list:
+                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
+
+                if page.attrs.has_any_attrs():
+                    print('  attrs: {}'.format(str(page.attrs)), file=fout)
+
+                prev_block_num = -1
+                for linex in page.line_list:
+
+                    if linex.block_num != prev_block_num:  # this is not obid
+                        print(file=fout)
+                    print('{}\t{}'.format(linex.tostr2(),
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
+                          file=fout)
+                    prev_block_num = linex.block_num
+
+        print('wrote {}'.format(out_fname), file=sys.stderr)
+
+
+    # we do not do our own block merging in pwc version
+    def save_debug_lines_pwc(self, extension, work_dir='dir-work'):
+        base_fname = os.path.basename(self.file_name)
+        out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+        with open(out_fname, 'wt') as fout:
+            for page in self.page_list:
+                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
+                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
+
+                attr_list = []
+                for attr, value in page.attrs.items():
+                    attr_list.append('{}={}'.format(attr, value))
+                if attr_list:
+                    print('  attrs: {}'.format(', '.join(attr_list)), file=fout)
+
+                prev_block_num = -1
+                for linex in page.line_list:
+
+                    if linex.block_num != prev_block_num:  # this is not obid
+                        print(file=fout)
+                    print('{}\t{}'.format(linex.tostr2(),
+                                          self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
+                          file=fout)
+                    prev_block_num = linex.block_num
+
+        print('wrote {}'.format(out_fname), file=sys.stderr)
 
 
 # pylint: disable=too-few-public-methods

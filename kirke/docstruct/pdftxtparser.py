@@ -25,7 +25,7 @@ logger.setLevel(logging.INFO)
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
-DEBUG_MODE = False
+IS_DEBUG_MODE = False
 
 def get_nl_fname(base_fname: str,
                  work_dir: str) -> str:
@@ -40,9 +40,10 @@ def get_paraline_fname(base_fname: str,
 def text_offsets_to_nl(base_fname: str,
                        orig_doc_text: str,
                        line_breaks: List[Dict],
-                       work_dir: str,
-                       debug_mode: bool = False) \
+                       work_dir: str) \
                        -> Tuple[str, List[int]]:
+
+    debug_mode = False
     # We allow only 1 diff, some old cached file might have the issue
     # where a value == len(orig_doc_text).
     # For example, BHI doc, cached 110464.txt have this property.
@@ -99,8 +100,7 @@ def to_nl_paraline_texts(file_name: str,
     nl_text, linebreak_offset_list = text_offsets_to_nl(base_fname,
                                                         orig_doc_text,
                                                         line_breaks,
-                                                        work_dir=work_dir,
-                                                        debug_mode=debug_mode)
+                                                        work_dir=work_dir)
 
     linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
 
@@ -226,6 +226,7 @@ def is_block_multi_line(linex_list):
             num_not_english += 1
     return num_is_english < num_not_english
 
+
 def get_gap_frto_list(prev_linex: LineWithAttrs,
                       linex: LineWithAttrs,
                       cur_page: PageInfo3,
@@ -334,8 +335,7 @@ def save_str_list(pdf_text_doc: PDFTextDoc,
 
 def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                         file_name: str,
-                        work_dir: str,
-                        debug_mode: bool = False) \
+                        work_dir: str) \
                         -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
                                             PLineAttrs]],
                                  str,
@@ -350,16 +350,17 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     """
     base_fname = os.path.basename(file_name)
 
+    if IS_DEBUG_MODE:
+        pdf_text_doc.save_debug_blocks(work_dir=work_dir, extension='.paged.blocks.tsv')
+
     offset = 0
-    out_line_list = []
+    out_line_list = []  # type: List[str]
     # pylint: disable=line-too-long
     offsets_line_list = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], PLineAttrs]]
 
-
     # para_with_attrs, from_z, to_z, line_text, attrs (toc, header, footer, sechead)
     # sechead_context is now either
-    #    sechead_context = [[]], type= <class 'list'>
-    #    sechead_context = [('sechead', 'Section 9.02.', "Vendors' Warranties. ", 35)], type= <class 'tuple'>
+    #    sechead_context = None or ('sechead', 'Section 9.02.', "Vendors' Warranties. ", 35)
     sechead_context = None  # type: Optional[Tuple[str, str, str, int]]
     not_gapped_line_nums = set([])  # type: Set[int]
 
@@ -394,7 +395,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
                     not_gapped_line_nums.add(linex.lineinfo.line_num)
             else:
-                block_lines = []
+                block_lines = []  # type: List[str]
                 first_linex = grouped_block.line_list[0]
                 pline_attrs = first_linex.to_attrvals()
 
@@ -421,15 +422,17 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                                                           pdf_text_doc.page_list[page_num])
                         # gap_frto_list = False
                         if gap_frto_list:
+                            print("gap_frto_list: {}".format(gap_frto_list))
                             # span_se_list.extend(gap_frto_list)
                             # simply add a break line, the gap will be done correctly elsewhere
                             gap_line_x_attrs = gap_frto_list[0]
                             # use -2, just in case -1 + 1 == 0, and line_num is 0
+                            # jshaw, 2018-08-25, the two lines below are the only time
+                            # is_gap=True was set for LnPos before.  Now, removed.
                             span_se_list.append((linepos.LnPos(gap_line_x_attrs.lineinfo.start,
-                                                               gap_line_x_attrs.lineinfo.start,
-                                                               is_gap=True),
+                                                               gap_line_x_attrs.lineinfo.start),
                                                  # -100 will be reset later
-                                                 linepos.LnPos(offset, offset, is_gap=True)))
+                                                 linepos.LnPos(offset, offset)))
 
                     out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
                     block_lines.append(out_line)
@@ -466,7 +469,8 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
     not_empty_line_num = 0
     for unused_startx, _, from_lnpos in sorted(start_from_lnpos_list):
-        if from_lnpos.is_gap:
+        # the 3rd branch is not used
+        if from_lnpos.start == from_lnpos.end:
             from_lnpos.line_num = not_empty_line_num
             not_empty_line_num += 1
         elif from_lnpos.start != from_lnpos.end:
@@ -478,7 +482,8 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     # do the same as above for start_to_lnpos_list
     not_empty_line_num = 0
     for unused_startx, _, to_lnpos in sorted(start_to_lnpos_list):
-        if to_lnpos.is_gap:
+        # the 3rd branch is not used
+        if to_lnpos.start == to_lnpos.end:
             to_lnpos.line_num = not_empty_line_num
             not_empty_line_num += 1
         elif to_lnpos.start != to_lnpos.end:
@@ -497,9 +502,10 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 if line_num not in not_gapped_line_nums:
                     gap_span_list.append((linex.lineinfo.start, linex.lineinfo.end))
 
-    paraline_text = '\n'.join(out_line_list)
+    # the last '\n' is for the last line
+    paraline_text = '\n'.join(out_line_list) + '\n'
 
-    if debug_mode:
+    if IS_DEBUG_MODE:
         # paraline IS NOT the same as nlp, paraline doesn't remove page num
         pdf_nlp_txt_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.nlp.txt'))
         txtreader.dumps(paraline_text, pdf_nlp_txt_fn)
@@ -512,8 +518,8 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
             for from_to_span_list, pline_attrs in offsets_line_list:
                 print('{}\t{}'.format(from_to_span_list, pline_attrs), file=fout2)
         print('wrote {}'.format(pdf_nlp_debug_fn), file=sys.stderr)
-    return offsets_line_list, paraline_text, gap_span_list
 
+    return offsets_line_list, paraline_text, gap_span_list
 
 
 # returns paraline_doc_text, paralines_with_attrs
@@ -592,8 +598,7 @@ def to_paralines(pdf_text_doc, file_name, work_dir, debug_mode=False):
 
 
 def parse_document(file_name: str,
-                   work_dir: str,
-                   debug_mode: bool = False) \
+                   work_dir: str) \
                    -> PDFTextDoc:
     base_fname = os.path.basename(file_name)
 
@@ -608,8 +613,7 @@ def parse_document(file_name: str,
     nl_text, unused_linebreak_offset_list = text_offsets_to_nl(base_fname,
                                                                doc_text,
                                                                line_breaks,
-                                                               work_dir=work_dir,
-                                                               debug_mode=debug_mode)
+                                                               work_dir=work_dir)
 
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
     min_diff = float("inf")
@@ -705,17 +709,20 @@ def parse_document(file_name: str,
         pageinfo_list.append(pinfo)
     pdf_text_doc = PDFTextDoc(file_name, doc_text, pageinfo_list)
 
-    if DEBUG_MODE:
+    if IS_DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.tsv')
 
     add_doc_structure_to_doc(pdf_text_doc)
 
-    if DEBUG_MODE:
+    if IS_DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.docstruct.tsv')
 
     return pdf_text_doc
 
 
+# TODO, 2018-08-24
+# nobody is calling this???
+# if so, remove
 def merge_if_continue_to_next_page(prev_page, cur_page):
     if not prev_page.content_line_list or not cur_page.content_line_list:
         return
@@ -865,10 +872,8 @@ def add_doc_structure_to_doc(pdftxt_doc):
         add_doc_structure_to_page(page, pdftxt_doc)
         # break blocks if they are in the middle of header, english sents
         # adjust_blocks_in_page(page, pdftxt_doc)
-    if DEBUG_MODE:
+    if IS_DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.bef.merge.tsv')
-
-    if DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.after.merge.tsv')
 
     # now we have basic block_group with correct
@@ -899,6 +904,7 @@ def add_doc_structure_to_doc(pdftxt_doc):
     for page_num in range(1, pdftxt_doc.num_pages + 1):
         grouped_block_list = paged_grouped_block_list[page_num]
         pdftxt_doc.paged_grouped_block_list.append(grouped_block_list)
+
 
 def add_sections_to_page(apage, pdf_txt_doc):
     page_num = apage.page_num
@@ -1192,7 +1198,6 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
 
         if non_sechead_count >= 3:
             deactivate_toc_detection = True
-
 
     # there can be toc lines that are not marked correct because they are more
     # english
@@ -1699,7 +1704,7 @@ def main():
     pdf_txt_doc = parse_document(txt_fname, work_dir=work_dir)
     to_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)
 
-    pdf_txt_doc.print_debug_blocks()
+    pdf_txt_doc.save_debug_blocks(work_dir=work_dir, extension='.paged.blocks.tsv')
 
     pdf_txt_doc.save_debug_pages(work_dir=work_dir, extension='.paged.debug.tsv')
 

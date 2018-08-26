@@ -181,23 +181,14 @@ class EbAnnotatedDoc4:
             return doc_text
 
         para_st_list = []
-        skip_count = 0
         for para_with_attrs in self.paras_with_attrs:
 
             # print("para_with_attrs: {}".format(para_with_attrs))
-            # para_with_attrs = List[Tuple[linepos.LnPos, linepos.LnPos]],
-            #                   str,
-            #                   List[Any]]
             lnpos_pair_list, unused_attrs = para_with_attrs
-            skip_st_list = []
             for from_lnpos, unused_to_lnpos in lnpos_pair_list:
-                from_start, from_end, unused_from_line_num, is_gap = from_lnpos.to_tuple()
-                if not is_gap:
-                    para_st_list.append(doc_text[from_start:from_end])
-                else:  # this is never called, or reached
-                    skip_count += 1
-                    skip_st_list.append("skipping #{} [{}]".format(skip_count,
-                                                                   doc_text[from_start:from_end]))
+                from_start, from_end, unused_from_line_num = from_lnpos.to_tuple()
+                para_st_list.append(doc_text[from_start:from_end])
+
             # para_st_list.append(' '.join(para_st_list))
         nlp_text = '\n'.join(para_st_list)
         return nlp_text
@@ -365,7 +356,7 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                    is_cache_enabled=True,
                                    doc_lang="en",
                                    is_use_corenlp: bool = True) -> EbAnnotatedDoc4:
-    logger.debug('html_to_ebantdoc4(%s)', txt_file_name)
+    logger.debug('html_no_docstruct_to_ebantdoc4(%s)', txt_file_name)
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
@@ -542,6 +533,7 @@ def html_to_ebantdoc4(txt_file_name: str,
                 eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
+
 def update_special_block_info(eb_antdoc, pdf_txt_doc):
     eb_antdoc.table_list = pdf_txt_doc.special_blocks_map.get('table', [])
     eb_antdoc.chart_list = pdf_txt_doc.special_blocks_map.get('chart', [])
@@ -571,7 +563,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     # Chopping text at exhibit_complete messes up all the offsets info from offsets.json.
     # To avoid this situation, we currently do NOT chop PDF text.  For HTML and others,
     # such chopping is not an issue since there is associated no offsets.json file.
-    # A correct solution is to not chop, but put a market
+    # A correct solution is to not chop, but put a marker
     # in the ebantdoc and all the code acts accordingly, such as not to run corenlp on such
     # text because such chopped text should not participate in training and evaluation of
     # ML classification, or any classification.
@@ -606,31 +598,13 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     paras2_with_attrs, para2_doc_text, gap2_span_list = \
         pdftxtparser.to_paras_with_attrs(pdf_text_doc,
                                          txt_file_name,
-                                         work_dir=work_dir,
-                                         debug_mode=False)
+                                         work_dir=work_dir)
 
     # for i, (gap_start, gap_end) in enumerate(gap2_span_list):
     #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
-    skip_st_list = []
     if not paras2_with_attrs:
         logger.info("Empty paras2_with_attrs.  Not urgent.  File: %s", txt_file_name)
         logger.info("  Likely cause: either no text or looked too much like table-of-content.")
-    for para_with_attrs in paras2_with_attrs:
-        # para_with_attrs = List[Tuple[linepos.LnPos, linepos.LnPos]],
-        #                   str,
-        #                   List[Any]]
-        # lnpos_pair_list, unused_para_text, unused_attrs = para_with_attrs
-        lnpos_pair_list, unused_attrs = para_with_attrs
-        para_st_list = []
-        skip_count = 0
-        for from_lnpos, unused_to_lnpos in lnpos_pair_list:
-            from_start, from_end, unused_from_line_num, is_gap = from_lnpos.to_tuple()
-            if not is_gap:
-                para_st_list.append(doc_text[from_start:from_end])
-            else:  # this is never called, or reached
-                skip_count += 1
-                skip_st_list.append("skipping #{} [{}]".format(skip_count,
-                                                               doc_text[from_start:from_end]))
 
     text4nlp_fn = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para2_doc_text, text4nlp_fn)

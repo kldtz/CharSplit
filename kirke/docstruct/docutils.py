@@ -70,7 +70,7 @@ def lnpos2dict(start: int, end: int, lnpos: linepos.LnPos) -> Dict:
     adict = {'start': start,
              'end': end,
              'line_num': lnpos.line_num}
-    if lnpos.is_gap:
+    if lnpos.start == lnpos.end:
         adict['gap'] = True
     return adict
 
