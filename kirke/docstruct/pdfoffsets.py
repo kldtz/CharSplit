@@ -501,6 +501,8 @@ class PDFTextDoc:
 
         self.linebreak_arr = linebreak_arr
 
+        self.removed_lines = []  # type: List[LineWithAttrs]
+        self.exclude_offsets = []  # type: List[Tuple[int, int]]
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]

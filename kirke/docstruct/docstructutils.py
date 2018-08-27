@@ -78,13 +78,14 @@ def is_line_centered(line: str,
 # 'TABLE OF CONTENTS OFFICE LEASE'
 TOC_HEADING_PAT = re.compile(r'^\s*(table\s*of\s*contents?|contents?)\s*:?$', re.IGNORECASE)
 # 5 periods
-TOC_PREFIX_2_PAT = re.compile(r'(\.\.\.\.\.|\. \. \. \. \. )')
+TOC_PREFIX_2_PAT = re.compile(r'(\.\.\.\.\.+|\. \. \. \. (\. )+)')
 
-def is_line_toc_heading(line: str):
-    return TOC_HEADING_PAT.search(line)
+def is_line_toc_heading(line: str) -> bool:
+    mat = TOC_HEADING_PAT.search(line)
+    return bool(mat and mat.end() < 40)
 
 
-def is_line_toc(line: str):
+def is_line_toc(line: str) -> bool:
     # sometimes a signature line might look like toc
     # By: .,.....
     if is_line_signature_prefix(line):
@@ -96,10 +97,27 @@ def is_line_toc(line: str):
 
     mat = TOC_PREFIX_2_PAT.search(line)
     if mat:
+        # first verify that the number of words is less than 12
+        no_multi_period_line = re.sub('\.\s*[\.\s]+', ' ', line)
+        num_words = no_multi_period_line.split()
+        if len(num_words) >= 12:
+            # check if there are 3 or more of the multi-period frags.
+            # some TOC lines might have been stuck together on the
+            # same line or block
+            multi_period_mats = re.findall(TOC_PREFIX_2_PAT, line)
+            if len(multi_period_mats) >= 3:
+                # if there is OCR error on unknown stuff, it might form
+                # multi-period frags.  If known as a sentence, don't bother.
+                multi_period_mat = re.search(TOC_PREFIX_2_PAT, line)
+                if multi_period_mat and multi_period_mat.start() > 70:
+                    return False
+                return True
+            return False
+
         # need to verify it again for the rest of the line
         line_left = line[mat.end(1):]
         # print('line_left = [{}]'.format(line_left))
-        return TOC_PREFIX_2_PAT.search(line_left)
+        return bool(TOC_PREFIX_2_PAT.search(line_left))
     return False
 
 

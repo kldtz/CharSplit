@@ -1,6 +1,7 @@
 # pylint: disable=too-many-lines
 import argparse
 import array
+# pylint: disable=unused-import
 from array import ArrayType
 from collections import defaultdict
 import logging
@@ -10,7 +11,7 @@ import sys
 from typing import Any, Dict, DefaultDict, List, Optional, Set, Tuple
 
 from kirke.docstruct import docstructutils, linepos
-from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
+from kirke.docstruct import pdfdocutils, pdfoffsets, pdfutils, secheadutils
 from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, LineWithAttrs
 from kirke.docstruct.pdfoffsets import PLineAttrs
 from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInfo
@@ -25,169 +26,8 @@ logger.setLevel(logging.INFO)
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
-IS_DEBUG_MODE = False
-
-def get_nl_fname(base_fname: str,
-                 work_dir: str) -> str:
-    return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
-
-
-def get_paraline_fname(base_fname: str,
-                       work_dir: str) -> str:
-    return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paraline.txt'))
-
-
-def text_offsets_to_nl(base_fname: str,
-                       orig_doc_text: str,
-                       line_breaks: List[Dict],
-                       work_dir: str) \
-                       -> Tuple[str, List[int]]:
-
-    debug_mode = False
-    # We allow only 1 diff, some old cached file might have the issue
-    # where a value == len(orig_doc_text).
-    # For example, BHI doc, cached 110464.txt have this property.
-    len_doc_text = len(orig_doc_text)
-    linebreak_offset_list = []  # type: List[int]
-    for lbrk in line_breaks:
-        lbrk_offset = lbrk['offset']
-        if lbrk_offset < len_doc_text:
-            linebreak_offset_list.append(lbrk_offset)
-        elif lbrk_offset == len_doc_text:
-            # logger.warning("text_offsets_to_nl(%s), len= %d, lnbrk_offset = %d",
-            #                base_fname, len_doc_text, lbrk_offset)
-            pass
-        else:
-            logger.warning("text_offsets_to_nl(%s), len= %d, lnbrk_offset = %d",
-                           base_fname, len_doc_text, lbrk_offset)
-    ch_list = list(orig_doc_text)
-    for linebreak_offset in linebreak_offset_list:
-        ch_list[linebreak_offset] = '\n'
-    nl_text = ''.join(ch_list)
-    if debug_mode:
-        nl_fname = get_nl_fname(base_fname, work_dir)
-        txtreader.dumps(nl_text, nl_fname)
-        print('wrote {}, size= {}'.format(nl_fname, len(nl_text)), file=sys.stderr)
-    return nl_text, linebreak_offset_list
-
-
-def is_block_multi_line(linex_list):
-
-    if len(linex_list) <= 1:
-        return False
-    if len(linex_list) == 2:  # if first line is a sentence
-        if linex_list[0].is_english and linex_list[0].num_word >= 6:
-            return False
-    # if more than 3 lines, if most lines are english, then multi-line is False
-    num_is_english = 0
-    num_not_english = 0
-    for linex in linex_list:
-        if linex.is_english:
-            num_is_english += 1
-        else:
-            num_not_english += 1
-    return num_is_english < num_not_english
-
-
-def get_gap_frto_list(prev_linex: LineWithAttrs,
-                      linex: LineWithAttrs,
-                      cur_page: PageInfo3,
-                      next_page: PageInfo3) \
-                      -> List[LineWithAttrs]:
-    """Take the footer between the prev_line and the first line of next page.
-
-    This code tries to recover the deleted lines inside a paragraph, or a block.
-    The docstructure keeps lines from different pages inside the same block if
-    it believes they are of the same paragraph.  As a result, some lines, such as
-    page numbers or footer are deleted.  This seems to be trying to recover those
-    deleted lines.  The logic was difficult if not realizing that the deletion is
-    already done somewhere else when merging the blocks earlier.
-
-    Return a list of footer lines.
-    """
-    start_index, end_index = -1, -1
-
-    result = []
-
-    prev_line_num = prev_linex.lineinfo.line_num
-    for seq, xxx_linex in enumerate(cur_page.line_list):
-        if xxx_linex.lineinfo.line_num == prev_line_num:
-            if seq + 1 < len(cur_page.line_list):
-                start_index = seq + 1  # next line is the gapped line
-            #else:
-            #    start_index = -1
-            break
-    # start_index can be -1 or other values here
-
-    next_line_num = linex.lineinfo.line_num
-    for seq, xxx_linex in enumerate(next_page.line_list):
-        if xxx_linex.lineinfo.line_num == next_line_num:
-            if seq - 1 >= 0:
-                end_index = seq - 1  # prev line is the gapped line
-            break
-
-    # print("start_index = {}, end_index = {}".format(start_index, end_index))
-
-    if start_index == -1 and end_index == -1:  # ?? everything is gapped?
-        return []
-    elif start_index == -1:
-        # nothing from first page, so start from the first line of next page
-        if linex.lineinfo.line_num != next_page.line_list[0].lineinfo.line_num:
-            for tmp_linex in next_page.line_list:
-                if tmp_linex != linex:
-                    result.append(tmp_linex)
-        else:
-            # start_index == -1 means there is no gap from previous.
-            # if we have no gap in the next page, then there is no gap
-            return []
-    elif end_index == -1:
-        # nothing from next page, so end from the last line of current page
-        if prev_linex.lineinfo.line_num != cur_page.line_list[-1].lineinfo.line_num:
-            for i in range(start_index, len(cur_page.line_list)):
-                result.append(cur_page.line_list[i])
-        else:
-            # end_index == -1 means there is no gap from next page
-            # if we have no gap in the current page, then there is no gap
-            return []
-    else:  # start_index and end_index both are not -1
-        # start_offset = cur_page.line_list[start_index].lineinfo.start
-        # end_offset = next_page.line_list[end_index].lineinfo.end   # + 1  # 1 for eoln
-        if prev_linex.lineinfo.line_num != cur_page.line_list[-1].lineinfo.line_num:
-            for i in range(start_index, len(cur_page.line_list)):
-                result.append(cur_page.line_list[i])
-        if linex.lineinfo.line_num != next_page.line_list[0].lineinfo.line_num:
-            for tmp_linex in next_page.line_list:
-                if tmp_linex != linex:
-                    result.append(tmp_linex)
-
-    return result
-
-
-def save_str_list(pdf_text_doc: PDFTextDoc,
-                  file_name: str,
-                  work_dir: str) -> None:
-    base_fname = os.path.basename(file_name)
-    out_fname = '{}/{}'.format(work_dir, base_fname)
-
-    doc_text = pdf_text_doc.doc_text
-    with open(out_fname, 'wt') as fout:
-        for page_num, pageinfo in enumerate(pdf_text_doc.page_list, 1):
-            for pblock_num, pblockinfo in enumerate(pageinfo.pblockinfo_list):
-                block_line_num = 0
-                for lineinfo in pblockinfo.lineinfo_list:
-                    block_line_num += 1
-                    for str_num, strinfo in enumerate(lineinfo.strinfo_list):
-                        start = strinfo.start
-                        end = strinfo.end
-                        text = doc_text[start:end]
-                        print("{}\t{}\t{}\t{}\t{}\t[{}]".format(page_num,
-                                                                pblock_num,
-                                                                block_line_num,
-                                                                str_num,
-                                                                str(strinfo),
-                                                                text),
-                              file=fout)
-
+IS_DEBUG_MODE = True
+IS_DEBUG_TOC = False
 
 # linepos.LnPos = start, end, line_num, is_gap
 # attr_list = List[Any]    # this is very unsatisfying
@@ -195,6 +35,7 @@ def save_str_list(pdf_text_doc: PDFTextDoc,
 # offsets_line_list = List[Tuple[span_se_list, str, attr_list]]
 # gap_span_list = List[Tuple[int, int]]
 
+# pylint: disable=too-many-locals, too-many-statements
 def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                         file_name: str,
                         work_dir: str) \
@@ -233,7 +74,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
         # because we merge lines across pages, we should do this gap span identification at
         # global level
         for grouped_block in grouped_block_list:
-            # is_multi_line = is_block_multi_line(grouped_block.line_list)
+            # is_multi_line = pdfdocutils.is_block_multi_line(grouped_block.line_list)
             is_multi_line = False
             if is_multi_line:
                 # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
@@ -277,11 +118,11 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                         prev_linex = linex
 
                     if prev_page_num != -1 and linex.page_num != prev_page_num:
-                        gap_frto_list = get_gap_frto_list(prev_linex,
-                                                          linex,
-                                                          apage,
-                                                          # page_num is the next page
-                                                          pdf_text_doc.page_list[page_num])
+                        gap_frto_list = pdfdocutils.get_gap_frto_list(prev_linex,
+                                                                      linex,
+                                                                      apage,
+                                                                      # page_num is the next page
+                                                                      pdf_text_doc.page_list[page_num])
                         # gap_frto_list = False
                         if gap_frto_list:
                             print("gap_frto_list: {}".format(gap_frto_list))
@@ -365,12 +206,11 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                     gap_span_list.append((linex.lineinfo.start, linex.lineinfo.end))
 
     # the last '\n' is for the last line
-    paraline_text = '\n'.join(out_line_list) + '\n'
+    nlp_text = '\n'.join(out_line_list) + '\n'
 
     if IS_DEBUG_MODE:
-        # paraline IS NOT the same as nlp, paraline doesn't remove page num
         pdf_nlp_txt_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.nlp.txt'))
-        txtreader.dumps(paraline_text, pdf_nlp_txt_fn)
+        txtreader.dumps(nlp_text, pdf_nlp_txt_fn)
         print('wrote {}'.format(pdf_nlp_txt_fn), file=sys.stderr)
 
         pdf_nlp_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt',
@@ -381,84 +221,10 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 print('{}\t{}'.format(from_to_span_list, pline_attrs), file=fout2)
         print('wrote {}'.format(pdf_nlp_debug_fn), file=sys.stderr)
 
-    return offsets_line_list, paraline_text, gap_span_list
+    return offsets_line_list, nlp_text, gap_span_list
 
 
-# returns paraline_doc_text, paralines_with_attrs
-def to_paralines(pdf_text_doc, file_name, work_dir, debug_mode=False):
-    base_fname = os.path.basename(file_name)
-
-    # cur_attr = []
-    # gap_span_list = []
-    offset = 0
-    out_line_list = []
-    offsets_line_list = []
-
-    for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
-        apage = pdf_text_doc.page_list[page_num - 1]
-        attr_list = sorted(apage.attrs.items())
-        #if attr_list:
-        #    print('  attrs: {}'.format(', '.join(attr_list)))
-        for grouped_block in grouped_block_list:
-
-            is_multi_line = is_block_multi_line(grouped_block.line_list)
-
-            if is_multi_line:
-                for linex in grouped_block.line_list:
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                    attr_list = linex.to_attrvals()  # sorted(linex.attrs.items())
-
-                    out_line_list.append(out_line)
-                    offsets_line_list.append(((linex.lineinfo.start, linex.lineinfo.end),
-                                              (offset, offset + len(out_line)),
-                                              out_line, attr_list))
-                    offset += len(out_line) + 1  # to add eoln
-            else:
-                block_lines = []
-                attr_list = grouped_block.line_list[0].to_attrvals()  # sorted(linex.attrs.items())
-                block_start = offset
-                for linex in grouped_block.line_list:
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                    block_lines.append(out_line)
-                    offset += len(out_line) + 1  # to add eoln
-
-                block_text = ' '.join(block_lines)
-                out_line_list.append(block_text)
-                offsets_line_list.append(((grouped_block.line_list[0].lineinfo.start,
-                                           grouped_block.line_list[-1].lineinfo.end),
-                                          (block_start, offset - 1),
-                                          block_text, attr_list))
-
-            out_line_list.append('')
-            offsets_line_list.append(((linex.lineinfo.end+2, linex.lineinfo.end+2),
-                                      (offset, offset),
-                                      '', {}))
-            offset += 1
-
-    paraline_text = '\n'.join(out_line_list)
-
-    if debug_mode:
-        pdf_paraline_txt_fn = '{}/{}'.format(work_dir,
-                                             base_fname.replace('.txt',
-                                                                '.pdf.paraline.txt'))
-        txtreader.dumps(paraline_text, pdf_paraline_txt_fn)
-        print('wrote {}'.format(pdf_paraline_txt_fn), file=sys.stderr)
-
-        pdf_paraline_debug_fn = '{}/{}'.format(work_dir,
-                                               base_fname.replace('.txt',
-                                                                  '.pdf.paraline.debug.tsv'))
-        with open(pdf_paraline_debug_fn, 'wt') as fout2:
-            for tmp_start, tmp_end, out_line, attr_list in offsets_line_list:
-                print('{}, {}\t{}\t[{}]'.format(tmp_start,
-                                                tmp_end,
-                                                sorted(attr_list.items()),
-                                                out_line),
-                      file=fout2)
-        print('wrote {}'.format(pdf_paraline_debug_fn), file=sys.stderr)
-
-    return paraline_text, offsets_line_list
-
-
+# pylint: disable=too-many-locals, too-many-statements
 def init_pageinfo_list(doc_text: str,
                        nl_text: str,
                        paraline_fname: str,
@@ -549,23 +315,9 @@ def init_pageinfo_list(doc_text: str,
                 start = lxid_strinfos_map[line_num][0].start
             tmp_strinfos.extend(lxid_strinfos_map[line_num])
 
-    # save .paraline.txt, which has the exact same size
-    # as .txt file.
-
-    # Now, switch to array replacement.  This is not affected by the wrong block info.
-    # It simply override everys block based on the indexes, so guarantees not to create
-    # extra stuff.
-
-    ch_list = list(nl_text)
-    for block_info in block_info_list:
-        block_text = block_info.text
-        # block_text is already formatted correct because of above
-        # pdfutils.para_to_para_list(nl_text[start:end])
-        ch_list[block_info.start:block_info.end] = list(block_text)
-    paraline_text = ''.join(ch_list)
-    txtreader.dumps(paraline_text, paraline_fname)
-    print('wrote {}, size= {}'.format(paraline_fname, len(paraline_text)),
-          file=sys.stderr)
+    pdfdocutils.save_nltext_as_paraline_file(nl_text,
+                                             block_info_list,
+                                             paraline_fname)
 
     pageinfo_list = []  # type: List[PageInfo3]
     for page_offset in page_offsets:
@@ -594,14 +346,15 @@ def parse_document(file_name: str,
                                   cpoint_cunit_mapper)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
-    nl_text, linebreak_offset_list = text_offsets_to_nl(base_fname,
-                                                        doc_text,
-                                                        line_breaks,
-                                                        work_dir=work_dir)
+    nl_text, linebreak_offset_list = \
+        pdfdocutils.text_offsets_to_nl(base_fname,
+                                       doc_text,
+                                       line_breaks,
+                                       work_dir=work_dir)
 
     linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
 
-    paraline_fn = get_paraline_fname(base_fname, work_dir)
+    paraline_fn = pdfdocutils.get_paraline_fname(base_fname, work_dir)
     pageinfo_list = init_pageinfo_list(doc_text=doc_text,
                                        nl_text=nl_text,
                                        paraline_fname=paraline_fn,
@@ -767,19 +520,62 @@ def adjust_blocks_in_page(apage,
             tmp_list.append(linex)
     apage.content_line_list = tmp_list
 
+def update_page_removed_lines(pdftxt_doc: PDFTextDoc) -> None:
+    rm_list = []  # type: List[LineWithAttrs]
+    for apage in pdftxt_doc.page_list:
+        for linex in apage.line_list:
+            if linex.attrs.header or \
+               linex.attrs.footer:
+                pdftxt_doc.removed_lines.append(linex)
+                rm_list.append(linex)
+    # nothing to remove, nothing to update
+    if not rm_list:
+        return
+    # jshaw, 2018-08-25
+    # in the future, merge adjacent lines, based on
+    # the text between the lines are all spaces or nl
+    # Then, simply  have an set of offsets that should
+    # be removed in the final document.
+    doc_text = pdftxt_doc.doc_text
+    exclude_offsets = []  # type: List[Tuple[int, int]]
+    prev_start, prev_end = rm_list[0].lineinfo.start, rm_list[0].lineinfo.end
+    for linex in rm_list[1:]:
+        start, end = linex.lineinfo.start, linex.lineinfo.end
+        diff = start - prev_end
+        if diff < 10:
+            diff_text = doc_text[prev_end:start].strip()
+            if diff_text:
+                exclude_offsets.append((prev_start, prev_end))
+                prev_start, prev_end = start, end
+            else:
+                prev_end = end
+        else:
+            exclude_offsets.append((prev_start, prev_end))
+            prev_start, prev_end = start, end
+    # the last one
+    exclude_offsets.append((prev_start, prev_end))
+    pdftxt_doc.exclude_offsets = exclude_offsets
 
-def add_doc_structure_to_doc(pdftxt_doc):
+
+def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
     # first remove obvious non-content lines, such
     # toc, page-num, header, footer
     # Also add section heads
     # page_attrs_list is to store table information?
+
+    if IS_DEBUG_MODE:
+        pdftxt_doc.save_debug_lines('.paged.bef.merge.tsv')
+
     for page in pdftxt_doc.page_list:
         add_doc_structure_to_page(page, pdftxt_doc)
         # break blocks if they are in the middle of header, english sents
         # adjust_blocks_in_page(page, pdftxt_doc)
+    update_page_removed_lines(pdftxt_doc)
+
     if IS_DEBUG_MODE:
-        pdftxt_doc.save_debug_lines('.paged.bef.merge.tsv')
         pdftxt_doc.save_debug_lines('.paged.after.merge.tsv')
+        pdfdocutils.save_removed_lines(pdftxt_doc, '.rmlines.tsv')
+        pdfdocutils.save_exclude_lines(pdftxt_doc, '.exclude.lines.tsv')
 
     # now we have basic block_group with correct
     # is_english set.  Useful for merging
@@ -909,7 +705,9 @@ def extract_tables_from_markups(apage, pdf_txt_doc):
                                                              'chart',
                                                              apage.page_num))
 
-def add_doc_structure_to_page(apage, pdf_txt_doc):
+# pylint: disable=too-many-branches, too-many-statements, too-many-locals
+def add_doc_structure_to_page(apage: PageInfo3,
+                              pdf_txt_doc: PDFTextDoc):
     num_line_in_page = len(apage.line_list)
     page_num = apage.page_num
     prev_line_text = ''
@@ -928,12 +726,18 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False
         if docstructutils.is_line_toc_heading(line.line_text):
+            if IS_DEBUG_TOC:
+                print("===323=1tocheading== line is toc, %d [%s]" %
+                      (line.page_num, line.line_text))
             line.attrs.toc = True
             has_toc_heading = True
             num_toc_line += 10  # I know this is not true yet
             is_skip = True
             toc_block_list.append(line)
         elif docstructutils.is_line_toc(line.line_text):
+            if IS_DEBUG_TOC:
+                print("===323=2linetoc== line is toc, %d [%s]" %
+                      (line.page_num, line.line_text))
             line.attrs.toc = True
             num_toc_line += 1
             if num_toc_line >= 5:
@@ -1022,6 +826,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         for linex in apage.line_list:
             if linex.lineinfo.yStart >= footer_yStart:
                 linex.attrs.footer = True
+
     apage.content_line_list = content_line_list
     # now decide if this is a toc page, based on
     # there are more than 4 toc lines
@@ -1042,7 +847,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     first_sechead = None
     last_sechead = None
     for line_seq, linex in enumerate(content_line_list):
-        if secheadutils.is_line_sechead_prefix(linex.line_text):
+        if linex.attrs.sechead:
             last_sechead = line_seq
             if first_sechead is None:
                 first_sechead = line_seq
@@ -1050,6 +855,9 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     if len(content_line_list) > 5 and num_sechead / len(content_line_list) >= 0.8:
         for line_seq, linex in enumerate(content_line_list):
             if line_seq >= first_sechead and line_seq <= last_sechead:
+                if IS_DEBUG_TOC:
+                    print("===323=7sechead33== line is toc, %d [%s]" %
+                          (linex.page_num, linex.line_text))
                 linex.attrs.toc = True
         apage.attrs.has_toc = True
 
@@ -1082,9 +890,16 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
     if len(tmp_toc_lines) >= 10:
         if table_of_content_line_idx != -1:
             for linex in apage.line_list[table_of_content_line_idx:last_toc_line+1]:
+                if IS_DEBUG_TOC:
+                    print("===323=3beforelasttoc1== line is toc, %d [%s]" %
+                          (linex.page_num, linex.line_text))
                 linex.attrs.toc = True
         else:
             for linex in apage.line_list[first_toc_line:last_toc_line+1]:
+                if IS_DEBUG_TOC:
+                    print("===323=4beforelasttoc1== line is toc, %d [%s]" %
+                          (linex.page_num, linex.line_text))
+
                 linex.attrs.toc = True
 
     deactivate_toc_detection = False
@@ -1096,6 +911,9 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         is_sechead_prefix = secheadutils.is_line_sechead_prefix(line.line_text)
         if sechead_tuple or is_sechead_prefix:
             if apage.attrs.has_toc and not deactivate_toc_detection:
+                if IS_DEBUG_TOC:
+                    print("===323=5sechead== line is toc, %d [%s]" %
+                          (line.page_num, line.line_text))
                 line.attrs.toc = True
             line.attrs.sechead = sechead_tuple
         else:
@@ -1134,6 +952,9 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                  linex.attrs.has_page_num:
                 pass
             else:
+                if IS_DEBUG_TOC:
+                    print("===323=6too-small== line is toc, %d [%s]" %
+                          (line.page_num, line.line_text))
                 linex.attrs.toc = True
 
 def get_longest_consecutive_line_group(linex_list):
@@ -1165,7 +986,7 @@ def get_longest_consecutive_line_group(linex_list):
     return group_list_by_size[0][1]  # return longest linex_list
 
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, too-many-statements, too-many-locals
 def collapse_similar_aligned_block_lines(grouped_block_list, page_num):
 
     # first try to see if tables should be formed from separated blocks
@@ -1292,7 +1113,7 @@ def get_lines_from_block_nums_sorted_obid(block_num_list, block_lines_map):
     return [x[1] for x in sorted(obid_line_list)]
 
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, too-many-branches, too-many-statements, too-many-locals
 def markup_table_block_by_columns(grouped_block_list, page_num):
     debug_mode = False
     # has_close_ydiffs = False
@@ -1455,7 +1276,7 @@ def get_merge_reason(linex: LineWithAttrs) -> str:
     return ''
 
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, too-many-statements, too-many-locals
 def merge_centered_lines_before_table(line_num,
                                       block_num,
                                       content_linex_list,
