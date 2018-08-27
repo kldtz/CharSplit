@@ -87,7 +87,6 @@ class EbAnnotatedDoc4:
                  gap_span_list,  # TODO, jshaw, maybe del in future
                  linebreak_arr: ArrayType,
                  page_offsets_list: Optional[List[Tuple[int, int]]] = None,
-                 para_not_linebreak_arr: ArrayType,
                  doc_lang: str = 'en') \
                  -> None:
         self.file_id = file_name
@@ -115,7 +114,6 @@ class EbAnnotatedDoc4:
         self.gap_span_list = gap_span_list
 
         self.linebreak_arr = linebreak_arr
-        self.para_not_linebreak_arr = para_not_linebreak_arr
         self.page_offsets_list = page_offsets_list
 
         self.table_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
@@ -192,15 +190,6 @@ class EbAnnotatedDoc4:
             # para_st_list.append(' '.join(para_st_list))
         nlp_text = '\n'.join(para_st_list)
         return nlp_text
-
-    # def get_nlp_text(self) -> str:
-    #     return self.nlp_text
-
-    def get_paraline_text(self) -> str:
-        ch_list = list(self.get_nl_text())
-        for offset in self.para_not_linebreak_arr:
-            ch_list[offset] = ' '
-        return ''.join(ch_list)
 
     def get_nlp_sx_lnpos_list(self):
         return [(elt.start, elt) for elt in self.nlp_lnpos_list]
@@ -396,7 +385,6 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                 gap_span_list=gap_span_list,
                                 # there is no page_offsets_list
                                 linebreak_arr=array.array('i'),
-                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
@@ -513,7 +501,6 @@ def html_to_ebantdoc4(txt_file_name: str,
                                 gap_span_list=gap_span_list,
                                 # there is no page_offsets_list
                                 linebreak_arr=array.array('i'),
-                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
@@ -575,15 +562,12 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
-    doc_text, unused_nl_text, linebreak_arr, \
-        unused_paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
-            pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
-
-    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
-                                                                          cpoint_cunit_mapper)
-
+    # pylint: disable=line-too-long
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)  # type: PDFTextDoc
 
+    prov_annotation_list, is_test = \
+        ebsentutils.load_prov_annotation_list(txt_file_name,
+                                              pdf_text_doc.cpoint_cunit_mapper)
 
     # paras2 here is based on information from pdfbox.
     # Current pdfbox outputs lines with only spaces, so it sometime put the text
@@ -624,8 +608,8 @@ def pdf_to_ebantdoc4(txt_file_name: str,
 
     eb_antdoc = EbAnnotatedDoc4(file_name=txt_file_name,
                                 doc_format=EbDocFormat.pdf,
-                                text=doc_text,
-                                cpoint_cunit_mapper=cpoint_cunit_mapper,
+                                text=pdf_text_doc.doc_text,
+                                cpoint_cunit_mapper=pdf_text_doc.cpoint_cunit_mapper,
                                 prov_ant_list=prov_annotation_list,
                                 is_test=is_test,
                                 # para_doc_text=para2_doc_text,
@@ -635,9 +619,8 @@ def pdf_to_ebantdoc4(txt_file_name: str,
                                 origin_lnpos_list=origin_lnpos_list,
                                 nlp_lnpos_list=nlp_lnpos_list,
                                 gap_span_list=gap2_span_list,
-                                linebreak_arr=linebreak_arr,
+                                linebreak_arr=pdf_text_doc.linebreak_arr,
                                 page_offsets_list=pdf_text_doc.get_page_offsets(),
-                                para_not_linebreak_arr=para_not_linebreak_arr,
                                 doc_lang=doc_lang)
 
     update_special_block_info(eb_antdoc, pdf_text_doc)

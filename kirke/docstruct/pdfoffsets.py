@@ -1,3 +1,4 @@
+from array import ArrayType
 from collections import namedtuple, defaultdict
 from functools import total_ordering
 import os
@@ -7,6 +8,7 @@ from typing import Any, DefaultDict, Dict, List, Tuple
 from kirke.docstruct import jenksutils, docstructutils
 from kirke.docstruct.docutils import PLineAttrs
 from kirke.utils import engutils
+from kirke.utils.textoffset import TextCpointCunitMapper
 
 
 StrInfo = namedtuple('StrInfo', ['start', 'end',
@@ -478,18 +480,27 @@ class PageInfo3:
 
 class PDFTextDoc:
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  file_name: str,
                  doc_text: str,
-                 page_list: List[PageInfo3]) -> None:
+                 *,
+                 cpoint_cunit_mapper: TextCpointCunitMapper,
+                 pageinfo_list: List[PageInfo3],
+                 linebreak_arr: ArrayType) \
+                 -> None:
         self.file_name = file_name
         self.doc_text = doc_text
-        self.page_list = page_list
-        self.num_pages = len(page_list)
+        self.cpoint_cunit_mapper = cpoint_cunit_mapper
+        self.page_list = pageinfo_list
+        self.num_pages = len(pageinfo_list)
         # each page is a list of grouped_block
         self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
         # pylint: disable=line-too-long
         self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
+
+        self.linebreak_arr = linebreak_arr
+
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]
@@ -508,7 +519,7 @@ class PDFTextDoc:
                     print('  attrs: {}'.format(str(apage.attrs)), file=fout)
 
                 for grouped_block in grouped_block_list:
-                    print()
+                    print(file=fout)
                     for linex in grouped_block.line_list:
                         print('{}\t{}'.format(linex.tostr3(),
                                               # pylint: disable=line-too-long
