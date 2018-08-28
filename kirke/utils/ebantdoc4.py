@@ -84,7 +84,7 @@ class EbAnnotatedDoc4:
                                               PLineAttrs]],
                  origin_lnpos_list: List[linepos.LnPos],
                  nlp_lnpos_list: List[linepos.LnPos],
-                 gap_span_list,  # TODO, jshaw, maybe del in future
+                 exclude_offsets: List[Tuple[int, int]],
                  linebreak_arr: ArrayType,
                  page_offsets_list: Optional[List[Tuple[int, int]]] = None,
                  doc_lang: str = 'en') \
@@ -111,7 +111,7 @@ class EbAnnotatedDoc4:
         # to map to original offsets
         self.nlp_lnpos_list = nlp_lnpos_list
         self.origin_lnpos_list = origin_lnpos_list
-        self.gap_span_list = gap_span_list
+        self.exclude_offsets = exclude_offsets
 
         self.linebreak_arr = linebreak_arr
         self.page_offsets_list = page_offsets_list
@@ -369,7 +369,7 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
     nlp_prov_ant_list = prov_annotation_list
     origin_lnpos_list = []  # type: List[linepos.LnPos]
     nlp_lnpos_list = []  # type: List[linepos.LnPos]
-    gap_span_list = []  # type: List[Tuple[int, int]]
+    exclude_offsets = []  # type: List[Tuple[int, int]]
     eb_antdoc = EbAnnotatedDoc4(file_name=txt_file_name,
                                 doc_format=EbDocFormat.html_nodocstruct,
                                 text=doc_text,
@@ -382,7 +382,7 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
                                 paras_with_attrs=paras_with_attrs,
                                 origin_lnpos_list=origin_lnpos_list,
                                 nlp_lnpos_list=nlp_lnpos_list,
-                                gap_span_list=gap_span_list,
+                                exclude_offsets=exclude_offsets,
                                 # there is no page_offsets_list
                                 linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
@@ -465,7 +465,7 @@ def html_to_ebantdoc4(txt_file_name: str,
 
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
-    paras_with_attrs, para_doc_text, gap_span_list, _ = \
+    paras_with_attrs, para_doc_text, exclude_offsets, _ = \
             htmltxtparser.parse_document(txt_file_name,
                                          work_dir=work_dir,
                                          is_combine_line=True)
@@ -498,7 +498,7 @@ def html_to_ebantdoc4(txt_file_name: str,
                                 paras_with_attrs=paras_with_attrs,
                                 origin_lnpos_list=origin_lnpos_list,
                                 nlp_lnpos_list=nlp_lnpos_list,
-                                gap_span_list=gap_span_list,
+                                exclude_offsets=exclude_offsets,
                                 # there is no page_offsets_list
                                 linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
@@ -579,10 +579,12 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     # Section header for *.praline.txt is much better than trying to identify section for
     # pages with only 1 block.  Cannot really switch to *.paraline.txt now because double-lined text
     # might cause more trouble.
-    paras2_with_attrs, para2_doc_text, gap2_span_list = \
-        pdftxtparser.to_paras_with_attrs(pdf_text_doc,
-                                         txt_file_name,
-                                         work_dir=work_dir)
+
+    # nlp2_paras_with_attrs, nlp2_doc_text = \
+    paras2_with_attrs, para2_doc_text = \
+        pdftxtparser.to_nlp_paras_with_attrs(pdf_text_doc,
+                                             txt_file_name,
+                                             work_dir=work_dir)
 
     # for i, (gap_start, gap_end) in enumerate(gap2_span_list):
     #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
@@ -618,7 +620,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
                                 paras_with_attrs=paras2_with_attrs,
                                 origin_lnpos_list=origin_lnpos_list,
                                 nlp_lnpos_list=nlp_lnpos_list,
-                                gap_span_list=gap2_span_list,
+                                exclude_offsets=pdf_text_doc.exclude_offsets,
                                 linebreak_arr=pdf_text_doc.linebreak_arr,
                                 page_offsets_list=pdf_text_doc.get_page_offsets(),
                                 doc_lang=doc_lang)
@@ -832,7 +834,7 @@ def doclist_to_ebantdoc_list(doclist_file: str,
 
     EBRUN_PROCESS = psutil.Process(os.getpid())
     orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
-    logging.info('doclist_to_ebantdoc_list, orig memory use: %d Mbytes', orig_mem_usage)
+    logger.info('doclist_to_ebantdoc_list, orig memory use: %d Mbytes', orig_mem_usage)
     prev_mem_usage = orig_mem_usage
 
     fn_eb_antdoc_map = {}
@@ -851,7 +853,7 @@ def doclist_to_ebantdoc_list(doclist_file: str,
             data = future.result()
             fn_eb_antdoc_map[txt_fn] = data
             if count % 25 == 0:
-                logging.info('doclist_to_antdoc_list(), count = %d', count)
+                logger.info('doclist_to_antdoc_list(), count = %d', count)
                 memory_use = EBRUN_PROCESS.memory_info()[0] / 2**20
                 # pylint: disable=line-too-long
                 logger.info('after loading %d ebantdocs, mem = %.2f Mbytes, diff %.2f Mbytes',

@@ -1,7 +1,14 @@
 import logging
 import re
 from typing import Dict, List, Tuple
+
 from kirke.utils import ebantdoc4, ebsentutils
+
+
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 # pylint: disable=too-few-public-methods
 class ParagraphGenerator:
@@ -34,7 +41,7 @@ class ParagraphGenerator:
             nl_text = antdoc.get_nlp_text()
 
             if group_id % 10 == 0:
-                logging.info('ContextGenerator.documents_to_candidates(), group_id = %d',
+                logger.info('ContextGenerator.documents_to_candidates(), group_id = %d',
                              group_id)
             #finds all matches in the text and adds window around each as a candidate
             i = 0

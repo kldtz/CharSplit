@@ -69,7 +69,7 @@ class EbProvisionAnnotation:
 def load_prov_ant(filename: str, provision_name: Optional[str] = None) \
     -> List[EbProvisionAnnotation]:
 
-    # logging.info('load provision %s annotation: [%s]', provision_name, filename)
+    # logger.info('load provision %s annotation: [%s]', provision_name, filename)
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
 

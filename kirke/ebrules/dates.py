@@ -446,7 +446,7 @@ def validate_dates(date_list: List[Tuple[int, int, str, str]]) \
         if date_dict:
             result.append((start, end, text, date_type, date_dict['norm']['date']))
         else:
-            logging.info("failed to parse_date(%s)", text)
+            logger.info("failed to parse_date(%s)", text)
     return result
 
 
@@ -504,7 +504,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                     -> List[Tuple[int, int, str, str, str]]:
     """Return list of parties (lists of (start, inclusive-end) offsets, date_norm)."""
 
-    # logging.info('extract_offsets: len(paras_text) = {}'.format(len(paras_text)))
+    # logger.info('extract_offsets: len(paras_text) = {}'.format(len(paras_text)))
     # Grab lines from the file
     before_lines, start_end_partyline = extract_before_and_party_line(paras_attr_list)
 
@@ -516,7 +516,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
 
         # Extract parties and return their offsets
         partyline_dates = extract_dates_from_party_line(partyline)
-        # logging.info("partyline dates: {}".format(partyline_dates))
+        # logger.info("partyline dates: {}".format(partyline_dates))
         if partyline_dates:
             partyline_dates = [(partyline_start + start, partyline_start + end,
                                 date_st, date_type, date_norm)

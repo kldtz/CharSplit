@@ -419,7 +419,7 @@ def load_prov_annotation_list(txt_file_name: str,
 
 def load_prov_ant(filename, provision_name=None) -> List[EbProvisionAnnotation]:
 
-    # logging.info('load provision %s annotation: [%s]', provision_name, filename)
+    # logger.info('load provision %s annotation: [%s]', provision_name, filename)
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
 

@@ -192,7 +192,7 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
     prev_line = ''
     prev_notempty_line = 'Not Empty Line.'
     prev_hpline_attrs = HPLineAttrs()  # type: HPLineAttrs
-    gap_span_list = []  # type: List[Tuple[int, int]]
+    exclude_offsets = []  # type: List[Tuple[int, int]]
     prefix = 'fake_prefix'
     # pylint: disable=too-many-nested-blocks
     for i, linfo in enumerate(tmp_list):
@@ -212,7 +212,7 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
         # if there is a pagenum, remove the line between it, previous and the next
         if hpline_attrs.has_page_num:
             omit_line_set.add(i)
-            gap_span_list.append((start, end))
+            exclude_offsets.append((start, end))
             omit_list = []
             if i - 1 >= 0:
                 unused_prev_from_se, unused_prev_to_se, prev_line, unused_prev_attrs = \
@@ -315,7 +315,7 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
     # the last '\n' is for the last line
     doc_text = '\n'.join(doc_lines) + '\n'
 
-    return result, doc_text, gap_span_list
+    return result, doc_text, exclude_offsets
 
 
 # 'is_combine_line' indicates if the system combines line when doing sechead identification
@@ -345,7 +345,7 @@ def parse_document(file_name: str,
             # txtreader.dumps(lineinfo_doc_text, lineinfo_fname)
         print('wrote {}'.format(lineinfo_fname), file=sys.stderr)
 
-    lineinfos_paras, paras_doc_text, gap_span_list = \
+    lineinfos_paras, paras_doc_text, exclude_offsets = \
              lineinfos_to_paras(lineinfos_with_attrs)
 
     if debug_mode:
@@ -391,4 +391,4 @@ def parse_document(file_name: str,
                     prev_out_line = tmp_outline
         print('wrote %s' % (sechead_fname, ), file=sys.stderr)
 
-    return lineinfos_paras, paras_doc_text, gap_span_list, orig_doc_text
+    return lineinfos_paras, paras_doc_text, exclude_offsets, orig_doc_text
