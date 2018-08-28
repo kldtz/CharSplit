@@ -3,7 +3,7 @@ import pickle
 import re
 import string
 from typing import List, Tuple
-
+from collections import defaultdict
 import pandas as pd
 
 from kirke.utils import strutils
@@ -16,6 +16,9 @@ NUM_DIGIT_CHUNKS = 10
 MIN_ADDRESS_LEN = 5
 MAX_ADDRESS_LEN = 100
 
+UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? +(?:(?![CIKMOV])[0-9O][a-zA-Z]{2})'
+ZIP_CODE_YEAR = re.compile(r'\b\d{4,5}\b' + r'|\b{}\b'.format(UK_STD))
+
 
 """Aggregate keyword data"""
 
@@ -27,32 +30,49 @@ def pad(line):
 
 # pylint: disable=too-many-locals
 def find_addresses(text: str, constituencies: List[str]) -> List[Tuple[int, int, str]]:
+    
+    '''
     zero_one_st_list, zero_one_offsets = [], []
     text = text.replace("\n", " ")
+    word_list = []
     for start, end, word in strutils.using_split2(text):
         word = re.sub(r'[,\.]+$|\-', "", word)
         if word.isdigit() or word in constituencies:
             zero_one_st_list.append('1')
+            word_list.append(word)
         else:
             zero_one_st_list.append('0')
+            word_list.append(word)
         zero_one_offsets.append((start, end))
     zero_one_st = ''.join(zero_one_st_list)
     matches = re.finditer(r'(1+0?0?(1+0?0?){,3}1+)', zero_one_st)
-    all_spans = [match.span() for match in matches]
+    '''
+    matches = re.finditer(r'(?=(\b(\d+|P\.? ?[0O]\.?) +.+?\b\d{4,5}\b' + r'|\b{}\b))'.format(UK_STD), text, re.DOTALL)
+    all_spans = [match.span(1) for match in matches]
     addr_se_st_list = []  # type: List[Tuple[int, int, str]]
+    prev_start, prev_end, prev_prob = 0, 0, 0
     for ad_start, ad_end in all_spans:
-        addr_span_offsets = zero_one_offsets[ad_start:ad_end]
-
-        if len(addr_span_offsets) > 3:  # an address must have at least 4 words
-            addr_start, addr_end = addr_span_offsets[0][0], addr_span_offsets[-1][1]
-            addr_st = text[addr_start:addr_end]
-
+        #addr_span_offsets = zero_one_offsets[ad_start:ad_end]
+        addr_st = text[ad_start:ad_end]
+        if len(addr_st.split()) > 3 and len(addr_st.split()) < 25:  # an address must have at least 4 words
+            #addr_start, addr_end = addr_span_offsets[0][0], addr_span_offsets[-1][1]
+            #addr_st = text[addr_start:addr_end]
             address_prob = classify(addr_st)
+            print(">>>>>>>", addr_st.replace("\n", " "), "<<", address_prob)
             if address_prob >= 0.5:
-                addr_se_st_list.append((addr_start, addr_end, addr_st))
+                if ad_start > prev_start and ad_start < prev_end:
+                    if address_prob > prev_prob:
+                        addr_se_st_list.pop()
+                        addr_se_st_list.append((ad_start, ad_end, addr_st))
+                        prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
+                else:
+                    addr_se_st_list.append((ad_start, ad_end, addr_st))
+                    prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
     return addr_se_st_list
 
 def addr_keywords():
+    keywords = defaultdict(list)
+    keywords['constituencies'] = []
     categories = ['us', 'uk', 'aus', 'can', 'apt_abbrs',
                   'country_names', 'numbers', 'road_abbrs']
     all_keywords = load_keywords()
@@ -61,14 +81,13 @@ def addr_keywords():
     for cat in categories:
         for term in all_keywords[cat]:
             if term.strip() not in stop_keywords:
-                all_terms.append(term.strip())
-    return all_terms + ['London', 'LONDON', 'Floor', 'floor', 'FLOOR',
-                        'Suite', 'SUITE', 'P', 'PO', 'BOX', 'Box', 'Creek',
-                        'CREEK', 'Las', 'LAS', 'Rio', 'RIO', 'New', 'NEW',
-                        'York', 'YORK', 'San', 'SAN', 'Santa', 'SANTA', 'Los',
-                        'Los', 'NE', 'NW', 'SE', 'SW', 'N', 'S', 'W', 'E',
-                        'North', 'NORTH', 'South', 'SOUTH', 'East', 'EAST',
-                        'West', 'WEST']
+                keywords[cat] += [term.strip()]
+                #all_terms.append(term.strip())
+    keywords['uk'] += ['London', 'LONDON']
+    keywords['apt_abbrs'] += ['Floor', 'FLOOR', 'SUITE', 'Suite', 'P.O.', 'PO', 'Box', 'BOX', 'P.', 'O.']
+    keywords['road_abbrs'] += ['Creek', 'CREEK', 'NE', 'NW', 'SE', 'SW', 'NORTH', 'SOUTH', 'EAST', 'WEST', 'North', 'South', 'East', 'West', 'N.', 'S.', 'E.', 'W.']
+    keywords['us'] += ['Las', 'Rio', 'New', 'York', 'San', 'Santa', 'Los', 'LAS', 'RIO', 'NEW', 'YORK', 'SAN', 'SANTA', 'LOS'] 
+    return keywords
 
 def load_keywords():
     # Create a dictionary object to return
@@ -150,13 +169,12 @@ def find_keyword_features(line: str, keywords):
 
     # Also consider where non-alphanumeric chars replaced w/ ' ' (e.g. City  ST)
     line2 = NON_ALNUM.sub(' ', line)
-
     # Use category (helps e.g. 3 Edison Way) and keyword features (e.g. Suite)
     keyword_features = {}
     for category in keywords:
         category_in_s = False
         for k in keywords[category]:
-            if k in line or k in line2:
+            if k in line.split() or k in line2.split():
                 category_in_s = True
                 keyword_features[k] = True
             else:
@@ -184,7 +202,7 @@ def find_features(line: str, num_chunks, keywords):
 with open(DATA_DIR + 'address_classifier.pickle', 'rb') as f:
     ADDR_CLASSIFIER = pickle.load(f)
 
-KEYWORDS = load_keywords()
+KEYWORDS = addr_keywords()
 
 
 # it takes around 7 ms per call
