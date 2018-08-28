@@ -4,7 +4,6 @@ import unittest
 # import pprint
 import copy
 import shutil
-import sys
 # pylint: disable=unused-import
 from typing import Any, Dict, Set
 
@@ -58,18 +57,13 @@ class TestNLPText(unittest.TestCase):
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
 
-        pdf_text_doc = pdftxtparser.parse_document(txt_fname, work_dir=WORK_DIR)
-        paras2_with_attrs, para2_doc_text = \
-            pdftxtparser.to_nlp_paras_with_attrs(pdf_text_doc,
-                                                 txt_fname,
-                                                 work_dir=WORK_DIR)
-        nlptxt_fname = txt_base_name.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
-        text4nlp_fn = ebantdoc4.get_nlp_fname(txt_base_name, work_dir=WORK_DIR)
-        txtreader.dumps(para2_doc_text, text4nlp_fn)
-        print('wrote {}'.format(text4nlp_fn), file=sys.stderr)
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
+        unused_pdf_text_doc = pdftxtparser.parse_document(txt_fname,
+                                                          work_dir=WORK_DIR,
+                                                          nlptxt_file_name=nlptxt_file_name)
 
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
-                                                           '{}/{}'.format(WORK_DIR, nlptxt_fname))
+                                                           nlptxt_file_name)
         self.assertEqual(len(same_list), 1974)
         self.assertEqual(len(diff_list), 0)
 
@@ -81,18 +75,13 @@ class TestNLPText(unittest.TestCase):
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
 
-        pdf_text_doc = pdftxtparser.parse_document(txt_fname, work_dir=WORK_DIR)
-        paras2_with_attrs, para2_doc_text = \
-            pdftxtparser.to_nlp_paras_with_attrs(pdf_text_doc,
-                                                 txt_fname,
-                                                 work_dir=WORK_DIR)
-        nlptxt_fname = txt_base_name.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
-        text4nlp_fn = ebantdoc4.get_nlp_fname(txt_base_name, work_dir=WORK_DIR)
-        txtreader.dumps(para2_doc_text, text4nlp_fn)
-        print('wrote {}'.format(text4nlp_fn), file=sys.stderr)
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
+        unused_pdf_text_doc = pdftxtparser.parse_document(txt_fname,
+                                                          work_dir=WORK_DIR,
+                                                          nlptxt_file_name=nlptxt_file_name)
 
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
-                                                           '{}/{}'.format(WORK_DIR, nlptxt_fname))
+                                                                          nlptxt_file_name)
 
         self.assertEqual(len(same_list), 5963)
         self.assertEqual(len(diff_list), 0)
@@ -108,11 +97,10 @@ class TestNLPText(unittest.TestCase):
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
 
-        pdf_text_doc = pdftxtparser.parse_document(txt_fname, work_dir=WORK_DIR)
-        paras2_with_attrs, para2_doc_text = \
-            pdftxtparser.to_nlp_paras_with_attrs(pdf_text_doc,
-                                                 txt_fname,
-                                                 work_dir=WORK_DIR)
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
+        pdf_text_doc = pdftxtparser.parse_document(txt_fname,
+                                                   work_dir=WORK_DIR,
+                                                   nlptxt_file_name=nlptxt_file_name)
 
         is_continued_list = []  # type: List[bool]
         for apage in pdf_text_doc.page_list:
@@ -139,11 +127,10 @@ class TestNLPText(unittest.TestCase):
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
 
-        pdf_text_doc = pdftxtparser.parse_document(txt_fname, work_dir=WORK_DIR)
-        paras2_with_attrs, para2_doc_text = \
-            pdftxtparser.to_nlp_paras_with_attrs(pdf_text_doc,
-                                                 txt_fname,
-                                                 work_dir=WORK_DIR)
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
+        pdf_text_doc = pdftxtparser.parse_document(txt_fname,
+                                                   work_dir=WORK_DIR,
+                                                   nlptxt_file_name=nlptxt_file_name)
 
         is_continued_list = []  # type: List[bool]
         for apage in pdf_text_doc.page_list:

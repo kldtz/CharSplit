@@ -59,7 +59,8 @@ def update_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
                 linex_list_to_block_map(apage.content_line_list)
 
         if not apage_block_id_list:
-            print("page # has no content block: {}".format(apage.page_num))
+            logger.info("%s, page #%d has no content block.",
+                        pdf_text_doc.file_name, apage.page_num)
             continue
 
         apage_first_block_id = apage_block_id_list[0]
@@ -78,13 +79,13 @@ def update_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
                not secheadutils.is_line_sechead_prefix(cur_first_linex.line_text):
                 apage.is_continued_para_from_prev_page = True
 
-        print("checking page %d [%s] with page %d [%s]" %
-              (prev_page.page_num, last_linex.line_text[-20:],
-               apage.page_num, cur_first_linex.line_text[:20]))
-        if apage.is_continued_para_from_prev_page:
-            print("+++they are continued")
-        else:
-            print("---they are NOT continued")
+        # print("checking page %d [%s] with page %d [%s]" %
+        #       (prev_page.page_num, last_linex.line_text[-20:],
+        #        apage.page_num, cur_first_linex.line_text[:20]))
+        # if apage.is_continued_para_from_prev_page:
+        #     print("+++they are continued")
+        # else:
+        #     print("---they are NOT continued")
 
         prev_page = apage
         prev_block_id_list, prev_block_linex_list_map = \
@@ -409,7 +410,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
     Continuous paragraphs broken across pages in the original text will be joined here.
 
-    Returns: paras2_with_attrs
+    Returns: nlp_paras_with_attrs
              nlp_text (the nlp text)
     """
     base_fname = os.path.basename(file_name)
@@ -646,7 +647,8 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
 
 def parse_document(file_name: str,
-                   work_dir: str) \
+                   work_dir: str,
+                   nlptxt_file_name: str) \
                    -> PDFTextDoc:
     base_fname = os.path.basename(file_name)
 
@@ -698,6 +700,35 @@ def parse_document(file_name: str,
 
     if IS_DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.docstruct.tsv')
+
+
+    # nlp_paras_with_attrs is based on information from pdfbox.
+    # Current pdfbox outputs lines with only spaces, so it sometime put the text
+    # of a whole page as one block, with lines with only spaces as textual lines.
+    # To preserve the original annotation performance, we still use this not-so-great
+    # txt file as input to corenlp.
+    # A better input file could be *.paraline.txt, which is used for lineannotator.
+    # In *.paraline.txt, each line is a paragraph, based on some semi-English heuristics.
+    # Section header for *.praline.txt is much better than trying to identify section for
+    # pages with only 1 block.  Cannot really switch to *.paraline.txt now because double-lined text
+    # might cause more trouble.
+
+    nlp_paras_with_attrs, nlp_doc_text = to_nlp_paras_with_attrs(pdf_text_doc,
+                                                                 file_name,
+                                                                 work_dir=work_dir)
+
+    # for i, (gap_start, gap_end) in enumerate(gap2_span_list):
+    #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
+    if not nlp_paras_with_attrs:
+        logger.info("Empty nlp_paras_with_attrs.  Not urgent.  File: %s", file_name)
+        logger.info("  Likely cause: either no text or looked too much like table-of-content.")
+
+    txtreader.dumps(nlp_doc_text, nlptxt_file_name)
+    if IS_DEBUG_MODE:
+        print('wrote {}'.format(nlptxt_file_name), file=sys.stderr)
+
+    pdf_text_doc.nlp_doc_text = nlp_doc_text
+    pdf_text_doc.nlp_paras_with_attrs = nlp_paras_with_attrs
 
     return pdf_text_doc
 
@@ -1083,9 +1114,10 @@ def main():
     txt_fname = args.file
 
     work_dir = 'dir-work'
-    pdf_txt_doc = parse_document(txt_fname, work_dir=work_dir)
-    to_nlp_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)
-
+    nlptxt_file_name = txt_fname.replace('.txt', '.nlp.v1.1000.txt')
+    unused_pdf_txt_doc = parse_document(txt_fname,
+                                        work_dir=work_dir,
+                                        nlptxt_file_name=nlptxt_file_name)
     logger.info('Done.')
 
 

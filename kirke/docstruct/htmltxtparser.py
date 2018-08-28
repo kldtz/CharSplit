@@ -10,8 +10,7 @@ from kirke.docstruct.docutils import PLineAttrs
 
 from kirke.docstruct import linepos
 
-DEBUG_MODE = False
-
+IS_DEBUG_MODE = False
 
 # pylint: disable=too-few-public-methods
 class HPLineAttrs:
@@ -318,17 +317,33 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
     return result, doc_text, exclude_offsets
 
 
+class HTMLTextDoc:
+
+    # pylint: disable=too-many-arguments
+    def __init__(self,
+                 file_name: str,
+                 doc_text: str,
+                 nlp_doc_text: str,
+                 nlp_paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
+                                                             linepos.LnPos]],
+                                                  PLineAttrs]],
+                 exclude_offsets: List[Tuple[int, int]]) \
+                 -> None:
+        self.file_name = file_name
+        self.doc_text = doc_text
+        self.nlp_doc_text = nlp_doc_text
+        self.nlp_paras_with_attrs = nlp_paras_with_attrs
+        self.exclude_offsets = exclude_offsets
+
+
 # 'is_combine_line' indicates if the system combines line when doing sechead identification
 # for HTML docs, this shoulbe True.  For PDF documents, this should be False.
 # pylint: disable=too-many-locals
 def parse_document(file_name: str,
                    work_dir: str,
-                   is_combine_line: bool = True) \
-                   -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-                                       PLineAttrs]],
-                            str,
-                            List[Tuple[int, int]],
-                            str]:
+                   is_combine_line: bool,  # default to True before
+                   nlptxt_file_name: Optional[str]) \
+                   -> HTMLTextDoc:
     debug_mode = False
     base_fname = os.path.basename(file_name)
     orig_doc_text = txtreader.loads(file_name)
@@ -391,4 +406,18 @@ def parse_document(file_name: str,
                     prev_out_line = tmp_outline
         print('wrote %s' % (sechead_fname, ), file=sys.stderr)
 
-    return lineinfos_paras, paras_doc_text, exclude_offsets, orig_doc_text
+
+    if nlptxt_file_name:
+        txtreader.dumps(paras_doc_text, nlptxt_file_name)
+        if IS_DEBUG_MODE:
+            print("wrote {}".format(nlptxt_file_name), file=sys.stderr)
+
+    html_text_doc = HTMLTextDoc(file_name,
+                                doc_text=orig_doc_text,
+                                nlp_doc_text=paras_doc_text,
+                                nlp_paras_with_attrs=lineinfos_paras,
+                                exclude_offsets=exclude_offsets)
+
+    # nlp_paras_with_attrs, nlp_doc_text, unused_gap_span_list, unused_
+    # return lineinfos_paras, paras_doc_text, exclude_offsets, orig_doc_text
+    return html_text_doc
