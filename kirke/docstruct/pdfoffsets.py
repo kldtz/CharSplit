@@ -494,73 +494,14 @@ class PDFTextDoc:
         self.cpoint_cunit_mapper = cpoint_cunit_mapper
         self.page_list = pageinfo_list
         self.num_pages = len(pageinfo_list)
-        # each page is a list of grouped_block
-        self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
         # pylint: disable=line-too-long
         self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
-
         self.linebreak_arr = linebreak_arr
-
         self.removed_lines = []  # type: List[LineWithAttrs]
         self.exclude_offsets = []  # type: List[Tuple[int, int]]
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]
-
-    # pylint: disable=too-many-locals
-    def save_debug_blocks(self, extension: str, work_dir='dir-work') -> None:
-        base_fname = os.path.basename(self.file_name)
-        out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
-        with open(out_fname, 'wt') as fout:
-            for page_num, grouped_block_list in enumerate(self.paged_grouped_block_list, 1):
-                print('\n===== page #%d, len(block_list)= %d' % (page_num, len(grouped_block_list)),
-                      file=fout)
-
-                apage = self.page_list[page_num - 1]
-                if apage.attrs.has_any_attrs():
-                    print('  attrs: {}'.format(str(apage.attrs)), file=fout)
-
-                for grouped_block in grouped_block_list:
-                    print(file=fout)
-                    for linex in grouped_block.line_list:
-                        print('{}\t{}'.format(linex.tostr3(),
-                                              # pylint: disable=line-too-long
-                                              self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
-                              file=fout)
-            for block_type, span_list in sorted(self.special_blocks_map.items()):
-                print("\nblock_type: {}".format(block_type), file=fout)
-                for start, end, adict in span_list:
-                    alist = [(attr, value) for attr, value in sorted(adict.items())]
-                    print("\t{}\t{}\t{}\t[{}...]".format(start,
-                                                         end,
-                                                         alist,
-                                                         # pylint: disable=line-too-long
-                                                         self.doc_text[start:end][:15].replace('\n', ' ')), file=fout)
-        print('wrote {}'.format(out_fname), file=sys.stderr)
-
-    def save_debug_pages(self, extension: str, work_dir='dir-work'):
-        base_fname = os.path.basename(self.file_name)
-        out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
-        with open(out_fname, 'wt') as fout:
-            for page in self.page_list:
-                print('\n===== page #%d, start=%d, end=%d, len(lines)= %d' %
-                      (page.page_num, page.start, page.end, len(page.line_list)), file=fout)
-
-                if page.attrs:
-                    print('  attrs: {}'.format(str(page.attrs)),
-                          file=fout)
-
-                grouped_block_list = line_list_to_grouped_block_list(page.line_list, page.page_num)
-                for grouped_block in grouped_block_list:
-                    print(file=fout)
-                    for linex in grouped_block.line_list:
-                        print('{}\t{}'.format(linex.tostr5(),
-                                              # pylint: disable=line-too-long
-                                              self.doc_text[linex.lineinfo.start:linex.lineinfo.end]),
-                              file=fout)
-
-        print('wrote {}'.format(out_fname), file=sys.stderr)
-
 
     def save_raw_pages(self,
                        extension: str,
@@ -639,20 +580,6 @@ class PDFTextDoc:
         print('wrote {}'.format(out_fname), file=sys.stderr)
 
 
-# pylint: disable=too-few-public-methods
-class GroupedBlockInfo:
-
-    def __init__(self,
-                 pagenum: int,
-                 bid: int,
-                 line_list: List[LineWithAttrs]) \
-                 -> None:
-        self.bid = bid
-        self.pagenum = pagenum
-        self.line_list = line_list
-        self.attrs = {}  # type: Dict[str, Any]
-
-
 def lines_to_block_offsets(linex_list: List[LineWithAttrs],
                            block_type: str,
                            pagenum: int) \
@@ -687,30 +614,3 @@ def lines_to_blocknum_map(linex_list: List[LineWithAttrs]) \
         block_num = linex.block_num
         result[block_num].append(linex)
     return result
-
-# this doesn't work anymore because we added the ability to increase "block_num" by 10000
-# when breaking up a block due to header/english separation
-"""
-def line_list_to_grouped_block_list(linex_list, page_num):
-    block_list_map = defaultdict(list)
-    for linex in linex_list:
-        block_num = linex.block_num
-        block_list_map[block_num].append(linex)
-
-    grouped_block_list = []
-    for block_num, line_list in sorted(block_list_map.items()):
-        grouped_block_list.append(GroupedBlockInfo(page_num, block_num, line_list))
-
-    return grouped_block_list
-"""
-
-def line_list_to_grouped_block_list(linex_list: List[LineWithAttrs],
-                                    page_num: int) \
-                                    -> List[GroupedBlockInfo]:
-    tmp_block_list = docstructutils.line_list_to_block_list(linex_list)
-    grouped_block_list = []  # type: List[GroupedBlockInfo]
-    for tmp_linex_list in tmp_block_list:
-        block_num = tmp_linex_list[0].block_num
-        grouped_block_list.append(GroupedBlockInfo(page_num, block_num, tmp_linex_list))
-
-    return grouped_block_list

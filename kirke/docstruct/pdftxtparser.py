@@ -13,7 +13,7 @@ from typing import Any, Dict, DefaultDict, List, Optional, Set, Tuple
 
 from kirke.docstruct import docstructutils, linepos
 from kirke.docstruct import pdfdocutils, pdfoffsets, pdfutils, secheadutils
-from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, LineWithAttrs
+from kirke.docstruct.pdfoffsets import LineInfo3, LineWithAttrs
 from kirke.docstruct.pdfoffsets import PLineAttrs
 from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInfo
 from kirke.utils import strutils, txtreader, mathutils
@@ -110,15 +110,14 @@ def to_header_content_footer_linex_list(linex_list: List[LineWithAttrs]) \
 
 
 # pylint: disable=too-many-arguments, too-many-locals
-def init_pageinfo_list_v2(doc_text: str,
-                          nl_text: str,
-                          line_breaks: List[Dict],
-                          pblock_offsets: List[Dict],
-                          paraline_fname: str,
-                          page_offsets: List[Dict],
-                          str_offsets: List[Dict]) \
-                          -> List[PageInfo3]:
-
+def init_pageinfo_list(doc_text: str,
+                       nl_text: str,
+                       line_breaks: List[Dict],
+                       pblock_offsets: List[Dict],
+                       paraline_fname: str,
+                       page_offsets: List[Dict],
+                       str_offsets: List[Dict]) \
+                       -> List[PageInfo3]:
     """Returns the list of page."""
     # linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
 
@@ -415,9 +414,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     """
     base_fname = os.path.basename(file_name)
 
-    if IS_DEBUG_MODE:
-        pdf_text_doc.save_debug_blocks(work_dir=work_dir, extension='.paged2.blocks.tsv')
-
     offset = 0
     nlp_line_list = []  # type: List[str]
     # pylint: disable=line-too-long
@@ -674,13 +670,13 @@ def parse_document(file_name: str,
     linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
 
     paraline_fn = pdfdocutils.get_paraline_fname(base_fname, work_dir)
-    pageinfo_list = init_pageinfo_list_v2(doc_text=doc_text,
-                                          nl_text=nl_text,
-                                          line_breaks=line_breaks,
-                                          pblock_offsets=pblock_offsets,
-                                          paraline_fname=paraline_fn,
-                                          page_offsets=page_offsets,
-                                          str_offsets=str_offsets)
+    pageinfo_list = init_pageinfo_list(doc_text=doc_text,
+                                       nl_text=nl_text,
+                                       line_breaks=line_breaks,
+                                       pblock_offsets=pblock_offsets,
+                                       paraline_fname=paraline_fn,
+                                       page_offsets=page_offsets,
+                                       str_offsets=str_offsets)
 
     if IS_DEBUG_MODE:
         pdfdocutils.save_page_list_by_lines(pageinfo_list,
@@ -799,20 +795,6 @@ def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
         for linex in apage.content_line_list:
             block_num = linex.block_num
             block_list_map[block_num].append(linex)
-
-    # the block list is for the document, not a page
-    paged_grouped_block_list = defaultdict(list)  # type: DefaultDict[int, List[GroupedBlockInfo]]
-    for block_num, line_list in sorted(block_list_map.items()):
-        # take the page of the first line in a block as the page_num
-        page_num = line_list[0].page_num
-        paged_grouped_block_list[page_num].append(GroupedBlockInfo(page_num,
-                                                                   block_num,
-                                                                   line_list))
-    # each page is a list of grouped_block
-    pdftxt_doc.paged_grouped_block_list = []
-    for page_num in range(1, pdftxt_doc.num_pages + 1):
-        grouped_block_list = paged_grouped_block_list[page_num]
-        pdftxt_doc.paged_grouped_block_list.append(grouped_block_list)
 
 
 # pylint: disable=too-many-branches, too-many-statements, too-many-locals
@@ -1103,10 +1085,6 @@ def main():
     work_dir = 'dir-work'
     pdf_txt_doc = parse_document(txt_fname, work_dir=work_dir)
     to_nlp_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)
-
-    pdf_txt_doc.save_debug_blocks(work_dir=work_dir, extension='.paged.blocks.tsv')
-
-    pdf_txt_doc.save_debug_pages(work_dir=work_dir, extension='.paged.debug.tsv')
 
     logger.info('Done.')
 
