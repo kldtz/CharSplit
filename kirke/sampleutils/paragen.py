@@ -42,7 +42,7 @@ class ParagraphGenerator:
 
             if group_id % 10 == 0:
                 logger.info('ContextGenerator.documents_to_candidates(), group_id = %d',
-                             group_id)
+                            group_id)
             #finds all matches in the text and adds window around each as a candidate
             i = 0
             sorted_paras = sorted(antdoc.para_indices, key=lambda x: x[0][0].start)

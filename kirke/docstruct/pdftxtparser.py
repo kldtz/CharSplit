@@ -109,7 +109,7 @@ def to_header_content_footer_linex_list(linex_list: List[LineWithAttrs]) \
     return header_linex_list, content_linex_list, footer_linex_list
 
 
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments, too-many-locals
 def init_pageinfo_list_v2(doc_text: str,
                           nl_text: str,
                           line_breaks: List[Dict],
@@ -1102,7 +1102,7 @@ def main():
 
     work_dir = 'dir-work'
     pdf_txt_doc = parse_document(txt_fname, work_dir=work_dir)
-    to_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)
+    to_nlp_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)
 
     pdf_txt_doc.save_debug_blocks(work_dir=work_dir, extension='.paged.blocks.tsv')
 
