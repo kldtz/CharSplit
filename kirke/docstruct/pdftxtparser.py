@@ -52,6 +52,8 @@ def update_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
     prev_page = pdf_text_doc.page_list[0]
     prev_block_id_list, prev_block_linex_list_map = \
         linex_list_to_block_map(prev_page.content_line_list)
+    if not prev_block_id_list:
+        return
     prev_last_block_id = prev_block_id_list[-1]
     prev_last_para = prev_block_linex_list_map[prev_last_block_id]
     for apage in pdf_text_doc.page_list[1:]:
