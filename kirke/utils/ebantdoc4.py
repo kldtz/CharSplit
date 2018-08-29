@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # logger.setLevel(logging.DEBUG)
 
-CORENLP_JSON_VERSION = '1.6'
+CORENLP_JSON_VERSION = '1.8'
 EBANTDOC_VERSION = '1.8'
 
 
