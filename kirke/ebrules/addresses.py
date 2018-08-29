@@ -16,7 +16,9 @@ NUM_DIGIT_CHUNKS = 10
 MIN_ADDRESS_LEN = 5
 MAX_ADDRESS_LEN = 100
 
-UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? +(?:(?![CIKMOV])[A-Z]?[0-9O][a-zA-Z]{2})'
+US_ZIP = '\d{5}(-\d{4})?'
+UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? *(?:(?![CIKMOV])[A-Z]?[0-9O][a-zA-Z]{2})'
+CAN_STD = '[A-Z][0-9][A-Z] +[0-9][A-Z][0-9]'
 ZIP_CODE_YEAR = re.compile(r'\b\d{4,5}\b' + r'|\b{}\b'.format(UK_STD))
 
 
@@ -30,33 +32,14 @@ def pad(line):
 
 # pylint: disable=too-many-locals
 def find_addresses(text: str, constituencies: List[str]) -> List[Tuple[int, int, str]]:
-    
-    '''
-    zero_one_st_list, zero_one_offsets = [], []
-    text = text.replace("\n", " ")
-    word_list = []
-    for start, end, word in strutils.using_split2(text):
-        word = re.sub(r'[,\.]+$|\-', "", word)
-        if word.isdigit() or word in constituencies:
-            zero_one_st_list.append('1')
-            word_list.append(word)
-        else:
-            zero_one_st_list.append('0')
-            word_list.append(word)
-        zero_one_offsets.append((start, end))
-    zero_one_st = ''.join(zero_one_st_list)
-    matches = re.finditer(r'(1+0?0?(1+0?0?){,3}1+)', zero_one_st)
-    '''
-    matches = re.finditer(r'(?=(\b(\d+|P\.? ?[0O]\.?|One) +.+?\b\d{5}(-\d{4})?\b' + r'|\b{}\b))'.format(UK_STD), text, re.DOTALL)
+    #matches = re.finditer(r'(?=(\b(\d+|P\.? ?[0O]\.?|One) +.+?(\b\d{5}(-\d{4})?\b' + r'|\b{}\b|\b{}\b)))'.format(UK_STD, CAN_STD), text, re.DOTALL)
+    matches = re.finditer(r'(?=(\b(\d+|P\.? ?[0O]\.?|One) +.+?(\b{}\b|\b{}\b|\b{}\b)))'.format(US_ZIP, UK_STD, CAN_STD), text, re.DOTALL)
     all_spans = [match.span(1) for match in matches]
     addr_se_st_list = []  # type: List[Tuple[int, int, str]]
     prev_start, prev_end, prev_prob = 0, 0, 0
     for ad_start, ad_end in all_spans:
-        #addr_span_offsets = zero_one_offsets[ad_start:ad_end]
         addr_st = text[ad_start:ad_end]
         if len(addr_st.split()) > 3 and len(addr_st.split()) < 25:  # an address must have at least 4 words
-            #addr_start, addr_end = addr_span_offsets[0][0], addr_span_offsets[-1][1]
-            #addr_st = text[addr_start:addr_end]
             address_prob = classify(addr_st)
             print(">>>>>>>", addr_st.replace("\n", " "), "<<", address_prob)
             if address_prob >= 0.5:
@@ -83,6 +66,7 @@ def addr_keywords():
             if term.strip() not in stop_keywords:
                 keywords[cat] += [term.strip()]
                 #all_terms.append(term.strip())
+    keywords['can'] += ['Toronto', 'TORONTO', 'Canada', 'CANADA']
     keywords['uk'] += ['London', 'LONDON']
     keywords['apt_abbrs'] += ['FLOOR', 'SUITE', 'P.O.', 'PO', 'Box', 'BOX', 'P.', 'O.']
     keywords['road_abbrs'] += ['BROADWAY', 'Broadway', 'Republic', 'REPUBLIC', 'N.E.', 'N.W.', 'S.E.', 'S.W.', 'NE', 'NW', 'SE', 'SW', 'NORTH', 'SOUTH', 'EAST', 'WEST', 'North', 'South', 'East', 'West', 'N.', 'S.', 'E.', 'W.']
@@ -213,7 +197,7 @@ def classify(line: str) -> float:
     #    or not any(c.isalpha() for c in s)):
     #    return 0
     len_s = len(line)
-    if (len_s < MIN_ADDRESS_LEN or len_s >= MAX_ADDRESS_LEN + 1) or \
+    if (len_s <= MIN_ADDRESS_LEN or len_s >= MAX_ADDRESS_LEN + 1) or \
        not strutils.has_alpha(line):
         return 0
     # s = unidecode(s)
