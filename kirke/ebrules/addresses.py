@@ -16,7 +16,7 @@ NUM_DIGIT_CHUNKS = 10
 MIN_ADDRESS_LEN = 5
 MAX_ADDRESS_LEN = 100
 
-UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? +(?:(?![CIKMOV])[0-9O][a-zA-Z]{2})'
+UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? +(?:(?![CIKMOV])[A-Z]?[0-9O][a-zA-Z]{2})'
 ZIP_CODE_YEAR = re.compile(r'\b\d{4,5}\b' + r'|\b{}\b'.format(UK_STD))
 
 
@@ -47,7 +47,7 @@ def find_addresses(text: str, constituencies: List[str]) -> List[Tuple[int, int,
     zero_one_st = ''.join(zero_one_st_list)
     matches = re.finditer(r'(1+0?0?(1+0?0?){,3}1+)', zero_one_st)
     '''
-    matches = re.finditer(r'(?=(\b(\d+|P\.? ?[0O]\.?) +.+?\b\d{4,5}\b' + r'|\b{}\b))'.format(UK_STD), text, re.DOTALL)
+    matches = re.finditer(r'(?=(\b(\d+|P\.? ?[0O]\.?|One) +.+?\b\d{5}(-\d{4})?\b' + r'|\b{}\b))'.format(UK_STD), text, re.DOTALL)
     all_spans = [match.span(1) for match in matches]
     addr_se_st_list = []  # type: List[Tuple[int, int, str]]
     prev_start, prev_end, prev_prob = 0, 0, 0
@@ -61,7 +61,7 @@ def find_addresses(text: str, constituencies: List[str]) -> List[Tuple[int, int,
             print(">>>>>>>", addr_st.replace("\n", " "), "<<", address_prob)
             if address_prob >= 0.5:
                 if ad_start > prev_start and ad_start < prev_end:
-                    if address_prob > prev_prob:
+                    if address_prob >= prev_prob:
                         addr_se_st_list.pop()
                         addr_se_st_list.append((ad_start, ad_end, addr_st))
                         prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
@@ -84,8 +84,8 @@ def addr_keywords():
                 keywords[cat] += [term.strip()]
                 #all_terms.append(term.strip())
     keywords['uk'] += ['London', 'LONDON']
-    keywords['apt_abbrs'] += ['Floor', 'FLOOR', 'SUITE', 'Suite', 'P.O.', 'PO', 'Box', 'BOX', 'P.', 'O.']
-    keywords['road_abbrs'] += ['Creek', 'CREEK', 'NE', 'NW', 'SE', 'SW', 'NORTH', 'SOUTH', 'EAST', 'WEST', 'North', 'South', 'East', 'West', 'N.', 'S.', 'E.', 'W.']
+    keywords['apt_abbrs'] += ['FLOOR', 'SUITE', 'P.O.', 'PO', 'Box', 'BOX', 'P.', 'O.']
+    keywords['road_abbrs'] += ['BROADWAY', 'Broadway', 'Republic', 'REPUBLIC', 'N.E.', 'N.W.', 'S.E.', 'S.W.', 'NE', 'NW', 'SE', 'SW', 'NORTH', 'SOUTH', 'EAST', 'WEST', 'North', 'South', 'East', 'West', 'N.', 'S.', 'E.', 'W.']
     keywords['us'] += ['Las', 'Rio', 'New', 'York', 'San', 'Santa', 'Los', 'LAS', 'RIO', 'NEW', 'YORK', 'SAN', 'SANTA', 'LOS'] 
     return keywords
 
