@@ -432,6 +432,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     prev_page_footer_linex_list = []  # type: List[LineWithAttrs]
     prev_linex = None  # type: Optional[LineWithAttrs]
     # pylint: disable=too-many-nested-blocks
+    linex = None
     for apage in pdf_text_doc.page_list:
 
         header_linex_list, content_linex_list, footer_linex_list = \
@@ -574,12 +575,14 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
         prev_page_footer_linex_list = footer_linex_list
 
-    # for the last block in the last page
-    nlp_line_list.append('')
-    span_se_list = [(linepos.LnPos(linex.lineinfo.end+2, linex.lineinfo.end+2),
-                     linepos.LnPos(offset, offset))]
-    offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
-    offset += 1
+    # for BHI's doc with just one URL.  129073.txt
+    if linex:
+        # for the last block in the last page
+        nlp_line_list.append('')
+        span_se_list = [(linepos.LnPos(linex.lineinfo.end+2, linex.lineinfo.end+2),
+                         linepos.LnPos(offset, offset))]
+        offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
+        offset += 1
 
     # output the footer on the last page
     offset, sechead_context = output_linex_list_with_offset(prev_page_footer_linex_list,
