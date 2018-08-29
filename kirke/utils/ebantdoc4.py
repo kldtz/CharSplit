@@ -107,6 +107,8 @@ class EbAnnotatedDoc4:
         self.para_indices = [x[0] for x in nlp_paras_with_attrs]
         self.para_attrs = [x[1] for x in nlp_paras_with_attrs]
         # to map to original offsets
+        # Both nlp_lnpos_list and origin_lnpos have start == end
+        # in them to mark empty lines.
         self.nlp_lnpos_list = nlp_lnpos_list
         self.origin_lnpos_list = origin_lnpos_list
         self.exclude_offsets = exclude_offsets
@@ -189,10 +191,10 @@ class EbAnnotatedDoc4:
         nlp_text = '\n'.join(para_st_list)
         return nlp_text
 
-    def get_nlp_sx_lnpos_list(self):
+    def get_nlp_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
         return [(elt.start, elt) for elt in self.nlp_lnpos_list]
 
-    def get_origin_sx_lnpos_list(self):
+    def get_origin_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
         return [(elt.start, elt) for elt in self.origin_lnpos_list]
 
     def has_same_prov_ant_list(self, prov_ant_list2: List[ProvisionAnnotation]) -> bool:
