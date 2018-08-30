@@ -34,12 +34,12 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
         for label in label_list:
             if label:
                 self.num_pos_instances += 1
-            logger.info("fitting #%s called, len(attrvec_list) = %d, "
-                        "len(label_list) = %d, num_pos = %d",
-                        EbTransformerBase.fit_count,
-                        len(attrvec_list),
-                        len(label_list),
-                        self.num_pos_instances)
+        logger.info("fitting #%s called, len(attrvec_list) = %d, "
+                    "len(label_list) = %d, num_pos = %d",
+                    EbTransformerBase.fit_count,
+                    len(attrvec_list),
+                    len(label_list),
+                    self.num_pos_instances)
 
         start_time = time.time()
         # ignore the result X.  The goal here is to set up the vars.
