@@ -11,10 +11,14 @@ class StratifiedGroupKFold:
     def __init__(self, n_splits: int = 3) -> None:
         self.n_splits = n_splits
 
+    # pylint: disable=invalid-name
     def get_n_splits(self,
-                     X: Optional[List]=None,
-                     y: Optional[List[bool]]=None,
-                     groups: Optional[List[int]]=None) \
+                     # pylint: disable=unused-argument
+                     X: Optional[List] = None,
+                     # pylint: disable=unused-argument
+                     y: Optional[List[bool]] = None,
+                     # pylint: disable=unused-argument
+                     groups: Optional[List[int]] = None) \
                      -> int:
         return self.n_splits
 
