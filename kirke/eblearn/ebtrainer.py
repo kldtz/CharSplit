@@ -218,6 +218,7 @@ def cv_candg_train_at_annotation_level(provision: str,
     # distribute positives to all buckets
     pos_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
     neg_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+    num_pos_after_candgen = 0
     # pylint: disable=line-too-long
     for label, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in zip(antdoc_bool_list,
                                                                                     antdoc_candidatex_list):
@@ -229,8 +230,12 @@ def cv_candg_train_at_annotation_level(provision: str,
         all_candidates.extend(x_candidates)
         all_candidate_labels.extend(x_candidate_label_list)
         all_group_ids.extend(x_group_ids)
+        if True in x_candidate_label_list:
+            num_pos_after_candgen += 1
 
     pos_list.extend(neg_list)
+    if num_pos_after_candgen < 6:
+        raise Exception("Too few documents with positive candidates, {} found".format(num_pos_after_candgen))
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
     for count, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in enumerate(pos_list):
@@ -409,7 +414,6 @@ def train_eval_annotator(provision: str,
     if num_doc_neg < 2:
         y[0] = 0
         y[1] = 0
-
     # make sure nbest is know to everyone else
     eb_classifier.nbest = nbest
 
@@ -652,7 +656,6 @@ def train_eval_span_annotator(provision: str,
         # candidate generation on the whole training set
         X_all_antdoc_candidatex_list = \
             span_annotator.documents_to_candidates(X, provision)
-
         # pylint: disable=line-too-long
         logger.info("%s training using cross validation with %d candidates.  num_inst_pos= %d, num_inst_neg= %d",
                     candidate_types, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
