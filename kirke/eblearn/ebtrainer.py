@@ -238,8 +238,6 @@ def cv_candg_train_at_annotation_level(provision: str,
         exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found".format(num_pos_after_candgen))
         exc.user_message =  "INSUFFICIENT_EXAMPLES"
         raise exc
-    logger.info("training using %d candidates across %d documents.",
-                    num_pos_after_candgen, len(antdoc_candidatex_list))
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
     for count, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in enumerate(pos_list):
