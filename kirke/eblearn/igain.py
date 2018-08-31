@@ -111,7 +111,7 @@ def to_cond_count_tuple(true_count_map,
         return result
     except KeyError:
         unused_error_type, error_instance, traceback = sys.exc_info()
-        error_instance.user_message = 'No positive examples found during training.'
+        error_instance.user_message = "INSUFFICIENT_EXAMPLES"
         error_instance.__traceback__ = traceback
         raise error_instance
 
