@@ -42,13 +42,15 @@ class TestBespokeStratifiedGroupKFold(unittest.TestCase):
         fn = conf_matrix[1][0]
         tp = conf_matrix[1][1]
 
-        # We don't care about the result.
-        # We just want to make sure that the stratifiedkfold works
+        # We don't care about the numerical result.
+        # We just want to make sure that the stratifiedgroupkfold works
         # and the training is successful.
         # If StratifiedGroupKFold is not used, we will get
         #    grid_search.fit()...
         #    Multiprocessing exception:
         #    ValueError: Class label 1 not present.
+        # This error is due to without stratification, 2 fold might
+        # get no positive training documents during GridSearchCV.
         self.assertEqual(tn, 0)
         self.assertAlmostEqual(fp, 0, delta=2)
         self.assertAlmostEqual(fn, 3, delta=2)
