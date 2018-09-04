@@ -218,6 +218,7 @@ def cv_candg_train_at_annotation_level(provision: str,
     # distribute positives to all buckets
     pos_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
     neg_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+    num_pos_after_candgen = 0
     # pylint: disable=line-too-long
     for label, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in zip(antdoc_bool_list,
                                                                                     antdoc_candidatex_list):
@@ -229,8 +230,14 @@ def cv_candg_train_at_annotation_level(provision: str,
         all_candidates.extend(x_candidates)
         all_candidate_labels.extend(x_candidate_label_list)
         all_group_ids.extend(x_group_ids)
+        if True in x_candidate_label_list:
+            num_pos_after_candgen += 1
 
     pos_list.extend(neg_list)
+    if num_pos_after_candgen < 6:
+        exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found".format(num_pos_after_candgen))
+        exc.user_message =  "INSUFFICIENT_EXAMPLES"
+        raise exc
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
     for count, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in enumerate(pos_list):
@@ -423,8 +430,8 @@ def train_eval_annotator(provision: str,
     # Always do cross validation to keep N constant as what people expect.
     if is_bespoke_mode:
         # pylint: disable=line-too-long
-        logger.info("training using cross validation with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
-                    len(attrvec_list), num_pos_label, num_neg_label)
+        logger.info("training using cross validation with %d instances across %d documents.  num_inst_pos= %d, num_inst_neg= %d",
+                    len(attrvec_list), len(eb_antdoc_list), num_pos_label, num_neg_label)
 
         X_train = X
         train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir, provision, doc_lang)
@@ -656,10 +663,9 @@ def train_eval_span_annotator(provision: str,
         # candidate generation on the whole training set
         X_all_antdoc_candidatex_list = \
             span_annotator.documents_to_candidates(X, provision)
-
         # pylint: disable=line-too-long
-        logger.info("%s training using cross validation with %d candidates.  num_inst_pos= %d, num_inst_neg= %d",
-                    candidate_types, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
+        logger.info("%s extracted %d candidates across %d documents.",
+                    candidate_types, sum([len(x[1]) for x in X_all_antdoc_candidatex_list]), len(eb_antdoc_list))
 
         prov_annotator2, combined_log_json = \
             cv_candg_train_at_annotation_level(provision,
