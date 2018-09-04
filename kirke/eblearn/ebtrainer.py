@@ -236,7 +236,7 @@ def cv_candg_train_at_annotation_level(provision: str,
     pos_list.extend(neg_list)
     if num_pos_after_candgen < 6:
         exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found".format(num_pos_after_candgen))
-        exc.user_message =  "INSUFFICIENT_EXAMPLES"
+        exc.user_message = "INSUFFICIENT_EXAMPLES"
         raise exc
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
@@ -384,30 +384,40 @@ def train_eval_annotator(provision: str,
         attrvec_list.extend(tmp_attrvec_list)
         group_id_list.extend([group_id] * len(tmp_attrvec_list))
 
+        # pos counts only for this doc
+        doc_pos_ant, doc_pos_label = 0, 0
         human_ant_list = eb_antdoc.prov_annotation_list
         for human_ant in human_ant_list:
             if provision == human_ant.label:
                 num_pos_ant += 1
+                doc_pos_ant += 1
 
-        has_pos_ant = False
+        has_pos_label = False
         for attrvec in tmp_attrvec_list:
             if provision in attrvec.labels:
                 num_pos_label += 1
-                has_pos_ant = True
+                doc_pos_label += 1
+                has_pos_label = True
             else:
                 num_neg_label += 1
 
-        if has_pos_ant:
+        if has_pos_label:
             num_doc_pos += 1
             y.append(True)
         else:
             num_doc_neg += 1
             y.append(False)
 
-        if num_pos_ant != num_pos_label:
+        if doc_pos_ant != doc_pos_label:
             # sometimes a human annotation can go across mutliple sentences
             logger.info('doc %s has %d human annotation, found %d in positive sentences',
-                        eb_antdoc.file_id, num_pos_ant, num_pos_label)
+                        eb_antdoc.file_id, doc_pos_ant, doc_pos_label)
+
+    if num_pos_ant != num_pos_label:
+        # sometimes a human annotation can go across mutliple sentences
+        logger.info('train_eval_annotator, found %d human annotation, '
+                    'found %d in positive sentences',
+                    num_pos_ant, num_pos_label)
 
     # X is sorted by file_id already
     # pylint: disable=invalid-name
