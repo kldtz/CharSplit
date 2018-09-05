@@ -236,7 +236,7 @@ def cv_candg_train_at_annotation_level(provision: str,
     pos_list.extend(neg_list)
     if num_pos_after_candgen < 6:
         exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found".format(num_pos_after_candgen))
-        exc.user_message =  "INSUFFICIENT_EXAMPLES"
+        exc.user_message = "INSUFFICIENT_EXAMPLES"
         raise exc
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
@@ -372,50 +372,65 @@ def train_eval_annotator(provision: str,
                                            is_sort_by_file_id=True)
     num_docs = len(eb_antdoc_list)
     attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
-    group_id_list = []
+    group_id_list = []  # type: List[int]
+    # the y is document-based for ebantdoc, not for attrvec
+    # pylint: disable=invalid-name
+    y = []  # type: List[bool]
+    num_doc_pos, num_doc_neg = 0, 0
     num_pos_ant = 0
+    num_pos_label, num_neg_label = 0, 0
     for group_id, eb_antdoc in enumerate(eb_antdoc_list):
         tmp_attrvec_list = eb_antdoc.get_attrvec_list()
         attrvec_list.extend(tmp_attrvec_list)
         group_id_list.extend([group_id] * len(tmp_attrvec_list))
 
+        # pos counts only for this doc
+        doc_pos_ant, doc_pos_label = 0, 0
         human_ant_list = eb_antdoc.prov_annotation_list
         for human_ant in human_ant_list:
             if provision == human_ant.label:
                 num_pos_ant += 1
-    # based on human annotations only, we don't know the num_neg_ant
-    logger.info("num_docs: %d, num_pos_ant: %d", num_docs, num_pos_ant)
+                doc_pos_ant += 1
 
-    # these are for sentences
-    num_pos_label, num_neg_label = 0, 0
-    for attrvec in attrvec_list:
-        if provision in attrvec.labels:
-            num_pos_label += 1
-            # print("\npositive training for {}".format(provision))
-            # print("    [[{}]]".format(attrvec.bag_of_words))
+        has_pos_label = False
+        for attrvec in tmp_attrvec_list:
+            if provision in attrvec.labels:
+                num_pos_label += 1
+                doc_pos_label += 1
+                has_pos_label = True
+            else:
+                num_neg_label += 1
+
+        if has_pos_label:
+            num_doc_pos += 1
+            y.append(True)
         else:
-            num_neg_label += 1
+            num_doc_neg += 1
+            y.append(False)
+
+        if doc_pos_ant != doc_pos_label:
+            # sometimes a human annotation can go across mutliple sentences
+            logger.info('doc %s has %d human annotation, found %d in positive sentences',
+                        eb_antdoc.file_id, doc_pos_ant, doc_pos_label)
+
+    if num_pos_ant != num_pos_label:
+        # sometimes a human annotation can go across mutliple sentences
+        logger.info('train_eval_annotator, found %d human annotation, '
+                    'found %d in positive sentences',
+                    num_pos_ant, num_pos_label)
 
     # X is sorted by file_id already
     # pylint: disable=invalid-name
     X = eb_antdoc_list
-    y = [provision in eb_antdoc.get_provision_set()
-         for eb_antdoc in eb_antdoc_list]
 
-    #gets count for number of docs that have positive labels for specific provision
-    num_doc_pos, num_doc_neg = 0, 0
-    for yval in y:
-        if yval:
-            num_doc_pos += 1
-        else:
-            num_doc_neg += 1
-    logger.info("provision: %s, num_doc_pos= %d, num_doc_neg= %d",
-                provision, num_doc_pos, num_doc_neg)
+    logger.info("provision: %s, num_doc = %d, num_doc_pos= %d, num_doc_neg= %d",
+                provision, num_docs, num_doc_pos, num_doc_neg)
 
     # TODO, jshaw, hack, such as for sechead
     if num_doc_neg < 2:
-        y[0] = 0
-        y[1] = 0
+        y[0] = False
+        y[1] = False
+
     # make sure nbest is know to everyone else
     eb_classifier.nbest = nbest
 
