@@ -865,6 +865,13 @@ def add_doc_structure_to_doc(pdftxt_doc):
     if DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.bef.merge.tsv')
 
+    # merge paragraphs that are across pages
+    prev_page = pdftxt_doc.page_list[0]
+    for apage in pdftxt_doc.page_list[1:]:
+        merge_if_continue_to_next_page(prev_page, apage)
+        prev_page = apage
+    reset_all_is_english(pdftxt_doc)
+
     if DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.after.merge.tsv')
 
