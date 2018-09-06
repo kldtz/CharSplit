@@ -23,55 +23,9 @@ ZIP_CODE_YEAR = re.compile(r'\b\d{4,5}\b' + r'|\b{}\b'.format(UK_STD))
 
 
 """Aggregate keyword data"""
-
-
 def pad(line):
     """Add a space before and after a string to ensure whole-word matches."""
     return ' ' + line + ' '
-
-
-# pylint: disable=too-many-locals
-def find_addresses(text: str, constituencies: List[str]) -> List[Tuple[int, int, str]]:
-    #matches = re.finditer(r'(?=(\b(\d+|P\.? ?[0O]\.?|One) +.+?(\b\d{5}(-\d{4})?\b' + r'|\b{}\b|\b{}\b)))'.format(UK_STD, CAN_STD), text, re.DOTALL)
-    matches = re.finditer(r'(?=(\b(\d+|P\.? ?[0O]\.?|One) +.+?(\b{}\b|\b{}\b|\b{}\b)))'.format(US_ZIP, UK_STD, CAN_STD), text, re.DOTALL)
-    all_spans = [match.span(1) for match in matches]
-    addr_se_st_list = []  # type: List[Tuple[int, int, str]]
-    prev_start, prev_end, prev_prob = 0, 0, 0
-    for ad_start, ad_end in all_spans:
-        addr_st = text[ad_start:ad_end]
-        if len(addr_st.split()) > 3 and len(addr_st.split()) < 25:  # an address must have at least 4 words
-            address_prob = classify(addr_st)
-            print(">>>>>>>", addr_st.replace("\n", " "), "<<", address_prob)
-            if address_prob >= 0.5:
-                if ad_start > prev_start and ad_start < prev_end:
-                    if address_prob >= prev_prob:
-                        addr_se_st_list.pop()
-                        addr_se_st_list.append((ad_start, ad_end, addr_st))
-                        prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
-                else:
-                    addr_se_st_list.append((ad_start, ad_end, addr_st))
-                    prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
-    return addr_se_st_list
-
-def addr_keywords():
-    keywords = defaultdict(list)
-    keywords['constituencies'] = []
-    categories = ['us', 'uk', 'aus', 'can', 'apt_abbrs',
-                  'country_names', 'numbers', 'road_abbrs']
-    all_keywords = load_keywords()
-    all_terms = []
-    stop_keywords = []
-    for cat in categories:
-        for term in all_keywords[cat]:
-            if term.strip() not in stop_keywords:
-                keywords[cat] += [term.strip()]
-                #all_terms.append(term.strip())
-    keywords['can'] += ['Toronto', 'TORONTO', 'Canada', 'CANADA']
-    keywords['uk'] += ['London', 'LONDON']
-    keywords['apt_abbrs'] += ['FLOOR', 'SUITE', 'P.O.', 'PO', 'Box', 'BOX', 'P.', 'O.']
-    keywords['road_abbrs'] += ['BROADWAY', 'Broadway', 'Republic', 'REPUBLIC', 'N.E.', 'N.W.', 'S.E.', 'S.W.', 'NE', 'NW', 'SE', 'SW', 'NORTH', 'SOUTH', 'EAST', 'WEST', 'North', 'South', 'East', 'West', 'N.', 'S.', 'E.', 'W.']
-    keywords['us'] += ['Las', 'Rio', 'New', 'York', 'San', 'Santa', 'Los', 'LAS', 'RIO', 'NEW', 'YORK', 'SAN', 'SANTA', 'LOS'] 
-    return keywords
 
 def load_keywords():
     # Create a dictionary object to return
@@ -103,12 +57,57 @@ def load_keywords():
     return keywords
 
 
+def addr_keywords():
+    keywords = defaultdict(list)
+    keywords['constituencies'] = []
+    categories = ['us', 'uk', 'aus', 'can', 'apt_abbrs',
+                  'country_names', 'numbers', 'road_abbrs', 'country_names']
+    all_keywords = load_keywords()
+    all_terms = []
+    stop_keywords = []
+    for cat in categories:
+        for term in all_keywords[cat]:
+            if term.strip() not in stop_keywords:
+                keywords[cat] += [term.strip()]
+                #all_terms.append(term.strip())
+    keywords['can'] += ['Toronto', 'TORONTO', 'Canada', 'CANADA']
+    keywords['uk'] += ['London', 'LONDON']
+    keywords['apt_abbrs'] += ['FLOOR', 'SUITE', 'P.O.', 'PO', 'Box', 'BOX', 'P.', 'O.']
+    keywords['road_abbrs'] += ['BROADWAY', 'Broadway', 'Republic', 'REPUBLIC', 'N.E.', 'N.W.', 'S.E.', 'S.W.', 'NE', 'NW', 'SE', 'SW', 'NORTH', 'SOUTH', 'EAST', 'WEST', 'North', 'South', 'East', 'West', 'N.', 'S.', 'E.', 'W.']
+    keywords['us'] += ['Las', 'Rio', 'New', 'York', 'San', 'Santa', 'Los', 'LAS', 'RIO', 'NEW', 'YORK', 'SAN', 'SANTA', 'LOS']
+    return keywords
+
+KEYWORDS = addr_keywords()
+LOCS = KEYWORDS['uk'] + KEYWORDS['us'] + KEYWORDS['can'] + KEYWORDS['country_names']
+LOCS = sorted(LOCS, reverse = True)
+
+# pylint: disable=too-many-locals
+def find_addresses(text: str, constituencies: List[str]) -> List[Tuple[int, int, str]]:
+    matches = re.finditer(r'(?=(\b(\d+|P\.? ?[0O]\.?|One) +.+?(\b{}\b|\b{}\b|\b{}\b)|\b(\d+|P\.? ?[0O]\.?|One) +.+?((\b({})\b)[,\. ]+)+))'.format(US_ZIP, UK_STD, CAN_STD, "|".join(LOCS)), text, re.DOTALL)
+    all_spans = [match.span(1) for match in matches]
+    addr_se_st_list = []  # type: List[Tuple[int, int, str]]
+    prev_start, prev_end, prev_prob = 0, 0, 0
+    for ad_start, ad_end in all_spans:
+        addr_st = text[ad_start:ad_end]
+        if len(addr_st.split()) > 3 and len(addr_st.split()) < 25:  # an address must have at least 4 words
+            address_prob = classify(addr_st)
+            print(">>>>>>>", addr_st.replace("\n", " "), "<<", address_prob)
+            if address_prob >= 0.5:
+                if ad_start > prev_start and ad_start < prev_end:
+                    if address_prob >= prev_prob:
+                        addr_se_st_list.pop()
+                        addr_se_st_list.append((ad_start, ad_end, addr_st))
+                        prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
+                else:
+                    addr_se_st_list.append((ad_start, ad_end, addr_st))
+                    prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
+    return addr_se_st_list
+
 """Find features for featuresets"""
 
 
 # Regex and string constants
 DIGIT = re.compile(r'\d')
-UK_STD = r'[A-Z]{1,2}[0-9R][0-9A-Z]? (?:(?![CIKMOV])[0-9][a-zA-Z]{2})'
 ZIP_CODE_FORMATS = [re.compile(r'\b\d{5}[-\s]+\d{4}\b'),
                     re.compile(r'\b\d{5}\b'),
                     re.compile(r'\b\d{4}\b'),
@@ -185,9 +184,6 @@ def find_features(line: str, num_chunks, keywords):
 
 with open(DATA_DIR + 'address_classifier.pickle', 'rb') as f:
     ADDR_CLASSIFIER = pickle.load(f)
-
-KEYWORDS = addr_keywords()
-
 
 # it takes around 7 ms per call
 def classify(line: str) -> float:
