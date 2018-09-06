@@ -659,7 +659,7 @@ def parse_document(file_name: str,
         # if below the mode, join into a block, otherwise add block to block_info
         if line_num+1 in lxid_strinfos_map.keys() and line_len > 0:
             y_diff = int(lxid_strinfos_map[line_num+1][0].yStart -
-                         lxid_strinfos_map[line_num][-1].yStart)
+                         lxid_strinfos_map[line_num][0].yStart)
         else:
             y_diff = -1
         if tmp_start != tmp_end and (y_diff < 0 or y_diff > mode_diff+1):
