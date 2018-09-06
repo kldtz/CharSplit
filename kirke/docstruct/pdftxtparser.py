@@ -509,6 +509,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
             for from_to_span_list, attr_list in offsets_line_list:
                 print('{}\t{}'.format(from_to_span_list, attr_list), file=fout2)
         print('wrote {}'.format(pdf_nlp_debug_fn), file=sys.stderr)
+
     return offsets_line_list, paraline_text, gap_span_list
 
 
@@ -651,14 +652,14 @@ def parse_document(file_name: str,
         if not line_num in lxid_strinfos_map.keys():
             continue
         tmp_start = lxid_strinfos_map[line_num][0].start
-        tmp_end = lxid_strinfos_map[line_num][0].end
+        tmp_end = lxid_strinfos_map[line_num][-1].end
         line_len = len(nl_text[tmp_start:tmp_end].split())
 
         # checks the difference in y val between this line and the next,
         # if below the mode, join into a block, otherwise add block to block_info
         if line_num+1 in lxid_strinfos_map.keys() and line_len > 0:
             y_diff = int(lxid_strinfos_map[line_num+1][0].yStart -
-                         lxid_strinfos_map[line_num][0].yStart)
+                         lxid_strinfos_map[line_num][-1].yStart)
         else:
             y_diff = -1
         if tmp_start != tmp_end and (y_diff < 0 or y_diff > mode_diff+1):
@@ -706,7 +707,6 @@ def parse_document(file_name: str,
         pdf_text_doc.save_raw_pages(extension='.raw.pages.tsv')
 
     add_doc_structure_to_doc(pdf_text_doc)
-
     if DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.docstruct.tsv')
 
