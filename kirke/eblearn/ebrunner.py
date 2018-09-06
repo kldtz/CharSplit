@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 import logging
 import os
+import re
 import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple, Union
@@ -228,15 +229,25 @@ class EbRunner:
         # Make sure all the provision's model are there
         prov_annotator_map = {}  # type: Dict[str, Any]
         prov_not_found_list = []  # type: List[str]
+        to_remove_provisions = []  # type: List[str]
         for provision in provision_set:
             if provision in both_default_custom_provs:
                 prov_annotator_map[provision] = self.get_provision_annotator(provision)
             else:
-                prov_not_found_list.append(provision)
+                if provision.startswith('cust_'):
+                    logger.warning('skipping custom model %s because not found.',
+                                   provision)
+                    to_remove_provisions.append(provision)
+                else:
+                    prov_not_found_list.append(provision)
 
         if prov_not_found_list:
             # pylint: disable=line-too-long
             raise Exception("error: Cannot find model file for provisions, {}.".format(prov_not_found_list))
+
+        # remove provisions that have no specific trained language models
+        for to_rm_prov in to_remove_provisions:
+            provision_set.remove(to_rm_prov)
 
         annotations = defaultdict(list)  # type: DefaultDict[str, List]
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
@@ -257,6 +268,13 @@ class EbRunner:
                     provision = provision.split('.')[0]
                 # aggregates all annotations across languages for cust models
                 annotations[provision].extend(ant_list)
+        # add those removed custom provisions back into the results
+        for to_rm_prov in to_remove_provisions:
+            # there is langid which we created at the end of the provision
+            # add that original provision name back, plus the missing language
+            if re.search(r'\d_[a-z][a-z]$', to_rm_prov):
+                annotations[to_rm_prov[:-3]] = []
+            annotations[to_rm_prov] = []
         return annotations
 
 
