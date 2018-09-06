@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 import logging
 import os
+import re
 import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple, Union
@@ -225,20 +226,35 @@ class EbRunner:
         both_default_custom_provs.update(self.custom_annotator_map.keys())
         both_default_custom_provs.update(annotatorconfig.get_all_candidate_types())
 
+        annotations = defaultdict(list)  # type: DefaultDict[str, List]
         # Make sure all the provision's model are there
         prov_annotator_map = {}  # type: Dict[str, Any]
         prov_not_found_list = []  # type: List[str]
+        to_remove_provisions = []  # type: List[str]
         for provision in provision_set:
             if provision in both_default_custom_provs:
                 prov_annotator_map[provision] = self.get_provision_annotator(provision)
             else:
-                prov_not_found_list.append(provision)
+                if provision.startswith('cust_'):
+                    logger.warning('skipping custom model %s because not found.',
+                                   provision)
+                    # there is langid which we created at the end of the provision
+                    # add that original provision name back, plus the missing language
+                    if re.search(r'\d_[a-z][a-z]$', provision):
+                        annotations[provision[:-3]] = []
+                    annotations[provision] = []
+                    to_remove_provisions.append(provision)
+                else:
+                    prov_not_found_list.append(provision)
 
         if prov_not_found_list:
             # pylint: disable=line-too-long
             raise Exception("error: Cannot find model file for provisions, {}.".format(prov_not_found_list))
 
-        annotations = defaultdict(list)  # type: DefaultDict[str, List]
+        # remove provisions that have no specific trained language models
+        for to_rm_prov in to_remove_provisions:
+            provision_set.remove(to_rm_prov)
+
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
                                                    prov_annotator_map[provision],
