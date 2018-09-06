@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # logger.setLevel(logging.DEBUG)
 
-CORENLP_JSON_VERSION = '1.9'
-EBANTDOC_VERSION = '1.9'
+CORENLP_JSON_VERSION = '1.10'
+EBANTDOC_VERSION = '1.10'
 
 
 def get_corenlp_json_fname(txt_basename, work_dir):
