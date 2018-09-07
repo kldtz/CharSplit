@@ -135,7 +135,7 @@ def get_custom_model_files(dir_name: str,
             if model_idverlg in cust_idverlg_set:
                 cust_idverlg_fname_list.append((model_idverlg, model_fname))
 
-    print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
+    # print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
     return cust_idverlg_fname_list
 
 
@@ -163,5 +163,5 @@ def get_provision_custom_model_files(dir_name: str,
             if model_rec.prov_ver == cust_id_ver:
                 cust_idverlg_fname_list.append((model_rec.get_prov_ver_lang(), model_fname))
 
-    print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
+    # print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
     return cust_idverlg_fname_list

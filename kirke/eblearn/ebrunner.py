@@ -242,9 +242,8 @@ class EbRunner:
                                    provision)
                     # there is langid which we created at the end of the provision
                     # add that original provision name back, plus the missing language
-                    if re.search(r'\d_[a-z][a-z]$', provision):
-                        annotations[provision[:-3]] = []
-                    annotations[provision] = []
+                    tmp_prov_name = provision[:provision.find('.')]
+                    annotations[tmp_prov_name] = []
                     to_remove_provisions.append(provision)
                 else:
                     prov_not_found_list.append(provision)
