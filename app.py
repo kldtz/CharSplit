@@ -236,7 +236,7 @@ def custom_train_export(cust_id: str):
     with zipfile.ZipFile(zip_filename, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
         for model_fname in cust_model_fnames:
             full_model_fname = "{}/{}".format(CUSTOM_MODEL_DIR, model_fname)
-            logger.info("full_model_fname: [{}]".format(full_model_fname))
+            logger.info("full_model_fname: [%s]", full_model_fname)
             zf.write(full_model_fname, arcname=model_fname)
 
     zip_file = open(zip_filename, 'rb')
