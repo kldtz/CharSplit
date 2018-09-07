@@ -170,15 +170,6 @@ def is_ok_title_filter(line: str, norm_line: str = '') -> bool:
        re.search(r'\b(1111)\b', norm_line):
         return False
 
-    """
-    aaa = set(['1', '11', '1111'])
-    print("aaa = {}".format(aaa))
-
-    if len(norm_word) >= 3:
-        aaa = set(norm_words[:3])
-        print("aaa = {}".format(aaa))
-    """
-
     # probably a date, followed by something else
     if len(norm_words) >= 3 and \
        len(set(norm_words[:3]).intersection(set(['1', '11', '1111']))) >= 2:

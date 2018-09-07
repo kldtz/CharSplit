@@ -285,11 +285,6 @@ def _extract_entities_v2(tokens,
                 if mathutils.start_end_overlap((pat[1], pat[2]), (token.start, token.end)):
                     token.ner = EbEntityType.DEFINE_TERM.name
 
-    #print()
-    #for i, token in enumerate(tokens, 1):
-    #    print('x234 {}\t{}'.format(i, token))
-
-
 def populate_ebsent_entities(ebsent, raw_sent_text, lang: str = 'en'):
     tokens = ebsent.get_tokens()
     _extract_entities_v2(tokens, raw_sent_text, ebsent.start, lang=lang)
