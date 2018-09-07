@@ -163,6 +163,10 @@ def get_custom_model_files(dir_name: str,
             #                                                       maybe_ver,
             #                                                       maybe_lang))
 
+            if maybe_lang != 'en':
+                maybe_prov_ver = '{}_{}'.format(maybe_prov_ver, maybe_lang)
+                maybe_prov_name = '{}_{}'.format(maybe_prov_name, maybe_lang)
+
             # for a version, there can be multiple language still
             # for that particular version, pick the best language.
             # if no language match, take the "en"
@@ -195,6 +199,7 @@ def get_custom_model_files(dir_name: str,
             if model_fn_with_lang:
                 cust_prov_fnames.append((cust_id, model_fn_with_lang))
 
+    # print("cust_prov_fnames: {}".format(cust_prov_fnames))
     return cust_prov_fnames
 
 
