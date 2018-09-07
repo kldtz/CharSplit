@@ -509,6 +509,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
             for from_to_span_list, attr_list in offsets_line_list:
                 print('{}\t{}'.format(from_to_span_list, attr_list), file=fout2)
         print('wrote {}'.format(pdf_nlp_debug_fn), file=sys.stderr)
+
     return offsets_line_list, paraline_text, gap_span_list
 
 
@@ -651,7 +652,7 @@ def parse_document(file_name: str,
         if not line_num in lxid_strinfos_map.keys():
             continue
         tmp_start = lxid_strinfos_map[line_num][0].start
-        tmp_end = lxid_strinfos_map[line_num][0].end
+        tmp_end = lxid_strinfos_map[line_num][-1].end
         line_len = len(nl_text[tmp_start:tmp_end].split())
 
         # checks the difference in y val between this line and the next,
@@ -706,7 +707,6 @@ def parse_document(file_name: str,
         pdf_text_doc.save_raw_pages(extension='.raw.pages.tsv')
 
     add_doc_structure_to_doc(pdf_text_doc)
-
     if DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.docstruct.tsv')
 
@@ -864,6 +864,13 @@ def add_doc_structure_to_doc(pdftxt_doc):
         # adjust_blocks_in_page(page, pdftxt_doc)
     if DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.bef.merge.tsv')
+
+    # merge paragraphs that are across pages
+    prev_page = pdftxt_doc.page_list[0]
+    for apage in pdftxt_doc.page_list[1:]:
+        merge_if_continue_to_next_page(prev_page, apage)
+        prev_page = apage
+    reset_all_is_english(pdftxt_doc)
 
     if DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.after.merge.tsv')
