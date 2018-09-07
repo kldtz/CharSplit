@@ -112,34 +112,29 @@ def get_all_custom_prov_ver_langs(dir_name: str) -> Set[str]:
 
 # pylint: disable=too-many-locals, too-many-branches
 def get_custom_model_files(dir_name: str,
-                           cust_prov_set: Set[str],
-                           doc_lang: str) -> List[Tuple[str, str]]:
-    """Return the list file names that matched cust_prov_set and doc_lang.
+                           cust_idverlg_set: Set[str]) \
+                           -> List[Tuple[str, str]]:
+    """Return the list file names that matched cust_idverlg_set.
 
-    Return a list of tuples, with provision_name, model_file_name.
-    The provision name is exactly the same as those from cust_prov_set.
+    Return a list of tuples, with cust_idverlg, model_file_name.
+    The provision name is exactly the same as those from cust_idverlg_set.
     """
     model_fnames = get_custom_model_file_names(dir_name)
 
-    # print("cust_prov_set: {}".format(cust_prov_set))
+    # print("cust_idverlg_set: {}".format(cust_idverlg_set))
 
-    cust_idverlg_set = set([x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
-                            for x in cust_prov_set])  # type: Set[str]
-
-    # print("provvrlg_set = {}".format(provvrlg_set))
-
-    cust_idver_fname_list = []  # type: List[Tuple[str, str]]
+    cust_idverlg_fname_list = []  # type: List[Tuple[str, str]]
     for model_fname in model_fnames:
         model_rec = parse_custom_model_file_name(model_fname)
         if model_rec:
             # print("found: " + str(model_rec))
 
-            model_idver_lang = model_rec.get_prov_ver_lang()
-            if model_idver_lang in cust_idverlg_set:
-                cust_idver_fname_list.append((model_rec.prov_ver, model_fname))
+            model_idverlg = model_rec.get_prov_ver_lang()
+            if model_idverlg in cust_idverlg_set:
+                cust_idverlg_fname_list.append((model_idverlg, model_fname))
 
-    print("cust_idver_fname_list: {}".format(cust_idver_fname_list))
-    return cust_idver_fname_list
+    print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
+    return cust_idverlg_fname_list
 
 
 # pylint: disable=invalid-name
@@ -157,14 +152,14 @@ def get_provision_custom_model_files(dir_name: str,
 
     # print("cust_prov_set: {}".format(cust_prov_set))
 
-    cust_idver_fname_list = []  # type: List[Tuple[str, str]]
+    cust_idverlg_fname_list = []  # type: List[Tuple[str, str]]
     for model_fname in model_fnames:
         model_rec = parse_custom_model_file_name(model_fname)
         if model_rec:
             # print("found: " + str(model_rec))
 
             if model_rec.prov_ver == cust_id_ver:
-                cust_idver_fname_list.append((model_rec.prov_ver, model_fname))
+                cust_idverlg_fname_list.append((model_rec.get_prov_ver_lang(), model_fname))
 
-    print("cust_idver_fname_list: {}".format(cust_idver_fname_list))
-    return cust_idver_fname_list
+    print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
+    return cust_idverlg_fname_list

@@ -20,7 +20,7 @@ from flask import Flask, jsonify, request, send_file
 import yaml
 
 from kirke.eblearn import ebrunner
-from kirke.utils import corenlputils, osutils, strutils
+from kirke.utils import corenlputils, modelfileutils, osutils, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -185,6 +185,8 @@ def annotate_uploaded_document():
             if "rate_table" in provision_set:
                 provision_set.remove('rate_table')
 
+        provision_set = set([x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
+                             for x in provision_set])
         # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
         prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
                                                          provision_set=provision_set,
