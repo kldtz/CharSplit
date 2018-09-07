@@ -185,10 +185,9 @@ def annotate_uploaded_document():
             if "rate_table" in provision_set:
                 provision_set.remove('rate_table')
 
-        frozen_provision_set = frozenset(provision_set)
         # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
         prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
-                                                         provision_set=frozen_provision_set,
+                                                         provision_set=provision_set,
                                                          work_dir=work_dir,
                                                          doc_lang=doc_lang)
 
