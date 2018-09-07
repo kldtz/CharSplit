@@ -20,7 +20,7 @@ from flask import Flask, jsonify, request, send_file
 import yaml
 
 from kirke.eblearn import ebrunner
-from kirke.utils import corenlputils, modelfileutils, osutils, strutils
+from kirke.utils import corenlputils, osutils, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -228,7 +228,7 @@ def custom_train_export(cust_id: str):
     # to ensure that no accidental file name overlap
     logger.info("cust_id = %s", cust_id)
 
-    cust_model_fnames = modelfileutils.get_prov_custom_model_files(cust_id)
+    cust_model_fnames = eb_runner.get_provision_custom_model_files(cust_id)
     # create the zip file with all the provision and its langs
     # zip_filename =  + ".zip"
     # zip_file_obj = tempfile.NamedTemporaryFile(mode='wb')
