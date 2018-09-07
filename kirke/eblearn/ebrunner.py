@@ -21,7 +21,7 @@ from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
 from kirke.eblearn import annotatorconfig, ebannotator, ebpostproc, ebtrainer, lineannotator
 from kirke.eblearn import provclassifier, scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
-from kirke.utils import ebantdoc4, evalutils, lrucache, osutils, strutils
+from kirke.utils import ebantdoc4, evalutils, lrucache, modelfileutils, osutils, strutils
 
 from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
@@ -278,35 +278,41 @@ class EbRunner:
         return annotations
 
 
-    def get_custom_model_files(self, cust_id_ver: str) -> List[str]:
+    # pylint: disable=invalid-name
+    def get_provision_custom_model_files(self, cust_id_ver: str) -> List[str]:
         """Get the list of files that satisfy the cust_id_ver."""
 
-        result = [fname for unused_cust_id_ver, fname
-                  in osutils.get_custom_model_files(self.custom_model_dir,
-                                                    set([cust_id_ver]),
-                                                    lang='all')]
+        cust_idverlg_fname_list = \
+            modelfileutils.get_provision_custom_model_files(self.custom_model_dir,
+                                                            cust_id_ver)
+        result = [fname for unused_cust_idverlg, fname in cust_idverlg_fname_list]
         return result
 
 
-    def update_custom_models(self, provision_set: Set[str], lang: str = 'en'):
+    def update_custom_models(self, provision_set: Set[str]):
+        """Update internal data structure to load all custom models, if it is updated.
+
+        The custom provisions in the provision set already have the langid attached.
+        """
         provision_classifier_map = {}  # this can be either a spanannotator or scutclassifier
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         num_model = 0
 
-        cust_prov_set = set([provision for provision in provision_set
-                             if provision.startswith('cust_')])
+        cust_idverlg_set = set([provision for provision in provision_set
+                                if provision.startswith('cust_')])
 
         start_time_1 = time.time()
         # print('update_custom_models lang= {}, dir={}:'.format(lang, self.custom_model_dir))
-        # print('cust_prov_set: {}'.format(cust_prov_set))
+        # print('cust_idverlg_set: {}'.format(cust_idverlg_set))
 
         # cust_id_ver is exactly the same as the vaue in cust_prov_set
         # because everyone else is using that.  Only the
         # fname will reflect which version and which language
-        for cust_id_ver, fname in osutils.get_custom_model_files(self.custom_model_dir,
-                                                                 cust_prov_set,
-                                                                 lang):
-            # print('cust_id_ver = [{}], fname= [{}]'.format(cust_id_ver, fname))
+        for cust_idverlg, fname in modelfileutils.get_custom_model_files(self.custom_model_dir,
+                                                                         cust_idverlg_set):
+
+            # print('cust_idverlg = [{}], fname= [{}]'.format(cust_idverlg, fname))
+
             mtime = os.path.getmtime(os.path.join(self.custom_model_dir, fname))
             last_modified_date = datetime.fromtimestamp(mtime)
             old_timestamp = self.custom_model_timestamp_map.get(fname)
@@ -317,7 +323,7 @@ class EbRunner:
             # There is still some possibility that people might delete a version
             # while this is running.  For now, deletion operation should not
             # remove the file yet.
-            prov_annotator = self.custom_annotator_map.get(cust_id_ver)
+            prov_annotator = self.custom_annotator_map.get(cust_idverlg)
 
             is_update_model = False
             if prov_annotator:  # found in cache
@@ -336,7 +342,7 @@ class EbRunner:
                 # it must produce annotations with that label, not with whatever is "embedded"
                 # in the saved model file (since the file could have been imported from another
                 # server)
-                prov_name = cust_id_ver.split('.')[0]
+                prov_name = cust_idverlg.split('.')[0]
                 logger.info('updating custom provision model to annotate with %s', prov_name)
                 # print(prov_classifier)
                 logger.info(prov_classifier)
@@ -346,16 +352,16 @@ class EbRunner:
                     prov_classifier.transformer.provision = prov_name
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))
-                provision_classifier_map[cust_id_ver] = prov_classifier
-                logger.info('update custom model %s, [%s]', cust_id_ver, full_custom_model_fn)
+                provision_classifier_map[cust_idverlg] = prov_classifier
+                logger.info('update custom model %s, [%s]', cust_idverlg, full_custom_model_fn)
 
-                #if cust_id_ver in self.provisions:
+                #if cust_idverlg in self.provisions:
                 #    logger.warning("*** WARNING ***  Replacing an existing provision: %s",
-                #                   cust_id_ver)
+                #                   cust_idverlg)
 
                 self.custom_model_timestamp_map[fname] = last_modified_date
-                self.custom_model_fn_map[cust_id_ver] = full_custom_model_fn
-                self.provisions.add(cust_id_ver)
+                self.custom_model_fn_map[cust_idverlg] = full_custom_model_fn
+                self.provisions.add(cust_idverlg)
                 num_model += 1
 
         if provision_classifier_map:
@@ -408,7 +414,7 @@ class EbRunner:
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
         # print("provision_set: {}".format(provision_set))
-        self.update_custom_models(provision_set, doc_lang)
+        self.update_custom_models(provision_set)
 
         eb_antdoc = ebantdoc4.text_to_ebantdoc4(file_name,
                                                 work_dir=work_dir,
