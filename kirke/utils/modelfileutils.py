@@ -5,7 +5,7 @@ import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 
-def get_model_file_names(dir_name: str) -> Set[str]:
+def get_model_file_names(dir_name: str) -> List[str]:
     """Return all the model file names in dir_name.
 
     There is a check on the file name pattern to decide if a file is
@@ -13,12 +13,13 @@ def get_model_file_names(dir_name: str) -> Set[str]:
     """
     fnames = [f for f in os.listdir(dir_name)
               if (os.path.isfile(os.path.join(dir_name, f))
+                  and not 'docclassifier' in f
                   and ('classifier' in f or
                        'annotator' in f)
                   and f.endswith('.pkl'))]
     return fnames
 
-def get_custom_model_file_names(dir_name: str) -> Set[str]:
+def get_custom_model_file_names(dir_name: str) -> List[str]:
     """Return all the model file names in dir_name.
 
     There is a check on the file name pattern to decide if a file is
@@ -27,6 +28,7 @@ def get_custom_model_file_names(dir_name: str) -> Set[str]:
     fnames = [f for f in os.listdir(dir_name)
               if (f.startswith('cust_') and
                   os.path.isfile(os.path.join(dir_name, f))
+                  and not 'docclassifier' in f
                   and ('classifier' in f or
                        'annotator' in f)
                   and f.endswith('.pkl'))]
@@ -133,7 +135,7 @@ def get_custom_model_files(dir_name: str,
             if model_idverlg in cust_idverlg_set:
                 cust_idverlg_fname_list.append((model_idverlg, model_fname))
 
-    print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
+    # print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
     return cust_idverlg_fname_list
 
 
@@ -161,5 +163,5 @@ def get_provision_custom_model_files(dir_name: str,
             if model_rec.prov_ver == cust_id_ver:
                 cust_idverlg_fname_list.append((model_rec.get_prov_ver_lang(), model_fname))
 
-    print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
+    # print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
     return cust_idverlg_fname_list
