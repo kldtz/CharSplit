@@ -185,11 +185,10 @@ def annotate_uploaded_document():
             if "rate_table" in provision_set:
                 provision_set.remove('rate_table')
 
-        provision_set = [x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
-                         for x in provision_set]
+        frozen_provision_set = frozenset(provision_set)
         # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
         prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
-                                                         provision_set=provision_set,
+                                                         provision_set=frozen_provision_set,
                                                          work_dir=work_dir,
                                                          doc_lang=doc_lang)
 
@@ -228,7 +227,7 @@ def custom_train_export(cust_id: str):
     # to ensure that no accidental file name overlap
     logger.info("cust_id = %s", cust_id)
 
-    cust_model_fnames = eb_runner.get_custom_model_files(cust_id)
+    cust_model_fnames = modelfileutils.get_prov_custom_model_files(cust_id)
     # create the zip file with all the provision and its langs
     # zip_filename =  + ".zip"
     # zip_file_obj = tempfile.NamedTemporaryFile(mode='wb')

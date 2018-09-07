@@ -20,7 +20,7 @@ from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
 from kirke.eblearn import annotatorconfig, ebannotator, ebpostproc, ebtrainer, lineannotator
 from kirke.eblearn import provclassifier, scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
-from kirke.utils import ebantdoc4, evalutils, lrucache, osutils, strutils
+from kirke.utils import ebantdoc4, evalutils, lrucache, modelfileutils, osutils, strutils
 
 from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
@@ -260,13 +260,12 @@ class EbRunner:
         return annotations
 
 
-    def get_custom_model_files(self, cust_id_ver: str) -> List[str]:
+    def get_provision_custom_model_files(self, cust_id_ver: str) -> List[str]:
         """Get the list of files that satisfy the cust_id_ver."""
 
-        result = [fname for unused_cust_id_ver, fname
-                  in osutils.get_custom_model_files(self.custom_model_dir,
-                                                    set([cust_id_ver]),
-                                                    lang='all')]
+        prov_idver_fname_list = modelfileutils.get_provision_custom_model_files(self.custom_model_dir,
+                                                                                cust_id_ver)
+        result = [fname for prov_idver, fname in prov_idver_fname_list]
         return result
 
 
@@ -283,9 +282,9 @@ class EbRunner:
         # cust_id_ver is exactly the same as the vaue in cust_prov_set
         # because everyone else is using that.  Only the
         # fname will reflect which version and which language
-        for cust_id_ver, fname in osutils.get_custom_model_files(self.custom_model_dir,
-                                                                 cust_prov_set,
-                                                                 lang):
+        for cust_id_ver, fname in modelfileutils.get_custom_model_files(self.custom_model_dir,
+                                                                        cust_prov_set,
+                                                                        lang):
             mtime = os.path.getmtime(os.path.join(self.custom_model_dir, fname))
             last_modified_date = datetime.fromtimestamp(mtime)
             old_timestamp = self.custom_model_timestamp_map.get(fname)
