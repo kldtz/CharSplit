@@ -208,36 +208,12 @@ class FromToMapper:
 
         self.name = name
 
-        """
-        # we don't trust others and make sure frstart_list is sorted.
-        alist = []  # type: List[Tuple[int, int, int, linepos.LnPos, linepos.LnPos]]
-        for from_sxlnpos, to_sxlnpos in zip(from_start_lnpos_list, to_start_lnpos_list):
-            from_start, from_lnpos = from_sxlnpos
-            to_start, to_lnpos = to_sxlnpos
-            # using to_lnpos.end, just in case there is a gap, which migth cause two
-            # to_lnpos.start to be the same
-            alist.append((from_lnpos.start, from_lnpos.end,
-                          to_lnpos.start,
-                          from_sxlnpos, to_sxlnpos))
-        """
-
         # this is for binary search
         self.frstart_list = []  # type: List[int]
         # this is for mapping, for returning as the offset
         self.tostart_list = []  # type: List[int]
         self.from_start_lnpos_list = []  # type: List[Tuple[int, linepos.LnPos]]
         self.to_start_lnpos_list = []  # type: List[Tuple[int, linepos.LnPos]]
-
-        """
-        for from_start, _, to_start, from_sxlnpos, to_sxlnpos in alist:
-            self.frstart_list.append(from_start)
-            self.tostart_list.append(to_start)
-            self.from_start_lnpos_list.append(from_sxlnpos)
-            self.to_start_lnpos_list.append(to_sxlnpos)
-
-            # print("from_sxlnpos: {}".format(from_sxlnpos))
-            # print("to_sxlnpos: {}".format(to_sxlnpos))
-        """
 
         for from_sxlnpos, to_sxlnpos in zip(from_start_lnpos_list, to_start_lnpos_list):
             from_start, unused_from_lnpos = from_sxlnpos
