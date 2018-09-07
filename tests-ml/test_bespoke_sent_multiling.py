@@ -3,6 +3,7 @@
 import configparser
 import json
 import unittest
+from typing import Any, Dict, List, Set, Tuple
 
 from kirke.client import postfileutils
 
@@ -13,73 +14,42 @@ config.read('kirke.ini')
 
 SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 
-MODEL_DIR = 'dir-scut-model'
-WORK_DIR = 'dir-work'
-CUSTOM_MODEL_DIR = 'dir-custom-model'
+def upload_annotate_doc(file_name: str, provision: str) -> Dict[str, Any]:
+    text = postfileutils.post_unittest_annotate_document(file_name, provision)
+    ajson = json.loads(text)
+
+    return ajson
 
 class TestBespokeSent(unittest.TestCase):
 
-    def test_bespoke_12345(self):
+    def test_bespoke_sent(self):
+        '''
+        Tagged Romanian and Dutch europarl data. Of the tagged data from other
+        testing, these two langs get F1 > 0.0 with only 5 docs, so we use these
+        two to keep unit testing as quick as possible.
+        '''
 
-        custid = '12345'
+        '''
+        # train the model with data from both langs
+        custid = '39'
         custid_data_dir = 'cust_' + custid
         result_text = \
             postfileutils.upload_train_dir(custid,
                                            custid_data_dir,
                                            candidate_types='SENTENCE',
                                            nbest=-1)
-        ajson = json.loads(result_text)
-        ant_result = ajson['en']
-        print("ant_result:")
-        print(ant_result)
+        '''
 
-        conf_matrix = ant_result['confusion_matrix']
-        # [[0, 1], [9, 139]]
-        # {'fn': 9, 'fp': 1, 'tn': 0, 'tp': 139})
-        # 0, 1, 0, 148
-        # 7, 1, 0, 141
-        # 9, 0, 0, 139
-        # 3, 1, 0, 145
+        # verify expected predictions on a training doc for each
+        docid_pred_ajson_map = {}
+        ro_doc_test = 'cust_39/2732.txt'
+        docid_pred_ajson_map['ro'] = upload_annotate_doc(ro_doc_test, 'cust_39')
+        print(docid_pred_ajson_map['ro']['ebannotations']['cust_39_ro'])
 
-        tn = conf_matrix[0][0]
-        fp = conf_matrix[0][1]
-        fn = conf_matrix[1][0]
-        tp = conf_matrix[1][1]
-
-        self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 1, delta=2)
-        self.assertAlmostEqual(fn, 6, delta=6)
-        self.assertAlmostEqual(tp, 143, delta=7)
-
-        # round(ant_result['f1'], 2),
-        # 1.0
-        # 0.97
-        # 0.97
-        # 0.99
-        f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.96)
-        self.assertLessEqual(f1, 1.0)
-
-        # round(ant_result['prec'], 2),
-        # 0.99
-        # 0.99
-        # 1.00
-        # 0.99
-        precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.98)
-        self.assertLessEqual(precision, 1.0)
-
-        recall = round(ant_result['recall'], 2)
-        # 1.0
-        # 0.95
-        # 0.93
-        # 0.98
-        self.assertGreaterEqual(recall, 0.92)
-        self.assertLessEqual(recall, 1.0)
-
-        # self.assertEqual(round(ant_result['threshold'], 2),
-        #                  0.24)
-
+        nl_doc_test = 'cust_39/2783.txt'
+        docid_pred_ajson_map['nl'] = upload_annotate_doc(nl_doc_test, 'cust_39')
+        print(docid_pred_ajson_map['nl']['ebannotations']['cust_39_nl'])
+        
 
 if __name__ == "__main__":
     unittest.main()
