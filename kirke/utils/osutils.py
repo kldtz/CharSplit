@@ -163,15 +163,27 @@ def get_custom_model_files(dir_name: str,
             #                                                       maybe_ver,
             #                                                       maybe_lang))
 
-            if maybe_lang != 'en':
-                maybe_prov_ver = '{}_{}'.format(maybe_prov_ver, maybe_lang)
-                maybe_prov_name = '{}_{}'.format(maybe_prov_name, maybe_lang)
+            maybe_prov_ver_lang = '{}_{}'.format(maybe_prov_ver, maybe_lang)
+
+            # FIXME this is confusing and should be refactored--a list of provisions (cust_idver_set) should always
+            # be the strings with the language or the string without the language.  It shouldn't be
+            # ambiguous
+
+            # Here maybe_prov_ver is always a provision-nolang from a file on disk (while maybe_lang is
+            # its language)
+            #
+            # However, cust_idver_set sometimes has provision-langs or provision-nolangs in it,
+            # so we have to check for the provision string with and without the language for now.
 
             # for a version, there can be multiple language still
             # for that particular version, pick the best language.
             # if no language match, take the "en"
+
             if maybe_prov_ver in cust_idver_set:
                 cust_idver_fnames_map[maybe_prov_ver].append((maybe_lang, maybe_fname))
+
+            if maybe_prov_ver_lang in cust_idver_set:
+                cust_idver_fnames_map[maybe_prov_ver_lang].append((maybe_lang, maybe_fname))
 
             if maybe_prov_name in cust_id_set:
                 # for non-version, we need to add all versions
