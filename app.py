@@ -185,11 +185,11 @@ def annotate_uploaded_document():
             if "rate_table" in provision_set:
                 provision_set.remove('rate_table')
 
-        prov_idverlang_set = set([x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
+        lang_provision_set = set([x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
                                   for x in provision_set])
         # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
         prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
-                                                         provision_set=prov_idverlang_set,
+                                                         provision_set=lang_provision_set,
                                                          work_dir=work_dir,
                                                          doc_lang=doc_lang)
 
@@ -225,6 +225,14 @@ def annotate_uploaded_document():
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 @app.route('/custom-train-export/<cust_id>', methods=['GET'])
 def custom_train_export(cust_id: str):
+    """Export the model file for a Bespoke model.
+
+    Parameter:
+         cust_id is expected to have the format 'cust_12345.9393', with 9393 as the version info.
+
+    Currently, we only support exporting all the language models for a custom provision.  We do
+    not export a specific language model for a custom_id, such as cust_12345.9393_pt
+    """
     # to ensure that no accidental file name overlap
     logger.info("custom_train_export(%s) called", cust_id)
 

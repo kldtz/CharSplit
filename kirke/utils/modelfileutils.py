@@ -114,54 +114,55 @@ def get_all_custom_prov_ver_langs(dir_name: str) -> Set[str]:
 
 # pylint: disable=too-many-locals, too-many-branches
 def get_custom_model_files(dir_name: str,
-                           cust_idverlg_set: Set[str]) \
+                           cust_lang_provision_set: Set[str]) \
                            -> List[Tuple[str, str]]:
-    """Return the list file names that matched cust_idverlg_set.
+    """Return the list file names that matched cust_lang_provision_set.
 
-    Return a list of tuples, with cust_idverlg, model_file_name.
-    The provision name is exactly the same as those from cust_idverlg_set.
+    Return a list of tuples, with cust_lang_provision, model_file_name.
+    The provision name is exactly the same as those from cust_lang_provision_set.
     """
     model_fnames = get_custom_model_file_names(dir_name)
 
-    # print("cust_idverlg_set: {}".format(cust_idverlg_set))
+    # print("cust_lang_provision_set: {}".format(cust_lang_provision_set))
 
-    cust_idverlg_fname_list = []  # type: List[Tuple[str, str]]
+    cust_lang_provision_fname_list = []  # type: List[Tuple[str, str]]
     for model_fname in model_fnames:
         model_rec = parse_custom_model_file_name(model_fname)
         if model_rec:
             # print("found: " + str(model_rec))
 
-            model_idverlg = model_rec.get_prov_ver_lang()
-            if model_idverlg in cust_idverlg_set:
-                cust_idverlg_fname_list.append((model_idverlg, model_fname))
+            model_lang_provision = model_rec.get_prov_ver_lang()
+            if model_lang_provision in cust_lang_provision_set:
+                cust_lang_provision_fname_list.append((model_lang_provision, model_fname))
 
-    # print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
-    return cust_idverlg_fname_list
+    # print("cust_lang_provision_fname_list: {}".format(cust_lang_provision_fname_list))
+    return cust_lang_provision_fname_list
 
 
 # pylint: disable=invalid-name
 def get_provision_custom_model_files(dir_name: str,
-                                     cust_id_ver: str) \
+                                     cust_provision: str) \
                                      -> List[Tuple[str, str]]:
-    """Return the list file names that matched cust_id_ver.
+    """Return the list file names that matched cust_provision.
 
+    cust_provision does not have language specified, i.e., 'cust_12345.9393'
     This include all languages.
 
-    Return a list of tuples, with provision_name, model_file_name.
-    The provision name is exactly the same as those from cust_prov_set.
+    Return a list of tuples, with lang_provision name, model_file_name.
+    Please notice that the first str in the tuple has language id.
     """
     model_fnames = get_custom_model_file_names(dir_name)
 
     # print("cust_prov_set: {}".format(cust_prov_set))
 
-    cust_idverlg_fname_list = []  # type: List[Tuple[str, str]]
+    cust_lang_provision_fname_list = []  # type: List[Tuple[str, str]]
     for model_fname in model_fnames:
         model_rec = parse_custom_model_file_name(model_fname)
         if model_rec:
             # print("found: " + str(model_rec))
 
-            if model_rec.prov_ver == cust_id_ver:
-                cust_idverlg_fname_list.append((model_rec.get_prov_ver_lang(), model_fname))
+            if model_rec.prov_ver == cust_provision:
+                cust_lang_provision_fname_list.append((model_rec.get_prov_ver_lang(), model_fname))
 
-    # print("cust_idverlg_fname_list: {}".format(cust_idverlg_fname_list))
-    return cust_idverlg_fname_list
+    # print("cust_lang_provision_fname_list: {}".format(cust_lang_provision_fname_list))
+    return cust_lang_provision_fname_list

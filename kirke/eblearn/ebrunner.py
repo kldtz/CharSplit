@@ -215,10 +215,10 @@ class EbRunner:
 
     def run_annotators_in_parallel(self,
                                    eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
-                                   prov_idverlang_set: Optional[Set[str]] = None) \
+                                   lang_provision_set: Optional[Set[str]] = None) \
                                    -> Dict[str, List]:
-        if not prov_idverlang_set:
-            prov_idverlang_set = self.provisions
+        if not lang_provision_set:
+            lang_provision_set = self.provisions
         #else:
         #    logger.info("user specified provision list: %s", provision_set)
         both_default_custom_provs = set(self.provision_annotator_map.keys())
@@ -231,44 +231,44 @@ class EbRunner:
         # Make sure all the provision's model are there
         prov_annotator_map = {}  # type: Dict[str, Any]
         prov_not_found_list = []  # type: List[str]
-        to_remove_prov_idverlangs = []  # type: List[str]
-        for prov_idverlang in prov_idverlang_set:
-            if prov_idverlang in both_default_custom_provs:
-                prov_annotator_map[prov_idverlang] = self.get_provision_annotator(prov_idverlang)
+        to_remove_lang_provisions = []  # type: List[str]
+        for lang_provision in lang_provision_set:
+            if lang_provision in both_default_custom_provs:
+                prov_annotator_map[lang_provision] = self.get_provision_annotator(lang_provision)
             else:
-                if prov_idverlang.startswith('cust_'):
+                if lang_provision.startswith('cust_'):
                     logger.warning('skipping custom model %s because not found.',
-                                   prov_idverlang)
-                    # there is langid which we created at the end of the prov_idverlang
+                                   lang_provision)
+                    # there is langid which we created at the end of the lang_provision
                     # add that original provision name back, plus the missing language
-                    tmp_prov_name = prov_idverlang.split('.')[0]
+                    tmp_prov_name = lang_provision.split('.')[0]
                     annotations[tmp_prov_name] = []
-                    to_remove_prov_idverlangs.append(prov_idverlang)
+                    to_remove_lang_provisions.append(lang_provision)
                 else:
-                    prov_not_found_list.append(prov_idverlang)
+                    prov_not_found_list.append(lang_provision)
 
         if prov_not_found_list:
             # pylint: disable=line-too-long
             raise Exception("error: Cannot find model file for provisions, {}.".format(prov_not_found_list))
 
         # remove provisions that have no specific trained language models
-        for to_rm_prov in to_remove_prov_idverlangs:
-            prov_idverlang_set.remove(to_rm_prov)
+        for to_rm_prov in to_remove_lang_provisions:
+            lang_provision_set.remove(to_rm_prov)
 
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
-                                                   prov_annotator_map[prov_idverlang],
+                                                   prov_annotator_map[lang_provision],
                                                    eb_antdoc):
-                                   prov_idverlang for prov_idverlang in prov_idverlang_set}
+                                   lang_provision for lang_provision in lang_provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
-                prov_idverlang = future_to_provision[future]
+                lang_provision = future_to_provision[future]
                 ant_list = future.result()
                 # want to collapse language-specific cust models to one provision
 
-                # Use just provision name instead of prov_idverlang in
+                # Use just provision name instead of lang_provision in
                 # the annotation result.
-                provision_name = prov_idverlang
-                if 'cust_' in prov_idverlang and ant_list:
+                provision_name = lang_provision
+                if 'cust_' in lang_provision and ant_list:
                     provision_name = ant_list[0]['label']
 
                 if '.' in provision_name:  # in case there is no ant_list
@@ -280,41 +280,37 @@ class EbRunner:
 
 
     # pylint: disable=invalid-name
-    def get_provision_custom_model_files(self, cust_id_ver: str) -> List[str]:
-        """Get the list of files that satisfy the cust_id_ver."""
+    def get_provision_custom_model_files(self, provision: str) -> List[str]:
+        """Get the list of files that satisfy the provision."""
 
-        cust_idverlg_fname_list = \
+        lang_provision_fname_list = \
             modelfileutils.get_provision_custom_model_files(self.custom_model_dir,
-                                                            cust_id_ver)
-        result = [fname for unused_cust_idverlg, fname in cust_idverlg_fname_list]
+                                                            provision)
+        result = [fname for unused_lang_provision, fname in lang_provision_fname_list]
         return result
 
 
-    def update_custom_models(self, provision_set: Set[str]):
+    def update_custom_models(self, lang_provision_set: Set[str]):
         """Update internal data structure to load all custom models, if it is updated.
 
-        provision_set here is really prov_idverlang_set, with idverlang specified.
+        lang_provision_set has version and langid specified.
 
-        The custom provisions in the provision set already have the langid attached.
         """
         provision_classifier_map = {}  # this can be either a spanannotator or scutclassifier
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         num_model = 0
 
-        cust_idverlg_set = set([provision for provision in provision_set
-                                if provision.startswith('cust_')])
+        cust_lang_provision_set = set([provision for provision in lang_provision_set
+                                       if provision.startswith('cust_')])
 
         start_time_1 = time.time()
         # print('update_custom_models lang= {}, dir={}:'.format(lang, self.custom_model_dir))
-        # print('cust_idverlg_set: {}'.format(cust_idverlg_set))
+        # print('cust_lang_provision_set: {}'.format(cust_lang_provision_set))
 
-        # cust_id_ver is exactly the same as the vaue in cust_prov_set
-        # because everyone else is using that.  Only the
-        # fname will reflect which version and which language
-        for cust_idverlg, fname in modelfileutils.get_custom_model_files(self.custom_model_dir,
-                                                                         cust_idverlg_set):
+        for cust_lang_provision, fname in modelfileutils.get_custom_model_files(self.custom_model_dir,
+                                                                                cust_lang_provision_set):
 
-            # print('cust_idverlg = [{}], fname= [{}]'.format(cust_idverlg, fname))
+            # print('cust_lang_provision = [{}], fname= [{}]'.format(cust_lang_provision, fname))
 
             mtime = os.path.getmtime(os.path.join(self.custom_model_dir, fname))
             last_modified_date = datetime.fromtimestamp(mtime)
@@ -326,7 +322,7 @@ class EbRunner:
             # There is still some possibility that people might delete a version
             # while this is running.  For now, deletion operation should not
             # remove the file yet.
-            prov_annotator = self.custom_annotator_map.get(cust_idverlg)
+            prov_annotator = self.custom_annotator_map.get(cust_lang_provision)
 
             is_update_model = False
             if prov_annotator:  # found in cache
@@ -345,7 +341,7 @@ class EbRunner:
                 # it must produce annotations with that label, not with whatever is "embedded"
                 # in the saved model file (since the file could have been imported from another
                 # server)
-                prov_name = cust_idverlg.split('.')[0]
+                prov_name = cust_lang_provision.split('.')[0]
                 logger.info('updating custom provision model to annotate with %s', prov_name)
                 # print(prov_classifier)
                 logger.info(prov_classifier)
@@ -355,16 +351,16 @@ class EbRunner:
                     prov_classifier.transformer.provision = prov_name
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))
-                provision_classifier_map[cust_idverlg] = prov_classifier
-                logger.info('update custom model %s, [%s]', cust_idverlg, full_custom_model_fn)
+                provision_classifier_map[cust_lang_provision] = prov_classifier
+                logger.info('update custom model %s, [%s]', cust_lang_provision, full_custom_model_fn)
 
-                #if cust_idverlg in self.provisions:
+                #if cust_lang_provision in self.provisions:
                 #    logger.warning("*** WARNING ***  Replacing an existing provision: %s",
-                #                   cust_idverlg)
+                #                   cust_lang_provision)
 
                 self.custom_model_timestamp_map[fname] = last_modified_date
-                self.custom_model_fn_map[cust_idverlg] = full_custom_model_fn
-                self.provisions.add(cust_idverlg)
+                self.custom_model_fn_map[cust_lang_provision] = full_custom_model_fn
+                self.provisions.add(cust_lang_provision)
                 num_model += 1
 
         if provision_classifier_map:
@@ -399,17 +395,21 @@ class EbRunner:
                           doc_lang: str = 'en') \
                           -> Tuple[Dict[str, List],
                                    ebantdoc4.EbAnnotatedDoc4]:
+        """Annotate a document with the provisions specified in provision_set.
+
+        'provision_set' is really a set of lang_provision, i.e., 'change_control', 'cust_12345.9393_pt'
+        """
         time1 = time.time()
         if not provision_set:
             # no provision specified.  Must be doing testing.
-            prov_idverlang_set = modelfileutils.get_all_custom_prov_ver_langs(self.custom_model_dir)
-            prov_idverlang_set.update(self.provisions)
+            lang_provision_set = modelfileutils.get_all_custom_prov_ver_langs(self.custom_model_dir)
+            lang_provision_set.update(self.provisions)
             # also get ALL custom provision set, since we are doing testing
             logger.info("custom_model_dir: %s", self.custom_model_dir)
-            logger.info("prov_idverlang_set: %r", prov_idverlang_set)
+            logger.info("lang_provision_set: %r", lang_provision_set)
         else:
             # logger.info('user specified provision list: %s', provision_set)
-            prov_idverlang_set = provision_set
+            lang_provision_set = provision_set
 
         if not work_dir:
             work_dir = self.work_dir
@@ -417,7 +417,7 @@ class EbRunner:
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
         # print("provision_set: {}".format(provision_set))
-        self.update_custom_models(prov_idverlang_set)
+        self.update_custom_models(lang_provision_set)
 
         eb_antdoc = ebantdoc4.text_to_ebantdoc4(file_name,
                                                 work_dir=work_dir,
@@ -428,7 +428,7 @@ class EbRunner:
         # otherwise, might cause classifier error if only have 1 error because of minmax
         if len(eb_antdoc.text) < 100:
             empty_result = {}  # type: Dict[str, List]
-            for prov in prov_idverlang_set:
+            for prov in lang_provision_set:
                 # for custom models that has version information
                 if '.' in prov:
                     # remove version, chop off after '.'
@@ -438,7 +438,7 @@ class EbRunner:
             return empty_result, eb_antdoc
         # this execute the annotators in parallel
         prov_labels_map = self.run_annotators_in_parallel(eb_antdoc,
-                                                          prov_idverlang_set=prov_idverlang_set)
+                                                          lang_provision_set=lang_provision_set)
         # this update the 'start_end_span_list' in each antx in-place
         # docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
         # update prov_labels_map based on rules
