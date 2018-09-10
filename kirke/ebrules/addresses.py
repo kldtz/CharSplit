@@ -5,11 +5,10 @@ import string
 from typing import List, Tuple
 from collections import defaultdict
 import pandas as pd
+from kirke.ebrules.addrclassifier import KEYWORDS
+from kirke.ebrules.addrclassifier import LogRegModel
 
-from kirke.utils import strutils
-
-"""Config. RETRAIN retrains the classifier."""
-
+#from kirke.utils import strutils
 
 DATA_DIR = './dict/addresses/'
 NUM_DIGIT_CHUNKS = 10
@@ -21,63 +20,6 @@ UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? *(?:(?![CIKMOV])[A-Z]?[0-9O][a-zA-Z]{2})'
 CAN_STD = '[A-Z][0-9][A-Z] +[0-9][A-Z][0-9]'
 ZIP_CODE_YEAR = re.compile(r'\b\d{4,5}\b' + r'|\b{}\b'.format(UK_STD))
 
-
-"""Aggregate keyword data"""
-def pad(line):
-    """Add a space before and after a string to ensure whole-word matches."""
-    return ' ' + line + ' '
-
-def load_keywords():
-    # Create a dictionary object to return
-    keywords = {}
-
-    # Read constituencies (e.g. states, provinces) and their abbreviations
-    countries = ['us', 'uk', 'aus', 'can']
-    keywords['constituencies'] = []
-    for cat in countries:
-        # pylint: disable=invalid-name
-        df = pd.read_csv(DATA_DIR + 'constituencies_' + cat + '.csv').dropna()
-        keywords[cat] = df['name'].tolist() + df['abbr'].tolist()
-        keywords['constituencies'] += keywords[cat]
-
-    # Read single-column CSVs
-    categories = ['address_terms', 'apt_abbrs', 'apt_terms',
-                  'business_suffixes', 'country_names', 'numbers', 'road_abbrs']
-    for cat in categories:
-        # pylint: disable=invalid-name
-        df = pd.read_csv(DATA_DIR + cat + '.csv', header=None).dropna()
-        keywords[cat] = df[0].tolist()
-
-    # Save title case and uppercase versions, padded, for each keyword
-    for category in keywords:
-        title_case_keywords = [pad(kwd.title()) for kwd in keywords[category]]
-        uppercase_keywords = [pad(kwd.upper()) for kwd in keywords[category]]
-        keywords[category] = set(title_case_keywords + uppercase_keywords)
-
-    return keywords
-
-
-def addr_keywords():
-    keywords = defaultdict(list)
-    keywords['constituencies'] = []
-    categories = ['us', 'uk', 'aus', 'can', 'apt_abbrs',
-                  'country_names', 'numbers', 'road_abbrs', 'country_names']
-    all_keywords = load_keywords()
-    all_terms = []
-    stop_keywords = []
-    for cat in categories:
-        for term in all_keywords[cat]:
-            if term.strip() not in stop_keywords:
-                keywords[cat] += [term.strip()]
-                #all_terms.append(term.strip())
-    keywords['can'] += ['Toronto', 'TORONTO', 'Canada', 'CANADA']
-    keywords['uk'] += ['London', 'LONDON']
-    keywords['apt_abbrs'] += ['FLOOR', 'SUITE', 'P.O.', 'PO', 'Box', 'BOX', 'P.', 'O.']
-    keywords['road_abbrs'] += ['BROADWAY', 'Broadway', 'Republic', 'REPUBLIC', 'N.E.', 'N.W.', 'S.E.', 'S.W.', 'NE', 'NW', 'SE', 'SW', 'NORTH', 'SOUTH', 'EAST', 'WEST', 'North', 'South', 'East', 'West', 'N.', 'S.', 'E.', 'W.']
-    keywords['us'] += ['Las', 'Rio', 'New', 'York', 'San', 'Santa', 'Los', 'LAS', 'RIO', 'NEW', 'YORK', 'SAN', 'SANTA', 'LOS']
-    return keywords
-
-KEYWORDS = addr_keywords()
 LOCS = KEYWORDS['uk'] + KEYWORDS['us'] + KEYWORDS['can'] + KEYWORDS['country_names']
 LOCS = sorted(LOCS, reverse = True)
 
@@ -182,7 +124,7 @@ def find_features(line: str, num_chunks, keywords):
 """Load and prepare the classifier"""
 
 
-with open(DATA_DIR + 'address_classifier.pickle', 'rb') as f:
+with open('kirke/ebrules/addr_classifier.pkl', 'rb') as f:
     ADDR_CLASSIFIER = pickle.load(f)
 
 # it takes around 7 ms per call
@@ -197,7 +139,6 @@ def classify(line: str) -> float:
        not strutils.has_alpha(line):
         return 0
     # s = unidecode(s)
-    features = find_features(line, NUM_DIGIT_CHUNKS, KEYWORDS)
-    result = ADDR_CLASSIFIER.prob_classify(features).prob(1)
+    probs, label = ADDR_CLASSIFIER.predict(line)
 
-    return result
+    return label
