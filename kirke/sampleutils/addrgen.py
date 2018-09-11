@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, List, Tuple
-from kirke.ebrules import addresses
+from kirke.ebrules import addresses, addrclassifier
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 # pylint: disable=invalid-name
@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # loads address keywords
-ALL_KEYWORDS = addresses.addr_keywords()
+ALL_KEYWORDS = addrclassifier.load_keywords()
 
 # pylint: disable=too-few-public-methods
 class AddrContextGenerator:
@@ -52,7 +52,7 @@ class AddrContextGenerator:
                 logger.debug('AddrContextGenerator.documents_to_candidates(), group_id = %d', group_id)
 
             #finds all addresses in the text and adds window around each as a candidate
-            for addr in addresses.find_addresses(nl_text, ALL_KEYWORDS):
+            for addr in addresses.find_addresses(nl_text):
                 addr_start, addr_end, addr_st = addr
                 is_label = ebsentutils.check_start_end_overlap(addr_start,
                                                                addr_end,

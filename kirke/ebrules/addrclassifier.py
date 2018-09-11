@@ -58,13 +58,9 @@ KEYWORDS = load_keywords()
 
 class LogRegModel:
     def __init__(self,model = None, vec= None, featureselector= None):
-      if (model is None):
-          self.model = LogisticRegression()
-          self.ngram_vec = CountVectorizer(min_df=2, ngram_range=(1,4), lowercase=False)
-          self.min_max_scaler = preprocessing.MinMaxScaler()
-      else:
-        self.model = model
-        self.ngram_vec = ngram_vec
+        self.model = LogisticRegression()
+        self.ngram_vec = CountVectorizer(min_df=2, ngram_range=(1,4), lowercase=False)
+        self.min_max_scaler = preprocessing.MinMaxScaler()
 
     # return generic version of addr to be put into ngram vectorizer
     def extract_features(self, addrs):
@@ -141,9 +137,9 @@ def parse_train(fname):
     return train_data, train_labels, dev_data, dev_labels
 
 
-if __name__ == '__main__':
+def main():
     model = LogRegModel()
-    train_data, train_labels, dev_data, dev_labels = parse_train("addr_annots.tsv")
+    train_data, train_labels, dev_data, dev_labels = parse_train(DATA_DIR+"addr_annots.tsv")
     model.fitModel(train_data, train_labels)
     
     tp, fp, fn = 0, 0, 0
@@ -166,8 +162,6 @@ if __name__ == '__main__':
     print("TP = {}, FP = {}, FN = {}".format(tp, fp, fn))
     print("P = {}, R = {}, F = {}".format(prec, rec, f1))
 
-    outfile = open('addr_classifier.pkl', 'wb')
+    outfile = open(DATA_DIR+'addr_classifier.pkl', 'wb')
     pickle.dump(model, outfile, -1)
     outfile.close()
-
- 
