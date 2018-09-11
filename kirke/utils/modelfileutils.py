@@ -19,6 +19,7 @@ def get_model_file_names(dir_name: str) -> List[str]:
                   and f.endswith('.pkl'))]
     return fnames
 
+
 def get_custom_model_file_names(dir_name: str) -> List[str]:
     """Return all the model file names in dir_name.
 
@@ -84,6 +85,21 @@ def parse_custom_model_file_name(file_name: str) -> Optional[ModelFileRecord]:
     return None
 
 
+DEFAULT_MODEL_PREFIX_PAT = re.compile(r'^(.*)_(scut)')
+
+def parse_default_model_file_name(file_name: str) -> Optional[ModelFileRecord]:
+    mat = DEFAULT_MODEL_PREFIX_PAT.search(file_name)
+    if mat:
+        prov_name = mat.group(1)
+        model_suffix = file_name[mat.start(2):]
+
+        return ModelFileRecord(prov_name,
+                               prov_name,
+                               'en',
+                               model_suffix)
+    return None
+
+
 def get_all_custom_prov_versions(dir_name: str) -> Set[str]:
     """This returns all provision names with version."""
 
@@ -110,6 +126,20 @@ def get_all_custom_prov_ver_langs(dir_name: str) -> Set[str]:
             cust_prov_set.add('{}'.format(model_rec.get_prov_ver_lang()))
             # print("found: " + str(model_rec))
     return cust_prov_set
+
+
+def get_all_default_prov_versions(dir_name: str) -> Set[str]:
+    """This returns all provision names, without custom models."""
+
+    model_fnames = get_model_file_names(dir_name)
+
+    prov_set = set([])  # type: Set[str]
+    for model_fname in model_fnames:
+        model_rec = parse_default_model_file_name(model_fname)
+        if model_rec:
+            prov_set.add(model_rec.prov)
+            # print("found: " + str(model_rec))
+    return prov_set
 
 
 # pylint: disable=too-many-locals, too-many-branches
