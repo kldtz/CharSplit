@@ -2,7 +2,7 @@ import re
 import string
 from typing import Dict, List, Optional, Set, Tuple
 
-from kirke.utils import regexutils, txtreader
+from kirke.utils import regexutils, strutils, txtreader
 
 # IS_DEBUG = True
 # IS_DEBUG_MODE = True
@@ -173,15 +173,6 @@ def is_ok_title_filter(line: str, norm_line: str = '') -> bool:
        re.search(r'\b(1111)\b', norm_line):
         return False
 
-    """
-    aaa = set(['1', '11', '1111'])
-    print("aaa = {}".format(aaa))
-
-    if len(norm_word) >= 3:
-        aaa = set(norm_words[:3])
-        print("aaa = {}".format(aaa))
-    """
-
     # probably a date, followed by something else
     if len(norm_words) >= 3 and \
        len(set(norm_words[:3]).intersection(set(['1', '11', '1111']))) >= 2:
@@ -211,8 +202,8 @@ def extract_lines_v2(paras_attr_list) -> Tuple[List[Dict],
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
         if IS_DEBUG:
             attrs_st = '|'.join([str(attr) for attr in para_attrs])
-            print("extract_line_v2()\t{}".format('\t'.join([attrs_st,
-                                                            '[{}]'.format(line_st)])))
+            print("extract_lines_v2()\t{}".format('\t'.join([attrs_st,
+                                                             '[{}]'.format(line_st)])))
 
         line_st_len = len(line_st)
 
@@ -298,10 +289,8 @@ def calc_jaccard_title_list(line_st: str,
     score = orig_score + adjust_score
 
     if IS_DEBUG_MODE:
-        print("calc_jaccard_title_list({}) = {}, orig_score = {}, {}".format(norm_line_st,
-                                                                             score,
-                                                                             orig_score,
-                                                                             title_wordset))
+        print("calc_jaccard_title_list(%s) = %f, orig_score = %f, %s" %
+              (norm_line_st, score, orig_score, strutils.set_to_sorted_set_st(title_wordset)))
     return score, num_intersect, num_union, title_wordset
 
 
@@ -356,7 +345,9 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
     if IS_DEBUG_MODE:
         for linex in linex_list:
             print()
-            print("jj({}, {})\t{}".format(linex['start'], linex['end'], linex))
+            print("jj({}, {})\t{}".format(linex['start'],
+                                          linex['end'],
+                                          strutils.dict_to_sorted_dict_st(linex)))
 
             if linex:
                 norm_ling = tag(linex['line'])

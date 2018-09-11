@@ -294,6 +294,8 @@ def _extract_entities_v2(tokens,
 def get_sechead_attr(attrs):
     for attr in attrs:
         # print("is_attr_section_head: {} || {}".format(attr, attr[2]))
+        # if len(attr) > 3 and attr[0].startswith('sechead'):
+        # This way of accessing sechead will be obsolete in the future
         if len(attr) > 3 and attr[0] == 'sechead':
             return attr
     return ''

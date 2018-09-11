@@ -7,7 +7,6 @@ from time import time
 import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import GroupKFold
 from sklearn.pipeline import Pipeline
 
 from kirke.eblearn import ebpostproc, ebattrvec
@@ -15,6 +14,7 @@ from kirke.eblearn.ebclassifier import EbClassifier
 # from kirke.eblearn.ebtransformer import EbTransformer
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
 from kirke.utils import evalutils
+from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -118,11 +118,16 @@ class ProvisionClassifier(EbClassifier):
         #    parameters = {'C': [.01,.1,1,10,100]}
         #    sgd_clf = LogisticRegression()
 
-        group_kfold = list(GroupKFold().split(attrvec_list, label_list,
-                                              groups=group_id_list))
+        group_kfold = list(StratifiedGroupKFold().split(attrvec_list,
+                                                        label_list,
+                                                        groups=group_id_list))
         # grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='roc_auc',
-        grid_search = GridSearchCV(pipeline, parameters, n_jobs=1, scoring='f1',
-                                   verbose=1, cv=group_kfold)
+        grid_search = GridSearchCV(pipeline,
+                                   parameters,
+                                   n_jobs=1,
+                                   scoring='f1',
+                                   verbose=1,
+                                   cv=group_kfold)
 
         print("Performing grid search...")
         print("pipeline:", [name for name, _ in pipeline.steps])
