@@ -33,10 +33,22 @@ class DateNormalizer(DocCandidatesTransformer):
 
     # if using fuzzy-with_tokens
     # Tuple[datetime.datetime, Tuple]
-    # pylint: disable=no-self-use
+    # pylint: disable=no-self-use, too-many-return-statements
     def parse_date(self, line: str) -> Optional[Dict[str, Any]]:
         orig_line = line.replace('\n', '|')
         line = re.sub(r'first', '1st', line)
+
+        # shouldn't match '101012', which was
+        # parsed into 2010-10-12
+        if re.match(r'\d{6}', line):
+            return None
+
+        if re.match(r'\d{4}$', line):
+            year_line = int(line)
+            if year_line < 1900 or \
+               year_line > 2200:
+                return None
+
         # fixing OCR errors for "L" for "1" or "O" for '0"
         if 'l' in line:
             line = re.sub(r'(\d)l', r'\g<1>1', line)

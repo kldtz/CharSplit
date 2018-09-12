@@ -252,37 +252,55 @@ def is_line_footer(line: str,
     if is_line_footer_by_content(line):
         return True, 1.0
 
+    # if it is a part of the last block
+    # if lbk < 1.1:
+    #    return False, -1
+
+    is_debug_footer = False
+
+    if is_debug_footer:
+        print("is_line_footer({}, {})".format(line, page_line_num))
+
     score = 0.0
     if yStart >= 725.0:
         score += 0.4
-    # print("score = {}, after yStart".format(score))
+    if is_debug_footer:
+        print("score = {}, after yStart".format(score))
     if num_line_in_page - page_line_num <= 2:
         score += 0.5
-    # print("score = {}, after num_line_in_page".format(score))
-    if not is_english:
+    if is_debug_footer:
+        print("score = {}, after num_line_in_page".format(score))
+    if is_english:
+        score -= 0.8
+    else:
         score += 0.2
-    # print("score = {}, after is_english".format(score))
+    if is_debug_footer:
+        print("score = {}, after is_english".format(score))
     if len(line) < 30:
         score += 0.2
-    # print("score = {}, after len(line)".format(score))
+    if is_debug_footer:
+        print("score = {}, after len(line)".format(score))
     if lbk >= 2.0:
         score += 0.2
-    # print("score = {}, after lbk".format(score))
+    if is_debug_footer:
+        print("score = {}, after lbk".format(score))
     if page_num_index != -1 and page_line_num >= page_num_index:
         score += 0.8
-    # print("score = {}, after page_num_index = {}, page_line_num = {}".format(score,
-    #                                                                          page_num_index,
-    #                                                                          page_line_num))
+    if is_debug_footer:
+        print("score = {}, after page_num_index = {}, page_line_num = {}".format(score,
+                                                                                 page_num_index,
+                                                                                 page_line_num))
 
     if 'confidential information' in line.lower() and is_centered:
         score += 0.8
-    # print("score = {}, confid".format(score))
+    if is_debug_footer:
+        print("score = {}, confid".format(score))
 
     # no sechead in footer, if it is obvious sechead
     if secheadutils.is_line_sechead_strict_prefix(line):
         score -= 20
-
-    # print('is_footer.score = {}'.format(score))
+    if is_debug_footer:
+        print('is_footer.score = {}'.format(score))
     return score >= 1, score
 
 
