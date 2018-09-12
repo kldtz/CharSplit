@@ -105,16 +105,16 @@ if eb_doccat_runner.is_initialized:
     logger.info("classify document '%s' is '%s'", warm_up_txt_file_name, warm_up_doc_catnames)
 
 warm_up_default_provisions = modelfileutils.get_all_default_prov_versions(MODEL_DIR)
-# logger.info('warm_up_default_provisions: {}'.format(warm_up_default_provisions))
-warm_up_prov_labels_map, ignore_ebantdoc = \
-    eb_runner.annotate_document(warm_up_txt_file_name,
-                                provision_set=warm_up_default_provisions,
-                                work_dir=WORK_DIR,
-                                doc_lang='en')
-logger.info("annotated document '%s'", warm_up_txt_file_name)
-
-warmup_prov_labels_map = None
-ignore_ebantdoc = None
+if warm_up_default_provisions:
+    # logger.info('warm_up_default_provisions: {}'.format(warm_up_default_provisions))
+    warm_up_prov_labels_map, ignore_ebantdoc = \
+        eb_runner.annotate_document(warm_up_txt_file_name,
+                                    provision_set=warm_up_default_provisions,
+                                    work_dir=WORK_DIR,
+                                    doc_lang='en')
+    logger.info("annotated document '%s'", warm_up_txt_file_name)
+    del warm_up_prov_labels_map
+    del ignore_ebantdoc
 
 
 @app.route('/annotate-doc', methods=['POST'])

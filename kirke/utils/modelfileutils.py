@@ -86,11 +86,16 @@ def parse_custom_model_file_name(file_name: str) -> Optional[ModelFileRecord]:
 
 
 DEFAULT_MODEL_PREFIX_PAT = re.compile(r'^(.*)_(scut)')
+# default provision names have no version information
+MODEL_VERSION_PAT = re.compile(r'\.(\d+)')
 
 def parse_default_model_file_name(file_name: str) -> Optional[ModelFileRecord]:
     mat = DEFAULT_MODEL_PREFIX_PAT.search(file_name)
     if mat:
         prov_name = mat.group(1)
+        if prov_name.startswith('cust_') or \
+           MODEL_VERSION_PAT.search(prov_name):
+            return None
         model_suffix = file_name[mat.start(2):]
 
         return ModelFileRecord(prov_name,
