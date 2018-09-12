@@ -108,6 +108,12 @@ class AbbyyTextBlock:
                 st_list.append(ab_line.text)
         return '\n'.join(st_list)
 
+    def is_header(self) -> bool:
+        return self.infer_attr_dict.get('header', False)
+
+    def is_footer(self) -> bool:
+        return self.infer_attr_dict.get('footer', False)
+
 
 # pylint: disable=too-few-public-methods
 class AbbyyCell:
@@ -184,6 +190,11 @@ class AbbyyTableBlock:
 
         return '\n'.join(st_list)
 
+    def is_header(self) -> bool :
+        return self.infer_attr_dict.get('header', False)
+
+    def is_footer(self) -> bool:
+        return self.infer_attr_dict.get('footer', False)
 
 
 # pylint: disable=invalid-name
@@ -269,6 +280,9 @@ class AbbyyPage:
         self.ab_text_blocks = []  # type: List[AbbyyTextBlock]
         self.ab_table_blocks = []  # type: List[AbbyyTableBlock]
         self.ab_signature_blocks = []  # type: List[AbbyyBlock]
+        self.ab_address_blocks = []  # type: List[AbbyyBlock]
+
+        self.is_multi_column = False
 
         # enable the ability to access prev and next ab_blocks
         for block_seq, ab_block in enumerate(ab_blocks):

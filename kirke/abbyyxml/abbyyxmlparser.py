@@ -8,7 +8,7 @@ import pprint
 import shutil
 
 # pylint: disable=unused-import
-from typing import DefaultDict, Dict, List, Tuple
+from typing import DefaultDict, Dict, List, Optional, Tuple
 
 # from kirke.abbyyxml import AbbyLine, AbbyPar, AbbyTextBlock, AbbyTableBlock, AbbyyXmlDoc
 from kirke.abbyyxml.pdfoffsets import AbbyyCell, AbbyyLine, AbbyyPar, AbbyyRow
@@ -101,7 +101,13 @@ def add_infer_header_footer(attr_dict: Dict) -> Dict:
        b_attr < 350:
         infer_attr_dict['header'] = True
     if t_attr >= 3000:
+         infer_attr_dict['footer'] = True
+    # Due to document 367594.pdf
+    # Must be only a small y span
+    if b_attr >= 2850 and \
+       b_attr - t_attr < 140:
         infer_attr_dict['footer'] = True
+
     if align_attr and align_attr != 'Justified':
         infer_attr_dict['align'] = align_attr
     return infer_attr_dict
@@ -140,7 +146,7 @@ def add_infer_table_block_attrs(table_block: AbbyyTableBlock) -> None:
     pass
 
 
-def parse_abbyy_line(ajson, resolution: int) -> AbbyyLine:
+def parse_abbyy_line(ajson, resolution: int) -> Optional[AbbyyLine]:
     line_attr_dict = {}
 
     for attr, val in sorted(ajson.items()):
@@ -161,11 +167,16 @@ def parse_abbyy_line(ajson, resolution: int) -> AbbyyLine:
                 abbyy_line = AbbyyLine(' '.join(text_list), line_attr_dict)
                 abbyy_line.infer_attr_dict = add_infer_line_attrs(line_attr_dict)
             else:
-                abbyy_line = AbbyyLine(val['#text'], line_attr_dict)
-                abbyy_line.infer_attr_dict = add_infer_line_attrs(line_attr_dict)
+                if val.get('#text'):
+                    abbyy_line = AbbyyLine(val['#text'], line_attr_dict)
+                    abbyy_line.infer_attr_dict = add_infer_line_attrs(line_attr_dict)
+                else:
+                    # no '#text' attribute, in doc 367594.pdf
+                    continue
             return abbyy_line
+    # raise ValueError
+    return None
 
-    raise ValueError
 
 
 def parse_abbyy_cell(ajson, resolution: int) -> AbbyyCell:
@@ -284,10 +295,12 @@ def parse_abbyy_par(ajson, resolution: int) -> List[AbbyyPar]:
                 if isinstance(val, list):
                     for tmp_val in val:
                         abbyy_line = parse_abbyy_line(tmp_val, resolution)
-                        ab_line_list.append(abbyy_line)
+                        if abbyy_line:
+                            ab_line_list.append(abbyy_line)
                 else:
                     abbyy_line = parse_abbyy_line(val, resolution)
-                    ab_line_list.append(abbyy_line)
+                    if abbyy_line:
+                        ab_line_list.append(abbyy_line)
 
         # it is possible that a par has no line
         # {'@b': '3425',
@@ -424,8 +437,54 @@ def parse_abbyy_page(ajson) -> AbbyyPage:
 
 
     apage = AbbyyPage(ab_block_list, page_attr_dict)
+    apage.is_multi_column = is_page_multi_column(ab_block_list)
+
     # apage.infer_attr_dict = infer_page_attrs(page_attr_dict)
     return apage
+
+
+def is_page_multi_column(ab_block_list: List[AbbyyBlock]) -> bool:
+    """Decide if a page is multi-column.
+
+    If a page has more than 1/3 of it (in height) are in 2-column mode,
+    then, it is a multi-column page.  A multi-column page doesn't undergo
+    inferred table based on horizontal aligned blocks.
+
+    If a page has 1/3 of the page in 2-column mode, the portion of
+    single-column in height is 2/3.  The sum of the 2-column is also
+    2/3 (or 1/3 * 2 for 2 such 2-column blocks).
+    """
+    num_big_block = 0
+    num_2_col_block = 0
+    col1_height_sum, col2_height_sum = 0, 0
+    for ab_block in ab_block_list:
+        block_attr = ab_block.attr_dict
+        block_width = block_attr['@r'] - block_attr['@l']
+        block_height = block_attr['@b'] - block_attr['@t']
+        print("width = {}, h= {}, block r = {}, block l = {}".format(block_width,
+                                                                     block_height,
+                                                                     block_attr['@r'],
+                                                                     block_attr['@l']))
+        if block_height < 500:
+            continue
+
+        num_big_block += 1
+        if block_width > 800 and block_width < 1400:
+            num_2_col_block += 1
+            col2_height_sum += block_height
+        else:
+            col1_height_sum += block_height
+
+    if col2_height_sum == 0:
+        col1_h_over_col2_h_ratio = 1.0
+    else:
+        col1_h_over_col2_h_ratio = col1_height_sum / col2_height_sum
+    print("num_2_col_block = {}, num_big_block = {}, ratio = {}".format(
+        num_2_col_block, num_big_block, col1_h_over_col2_h_ratio))
+    if num_2_col_block >= 2 and col1_h_over_col2_h_ratio < 1.0:
+        return True
+
+    return False
 
 
 def docjson_to_abbyy_page_list(ajson) -> List[AbbyyPage]:
@@ -445,11 +504,11 @@ def docjson_to_abbyy_page_list(ajson) -> List[AbbyyPage]:
     # ab_page_list = [parse_abbyy_page(page_json)
     #                 for page_json in page_json_list]
     ab_page_list = []
-    for unused_pcount, page_json in enumerate(page_json_list):
-        # print("===== page seq: {} =====".format(pcount))
-        # if pcount == 17:
-        #     pprint.pprint(page_json)
-        ab_page_list.append(parse_abbyy_page(page_json))
+    for pcount, page_json in enumerate(page_json_list, 1):
+        print("\n===== page seq: {} =====".format(pcount))
+        abbyy_page = parse_abbyy_page(page_json)
+        ab_page_list.append(abbyy_page)
+        print('abby_page33 is_multi_column = {}'.format(abbyy_page.is_multi_column))
 
     return ab_page_list
 
@@ -498,7 +557,7 @@ def parse_document(file_name: str,
     abbyyutils.infer_header_footer_doc(ab_xml_doc)
 
     # set page number block number at the end
-    # This also setup page.text_blocks, table_blocks, and signature_blocks
+    # This also setup page.text_blocks, table_blocks, signature_blocks, address_blocks
     set_abbyy_page_numbers_tables(ab_xml_doc)
 
     return ab_xml_doc
@@ -530,6 +589,8 @@ def set_abbyy_page_numbers_tables(ab_doc: AbbyyXmlDoc) -> None:
         for ab_block in abbyy_page.ab_blocks:
             if tableutils.is_signature_block(ab_block):
                 abbyy_page.ab_signature_blocks.append(ab_block)
+            elif tableutils.is_address_block(ab_block):
+                abbyy_page.ab_address_blocks.append(ab_block)
             elif isinstance(ab_block, AbbyyTextBlock):
                 abbyy_page.ab_text_blocks.append(ab_block)
             elif isinstance(ab_block, AbbyyTableBlock):
@@ -792,6 +853,7 @@ def main():
         html_st = tableutils.to_html_tables(abbydoc)
         print(html_st, file=fout)
     print('wrote "{}"'.format(table_html_out_fn))
+
 
 if __name__ == '__main__':
     main()

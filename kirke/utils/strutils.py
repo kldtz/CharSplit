@@ -277,6 +277,8 @@ ALPHA_WORD_PAT = re.compile(r'[a-zA-Z]+')
 
 ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
 
+EXACT_ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
+
 ALPHA_OR_NUM_WORD_PAT = re.compile(r'[a-zA-Z0-9]+')
 
 ALL_PUNCT_PAT = re.compile(r"^[\(\)\.,\[\]\-/\\\{\}`'\"]+$")
@@ -320,16 +322,24 @@ def get_alphanum_words_gt_len1(line: str, is_lower: bool = True) -> List[str]:
         line = line.lower()
     return [word for word in ALPHANUM_WORD_PAT.findall(line) if len(word) > 1]
 
+# this is no really symmetic to the above function, but probably
+# ok for purpose of trying to find signature tables
+def get_non_alphanum_words_gt_len1(line: str) -> List[str]:
+    return [word for word in line.split()
+            if len(word) > 1 and not EXACT_ALPHANUM_WORD_PAT.search(word)]
+
 
 def get_alphanum_words(line: str, is_lower=True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHANUM_WORD_PAT.findall(line)]
 
+
 def get_alpha_or_num_words(line: str, is_lower=True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHA_OR_NUM_WORD_PAT.findall(line)]
+
 
 def tokens_to_all_ngrams(word_list: List[str], max_n: int = 1) -> Set[str]:
     # unigram

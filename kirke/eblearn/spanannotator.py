@@ -10,12 +10,13 @@ import time
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 # pylint: disable=import-error
-from sklearn.model_selection import GridSearchCV, GroupKFold
+from sklearn.model_selection import GridSearchCV
 # pylint: disable=import-error
 from sklearn.pipeline import Pipeline
 
 from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc5, evalutils, strutils
+from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
 
 
 # pylint: disable=invalid-name
@@ -169,9 +170,14 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for label, count in pos_neg_map.items():
             logger.info("train_candidates(), pos_neg_map[%s] = %d", label, count)
 
-        group_kfold = list(GroupKFold(n_splits=self.kfold).split(candidates,
-                                                                 label_list,
-                                                                 groups=group_id_list))
+        # group_kfold = list(GroupKFold(n_splits=self.kfold).split(candidates,
+        #                                                          label_list,
+        #                                                          groups=group_id_list))
+
+        group_kfold = list(StratifiedGroupKFold(n_splits=self.kfold).split(candidates,
+                                                                           label_list,
+                                                                           groups=group_id_list))
+
         grid_search = GridSearchCV(pipeline,
                                    parameters,
                                    n_jobs=2,

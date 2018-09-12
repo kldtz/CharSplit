@@ -32,6 +32,7 @@ class ParagraphGenerator:
             for ant in ant_list:
                 if ant.label == label:
                     label_ant_list.append(ant)
+            # we switched from get_nlp_text() on 2018-04-30, e115d54c
             nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:

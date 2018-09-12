@@ -9,13 +9,13 @@ from kirke.abbyyxml.pdfoffsets import AbbyyBlock, AbbyyTextBlock, AbbyyTableBloc
 # pylint: disable=unused-import
 from kirke.abbyyxml.pdfoffsets import AbbyyLine, AbbyyPar, AbbyyCell, AbbyyRow
 from kirke.abbyyxml import abbyyutils, pdfoffsets
-from kirke.utils import mathutils, engutils
+from kirke.utils import engutils, mathutils, strutils
 
-IS_DEBUG_TABLE = True
+IS_DEBUG_TABLE = False
 IS_PRINT_HEADER_TABLE = False
 # IS_PRINT_HEADER_TABLE = True
 
-IS_DEBUG_INVALID_TABLE = True
+IS_DEBUG_INVALID_TABLE = False
 
 IS_PRESERVE_INVALID_TABLE_AS_TEXT = False
 
@@ -88,6 +88,33 @@ def table_block_to_html(ab_table_block: AbbyyTableBlock) -> str:
     return '\n'.join(st_list)
 
 
+def text_block_to_html(ab_text_block: AbbyyTextBlock) -> str:
+    st_list = []  # type: List[str]
+
+    # st_list.append('<h3>Text on Page {}</h3>'.format(ab_text_block.page_num))
+    # TODO: we don't have page_num info for TextBlock, maybe add
+    st_list.append('<h3>Text</h3>')
+
+    # this is mainly for printing attribute info, not a real table
+    st_list.append('<table>')
+    st_list.append('<tr>')
+    st_list.append('<td width="60%">')
+    st_list.append('</td>')
+    st_list.append('<td>')
+    st_list.append('<i>Attributes</i>: {}'.format(table_attrs_to_html(ab_text_block.attr_dict)))
+    st_list.append('</td>')
+    st_list.append('</tr>')
+    st_list.append('</table>')
+
+    # st_list.append(' <br/>')
+    for ab_par in ab_text_block.ab_pars:
+        for unused_lid, ab_line in enumerate(ab_par.ab_lines):
+            st_list.append('{}<br/>'.format(ab_line.text))
+    st_list.append('<p/>')
+
+    return '\n'.join(st_list)
+
+
 def is_header_footer_block(ab_block: AbbyyTableBlock) -> bool:
     infer_attr_dict = ab_block.infer_attr_dict
     return infer_attr_dict.get('header') or \
@@ -109,6 +136,7 @@ def to_html_tables(abbyy_doc: AbbyyXmlDoc) -> str:
     st_list.append('<title>{}</title>'.format(abbyy_doc.file_id))
     st_list.append('</head>')
     st_list.append('<body>')
+
     for ab_page in abbyy_doc.ab_pages:
 
         if IS_PRINT_HEADER_TABLE:
@@ -136,6 +164,7 @@ def to_html_tables(abbyy_doc: AbbyyXmlDoc) -> str:
 
     return '\n'.join(st_list)
 
+
 def get_abbyy_table_list(abbyy_doc: AbbyyXmlDoc,
                          is_include_header_footer: bool = False) \
                          -> List[AbbyyTableBlock]:
@@ -158,6 +187,41 @@ def get_abbyy_signature_list(abbyy_doc: AbbyyXmlDoc) \
     return out_block_list
 
 
+def get_abbyy_address_list(abbyy_doc: AbbyyXmlDoc) \
+    -> List[AbbyyTableBlock]:
+    out_block_list = []  # type: List[AbbyyBlock]
+    for ab_page in abbyy_doc.ab_pages:
+        page_address_list = ab_page.ab_address_blocks
+        out_block_list.extend(page_address_list)
+    return out_block_list
+
+
+def is_address_block(abbyy_block: AbbyyBlock) -> bool:
+    block_text = abbyy_block.get_text()
+    # lc_block_text = block_text.lower()
+    count_name = len(re.findall(r'\b(name|contact):?', block_text, flags=re.I))
+    count_phone = len(re.findall(r'\b(toll free|international|domestic|'
+                                 r'phone|telephone|mobile|cell|cellular|'
+                                 r'dial|cellular phone):?',
+                                 block_text, flags=re.I))
+    count_fax = len(re.findall(r'\bfax:?', block_text, flags=re.I))
+    count_postal = len(re.findall(r'\b(postal|address|mail to):?', block_text, flags=re.I))
+    count_web = len(re.findall(r'\b(web|email):?', block_text, flags=re.I))
+    words = block_text.split()
+    num_words = len(words)
+
+    num_address_prefix = count_name + count_phone + count_fax + count_postal + \
+                         count_web
+    if num_address_prefix >= 3 and \
+       num_words < 55:
+        if IS_DEBUG_INVALID_TABLE:
+            print("--- is_invalid_table(), address")
+            print("    num_address_prefix: {}".format(num_address_prefix))
+            print("    num_words: {}".format(num_words))
+            print("   block_text: [{}]".format(block_text.replace('\n', r'|')))
+        return True
+    return False
+
 def is_signature_block(abbyy_block: AbbyyBlock) -> bool:
     block_text = abbyy_block.get_text()
     # lc_block_text = block_text.lower()
@@ -165,9 +229,11 @@ def is_signature_block(abbyy_block: AbbyyBlock) -> bool:
     count_title = len(re.findall(r'\btitle:?', block_text, flags=re.I))
     count_date = len(re.findall(r'\bdate:?', block_text, flags=re.I))
     count_by = len(re.findall(r'\bb[yv]:?', block_text, flags=re.I))
-    num_words = len(block_text.split())
+    words = block_text.split()
+    num_words = len(words)
+
     num_signature_prefix = count_name + count_title + count_date + count_by
-    if num_signature_prefix >= 4 and \
+    if num_signature_prefix >= 3 and \
        num_words < 35:
         if IS_DEBUG_INVALID_TABLE:
             print("--- is_invalid_table(), signature")
@@ -175,6 +241,26 @@ def is_signature_block(abbyy_block: AbbyyBlock) -> bool:
             print("    num_words: {}".format(num_words))
             print("   block_text: [{}]".format(block_text.replace('\n', r'|')))
         return True
+
+    if num_signature_prefix >= 1:
+        num_alphanum_words = len(strutils.get_alphanum_words_gt_len1(block_text))
+        num_non_alphanum_words = len(strutils.get_non_alphanum_words_gt_len1(block_text))
+        x_word_total = num_alphanum_words + num_non_alphanum_words
+        perc_non_alphanum_words = num_non_alphanum_words / x_word_total
+        if IS_DEBUG_INVALID_TABLE:
+            print("num_alphanum_words: {}".format(num_alphanum_words))
+            print("num_non_alphanum_words: {}".format(num_non_alphanum_words))
+            print("perc_non_alphanum_words: {}".format(perc_non_alphanum_words))
+
+        if x_word_total > 15 and \
+           perc_non_alphanum_words > 0.33:
+            if IS_DEBUG_INVALID_TABLE:
+                print("--- is_invalid_table(), signature2, weird words")
+                print("    num_signature_prefix: {}".format(num_signature_prefix))
+                print("    num_words: {}".format(num_words))
+                print("   block_text: [{}]".format(block_text.replace('\n', r'|')))
+            return True
+
     return False
 
 
@@ -603,9 +689,11 @@ def collect_justified_lines_after(ab_blocks: List[AbbyyBlock],
 
         ab_pars = ab_block.ab_pars
         next_left = ab_block.attr_dict['@l']
+        next_num_block_words = len(ab_block.get_text().split())
         if IS_DEBUG_TABLE:
             if is_all_pars_align_justified(ab_pars):
-                print("first_block_left = {}, next_left = {}".format(first_block_left, next_left))
+                print("first_block_left = %d, next_left = %d, num_words = %d" %
+                      (first_block_left, next_left, next_num_block_words))
 
         # Please note that this next_left check is not really correct.
         # The order of blocks inside a table is already screwed up.
@@ -617,7 +705,8 @@ def collect_justified_lines_after(ab_blocks: List[AbbyyBlock],
         # For text blocks, this is probably still valid.
         if is_all_pars_align_justified(ab_pars) and \
            (first_block_left - 50 <= next_left and
-            next_left <= first_block_left + 50):
+            next_left <= first_block_left + 50) and \
+            next_num_block_words < 30:
             if IS_DEBUG_TABLE:
                 print("adding text block as justified:")
                 pdfoffsets.print_text_block_meta(ab_block)
@@ -634,6 +723,10 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
 
     # pylint: disable=too-many-nested-blocks
     for pnum, abbyy_page in enumerate(ab_doc.ab_pages, 1):
+
+        # if the page is a multi-column page, skip it
+        if abbyy_page.is_multi_column:
+            continue
 
         if IS_DEBUG_TABLE:
             print("merge_haligned_blocks_as_table, page #{}".format(pnum))
@@ -928,6 +1021,23 @@ def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
             print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
         return True
 
+    if ab_table.is_header() or \
+       ab_table.is_footer():
+        if IS_DEBUG_INVALID_TABLE:
+            print("--- is_invalid_table(), is_footer=%r, is_header=%r" %
+                  (ab_table.is_header(), ab_table.is_footer()))
+            print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
+        return True
+
+    toc_mat = re.search(r'\btable(.*)contents?\b', table_text, flags=re.I)
+    pagenum_mat = re.search(r'\bPage(.*)N(o|um|umber)?\b', table_text, flags=re.I)
+    if toc_mat and len(toc_mat.group(1)) < 8 or \
+       pagenum_mat and len(pagenum_mat.group(1)) < 8:
+        if IS_DEBUG_INVALID_TABLE:
+            print("--- is_invalid_table(), table of content or page number phrase found")
+            print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
+        return True
+
     # this code is not triggered for true abbyytables?
     """
     if ab_table.is_abbyy_original and \
@@ -938,9 +1048,9 @@ def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
     """
 
     if table_text.count('...') >= 2 or \
-       lc_table_text.count('exhibit') >= 2 or \
-       lc_table_text.count('appendix') >= 2 or \
-       lc_table_text.count('article') >= 2:
+       lc_table_text.count('exhibit') >= 3 or \
+       lc_table_text.count('appendix') >= 3 or \
+       lc_table_text.count('article') >= 3:
         if IS_DEBUG_INVALID_TABLE:
             print("--- is_invalid_table(), dash, toc")
             print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
@@ -992,6 +1102,8 @@ def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
             print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
         return True
 
+    # failed on document 366655.pdf
+    """
     num_period_cap = engutils.num_letter_period_cap(table_text)
     if num_period_cap >= 3:
         if IS_DEBUG_INVALID_TABLE:
@@ -999,5 +1111,6 @@ def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
             print("num_period_cap: {}".format(num_period_cap))
             print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
         return True
+    """
 
     return False

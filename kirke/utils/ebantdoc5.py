@@ -135,6 +135,7 @@ class EbAnnotatedDoc:
         # abbyy's stuff
         self.abbyy_table_list = []  # type: List[AbbyyTableBlock]
         self.abbyy_signature_list = []  # type: List[AbbyyBlock]
+        self.abbyy_address_list = []  # type: List[AbbyyBlock]
 
     def get_file_id(self):
         return self.file_id
@@ -684,6 +685,7 @@ def pdf_to_ebantdoc(txt_file_name: str,
     if abbyy_xml_doc:
         eb_antdoc.abbyy_table_list = tableutils.get_abbyy_table_list(abbyy_xml_doc)
         eb_antdoc.abbyy_signature_list = tableutils.get_abbyy_signature_list(abbyy_xml_doc)
+        eb_antdoc.abbyy_address_list = tableutils.get_abbyy_address_list(abbyy_xml_doc)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:
