@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
-from collections import defaultdict
 import pickle
-from nltk.tokenize import TreebankWordTokenizer
-import numpy as np
-import pandas as pd
 import random
 import re
-from scipy import sparse
+import pandas as pd
+import numpy as np
+from nltk.tokenize import TreebankWordTokenizer
+
 from sklearn import preprocessing
 from sklearn.ensemble.forest import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -57,9 +56,9 @@ def load_keywords():
 KEYWORDS = load_keywords()
 
 class LogRegModel:
-    def __init__(self,model = None, vec= None, featureselector= None):
+    def __init__(self, model=None):
         self.model = LogisticRegression()
-        self.ngram_vec = CountVectorizer(min_df=2, ngram_range=(1,4), lowercase=False)
+        self.ngram_vec = CountVectorizer(min_df=2, ngram_range=(1, 4), lowercase=False)
         self.min_max_scaler = preprocessing.MinMaxScaler()
 
     # return generic version of addr to be put into ngram vectorizer
@@ -77,7 +76,7 @@ class LogRegModel:
             addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['apt_abbrs'])), '[APT]', addr)
             addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['road_abbrs'])), '[ROAD]', addr)
             ngram_features.append(addr)
-            
+
             addr_split = addr.split()
             num_features[i, 0] = len(addr_split)
             num_features[i, 1] = addr_split.count('[NUM]')
@@ -85,10 +84,10 @@ class LogRegModel:
             num_features[i, 3] = (addr_split[-1] == '[ZIP]' or addr_split[-1] == '[COUNTRY]')
             num_features[i, 4] = addr_split.count('[COUNTRY]')
             num_features[i, 5] = addr_split.count('[ZIP]')
- 
+
         return ngram_features, num_features
 
-    def fitModel(self, train, labels):
+    def fit_model(self, train, labels):
         ngram_feats, num_feats = self.extract_features(train)
         tr_ngram_feats = self.ngram_vec.fit_transform(ngram_feats).toarray().astype(np.float)
         tr_num_feats = self.min_max_scaler.fit_transform(num_feats).astype(np.float)
@@ -98,7 +97,7 @@ class LogRegModel:
         # deterministic without RF feature selection
         #self.featSelect = SelectFromModel(RandomForestClassifier()).fit(X,y)
         #X = self.featSelect.transform(X)
-        
+
         self.model.fit(X, y)
 
     def predict(self, addr):
@@ -140,8 +139,8 @@ def parse_train(fname):
 def main():
     model = LogRegModel()
     train_data, train_labels, dev_data, dev_labels = parse_train(DATA_DIR+"addr_annots.tsv")
-    model.fitModel(train_data, train_labels)
-    
+    model.fit_model(train_data, train_labels)
+
     tp, fp, fn = 0, 0, 0
     fps = []
     fns = []
