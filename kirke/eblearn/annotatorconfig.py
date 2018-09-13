@@ -194,7 +194,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                       'is_doc_structure': True,
                       'doc_to_candidates': [tablegen.TableGenerator('TABLE')],
                       'version': "1.0",
-                      'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                      'doc_postproc_list': [postproc.TablePostProcessing()],
                       'pipeline': Pipeline([('union', FeatureUnion(
                           # pylint: disable=line-too-long
                           transformer_list=[('table_transformer',

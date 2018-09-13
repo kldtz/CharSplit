@@ -338,7 +338,9 @@ class TableGenerator:
                                'num_cols': num_cols,
                                'num_period_cap': num_period_cap,
                                'has_dollar_div': has_dollar_div,
-                               'row_header_text': row_header_text}
+                               'row_header_text': row_header_text,
+                               'json': tableutils.table_block_to_json(abbyy_table)
+                }
 
                 # Verify that thee table is valid
                 # "not is_label" make sure that is a table is annotated

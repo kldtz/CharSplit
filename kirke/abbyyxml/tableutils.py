@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 from collections import defaultdict
 import re
 import sys
@@ -86,6 +87,39 @@ def table_block_to_html(ab_table_block: AbbyyTableBlock) -> str:
     st_list.append('<br/>')
 
     return '\n'.join(st_list)
+
+
+def table_block_to_json(ab_table_block: AbbyyTableBlock) -> Dict:
+    table_dict = {'type': 'table',
+                  'page': ab_table_block.page_num}
+
+    table_dict['is_abbyy_original'] = ab_table_block.is_abbyy_original
+    if ab_table_block.infer_attr_dict.get('header'):
+        table_dict['header'] = ab_table_block.infer_attr_dict.get('header')
+    if ab_table_block.infer_attr_dict.get('footer'):
+        table_dict['footer'] = ab_table_block.infer_attr_dict.get('footer')
+
+    row_list = []  # type: List[Dict]
+    for unused_row_id, ab_row in enumerate(ab_table_block.ab_rows):
+        row_dict = {}  # type: Dict
+        cell_list = []  # type: List[Dict]
+        if ab_row.attr_dict.get('rowSpan'):
+            row_dict['rowSpan'] = ab_row.attr_dict['rowSpan']
+        for unused_cell_seq, ab_cell in enumerate(ab_row.ab_cells):
+            cell_dict = {}  # type: Dict
+            cell_st_list = []  # type: List[str]
+            if ab_cell.attr_dict.get('colSpan'):
+                cell_dict['colSpan'] = ab_cell.attr_dict['colSpan']
+            for ab_par in ab_cell.ab_pars:
+                for unused_lid, ab_line in enumerate(ab_par.ab_lines):
+                    cell_st_list.append(ab_line.text)
+            cell_dict['text'] = '\n'.join(cell_st_list)
+            cell_list.append(cell_dict)
+        row_dict['cell_list'] = cell_list
+        row_list.append(row_dict)
+    table_dict['row_list'] = row_list
+
+    return table_dict
 
 
 def text_block_to_html(ab_text_block: AbbyyTextBlock) -> str:
@@ -457,6 +491,7 @@ def get_row_seq_by_top(row_top_list: List[float], row_top: float) -> int:
     return len(row_top_list) - 1
 
 
+# pylint: disable=too-many-locals
 def text_blocks_to_table_block(haligned_blocks: List[AbbyyTextBlock]) -> AbbyyTableBlock:
     """This is to convert VERY simple AbbyyTextBlock to AbbyyTableBlock.
 
@@ -874,6 +909,7 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
         abbyy_page.ab_blocks = out_block_list
 
 
+# pylint: disable=too-many-return-statements
 def is_a_mergeable_row(ab_text_block: AbbyyTextBlock, prev_attrs: Dict) -> bool:
     """A mergeable table row is basically has less than 5 words."""
 
@@ -1075,8 +1111,9 @@ def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
     if re.search(r'\d+\s*[xX\+\-\*\/]\s*\(', shorten_text):
         if IS_DEBUG_INVALID_TABLE:
             print("--- is_invalid_table(), too mathy branch 1")
-            print("  count_paren= {}, count_math_op= {}".format(count_paren,
-                                                                count_math_op))
+            # pylint: disable=line-too-long
+            print("  count_paren= {}, len(math_op_mat_list)= {} ".format(count_paren,
+                                                                         len(math_op_mat_list)))
             print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
         return True
 
