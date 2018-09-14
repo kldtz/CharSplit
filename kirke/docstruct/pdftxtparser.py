@@ -671,7 +671,7 @@ def parse_document(file_name: str,
         if not line_num in lxid_strinfos_map.keys():
             continue
         tmp_start = lxid_strinfos_map[line_num][0].start
-        tmp_end = lxid_strinfos_map[line_num][0].end
+        tmp_end = lxid_strinfos_map[line_num][-1].end
         line_len = len(nl_text[tmp_start:tmp_end].split())
 
         # checks the difference in y val between this line and the next,

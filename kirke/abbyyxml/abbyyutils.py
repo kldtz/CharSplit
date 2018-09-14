@@ -259,3 +259,12 @@ def infer_header_footer_doc(ab_doc: AbbyyXmlDoc) -> None:
             abbyyutils.infer_ab_block_is_header_footer(ab_block)
         for ab_block in ab_page.ab_table_blocks:
             abbyyutils.infer_ab_block_is_header_footer(ab_block)
+
+
+def print_doc(ab_doc: AbbyyXmlDoc) -> None:
+    for pnum, abbyy_page in enumerate(ab_doc.ab_pages, 1):
+        print("\n----- print_doc page %d, is_multi_column = %r" %
+              (pnum, abbyy_page.is_multi_column))
+        for i, ab_block in enumerate(abbyy_page.ab_blocks):
+            block_text = abbyyutils.table_block_to_text(ab_block)
+            print("  ----- block #{}: {}".format(i, block_text.replace('\n', ' || ')))

@@ -381,6 +381,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             candidate['label'] = self.provision
             candidate['prob'] = prob
             candidate['text'] = text[candidate['start']:candidate['end']]
+            # if self.provision == 'TABLE':
+            #     print('----- Table candidate:')
+            #     pprint.pprint(candidate)
 
         # apply post processing, such as date normalization
         # in case there is any bad apple, with 'reject' == True

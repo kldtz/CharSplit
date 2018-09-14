@@ -756,6 +756,7 @@ def collect_justified_lines_after(ab_blocks: List[AbbyyBlock],
 def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
     """Go through each page and creates haligned blocks"""
 
+    # abbyyutils.print_doc(ab_doc)
     # pylint: disable=too-many-nested-blocks
     for pnum, abbyy_page in enumerate(ab_doc.ab_pages, 1):
 
@@ -770,9 +771,8 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
         # find all the blocks with similar @b and @t
         # and store them in haligned_blocks_list, only for this page
         ab_text_block_list = abbyyutils.get_only_text_blocks(abbyy_page.ab_blocks)
-        if not ab_text_block_list:
-            # if no text blocks, go to next page
-            continue
+        # We cannot simply exit if ab_text_block_list is empty here
+        # because we still check for 'invalid_table()'
 
         haligned_blocks_list = []  # type: List[List[AbbyyTextBlock]]
         # skip_blocks are the blocks that have already been found to be haligned
@@ -814,10 +814,9 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
                 this_cur_blocks.extend(cur_blocks)
                 haligned_blocks_list.append(this_cur_blocks)
 
-        if not haligned_blocks_list:
-            # No haligned blocks, no need to merge tables.
-            # Move to next page
-            continue
+        # We cannot simply exit if haligned_block_list is empty here
+        # because we still check for 'invalid_table()'
+        # Rest of the code still does the right things.
 
         # pylint: disable=line-too-long
         haligned_block_list_map = {}  # type: Dict[AbbyyTextBlock, Tuple[List[AbbyyTextBlock], List[AbbyyTextBlock]]]
@@ -882,6 +881,11 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
         # now remove invalid tables, or put back invalid tables
         out_block_list = []  # type: List[AbbyyBlock]
         for ab_block, origblocks in out_block_origblocks_list:
+
+            # for debug purpose
+            # block_text = abbyyutils.block_to_text(ab_block)
+            # print("block_text: [[{}]]".format(block_text.replace('\n', '|.')))
+
             if isinstance(ab_block, AbbyyTableBlock):
                 if IS_PRESERVE_INVALID_TABLE_AS_TEXT:
                     if is_invalid_table(ab_block):
@@ -933,7 +937,9 @@ def is_a_mergeable_row(ab_text_block: AbbyyTextBlock, prev_attrs: Dict) -> bool:
     if ab_text_block.is_centered():
         return False
 
-    pdfoffsets.print_text_block_meta(ab_text_block)
+    if IS_DEBUG_TABLE:
+        print("is_a_mergeable_row():")
+        pdfoffsets.print_text_block_meta(ab_text_block)
 
     block_ab_pars = ab_text_block.ab_pars
     if len(block_ab_pars) >= 3:
@@ -1035,9 +1041,62 @@ def merge_multiple_adjacent_tables(ab_table_list: List[AbbyyTableBlock]) -> Abby
     table_block.page_num = ab_table_list[0].page_num
     return table_block
 
+YES_NO_PAT = re.compile(r'\byes\b(.*)\bno\b', re.I)
+NO_YES_PAT = re.compile(r'\bno\b(.*)\byes\b', re.I)
+YES_YES_PAT = re.compile(r'\byes\b(.*)\byes\b', re.I)
+NO_NO_PAT = re.compile(r'\bno\b(.*)\bno\b', re.I)
+
+def count_number_yes_no_choices_orig(table_text: str) -> int:
+    st_list = table_text.split('\n')
+    num_yes_no = 0
+    for line in st_list:
+        mat = YES_NO_PAT.search(line)
+        if mat and len(mat.group(1) < 5):
+            num_yes_no += 1
+    return num_yes_no
+
+def count_number_yes_no_choices(table_text: str) -> int:
+    dist = 10
+    num_yes_no = 0
+    for mat in YES_NO_PAT.finditer(table_text):
+        if mat and len(mat.group(1)) <= dist:
+            num_yes_no += 1
+
+    num_no_yes = 0
+    for mat in NO_YES_PAT.finditer(table_text):
+        if mat and len(mat.group(1)) <= dist:
+            num_no_yes += 1
+
+    num_yes_yes = 0
+    for mat in YES_YES_PAT.finditer(table_text):
+        if mat and len(mat.group(1)) <= dist:
+            num_yes_yes += 1
+
+    num_no_no = 0
+    for mat in NO_NO_PAT.finditer(table_text):
+        if mat and len(mat.group(1)) <= dist:
+            num_no_no += 1
+    return max(num_yes_no, num_no_yes, num_yes_yes, num_no_no)
+
+YES_NO_START_PAT = re.compile(r'.{0,3}\s*\b(yes|no)\b', re.I)
+
+def count_yes_no_startswith(table_text: str) -> int:
+    st_list = table_text.split('\n')
+    num_yes_no_starts = 0
+    for line in st_list:
+        if YES_NO_START_PAT.match(line):
+            num_yes_no_starts += 1
+    return num_yes_no_starts
+
+
+def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
+    out = is_invalid_table_aux(ab_table)
+    if IS_DEBUG_INVALID_TABLE:
+        print("***** is_invliad_table = {}".format(out))
+    return out
 
 # pylint: disable=too-many-return-statements
-def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
+def is_invalid_table_aux(ab_table: AbbyyTableBlock) -> bool:
     """A table is invalid for following reason:
 
        - has only 1 line, by looking at y's
@@ -1046,6 +1105,9 @@ def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
     """
 
     table_text = abbyyutils.table_block_to_text(ab_table)
+    if IS_DEBUG_INVALID_TABLE:
+        print('\n***** is_invliad_table[[{}]]'.format(table_text.replace('\n', '|')))
+
     table_top_y, table_bottom_y = abbyyutils.table_block_to_y_top_bottom(ab_table)
     table_y_diff = table_bottom_y - table_top_y
     lc_table_text = table_text.lower()
@@ -1062,6 +1124,18 @@ def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
         if IS_DEBUG_INVALID_TABLE:
             print("--- is_invalid_table(), is_footer=%r, is_header=%r" %
                   (ab_table.is_header(), ab_table.is_footer()))
+            print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
+        return True
+
+    if count_number_yes_no_choices(table_text) >= 2:
+        if IS_DEBUG_INVALID_TABLE:
+            print("--- is_invalid_table(), number of yes_no >= 2")
+            print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
+        return True
+
+    if count_yes_no_startswith(table_text) >= 2:
+        if IS_DEBUG_INVALID_TABLE:
+            print("--- is_invalid_table(), number of yes_no_startswith >= 2")
             print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
         return True
 

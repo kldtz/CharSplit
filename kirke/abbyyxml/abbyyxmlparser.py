@@ -461,10 +461,12 @@ def is_page_multi_column(ab_block_list: List[AbbyyBlock]) -> bool:
         block_attr = ab_block.attr_dict
         block_width = block_attr['@r'] - block_attr['@l']
         block_height = block_attr['@b'] - block_attr['@t']
-        print("width = {}, h= {}, block r = {}, block l = {}".format(block_width,
-                                                                     block_height,
-                                                                     block_attr['@r'],
-                                                                     block_attr['@l']))
+
+        # print("width = {}, h= {}, block r = {}, block l = {}".format(block_width,
+        #                                                              block_height,
+        #                                                              block_attr['@r'],
+        #                                                              block_attr['@l']))
+
         if block_height < 500:
             continue
 
@@ -479,8 +481,8 @@ def is_page_multi_column(ab_block_list: List[AbbyyBlock]) -> bool:
         col1_h_over_col2_h_ratio = 1.0
     else:
         col1_h_over_col2_h_ratio = col1_height_sum / col2_height_sum
-    print("num_2_col_block = {}, num_big_block = {}, ratio = {}".format(
-        num_2_col_block, num_big_block, col1_h_over_col2_h_ratio))
+    # print("num_2_col_block = {}, num_big_block = {}, ratio = {}".format(
+    #     num_2_col_block, num_big_block, col1_h_over_col2_h_ratio))
     if num_2_col_block >= 2 and col1_h_over_col2_h_ratio < 1.0:
         return True
 
@@ -505,10 +507,10 @@ def docjson_to_abbyy_page_list(ajson) -> List[AbbyyPage]:
     #                 for page_json in page_json_list]
     ab_page_list = []
     for pcount, page_json in enumerate(page_json_list, 1):
-        print("\n===== page seq: {} =====".format(pcount))
+        # print("\n===== page seq: {} =====".format(pcount))
         abbyy_page = parse_abbyy_page(page_json)
         ab_page_list.append(abbyy_page)
-        print('abby_page33 is_multi_column = {}'.format(abbyy_page.is_multi_column))
+        # print('abby_page33 is_multi_column = {}'.format(abbyy_page.is_multi_column))
 
     return ab_page_list
 
