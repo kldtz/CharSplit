@@ -32,6 +32,13 @@ class TestCandGen(unittest.TestCase):
             if file.endswith(".txt"):
                 txt_fnames.append(fname)
 
+        # ------- ADDRESS -------
+        config = annotatorconfig.get_ml_annotator_config(['ADDRESS'])
+        address_gen = config['doc_to_candidates'][0]
+        all_address_cands = []
+        with open('cands_json/address_cands.json') as infile:
+            serial_address_cands = json.load(infile)
+
         # ------- CURRENCY -------
         config = annotatorconfig.get_ml_annotator_config(['CURRENCY'])
         currency_gen = config['doc_to_candidates'][0]
@@ -70,6 +77,9 @@ class TestCandGen(unittest.TestCase):
         for fname in sorted(txt_fnames)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
+                address_cands, _ , _ = address_gen.get_candidates_from_text(doc_text)
+                all_address_cands.extend([x['chars'] for x in address_cands])
+
                 currency_cands, _ , _ = currency_gen.get_candidates_from_text(doc_text)
                 all_currency_cands.extend([x['chars'] for x in currency_cands])
 
@@ -85,6 +95,7 @@ class TestCandGen(unittest.TestCase):
                 idnum_cands = idnumgen.extract_idnum_list(doc_text, idnum_gen.regex_pat)
                 all_idnum_cands.extend([x['chars'] for x in idnum_cands])
 
+        self.assertEqual(serial_address_cands, all_address_cands)
         self.assertEqual(serial_currency_cands, all_currency_cands)
         self.assertEqual(serial_date_cands, all_date_cands)
         self.assertEqual(serial_number_cands, all_number_cands)
