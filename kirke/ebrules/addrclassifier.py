@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 
-import pickle
-import random
 import re
 import pandas as pd
 import numpy as np
 from nltk.tokenize import TreebankWordTokenizer
 
 from sklearn import preprocessing
-from sklearn.ensemble.forest import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_selection.from_model import SelectFromModel
+
+from kirke.utils import osutils
 
 DATA_DIR = './dict/addresses/'
 
-US_ZIP = '\d{5}(-\d{4})?'
-UK_STD = '[A-Z]{1,2}[0-9ROI][0-9A-Z]? *(?:(?![CIKMOV])[A-Z]?[0-9O][a-zA-Z]{2})'
-CAN_STD = '[A-Z][0-9][A-Z] +[0-9][A-Z][0-9]'
+US_ZIP = r'\d{5}(-\d{4})?'
+UK_STD = r'[A-Z]{1,2}[0-9ROI][0-9A-Z]? *(?:(?![CIKMOV])[A-Z]?[0-9O][a-zA-Z]{2})'
+CAN_STD = r'[A-Z][0-9][A-Z] +[0-9][A-Z][0-9]'
 TREEBANK_WORD_TOKENIZER = TreebankWordTokenizer()
 
 def load_keywords():
@@ -43,7 +41,9 @@ def load_keywords():
 
     keywords['can'] += ['Toronto', 'Vancouver']
     keywords['apt_abbrs'] += ['P.O.', 'PO', 'Box', 'P.', 'O.']
-    keywords['road_abbrs'] += ['Broadway', 'Republic', 'N.E.', 'N.W.', 'S.E.', 'S.W.', 'NE', 'NW', 'North', 'South', 'East', 'West', 'N.', 'S.', 'E.', 'W.']
+    keywords['road_abbrs'] += ['Broadway', 'Republic', 'N.E.', 'N.W.', 'S.E.',
+                               'S.W.', 'NE', 'NW', 'North', 'South', 'East',
+                               'West', 'N.', 'S.', 'E.', 'W.']
 
     # Save title case and uppercase versions, padded, for each keyword
     for category in keywords:
@@ -56,12 +56,17 @@ def load_keywords():
 KEYWORDS = load_keywords()
 
 class LogRegModel:
-    def __init__(self, model=None):
+    def __init__(self) -> None:
         self.model = LogisticRegression()
         self.ngram_vec = CountVectorizer(min_df=2, ngram_range=(1, 4), lowercase=False)
         self.min_max_scaler = preprocessing.MinMaxScaler()
 
+    def save_model_file(self, model_file_name: str) -> None:
+        osutils.joblib_atomic_dump(self, model_file_name)
+        print('wrote model file: {}'.format(model_file_name))
+
     # return generic version of addr to be put into ngram vectorizer
+    # pylint: disable=no-self-use
     def extract_features(self, addrs):
         ngram_features = []
         num_features = np.zeros(shape=(len(addrs), 6))
@@ -69,7 +74,8 @@ class LogRegModel:
             addr = " ".join(TREEBANK_WORD_TOKENIZER.tokenize(addr))
             addr = re.sub(r'\b({}|{}|{})\b'.format(US_ZIP, UK_STD, CAN_STD), '[ZIP]', addr)
             addr = re.sub(r'\b(\d+|one|two)\b', '[NUM]', addr, re.I)
-            addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['country_names'])), '[COUNTRY]', addr)
+            addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['country_names'])),
+                          '[COUNTRY]', addr)
             addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['us'])), '[US]', addr)
             addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['uk'])), '[UK]', addr)
             addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['can'])), '[CAN]', addr)
@@ -91,7 +97,9 @@ class LogRegModel:
         ngram_feats, num_feats = self.extract_features(train)
         tr_ngram_feats = self.ngram_vec.fit_transform(ngram_feats).toarray().astype(np.float)
         tr_num_feats = self.min_max_scaler.fit_transform(num_feats).astype(np.float)
+        # pylint: disable=invalid-name
         X = np.append(tr_ngram_feats, tr_num_feats, 1)
+        # pylint: disable=invalid-name
         y = np.array(labels).astype(np.float)
 
         # deterministic without RF feature selection
@@ -104,63 +112,9 @@ class LogRegModel:
         ngram_feats, num_feats = self.extract_features([addr])
         x_ngram_feats = self.ngram_vec.transform(ngram_feats).toarray().astype(np.float)
         x_num_feats = self.min_max_scaler.transform(num_feats).astype(np.float)
+        # pylint: disable=invalid-name
         x = np.append(x_ngram_feats, x_num_feats, 1)
         #x = self.featSelect.transform(x)
         probs = self.model.predict_proba(x)[0]
         pred_label = int(self.model.predict(x)[0])
         return probs, pred_label
-
-# read, shuffle, and separate training and dev data
-def parse_train(fname):
-    train_data = []
-    train_labels = []
-    dev_data = []
-    dev_labels = []
-
-    with open(fname) as train:
-        train_list = train.readlines()
-        cutoff = int(len(train_list) * 0.9)
-        random.Random(0).shuffle(train_list)
-        train = train_list[:cutoff]
-        dev = train_list[cutoff:]
-
-        for line in train:
-            data, label = line.split("\t")
-            train_data.append(data)
-            train_labels.append(int(label.strip()))
-        for line in dev:
-            data, label = line.split("\t")
-            dev_data.append(data)
-            dev_labels.append(int(label.strip()))
-
-    return train_data, train_labels, dev_data, dev_labels
-
-
-def main():
-    model = LogRegModel()
-    train_data, train_labels, dev_data, dev_labels = parse_train(DATA_DIR+"addr_annots.tsv")
-    model.fit_model(train_data, train_labels)
-
-    tp, fp, fn = 0, 0, 0
-    fps = []
-    fns = []
-    for i, addr in enumerate(dev_data):
-        gold_label = dev_labels[i]
-        probs, pred_label = model.predict(addr)
-        if gold_label == 1 and pred_label == 1:
-            tp += 1
-        elif gold_label == 1 and pred_label == 0:
-            fns.append([addr, probs[1]])
-            fn += 1
-        elif gold_label == 0 and pred_label == 1:
-            fps.append([addr, probs[1]])
-            fp += 1
-    prec = tp / (tp + fp)
-    rec = tp / (tp + fn)
-    f1 = 2 * ((prec * rec)/(prec+rec))
-    print("TP = {}, FP = {}, FN = {}".format(tp, fp, fn))
-    print("P = {}, R = {}, F = {}".format(prec, rec, f1))
-
-    outfile = open(DATA_DIR+'addr_classifier.pkl', 'wb')
-    pickle.dump(model, outfile, -1)
-    outfile.close()

@@ -1,6 +1,6 @@
 import logging
-from typing import Dict, List, Optional, Pattern, Tuple
-from kirke.ebrules import addresses, addrclassifier
+from typing import Dict, List, Optional, Tuple
+from kirke.ebrules import addresses
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 # pylint: disable=invalid-name
@@ -15,6 +15,7 @@ class AddrContextGenerator:
         self.num_post_words = num_post_words
         self.candidate_type = candidate_type
 
+    # pylint: disable=too-many-arguments, too-many-locals
     def get_candidates_from_text(self,
                                  nl_text: str,
                                  group_id: int = 0,
