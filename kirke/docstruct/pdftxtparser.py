@@ -260,9 +260,6 @@ def init_pageinfo_list(doc_text: str,
                 for linex in linechunk:
                     linex.bid = doc_block_id
 
-                # fake value for now
-                # is_multi_line = False
-
                 # print("is_multi_lines = {}, paraline: [{}]\n".format(is_multi_lines, para_line))
                 block_info = PBlockInfo(block_start,
                                         block_end,
@@ -345,7 +342,9 @@ def output_linex_list_with_offset(header_linex_list: List[LineWithAttrs],
 #    block_id_list_prev, block_linex_list_map_prev = \
 #           linex_list_to_block_map(prev_page.content_line_list)
 
-
+# The code below doesn't handle if a paragraph that is broken across more than 2 pages.
+# after the first broken page, it will output footer and header
+# AFTER the broken paragraph.
 
 # pylint: disable=too-many-locals, too-many-statements
 def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
@@ -711,6 +710,12 @@ def merge_adjacent_line_with_special_attr(apage):
 
 
 def update_page_removed_lines(pdftxt_doc: PDFTextDoc) -> None:
+    """This function update pdftxt_doc.exclude_offsets with
+       a list of (start, end).
+
+    If consecutive lines are removed, their offsets are merged as
+    one (start, end).
+    """
     rm_list = []  # type: List[LineWithAttrs]
     for apage in pdftxt_doc.page_list:
         for linex in apage.line_list:
@@ -723,7 +728,7 @@ def update_page_removed_lines(pdftxt_doc: PDFTextDoc) -> None:
     # jshaw, 2018-08-25
     # in the future, merge adjacent lines, based on
     # the text between the lines are all spaces or nl
-    # Then, simply  have an set of offsets that should
+    # Then, simply have an set of offsets that should
     # be removed in the final document.
     doc_text = pdftxt_doc.doc_text
     exclude_offsets = []  # type: List[Tuple[int, int]]
@@ -760,6 +765,8 @@ def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
         # break blocks if they are in the middle of header, english sents
         # adjust_blocks_in_page(page, pdftxt_doc)
 
+    # this only add footer and header's start, end to
+    # apage.exclude_offsets
     update_page_removed_lines(pdftxt_doc)
 
     if IS_DEBUG_MODE:
@@ -772,8 +779,14 @@ def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
     # blocks with only 1 lines as table, or signature section
 
     for apage in pdftxt_doc.page_list:
+        # this only change lines inside a page and
+        # set the same block_id if the previous line
+        # is also 'address' or 'signature'
         merge_adjacent_line_with_special_attr(apage)
 
+    # block_list_map is not reference by anything afterward
+    # Not impact anything, so removed.
+    """
     # Redo block info because they might be in different
     # pages.  This block_list_map is at document level instead
     # of at page level.  Maybe remove in the future.
@@ -783,6 +796,7 @@ def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
         for linex in apage.content_line_list:
             block_num = linex.block_num
             block_list_map[block_num].append(linex)
+    """
 
 
 # pylint: disable=too-many-branches, too-many-statements, too-many-locals
@@ -824,7 +838,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
         is_skip = False
         if docstructutils.is_line_toc_heading(line.line_text):
             if IS_DEBUG_TOC:
-                print("===323=1tocheading== line is toc, %d [%s]" %
+                print("==== tocheading== line is toc, %d [%s]" %
                       (line.page_num, line.line_text))
             line.attrs.toc = True
             has_toc_heading = True
@@ -833,7 +847,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
             toc_block_list.append(line)
         elif docstructutils.is_line_toc(line.line_text):
             if IS_DEBUG_TOC:
-                print("===323=2linetoc== line is toc, %d [%s]" %
+                print("==== linetoc== line is toc, %d [%s]" %
                       (line.page_num, line.line_text))
             line.attrs.toc = True
             num_toc_line += 1
@@ -955,7 +969,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
             if first_sechead and line_seq >= first_sechead and \
                last_sechead and line_seq <= last_sechead:
                 if IS_DEBUG_TOC:
-                    print("===323=7sechead33== line is toc, %d [%s]" %
+                    print("===323=7 sechead33== line is toc, %d [%s]" %
                           (linex.page_num, linex.line_text))
                 linex.attrs.toc = True
         apage.attrs.has_toc = True
@@ -995,13 +1009,13 @@ def add_doc_structure_to_page(apage: PageInfo3,
         if table_of_content_line_idx != -1:
             for linex in apage.line_list[table_of_content_line_idx:last_toc_line+1]:
                 if IS_DEBUG_TOC:
-                    print("===323=3beforelasttoc1== line is toc, %d [%s]" %
+                    print("===323=3 beforelasttoc1== line is toc, %d [%s]" %
                           (linex.page_num, linex.line_text))
                 linex.attrs.toc = True
         else:
             for linex in apage.line_list[first_toc_line:last_toc_line+1]:
                 if IS_DEBUG_TOC:
-                    print("===323=4beforelasttoc1== line is toc, %d [%s]" %
+                    print("===323=4 beforelasttoc1== line is toc, %d [%s]" %
                           (linex.page_num, linex.line_text))
                 linex.attrs.toc = True
 
@@ -1015,7 +1029,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
         if sechead_tuple or is_sechead_prefix:
             if apage.attrs.has_toc and not deactivate_toc_detection:
                 if IS_DEBUG_TOC:
-                    print("===323=5sechead== line is toc, %d [%s]" %
+                    print("===323=5 sechead== line is toc, %d [%s]" %
                           (line.page_num, line.line_text))
                 line.attrs.toc = True
             line.attrs.sechead = sechead_tuple
@@ -1056,7 +1070,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
                 pass
             else:
                 if IS_DEBUG_TOC:
-                    print("===323=6too-small== line is toc, %d [%s]" %
+                    print("===323=6 too-small== line is toc, %d [%s]" %
                           (line.page_num, line.line_text))
                 linex.attrs.toc = True
 
