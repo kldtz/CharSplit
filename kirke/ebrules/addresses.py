@@ -43,11 +43,8 @@ def find_addresses(text: str) -> List[Tuple[int, int, str]]:
                 if ad_start > prev_start and ad_start < prev_end:
                     if address_prob >= prev_prob:
                         addr_se_st_list.pop()
-                        addr_se_st_list.append((ad_start, ad_end, addr_st))
-                        prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
-                else:
-                    addr_se_st_list.append((ad_start, ad_end, addr_st))
-                    prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
+                addr_se_st_list.append((ad_start, ad_end, addr_st))
+                prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
     return addr_se_st_list
 
 """Load and prepare the classifier"""
