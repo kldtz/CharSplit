@@ -7,9 +7,6 @@ from kirke.utils import ebantdoc4, ebsentutils, strutils
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# loads address keywords
-ALL_KEYWORDS = addrclassifier.load_keywords()
-
 # pylint: disable=too-few-public-methods
 class AddrContextGenerator:
 
