@@ -307,6 +307,7 @@ class EbRunner:
         # print('update_custom_models lang= {}, dir={}:'.format(lang, self.custom_model_dir))
         # print('cust_lang_provision_set: {}'.format(cust_lang_provision_set))
 
+        # pylint: disable=line-too-long
         for cust_lang_provision, fname in modelfileutils.get_custom_model_files(self.custom_model_dir,
                                                                                 cust_lang_provision_set):
 
@@ -352,7 +353,8 @@ class EbRunner:
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))
                 provision_classifier_map[cust_lang_provision] = prov_classifier
-                logger.info('update custom model %s, [%s]', cust_lang_provision, full_custom_model_fn)
+                logger.info('update custom model %s, [%s]',
+                            cust_lang_provision, full_custom_model_fn)
 
                 #if cust_lang_provision in self.provisions:
                 #    logger.warning("*** WARNING ***  Replacing an existing provision: %s",
@@ -397,7 +399,8 @@ class EbRunner:
                                    ebantdoc4.EbAnnotatedDoc4]:
         """Annotate a document with the provisions specified in provision_set.
 
-        'provision_set' is really a set of lang_provision, i.e., 'change_control', 'cust_12345.9393_pt'
+        'provision_set' is really a set of lang_provision, i.e., 'change_control',
+        'cust_12345.9393_pt'
         """
         time1 = time.time()
         if not provision_set:
