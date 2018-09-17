@@ -456,6 +456,7 @@ class PageInfo3:
                                               page_num=page_num)
 
         self.attrs = PageAttrs()  # type: PageAttrs
+        self.is_continued_para_to_next_page = False
         self.is_continued_para_from_prev_page = False
 
         # conent_line_list is for lines that are not

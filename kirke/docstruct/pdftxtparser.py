@@ -48,7 +48,7 @@ def linex_list_to_block_map(linex_list: List[LineWithAttrs]) \
     return block_id_list, block_linex_list_map
 
 
-def update_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
+def mark_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
     prev_page = pdf_text_doc.page_list[0]
     prev_block_id_list, prev_block_linex_list_map = \
         linex_list_to_block_map(prev_page.content_line_list)
@@ -80,6 +80,7 @@ def update_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
             if cur_first_linex.line_text[0].islower() and \
                not secheadutils.is_line_sechead_prefix(cur_first_linex.line_text):
                 apage.is_continued_para_from_prev_page = True
+                prev_page.is_continued_para_to_next_page = True
 
         # print("checking page %d [%s] with page %d [%s]" %
         #       (prev_page.page_num, last_linex.line_text[-20:],
@@ -335,6 +336,19 @@ def output_linex_list_with_offset(header_linex_list: List[LineWithAttrs],
     return offset, sechead_context
 
 
+def output_linebreak(from_offset: int,
+                     offset: int,
+                     nlp_line_list: List[str],
+                     offsets_line_list: List[Tuple[List[Tuple[linepos.LnPos,
+                                                              linepos.LnPos]],
+                                                   PLineAttrs]]) \
+                                                   -> int:
+    nlp_line_list.append('')
+    span_se_list = [(linepos.LnPos(from_offset, from_offset),
+                     linepos.LnPos(offset, offset))]
+    offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
+    offset += 1
+    return offset
 
 #def infer_continued_para_from_prev_page(prev_page: PageInfo3,
 #                                        cur_page: PageInfo3) \
@@ -360,6 +374,8 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
     Continuous paragraphs broken across pages in the original text will be joined here.
 
+    The key variable here is apage.is_continue_para_from_prev_page.
+
     Returns: nlp_paras_with_attrs
              nlp_text (the nlp text)
     """
@@ -371,16 +387,15 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     offsets_line_list = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], PLineAttrs]]
 
     # figure out if any pages has first paragraph continue from the previous page
-    update_if_continued_from_prev_page(pdf_text_doc)
+    mark_if_continued_from_prev_page(pdf_text_doc)
 
     # now output each page to NLP text
     sechead_context = None  # type: Optional[Tuple[str, str, str, int]]
-    # a constant to be shared
-    is_first_page = True   # don't output extra line break for first page
-    prev_page_footer_linex_list = []  # type: List[LineWithAttrs]
+
+    to_use_page_footer_linex_list_queue = []  # type: List[List[LineWithAttrs]]
     prev_linex = None  # type: Optional[LineWithAttrs]
-    # pylint: disable=too-many-nested-blocks
     linex = None
+    # pylint: disable=too-many-nested-blocks
     for apage in pdf_text_doc.page_list:
 
         header_linex_list, content_linex_list, footer_linex_list = \
@@ -390,31 +405,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
             linex_list_to_block_map(content_linex_list)
 
         if not block_id_list:
-            # there is no content in the page
-            if prev_linex:
-                # output the last line from previous page
-                nlp_line_list.append('')
-                span_se_list = [(linepos.LnPos(prev_linex.lineinfo.end+2, prev_linex.lineinfo.end+2),
-                                 linepos.LnPos(offset, offset))]
-                offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
-                offset += 1
-
-            #output previous page's footer
-            offset, sechead_context = output_linex_list_with_offset(prev_page_footer_linex_list,
-                                                                    nlp_line_list=nlp_line_list,
-                                                                    offsets_line_list=offsets_line_list,
-                                                                    offset=offset,
-                                                                    sechead_context=sechead_context,
-                                                                    pdf_text_doc=pdf_text_doc)
-            prev_linex = None
-            prev_page_footer_linex_list = []
-            continue
-
-        last_block_id = block_id_list[-1]
-
-        is_output_header_later = False
-        if is_first_page:
-            is_first_page = False
+            # cannot be continued from previous page since there is NO text in this page.
 
             # output this pages header
             offset, sechead_context = output_linex_list_with_offset(header_linex_list,
@@ -423,50 +414,50 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                                                                     offset=offset,
                                                                     sechead_context=sechead_context,
                                                                     pdf_text_doc=pdf_text_doc)
-        else:
-            if apage.is_continued_para_from_prev_page:
-                is_output_header_later = True
-            else:
-                if prev_linex:
-                    # output the last line from previous page
-                    nlp_line_list.append('')
-                    span_se_list = [(linepos.LnPos(prev_linex.lineinfo.end+2, prev_linex.lineinfo.end+2),
-                                     linepos.LnPos(offset, offset))]
-                    offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
-                    offset += 1
 
-                #output previous page's footer
-                offset, sechead_context = output_linex_list_with_offset(prev_page_footer_linex_list,
-                                                                        nlp_line_list=nlp_line_list,
-                                                                        offsets_line_list=offsets_line_list,
-                                                                        offset=offset,
-                                                                        sechead_context=sechead_context,
-                                                                        pdf_text_doc=pdf_text_doc)
-                # output this pages header
-                offset, sechead_context = output_linex_list_with_offset(header_linex_list,
-                                                                        nlp_line_list=nlp_line_list,
-                                                                        offsets_line_list=offsets_line_list,
-                                                                        offset=offset,
-                                                                        sechead_context=sechead_context,
-                                                                        pdf_text_doc=pdf_text_doc)
+            offset, sechead_context = output_linex_list_with_offset(footer_linex_list,
+                                                                    nlp_line_list=nlp_line_list,
+                                                                    offsets_line_list=offsets_line_list,
+                                                                    offset=offset,
+                                                                    sechead_context=sechead_context,
+                                                                    pdf_text_doc=pdf_text_doc)
+            continue
+
+        # ok, so there is some text on this page
+        last_block_id = block_id_list[-1]
+
+        if apage.is_continued_para_from_prev_page:
+            to_use_page_footer_linex_list_queue.append(header_linex_list)
+        else:
+            # add a line break
+            if prev_linex:
+                offset = output_linebreak(from_offset=prev_linex.lineinfo.end+2,
+                                          offset=offset,
+                                          nlp_line_list=nlp_line_list,
+                                          offsets_line_list=offsets_line_list)
+
+            # output this pages header
+            offset, sechead_context = output_linex_list_with_offset(header_linex_list,
+                                                                    nlp_line_list=nlp_line_list,
+                                                                    offsets_line_list=offsets_line_list,
+                                                                    offset=offset,
+                                                                    sechead_context=sechead_context,
+                                                                    pdf_text_doc=pdf_text_doc)
+
+        # output the content blocks
         for seq, block_num in enumerate(block_id_list):
             block_linex_list = block_linex_list_map[block_num]
 
-            if is_output_header_later and seq == 1:
-                #output previous page's footer
-                offset, sechead_context = output_linex_list_with_offset(prev_page_footer_linex_list,
-                                                                        nlp_line_list=nlp_line_list,
-                                                                        offsets_line_list=offsets_line_list,
-                                                                        offset=offset,
-                                                                        sechead_context=sechead_context,
-                                                                        pdf_text_doc=pdf_text_doc)
-                # output this pages header
-                offset, sechead_context = output_linex_list_with_offset(header_linex_list,
-                                                                        nlp_line_list=nlp_line_list,
-                                                                        offsets_line_list=offsets_line_list,
-                                                                        offset=offset,
-                                                                        sechead_context=sechead_context,
-                                                                        pdf_text_doc=pdf_text_doc)
+            if to_use_page_footer_linex_list_queue and seq == 1:
+                # output previous page's footer and header, there can be multiple pages
+                for footer_header_linex_list in to_use_page_footer_linex_list_queue:
+                    offset, sechead_context = output_linex_list_with_offset(footer_header_linex_list,
+                                                                            nlp_line_list=nlp_line_list,
+                                                                            offsets_line_list=offsets_line_list,
+                                                                            offset=offset,
+                                                                            sechead_context=sechead_context,
+                                                                            pdf_text_doc=pdf_text_doc)
+                to_use_page_footer_linex_list_queue = []
 
             is_multi_line = pdfdocutils.is_block_multi_line(block_linex_list)
 
@@ -515,14 +506,46 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 offsets_line_list.append((span_se_list, pline_attrs))
 
             if block_num != last_block_id:
-                nlp_line_list.append('')
-                span_se_list = [(linepos.LnPos(linex.lineinfo.end+2, linex.lineinfo.end+2),
-                                 linepos.LnPos(offset, offset))]
-                offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
-                offset += 1
+                # add a line break
+                offset = output_linebreak(from_offset=linex.lineinfo.end+2,
+                                          offset=offset,
+                                          nlp_line_list=nlp_line_list,
+                                          offsets_line_list=offsets_line_list)
 
-        prev_page_footer_linex_list = footer_linex_list
+        if apage.is_continued_para_to_next_page:
+            to_use_page_footer_linex_list_queue.append(footer_linex_list)
+        else:
+            # add a line break
+            offset = output_linebreak(from_offset=linex.lineinfo.end+2,
+                                      offset=offset,
+                                      nlp_line_list=nlp_line_list,
+                                      offsets_line_list=offsets_line_list)
 
+
+            # If there is only 1 block in the page, the header and footer queue is not yet outputed.
+            # This will results in footer of this page appear before the previous header and footer.
+            # Output it now.
+            if to_use_page_footer_linex_list_queue and len(block_id_list) == 1:
+                # output previous page's footer and header, there can be multiple pages
+                for footer_header_linex_list in to_use_page_footer_linex_list_queue:
+                    offset, sechead_context = output_linex_list_with_offset(footer_header_linex_list,
+                                                                            nlp_line_list=nlp_line_list,
+                                                                            offsets_line_list=offsets_line_list,
+                                                                            offset=offset,
+                                                                            sechead_context=sechead_context,
+                                                                            pdf_text_doc=pdf_text_doc)
+                to_use_page_footer_linex_list_queue = []
+
+            # output this pages header
+            offset, sechead_context = output_linex_list_with_offset(footer_linex_list,
+                                                                    nlp_line_list=nlp_line_list,
+                                                                    offsets_line_list=offsets_line_list,
+                                                                    offset=offset,
+                                                                    sechead_context=sechead_context,
+                                                                    pdf_text_doc=pdf_text_doc)
+
+
+    """
     # for BHI's doc with just one URL.  129073.txt
     if linex:
         # for the last block in the last page
@@ -531,15 +554,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                          linepos.LnPos(offset, offset))]
         offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
         offset += 1
-
-    # output the footer on the last page
-    offset, sechead_context = output_linex_list_with_offset(prev_page_footer_linex_list,
-                                                            nlp_line_list=nlp_line_list,
-                                                            offsets_line_list=offsets_line_list,
-                                                            offset=offset,
-                                                            sechead_context=sechead_context,
-                                                            pdf_text_doc=pdf_text_doc)
-
+    """
 
     # compute the not_empty_line_num for original text and nlp text
     start_from_lnpos_list = []  # type: List[Tuple[int, int, linepos.LnPos]]
