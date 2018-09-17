@@ -368,6 +368,12 @@ def init_lines_with_attr(pblockinfo_list: List[PBlockInfo],
                          doc_text: str,
                          page_num: int) \
                          -> List[LineWithAttrs]:
+    """Add identation information by using jenks library (clustering).
+       Add the line break information to indicate how far apart two lines are.
+       Other information include 'centered', is_engish.
+
+    Return a list of LineWithAttrs.
+    """
     lineinfo_list = [lineinfo
                      for pblockinfo in pblockinfo_list
                      for lineinfo in pblockinfo.lineinfo_list]
@@ -415,6 +421,10 @@ def init_lines_with_attr(pblockinfo_list: List[PBlockInfo],
 # pylint: disable=invalid-name
 def compute_avg_single_line_break_ydiff(pblockinfo_list: List[PBlockInfo]) \
     -> float:
+    """This avg_single_line_break_ydff is based on the distance between lines inside
+    paragraphs in this page.
+    This value is used for setting num_linebreak for LineWithAttrs in above init_lines_with_attr().
+    """
     total_merged_ydiff, total_merged_lines = 0, 0
     for pblockinfo in pblockinfo_list:
         is_multi_lines = pblockinfo.is_multi_lines

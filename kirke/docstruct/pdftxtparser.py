@@ -350,15 +350,9 @@ def output_linebreak(from_offset: int,
     offset += 1
     return offset
 
-#def infer_continued_para_from_prev_page(prev_page: PageInfo3,
-#                                        cur_page: PageInfo3) \
-#                                        -> bool:
-#    block_id_list_prev, block_linex_list_map_prev = \
-#           linex_list_to_block_map(prev_page.content_line_list)
 
-# The code below doesn't handle if a paragraph that is broken across more than 2 pages.
-# after the first broken page, it will output footer and header
-# AFTER the broken paragraph.
+# Note: The code below should handle if a paragraph that is broken across more than 2 pages.
+# to_use_page_footer_linx_list_queue stores anything that hasn't been outputed yet
 
 # pylint: disable=too-many-locals, too-many-statements
 def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
