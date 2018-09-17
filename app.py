@@ -20,7 +20,7 @@ from flask import Flask, jsonify, request, send_file
 import yaml
 
 from kirke.eblearn import ebrunner
-from kirke.utils import corenlputils, osutils, strutils
+from kirke.utils import corenlputils, modelfileutils, osutils, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -91,6 +91,31 @@ eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 if not eb_runner:
     logger.error('problem initializing ebrunner')
     exit(1)
+
+# Saves around 100 Mb per worker if warm up first to use
+# shared memory before the workers are initalized.
+warm_up_text = "Without warming up first will take up too much memory."
+warm_up_doc_lang = eb_langdetect_runner.detect_lang(warm_up_text)
+logger.info("warm-up detected language '%s'", warm_up_doc_lang)
+
+warm_up_txt_file_name = 'dir-text/8286.txt'
+
+if eb_doccat_runner.is_initialized:
+    warm_up_doc_catnames = eb_doccat_runner.classify_document(warm_up_txt_file_name)
+    logger.info("classify document '%s' is '%s'", warm_up_txt_file_name, warm_up_doc_catnames)
+
+warm_up_default_provisions = modelfileutils.get_all_default_prov_versions(MODEL_DIR)
+if warm_up_default_provisions:
+    # logger.info('warm_up_default_provisions: {}'.format(warm_up_default_provisions))
+    warm_up_prov_labels_map, ignore_ebantdoc = \
+        eb_runner.annotate_document(warm_up_txt_file_name,
+                                    provision_set=warm_up_default_provisions,
+                                    work_dir=WORK_DIR,
+                                    doc_lang='en')
+    logger.info("annotated document '%s'", warm_up_txt_file_name)
+    del warm_up_prov_labels_map
+    del ignore_ebantdoc
+
 
 @app.route('/annotate-doc', methods=['POST'])
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
