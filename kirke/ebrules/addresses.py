@@ -40,11 +40,17 @@ def find_addresses(text: str) -> List[Tuple[int, int, str]]:
         if len(addr_st.split()) < 25:
             address_prob = classify(addr_st)
             if address_prob >= 0.5:
+                # if they overlap
                 if ad_start > prev_start and ad_start < prev_end:
+                    # replace the previous one if the new prob is higher
                     if address_prob >= prev_prob:
-                        addr_se_st_list.pop()
-                addr_se_st_list.append((ad_start, ad_end, addr_st))
-                prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
+                        if addr_se_st_list:
+                            addr_se_st_list.pop()
+                        addr_se_st_list.append((ad_start, ad_end, addr_st))
+                        prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
+                else:
+                    addr_se_st_list.append((ad_start, ad_end, addr_st))
+                    prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
     return addr_se_st_list
 
 """Load and prepare the classifier"""

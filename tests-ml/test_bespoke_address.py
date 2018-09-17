@@ -63,7 +63,7 @@ class TestBespokeAddr(unittest.TestCase):
         recall = round(ant_result['recall'], 2)
         # 0.6
         self.assertGreaterEqual(recall, 0.58)
-        self.assertLessEqual(recall, 0.62)
+        self.assertLessEqual(recall, 0.63)
 
 if __name__ == "__main__":
     unittest.main()

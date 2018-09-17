@@ -39,6 +39,8 @@ class TestCandGen(unittest.TestCase):
 
     def test_bespoke_cand_address(self):
         # ------- ADDRESS -------
+        self.maxDiff = None
+
         config = annotatorconfig.get_ml_annotator_config(['ADDRESS'])
         address_gen = config['doc_to_candidates'][0]
         all_address_cands = []
@@ -49,6 +51,8 @@ class TestCandGen(unittest.TestCase):
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
                 address_cands, _ , _ = address_gen.get_candidates_from_text(doc_text)
+                # for acand in [x['chars'] for x in address_cands]:
+                #     print("acand: [{}]".format(acand))
                 all_address_cands.extend([x['chars'] for x in address_cands])
 
         self.assertEqual(serial_address_cands, all_address_cands)
