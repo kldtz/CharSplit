@@ -104,7 +104,7 @@ if eb_doccat_runner.is_initialized:
     warm_up_doc_catnames = eb_doccat_runner.classify_document(warm_up_txt_file_name)
     logger.info("classify document '%s' is '%s'", warm_up_txt_file_name, warm_up_doc_catnames)
 
-warm_up_default_provisions = modelfileutils.get_all_default_prov_versions(MODEL_DIR)
+warm_up_default_provisions = modelfileutils.get_default_provisions(MODEL_DIR)
 if warm_up_default_provisions:
     # logger.info('warm_up_default_provisions: {}'.format(warm_up_default_provisions))
     warm_up_prov_labels_map, ignore_ebantdoc = \

@@ -239,6 +239,8 @@ class EbRunner:
                 if lang_provision.startswith('cust_'):
                     logger.warning('skipping custom model %s because not found.',
                                    lang_provision)
+                    logger.warning('custom_model_dir = [%s]', self.custom_model_dir)
+                    
                     # there is langid which we created at the end of the lang_provision
                     # add that original provision name back, plus the missing language
                     tmp_prov_name = lang_provision.split('.')[0]
@@ -405,7 +407,7 @@ class EbRunner:
         time1 = time.time()
         if not provision_set:
             # no provision specified.  Must be doing testing.
-            lang_provision_set = modelfileutils.get_all_custom_prov_ver_langs(self.custom_model_dir)
+            lang_provision_set = modelfileutils.get_custom_prov_ver_langs(self.custom_model_dir)
             lang_provision_set.update(self.provisions)
             # also get ALL custom provision set, since we are doing testing
             logger.info("custom_model_dir: %s", self.custom_model_dir)
