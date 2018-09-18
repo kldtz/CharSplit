@@ -20,7 +20,7 @@ CUSTOM_MODEL_DIR = 'dir-custom-model'
 
 class TestLangs(unittest.TestCase):
 
-    def test_lang_portuquese(self):
+    def test_lang_portuguese(self):
         # ------- PORTUGUESE -------
         pt_file = 'dir-test-doc/df6bbe33a74d9d968d37e88d98418dc0-967.txt'
         #check corenlp
