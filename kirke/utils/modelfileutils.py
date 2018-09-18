@@ -134,6 +134,11 @@ def parse_custom_model_file_name(file_name: str) -> Optional[ModelFileRecord]:
     return None
 
 
+def remove_custom_provision_version(prov_version: str) -> str:
+    chunks = prov_version.split('.')
+    return chunks[0]
+
+
 def get_custom_model_file_names(dir_name: str) -> List[str]:
     """Return all the model file names in dir_name.
 

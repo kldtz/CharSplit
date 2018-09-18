@@ -9,11 +9,12 @@ from typing import Any, Dict, List, Tuple
 
 from kirke.client import postfileutils
 from kirke.utils import antdocutils
+from kirke.utils import modelfileutils
 
 
 MODEL_DIR = 'dir-scut-model'
 WORK_DIR = 'dir-work'
-CUSTOM_MODEL_DIR = 'dir-custom-model'
+CUSTOM_MODEL_DIR = 'eb_files_test/pymodel'
 
 UNIT_TEST_PROVS = ['change_control',
                    'choiceoflaw',
@@ -29,10 +30,12 @@ UNIT_TEST_PROVS = ['change_control',
                    'term',
                    'title',
                    'warranty',
-                   'cust_9']
+                   'cust_9.1005']
+
 
 def upload_annotate_doc(file_name: str) -> Dict[str, Any]:
-    text = postfileutils.post_unittest_annotate_document(file_name)
+    text = postfileutils.post_unittest_annotate_document(file_name,
+                                                         UNIT_TEST_PROVS)
     ajson = json.loads(text)
     return ajson
 
@@ -147,7 +150,10 @@ def validate_annotated_doc(docid: str) \
     num_same = 0
     valid_has_pred_missing = 0
     pred_has_valid_missing = 0
+
     for provision in UNIT_TEST_PROVS:
+        provision = modelfileutils.remove_custom_provision_version(provision)
+
         print("checking provision '{}' in {}".format(provision, txt_doc_fn))
 
         pred_prov_list = antdocutils.get_ant_out_json_prov_list(pred_ajson,
@@ -574,7 +580,6 @@ class TestAntDocCat(unittest.TestCase):
                            ('demo-txt/8299.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8299.txt', 'cust_9', 1, 0, 0)]
         self.assertEqual(prov_result_list, expected_result)
-
 
 
     def test_antdoc_8300(self):
