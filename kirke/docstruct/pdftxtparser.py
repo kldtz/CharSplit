@@ -388,7 +388,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
     to_use_page_footer_linex_list_queue = []  # type: List[List[LineWithAttrs]]
     prev_linex = None  # type: Optional[LineWithAttrs]
-    linex = None
+    linex = None  # type: Optional[LineWithAttrs]
     # pylint: disable=too-many-nested-blocks
     for apage in pdf_text_doc.page_list:
 
@@ -509,8 +509,9 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
         if apage.is_continued_para_to_next_page:
             to_use_page_footer_linex_list_queue.append(footer_linex_list)
         else:
+            # linex cannot be null because there must be some text in this doc?
             # add a line break
-            offset = output_linebreak(from_offset=linex.lineinfo.end+2,
+            offset = output_linebreak(from_offset=linex.lineinfo.end+2,  # type: ignore
                                       offset=offset,
                                       nlp_line_list=nlp_line_list,
                                       offsets_line_list=offsets_line_list)

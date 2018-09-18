@@ -240,7 +240,7 @@ class EbRunner:
                     logger.warning('skipping custom model %s because not found.',
                                    lang_provision)
                     logger.warning('custom_model_dir = [%s]', self.custom_model_dir)
-                    
+
                     # there is langid which we created at the end of the lang_provision
                     # add that original provision name back, plus the missing language
                     tmp_prov_name = lang_provision.split('.')[0]

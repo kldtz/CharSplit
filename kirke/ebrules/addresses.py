@@ -35,6 +35,7 @@ def find_addresses(text: str) -> List[Tuple[int, int, str]]:
     all_spans = [match.span(1) for match in matches]
     addr_se_st_list = []  # type: List[Tuple[int, int, str]]
     prev_start, prev_end, prev_prob = 0, 0, 0.0
+    # pylint: disable=too-many-nested-blocks
     for ad_start, ad_end in all_spans:
         addr_st = text[ad_start:ad_end]
         if len(addr_st.split()) < 25:
