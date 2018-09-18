@@ -499,6 +499,23 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 nlp_line_list.append(block_text)
                 offsets_line_list.append((span_se_list, pline_attrs))
 
+            # merge the two broken paragraphs
+            # we only do this if this is the first paragraph in the page
+            # and continued from previous page
+            # and this paragraph is NOT is_multi_line.
+            # In the case of is_mutli_line, there are already too many linex added already
+            # from this page.  Not sure if merging will benefit if this is a mutlie-line
+            # paragraph.
+            if seq == 0 and \
+               not is_multi_line and \
+               apage.is_continued_para_from_prev_page:
+                continued_span_se_list, unused_continued_para_attrs = offsets_line_list.pop()
+                prev_span_se_list, prev_para_attrs = offsets_line_list.pop()
+                combined_span_se_list = list(prev_span_se_list)
+                combined_span_se_list.extend(continued_span_se_list)
+                # the prev_para_attrs has precedence over continued_para_attrs
+                offsets_line_list.append((combined_span_se_list, prev_para_attrs))
+
             if block_num != last_block_id:
                 # add a line break
                 offset = output_linebreak(from_offset=linex.lineinfo.end+2,
@@ -515,7 +532,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                                       offset=offset,
                                       nlp_line_list=nlp_line_list,
                                       offsets_line_list=offsets_line_list)
-
 
             # If there is only 1 block in the page, the header and footer queue is not yet outputed.
             # This will results in footer of this page appear before the previous header and footer.
@@ -593,18 +609,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
         pdf_nlp_txt_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.nlp2.txt'))
         txtreader.dumps(nlp_text, pdf_nlp_txt_fn)
         print('wrote {}'.format(pdf_nlp_txt_fn), file=sys.stderr)
-
-        pdf_nlp_debug_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt',
-                                                                       '.pdf.nlp2.debug.tsv'))
-        with open(pdf_nlp_debug_fn, 'wt') as fout2:
-            # for from_to_span_list, out_line, attr_list in offsets_line_list:
-            for from_to_span_list, pline_attrs in offsets_line_list:
-                for unused_from_lnps, to_lnpos in from_to_span_list:
-                    ln_text = nlp_text[to_lnpos.start:to_lnpos.end][:20]
-                    if ln_text:
-                        print("ln_text: [{}]".format(ln_text), file=fout2)
-                print('{}\t{} [{}]'.format(from_to_span_list, pline_attrs, ln_text[:20]), file=fout2)
-        print('wrote {}'.format(pdf_nlp_debug_fn), file=sys.stderr)
 
     return offsets_line_list, nlp_text
 
@@ -696,6 +700,13 @@ def parse_document(file_name: str,
     pdf_text_doc.nlp_doc_text = nlp_doc_text
     pdf_text_doc.nlp_paras_with_attrs = nlp_paras_with_attrs
 
+    if IS_DEBUG_MODE:
+        pdfdocutils.save_nlp_paras_with_attrs(pdf_text_doc,
+                                              extension='.pdf.paras_with_attrs',
+                                              work_dir=work_dir)
+        # pdfdocutils.save_nlp_paras_with_attrs_v2(pdf_text_doc,
+        #                                         extension='.pdf.paras_with_attrs_v2',
+        #                                         work_dir=work_dir)
     return pdf_text_doc
 
 

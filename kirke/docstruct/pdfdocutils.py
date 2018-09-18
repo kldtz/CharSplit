@@ -4,7 +4,7 @@ import os
 import sys
 from typing import Dict, List, Tuple
 
-from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc
+from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, LineWithAttrs
 from kirke.utils import txtreader
 
 
@@ -158,7 +158,7 @@ def save_page_list_by_lines(page_list: List[PageInfo3],
     print('wrote {}'.format(out_fname), file=sys.stderr)
 
 
-def is_block_multi_line(linex_list):
+def is_block_multi_line(linex_list: List[LineWithAttrs]) -> bool:
 
     if len(linex_list) <= 1:
         return False
@@ -174,3 +174,72 @@ def is_block_multi_line(linex_list):
         else:
             num_not_english += 1
     return num_is_english < num_not_english
+
+
+# we do not do our own block merging in pwc version
+def save_nlp_paras_with_attrs(pdftxt_doc: PDFTextDoc,
+                              extension: str,
+                              work_dir: str = 'dir-work') -> None:
+    base_fname = os.path.basename(pdftxt_doc.file_name)
+    out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+
+    # List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+    #            PLineAttrs]],
+
+    doc_text = pdftxt_doc.doc_text
+    with open(out_fname, 'wt') as fout:
+        para_seq = 1
+        for para_with_attrs in pdftxt_doc.nlp_paras_with_attrs:
+            from_to_lnpos_list, para_attrs = para_with_attrs
+
+            if len(from_to_lnpos_list) == 1:
+                from_lnpos, to_lnpos = from_to_lnpos_list[0]
+                if from_lnpos.start == from_lnpos.end:
+                    # an empty line, this is a paragraph break
+                    continue
+
+            print('\n----- para_with_attr #{}'.format(para_seq), file=fout)
+            print('   para_attrs: {}'.format(para_attrs), file=fout)
+            for from_lnpos, to_lnpos in from_to_lnpos_list:
+                print('    ({}, {}), ({}, {}) [{}]'.format(from_lnpos.start,
+                                                           from_lnpos.end,
+                                                           to_lnpos.start,
+                                                           to_lnpos.end,
+                                                           doc_text[from_lnpos.start:
+                                                                    from_lnpos.end]),
+                      file=fout)
+            para_seq += 1
+    print('wrote {}'.format(out_fname), file=sys.stderr)
+
+
+def save_nlp_paras_with_attrs_v2(pdftxt_doc: PDFTextDoc,
+                                 extension: str,
+                                 work_dir: str = 'dir-work') -> None:
+    base_fname = os.path.basename(pdftxt_doc.file_name)
+    out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
+
+    # List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+    #            PLineAttrs]],
+
+    nlp_text = pdftxt_doc.nlp_doc_text
+    with open(out_fname, 'wt') as fout:
+        # for from_to_span_list, out_line, attr_list in offsets_line_list:
+        para_seq = 1
+        for para_with_attrs in pdftxt_doc.nlp_paras_with_attrs:
+            from_to_lnpos_list, para_attrs = para_with_attrs
+
+            if len(from_to_lnpos_list) == 1:
+                from_lnpos, to_lnpos = from_to_lnpos_list[0]
+                if from_lnpos.start == from_lnpos.end:
+                    # an empty line, this is a paragraph break
+                    continue
+
+            print('\n----- para_with_attr #{}'.format(para_seq), file=fout)
+            for from_lnps, to_lnpos in from_to_lnpos_list:
+                ln_text = nlp_text[to_lnpos.start:to_lnpos.end]
+                if ln_text:
+                    print("ln_text: [{}]".format(ln_text), file=fout)
+            print('    {}\t{}'.format(from_to_lnpos_list, para_attrs), file=fout)
+            para_seq += 1
+
+        print('wrote {}'.format(out_fname), file=sys.stderr)
