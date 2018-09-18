@@ -3,6 +3,3 @@
 
 wget https://s3.amazonaws.com/repo.ebrevia.com/repository/kirke_unit_test.v.0.2.5.tar.gz
 tar xvfz kirke_unit_test.v.0.2.5.tar.gz
-# nosetests tests
-# nosetests tests-ml
-

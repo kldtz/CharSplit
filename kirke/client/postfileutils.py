@@ -60,7 +60,9 @@ def post_annotate_document(file_name: str,
     raise ValueError
 
 
-def post_unittest_annotate_document(file_name: str) -> str:
+def post_unittest_annotate_document(file_name: str, unittest_prov: str = None) -> str:
+    if unittest_prov:
+        UNIT_TEST_PROVS.append(unittest_prov)
     result = post_annotate_document(file_name,
                                     UNIT_TEST_PROVS,
                                     is_detect_lang=True,

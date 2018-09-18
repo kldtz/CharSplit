@@ -3,10 +3,12 @@
 import unittest
 
 from kirke.docstruct import pdftxtparser
-from kirke.utils import docworddiff
+from kirke.utils import docworddiff, osutils
 from kirke.utils.ebantdoc4 import CORENLP_JSON_VERSION
 
 WORK_DIR = 'dir-work'
+
+osutils.mkpath(WORK_DIR)
 
 class TestSameWordsNLPTxt(unittest.TestCase):
 

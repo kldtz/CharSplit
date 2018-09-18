@@ -20,7 +20,7 @@ from flask import Flask, jsonify, request, send_file
 import yaml
 
 from kirke.eblearn import ebrunner
-from kirke.utils import corenlputils, osutils, strutils
+from kirke.utils import corenlputils, modelfileutils, osutils, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -91,6 +91,31 @@ eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 if not eb_runner:
     logger.error('problem initializing ebrunner')
     exit(1)
+
+# Saves around 100 Mb per worker if warm up first to use
+# shared memory before the workers are initalized.
+warm_up_text = "Without warming up first will take up too much memory."
+warm_up_doc_lang = eb_langdetect_runner.detect_lang(warm_up_text)
+logger.info("warm-up detected language '%s'", warm_up_doc_lang)
+
+warm_up_txt_file_name = 'dir-text/8286.txt'
+
+if eb_doccat_runner.is_initialized:
+    warm_up_doc_catnames = eb_doccat_runner.classify_document(warm_up_txt_file_name)
+    logger.info("classify document '%s' is '%s'", warm_up_txt_file_name, warm_up_doc_catnames)
+
+warm_up_default_provisions = modelfileutils.get_all_default_prov_versions(MODEL_DIR)
+if warm_up_default_provisions:
+    # logger.info('warm_up_default_provisions: {}'.format(warm_up_default_provisions))
+    warm_up_prov_labels_map, ignore_ebantdoc = \
+        eb_runner.annotate_document(warm_up_txt_file_name,
+                                    provision_set=warm_up_default_provisions,
+                                    work_dir=WORK_DIR,
+                                    doc_lang='en')
+    logger.info("annotated document '%s'", warm_up_txt_file_name)
+    del warm_up_prov_labels_map
+    del ignore_ebantdoc
+
 
 @app.route('/annotate-doc', methods=['POST'])
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -185,11 +210,11 @@ def annotate_uploaded_document():
             if "rate_table" in provision_set:
                 provision_set.remove('rate_table')
 
-        provision_set = [x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
-                         for x in provision_set]
+        lang_provision_set = set([x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
+                                  for x in provision_set])
         # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
         prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
-                                                         provision_set=provision_set,
+                                                         provision_set=lang_provision_set,
                                                          work_dir=work_dir,
                                                          doc_lang=doc_lang)
 
@@ -225,10 +250,18 @@ def annotate_uploaded_document():
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 @app.route('/custom-train-export/<cust_id>', methods=['GET'])
 def custom_train_export(cust_id: str):
-    # to ensure that no accidental file name overlap
-    logger.info("cust_id = %s", cust_id)
+    """Export the model file for a Bespoke model.
 
-    cust_model_fnames = eb_runner.get_custom_model_files(cust_id)
+    Parameter:
+         cust_id is expected to have the format 'cust_12345.9393', with 9393 as the version info.
+
+    Currently, we only support exporting all the language models for a custom provision.  We do
+    not export a specific language model for a custom_id, such as cust_12345.9393_pt
+    """
+    # to ensure that no accidental file name overlap
+    logger.info("custom_train_export(%s) called", cust_id)
+
+    cust_model_fnames = eb_runner.get_provision_custom_model_files(cust_id)
     # create the zip file with all the provision and its langs
     # zip_filename =  + ".zip"
     # zip_file_obj = tempfile.NamedTemporaryFile(mode='wb')
@@ -236,13 +269,12 @@ def custom_train_export(cust_id: str):
     with zipfile.ZipFile(zip_filename, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
         for model_fname in cust_model_fnames:
             full_model_fname = "{}/{}".format(CUSTOM_MODEL_DIR, model_fname)
-            print("full_model_fname: [{}]".format(full_model_fname))
+            logger.info("full_model_fname: [%s]", full_model_fname)
             zf.write(full_model_fname, arcname=model_fname)
 
     zip_file = open(zip_filename, 'rb')
     # response = HttpResponse(zip_file, content_type='application/force-download')
     # response['Content-Disposition'] = 'attachment; filename="%s"' % 'cust_12345.1004.zip'
-    print("returned a zip file")
     return send_file(zip_file,
                      attachment_filename='{}.custom_models'.format(cust_id),
                      as_attachment=True)
@@ -252,7 +284,7 @@ def custom_train_export(cust_id: str):
 def custom_train_import(cust_id: str):
     # to ensure that no accidental file name overlap
     # logger.info("import a custom train model = {}".format(cust_id))
-    logger.info("import a custom train model")
+    logger.info("custom_train_import(%s)", cust_id)
 
     result_json = {'provision': 'unknown',
                    'model_number': -1}
