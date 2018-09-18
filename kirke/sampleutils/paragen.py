@@ -45,9 +45,9 @@ class ParagraphGenerator:
                             group_id)
             #finds all matches in the text and adds window around each as a candidate
             i = 0
-            sorted_paras = sorted(antdoc.para_indices, key=lambda x: x[0][0].start)
+            #sorted_paras = sorted(antdoc.para_indices, key=lambda x: x[0][0].start)
             while i < len(antdoc.para_indices):
-                para = sorted_paras[i]
+                para = antdoc.para_indices[i]
                 match_start = para[0][1].start
                 match_end = para[-1][1].end
                 raw_start = para[0][0].start
@@ -56,7 +56,7 @@ class ParagraphGenerator:
                 skipping = True
                 span_list = [x[0] for x in para]
                 while skipping and i+1 < len(antdoc.para_indices):
-                    para_next = sorted_paras[i+1]
+                    para_next = antdoc.para_indices[i+1]
                     next_start = para_next[0][1].start
                     next_end = para_next[-1][1].end
                     next_raw_end = para_next[-1][0].end
@@ -68,7 +68,7 @@ class ParagraphGenerator:
                         preamble = re.search(r'(as +follows[:;])|(defined +terms)', para_text, re.I)
                     try:
                         # the try-except will take care of the None case
-                        next_start_punct = re.search(r'(\([A-z]+\))? +([A-z])', next_text).group()[-1].islower()  # type: ignore
+                        next_start_punct = re.search(r'(\([A-z]+\) *)?([A-z])', next_text).group()[-1].islower()  # type: ignore
                     except AttributeError:
                         next_start_punct = False
                     if ((not preamble) and para_end_punct and next_end_punct and len(para_text.split()) > 1) or (not next_text) or next_start_punct:
