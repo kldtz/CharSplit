@@ -2,8 +2,11 @@ import re
 # pylint: disable=unused-import
 from typing import Dict, List, Match, Optional, Tuple
 
-from kirke.utils import engutils, stopwordutils, strutils
-from kirke.docstruct import secheadutils
+
+from kirke.docstruct import docutils, linepos, secheadutils
+from kirke.docstruct.docutils import PLineAttrs
+from kirke.utils import corenlpsent, engutils, mathutils, stopwordutils, strutils
+
 # from kirke.ebrules import addresses
 
 # TODO, jshaw
@@ -77,11 +80,12 @@ TOC_HEADING_PAT = re.compile(r'^\s*(table\s*of\s*contents?|contents?)\s*:?$', re
 # 5 periods
 TOC_PREFIX_2_PAT = re.compile(r'(\.\.\.\.\.|\. \. \. \. \. )')
 
-def is_line_toc_heading(line: str):
-    return TOC_HEADING_PAT.search(line)
+def is_line_toc_heading(line: str) -> bool:
+    mat = TOC_HEADING_PAT.search(line)
+    return bool(mat and mat.end() < 40)
 
 
-def is_line_toc(line: str):
+def is_line_toc(line: str) -> bool:
     # sometimes a signature line might look like toc
     # By: .,.....
     if is_line_signature_prefix(line):
@@ -93,10 +97,25 @@ def is_line_toc(line: str):
 
     mat = TOC_PREFIX_2_PAT.search(line)
     if mat:
+        # first verify that the number of words is less than 12
+        no_multi_period_line = re.sub(r'\.\s*[\.\s]+', ' ', line)
+        num_words = no_multi_period_line.split()
+        if len(num_words) >= 12:
+            # check if there are 3 or more of the multi-period frags.
+            # some TOC lines might have been stuck together on the
+            # same line or block
+
+            # if there is OCR error on unknown stuff, it might form
+            # multi-period frags.  If known as a sentence, don't bother.
+            multi_period_mat = re.search(TOC_PREFIX_2_PAT, line)
+            if multi_period_mat and multi_period_mat.start() > 70:
+                return False
+            return True
+
         # need to verify it again for the rest of the line
         line_left = line[mat.end(1):]
         # print('line_left = [{}]'.format(line_left))
-        return TOC_PREFIX_2_PAT.search(line_left)
+        return bool(TOC_PREFIX_2_PAT.search(line_left))
     return False
 
 
@@ -233,37 +252,55 @@ def is_line_footer(line: str,
     if is_line_footer_by_content(line):
         return True, 1.0
 
+    # if it is a part of the last block
+    # if lbk < 1.1:
+    #    return False, -1
+
+    is_debug_footer = False
+
+    if is_debug_footer:
+        print("is_line_footer({}, {})".format(line, page_line_num))
+
     score = 0.0
     if yStart >= 725.0:
         score += 0.4
-    # print("score = {}, after yStart".format(score))
+    if is_debug_footer:
+        print("score = {}, after yStart".format(score))
     if num_line_in_page - page_line_num <= 2:
         score += 0.5
-    # print("score = {}, after num_line_in_page".format(score))
-    if not is_english:
+    if is_debug_footer:
+        print("score = {}, after num_line_in_page".format(score))
+    if is_english:
+        score -= 0.8
+    else:
         score += 0.2
-    # print("score = {}, after is_english".format(score))
+    if is_debug_footer:
+        print("score = {}, after is_english".format(score))
     if len(line) < 30:
         score += 0.2
-    # print("score = {}, after len(line)".format(score))
+    if is_debug_footer:
+        print("score = {}, after len(line)".format(score))
     if lbk >= 2.0:
         score += 0.2
-    # print("score = {}, after lbk".format(score))
+    if is_debug_footer:
+        print("score = {}, after lbk".format(score))
     if page_num_index != -1 and page_line_num >= page_num_index:
         score += 0.8
-    # print("score = {}, after page_num_index = {}, page_line_num = {}".format(score,
-    #                                                                          page_num_index,
-    #                                                                          page_line_num))
+    if is_debug_footer:
+        print("score = {}, after page_num_index = {}, page_line_num = {}".format(score,
+                                                                                 page_num_index,
+                                                                                 page_line_num))
 
     if 'confidential information' in line.lower() and is_centered:
         score += 0.8
-    # print("score = {}, confid".format(score))
+    if is_debug_footer:
+        print("score = {}, confid".format(score))
 
     # no sechead in footer, if it is obvious sechead
     if secheadutils.is_line_sechead_strict_prefix(line):
         score -= 20
-
-    # print('is_footer.score = {}'.format(score))
+    if is_debug_footer:
+        print('is_footer.score = {}'.format(score))
     return score >= 1, score
 
 
@@ -442,3 +479,66 @@ def line_list_to_block_list(linex_list):
             cur_block.append(linex)
         prev_block_num = block_num
     return tmp_block_list
+
+
+# this is in-place
+# pylint: disable=too-many-locals
+def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
+                                paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
+                                                                        linepos.LnPos]],
+                                                             PLineAttrs]]) \
+                                -> None:
+    if not ebsent_list:  # if there is no data
+        return
+
+    para_i, len_paras = 0, len(paras_with_attrs)
+    ebsent_i, len_ebsents = 0, len(ebsent_list)
+    ebsent = ebsent_list[ebsent_i]
+    ebsent_start, ebsent_end = ebsent.start, ebsent.end
+
+    while para_i < len_paras and ebsent_i < len_ebsents:
+        span_se_list, pline_attrs = paras_with_attrs[para_i]
+        (unused_para_from_start, unused_para_from_end), \
+            (para_to_start, para_to_end) = \
+                docutils.span_frto_list_to_fromto(span_se_list)
+
+        if para_to_start == para_to_end:  # empty line, move on
+            para_i += 1
+            continue
+
+        sechead_attr = pline_attrs.sechead
+        if sechead_attr:
+            # print("attrs: {}".format(attrs[0]))
+            unused_sechead_type, unused_sh_prefix_num, sh_header, unused_sh_idx = \
+                sechead_attr
+        else:
+            sh_header = ''
+        # ttx_span_se_list, ttx_pline_attrs = paras_with_attrs[para_i]
+        # print("para #{}: ({}, {})".format(para_i, ttx_span_se_list,
+        #                                   # this is to make the output look the same as
+        #                                   # before 2018-08-25, can be removed in the future
+        #                                   '[' + str(ttx_pline_attrs)[8:] + ']'))
+        while ebsent_start <= para_to_end:
+            if mathutils.start_end_overlap((ebsent_start, ebsent_end),
+                                           (para_to_start, para_to_end)):
+                # print("\tebsent set sechead ({}, {}): {}". \
+                #       format(ebsent_start, ebsent_end, sh_header))
+                if sh_header:
+                    ebsent.set_sechead(' '. \
+                        join(stopwordutils. \
+                        tokens_remove_stopwords([word.lower()
+                                                 for word in re.findall(r'\w+',
+                                                                        sh_header)],
+                                                is_lower=True)))
+                # else, don't even set it
+            ebsent_i += 1
+            if ebsent_i < len_ebsents:
+                ebsent = ebsent_list[ebsent_i]
+                ebsent_start, ebsent_end = ebsent.start, ebsent.end
+            else:
+                ebsent_start = para_to_end + 1  # end the loop
+        para_i += 1
+    #ebsent_i = 0
+    #while ebsent_i < len_ebsents:
+    #    print("sent #{}: {}".format(ebsent_i, ebsent_list[ebsent_i]))
+    #    ebsent_i += 1

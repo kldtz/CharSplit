@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 from pathlib import Path
 import os
 import sys
 # pylint: disable=unused-import
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import requests
 
+from kirke.utils import modelfileutils
+
+
+MODEL_DIR = 'dir-scut-model'
+WORK_DIR = 'dir-work'
+CUSTOM_MODEL_DIR = 'eb_files_test/pymodel'
 
 UNIT_TEST_PROVS = ['change_control',
                    'choiceoflaw',
@@ -24,7 +31,17 @@ UNIT_TEST_PROVS = ['change_control',
                    'term',
                    'title',
                    'warranty',
-                   'cust_9']
+                   'cust_9.1005']
+
+
+def upload_annotate_doc(file_name: str, prov_list: Optional[List[str]] = None) \
+    -> Dict[str, Any]:
+    if not prov_list:
+        prov_list = UNIT_TEST_PROVS
+    text = post_unittest_annotate_document(file_name, prov_list)
+    ajson = json.loads(text)
+    return ajson
+
 
 def post_annotate_document(file_name: str,
                            prov_list: List[str],
@@ -60,11 +77,12 @@ def post_annotate_document(file_name: str,
     raise ValueError
 
 
-def post_unittest_annotate_document(file_name: str, unittest_prov: str = None) -> str:
-    if unittest_prov:
-        UNIT_TEST_PROVS.append(unittest_prov)
+def post_unittest_annotate_document(file_name: str,
+                                    prov_list: Optional[List[str]] = None) -> str:
+    if not prov_list:
+        prov_list = UNIT_TEST_PROVS
     result = post_annotate_document(file_name,
-                                    UNIT_TEST_PROVS,
+                                    prov_list,
                                     is_detect_lang=True,
                                     is_classify_doc=True)
     return result

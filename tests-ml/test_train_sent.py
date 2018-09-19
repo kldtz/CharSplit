@@ -45,12 +45,22 @@ class TestTrainSent(unittest.TestCase):
         print(ant_result)
 
         conf_matrix = ant_result['confusion_matrix']
-        
-        self.assertEqual(conf_matrix,
-                         {'fn': 3, 'fp': 1, 'tn': 0, 'tp': 11})
 
-        self.assertEqual(round(ant_result['f1'], 2),
-                         0.85)
+        tn = conf_matrix['tn']
+        fp = conf_matrix['fp']
+        fn = conf_matrix['fn']
+        tp = conf_matrix['tp']
+
+        self.assertEqual(tn, 0)
+        self.assertAlmostEqual(fp, 1, delta=1)
+        self.assertAlmostEqual(fn, 3, delta=1)
+        self.assertAlmostEqual(tp, 11, delta=1)
+
+        #self.assertEqual(conf_matrix,
+        #                 {'fn': 3, 'fp': 1, 'tn': 0, 'tp': 11})
+        f1 = round(ant_result['f1'], 2)
+        self.assertAlmostEqual(f1, 0.85, delta=0.04)
+
         self.assertEqual(round(ant_result['prec'], 2),
                          0.92)
         self.assertEqual(round(ant_result['recall'], 2),

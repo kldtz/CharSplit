@@ -11,7 +11,7 @@ class StratifiedGroupKFold:
     def __init__(self, n_splits: int = 3) -> None:
         self.n_splits = n_splits
 
-    # pylint: disable=invalid-name
+    # pylint: disable=too-many-locals, invalid-name
     def get_n_splits(self,
                      # pylint: disable=unused-argument
                      X: Optional[List] = None,

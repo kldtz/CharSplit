@@ -181,6 +181,7 @@ class ProvisionAnnotator:
                                                       eb_antdoc.get_nlp_sx_lnpos_list(),
                                                       eb_antdoc.get_origin_sx_lnpos_list())
             # this is an in-place modification
+            # This add span list.  If there is a gap, one will be inserted into span list.
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
         except IndexError:
             error = traceback.format_exc()

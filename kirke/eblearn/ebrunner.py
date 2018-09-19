@@ -239,6 +239,8 @@ class EbRunner:
                 if lang_provision.startswith('cust_'):
                     logger.warning('skipping custom model %s because not found.',
                                    lang_provision)
+                    logger.warning('custom_model_dir = [%s]', self.custom_model_dir)
+
                     # there is langid which we created at the end of the lang_provision
                     # add that original provision name back, plus the missing language
                     tmp_prov_name = lang_provision.split('.')[0]
@@ -405,7 +407,7 @@ class EbRunner:
         time1 = time.time()
         if not provision_set:
             # no provision specified.  Must be doing testing.
-            lang_provision_set = modelfileutils.get_all_custom_prov_ver_langs(self.custom_model_dir)
+            lang_provision_set = modelfileutils.get_custom_prov_ver_langs(self.custom_model_dir)
             lang_provision_set.update(self.provisions)
             # also get ALL custom provision set, since we are doing testing
             logger.info("custom_model_dir: %s", self.custom_model_dir)
@@ -478,24 +480,26 @@ class EbRunner:
             # using htmltxtparser instead of coding the necessary logic again on PDF.
             txt_base_fname = os.path.basename(eb_antdoc.file_id)
             paraline_fname = txt_base_fname.replace('.txt', '.paraline.txt')
-            paras_with_attrs, para_doc_text, unused_gap_span_list, unused_orig_doc_text = \
-                    htmltxtparser.parse_document('{}/{}'.format(work_dir, paraline_fname),
-                                                 work_dir=work_dir,
-                                                 is_combine_line=False)
+
+            # nlp_paras_with_attrs, nlp_doc_text, unused_gap_span_list, unused_orig_doc_text = \
+            html_text_doc = htmltxtparser.parse_document('{}/{}'.format(work_dir, paraline_fname),
+                                                         work_dir=work_dir,
+                                                         is_combine_line=False,
+                                                         nlptxt_file_name=None)
 
             origin_sx_lnpos_list, nlp_sx_lnpos_list = \
-                fromtomapper.paras_to_fromto_lists(paras_with_attrs)
+                fromtomapper.paras_to_fromto_lists(html_text_doc.nlp_paras_with_attrs)
 
             # there is no offset map because paraline is the same
             self.apply_line_annotators_aux(prov_labels_map,
-                                           paras_with_attrs,
-                                           para_doc_text,
+                                           html_text_doc.nlp_paras_with_attrs,
+                                           html_text_doc.nlp_doc_text,
                                            nlp_sx_lnpos_list,
                                            origin_sx_lnpos_list,
                                            eb_antdoc.get_nl_text())
         else:
             self.apply_line_annotators_aux(prov_labels_map,
-                                           eb_antdoc.paras_with_attrs,
+                                           eb_antdoc.nlp_paras_with_attrs,
                                            eb_antdoc.get_nlp_text(),
                                            eb_antdoc.get_nlp_sx_lnpos_list(),
                                            eb_antdoc.get_origin_sx_lnpos_list(),
@@ -514,7 +518,7 @@ class EbRunner:
                                                   paraline_sx_lnpos_list,
                                                   origin_sx_lnpos_list)
 
-        # title works on the para_doc_text, not original text. so the
+        # title works on the nlp_doc_text, not original text. so the
         # offsets needs to be adjusted, just like for text4nlp stuff.
         # The offsets here differs from above because of line break differs.
         # As a result, probably more page numbers are detected correctly and skipped.

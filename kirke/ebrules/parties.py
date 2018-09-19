@@ -298,7 +298,8 @@ def extract_between_among(astr: str, is_party: bool = True) \
 def extract_parties_term_list_from_itemized_line(line: str) \
     -> List[Tuple[List[Tuple[int, int]],
                   Optional[Tuple[int, int]]]]:
-    print("extract_parties_term_list_from_itemized_line({})".format(line))
+    if IS_DEBUG_MODE:
+        print("extract_parties_term_list_from_itemized_line({})".format(line))
     paren1_mat_list = strutils.find_itemized_paren_mats(line)
 
     len_line = len(line)
