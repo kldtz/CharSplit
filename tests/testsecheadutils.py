@@ -2,7 +2,7 @@
 
 import unittest
 
-from kirke.docstruct import secheadutils, docstructutils
+from kirke.docstruct import docstructutils, secheadutils
 
 
 def parse_sechead(line: str,

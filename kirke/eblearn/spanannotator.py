@@ -173,7 +173,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         group_kfold = list(StratifiedGroupKFold(n_splits=self.kfold).split(candidates,
                                                                            label_list,
                                                                            groups=group_id_list))
-
         grid_search = GridSearchCV(pipeline,
                                    parameters,
                                    n_jobs=2,

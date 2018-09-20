@@ -153,8 +153,8 @@ class TableGenerator:
             doc_len = len(doc_text)
 
             if group_id % 10 == 0:
-                logging.info('TableGenerator.documents_to_candidates(), group_id = %d',
-                             group_id)
+                logger.info('TableGenerator.documents_to_candidates(), group_id = %d',
+                            group_id)
 
             sechead_list = antdoc.sechead_list
             if IS_DEBUG_TABLE:

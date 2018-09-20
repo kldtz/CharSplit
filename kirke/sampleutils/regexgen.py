@@ -113,7 +113,7 @@ class RegexContextGenerator:
             self.group_num = 1
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
-        for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc5
+        for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc4
             label_list = []   # type: List[bool]
 
             #creates list of ants for a specific provision

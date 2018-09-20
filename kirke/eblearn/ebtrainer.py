@@ -193,9 +193,9 @@ def cv_train_at_annotation_level(provision,
     return prov_annotator, log_list
 
 
-# TODO, because we are using ebantdoc5 instead of ebantdoc5, I am
-# doing code copying right now.  Maybe merge with cv_train_at_annotation_level()
-# in future.
+# TODO
+# I am doing code copying right now.
+# Maybe merge with cv_train_at_annotation_level() in future.
 # pylint: disable=too-many-arguments, too-many-locals, invalid-name, too-many-statements
 def cv_candg_train_at_annotation_level(provision: str,
                                        # pylint: disable=invalid-name
@@ -219,7 +219,6 @@ def cv_candg_train_at_annotation_level(provision: str,
     pos_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
     neg_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
     num_pos_after_candgen = 0
-
     # pylint: disable=line-too-long
     for label, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in zip(antdoc_bool_list,
                                                                                     antdoc_candidatex_list):
@@ -472,7 +471,7 @@ def train_eval_annotator(provision: str,
     else:
         test_size = 0.2
 
-    #splits training and testing data, saves to a doclist
+    # splits training and testing data, saves to a doclist
     X_train, X_test, _, _ = train_test_split(X, y, test_size=test_size,
                                              random_state=42, stratify=y)
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
@@ -480,21 +479,16 @@ def train_eval_annotator(provision: str,
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
     splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
 
-    #trains on the training data, evaluates the testing data
+    # trains on the training data, evaluates the testing data
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
-    #make the classifier into an annotator
+    # make the classifier into an annotator
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir, nbest=nbest)
-    # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
-    # using generator, instead of all loaded at once.
 
-    # X_test_antdoc_list = ebantdoc5.traindoc_list_to_antdoc_list(X_test, work_dir)
-    # ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
-    # X_test_antdoc_list = ebantdoc5.traindoc_list_to_antdoc_list(X_test, work_dir)
     ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
 
-    #prints evaluation results and saves status
+    # prints evaluation results and saves status
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
     prov_annotator.eval_status = ant_status
@@ -648,7 +642,7 @@ def train_eval_span_annotator(provision: str,
     if is_bespoke_mode:
         # converts all docs to ebantdocs
         # intentially don't specify is_no_corenlp here.  It has to be done
-        # using ebantdoc5.doclist_to_antdoc_list_no_corenlp
+        # using ebantdoc4.doclist_to_antdoc_list_no_corenlp
         eb_antdoc_list = \
             span_annotator.doclist_to_antdoc_list(txt_fn_list,
                                                   work_dir,

@@ -40,8 +40,8 @@ class ParagraphGenerator:
             nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logging.info('ParagraphGenerator.documents_to_candidates(), group_id = %d',
-                             group_id)
+                logger.info('ParagraphGenerator.documents_to_candidates(), group_id = %d',
+                            group_id)
             # finds all matches in the text and adds window around each as a candidate
             i = 0
             #sorted_paras = sorted(antdoc.para_indices, key=lambda x: x[0][0].start)

@@ -22,7 +22,7 @@ class LineSpanGenerator:
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         # each candidate is the date regex +
-        for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc5
+        for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc4
             candidates = []  # type: List[Dict]
             label_list = []   # type: List[bool]
             group_id_list = []  # type: List[int]
