@@ -12,6 +12,7 @@ import sys
 import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
+from hashlib import md5
 
 import psutil
 
@@ -43,8 +44,11 @@ def get_corenlp_json_fname(txt_basename, work_dir):
     return '{}/{}'.format(work_dir, base_fn)
 
 
-def get_nlp_file_name(txt_basename, work_dir):
-    base_fn = txt_basename.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
+def get_nlp_file_name(doc_text, work_dir):
+    nlptxt_hash = md5()
+    nlptxt_hash.update(doc_text)
+    nlptxt_hashed = nlptxt_hash.hexdigest()
+    base_fn = '{}.nlp.v{}.txt'.format(nlptxt_hashed, CORENLP_JSON_VERSION)
     return '{}/{}'.format(work_dir, base_fn)
 
 
@@ -468,7 +472,7 @@ def html_to_ebantdoc4(txt_file_name: str,
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
-    nlptxt_file_name = get_nlp_file_name(txt_base_fname, work_dir)
+    nlptxt_file_name = get_nlp_file_name(doc_text, work_dir)
     # nlp_paras_with_attrs, nlp_doc_text, exclude_offsets, _ = \
     html_text_doc = htmltxtparser.parse_document(txt_file_name,
                                                  work_dir=work_dir,
@@ -561,10 +565,11 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
     # pylint: disable=line-too-long
-    nlptxt_file_name = get_nlp_file_name(txt_base_fname, work_dir)
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name,
-                                               work_dir=work_dir,
-                                               nlptxt_file_name=nlptxt_file_name)  # type: PDFTextDoc
+                                               work_dir=work_dir)  # type: PDFTextDoc
+
+    nlptxt_file_name = get_nlp_file_name(pdf_text_doc.nlp_doc_text, work_dir)
+    txtreader.dumps(pdf_text_doc.nlp_doc_text, nlptxt_file_name)
 
     prov_annotation_list, is_test = \
         ebsentutils.load_prov_annotation_list(txt_file_name,
@@ -629,7 +634,8 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
     # we don't bother to check for is_use_corenlp, assume that's True
     if is_cache_enabled:
         json_fn = get_corenlp_json_fname(txt_base_fname, work_dir)
-        if os.path.exists(json_fn):
+        nlp_fn = get_nlp_file_name(doc_text, work_dir)
+        if os.path.exists(json_fn) and os.path.exists(nlp_fn):
             corenlp_json = json.loads(strutils.loads(json_fn))
             end_time = time.time()
             logger.info("loading from cache: %s, took %.0f msec",

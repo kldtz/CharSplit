@@ -614,8 +614,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
 
 def parse_document(file_name: str,
-                   work_dir: str,
-                   nlptxt_file_name: str) \
+                   work_dir: str) \
                    -> PDFTextDoc:
     base_fname = os.path.basename(file_name)
 
@@ -692,10 +691,6 @@ def parse_document(file_name: str,
     if not nlp_paras_with_attrs:
         logger.info("Empty nlp_paras_with_attrs.  Not urgent.  File: %s", file_name)
         logger.info("  Likely cause: either no text or looked too much like table-of-content.")
-
-    txtreader.dumps(nlp_doc_text, nlptxt_file_name)
-    if IS_DEBUG_MODE:
-        print('wrote {}'.format(nlptxt_file_name), file=sys.stderr)
 
     pdf_text_doc.nlp_doc_text = nlp_doc_text
     pdf_text_doc.nlp_paras_with_attrs = nlp_paras_with_attrs
