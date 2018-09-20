@@ -5,7 +5,7 @@ from collections import defaultdict
 import warnings
 import os
 
-from kirke.utils import osutils, ebantdoc5
+from kirke.utils import osutils, ebantdoc4
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ logger.setLevel(logging.INFO)
 def provisions_split(provision_list, txt_fn_list, work_dir=None, is_doc_structure=False):
     warnings.warn("Shouldn't split based on positive labeled docs only.", DeprecationWarning)
 
-    ebantdoc_list = ebantdoc5.doclist_to_ebantdoc_list(txt_fn_list,
+    ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list,
                                                        work_dir=work_dir,
                                                        is_doc_structure=is_doc_structure)
     # print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
@@ -56,7 +56,7 @@ def save_antdoc_fn_list(eb_antdoc_list, doclist_file_name):
             print(txt_fn, file=fout)
 
 
-def has_provision_ant(ebantdoc_provset: ebantdoc5.EbAntdocProvSet,
+def has_provision_ant(ebantdoc_provset: ebantdoc4.EbAntdocProvSet,
                       provision: str) -> bool:
     for prov_annotation in ebantdoc_provset.prov_annotation_list:
         if prov_annotation.label == provision:
@@ -85,7 +85,7 @@ def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structu
                     txt_file_set.add(line)
                     prov_filelist_map[prefix].append(line)
 
-    fn_ebantdoc_map = ebantdoc5.fnlist_to_fn_ebantdoc_provset_map(list(txt_file_set),
+    fn_ebantdoc_map = ebantdoc4.fnlist_to_fn_ebantdoc_provset_map(list(txt_file_set),
                                                                   work_dir=work_dir,
                                                                   is_doc_structure=is_doc_structure)
 

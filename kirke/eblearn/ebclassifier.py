@@ -5,7 +5,7 @@ import logging
 # pylint: disable=unused-import
 from typing import Any, Dict
 
-from kirke.utils import ebantdoc5, osutils
+from kirke.utils import ebantdoc4, osutils
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class EbClassifier(ABC):
         osutils.joblib_atomic_dump(self, model_file_name)
 
     def train(self, txt_fn_list, work_dir, model_file_name) -> None:
-        ebantdoc_list = ebantdoc5.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
+        ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
         self.train_antdoc_list(ebantdoc_list, work_dir, model_file_name)
 
     @abstractmethod

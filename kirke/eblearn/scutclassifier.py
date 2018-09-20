@@ -132,7 +132,6 @@ class ShortcutClassifier(EbClassifier):
 
         #    parameters = {'C': [.01, .1, 1, 10, 100]}
         #    sgd_clf = LogisticRegression()
-
         group_kfold = list(StratifiedGroupKFold().split(X_train,
                                                         y_train,
                                                         groups=group_id_list))

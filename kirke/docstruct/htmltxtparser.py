@@ -99,9 +99,10 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                 """
 
                 if sechead_t4:
-                    hpline_attrs.sechead = sechead_tuple
+                    hpline_attrs.sechead = sechead_t4
                     unused_sechead_type, prefix_num, sec_head, split_idx = sechead_t4
                 else:
+                    # this is probably unnecessary abecause we check with hpline_attrs.sechead
                     split_idx = -1
                 prev_nonempty_line, prev_line_idx = line, split_idx
 

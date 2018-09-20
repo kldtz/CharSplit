@@ -5,7 +5,7 @@ import traceback
 
 from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
-from kirke.utils import ebantdoc5, evalutils, strutils
+from kirke.utils import ebantdoc4, evalutils, strutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
@@ -42,7 +42,7 @@ class ProvisionAnnotator:
     #    pass
     # pylint: disable=R0914
     def test_antdoc_list(self,
-                         ebantdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                         ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                          specified_threshold: Optional[float] = None) \
                          -> Tuple[Dict[str, Any],
                                   Dict[str, Dict]]:
@@ -175,19 +175,6 @@ class ProvisionAnnotator:
                                                           provision=prov,
                                                           # pylint: disable=line-too-long
                                                           prov_human_ant_list=adj_prov_human_ant_list)
-        # pylint: disable=pointless-string-statement
-        """
-        if prov == 'confidentiality':
-            nlp_text = eb_antdoc.get_nlp_text()
-            out_list = [(prob, attrvec.start, attrvec) for prob, attrvec in prob_attrvec_list]
-            out_list = sorted(out_list, reverse=True)
-            for sent_count, (prob, tmp_start, attrvec) in enumerate(out_list):
-                print("~~ prob {}: {:.3f}, [{}] sechead={}".
-                      format(sent_count,
-                             prob,
-                             nlp_text[attrvec.start:attrvec.end],
-                             attrvec.sechead))
-        """
 
         try:
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',

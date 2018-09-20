@@ -20,9 +20,9 @@ from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
 from kirke.eblearn import annotatorconfig, ebannotator, ebpostproc, ebtrainer, lineannotator
 from kirke.eblearn import provclassifier, scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
-from kirke.utils import ebantdoc5, evalutils, lrucache, modelfileutils, osutils, strutils
+from kirke.utils import ebantdoc4, evalutils, lrucache, modelfileutils, osutils, strutils
 
-from kirke.utils.ebantdoc5 import EbDocFormat, prov_ants_cpoint_to_cunit
+from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s : %(levelname)s : %(message)s')
@@ -44,7 +44,7 @@ DetectorFactory.seed = 0
 
 
 def annotate_provision(eb_annotator,
-                       eb_antdoc: ebantdoc5.EbAnnotatedDoc) -> List[Dict]:
+                       eb_antdoc: ebantdoc4.EbAnnotatedDoc4) -> List[Dict]:
     """
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc)
@@ -53,7 +53,7 @@ def annotate_provision(eb_annotator,
 
 
 def test_provision(eb_annotator,
-                   eb_antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                   eb_antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                    threshold) -> Tuple[Dict[str, Dict],
                                        Dict[str, Dict]]:
     print("test_provision, type(eb_annotator) = {}".format(type(eb_annotator)))
@@ -214,7 +214,7 @@ class EbRunner:
 
 
     def run_annotators_in_parallel(self,
-                                   eb_antdoc: ebantdoc5.EbAnnotatedDoc,
+                                   eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                                    lang_provision_set: Optional[Set[str]] = None) \
                                    -> Dict[str, List]:
         if not lang_provision_set:
@@ -398,7 +398,7 @@ class EbRunner:
                           is_doc_structure: bool = True,
                           doc_lang: str = 'en') \
                           -> Tuple[Dict[str, List],
-                                   ebantdoc5.EbAnnotatedDoc]:
+                                   ebantdoc4.EbAnnotatedDoc4]:
         """Annotate a document with the provisions specified in provision_set.
 
         'provision_set' is really a set of lang_provision, i.e., 'change_control',
@@ -426,7 +426,7 @@ class EbRunner:
         # print("provision_set: {}".format(provision_set))
         self.update_custom_models(lang_provision_set)
 
-        eb_antdoc = ebantdoc5.text_to_ebantdoc(file_name,
+        eb_antdoc = ebantdoc4.text_to_ebantdoc(file_name,
                                                work_dir=work_dir,
                                                is_doc_structure=is_doc_structure,
                                                doc_lang=doc_lang)
@@ -583,19 +583,19 @@ class EbRunner:
             logger.info('user specified provision list: %s', provision_set)
 
         # in reality, we only use 1 provision
-        ebantdoc_list = []  # type: List[ebantdoc5.EbAnnotatedDoc]
+        ebantdoc_list = []  # type: List[ebantdoc4.EbAnnotatedDoc4]
         if len(provision_set) == 1:
             provision = list(provision_set)[0]
             annotator2 = self.provision_annotator_map[provision]
             if isinstance(annotator2, spanannotator.SpanAnnotator):
-                ebantdoc_list = ebantdoc5.doclist_to_ebantdoc_list(txt_fns_file_name,
+                ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir,
                                                                    is_use_corenlp=False)
             else:
-                ebantdoc_list = ebantdoc5.doclist_to_ebantdoc_list(txt_fns_file_name,
+                ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir)
         else:
-            ebantdoc_list = ebantdoc5.doclist_to_ebantdoc_list(txt_fns_file_name,
+            ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                self.work_dir)
 
         prov_antlist_logjson_map = {}

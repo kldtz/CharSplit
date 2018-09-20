@@ -7,7 +7,7 @@ import time
 from typing import Any, Dict, List, Tuple
 
 # from kirke.eblearn import baseannotator, ebpostproc
-from kirke.utils import ebantdoc5, evalutils, strutils
+from kirke.utils import ebantdoc4, evalutils, strutils
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class RuleAnnotator:
 
     # pylint: disable=too-many-locals
     def test_antdoc_list(self,
-                         ebantdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                         ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                          threshold: float = 0.5) -> Tuple[Dict[str, Any],
                                                           Dict[str, Dict]]:
         logger.debug('RuleAnnotator.test_antdoc_list(), len= %d', len(ebantdoc_list))
@@ -120,13 +120,13 @@ class RuleAnnotator:
 
     # returns candidates, label_list, group_id_list
     def documents_to_candidates(self,
-                                antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                                antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                                 label: str):
         return self.doc_to_candidates.documents_to_candidates(antdoc_list, label)
 
 
     def annotate_antdoc(self,
-                        antdoc: ebantdoc5.EbAnnotatedDoc,
+                        antdoc: ebantdoc4.EbAnnotatedDoc4,
                         *,
                         # pylint: disable=unused-argument
                         prov_human_ant_list=None,

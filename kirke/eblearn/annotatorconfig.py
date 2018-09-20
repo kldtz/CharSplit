@@ -8,13 +8,13 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from sklearn.linear_model import SGDClassifier
-from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.pipeline import FeatureUnion, Pipeline
 
+from kirke.ebrules import dates, dummyannotator
 from kirke.sampleutils import postproc
-from kirke.ebrules import dummyannotator, dates
-from kirke.utils import ebantdoc5
-from kirke.sampleutils import addrgen, idnumgen, dategen, paragen, tablegen
+from kirke.sampleutils import addrgen, dategen, idnumgen, paragen, tablegen
 from kirke.sampleutils import regexgen, transformerutils
+from kirke.utils import ebantdoc4
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|\.[0-
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
-    ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                      'is_use_corenlp': False,
                      'doc_to_candidates': [dategen.DateSpanGenerator(30, 30, 'DATE')],
                      'version': "1.0",
@@ -53,7 +53,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                      'threshold': 0.5,
                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 7)}}),
 
-    ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
                         'doc_to_candidates': [addrgen.AddrContextGenerator(30, 30, 'ADDRESS')],
                         'version': "1.0",
@@ -72,7 +72,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.35,
                         'kfold': 3}),
 
-    ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                          'is_use_corenlp': False,
                          'doc_to_candidates':
                          [regexgen.RegexContextGenerator(20,
@@ -92,7 +92,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'threshold': 0.25,
                          'kfold': 3}),
 
-    ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                        'is_use_corenlp': False,
                        'doc_to_candidates': [regexgen.RegexContextGenerator(10,
                                                                             10,
@@ -116,7 +116,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'threshold': 0.25,
                        'kfold': 3}),
 
-    ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
                         'doc_to_candidates': \
                         [regexgen.RegexContextGenerator(15,
@@ -141,7 +141,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.25,
                         'kfold': 3}),
 
-    ('IDNUM', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    ('IDNUM', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                       'is_use_corenlp': False,
                       'doc_to_candidates':
                       [idnumgen.IdNumContextGenerator(3,
@@ -169,7 +169,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                       'threshold': 0.25,
                       'kfold': 3}),
 
-    ('PARAGRAPH', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    ('PARAGRAPH', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                           'is_use_corenlp': False,
                           'text_type': 'nlp_text',
                           'doc_to_candidates': [paragen.ParagraphGenerator('PARAGRAPH')],
@@ -189,7 +189,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                           'threshold': 0.25,
                           'kfold': 3}),
 
-    ('TABLE', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    ('TABLE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                       'is_use_corenlp': True,
                       'is_doc_structure': True,
                       'doc_to_candidates': [tablegen.TableGenerator('TABLE')],
@@ -214,7 +214,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
 
 RULE_ANNOTATOR_CONFIG_LIST = [
-    ('effectivedate', '1.0', {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    ('effectivedate', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                               'is_use_corenlp': False,
                               'doc_to_candidates': dategen.DateSpanGenerator(20, 20, 'DATE'),
                               'version': "1.0",
@@ -269,7 +269,7 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
             return prop
         return {}
 
-    generic_prop = {'doclist_to_antdoc_list': ebantdoc5.doclist_to_ebantdoc_list,
+    generic_prop = {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                     'version': "1.0",
                     'is_use_corenlp': False,
                     'doc_to_candidates': [],

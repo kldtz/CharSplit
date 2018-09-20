@@ -1,7 +1,7 @@
 
 from typing import Dict, List, Optional, Tuple
 
-from kirke.utils import ebantdoc5, ebsentutils, strutils
+from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 
 # pylint: disable=too-few-public-methods
@@ -13,14 +13,14 @@ class LineSpanGenerator:
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                                antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                                antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                                 label: Optional[str] = None) \
-                                -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                               List[Dict],
                                               List[bool],
                                               List[int]]]:
         # pylint: disable=line-too-long
-        result = []  # type: List[Tuple[ebantdoc5.EbAnnotatedDoc, List[Dict], List[bool], List[int]]]
+        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         # each candidate is the date regex +
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc5
             candidates = []  # type: List[Dict]
@@ -30,9 +30,9 @@ class LineSpanGenerator:
             # get only ant for this particular label
             label_ant_list = antdoc.get_provision_annotations(label)
 
-            if antdoc.doc_format in set([ebantdoc5.EbDocFormat.html,
-                                         ebantdoc5.EbDocFormat.html_nodocstruct,
-                                         ebantdoc5.EbDocFormat.other]):
+            if antdoc.doc_format in set([ebantdoc4.EbDocFormat.html,
+                                         ebantdoc4.EbDocFormat.html_nodocstruct,
+                                         ebantdoc4.EbDocFormat.other]):
                 nl_text = antdoc.text
             else:
                 nl_text = antdoc.get_nl_text()

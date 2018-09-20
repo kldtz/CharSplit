@@ -1,7 +1,7 @@
 import logging
 import re
 from typing import Dict, List, Optional, Tuple
-from kirke.utils import ebantdoc5, ebsentutils
+from kirke.utils import ebantdoc4, ebsentutils
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -17,14 +17,14 @@ class ParagraphGenerator:
 
     # pylint: disable=too-many-locals, too-many-statements
     def documents_to_candidates(self,
-                                antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                                antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                                 label: Optional[str] = None) \
-                                -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                               List[Dict],
                                               List[bool],
                                               List[int]]]:
         # pylint: disable=line-too-long
-        result = []  # type: List[Tuple[ebantdoc5.EbAnnotatedDoc, List[Dict], List[bool], List[int]]]
+        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):
             candidates = []  # type: List[Dict]
             label_list = []   # type: List[bool]

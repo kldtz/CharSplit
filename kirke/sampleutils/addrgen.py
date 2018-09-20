@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Optional, Tuple
 from kirke.ebrules import addresses
-from kirke.utils import ebantdoc5, ebsentutils, strutils
+from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -93,14 +93,14 @@ class AddrContextGenerator:
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                                antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                                antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                                 label: Optional[str] = None) \
-                                -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                               List[Dict],
                                               List[bool],
                                               List[int]]]:
         # pylint: disable=line-too-long
-        result = []  # type: List[Tuple[ebantdoc5.EbAnnotatedDoc, List[Dict], List[bool], List[int]]]
+        result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc5
             label_list = []  # type: List[bool]
             #creates list of ants for a specific provision
@@ -111,9 +111,9 @@ class AddrContextGenerator:
                     label_ant_list.append(ant)
 
             #gets text based on document type
-            if antdoc.doc_format in set([ebantdoc5.EbDocFormat.html,
-                                         ebantdoc5.EbDocFormat.html_nodocstruct,
-                                         ebantdoc5.EbDocFormat.other]):
+            if antdoc.doc_format in set([ebantdoc4.EbDocFormat.html,
+                                         ebantdoc4.EbDocFormat.html_nodocstruct,
+                                         ebantdoc4.EbDocFormat.other]):
                 nl_text = antdoc.text
             else:
                 nl_text = antdoc.get_nl_text()

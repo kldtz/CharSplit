@@ -15,7 +15,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 
 from kirke.eblearn import baseannotator, ebpostproc
-from kirke.utils import ebantdoc5, evalutils, strutils
+from kirke.utils import ebantdoc4, evalutils, strutils
 from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
 
 
@@ -69,7 +69,7 @@ def recover_false_negatives(prov_human_ant_list,
 
 
 # pylint: disable=line-too-long
-def antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list: List[Tuple[ebantdoc5.EbAnnotatedDoc,
+def antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list: List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                                                             List[Dict],
                                                                             List[bool],
                                                                             List[int]]]) \
@@ -201,7 +201,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     #    pass
     # pylint: disable=R0914
     def test_antdoc_list(self,
-                         ebantdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                         ebantdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                          specified_threshold: Optional[float] = None,
                          work_dir: str = 'work_dir')  -> Tuple[Dict[str, Any],
                                                                Dict[str, Dict]]:
@@ -262,9 +262,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     # returns candidates, label_list, group_id_list
     # this also enriches candidates using additional self.candidate_transformers
     def documents_to_candidates(self,
-                                antdoc_list: List[ebantdoc5.EbAnnotatedDoc],
+                                antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                                 label: Optional[str] = None) \
-                                -> List[Tuple[ebantdoc5.EbAnnotatedDoc,
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
                                               List[Dict],
                                               List[bool],
                                               List[int]]]:
@@ -286,7 +286,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         return all_results
 
     def annotate_antdoc(self,
-                        eb_antdoc: ebantdoc5.EbAnnotatedDoc,
+                        eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                         *,
                         specified_threshold: Optional[float] = None,
                         prov_human_ant_list: Optional[List] = None,
@@ -357,7 +357,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
     # return a list of candidates, a list of labels
     def predict_antdoc(self,
-                       eb_antdoc: ebantdoc5.EbAnnotatedDoc,
+                       eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
         logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
         text = eb_antdoc.get_text()
