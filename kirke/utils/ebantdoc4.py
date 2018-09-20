@@ -394,18 +394,18 @@ def html_no_docstruct_to_ebantdoc(txt_file_name,
                                 prov_ant_list=prov_annotation_list,
                                 is_test=is_test,
                                 # para_doc_text=para_doc_text,
-                               para_prov_ant_list=nlp_prov_ant_list,
+                                para_prov_ant_list=nlp_prov_ant_list,
                                 attrvec_list=attrvec_list,
                                 # TODO, jshaw
-                               # Maybe still add sechead info for .txt files.
-                               # no sechead information for txt file
-                               sechead_list=[],
+                                # Maybe still add sechead info for .txt files.
+                                # no sechead information for txt file
+                                sechead_list=[],
                                 nlp_paras_with_attrs=nlp_paras_with_attrs,
                                 origin_lnpos_list=origin_lnpos_list,
                                 nlp_lnpos_list=nlp_lnpos_list,
                                 exclude_offsets=exclude_offsets,
                                 # there is no page_offsets_list
-                               linebreak_arr=array.array('i'),
+                                linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     # eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
@@ -521,7 +521,7 @@ def html_to_ebantdoc(txt_file_name: str,
                                 nlp_lnpos_list=nlp_lnpos_list,
                                 exclude_offsets=html_text_doc.exclude_offsets,
                                 # there is no page_offsets_list
-                               linebreak_arr=array.array('i'),
+                                linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)

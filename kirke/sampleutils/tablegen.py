@@ -8,6 +8,10 @@ from kirke.utils import ebantdoc4, engutils, ebsentutils, osutils, strutils
 from kirke.abbyyxml import tableutils
 from kirke.abbyyxml.pdfoffsets import AbbyyBlock, AbbyyTableBlock
 
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 IS_DEBUG_TABLE = False
 IS_DEBUG_INVALID_TABLE = False
 
