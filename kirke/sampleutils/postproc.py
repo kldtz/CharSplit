@@ -43,7 +43,6 @@ class TablePostProcessing(DocCandidatesTransformer):
     def doc_postproc(self, candidates: List[Dict], nbest: int) -> List[Dict]:
         for candidate in candidates:
             del_keys = []
-            candidate_json = None
             for key, unused_val in candidate.items():
                 if key not in set(['start', 'end', 'label', 'prob', 'text',
                                    'span_list', 'norm', 'json']):
@@ -59,4 +58,3 @@ class TablePostProcessing(DocCandidatesTransformer):
 
     def enrich(self, candidate: Dict) -> None:
         pass
-

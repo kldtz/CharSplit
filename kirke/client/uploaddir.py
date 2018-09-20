@@ -70,7 +70,7 @@ def main():
     parser.add_argument('-v', '--verbosity', help='increase output verbosity')
     parser.add_argument('--url', help='url to post the files')
     parser.add_argument('--custid', default='12345', help='custom-id')
-    parser.add_argument('--provision', help='provision instead of custom-id')
+    parser.add_argument('--provision', help='provision instead of custid')
     parser.add_argument('--candidate_types', default='SENTENCE',
                         help='SENTENCE, CURRENCY, DATE, ADDRESS, NUMBER, PERCENT')
     parser.add_argument('--nbest', default=-1, help='url to post the files')

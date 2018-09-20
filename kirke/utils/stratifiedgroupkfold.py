@@ -11,7 +11,7 @@ class StratifiedGroupKFold:
     def __init__(self, n_splits: int = 3) -> None:
         self.n_splits = n_splits
 
-    # pylint: disable=invalid-name
+    # pylint: disable=too-many-locals, invalid-name
     def get_n_splits(self,
                      # pylint: disable=unused-argument
                      X: Optional[List] = None,
@@ -50,17 +50,18 @@ class StratifiedGroupKFold:
             if y_bool:
                 docid_is_positive_doc_map[docid] = True
 
+        # this is a list of doc_is_positive
         docid_y_list = []  # type: List[bool]
         for docid in docid_list:
             is_positive = docid_is_positive_doc_map[docid]
             docid_y_list.append(is_positive)
-            print("docid = {}, is_positive= {}".format(docid, is_positive))
 
-        # now we have a list of docid_list and docidy
+        # now we have a list of docid_list and docid_y
+        # find the original index associate with each docid and output their indices
         skf = StratifiedKFold(n_splits=self.n_splits)
         for train_index, test_index in skf.split(docid_list, docid_y_list):
-            X_train_index_outs = []  # type: List
-            X_test_index_outs = []  # type: List
+            X_train_index_outs = []  # type: List[int]
+            X_test_index_outs = []  # type: List[int]
             for docid_index in train_index:
                 docid = docid_list[docid_index]
                 X_train_index_outs.extend(docid_index_i_map[docid])

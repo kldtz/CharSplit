@@ -1,11 +1,12 @@
 import logging
 
-from typing import Any, List, Tuple
+from typing import List, Tuple
 
 
 from kirke.utils import ebantdoc5, evalutils
 
-from kirke.docstruct import fromtomapper, htmltxtparser, linepos
+from kirke.docstruct import fromtomapper, htmldocutils, linepos
+from kirke.docstruct.docutils import PLineAttrs
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class LineAnnotator:
         tp, fn, fp, tn = 0, 0, 0, 0
 
         for ebantdoc in ebantdoc_list:
-            paras_with_attrs = ebantdoc.paras_with_attrs
+            nlp_paras_with_attrs = ebantdoc.nlp_paras_with_attrs
             paras_text = ebantdoc.get_nlp_text()
 
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
@@ -45,7 +46,7 @@ class LineAnnotator:
                                                       ebantdoc.get_origin_sx_lnpos_list())
 
             print("test_antdoc_list(), at {}".format(ebantdoc.file_id))
-            ant_list = self.annotate_antdoc(paras_with_attrs,
+            ant_list = self.annotate_antdoc(nlp_paras_with_attrs,
                                             paras_text,
                                             fromto_mapper,
                                             ebantdoc.get_nl_text())
@@ -91,14 +92,15 @@ class LineAnnotator:
 
     # pylint: disable=too-many-branches
     def annotate_antdoc(self,
-                        paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-                                                     List[Any]]],
+                        nlp_paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                                         PLineAttrs]],
                         paras_text: str,
                         fromto_mapper: fromtomapper.FromToMapper,
                         nl_text: str):
         prov_annotations = []
         if self.provision == 'party':
-            paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs, nl_text)
+            paras_attr_list = htmldocutils.lineinfos_paras_to_attr_list(nlp_paras_with_attrs,
+                                                                        nl_text)
             party_offset_pair_list = \
                 self.provision_annotator.extract_provision_offsets(paras_attr_list,
                                                                    paras_text)
@@ -127,7 +129,8 @@ class LineAnnotator:
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
 
         elif self.provision == 'date':
-            paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs, nl_text)
+            paras_attr_list = htmldocutils.lineinfos_paras_to_attr_list(nlp_paras_with_attrs,
+                                                                        nl_text)
             # prov_type can be 'date', 'effective-date', 'signature-date'
             date_list = self.provision_annotator.extract_provision_offsets(paras_attr_list,
                                                                            paras_text)
@@ -144,7 +147,8 @@ class LineAnnotator:
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
 
         else:  # title
-            paras_attr_list = htmltxtparser.lineinfos_paras_to_attr_list(paras_with_attrs, nl_text)
+            paras_attr_list = htmldocutils.lineinfos_paras_to_attr_list(nlp_paras_with_attrs,
+                                                                        nl_text)
             start_offset, end_offset = \
                 self.provision_annotator.extract_provision_offsets(paras_attr_list,
                                                                    paras_text)

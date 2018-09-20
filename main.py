@@ -7,6 +7,7 @@ import logging
 import os
 import pprint
 import sys
+# pylint: disable=unused-import
 from typing import Any, Dict, List, Optional, Set
 
 # pylint: disable=import-error
@@ -279,7 +280,7 @@ def annotate_document(file_name: str,
                       model_dir: str,
                       custom_model_dir: str,
                       provision_set: Optional[Set[str]] = None,
-                      is_doc_structure: bool = True) -> Dict[str, Any]:
+                      is_doc_structure: bool = True) -> Dict:
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
     eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
@@ -316,16 +317,21 @@ def annotate_document(file_name: str,
     # pprint.pprint(prov_labels_map)
 
     eb_doccat_runner = None
+    doc_catnames = []  # type: List[str]
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists('{}/{}'.format(model_dir,
                                                                        DOCCAT_MODEL_FILE_NAME)):
         eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
 
-    print("eb_doccat_runner = {}".format(eb_doccat_runner))
+    logger.info("eb_doccat_runner = %r", eb_doccat_runner)
     if eb_doccat_runner:
         doc_catnames = eb_doccat_runner.classify_document(file_name)
-        pprint.pprint({'tags': doc_catnames})
 
-    return prov_labels_map
+    ebannotations = {}  # type: Dict[str, Any]
+    ebannotations['lang'] = doc_lang
+    ebannotations['tags'] = doc_catnames
+    ebannotations['ebannotations'] = dict(prov_labels_map)
+
+    return ebannotations
 
 
 # pylint: disable=too-many-branches, too-many-statements
@@ -451,12 +457,13 @@ def main():
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         print("\nannotate_document() result:")
-        prov_ants_map = annotate_document(args.doc,
-                                          work_dir,
-                                          model_dir,
-                                          custom_model_dir,
-                                          is_doc_structure=True)
-        pprint.pprint(dict(prov_ants_map))
+        result = annotate_document(args.doc,
+                                   work_dir,
+                                   model_dir,
+                                   custom_model_dir,
+                                   is_doc_structure=True)
+        pprint.pprint(result)
+        prov_ants_map = result['ebannoations']
         party_ant_list = prov_ants_map['party']
         result = []
         for party_ant in party_ant_list:

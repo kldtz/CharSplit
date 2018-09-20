@@ -10,7 +10,7 @@ from kirke.sampleutils.doccandidatesutils import DocCandidatesTransformer
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 # pylint: disable=too-few-public-methods
@@ -33,10 +33,22 @@ class DateNormalizer(DocCandidatesTransformer):
 
     # if using fuzzy-with_tokens
     # Tuple[datetime.datetime, Tuple]
-    # pylint: disable=no-self-use
+    # pylint: disable=no-self-use, too-many-return-statements
     def parse_date(self, line: str) -> Optional[Dict[str, Any]]:
         orig_line = line.replace('\n', '|')
         line = re.sub(r'first', '1st', line)
+
+        # shouldn't match '101012', which was
+        # parsed into 2010-10-12
+        if re.match(r'\d{6}', line):
+            return None
+
+        if re.match(r'\d{4}$', line):
+            year_line = int(line)
+            if year_line < 1900 or \
+               year_line > 2200:
+                return None
+
         # fixing OCR errors for "L" for "1" or "O" for '0"
         if 'l' in line:
             line = re.sub(r'(\d)l', r'\g<1>1', line)
@@ -447,7 +459,6 @@ def validate_dates(date_list: List[Tuple[int, int, str, str]]) \
             result.append((start, end, text, date_type, date_dict['norm']['date']))
         # else:
         #    logging.info("failed to parse_date(%s)", text)
-
     return result
 
 
@@ -505,7 +516,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                     -> List[Tuple[int, int, str, str, str]]:
     """Return list of parties (lists of (start, inclusive-end) offsets, date_norm)."""
 
-    # logging.info('extract_offsets: len(paras_text) = {}'.format(len(paras_text)))
+    # logger.info('extract_offsets: len(paras_text) = {}'.format(len(paras_text)))
     # Grab lines from the file
     before_lines, start_end_partyline = extract_before_and_party_line(paras_attr_list)
 
@@ -517,7 +528,7 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
 
         # Extract parties and return their offsets
         partyline_dates = extract_dates_from_party_line(partyline)
-        # logging.info("partyline dates: {}".format(partyline_dates))
+        # logger.info("partyline dates: {}".format(partyline_dates))
         if partyline_dates:
             partyline_dates = [(partyline_start + start, partyline_start + end,
                                 date_st, date_type, date_norm)

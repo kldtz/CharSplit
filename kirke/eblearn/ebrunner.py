@@ -20,7 +20,7 @@ from kirke.docstruct import fromtomapper, htmltxtparser, pdftxtparser
 from kirke.eblearn import annotatorconfig, ebannotator, ebpostproc, ebtrainer, lineannotator
 from kirke.eblearn import provclassifier, scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
-from kirke.utils import ebantdoc5, evalutils, lrucache, osutils, strutils
+from kirke.utils import ebantdoc5, evalutils, lrucache, modelfileutils, osutils, strutils
 
 from kirke.utils.ebantdoc5 import EbDocFormat, prov_ants_cpoint_to_cunit
 
@@ -129,7 +129,7 @@ class EbRunner:
         num_model = 0
 
         # load the available classifiers from dir_model
-        model_files = osutils.get_model_files(model_dir)
+        model_files = modelfileutils.get_model_file_names(model_dir)
         provision_classifier_map = {}
         for model_fn in model_files:
             full_model_fn = '{}/{}'.format(model_dir, model_fn)
@@ -175,7 +175,7 @@ class EbRunner:
 
         if num_model == 0:
             logger.error('No model is loaded from %s and %s.', model_dir, custom_model_dir)
-            logger.error('Please verify model file names match the filter in osutils.get_model_files()')
+            logger.error('Please verify model file names match the filter in modelfileutils.get_model_file_names()')
             return
 
         total_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
@@ -215,77 +215,106 @@ class EbRunner:
 
     def run_annotators_in_parallel(self,
                                    eb_antdoc: ebantdoc5.EbAnnotatedDoc,
-                                   provision_set=None) \
+                                   lang_provision_set: Optional[Set[str]] = None) \
                                    -> Dict[str, List]:
-        if not provision_set:
-            provision_set = self.provisions
+        if not lang_provision_set:
+            lang_provision_set = self.provisions
         #else:
-        #    logger.info("user specified provision list: %s", provision_set)
+        #    logger.info("user specified lang_provision list: %s", lang_provision_set)
         both_default_custom_provs = set(self.provision_annotator_map.keys())
         both_default_custom_provs.update(self.custom_annotator_map.keys())
         both_default_custom_provs.update(annotatorconfig.get_all_candidate_types())
 
+        # print('custom_annotator_map.keys() = {}'.format(self.custom_annotator_map.keys()))
+
+        annotations = defaultdict(list)  # type: DefaultDict[str, List]
         # Make sure all the provision's model are there
         prov_annotator_map = {}  # type: Dict[str, Any]
         prov_not_found_list = []  # type: List[str]
-        for provision in provision_set:
-            if provision in both_default_custom_provs:
-                prov_annotator_map[provision] = self.get_provision_annotator(provision)
+        to_remove_lang_provisions = []  # type: List[str]
+        for lang_provision in lang_provision_set:
+            if lang_provision in both_default_custom_provs:
+                prov_annotator_map[lang_provision] = self.get_provision_annotator(lang_provision)
             else:
-                prov_not_found_list.append(provision)
+                if lang_provision.startswith('cust_'):
+                    logger.warning('skipping custom model %s because not found.',
+                                   lang_provision)
+                    logger.warning('custom_model_dir = [%s]', self.custom_model_dir)
+
+                    # there is langid which we created at the end of the lang_provision
+                    # add that original provision name back, plus the missing language
+                    tmp_prov_name = lang_provision.split('.')[0]
+                    annotations[tmp_prov_name] = []
+                    to_remove_lang_provisions.append(lang_provision)
+                else:
+                    prov_not_found_list.append(lang_provision)
 
         if prov_not_found_list:
             # pylint: disable=line-too-long
             raise Exception("error: Cannot find model file for provisions, {}.".format(prov_not_found_list))
 
-        annotations = defaultdict(list)  # type: DefaultDict[str, List]
+        # remove provisions that have no specific trained language models
+        for to_rm_prov in to_remove_lang_provisions:
+            lang_provision_set.remove(to_rm_prov)
+
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
-                                                   prov_annotator_map[provision],
+                                                   prov_annotator_map[lang_provision],
                                                    eb_antdoc):
-                                   provision for provision in provision_set}
+                                   lang_provision for lang_provision in lang_provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
-                provision = future_to_provision[future]
+                lang_provision = future_to_provision[future]
                 ant_list = future.result()
                 # want to collapse language-specific cust models to one provision
 
-                if 'cust_' in provision and ant_list:
-                    provision = ant_list[0]['label']
+                # Use just provision name instead of lang_provision in
+                # the annotation result.
+                provision_name = lang_provision
+                if 'cust_' in lang_provision and ant_list:
+                    provision_name = ant_list[0]['label']
 
-                if '.' in provision:  # in case there is no ant_list
+                if '.' in provision_name:  # in case there is no ant_list
                     # remove version, chop off after '.'
-                    provision = provision.split('.')[0]
+                    provision_name = provision_name.split('.')[0]
                 # aggregates all annotations across languages for cust models
-                annotations[provision].extend(ant_list)
+                annotations[provision_name].extend(ant_list)
         return annotations
 
 
-    def get_custom_model_files(self, cust_id_ver: str) -> List[str]:
-        """Get the list of files that satisfy the cust_id_ver."""
+    # pylint: disable=invalid-name
+    def get_provision_custom_model_files(self, provision: str) -> List[str]:
+        """Get the list of files that satisfy the provision."""
 
-        result = [fname for unused_cust_id_ver, fname
-                  in osutils.get_custom_model_files(self.custom_model_dir,
-                                                    set([cust_id_ver]),
-                                                    lang='all')]
+        lang_provision_fname_list = \
+            modelfileutils.get_provision_custom_model_files(self.custom_model_dir,
+                                                            provision)
+        result = [fname for unused_lang_provision, fname in lang_provision_fname_list]
         return result
 
 
-    def update_custom_models(self, provision_set: Set[str], lang: str = 'en'):
+    def update_custom_models(self, lang_provision_set: Set[str]):
+        """Update internal data structure to load all custom models, if it is updated.
+
+        lang_provision_set has version and langid specified.
+
+        """
         provision_classifier_map = {}  # this can be either a spanannotator or scutclassifier
         orig_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
         num_model = 0
 
-        cust_prov_set = set([provision for provision in provision_set
-                             if provision.startswith('cust_')])
+        cust_lang_provision_set = set([provision for provision in lang_provision_set
+                                       if provision.startswith('cust_')])
 
         start_time_1 = time.time()
+        # print('update_custom_models lang= {}, dir={}:'.format(lang, self.custom_model_dir))
+        # print('cust_lang_provision_set: {}'.format(cust_lang_provision_set))
 
-        # cust_id_ver is exactly the same as the vaue in cust_prov_set
-        # because everyone else is using that.  Only the
-        # fname will reflect which version and which language
-        for cust_id_ver, fname in osutils.get_custom_model_files(self.custom_model_dir,
-                                                                 cust_prov_set,
-                                                                 lang):
+        # pylint: disable=line-too-long
+        for cust_lang_provision, fname in modelfileutils.get_custom_model_files(self.custom_model_dir,
+                                                                                cust_lang_provision_set):
+
+            # print('cust_lang_provision = [{}], fname= [{}]'.format(cust_lang_provision, fname))
+
             mtime = os.path.getmtime(os.path.join(self.custom_model_dir, fname))
             last_modified_date = datetime.fromtimestamp(mtime)
             old_timestamp = self.custom_model_timestamp_map.get(fname)
@@ -296,7 +325,7 @@ class EbRunner:
             # There is still some possibility that people might delete a version
             # while this is running.  For now, deletion operation should not
             # remove the file yet.
-            prov_annotator = self.custom_annotator_map.get(cust_id_ver)
+            prov_annotator = self.custom_annotator_map.get(cust_lang_provision)
 
             is_update_model = False
             if prov_annotator:  # found in cache
@@ -315,7 +344,7 @@ class EbRunner:
                 # it must produce annotations with that label, not with whatever is "embedded"
                 # in the saved model file (since the file could have been imported from another
                 # server)
-                prov_name = cust_id_ver.split('.')[0]
+                prov_name = cust_lang_provision.split('.')[0]
                 logger.info('updating custom provision model to annotate with %s', prov_name)
                 # print(prov_classifier)
                 logger.info(prov_classifier)
@@ -325,16 +354,17 @@ class EbRunner:
                     prov_classifier.transformer.provision = prov_name
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))
-                provision_classifier_map[cust_id_ver] = prov_classifier
-                logger.info('update custom model %s, [%s]', cust_id_ver, full_custom_model_fn)
+                provision_classifier_map[cust_lang_provision] = prov_classifier
+                logger.info('update custom model %s, [%s]',
+                            cust_lang_provision, full_custom_model_fn)
 
-                #if cust_id_ver in self.provisions:
+                #if cust_lang_provision in self.provisions:
                 #    logger.warning("*** WARNING ***  Replacing an existing provision: %s",
-                #                   cust_id_ver)
+                #                   cust_lang_provision)
 
                 self.custom_model_timestamp_map[fname] = last_modified_date
-                self.custom_model_fn_map[cust_id_ver] = full_custom_model_fn
-                self.provisions.add(cust_id_ver)
+                self.custom_model_fn_map[cust_lang_provision] = full_custom_model_fn
+                self.provisions.add(cust_lang_provision)
                 num_model += 1
 
         if provision_classifier_map:
@@ -369,15 +399,24 @@ class EbRunner:
                           doc_lang: str = 'en') \
                           -> Tuple[Dict[str, List],
                                    ebantdoc5.EbAnnotatedDoc]:
+        """Annotate a document with the provisions specified in provision_set.
+
+        'provision_set' is really a set of lang_provision, i.e., 'change_control',
+        'cust_12345.9393_pt'
+        """
         time1 = time.time()
         logger.info('user specified provision list: %s', provision_set)
         if not provision_set:
             # no provision specified.  Must be doing testing.
-            provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
-            provision_set.update(self.provisions)
+            lang_provision_set = modelfileutils.get_custom_prov_ver_langs(self.custom_model_dir)
+            lang_provision_set.update(self.provisions)
             # also get ALL custom provision set, since we are doing testing
             logger.info("custom_model_dir: %s", self.custom_model_dir)
-            logger.info("provision_set: %r", provision_set)
+            logger.info("lang_provision_set: %r", lang_provision_set)
+        else:
+            # logger.info('user specified provision list: %s', provision_set)
+            lang_provision_set = provision_set
+
 
         if not work_dir:
             work_dir = self.work_dir
@@ -385,7 +424,7 @@ class EbRunner:
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
         # print("provision_set: {}".format(provision_set))
-        self.update_custom_models(provision_set, doc_lang)
+        self.update_custom_models(lang_provision_set)
 
         eb_antdoc = ebantdoc5.text_to_ebantdoc(file_name,
                                                work_dir=work_dir,
@@ -396,33 +435,23 @@ class EbRunner:
         # otherwise, might cause classifier error if only have 1 error because of minmax
         if len(eb_antdoc.text) < 100:
             empty_result = {}  # type: Dict[str, List]
-            for prov in provision_set:
+            for prov in lang_provision_set:
+                # for custom models that has version information
+                if '.' in prov:
+                    # remove version, chop off after '.'
+                    prov = prov.split('.')[0]
                 empty_result[prov] = []
             # we always return eb_antdoc, not eb_antdoc3
             return empty_result, eb_antdoc
         # this execute the annotators in parallel
-        prov_labels_map = self.run_annotators_in_parallel(eb_antdoc, provision_set)
+        prov_labels_map = self.run_annotators_in_parallel(eb_antdoc,
+                                                          lang_provision_set=lang_provision_set)
         # this update the 'start_end_span_list' in each antx in-place
         # docutils.update_ants_gap_spans(prov_labels_map, eb_antdoc.gap_span_list, eb_antdoc.text)
         # update prov_labels_map based on rules
         self.apply_line_annotators(prov_labels_map,
                                    eb_antdoc,
                                    work_dir=work_dir)
-        # since nobody is using rate-table classifier yet
-        # we are disabling it for now.
-        # pylint: disable=pointless-string-statement
-        """
-        if eb_antdoc.doc_format == EbDocFormat.pdf:
-            # print("classify_table_list......................................")
-            rate_tables = rateclassifier.classify_table_list(eb_antdoc.table_list,
-                                                             eb_antdoc.nl_text)
-            #for rate_table in rate_tables:
-            #    print("rate_table: {}".format(rate_table))
-            prov_labels_map['rate_table'] = rate_tables
-        else:
-            # HTML document has no table detection, so 'rate-table' annotation is an empty list
-            prov_labels_map['rate_table'] = []
-        """
 
         # apply composite date logic
         update_dates_by_domain_rules(prov_labels_map)
@@ -453,25 +482,27 @@ class EbRunner:
             # using htmltxtparser instead of coding the necessary logic again on PDF.
             txt_base_fname = os.path.basename(eb_antdoc.file_id)
             paraline_fname = txt_base_fname.replace('.txt', '.paraline.txt')
-            paras_with_attrs, para_doc_text, unused_gap_span_list, \
-                unused_orig_doc_text, unused_sechead_list = \
-                htmltxtparser.parse_document('{}/{}'.format(work_dir, paraline_fname),
-                                             work_dir=work_dir,
-                                             is_combine_line=False)
+
+            # nlp_paras_with_attrs, nlp_doc_text, unused_gap_span_list, unused_orig_doc_text = \
+            html_text_doc = htmltxtparser.parse_document('{}/{}'.format(work_dir,
+                                                                        paraline_fname),
+                                                         work_dir=work_dir,
+                                                         is_combine_line=False,
+                                                         nlptxt_file_name=None)
 
             origin_sx_lnpos_list, nlp_sx_lnpos_list = \
-                fromtomapper.paras_to_fromto_lists(paras_with_attrs)
+                fromtomapper.paras_to_fromto_lists(html_text_doc.nlp_paras_with_attrs)
 
             # there is no offset map because paraline is the same
             self.apply_line_annotators_aux(prov_labels_map,
-                                           paras_with_attrs,
-                                           para_doc_text,
+                                           html_text_doc.nlp_paras_with_attrs,
+                                           html_text_doc.nlp_doc_text,
                                            nlp_sx_lnpos_list,
                                            origin_sx_lnpos_list,
                                            eb_antdoc.get_nl_text())
         else:
             self.apply_line_annotators_aux(prov_labels_map,
-                                           eb_antdoc.paras_with_attrs,
+                                           eb_antdoc.nlp_paras_with_attrs,
                                            eb_antdoc.get_nlp_text(),
                                            eb_antdoc.get_nlp_sx_lnpos_list(),
                                            eb_antdoc.get_origin_sx_lnpos_list(),
@@ -490,7 +521,7 @@ class EbRunner:
                                                   paraline_sx_lnpos_list,
                                                   origin_sx_lnpos_list)
 
-        # title works on the para_doc_text, not original text. so the
+        # title works on the nlp_doc_text, not original text. so the
         # offsets needs to be adjusted, just like for text4nlp stuff.
         # The offsets here differs from above because of line break differs.
         # As a result, probably more page numbers are detected correctly and skipped.

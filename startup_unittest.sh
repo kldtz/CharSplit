@@ -6,5 +6,9 @@
 export EB_FILES=eb_files_test/
 export EB_MODELS=dir-scut-model/
 
+# if ran before in this directory, to remove the cache
+# rm -rf eb_files_test/kirke_tmp/ dir-work dir-scut-model
+# tar xvfz *.gz
+
 export JOBLIB_START_METHOD="forkserver"
 gunicorn --timeout 9600 app:app

@@ -67,7 +67,7 @@ class TestParties3(unittest.TestCase):
         self.maxDiff = None
 
 
-    def test_export_train_party(self):
+    def test_export_train_party_40980(self):
         # pylint: disable=invalid-name
         self.maxDiff = None
 

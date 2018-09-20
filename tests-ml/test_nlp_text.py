@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+
+import unittest
+# import pprint
+import copy
+import shutil
+# pylint: disable=unused-import
+from typing import Any, Dict, Set
+
+from kirke.eblearn import ebrunner
+
+from kirke.docstruct import pdftxtparser
+from kirke.utils import docworddiff, ebantdoc4, txtreader
+from kirke.utils.ebantdoc4 import CORENLP_JSON_VERSION
+
+
+MODEL_DIR = 'dir-scut-model'
+WORK_DIR = 'dir-work'
+CUSTOM_MODEL_DIR = 'dir-custom-model'
+
+EB_RUNNER = ebrunner.EbRunner(MODEL_DIR,
+                              WORK_DIR,
+                              CUSTOM_MODEL_DIR)
+
+def annotate_doc(file_name: str) -> Dict[str, Any]:
+    doc_lang = 'en'
+    provision_set = set([])  # type: Set[str]
+    is_doc_structure = True
+
+    # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
+    #                      'party', 'warranty', 'termination', 'term']))
+    prov_labels_map, _ = EB_RUNNER.annotate_document(file_name,
+                                                     provision_set=provision_set,
+                                                     work_dir=WORK_DIR,
+                                                     doc_lang=doc_lang,
+                                                     is_doc_structure=is_doc_structure)
+
+    # because special case of 'effectivdate_auto'
+    if prov_labels_map.get('effectivedate'):
+        effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
+        for eff_ant in effectivedate_annotations:
+            eff_ant['label'] = 'effectivedate_auto'
+            prov_labels_map['effectivedate_auto'] = effectivedate_annotations
+            del prov_labels_map['effectivedate']
+
+    # pprint.pprint(prov_labels_map)
+    return prov_labels_map
+
+
+class TestNLPText(unittest.TestCase):
+
+    def test_nlp_text_1(self):
+        txt_base_name = 'trilinc.txt'
+        txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
+        offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
+        offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
+        shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
+        shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
+
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
+        unused_pdf_text_doc = pdftxtparser.parse_document(txt_fname,
+                                                          work_dir=WORK_DIR,
+                                                          nlptxt_file_name=nlptxt_file_name)
+
+        same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
+                                                           nlptxt_file_name)
+        self.assertEqual(len(same_list), 1974)
+        self.assertEqual(len(diff_list), 0)
+
+    def test_nlp_text_2(self):
+        txt_base_name = 'carousel.txt'
+        txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
+        offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
+        offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
+        shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
+        shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
+
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
+        unused_pdf_text_doc = pdftxtparser.parse_document(txt_fname,
+                                                          work_dir=WORK_DIR,
+                                                          nlptxt_file_name=nlptxt_file_name)
+
+        same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
+                                                                          nlptxt_file_name)
+
+        self.assertEqual(len(same_list), 5963)
+        self.assertEqual(len(diff_list), 0)
+
+    def test_is_continued_page_1(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
+
+        txt_base_name = 'trilinc.txt'
+        txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
+        offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
+        offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
+        shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
+        shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
+
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
+        pdf_text_doc = pdftxtparser.parse_document(txt_fname,
+                                                   work_dir=WORK_DIR,
+                                                   nlptxt_file_name=nlptxt_file_name)
+
+        is_continued_list = []  # type: List[bool]
+        for apage in pdf_text_doc.page_list:
+            is_continued_list.append(apage.is_continued_para_from_prev_page)
+
+        print("is_continued_list:")
+        print(is_continued_list)
+
+        gold_list = [False, False, False, False, False, False, False,
+                     False, False, False, False, False, True, False,
+                     True, False, False, True, False, False]
+
+        self.assertEqual(is_continued_list, gold_list)
+
+
+    def test_is_continued_page_2(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
+
+        txt_base_name = 'carousel.txt'
+        txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
+        offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
+        offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
+        shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
+        shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
+
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
+        pdf_text_doc = pdftxtparser.parse_document(txt_fname,
+                                                   work_dir=WORK_DIR,
+                                                   nlptxt_file_name=nlptxt_file_name)
+
+        is_continued_list = []  # type: List[bool]
+        for apage in pdf_text_doc.page_list:
+            is_continued_list.append(apage.is_continued_para_from_prev_page)
+
+        print("is_continued_list:")
+        print(is_continued_list)
+
+        gold_list = [False, False, False, False, False, False, False,
+                     True, False, False, False, True, False, False, False,
+                     True, False, True, False, True, False, False, False,
+                     False, False, False, False, True, False, False, True,
+                     False, True, False, False, True, True, False, False,
+                     True, True, True, False, True, True, False, False,
+                     True, False, False, False, True, False, True, False,
+                     True, False, True, False, True, True, False, False, True,
+                     False, False, False, False, True, False, False, True,
+                     True, False, False, False, False, False, False, False,
+                     False, False, False, False, False, False, False, False,
+                     False, False, False, False, False, False, True, False,
+                     True, False, False]
+
+        self.assertEqual(is_continued_list, gold_list)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -170,10 +170,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for label, count in pos_neg_map.items():
             logger.info("train_candidates(), pos_neg_map[%s] = %d", label, count)
 
-        # group_kfold = list(GroupKFold(n_splits=self.kfold).split(candidates,
-        #                                                          label_list,
-        #                                                          groups=group_id_list))
-
         group_kfold = list(StratifiedGroupKFold(n_splits=self.kfold).split(candidates,
                                                                            label_list,
                                                                            groups=group_id_list))
