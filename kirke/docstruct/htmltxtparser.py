@@ -341,8 +341,7 @@ class HTMLTextDoc:
 # pylint: disable=too-many-locals
 def parse_document(file_name: str,
                    work_dir: str,
-                   is_combine_line: bool,  # default to True before
-                   nlptxt_file_name: Optional[str]) \
+                   is_combine_line: bool) \
                    -> HTMLTextDoc:
     debug_mode = False
     base_fname = os.path.basename(file_name)
@@ -405,12 +404,6 @@ def parse_document(file_name: str,
                         print(out_line, file=fout2)
                     prev_out_line = tmp_outline
         print('wrote %s' % (sechead_fname, ), file=sys.stderr)
-
-
-    if nlptxt_file_name:
-        txtreader.dumps(paras_doc_text, nlptxt_file_name)
-        if IS_DEBUG_MODE:
-            print("wrote {}".format(nlptxt_file_name), file=sys.stderr)
 
     html_text_doc = HTMLTextDoc(file_name,
                                 doc_text=orig_doc_text,

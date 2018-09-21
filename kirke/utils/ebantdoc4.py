@@ -34,8 +34,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # logger.setLevel(logging.DEBUG)
 
-CORENLP_JSON_VERSION = '1.11'
-EBANTDOC_VERSION = '1.11'
+CORENLP_JSON_VERSION = '1.12'
+EBANTDOC_VERSION = '1.12'
 
 
 def get_corenlp_json_fname(txt_basename, work_dir):
@@ -46,7 +46,7 @@ def get_corenlp_json_fname(txt_basename, work_dir):
 
 def get_nlp_file_name(doc_text, work_dir):
     nlptxt_hash = md5()
-    nlptxt_hash.update(doc_text)
+    nlptxt_hash.update(doc_text.encode('utf-8'))
     nlptxt_hashed = nlptxt_hash.hexdigest()
     base_fn = '{}.nlp.v{}.txt'.format(nlptxt_hashed, CORENLP_JSON_VERSION)
     return '{}/{}'.format(work_dir, base_fn)
@@ -127,7 +127,6 @@ class EbAnnotatedDoc4:
         self.footer_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
         self.signature_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
 
-        # self.nlp_text = self.get_nlp_text_aux()
 
 
     def get_file_id(self):
@@ -181,19 +180,7 @@ class EbAnnotatedDoc4:
         doc_text = self.text
         if not self.nlp_paras_with_attrs:  # html or html_no_docstruct
             return doc_text
-
-        para_st_list = []
-        for nlp_para_with_attrs in self.nlp_paras_with_attrs:
-
-            # print("para_with_attrs: {}".format(para_with_attrs))
-            lnpos_pair_list, unused_attrs = nlp_para_with_attrs
-            for from_lnpos, unused_to_lnpos in lnpos_pair_list:
-                from_start, from_end, unused_from_line_num = from_lnpos.to_tuple()
-                para_st_list.append(doc_text[from_start:from_end])
-
-            # para_st_list.append(' '.join(para_st_list))
-        nlp_text = '\n'.join(para_st_list)
-        return nlp_text
+        return text_from_para_with_attrs(doc_text, self.nlp_paras_with_attrs)
 
     def get_nlp_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
         return [(elt.start, elt) for elt in self.nlp_lnpos_list]
@@ -207,6 +194,19 @@ class EbAnnotatedDoc4:
     def get_doc_format(self) -> EbDocFormat:
         return self.doc_format
 
+def text_from_para_with_attrs(doc_text, nlp_paras_with_attrs):
+    para_st_list = []
+    for nlp_para_with_attrs in nlp_paras_with_attrs:
+
+        # print("para_with_attrs: {}".format(para_with_attrs))
+        lnpos_pair_list, unused_attrs = nlp_para_with_attrs
+        for from_lnpos, unused_to_lnpos in lnpos_pair_list:
+            from_start, from_end, unused_from_line_num = from_lnpos.to_tuple()
+            para_st_list.append(doc_text[from_start:from_end])
+
+        # para_st_list.append(' '.join(para_st_list))
+    nlp_text = '\n'.join(para_st_list)
+    return nlp_text
 
 def remove_prov_greater_offset(prov_annotation_list, max_offset):
     return [prov_ant for prov_ant in prov_annotation_list
@@ -295,8 +295,6 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
                                                                corenlp_json,
                                                                para_doc_text,
                                                                is_doc_structure=True)
-        # ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name,
-        #                                                        corenlp_json, para_doc_text)
         # print('number of sentences: {}'.format(len(ebsent_list)))
 
         if nlp_paras_with_attrs:
@@ -472,12 +470,13 @@ def html_to_ebantdoc4(txt_file_name: str,
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
-    nlptxt_file_name = get_nlp_file_name(doc_text, work_dir)
-    # nlp_paras_with_attrs, nlp_doc_text, exclude_offsets, _ = \
     html_text_doc = htmltxtparser.parse_document(txt_file_name,
                                                  work_dir=work_dir,
-                                                 is_combine_line=True,
-                                                 nlptxt_file_name=nlptxt_file_name)
+                                                 is_combine_line=True)
+
+    nlp_text = text_from_para_with_attrs(doc_text, html_text_doc.nlp_paras_with_attrs)
+    nlptxt_file_name = get_nlp_file_name(nlp_text, work_dir)
+    txtreader.dumps(nlp_text, nlptxt_file_name)
 
     attrvec_list, nlp_prov_ant_list, origin_lnpos_list, nlp_lnpos_list = \
         nlptxt_to_attrvec_list(html_text_doc.nlp_doc_text,
@@ -568,15 +567,16 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name,
                                                work_dir=work_dir)  # type: PDFTextDoc
 
-    nlptxt_file_name = get_nlp_file_name(pdf_text_doc.nlp_doc_text, work_dir)
-    txtreader.dumps(pdf_text_doc.nlp_doc_text, nlptxt_file_name)
+    nlp_text = text_from_para_with_attrs(pdf_text_doc.doc_text, pdf_text_doc.nlp_paras_with_attrs)
+    nlptxt_file_name = get_nlp_file_name(nlp_text, work_dir)
+    txtreader.dumps(nlp_text, nlptxt_file_name)
 
     prov_annotation_list, is_test = \
         ebsentutils.load_prov_annotation_list(txt_file_name,
                                               pdf_text_doc.cpoint_cunit_mapper)
 
     attrvec_list, nlp_prov_ant_list, origin_lnpos_list, nlp_lnpos_list = \
-        nlptxt_to_attrvec_list(pdf_text_doc.nlp_doc_text,
+        nlptxt_to_attrvec_list(nlp_text,
                                txt_file_name,
                                txt_base_fname,
                                prov_annotation_list,

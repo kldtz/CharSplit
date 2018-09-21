@@ -484,8 +484,7 @@ class EbRunner:
             # nlp_paras_with_attrs, nlp_doc_text, unused_gap_span_list, unused_orig_doc_text = \
             html_text_doc = htmltxtparser.parse_document('{}/{}'.format(work_dir, paraline_fname),
                                                          work_dir=work_dir,
-                                                         is_combine_line=False,
-                                                         nlptxt_file_name=None)
+                                                         is_combine_line=False)
 
             origin_sx_lnpos_list, nlp_sx_lnpos_list = \
                 fromtomapper.paras_to_fromto_lists(html_text_doc.nlp_paras_with_attrs)
