@@ -213,7 +213,7 @@ def remove_prov_greater_offset(prov_annotation_list, max_offset):
             if prov_ant.start < max_offset]
 
 
-def load_cached_ebantdoc4(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc4]:
+def load_cached_ebantdoc4(eb_antdoc_fn: str, work_dir: str) -> Optional[EbAnnotatedDoc4]:
     """Load from pickled file if file exist, otherwise None"""
 
     # if cache version exists, load that and return
@@ -226,8 +226,11 @@ def load_cached_ebantdoc4(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc4]:
             end_time = time.time()
             logger.info("loading from cache: %s, took %.0f msec",
                         eb_antdoc_fn, (end_time - start_time) * 1000)
-
-            return eb_antdoc
+            nlp_text_fname = get_nlp_file_name(eb_antdoc.get_nlp_text(), work_dir)
+            if os.path.exists(nlp_text_fname):
+                return eb_antdoc
+            else:
+                raise Exception
         # pylint: disable=broad-except
         except Exception:  # if failed to load cache using joblib.load()
             logger.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.",
@@ -630,7 +633,6 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
 
     # if cache version exists, load that and return
     start_time = time.time()
-
     # we don't bother to check for is_use_corenlp, assume that's True
     if is_cache_enabled:
         json_fn = get_corenlp_json_fname(txt_base_fname, work_dir)
@@ -699,7 +701,7 @@ def text_to_ebantdoc4(txt_fname: str,
             try:
                 # check if file exist, if it is, load it and return
                 # regarless of the existing PDF or HtML or is_doc_structure
-                eb_antdoc = load_cached_ebantdoc4(eb_antdoc_fn)
+                eb_antdoc = load_cached_ebantdoc4(eb_antdoc_fn, work_dir)
                 if is_bespoke_mode and eb_antdoc:
                     tmp_prov_ant_list, unused_is_test = \
                         ebsentutils.load_prov_annotation_list(txt_fname,
