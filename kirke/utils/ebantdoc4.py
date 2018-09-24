@@ -213,7 +213,7 @@ def remove_prov_greater_offset(prov_annotation_list, max_offset):
             if prov_ant.start < max_offset]
 
 
-def load_cached_ebantdoc4(eb_antdoc_fn: str, work_dir: str) -> Optional[EbAnnotatedDoc4]:
+def load_cached_ebantdoc4(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc4]:
     """Load from pickled file if file exist, otherwise None"""
 
     # if cache version exists, load that and return
@@ -463,7 +463,7 @@ def html_to_ebantdoc4(txt_file_name: str,
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
-    doc_id = txt_file_name.replace('.txt', '')
+    doc_id = txt_file_name.replace('.txt', '').split('/')[-1]
     # print("html_to_ebantdoc4({}, {}, is_cache_eanbled={}".format(txt_file_name,
     #                                                              work_dir, is_cache_enabled))
 
@@ -545,7 +545,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     logger.debug('pdf_to_ebantdoc4(%s)', txt_file_name)
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
-    doc_id = txt_file_name.replace('.txt', '')
+    doc_id = txt_file_name.replace('.txt', '').split('/')[-1]
     offsets_base_fname = os.path.basename(offsets_file_name)
 
     # PDF files are mostly used by our users, not for training and test.
@@ -693,7 +693,7 @@ def text_to_ebantdoc4(txt_fname: str,
             try:
                 # check if file exist, if it is, load it and return
                 # regarless of the existing PDF or HtML or is_doc_structure
-                eb_antdoc = load_cached_ebantdoc4(eb_antdoc_fn, work_dir)
+                eb_antdoc = load_cached_ebantdoc4(eb_antdoc_fn)
                 if is_bespoke_mode and eb_antdoc:
                     tmp_prov_ant_list, unused_is_test = \
                         ebsentutils.load_prov_annotation_list(txt_fname,

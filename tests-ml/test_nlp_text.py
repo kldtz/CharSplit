@@ -51,6 +51,7 @@ class TestNLPText(unittest.TestCase):
 
     def test_nlp_text_1(self):
         txt_base_name = 'trilinc.txt'
+        doc_id = txt_base_name.replace('.txt', '')
         txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
         offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
         offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
@@ -61,7 +62,7 @@ class TestNLPText(unittest.TestCase):
                                     offsets_fname,
                                     WORK_DIR)
 
-        nlptxt_file_name = ebantdoc4.get_nlp_file_name(ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
                                                            nlptxt_file_name)
         self.assertEqual(len(same_list), 1974)
@@ -69,6 +70,7 @@ class TestNLPText(unittest.TestCase):
 
     def test_nlp_text_2(self):
         txt_base_name = 'carousel.txt'
+        doc_id = txt_base_name.replace('.txt', '')
         txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
         offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
         offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
@@ -79,7 +81,7 @@ class TestNLPText(unittest.TestCase):
                                     offsets_fname,
                                     WORK_DIR)
 
-        nlptxt_file_name = ebantdoc4.get_nlp_file_name(ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
                                                                           nlptxt_file_name)
 
