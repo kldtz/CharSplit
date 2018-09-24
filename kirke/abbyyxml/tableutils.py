@@ -1187,8 +1187,10 @@ def is_invalid_table_aux(ab_table: AbbyyTableBlock) -> bool:
             print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
         return True
 
-    # saw a two-line table,table_y_diff is 85
-    if table_y_diff <= 80:
+    # Saw a two-line table,table_y_diff is 85
+    # but that table has no heading.  Keeping
+    # a minimal table as 100.
+    if table_y_diff <= 100:
         if IS_DEBUG_INVALID_TABLE:
             print("--- is_invalid_table(), too small y-diff")
             print("  table_y_top_bottom: {}, {}, diff={}".format(table_top_y,
