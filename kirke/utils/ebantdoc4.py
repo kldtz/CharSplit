@@ -34,8 +34,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # logger.setLevel(logging.DEBUG)
 
-CORENLP_JSON_VERSION = '1.12'
-EBANTDOC_VERSION = '1.12'
+CORENLP_JSON_VERSION = '1.11'
+EBANTDOC_VERSION = '1.11'
 
 
 def get_corenlp_json_fname(txt_basename, work_dir):
@@ -44,11 +44,11 @@ def get_corenlp_json_fname(txt_basename, work_dir):
     return '{}/{}'.format(work_dir, base_fn)
 
 
-def get_nlp_file_name(doc_text, work_dir):
+def get_nlp_file_name(doc_id, doc_text, work_dir):
     nlptxt_hash = md5()
     nlptxt_hash.update(doc_text.encode('utf-8'))
     nlptxt_hashed = nlptxt_hash.hexdigest()
-    base_fn = '{}.nlp.v{}.txt'.format(nlptxt_hashed, CORENLP_JSON_VERSION)
+    base_fn = '{}-{}.nlp.v{}.txt'.format(doc_id, nlptxt_hashed, CORENLP_JSON_VERSION)
     return '{}/{}'.format(work_dir, base_fn)
 
 
@@ -226,11 +226,7 @@ def load_cached_ebantdoc4(eb_antdoc_fn: str, work_dir: str) -> Optional[EbAnnota
             end_time = time.time()
             logger.info("loading from cache: %s, took %.0f msec",
                         eb_antdoc_fn, (end_time - start_time) * 1000)
-            nlp_text_fname = get_nlp_file_name(eb_antdoc.get_nlp_text(), work_dir)
-            if os.path.exists(nlp_text_fname):
-                return eb_antdoc
-            else:
-                raise Exception
+            return eb_antdoc
         # pylint: disable=broad-except
         except Exception:  # if failed to load cache using joblib.load()
             logger.warning("Detected an issue calling load_cached_ebantdoc4(%s).  Skip cache.",
@@ -467,6 +463,7 @@ def html_to_ebantdoc4(txt_file_name: str,
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
+    doc_id = txt_file_name.replace('.txt', '')
     # print("html_to_ebantdoc4({}, {}, is_cache_eanbled={}".format(txt_file_name,
     #                                                              work_dir, is_cache_enabled))
 
@@ -478,7 +475,7 @@ def html_to_ebantdoc4(txt_file_name: str,
                                                  is_combine_line=True)
 
     nlp_text = text_from_para_with_attrs(doc_text, html_text_doc.nlp_paras_with_attrs)
-    nlptxt_file_name = get_nlp_file_name(nlp_text, work_dir)
+    nlptxt_file_name = get_nlp_file_name(doc_id, nlp_text, work_dir)
     txtreader.dumps(nlp_text, nlptxt_file_name)
 
     attrvec_list, nlp_prov_ant_list, origin_lnpos_list, nlp_lnpos_list = \
@@ -548,6 +545,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     logger.debug('pdf_to_ebantdoc4(%s)', txt_file_name)
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
+    doc_id = txt_file_name.replace('.txt', '')
     offsets_base_fname = os.path.basename(offsets_file_name)
 
     # PDF files are mostly used by our users, not for training and test.
@@ -571,7 +569,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
                                                work_dir=work_dir)  # type: PDFTextDoc
 
     nlp_text = text_from_para_with_attrs(pdf_text_doc.doc_text, pdf_text_doc.nlp_paras_with_attrs)
-    nlptxt_file_name = get_nlp_file_name(nlp_text, work_dir)
+    nlptxt_file_name = get_nlp_file_name(doc_id, nlp_text, work_dir)
     txtreader.dumps(nlp_text, nlptxt_file_name)
 
     prov_annotation_list, is_test = \
@@ -633,10 +631,11 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
 
     # if cache version exists, load that and return
     start_time = time.time()
+    doc_id = txt_base_fname.replace('.txt', '').split('/')[-1]
     # we don't bother to check for is_use_corenlp, assume that's True
     if is_cache_enabled:
         json_fn = get_corenlp_json_fname(txt_base_fname, work_dir)
-        nlp_fn = get_nlp_file_name(doc_text, work_dir)
+        nlp_fn = get_nlp_file_name(doc_id, doc_text, work_dir)
         if os.path.exists(json_fn) and os.path.exists(nlp_fn):
             corenlp_json = json.loads(strutils.loads(json_fn))
             end_time = time.time()
@@ -690,13 +689,6 @@ def text_to_ebantdoc4(txt_fname: str,
         if work_dir is None:
             work_dir = '/tmp'
         eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
-        # print("text_to_ebantdoc({})".format(eb_antdoc_fn))
-        # never want to save in bespoke_mode because annotation can change
-            #if os.path.exists(eb_antdoc_fn):
-            #    os.remove(eb_antdoc_fn)
-            # corenlp should be cache so that we don't run it again for same
-            # files.
-            # is_cache_enabled = False
         if is_cache_enabled and is_use_corenlp:
             try:
                 # check if file exist, if it is, load it and return
