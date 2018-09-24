@@ -1,11 +1,10 @@
 
-from collections import defaultdict
 import logging
 import os
 import sys
-from typing import DefaultDict, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
-from kirke.docstruct import pdfutils
+# pylint: disable=unused-import
 from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, LineWithAttrs, LineInfo3
 from kirke.utils import txtreader
 
@@ -354,8 +353,7 @@ def linex_list_to_multi_line_pblock_info(linex_list: List[LineWithAttrs],
 
 
 
-def adjust_title_page_blocks(apage: PageInfo3,
-                             doc_text: str) -> None:
+def adjust_title_page_blocks(apage: PageInfo3) -> None:
     """After found that this page is a title page, use original PDFBOx's
        block id instead of Kirke's version based on ydiff.
 

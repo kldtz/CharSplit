@@ -650,10 +650,6 @@ def parse_document(file_name: str,
                                   cpoint_cunit_mapper)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
 
-    for str_offset in str_offsets:
-        start = str_offset['start']
-        end = str_offset['end']
-
     nl_text, linebreak_offset_list = \
         pdfdocutils.text_offsets_to_nl(base_fname,
                                        doc_text,
@@ -817,7 +813,7 @@ def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
         if page.page_num <= 3:
             if pdfdocutils.is_title_page(page):
                 page.is_title_page = True
-                pdfdocutils.adjust_title_page_blocks(page, pdftxt_doc.doc_text)
+                pdfdocutils.adjust_title_page_blocks(page)
                 # print("++ page #{} is a title page".format(page.page_num))
             # else:
             #     print("-- page #{} is NOT a title".format(page.page_num))

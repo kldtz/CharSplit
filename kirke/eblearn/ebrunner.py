@@ -588,11 +588,12 @@ class EbRunner:
             provision = list(provision_set)[0]
             annotator2 = self.provision_annotator_map[provision]
             if isinstance(annotator2, spanannotator.SpanAnnotator):
-                ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
-                                                                   self.work_dir,
-                                                                   # for TABLE, is_use_corenlp == True
-                                                                   # all other are False
-                                                                   is_use_corenlp=annotator2.is_use_corenlp)
+                ebantdoc_list = \
+                    ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
+                                                       self.work_dir,
+                                                       # for TABLE, is_use_corenlp == True
+                                                       # all other are False
+                                                       is_use_corenlp=annotator2.is_use_corenlp)
             else:
                 ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir)

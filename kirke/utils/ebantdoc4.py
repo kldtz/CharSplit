@@ -589,9 +589,10 @@ def pdf_to_ebantdoc(txt_file_name: str,
             shutil.copy2(pdfxml_file_name, '{}/{}'.format(work_dir, pdfxml_base_fname))
 
     nlptxt_file_name = get_nlp_file_name(txt_base_fname, work_dir)
-    pdf_text_doc = pdftxtparser.parse_document(txt_file_name,
-                                               work_dir=work_dir,
-                                               nlptxt_file_name=nlptxt_file_name)  # type: PDFTextDoc
+    pdf_text_doc = \
+        pdftxtparser.parse_document(txt_file_name,
+                                    work_dir=work_dir,
+                                    nlptxt_file_name=nlptxt_file_name)  # type: PDFTextDoc
 
     prov_annotation_list, is_test = \
         ebsentutils.load_prov_annotation_list(txt_file_name,
