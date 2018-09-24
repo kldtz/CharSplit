@@ -213,10 +213,10 @@ class TestAlingedStr(unittest.TestCase):
                          [(0, 24), (24, 34)])
         self.assertEqual(ms_mapper.to_se_list,
                          [(0, 24), (27, 37)])
-        self.assertEqual(ms_mapper.extra_fse,
-                         None)
-        self.assertEqual(ms_mapper.extra_tse,
-                         None)
+        self.assertEqual(ms_mapper.extra_fse_list,
+                         [])
+        self.assertEqual(ms_mapper.extra_tse_list,
+                         [])
 
         line2 = 'Street/P.O. Box \ \°A i Uf-g GC\fCÍ___________________________________________'
         line1 = 'Street/P.O. Box \ \°A i    Uf-g GC\fCÍ _'
@@ -226,10 +226,10 @@ class TestAlingedStr(unittest.TestCase):
         self.assertEqual(ms_mapper.to_se_list,
                          [(0, 24), (24, 34)])
         # this should preferably be None, but ok
-        self.assertEqual(ms_mapper.extra_fse,
-                         (37, 39))
-        self.assertEqual(ms_mapper.extra_tse,
-                         None)
+        self.assertEqual(ms_mapper.extra_fse_list,
+                         [(37, 39)])
+        self.assertEqual(ms_mapper.extra_tse_list,
+                         [])
 
         line1 = 'aaaStreet/P.O. Box \ \°A i Uf-g GC\fCÍ___________________________________________'
         line2 = 'Street/P.O. Box \ \°A i    Uf-g GC\fCÍ _'
@@ -238,10 +238,10 @@ class TestAlingedStr(unittest.TestCase):
                          [(3, 27), (27, 37)])
         self.assertEqual(ms_mapper.to_se_list,
                          [(0, 24), (27, 37)])
-        self.assertEqual(ms_mapper.extra_fse,
-                         (0, 3))
-        self.assertEqual(ms_mapper.extra_tse,
-                         None)
+        self.assertEqual(ms_mapper.extra_fse_list,
+                         [(0, 3)])
+        self.assertEqual(ms_mapper.extra_tse_list,
+                         [])
 
         line2 = 'aaaStreet/P.O. Box \ \°A i Uf-g GC\fCÍ___________________________________________'
         line1 = 'Street/P.O. Box \ \°A i    Uf-g GC\fCÍ _'
@@ -250,10 +250,10 @@ class TestAlingedStr(unittest.TestCase):
                          [(0, 24), (27, 37)])
         self.assertEqual(ms_mapper.to_se_list,
                          [(3, 27), (27, 37)])
-        self.assertEqual(ms_mapper.extra_fse,
-                         None)
-        self.assertEqual(ms_mapper.extra_tse,
-                         (0, 3))
+        self.assertEqual(ms_mapper.extra_fse_list,
+                         [])
+        self.assertEqual(ms_mapper.extra_tse_list,
+                         [(0, 3)])
 
         line1 = r'tWr Ы6 ^nC\\'
         line2 = r'tWrЫ6^nC\\'
@@ -262,10 +262,10 @@ class TestAlingedStr(unittest.TestCase):
                          [(0, 3), (4, 6), (7, 12)])
         self.assertEqual(ms_mapper.to_se_list,
                          [(0, 3), (3, 5), (5, 10)])
-        self.assertEqual(ms_mapper.extra_fse,
-                         None)
-        self.assertEqual(ms_mapper.extra_tse,
-                         None)
+        self.assertEqual(ms_mapper.extra_fse_list,
+                         [])
+        self.assertEqual(ms_mapper.extra_tse_list,
+                         [])
 
 
         line2 = r'tWr Ы6 ^nC\\'
@@ -275,7 +275,7 @@ class TestAlingedStr(unittest.TestCase):
                          [(0, 3), (3, 5), (5, 10)])
         self.assertEqual(ms_mapper.to_se_list,
                          [(0, 3), (4, 6), (7, 12)])
-        self.assertEqual(ms_mapper.extra_fse,
-                         None)
-        self.assertEqual(ms_mapper.extra_tse,
-                         None)
+        self.assertEqual(ms_mapper.extra_fse_list,
+                         [])
+        self.assertEqual(ms_mapper.extra_tse_list,
+                         [])

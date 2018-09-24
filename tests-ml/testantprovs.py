@@ -283,7 +283,8 @@ class TestAntDocCat(unittest.TestCase):
                            ('demo-txt/8288.txt', 'party', 4, 0, 0),
                            # the FP seems invalid
                            # ('demo-txt/8288.txt', 'remedy', 2, 0, 0),
-                           ('demo-txt/8288.txt', 'remedy', 2, 0, 1),  # has_diff: verified, to fix
+                           # ('demo-txt/8288.txt', 'remedy', 2, 0, 1),  # has_diff: verified, to fix
+                           ('demo-txt/8288.txt', 'remedy', 2, 0, 0),
                            ('demo-txt/8288.txt', 'renewal', 1, 0, 0),
                            ('demo-txt/8288.txt', 'termination', 7, 0, 0),
                            ('demo-txt/8288.txt', 'term', 2, 0, 0),

@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
-IS_DEBUG_MODE = True
+IS_DEBUG_MODE = False
 IS_DEBUG_TOC = False
 
 IS_DEBUG_DETAIL_MODE = False
