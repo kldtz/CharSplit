@@ -463,7 +463,7 @@ def html_to_ebantdoc4(txt_file_name: str,
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
-    doc_id = txt_file_name.replace('.txt', '')
+    doc_id = txt_file_name.replace('.txt', '').split('/')[-1]
     # print("html_to_ebantdoc4({}, {}, is_cache_eanbled={}".format(txt_file_name,
     #                                                              work_dir, is_cache_enabled))
 
@@ -545,7 +545,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     logger.debug('pdf_to_ebantdoc4(%s)', txt_file_name)
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
-    doc_id = txt_file_name.replace('.txt', '')
+    doc_id = txt_file_name.replace('.txt', '').split('/')[-1]
     offsets_base_fname = os.path.basename(offsets_file_name)
 
     # PDF files are mostly used by our users, not for training and test.

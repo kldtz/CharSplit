@@ -652,6 +652,7 @@ def parse_document(file_name: str,
 
     nlp_paras_with_attrs = to_nlp_paras_with_attrs(pdf_text_doc)
 
+
     # for i, (gap_start, gap_end) in enumerate(gap2_span_list):
     #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
     if not nlp_paras_with_attrs:
