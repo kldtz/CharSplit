@@ -167,6 +167,9 @@ class AbbyyTableBlock:
         self.table_id = -1
         self.page_num = -1
         self.is_abbyy_original = is_abbyy_original
+        # this will be set to True if is_invalid_table() is triggered
+        # in tableutils
+        self.is_invalid_kirke_table = False
 
         # for indexining into page's ab_blocks
         self.page_block_seq = -1
@@ -490,23 +493,46 @@ class AbbyyXmlDoc:
                                                                   '',
                                                                   abbyy_page.infer_attr_dict,
                                                                   abbyy_page.attr_dict), file=file)
-            for ab_text_block in abbyy_page.ab_text_blocks:
-                print("\n  block #{:3d} -------- {:95}{}    {}".format(ab_text_block.num,
+            for ab_block in abbyy_page.ab_blocks:
+                if isinstance(ab_block, AbbyyTextBlock):
+                    ab_text_block = ab_block
+                    print("\n  block #{:3d} -------- {:95}{}    {}".format(ab_text_block.num,
+                                                                           '',
+                                                                           # pylint: disable=line-too-long
+                                                                           ab_text_block.infer_attr_dict,
+                                                                           # pylint: disable=line-too-long
+                                                                           ab_text_block.attr_dict), file=file)
+                    for ab_par in ab_text_block.ab_pars:
+                        print("\n    par #{:3d} {:104}{}    {}".format(ab_par.num,
                                                                        '',
-                                                                       # pylint: disable=line-too-long
-                                                                       ab_text_block.infer_attr_dict,
-                                                                       # pylint: disable=line-too-long
-                                                                       ab_text_block.attr_dict), file=file)
-                for ab_par in ab_text_block.ab_pars:
-                    print("\n    par #{:3d} {:104}{}    {}".format(ab_par.num,
-                                                                   '',
-                                                                   ab_par.infer_attr_dict,
-                                                                   ab_par.attr_dict), file=file)
-                    for ab_line in ab_par.ab_lines:
-                        print("      line #{} {:100} {}    {}".format(ab_line.num,
-                                                                      '[' + ab_line.text + ']',
-                                                                      ab_line.infer_attr_dict,
-                                                                      ab_line.attr_dict), file=file)
+                                                                       ab_par.infer_attr_dict,
+                                                                       ab_par.attr_dict), file=file)
+                        for ab_line in ab_par.ab_lines:
+                            print("      line #{} {:100} {}    {}".format(ab_line.num,
+                                                                          '[' + ab_line.text + ']',
+                                                                          ab_line.infer_attr_dict,
+                                                                          ab_line.attr_dict), file=file)
+                elif isinstance(ab_block, AbbyyTableBlock):
+                    ab_table_block = ab_block  # type: AbbyyTableBlock
+                    # pylint: disable=line-too-long
+                    print("\n  ----- block #{:3d}, page_num={} --Table--".format(ab_table_block.num,
+                                                                                 ab_table_block.page_num), file=file)
+                    print("  {}".format(_pprint_table_attrs(ab_table_block.attr_dict)),
+                          file=file)
+
+                    for row_id, ab_row in enumerate(ab_table_block.ab_rows):
+                        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict), file=file)
+                        print(file=file)
+                        print("    {:26}--- row #{}".format('', row_id), file=file)
+                        for cell_seq, ab_cell in enumerate(ab_row.ab_cells):
+                            print("    {:26}  -- cell #{}:".format('', cell_seq), file=file)
+                            for ab_par in ab_cell.ab_pars:
+                                for unused_lid, ab_line in enumerate(ab_par.ab_lines):
+                                    print("    {:26}        [{}]".format('',
+                                                                         ab_line.text),
+                                          file=file)
+                else:
+                    raise ValueError
 
 
     def print_infer_text(self, file: TextIO = sys.stdout):
@@ -517,21 +543,47 @@ class AbbyyXmlDoc:
                                                             '',
                                                             abbyy_page.infer_attr_dict),
                   file=file)
-            for ab_text_block in abbyy_page.ab_text_blocks:
-                print("\n  block #{:3d} -------- {:95}{}".format(ab_text_block.num,
-                                                                 '',
-                                                                 ab_text_block.infer_attr_dict),
-                      file=file)
-                for ab_par in ab_text_block.ab_pars:
-                    print("\n    par #{:3} {:104}{}".format(ab_par.num,
-                                                            '',
-                                                            ab_par.infer_attr_dict),
+
+            print('len(abbyy_page.ab_blocks) = %d' % len(abbyy_page.ab_blocks), file=file)
+            print('len(abbyy_page.ab_text_blocks) = %d' % len(abbyy_page.ab_text_blocks), file=file)
+            for ab_block in abbyy_page.ab_blocks:
+                if isinstance(ab_block, AbbyyTextBlock):
+                    ab_text_block = ab_block  # type: AbbyyTextBlock
+                    print("\n  block #{:3d} -------- {:95}{}".format(ab_text_block.num,
+                                                                     '',
+                                                                     ab_text_block.infer_attr_dict),
                           file=file)
-                    for ab_line in ab_par.ab_lines:
-                        print("      line #{} {:100} {}".format(ab_line.num,
-                                                                '[' + ab_line.text + ']',
-                                                                ab_line.infer_attr_dict),
+                    for ab_par in ab_text_block.ab_pars:
+                        print("\n    par #{:3} {:104}{}".format(ab_par.num,
+                                                                '',
+                                                                ab_par.infer_attr_dict),
                               file=file)
+                        for ab_line in ab_par.ab_lines:
+                            print("      line #{} {:100} {}".format(ab_line.num,
+                                                                    '[' + ab_line.text + ']',
+                                                                    ab_line.infer_attr_dict),
+                                  file=file)
+                elif isinstance(ab_block, AbbyyTableBlock):
+                    ab_table_block = ab_block  # type: AbbyyTableBlock
+                    # pylint: disable=line-too-long
+                    print("\n  ----- block #{:3d}, page_num={} --Table--".format(ab_table_block.num,
+                                                                                 ab_table_block.page_num), file=file)
+                    print("  {}".format(_pprint_table_attrs(ab_table_block.attr_dict)),
+                          file=file)
+
+                    for row_id, ab_row in enumerate(ab_table_block.ab_rows):
+                        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict), file=file)
+                        print(file=file)
+                        print("    {:26}--- row #{}".format('', row_id), file=file)
+                        for cell_seq, ab_cell in enumerate(ab_row.ab_cells):
+                            print("    {:26}  -- cell #{}:".format('', cell_seq), file=file)
+                            for ab_par in ab_cell.ab_pars:
+                                for unused_lid, ab_line in enumerate(ab_par.ab_lines):
+                                    print("    {:26}        [{}]".format('',
+                                                                         ab_line.text),
+                                          file=file)
+                else:
+                    raise ValueError
 
 
     # pylint: disable=too-many-nested-blocks, too-many-branches, too-many-locals

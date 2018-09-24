@@ -191,7 +191,6 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('TABLE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                       'is_use_corenlp': True,
-                      'is_doc_structure': True,
                       'doc_to_candidates': [tablegen.TableGenerator('TABLE')],
                       'version': "1.0",
                       'doc_postproc_list': [postproc.TablePostProcessing()],

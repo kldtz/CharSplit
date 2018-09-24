@@ -590,7 +590,9 @@ class EbRunner:
             if isinstance(annotator2, spanannotator.SpanAnnotator):
                 ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir,
-                                                                   is_use_corenlp=False)
+                                                                   # for TABLE, is_use_corenlp == True
+                                                                   # all other are False
+                                                                   is_use_corenlp=annotator2.is_use_corenlp)
             else:
                 ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir)

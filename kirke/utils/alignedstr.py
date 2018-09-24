@@ -142,6 +142,7 @@ def compute_se_list(from_line: str,
                       List[Tuple[int, int]],
                       Optional[Tuple[int, int]],
                       Optional[Tuple[int, int]]]]:
+    """When return the extra fextra or textra, adjust for spaceprefix."""
     flen, tlen = len(from_line), len(to_line)
     # fse = from_line's extra start-end, tse=to_line's start-end
     extra_fse, extra_tse = None, None
@@ -290,10 +291,10 @@ def compute_se_list(from_line: str,
                     adjust_list_offset(to_se_list, offset),
                     (fidx, flen),
                     adjust_pair_offset((tidx, tlen), offset))
-        elif fidx < flen:
-            extra_fse = (fidx, flen)
-        elif tidx < tlen:
-            extra_tse = (tidx, tlen)
+        elif fi2 < flen:
+            extra_fse = (fi2, flen)
+        elif ti2 < tlen:
+            extra_tse = (ti2, tlen)
         else:
             if IS_DEBUG:
                 print("Character3 diff at %d, eoln" %
@@ -395,12 +396,12 @@ def compute_matched_se_list(from_line: str,
                             offset: int) \
     -> Optional[Tuple[List[Tuple[int, int]],
                       List[Tuple[int, int]],
-                      Optional[Tuple[int, int]],
-                      Optional[Tuple[int, int]]]]:
+                      List[Tuple[int, int]],
+                      List[Tuple[int, int]]]]:
 
     if len(from_line) == len(to_line):
         if from_line == to_line:
-            return [(0, len(from_line))], [(offset, offset + len(to_line))], None, None
+            return [(0, len(from_line))], [(offset, offset + len(to_line))], [], []
         return None
 
     # if either from_line is all special char, it will match anything
@@ -452,15 +453,14 @@ def compute_matched_se_list(from_line: str,
         # but the API only allow returning 1 frag back.
         # Since previously, the front has being checked in aligned_str_mapper.
         # Assume front one has priority.
-        from_extra_se = None
+        from_extra_se_list = []
         # take the suffix extra first
-        if after_start != after_end:
-            from_extra_se = (after_start, after_end)
-            # but if there is prefix extra, take that instead
         if before_start != before_end:
-            from_extra_se = (before_start, before_end)
+            from_extra_se_list.append((before_start, before_end))
+        if after_start != after_end:
+            from_extra_se_list.append((after_start, after_end))
 
-        return out_from_se_list, out_to_se_list, from_extra_se, None
+        return out_from_se_list, out_to_se_list, from_extra_se_list, []
     elif not abbyy_big_mat_list:
         mat_st = re.escape(from_line)
         # allow multiple '-', '_', and ' '
@@ -488,18 +488,13 @@ def compute_matched_se_list(from_line: str,
                 out_to_se_list = [(offset + mstart, offset + mend)]
                 out_from_se_list = [(0, len(from_line))]
 
-            to_extra_se = None
-            # take the suffix extra first
-            if after_start != after_end:
-                to_extra_se = (after_start + offset, after_end + offset)
-            # but if there is prefix extra, take that instead
+            to_extra_se_list = []
             if before_start != before_end:
-                to_extra_se = (before_start + offset, before_end + offset)
+                to_extra_se_list.append((before_start + offset, before_end + offset))
+            if after_start != after_end:
+                to_extra_se_list.append((after_start + offset, after_end + offset))
 
-
-                # return [(mstart, mend)], out_to_se_list, from_extra_se, None
-
-            return out_from_se_list, out_to_se_list, None, to_extra_se
+            return out_from_se_list, out_to_se_list, [], to_extra_se_list
 
         # 0 or more than 1, no match
         return None
@@ -522,23 +517,25 @@ class MatchedStrMapper:
         self.is_fully_synced = False
         self.from_se_list = []  # type: List[Tuple[int, int]]
         self.to_se_list = []  # type: List[Tuple[int, int]]
-        self.extra_fse = None  # type: Optional[Tuple[int, int]]
-        self.extra_tse = None  # type: Optional[Tuple[int, int]]
+        # there can be something before or after the matched str
+        # minimum 0, to maximum 2
+        self.extra_fse_list = []  # type: List[Tuple[int, int]]
+        self.extra_tse_list = []  # type: List[Tuple[int, int]]
 
         align_result = compute_matched_se_list(from_line, to_line, offset)
         if align_result:
             self.from_se_list, self.to_se_list, \
-                self.extra_fse, self.extra_tse = align_result
+                self.extra_fse_list, self.extra_tse_list = align_result
             self.is_aligned = True
-            if not self.extra_fse and not self.extra_tse:
+            if not self.extra_fse_list and not self.extra_tse_list:
                 self.is_fully_synced = True
 
         if IS_DEBUG:
             if self.is_aligned:
                 print("    return from_se_list: {}".format(self.from_se_list))
                 print("             to_se_list: {}".format(self.to_se_list))
-                print("              extra_fse: {}".format(self.extra_fse))
-                print("              extra_tse: {}".format(self.extra_tse))
+                print("         extra_fse_list: {}".format(self.extra_fse_list))
+                print("         extra_tse_list: {}".format(self.extra_tse_list))
             else:
                 print("    return is_aligned is False")
 
@@ -546,8 +543,8 @@ class MatchedStrMapper:
     def __str__(self):
         return 'MatchedStrMapper({},\n'.format(self.from_se_list) + \
             '                 {},\n'.format(self.to_se_list) + \
-            '                 {},\n'.format(self.extra_fse) + \
-            '                 {})'.format(self.extra_tse)
+            '                 {},\n'.format(self.extra_fse_list) + \
+            '                 {})'.format(self.extra_tse_list)
 
     # pylint: disable=invalid-name
     def get_to_offset(self, x: int) -> int:

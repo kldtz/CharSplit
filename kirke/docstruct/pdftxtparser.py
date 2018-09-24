@@ -27,8 +27,10 @@ logger.setLevel(logging.INFO)
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
-IS_DEBUG_MODE = False
+IS_DEBUG_MODE = True
 IS_DEBUG_TOC = False
+
+IS_DEBUG_DETAIL_MODE = False
 
 EMPTY_PLINE_ATTRS = PLineAttrs()
 
@@ -51,14 +53,14 @@ def linex_list_to_block_map(linex_list: List[LineWithAttrs]) \
 def mark_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
     prev_page = pdf_text_doc.page_list[0]
     prev_block_id_list, prev_block_linex_list_map = \
-        linex_list_to_block_map(prev_page.content_line_list)
+        linex_list_to_block_map(prev_page.content_linex_list)
     if not prev_block_id_list:
         return
     prev_last_block_id = prev_block_id_list[-1]
     prev_last_para = prev_block_linex_list_map[prev_last_block_id]
     for apage in pdf_text_doc.page_list[1:]:
         apage_block_id_list, apage_block_linex_list_map = \
-                linex_list_to_block_map(apage.content_line_list)
+                linex_list_to_block_map(apage.content_linex_list)
 
         if not apage_block_id_list:
             logger.info("%s, page #%d has no content block.",
@@ -97,20 +99,31 @@ def mark_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
         prev_last_para = prev_block_linex_list_map[prev_last_block_id]
 
 
-def to_header_content_footer_linex_list(linex_list: List[LineWithAttrs]) \
-    -> Tuple[List[LineWithAttrs],
-             List[LineWithAttrs],
-             List[LineWithAttrs]]:
+def init_page_content_other_lines(apage: PageInfo3) -> None:
     header_linex_list, content_linex_list, footer_linex_list = [], [], []
-    for linex in linex_list:
+    # toc_linex_list = []
+
+    for linex in apage.line_list:
         if linex.attrs.header:
             header_linex_list.append(linex)
         elif linex.attrs.footer:
             footer_linex_list.append(linex)
+        # elif linex.attrs.toc:
+        #     toc_linex_list.append(linex)
         else:
             content_linex_list.append(linex)
 
-    return header_linex_list, content_linex_list, footer_linex_list
+    apage.header_linex_list = header_linex_list
+    apage.footer_linex_list = footer_linex_list
+    apage.content_linex_list = content_linex_list
+    # apage.toc_linex_list = toc_linex_list
+
+    if IS_DEBUG_DETAIL_MODE:
+        print('=== page #{} header_len = {}, footer_len = {}, content_len = {}'.format(
+            apage.page_num,
+            len(apage.header_linex_list),
+            len(apage.footer_linex_list),
+            len(apage.content_linex_list)))
 
 
 # pylint: disable=too-many-arguments, too-many-locals, too-many-statements
@@ -122,7 +135,12 @@ def init_pageinfo_list(doc_text: str,
                        page_offsets: List[Dict],
                        str_offsets: List[Dict]) \
                        -> List[PageInfo3]:
-    """Returns the list of page."""
+    """Returns the list of page based on PDFBox info.
+
+    The only interpretation added to the block is whether the block is_multi_line.
+    A is_mutli_line block is a block that is not a sentence, such as address, or
+    table content.  A block is just one line is not is_multi_line.
+    """
     # linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
 
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
@@ -193,7 +211,8 @@ def init_pageinfo_list(doc_text: str,
     # for nl_text, those that are not really line breaks
     # para_not_linebreak_offsets = []  # type: List[int]
     blockinfo_list = []  # type: List[PBlockInfo]
-    doc_block_id = 0
+    # similar to pdbox, doc_block_id starts from 1-based
+    doc_block_id = 1
     for pblock_offset in pblock_offsets:
         pblock_id = pblock_offset['id']
         start = pblock_offset['start']
@@ -259,7 +278,7 @@ def init_pageinfo_list(doc_text: str,
                 # print()
 
                 for linex in linechunk:
-                    linex.bid = doc_block_id
+                    linex.ybid = doc_block_id
 
                 # print("is_multi_lines = {}, paraline: [{}]\n".format(is_multi_lines, para_line))
                 block_info = PBlockInfo(block_start,
@@ -392,24 +411,27 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     # pylint: disable=too-many-nested-blocks
     for apage in pdf_text_doc.page_list:
 
-        header_linex_list, content_linex_list, footer_linex_list = \
-            to_header_content_footer_linex_list(apage.line_list)
+        # TODO, 09/20, xxx yyy
+        # move this to         add_doc_structure_to_page(page, pdftxt_doc)
+        # instead of here.  make this a part of the 'page'
+        # header_linex_list, content_linex_list, footer_linex_list = \
+        #     to_header_content_footer_linex_list(apage.line_list)
 
         block_id_list, block_linex_list_map = \
-            linex_list_to_block_map(content_linex_list)
+            linex_list_to_block_map(apage.content_linex_list)
 
         if not block_id_list:
             # cannot be continued from previous page since there is NO text in this page.
 
             # output this pages header
-            offset, sechead_context = output_linex_list_with_offset(header_linex_list,
+            offset, sechead_context = output_linex_list_with_offset(apage.header_linex_list,
                                                                     nlp_line_list=nlp_line_list,
                                                                     offsets_line_list=offsets_line_list,
                                                                     offset=offset,
                                                                     sechead_context=sechead_context,
                                                                     pdf_text_doc=pdf_text_doc)
 
-            offset, sechead_context = output_linex_list_with_offset(footer_linex_list,
+            offset, sechead_context = output_linex_list_with_offset(apage.footer_linex_list,
                                                                     nlp_line_list=nlp_line_list,
                                                                     offsets_line_list=offsets_line_list,
                                                                     offset=offset,
@@ -421,7 +443,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
         last_block_id = block_id_list[-1]
 
         if apage.is_continued_para_from_prev_page:
-            to_use_page_footer_linex_list_queue.append(header_linex_list)
+            to_use_page_footer_linex_list_queue.append(apage.header_linex_list)
         else:
             # add a line break
             if prev_linex:
@@ -431,7 +453,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                                           offsets_line_list=offsets_line_list)
 
             # output this pages header
-            offset, sechead_context = output_linex_list_with_offset(header_linex_list,
+            offset, sechead_context = output_linex_list_with_offset(apage.header_linex_list,
                                                                     nlp_line_list=nlp_line_list,
                                                                     offsets_line_list=offsets_line_list,
                                                                     offset=offset,
@@ -524,7 +546,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                                           offsets_line_list=offsets_line_list)
 
         if apage.is_continued_para_to_next_page:
-            to_use_page_footer_linex_list_queue.append(footer_linex_list)
+            to_use_page_footer_linex_list_queue.append(apage.footer_linex_list)
         else:
             # linex cannot be null because there must be some text in this doc?
             # add a line break
@@ -548,7 +570,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 to_use_page_footer_linex_list_queue = []
 
             # output this pages header
-            offset, sechead_context = output_linex_list_with_offset(footer_linex_list,
+            offset, sechead_context = output_linex_list_with_offset(apage.footer_linex_list,
                                                                     nlp_line_list=nlp_line_list,
                                                                     offsets_line_list=offsets_line_list,
                                                                     offset=offset,
@@ -627,6 +649,10 @@ def parse_document(file_name: str,
         pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name),
                                   cpoint_cunit_mapper)
     # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
+
+    for str_offset in str_offsets:
+        start = str_offset['start']
+        end = str_offset['end']
 
     nl_text, linebreak_offset_list = \
         pdfdocutils.text_offsets_to_nl(base_fname,
@@ -718,10 +744,10 @@ def merge_adjacent_line_with_special_attr(apage):
     special_attrs = ['signature', 'address']
     for special_attr in special_attrs:
         if getattr(apage.attrs, 'has_{}'.format(special_attr)):
-            prev_line = apage.content_line_list[0]
+            prev_line = apage.content_linex_list[0]
             prev_block_num = prev_line.block_num
             prev_has_special_attr = getattr(prev_line.attrs, special_attr)
-            for linex in apage.content_line_list[1:]:
+            for linex in apage.content_linex_list[1:]:
                 has_special_attr = getattr(linex.attrs, special_attr)
                 if has_special_attr and prev_has_special_attr:
                     linex.block_num = prev_block_num
@@ -779,19 +805,30 @@ def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
     # page_attrs_list is to store table information?
 
     if IS_DEBUG_MODE:
-        pdftxt_doc.save_debug_lines('.paged.bef.merge.tsv')
+        pdftxt_doc.save_debug_lines('.paged.before.dstruct.tsv')
 
     for page in pdftxt_doc.page_list:
         add_doc_structure_to_page(page, pdftxt_doc)
         # break blocks if they are in the middle of header, english sents
         # adjust_blocks_in_page(page, pdftxt_doc)
 
+        init_page_content_other_lines(page)
+
+        if page.page_num <= 3:
+            if pdfdocutils.is_title_page(page):
+                page.is_title_page = True
+                pdfdocutils.adjust_title_page_blocks(page, pdftxt_doc.doc_text)
+                # print("++ page #{} is a title page".format(page.page_num))
+            # else:
+            #     print("-- page #{} is NOT a title".format(page.page_num))
+
+
     # this only add footer and header's start, end to
     # apage.exclude_offsets
     update_page_removed_lines(pdftxt_doc)
 
     if IS_DEBUG_MODE:
-        pdftxt_doc.save_debug_lines('.paged.after.merge.tsv')
+        pdftxt_doc.save_debug_lines('.paged.dstruct.tsv')
         pdfdocutils.save_removed_lines(pdftxt_doc, '.rmlines.tsv')
         pdfdocutils.save_exclude_lines(pdftxt_doc, '.exclude.lines.tsv')
 
@@ -805,19 +842,8 @@ def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
         # is also 'address' or 'signature'
         merge_adjacent_line_with_special_attr(apage)
 
-    # block_list_map is not reference by anything afterward
-    # Not impact anything, so removed.
-    """
-    # Redo block info because they might be in different
-    # pages.  This block_list_map is at document level instead
-    # of at page level.  Maybe remove in the future.
-    # we don't want to deal with multi-page paragraphs
-    block_list_map = defaultdict(list)  # type: DefaultDict[int, List[LineWithAttrs]]
-    for apage in pdftxt_doc.page_list:
-        for linex in apage.content_line_list:
-            block_num = linex.block_num
-            block_list_map[block_num].append(linex)
-    """
+    if IS_DEBUG_MODE:
+        pdftxt_doc.save_debug_lines('.paged.dstruct2.tsv')
 
 
 # pylint: disable=too-many-branches, too-many-statements, too-many-locals
@@ -960,7 +986,9 @@ def add_doc_structure_to_page(apage: PageInfo3,
             if linex.lineinfo.yStart >= footer_yStart:
                 linex.attrs.footer = True
 
-    apage.content_line_list = content_line_list
+    # jshaw, NOTE, xxx yyy
+    # apage.content_linex_list = content_line_list
+
     # now decide if this is a toc page, based on
     # there are more than 4 toc lines
     if num_toc_line >= 5 or has_toc_heading:

@@ -6,6 +6,7 @@ import os
 
 from kirke.docstruct import pdftxtparser
 
+from kirke.utils import ebantdoc4
 from kirke.abbyyxml import abbyyxmlparser
 from kirke.abbyyxml.abbyypbox_syncher import sync_doc_offsets, print_abbyy_pbox_sync
 from kirke.abbyyxml.abbyypbox_syncher import print_abbyy_pbox_unsync
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Extract Section Headings.')
     parser.add_argument("-v", "--verbosity", help="increase output verbosity")
     parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
@@ -38,34 +39,41 @@ if __name__ == '__main__':
     # abbyy_xml_doc.print_text()
 
     txt_fname = fname
-    pdf_txt_doc = pdftxtparser.parse_document(txt_fname, work_dir=work_dir)
-
     base_fname = os.path.basename(txt_fname)
 
+    nlptxt_file_name = ebantdoc4.get_nlp_file_name(base_fname, work_dir)
+    pdf_txt_doc = pdftxtparser.parse_document(txt_fname,
+                                              work_dir=work_dir,
+                                              nlptxt_file_name=nlptxt_file_name)  # type: PDFTextDoc
+
     work_fname = '{}/{}'.format(work_dir, base_fname)
+    txt_infer_fname = work_fname.replace('.txt', '.abbyy.infer222')
+    with open(txt_infer_fname, 'wt') as fout:
+        abbyy_xml_doc.print_infer_text(file=fout)
+        print('wrote {}'.format(txt_infer_fname))
 
     # pdf_txt_doc.print_debug_blocks()
     # pdf_txt_doc.save_debug_pages(work_dir=work_dir, extension='.sync.debug.tsv')
-    txt_str_fname = work_fname.replace('.txt', '.txt.str')
+    txt_str_fname = work_fname.replace('.txt', '.pbox.str')
     with open(txt_str_fname, 'wt') as fout:
         pdf_txt_doc.save_str_text(file=fout)
         print('wrote {}'.format(txt_str_fname))
 
     sync_doc_offsets(abbyy_xml_doc, pdf_txt_doc)
 
-    txt_infer_fname = work_fname.replace('.txt', '.txt.infer')
+    txt_infer_fname = work_fname.replace('.txt', '.abbyy.infer')
     with open(txt_infer_fname, 'wt') as fout:
         abbyy_xml_doc.print_infer_text(file=fout)
         print('wrote {}'.format(txt_infer_fname))
 
     # has both infer_attr_dict and attr_dict
-    txt_debug_fname = work_fname.replace('.txt', '.txt.debug')
+    txt_debug_fname = work_fname.replace('.txt', '.abbyy.debug')
     with open(txt_debug_fname, 'wt') as fout:
         abbyy_xml_doc.print_debug_text(file=fout)
         print('wrote {}'.format(txt_debug_fname))
 
     # abbyy_xml_doc.print_text()
-    txt_meta_fname = work_fname.replace('.txt', '.txt.meta')
+    txt_meta_fname = work_fname.replace('.txt', '.abbyy.meta')
     with open(txt_meta_fname, 'wt') as fout:
         abbyy_xml_doc.print_text_with_meta(file=fout)
         print('wrote {}'.format(txt_meta_fname))
@@ -83,3 +91,7 @@ if __name__ == '__main__':
         print_abbyy_pbox_unsync(abbyy_xml_doc,
                                 file=unsync_fout)
         print('wrote {}'.format(txt_unsync_fname))
+
+
+if __name__ == '__main__':
+    main()

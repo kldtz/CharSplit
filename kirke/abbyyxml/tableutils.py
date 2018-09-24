@@ -18,7 +18,9 @@ IS_PRINT_HEADER_TABLE = False
 
 IS_DEBUG_INVALID_TABLE = False
 
-IS_PRESERVE_INVALID_TABLE_AS_TEXT = False
+# in general, we want to preserve all
+# text in order to synch with pdfbox.
+IS_PRESERVE_INVALID_TABLE_AS_TEXT = True
 
 def table_attrs_to_html(attr_dict: Dict) -> str:
     st_list = []  # type: List[str]
@@ -695,7 +697,8 @@ def is_all_pars_align_justified(ab_pars: List[AbbyyPar]) -> bool:
 
 def collect_justified_lines_after(ab_blocks: List[AbbyyBlock],
                                   page_block_seq: int,
-                                  first_block_left: int) \
+                                  first_block_left: int,
+                                  stop_block_seq: int) \
                                   -> List[AbbyyTextBlock]:
     """Collect blocks after the table that are 'justified' after the first block.
        'Justified' means ABBYY has decided those lines as indented specially.
@@ -707,17 +710,23 @@ def collect_justified_lines_after(ab_blocks: List[AbbyyBlock],
         - ab_blocks: page blocks
         - page_block_seq: the seq of last block in the table
         - the left, @l, of first block
+        - stop_block_seq: the start block seq of the next halighed_block.  Don't go
+          to the next halighed_block for now, there might be multiple blocks that
+          can be merged, but we only handle 1 block in the current logic.  So don't
+          try.
 
     Output:
         List of text blocks that should be added to the current table
         because they are 'justified' and their left's are very similar.
         If they are not 'justified' and mergeable, then return empty list.
     """
-    if page_block_seq >= len(ab_blocks):
+    # if page_block_seq >= len(ab_blocks):
+    #     return []
+    if page_block_seq + 1 >= stop_block_seq:
         return []
 
     result = []  # type: List[AbbyyTextBlock]
-    for ab_block in ab_blocks[page_block_seq + 1:]:
+    for ab_block in ab_blocks[page_block_seq + 1:stop_block_seq]:
         # ab_block is the next block after the current table block group
         if not isinstance(ab_block, AbbyyTextBlock):
             return result
@@ -765,8 +774,11 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
             continue
 
         if IS_DEBUG_TABLE:
-            print("merge_haligned_blocks_as_table, page #{}".format(pnum))
+            print("merge_haligned_blocks_as_table, page #{}".format(abbyy_page.num))
             print("        len(abbyy_page.ab_blocks = %d" % len(abbyy_page.ab_blocks))
+
+        # if pnum == 79:
+        #     print('ehre253243234')
 
         # find all the blocks with similar @b and @t
         # and store them in haligned_blocks_list, only for this page
@@ -820,7 +832,7 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
 
         # pylint: disable=line-too-long
         haligned_block_list_map = {}  # type: Dict[AbbyyTextBlock, Tuple[List[AbbyyTextBlock], List[AbbyyTextBlock]]]
-        for blocks in haligned_blocks_list:
+        for hseq, blocks in enumerate(haligned_blocks_list):
 
             # found the column header, but no data
             # if len(blocks) <= 2:
@@ -829,10 +841,16 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
             first_block = blocks[0]
             first_block_left = first_block.attr_dict['@l']
             last_block = blocks[-1]
+
+            stop_block_seq = len(abbyy_page.ab_blocks)
+            if hseq + 1 < len(haligned_blocks_list):
+                stop_block_seq = haligned_blocks_list[hseq+1][0].page_block_seq
+
             additional_table_row_blocks = \
                 collect_justified_lines_after(abbyy_page.ab_blocks,
                                               last_block.page_block_seq,
-                                              first_block_left)
+                                              first_block_left,
+                                              stop_block_seq)
 
             skip_blocks.extend(additional_table_row_blocks)
             haligned_block_list_map[blocks[0]] = (blocks, additional_table_row_blocks)
@@ -887,11 +905,14 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
             # print("block_text: [[{}]]".format(block_text.replace('\n', '|.')))
 
             if isinstance(ab_block, AbbyyTableBlock):
+                # in general, we want to preserve all
+                # text in order to synch with pdfbox.
                 if IS_PRESERVE_INVALID_TABLE_AS_TEXT:
                     if is_invalid_table(ab_block):
                         if ab_block.is_abbyy_original:
                             # for now, we keep such tables
                             out_block_list.append(ab_block)
+                            ab_block.is_invalid_kirke_table = True
                         else:
                             # add all the original blocks back
                             out_block_list.extend(origblocks)
@@ -1166,7 +1187,8 @@ def is_invalid_table_aux(ab_table: AbbyyTableBlock) -> bool:
             print("  table_text: [{}]".format(table_text.replace('\n', r'|')))
         return True
 
-    if table_y_diff <= 100:
+    # saw a two-line table,table_y_diff is 85
+    if table_y_diff <= 80:
         if IS_DEBUG_INVALID_TABLE:
             print("--- is_invalid_table(), too small y-diff")
             print("  table_y_top_bottom: {}, {}, diff={}".format(table_top_y,

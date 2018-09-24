@@ -3,7 +3,7 @@ from collections import namedtuple, defaultdict
 from functools import total_ordering
 import os
 import sys
-from typing import Any, DefaultDict, Dict, List, Tuple
+from typing import Any, DefaultDict, Dict, List, TextIO, Tuple
 
 from kirke.docstruct import jenksutils, docstructutils
 # pylint: disable=unused-import
@@ -58,6 +58,11 @@ class PageAttrs:
 
 # pylint: disable=too-many-instance-attributes
 class LineInfo3:
+    """This represent the ORIGINAL line information from PDFBox.
+
+    In contrast to LineWithAttrs is our interpretation of what a line is.  This is
+    coming from PDFBox only.
+    """
 
     # pylint: disable=too-many-arguments
     def __init__(self, start, end, line_num, block_num, strinfo_list) -> None:
@@ -65,7 +70,7 @@ class LineInfo3:
         self.end = end
         self.line_num = line_num
         self.obid = block_num   # original block id from pdfbox
-        self.bid = block_num    # ordered by block's yStart
+        self.ybid = block_num    # ordered by block's yStart
         self.strinfo_list = strinfo_list
 
         # pylint: disable=invalid-name
@@ -106,18 +111,18 @@ class LineInfo3:
         #self.xEnd = self.strinfo_list[-1].xEnd
 
     def tostr2(self):
-        return 'se=(%d, %d), bid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f' % \
+        return 'se=(%d, %d), ybid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f' % \
             (self.start, self.end,
-             self.bid, self.obid,
+             self.ybid, self.obid,
              self.xStart, self.xEnd, self.yStart)
 
     def tostr3(self):
-        return 'se=(%d, %d), bid= %d, obid = %d' % (self.start, self.end,
-                                                    self.bid, self.obid)
+        return 'se=(%d, %d), ybid= %d, obid = %d' % (self.start, self.end,
+                                                     self.ybid, self.obid)
 
 
     def tostr4(self):
-        return 'bid= %d, obid= %d' % (self.bid, self.obid)
+        return 'bid= %d, obid= %d' % (self.ybid, self.obid)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -136,7 +141,7 @@ class LineWithAttrs:
                  is_english: bool) -> None:
         self.page_line_num = page_line_num  # start from 1, not 0
         self.lineinfo = lineinfo
-        self.block_num = lineinfo.bid
+        self.block_num = lineinfo.ybid
         self.line_text = line_text
         self.num_word = len(line_text.split())
         self.page_num = page_num
@@ -260,7 +265,7 @@ class PBlockInfo:
         self.start = start
         self.end = end
         self.obid = bid     # original block id
-        self.bid = bid      # sorted by yStart
+        self.ybid = bid      # sorted by yStart
         self.pagenum = pagenum
         self.text = text
         self.length = len(text)
@@ -314,7 +319,7 @@ class PBlockInfo:
         # self.words is not printed, intentionally
         return str(('start={}'.format(self.start),
                     'end={}'.format(self.end),
-                    'bid={}'.format(self.bid),
+                    'bid={}'.format(self.ybid),
                     'xStart={:.2f}'.format(self.xStart),
                     'yStart={:.2f}'.format(self.yStart),
                     'pagenum={}'.format(self.pagenum),
@@ -467,6 +472,7 @@ class PageInfo3:
                                               page_num=page_num)
 
         self.attrs = PageAttrs()  # type: PageAttrs
+        self.is_title_page = False
         self.is_continued_para_to_next_page = False
         self.is_continued_para_from_prev_page = False
 
@@ -474,7 +480,10 @@ class PageInfo3:
         #   - toc
         #   - page_num
         #   - header, footer
-        self.content_line_list = []  # type: List[LineWithAttrs]
+        self.header_linex_list = []  # type: List[LineWithAttrs]
+        self.content_linex_list = []  # type: List[LineWithAttrs]
+        self.footer_linex_list = []  # type: List[LineWithAttrs]
+        # self.toc_linex_list = []  # type: List[LineWithAttrs]
 
     def get_blocked_lines(self) -> List[List[LineWithAttrs]]:
         if not self.line_list:
@@ -599,6 +608,29 @@ class PDFTextDoc:
                     prev_block_num = linex.block_num
 
         print('wrote {}'.format(out_fname), file=sys.stderr)
+
+    # pylint: disable=too-many-locals
+    def save_str_text(self, file: TextIO) -> None:
+        lineinfo_list = []  # type: List[LineInfo3]
+        doc_text = self.doc_text
+        for page in self.page_list:
+            print('pbox page #{} ========================='.format(page.page_num), file=file)
+            for pblockinfo in page.pblockinfo_list:
+                print('\n    pbox block ---------------------------', file=file)
+                lineinfo_list.extend(pblockinfo.lineinfo_list)
+                for lineinfo in pblockinfo.lineinfo_list:
+                    for strinfo in lineinfo.strinfo_list:
+                        start = strinfo.start
+                        end = strinfo.end
+                        multiplier = 300.0 / 72
+                        # pylint: disable=invalid-name
+                        x = int(strinfo.xStart * multiplier)
+                        # pylint: disable=invalid-name
+                        y = int(strinfo.yStart * multiplier)
+                        print("        strinfo se={}, x,y={}    [{}]".format((start, end),
+                                                                             (x, y),
+                                                                             doc_text[start:end]),
+                              file=file)
 
 
 def lines_to_block_offsets(linex_list: List[LineWithAttrs],

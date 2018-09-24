@@ -589,11 +589,14 @@ def set_abbyy_page_numbers_tables(ab_doc: AbbyyXmlDoc) -> None:
         abbyy_page.num = pnum
 
         for ab_block in abbyy_page.ab_blocks:
+            # add extra information to signature and address tables
+            # but they do NOT overrides if they are abbyytextblock or abbyytableblock
             if tableutils.is_signature_block(ab_block):
                 abbyy_page.ab_signature_blocks.append(ab_block)
             elif tableutils.is_address_block(ab_block):
                 abbyy_page.ab_address_blocks.append(ab_block)
-            elif isinstance(ab_block, AbbyyTextBlock):
+
+            if isinstance(ab_block, AbbyyTextBlock):
                 abbyy_page.ab_text_blocks.append(ab_block)
             elif isinstance(ab_block, AbbyyTableBlock):
                 abbyy_page.ab_table_blocks.append(ab_block)
@@ -822,7 +825,6 @@ def get_page_abbyy_lines(abbyy_page: AbbyyPage) -> List[AbbyyLine]:
     for ab_block in abbyy_page.ab_text_blocks:
         for ab_par in ab_block.ab_pars:
             ab_line_list.extend(ab_par.ab_lines)
-
     for ab_block in abbyy_page.ab_table_blocks:
         for ab_row in ab_block.ab_rows:
             for ab_cell in ab_row.ab_cells:

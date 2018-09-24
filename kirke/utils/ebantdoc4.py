@@ -588,7 +588,6 @@ def pdf_to_ebantdoc(txt_file_name: str,
         if pdfxml_base_fname:
             shutil.copy2(pdfxml_file_name, '{}/{}'.format(work_dir, pdfxml_base_fname))
 
-    # pylint: disable=line-too-long
     nlptxt_file_name = get_nlp_file_name(txt_base_fname, work_dir)
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name,
                                                work_dir=work_dir,

@@ -92,7 +92,7 @@ def classify_document(file_name: str, model_dir: str) -> None:
 
     preds = eb_runner.classify_document(file_name)
 
-    pprint.pprint(preds)
+    pprint.pprint(preds, width=160)
 
 
 # This separates out training and testing data, trains only on training data.
@@ -438,7 +438,7 @@ def main():
                                           custom_model_dir,
                                           provision_set=provs,
                                           is_doc_structure=True)
-        pprint.pprint(dict(prov_ants_map))
+        pprint.pprint(dict(prov_ants_map), width=160)
     elif cmd == 'print_table_cand':
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
@@ -451,7 +451,7 @@ def main():
                                           custom_model_dir,
                                           provision_set=provs,
                                           is_doc_structure=True)
-        pprint.pprint(dict(prov_ants_map))
+        pprint.pprint(dict(prov_ants_map), width=160)
     elif cmd == 'print_doc_parties':
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
@@ -462,7 +462,7 @@ def main():
                                    model_dir,
                                    custom_model_dir,
                                    is_doc_structure=True)
-        pprint.pprint(result)
+        pprint.pprint(result, width=160)
         prov_ants_map = result['ebannoations']
         party_ant_list = prov_ants_map['party']
         result = []
@@ -471,7 +471,7 @@ def main():
                            party_ant['end'],
                            party_ant['text']))
         print('\nparties:')
-        pprint.pprint(result)
+        pprint.pprint(result, width=160)
     elif cmd == 'eval_line_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
