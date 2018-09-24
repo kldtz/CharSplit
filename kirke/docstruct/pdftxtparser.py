@@ -350,12 +350,9 @@ def output_linebreak(from_offset: int,
 # to_use_page_footer_linx_list_queue stores anything that hasn't been outputed yet
 
 # pylint: disable=too-many-locals, too-many-statements
-def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
-                            file_name: str,
-                            work_dir: str) \
-                            -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-                                                PLineAttrs]],
-                                     str]:
+def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
+                            -> List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                          PLineAttrs]]:
     """Convert a pdfbox's text into NLP text, with no line removal.
 
     Warning: The offsets after this transformation differs from original text.
@@ -366,9 +363,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     The key variable here is apage.is_continue_para_from_prev_page.
 
     Returns: nlp_paras_with_attrs
-             nlp_text (the nlp text)
     """
-    base_fname = os.path.basename(file_name)
 
     offset = 0
     # pylint: disable=line-too-long
@@ -483,7 +478,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                     offset += len(out_line) + 1  # to add eoln
                     prev_linex = linex
 
-                block_text = ' '.join(block_line_st_list)
                 offsets_line_list.append((span_se_list, pline_attrs))
 
             # merge the two broken paragraphs
@@ -656,9 +650,7 @@ def parse_document(file_name: str,
     # pages with only 1 block.  Cannot really switch to *.paraline.txt now because double-lined text
     # might cause more trouble.
 
-    nlp_paras_with_attrs = to_nlp_paras_with_attrs(pdf_text_doc,
-                                                                 file_name,
-                                                                 work_dir=work_dir)
+    nlp_paras_with_attrs = to_nlp_paras_with_attrs(pdf_text_doc)
 
     # for i, (gap_start, gap_end) in enumerate(gap2_span_list):
     #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
@@ -1071,10 +1063,8 @@ def main():
     txt_fname = args.file
 
     work_dir = 'dir-work'
-    nlptxt_file_name = txt_fname.replace('.txt', '.nlp.v1.1000.txt')
     unused_pdf_txt_doc = parse_document(txt_fname,
-                                        work_dir=work_dir,
-                                        nlptxt_file_name=nlptxt_file_name)
+                                        work_dir=work_dir)
     logger.info('Done.')
 
 
