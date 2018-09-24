@@ -26,7 +26,8 @@ from kirke.docstruct import docstructutils, docutils, fromtomapper, htmltxtparse
 from kirke.docstruct import linepos, pdftxtparser
 from kirke.docstruct.pdfoffsets import PDFTextDoc
 from kirke.docstruct.docutils import PLineAttrs
-from kirke.utils import corenlputils, ebsentutils, memutils, osutils, strutils, txtreader
+from kirke.utils import corenlputils, docversion, ebsentutils, memutils
+from kirke.utils import osutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
@@ -38,21 +39,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # logger.setLevel(logging.DEBUG)
 
-CORENLP_JSON_VERSION = '1.12'
 EBANTDOC_VERSION = '1.12'
 
 IS_USE_ABBYY_FOR_PARAGRAPH_INFO = False
-
-
-def get_corenlp_json_fname(txt_basename, work_dir):
-    base_fn = txt_basename.replace('.txt',
-                                   '.corenlp.v{}.json'.format(CORENLP_JSON_VERSION))
-    return '{}/{}'.format(work_dir, base_fn)
-
-
-def get_nlp_file_name(txt_basename, work_dir):
-    base_fn = txt_basename.replace('.txt', '.nlp.v{}.txt'.format(CORENLP_JSON_VERSION))
-    return '{}/{}'.format(work_dir, base_fn)
 
 
 def get_ebant_fname(txt_basename, work_dir):
@@ -489,7 +478,7 @@ def html_to_ebantdoc(txt_file_name: str,
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
-    nlptxt_file_name = get_nlp_file_name(txt_base_fname, work_dir)
+    nlptxt_file_name = docversion.get_nlp_file_name(txt_base_fname, work_dir)
     # nlp_paras_with_attrs, nlp_doc_text, exclude_offsets, _ = \
     html_text_doc = htmltxtparser.parse_document(txt_file_name,
                                                  work_dir=work_dir,
@@ -588,11 +577,9 @@ def pdf_to_ebantdoc(txt_file_name: str,
         if pdfxml_base_fname:
             shutil.copy2(pdfxml_file_name, '{}/{}'.format(work_dir, pdfxml_base_fname))
 
-    nlptxt_file_name = get_nlp_file_name(txt_base_fname, work_dir)
     pdf_text_doc = \
         pdftxtparser.parse_document(txt_file_name,
-                                    work_dir=work_dir,
-                                    nlptxt_file_name=nlptxt_file_name)  # type: PDFTextDoc
+                                    work_dir=work_dir)  # type: PDFTextDoc
 
     prov_annotation_list, is_test = \
         ebsentutils.load_prov_annotation_list(txt_file_name,
@@ -707,7 +694,7 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
 
     # we don't bother to check for is_use_corenlp, assume that's True
     if is_cache_enabled:
-        json_fn = get_corenlp_json_fname(txt_base_fname, work_dir)
+        json_fn = docversion.get_corenlp_json_fname(txt_base_fname, work_dir)
         if os.path.exists(json_fn):
             corenlp_json = json.loads(strutils.loads(json_fn))
             end_time = time.time()

@@ -524,11 +524,11 @@ class PDFTextDoc:
         self.removed_lines = []  # type: List[LineWithAttrs]
         self.exclude_offsets = []  # type: List[Tuple[int, int]]
 
+        self.nlptxt_file_name = ''
         # store for future access
         self.nlp_doc_text = ''
         # pylint: disable=line-too-long
         self.nlp_paras_with_attrs = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], PLineAttrs]]
-
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]

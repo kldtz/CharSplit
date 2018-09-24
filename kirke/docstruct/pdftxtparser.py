@@ -16,7 +16,7 @@ from kirke.docstruct import pdfdocutils, pdfoffsets, pdfutils, secheadutils
 from kirke.docstruct.pdfoffsets import LineInfo3, LineWithAttrs
 from kirke.docstruct.pdfoffsets import PLineAttrs
 from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInfo
-from kirke.utils import strutils, txtreader, mathutils
+from kirke.utils import docversion, mathutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
 
 # pylint: disable=invalid-name
@@ -636,8 +636,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
 
 def parse_document(file_name: str,
-                   work_dir: str,
-                   nlptxt_file_name: str) \
+                   work_dir: str) \
                    -> PDFTextDoc:
     base_fname = os.path.basename(file_name)
 
@@ -715,10 +714,12 @@ def parse_document(file_name: str,
         logger.info("Empty nlp_paras_with_attrs.  Not urgent.  File: %s", file_name)
         logger.info("  Likely cause: either no text or looked too much like table-of-content.")
 
+    nlptxt_file_name = docversion.get_nlp_file_name(base_fname, work_dir)
     txtreader.dumps(nlp_doc_text, nlptxt_file_name)
     if IS_DEBUG_MODE:
         print('wrote {}'.format(nlptxt_file_name), file=sys.stderr)
 
+    pdf_text_doc.nlptxt_file_name = nlptxt_file_name
     pdf_text_doc.nlp_doc_text = nlp_doc_text
     pdf_text_doc.nlp_paras_with_attrs = nlp_paras_with_attrs
 
@@ -1130,10 +1131,9 @@ def main():
     txt_fname = args.file
 
     work_dir = 'dir-work'
-    nlptxt_file_name = txt_fname.replace('.txt', '.nlp.v1.1000.txt')
     unused_pdf_txt_doc = parse_document(txt_fname,
-                                        work_dir=work_dir,
-                                        nlptxt_file_name=nlptxt_file_name)
+                                        work_dir=work_dir)
+
     logger.info('Done.')
 
 
