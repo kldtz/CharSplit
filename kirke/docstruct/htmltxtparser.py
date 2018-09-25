@@ -4,7 +4,8 @@ import sys
 from typing import Any, List, Optional, Tuple
 
 
-from kirke.docstruct import footerutils, htmldocutils, partyutils, secheadutils
+from kirke.docstruct import docstructutils, footerutils, htmldocutils
+from kirke.docstruct import partyutils, secheadutils
 from kirke.utils import ebsentutils, engutils, strutils, txtreader
 from kirke.docstruct.docutils import PLineAttrs
 
@@ -332,6 +333,9 @@ class HTMLTextDoc:
         self.doc_text = doc_text
         self.nlp_paras_with_attrs = nlp_paras_with_attrs
         self.exclude_offsets = exclude_offsets
+
+    def get_nlp_text(self) -> str:
+        return docstructutils.text_from_para_with_attrs(self.doc_text, self.nlp_paras_with_attrs)
 
 
 # 'is_combine_line' indicates if the system combines line when doing sechead identification

@@ -542,3 +542,21 @@ def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
     #while ebsent_i < len_ebsents:
     #    print("sent #{}: {}".format(ebsent_i, ebsent_list[ebsent_i]))
     #    ebsent_i += 1
+
+
+def text_from_para_with_attrs(doc_text: str,
+                              nlp_paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
+                                                                          linepos.LnPos]],
+                                                               PLineAttrs]]) -> str:
+    para_st_list = []  # type: List[str]
+    for nlp_para_with_attrs in nlp_paras_with_attrs:
+
+        # print("para_with_attrs: {}".format(para_with_attrs))
+        lnpos_pair_list, unused_attrs = nlp_para_with_attrs
+        for from_lnpos, unused_to_lnpos in lnpos_pair_list:
+            from_start, from_end, unused_from_line_num = from_lnpos.to_tuple()
+            para_st_list.append(doc_text[from_start:from_end])
+
+        # para_st_list.append(' '.join(para_st_list))
+    nlp_text = '\n'.join(para_st_list)
+    return nlp_text

@@ -4,7 +4,7 @@ import unittest
 
 from kirke.docstruct import pdftxtparser
 from kirke.utils import docworddiff, osutils
-from kirke.utils.ebantdoc4 import get_nlp_file_name, pdf_to_ebantdoc4, text_from_para_with_attrs
+from kirke.utils.ebantdoc4 import get_nlp_file_name, pdf_to_ebantdoc4
 
 WORK_DIR = 'dir-work'
 

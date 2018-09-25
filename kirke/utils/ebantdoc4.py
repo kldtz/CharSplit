@@ -174,7 +174,7 @@ class EbAnnotatedDoc4:
         doc_text = self.text
         if not self.nlp_paras_with_attrs:  # html or html_no_docstruct
             return doc_text
-        return text_from_para_with_attrs(doc_text, self.nlp_paras_with_attrs)
+        return docstructutils.text_from_para_with_attrs(doc_text, self.nlp_paras_with_attrs)
 
     def get_nlp_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
         return [(elt.start, elt) for elt in self.nlp_lnpos_list]
@@ -188,19 +188,6 @@ class EbAnnotatedDoc4:
     def get_doc_format(self) -> EbDocFormat:
         return self.doc_format
 
-def text_from_para_with_attrs(doc_text, nlp_paras_with_attrs):
-    para_st_list = []
-    for nlp_para_with_attrs in nlp_paras_with_attrs:
-
-        # print("para_with_attrs: {}".format(para_with_attrs))
-        lnpos_pair_list, unused_attrs = nlp_para_with_attrs
-        for from_lnpos, unused_to_lnpos in lnpos_pair_list:
-            from_start, from_end, unused_from_line_num = from_lnpos.to_tuple()
-            para_st_list.append(doc_text[from_start:from_end])
-
-        # para_st_list.append(' '.join(para_st_list))
-    nlp_text = '\n'.join(para_st_list)
-    return nlp_text
 
 def remove_prov_greater_offset(prov_annotation_list, max_offset):
     return [prov_ant for prov_ant in prov_annotation_list
@@ -468,7 +455,7 @@ def html_to_ebantdoc4(txt_file_name: str,
                                                  work_dir=work_dir,
                                                  is_combine_line=True)
 
-    nlp_text = text_from_para_with_attrs(doc_text, html_text_doc.nlp_paras_with_attrs)
+    nlp_text = html_text_doc.get_nlp_text()
     nlptxt_md5 = osutils.get_text_md5(nlp_text)
     nlptxt_file_name = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=work_dir)
     txtreader.dumps(nlp_text, nlptxt_file_name)
@@ -563,7 +550,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     pdf_text_doc = pdftxtparser.parse_document(txt_file_name,
                                                work_dir=work_dir)  # type: PDFTextDoc
 
-    nlp_text = text_from_para_with_attrs(pdf_text_doc.doc_text, pdf_text_doc.nlp_paras_with_attrs)
+    nlp_text = pdf_text_doc.get_nlp_text()
     nlptxt_md5 = osutils.get_text_md5(nlp_text)
     nlptxt_file_name = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=work_dir)
     txtreader.dumps(nlp_text, nlptxt_file_name)
