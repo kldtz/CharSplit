@@ -191,7 +191,6 @@ def get_docid_or_basename_prefix(file_name: str) -> str:
     return base_file_name.replace('.txt', '')
 
 
-
 def get_knorm_base_file_name(base_file_name: str) -> str:
     result = split_docid_md5(base_file_name)
     if result:
@@ -204,3 +203,17 @@ def get_knorm_file_name(full_file_name: str) -> str:
     dir_path, bname = os.path.split(full_file_name)
     knorm_bname = get_knorm_base_file_name(bname)
     return os.path.join(dir_path, knorm_bname)
+
+
+def get_md5docid_base_file_name(base_file_name: str) -> str:
+    result = split_docid_md5(base_file_name)
+    if result:
+        docid, md5x, rest = result
+        return '{}-{}{}'.format(md5x, docid, rest)
+    return base_file_name
+
+
+def get_md5docid_file_name(full_file_name: str) -> str:
+    dir_path, bname = os.path.split(full_file_name)
+    md5docid_bname = get_md5docid_base_file_name(bname)
+    return os.path.join(dir_path, md5docid_bname)

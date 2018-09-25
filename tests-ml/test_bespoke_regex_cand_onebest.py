@@ -34,9 +34,8 @@ class TestBespokeRegex(unittest.TestCase):
         print(ant_result)
 
         conf_matrix = ant_result['confusion_matrix']
-
-        # {'fn': 10, 'fp': 2, 'tn': 0, 'tp': 90})
-        # [[0, 2], [10, 90]])
+        # {'fn': 3, 'fp': 4, 'tn': 0, 'tp': 98})
+        # [[0, 4], [3, 98]])
 
         tn = conf_matrix[0][0]
         fp = conf_matrix[0][1]
@@ -44,26 +43,27 @@ class TestBespokeRegex(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 2, delta=2)
-        self.assertAlmostEqual(fn, 10, delta=2)
-        self.assertAlmostEqual(tp, 90, delta=2)
+        self.assertAlmostEqual(fp, 4, delta=2)
+        self.assertAlmostEqual(fn, 3, delta=2)
+        self.assertAlmostEqual(tp, 98, delta=2)
 
         # round(ant_result['f1'], 2)
-        # 0.94
+        # 0.96
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.92)
-        self.assertLessEqual(f1, 0.96)
+        self.assertGreaterEqual(f1, 0.94)
+        self.assertLessEqual(f1, 0.98)
 
         # round(ant_result['prec'], 2)
-        # .98
+        # .96
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.96)
-        self.assertLessEqual(precision, 1.00)
+        self.assertGreaterEqual(precision, 0.94)
+        self.assertLessEqual(precision, 0.98)
 
         recall = round(ant_result['recall'], 2)
-        # 0.90
-        self.assertGreaterEqual(recall, 0.88)
-        self.assertLessEqual(recall, 0.92)
+        # 0.97
+        self.assertGreaterEqual(recall, 0.95)
+        self.assertLessEqual(recall, 0.99)
+
 
 
 if __name__ == "__main__":

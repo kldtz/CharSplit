@@ -780,7 +780,8 @@ def doclist_to_ebantdoc_list_linear(doclist_file: str,
     logger.debug('Finished ebantdoc4.doclist_to_ebantdoc_list_linear()')
 
     if is_sort_by_file_id:
-        eb_antdoc_list = sorted(eb_antdoc_list, key=lambda x: x.file_id)
+        eb_antdoc_list = sorted(eb_antdoc_list,
+                                key=lambda x: osutils.get_md5docid_file_name(x.file_id))
     return eb_antdoc_list
 
 
@@ -836,7 +837,8 @@ def doclist_to_ebantdoc_list(doclist_file: str,
                  doclist_file, work_dir, len(txt_fn_list))
 
     if is_sort_by_file_id:
-        eb_antdoc_list = sorted(eb_antdoc_list, key=lambda x: x.file_id)
+        eb_antdoc_list = sorted(eb_antdoc_list,
+                                key=lambda x: osutils.get_md5docid_file_name(x.file_id))
     return eb_antdoc_list
 
 
@@ -856,7 +858,8 @@ def doclist_to_ebantdoc_list_no_corenlp(doclist_file: str,
                                               doc_lang=doc_lang,
                                               is_use_corenlp=False)
     if is_sort_by_file_id:
-        eb_antdoc_list = sorted(eb_antdoc_list, key=lambda x: x.file_id)
+        eb_antdoc_list = sorted(eb_antdoc_list,
+                                key=lambda x: osutils.get_md5docid_file_name(x.file_id))
     return eb_antdoc_list
 
 
