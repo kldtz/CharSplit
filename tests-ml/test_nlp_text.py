@@ -10,8 +10,8 @@ from typing import Any, Dict, Set
 from kirke.eblearn import ebrunner
 
 from kirke.docstruct import pdftxtparser
-from kirke.utils import docworddiff, ebantdoc4, txtreader
-from kirke.utils.ebantdoc4 import CORENLP_JSON_VERSION
+from kirke.utils import docworddiff, ebantdoc4, osutils, txtreader
+from kirke.utils.ebantdoc4 import pdf_to_ebantdoc4
 
 
 MODEL_DIR = 'dir-scut-model'
@@ -51,17 +51,18 @@ class TestNLPText(unittest.TestCase):
 
     def test_nlp_text_1(self):
         txt_base_name = 'trilinc.txt'
+        doc_id = txt_base_name.replace('.txt', '')
         txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
         offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
         offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
 
-        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
-        unused_pdf_text_doc = pdftxtparser.parse_document(txt_fname,
-                                                          work_dir=WORK_DIR,
-                                                          nlptxt_file_name=nlptxt_file_name)
-
+        ebantdoc = pdf_to_ebantdoc4(txt_fname,
+                                    offsets_fname,
+                                    WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
                                                            nlptxt_file_name)
         self.assertEqual(len(same_list), 1974)
@@ -69,17 +70,18 @@ class TestNLPText(unittest.TestCase):
 
     def test_nlp_text_2(self):
         txt_base_name = 'carousel.txt'
+        doc_id = txt_base_name.replace('.txt', '')
         txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
         offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
         offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
 
-        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
-        unused_pdf_text_doc = pdftxtparser.parse_document(txt_fname,
-                                                          work_dir=WORK_DIR,
-                                                          nlptxt_file_name=nlptxt_file_name)
-
+        ebantdoc = pdf_to_ebantdoc4(txt_fname,
+                                    offsets_fname,
+                                    WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlptxt_file_name = ebantdoc4.get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
                                                                           nlptxt_file_name)
 
@@ -97,10 +99,8 @@ class TestNLPText(unittest.TestCase):
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
 
-        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
         pdf_text_doc = pdftxtparser.parse_document(txt_fname,
-                                                   work_dir=WORK_DIR,
-                                                   nlptxt_file_name=nlptxt_file_name)
+                                                   work_dir=WORK_DIR)
 
         is_continued_list = []  # type: List[bool]
         for apage in pdf_text_doc.page_list:
@@ -127,11 +127,8 @@ class TestNLPText(unittest.TestCase):
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
 
-        nlptxt_file_name = ebantdoc4.get_nlp_file_name(txt_base_name, work_dir=WORK_DIR)
         pdf_text_doc = pdftxtparser.parse_document(txt_fname,
-                                                   work_dir=WORK_DIR,
-                                                   nlptxt_file_name=nlptxt_file_name)
-
+                                                   work_dir=WORK_DIR)
         is_continued_list = []  # type: List[bool]
         for apage in pdf_text_doc.page_list:
             is_continued_list.append(apage.is_continued_para_from_prev_page)

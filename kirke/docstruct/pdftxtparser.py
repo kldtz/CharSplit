@@ -294,7 +294,6 @@ def init_pageinfo_list(doc_text: str,
 
 # pylint: disable=too-many-arguments
 def output_linex_list_with_offset(header_linex_list: List[LineWithAttrs],
-                                  nlp_line_list: List[str],
                                   offsets_line_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                                            linepos.LnPos]],
                                                                 PLineAttrs]],
@@ -303,7 +302,7 @@ def output_linex_list_with_offset(header_linex_list: List[LineWithAttrs],
                                   pdf_text_doc: PDFTextDoc) \
                                   -> Tuple[int,
                                            Optional[Tuple[str, str, str, int]]]:
-    """This updates nlp_line_list, offsets_line_list in-place with
+    """This updates offsets_line_list in-place with
        lines in header_linex_list.
     """
 
@@ -318,13 +317,11 @@ def output_linex_list_with_offset(header_linex_list: List[LineWithAttrs],
             elif sechead_context:
                 pline_attrs.sechead = sechead_context
 
-            nlp_line_list.append(out_line)
             span_se_list = [(linepos.LnPos(linex.lineinfo.start,
                                            linex.lineinfo.end),
                              linepos.LnPos(offset, offset + len(out_line)))]
             offsets_line_list.append((span_se_list, pline_attrs))
             offset += len(out_line) + 1  # to add eoln
-        nlp_line_list.append('')
         # because we already performed "if_header_linex_list:" check,
         # linex is guaranteed to be initialized with some value
         # pylint: disable=undefined-loop-variable
@@ -338,12 +335,10 @@ def output_linex_list_with_offset(header_linex_list: List[LineWithAttrs],
 
 def output_linebreak(from_offset: int,
                      offset: int,
-                     nlp_line_list: List[str],
                      offsets_line_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                               linepos.LnPos]],
                                                    PLineAttrs]]) \
                                                    -> int:
-    nlp_line_list.append('')
     span_se_list = [(linepos.LnPos(from_offset, from_offset),
                      linepos.LnPos(offset, offset))]
     offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
@@ -355,12 +350,9 @@ def output_linebreak(from_offset: int,
 # to_use_page_footer_linx_list_queue stores anything that hasn't been outputed yet
 
 # pylint: disable=too-many-locals, too-many-statements
-def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
-                            file_name: str,
-                            work_dir: str) \
-                            -> Tuple[List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-                                                PLineAttrs]],
-                                     str]:
+def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
+                            -> List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
+                                          PLineAttrs]]:
     """Convert a pdfbox's text into NLP text, with no line removal.
 
     Warning: The offsets after this transformation differs from original text.
@@ -371,12 +363,9 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     The key variable here is apage.is_continue_para_from_prev_page.
 
     Returns: nlp_paras_with_attrs
-             nlp_text (the nlp text)
     """
-    base_fname = os.path.basename(file_name)
 
     offset = 0
-    nlp_line_list = []  # type: List[str]
     # pylint: disable=line-too-long
     offsets_line_list = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], PLineAttrs]]
 
@@ -403,14 +392,12 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
             # output this pages header
             offset, sechead_context = output_linex_list_with_offset(header_linex_list,
-                                                                    nlp_line_list=nlp_line_list,
                                                                     offsets_line_list=offsets_line_list,
                                                                     offset=offset,
                                                                     sechead_context=sechead_context,
                                                                     pdf_text_doc=pdf_text_doc)
 
             offset, sechead_context = output_linex_list_with_offset(footer_linex_list,
-                                                                    nlp_line_list=nlp_line_list,
                                                                     offsets_line_list=offsets_line_list,
                                                                     offset=offset,
                                                                     sechead_context=sechead_context,
@@ -427,12 +414,10 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
             if prev_linex:
                 offset = output_linebreak(from_offset=prev_linex.lineinfo.end+2,
                                           offset=offset,
-                                          nlp_line_list=nlp_line_list,
                                           offsets_line_list=offsets_line_list)
 
             # output this pages header
             offset, sechead_context = output_linex_list_with_offset(header_linex_list,
-                                                                    nlp_line_list=nlp_line_list,
                                                                     offsets_line_list=offsets_line_list,
                                                                     offset=offset,
                                                                     sechead_context=sechead_context,
@@ -446,7 +431,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 # output previous page's footer and header, there can be multiple pages
                 for footer_header_linex_list in to_use_page_footer_linex_list_queue:
                     offset, sechead_context = output_linex_list_with_offset(footer_header_linex_list,
-                                                                            nlp_line_list=nlp_line_list,
                                                                             offsets_line_list=offsets_line_list,
                                                                             offset=offset,
                                                                             sechead_context=sechead_context,
@@ -467,7 +451,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                     elif sechead_context:
                         pline_attrs.sechead = sechead_context
 
-                    nlp_line_list.append(out_line)
                     span_se_list = [(linepos.LnPos(linex.lineinfo.start,
                                                    linex.lineinfo.end),
                                      linepos.LnPos(offset, offset + len(out_line)))]
@@ -495,8 +478,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                     offset += len(out_line) + 1  # to add eoln
                     prev_linex = linex
 
-                block_text = ' '.join(block_line_st_list)
-                nlp_line_list.append(block_text)
                 offsets_line_list.append((span_se_list, pline_attrs))
 
             # merge the two broken paragraphs
@@ -520,7 +501,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 # add a line break
                 offset = output_linebreak(from_offset=linex.lineinfo.end+2,
                                           offset=offset,
-                                          nlp_line_list=nlp_line_list,
                                           offsets_line_list=offsets_line_list)
 
         if apage.is_continued_para_to_next_page:
@@ -530,7 +510,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
             # add a line break
             offset = output_linebreak(from_offset=linex.lineinfo.end+2,  # type: ignore
                                       offset=offset,
-                                      nlp_line_list=nlp_line_list,
                                       offsets_line_list=offsets_line_list)
 
             # If there is only 1 block in the page, the header and footer queue is not yet outputed.
@@ -540,7 +519,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 # output previous page's footer and header, there can be multiple pages
                 for footer_header_linex_list in to_use_page_footer_linex_list_queue:
                     offset, sechead_context = output_linex_list_with_offset(footer_header_linex_list,
-                                                                            nlp_line_list=nlp_line_list,
                                                                             offsets_line_list=offsets_line_list,
                                                                             offset=offset,
                                                                             sechead_context=sechead_context,
@@ -549,7 +527,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
 
             # output this pages header
             offset, sechead_context = output_linex_list_with_offset(footer_linex_list,
-                                                                    nlp_line_list=nlp_line_list,
                                                                     offsets_line_list=offsets_line_list,
                                                                     offset=offset,
                                                                     sechead_context=sechead_context,
@@ -560,7 +537,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     # for BHI's doc with just one URL.  129073.txt
     if linex:
         # for the last block in the last page
-        nlp_line_list.append('')
         span_se_list = [(linepos.LnPos(linex.lineinfo.end+2, linex.lineinfo.end+2),
                          linepos.LnPos(offset, offset))]
         offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
@@ -602,20 +578,11 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc,
         else:
             to_lnpos.line_num = not_empty_line_num
 
-    # the last '\n' is for the last line
-    nlp_text = '\n'.join(nlp_line_list) + '\n'
-
-    if IS_DEBUG_MODE:
-        pdf_nlp_txt_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.pdf.nlp2.txt'))
-        txtreader.dumps(nlp_text, pdf_nlp_txt_fn)
-        print('wrote {}'.format(pdf_nlp_txt_fn), file=sys.stderr)
-
-    return offsets_line_list, nlp_text
+    return offsets_line_list
 
 
 def parse_document(file_name: str,
-                   work_dir: str,
-                   nlptxt_file_name: str) \
+                   work_dir: str) \
                    -> PDFTextDoc:
     base_fname = os.path.basename(file_name)
 
@@ -683,9 +650,8 @@ def parse_document(file_name: str,
     # pages with only 1 block.  Cannot really switch to *.paraline.txt now because double-lined text
     # might cause more trouble.
 
-    nlp_paras_with_attrs, nlp_doc_text = to_nlp_paras_with_attrs(pdf_text_doc,
-                                                                 file_name,
-                                                                 work_dir=work_dir)
+    nlp_paras_with_attrs = to_nlp_paras_with_attrs(pdf_text_doc)
+
 
     # for i, (gap_start, gap_end) in enumerate(gap2_span_list):
     #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
@@ -693,20 +659,12 @@ def parse_document(file_name: str,
         logger.info("Empty nlp_paras_with_attrs.  Not urgent.  File: %s", file_name)
         logger.info("  Likely cause: either no text or looked too much like table-of-content.")
 
-    txtreader.dumps(nlp_doc_text, nlptxt_file_name)
-    if IS_DEBUG_MODE:
-        print('wrote {}'.format(nlptxt_file_name), file=sys.stderr)
-
-    pdf_text_doc.nlp_doc_text = nlp_doc_text
     pdf_text_doc.nlp_paras_with_attrs = nlp_paras_with_attrs
 
     if IS_DEBUG_MODE:
         pdfdocutils.save_nlp_paras_with_attrs(pdf_text_doc,
                                               extension='.pdf.paras_with_attrs',
                                               work_dir=work_dir)
-        # pdfdocutils.save_nlp_paras_with_attrs_v2(pdf_text_doc,
-        #                                         extension='.pdf.paras_with_attrs_v2',
-        #                                         work_dir=work_dir)
     return pdf_text_doc
 
 
@@ -1106,10 +1064,8 @@ def main():
     txt_fname = args.file
 
     work_dir = 'dir-work'
-    nlptxt_file_name = txt_fname.replace('.txt', '.nlp.v1.1000.txt')
     unused_pdf_txt_doc = parse_document(txt_fname,
-                                        work_dir=work_dir,
-                                        nlptxt_file_name=nlptxt_file_name)
+                                        work_dir=work_dir)
     logger.info('Done.')
 
 

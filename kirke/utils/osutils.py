@@ -3,12 +3,15 @@ from datetime import datetime
 import fcntl
 from fcntl import LOCK_EX, LOCK_SH
 import os
+import re
 import shutil
 import sys
 import tempfile
 import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
+
+from hashlib import md5
 
 from sklearn.externals import joblib
 
@@ -141,3 +144,76 @@ def get_minute_timestamp_str() -> str:
     # datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
     aline = datetime.fromtimestamp(timestamp).strftime('%Y%m%d-%H%M')
     return aline
+
+
+def get_text_md5(doc_nlp_text: str) -> str:
+    nlptxt_hash = md5()
+    nlptxt_hash.update(doc_nlp_text.encode('utf-8'))
+    return nlptxt_hash.hexdigest()
+
+
+DOCID_MD5_PAT = re.compile(r'^(\d+)\-([a-f0-9]{32})(.*)$', re.I)
+MD5_DOCID_PAT = re.compile(r'^([a-f0-9]{32})\-(\d+)(.*)$', re.I)
+
+def split_docid_md5(base_file_name: str) -> Optional[Tuple[str, str, str]]:
+    mat = re.match(MD5_DOCID_PAT, base_file_name)
+    if mat:
+        return mat.group(2), mat.group(1), mat.group(3)
+
+    mat = re.match(DOCID_MD5_PAT, base_file_name)
+    if mat:
+        return mat.group(1), mat.group(2), mat.group(3)
+    return None
+
+
+def get_docid(file_name: str) -> Optional[str]:
+    """Return docId if it satisfied either
+         - DOCID_MD5_PAT
+         - MD5_DOCID_PAT
+    Otherwise, it return None
+    """
+    base_file_name = os.path.basename(file_name)
+    result = split_docid_md5(base_file_name)
+    if result:
+        return result[0]
+    return None
+
+def get_docid_or_basename_prefix(file_name: str) -> str:
+    """Return docId if it satisfied either
+         - DOCID_MD5_PAT
+         - MD5_DOCID_PAT
+    Otherwise, it return base file name without '.txt' extension
+    """
+    base_file_name = os.path.basename(file_name)
+    result = split_docid_md5(base_file_name)
+    if result:
+        return result[0]
+    return base_file_name.replace('.txt', '')
+
+
+def get_knorm_base_file_name(base_file_name: str) -> str:
+    result = split_docid_md5(base_file_name)
+    if result:
+        docid, md5x, rest = result
+        return '{}-{}{}'.format(docid, md5x, rest)
+    return base_file_name
+
+
+def get_knorm_file_name(full_file_name: str) -> str:
+    dir_path, bname = os.path.split(full_file_name)
+    knorm_bname = get_knorm_base_file_name(bname)
+    return os.path.join(dir_path, knorm_bname)
+
+
+def get_md5docid_base_file_name(base_file_name: str) -> str:
+    result = split_docid_md5(base_file_name)
+    if result:
+        docid, md5x, rest = result
+        return '{}-{}{}'.format(md5x, docid, rest)
+    return base_file_name
+
+
+def get_md5docid_file_name(full_file_name: str) -> str:
+    dir_path, bname = os.path.split(full_file_name)
+    md5docid_bname = get_md5docid_base_file_name(bname)
+    return os.path.join(dir_path, md5docid_bname)
