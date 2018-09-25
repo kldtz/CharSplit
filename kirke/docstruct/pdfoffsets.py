@@ -5,7 +5,7 @@ import os
 import sys
 from typing import Any, DefaultDict, Dict, List, Tuple
 
-from kirke.docstruct import jenksutils, docstructutils
+from kirke.docstruct import docstructutils, jenksutils
 # pylint: disable=unused-import
 from kirke.docstruct import linepos
 from kirke.docstruct.docutils import PLineAttrs
@@ -516,6 +516,8 @@ class PDFTextDoc:
         # pylint: disable=line-too-long
         self.nlp_paras_with_attrs = []  # type: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]], PLineAttrs]]
 
+    def get_nlp_text(self) -> str:
+        return docstructutils.text_from_para_with_attrs(self.doc_text, self.nlp_paras_with_attrs)
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]

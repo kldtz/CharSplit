@@ -145,7 +145,8 @@ def annotate_uploaded_document():
 
         fn_list = request.files.getlist('file')
         for fstorage in fn_list:
-            fn = '{}/{}'.format(work_dir, fstorage.filename)
+            knorm_base_filename = osutils.get_knorm_base_file_name(fstorage.filename)
+            fn = '{}/{}'.format(work_dir, knorm_base_filename)
             print("saving file '{}'".format(fn))
             fstorage.save(fn)
 
@@ -157,12 +158,12 @@ def annotate_uploaded_document():
 
                 # save the file name
                 meta_fn = '{}/{}'.format(work_dir,
-                                         fstorage.filename.replace('.txt', '.meta'))
+                                         knorm_base_filename.replace('.txt', '.meta'))
                 # print("wrote meta_fn: '{}'".format(meta_fn))
                 # print("doc title: '{}'".format(file_title))
                 with open(meta_fn, 'wt') as meta_out:
                     print('pdf_file\t{}'.format(file_title), file=meta_out)
-                    print('txt_file\t{}'.format(fstorage.filename), file=meta_out)
+                    print('txt_file\t{}'.format(knorm_base_filename), file=meta_out)
             else:
                 logger.warning('unknown file extension in annotate_uploaded_document(%s)', fn)
 
@@ -369,15 +370,18 @@ def custom_train(cust_id: str):
         fn_list = request.files.getlist('file')
 
         # save all the uploaded files in a location
+        knorm_basename_list = []  # type: List[str]
         for fstorage in fn_list:
-            fn = '{}/{}'.format(tmp_dir, fstorage.filename)
+            knorm_base_filename = osutils.get_knorm_base_file_name(fstorage.filename)
+            fn = '{}/{}'.format(tmp_dir, knorm_base_filename)
             # print("saving file '{}'".format(fn))
             fstorage.save(fn)
+            knorm_basename_list.append(knorm_base_filename)
 
         fname_provtypes_map = {}
         txt_fnames = []
         txt_offsets_fn_map = {}
-        for name in [fstorage.filename for fstorage in fn_list]:
+        for name in knorm_basename_list:
             file_id = name.split('.')[0]
             full_path = '{}/{}'.format(tmp_dir, name)
             if name.endswith('.ant'):
