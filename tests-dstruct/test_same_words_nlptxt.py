@@ -21,7 +21,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # to verify that two docs have the right same number
         self.assertEqual(len(same_list), 1712)
@@ -37,8 +38,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # to verify that two docs have the right same number
         self.assertEqual(len(same_list), 2009)
@@ -54,8 +55,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
             ebantdoc = pdf_to_ebantdoc4(fname,
                                         offsets_fname,
                                         WORK_DIR)
-
-            nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+            nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+            nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
             same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
             # just need to know same is not 0
             self.assertGreater(len(same_list), 100)
@@ -70,8 +71,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # just need to know same is not 0
         self.assertGreater(len(same_list), 100)
@@ -86,8 +87,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # just need to know same is not 0
         self.assertGreater(len(same_list), 100)
@@ -102,8 +103,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # just need to know same is not 0
         self.assertGreater(len(same_list), 100)
@@ -118,8 +119,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # just need to know same is not 0
         self.assertGreater(len(same_list), 100)
@@ -134,8 +135,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # just need to know same is not 0
         self.assertGreater(len(same_list), 100)
@@ -150,8 +151,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # just need to know same is not 0
         self.assertGreater(len(same_list), 100)
@@ -166,8 +167,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # just need to know same is not 0
         self.assertGreater(len(same_list), 100)
@@ -182,8 +183,8 @@ class TestSameWordsNLPTxt(unittest.TestCase):
         ebantdoc = pdf_to_ebantdoc4(fname,
                                     offsets_fname,
                                     WORK_DIR)
-
-        nlp_fname = get_nlp_file_name(doc_id, ebantdoc.get_nlp_text(), work_dir=WORK_DIR)
+        nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
+        nlp_fname = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists(fname, nlp_fname)
         # just need to know same is not 0
         self.assertGreater(len(same_list), 100)

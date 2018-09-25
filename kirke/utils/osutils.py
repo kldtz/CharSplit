@@ -11,6 +11,8 @@ import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
+from hashlib import md5
+
 from sklearn.externals import joblib
 
 # pylint: disable=invalid-name
@@ -142,6 +144,13 @@ def get_minute_timestamp_str() -> str:
     # datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
     aline = datetime.fromtimestamp(timestamp).strftime('%Y%m%d-%H%M')
     return aline
+
+
+def get_text_md5(doc_nlp_text: str) -> str:
+    nlptxt_hash = md5()
+    nlptxt_hash.update(doc_nlp_text.encode('utf-8'))
+    return nlptxt_hash.hexdigest()
+
 
 DOCID_MD5_PAT = re.compile(r'^(\d+)\-([a-f0-9]{32})(.*)$', re.I)
 MD5_DOCID_PAT = re.compile(r'^([a-f0-9]{32})\-(\d+)(.*)$', re.I)
