@@ -474,7 +474,7 @@ def html_to_ebantdoc4(txt_file_name: str,
     txtreader.dumps(nlp_text, nlptxt_file_name)
 
     attrvec_list, nlp_prov_ant_list, origin_lnpos_list, nlp_lnpos_list = \
-        nlptxt_to_attrvec_list(html_text_doc.nlp_doc_text,
+        nlptxt_to_attrvec_list(nlp_text,
                                txt_file_name,
                                txt_base_fname,
                                prov_annotation_list,

@@ -323,7 +323,6 @@ class HTMLTextDoc:
     def __init__(self,
                  file_name: str,
                  doc_text: str,
-                 nlp_doc_text: str,
                  nlp_paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
                                                              linepos.LnPos]],
                                                   PLineAttrs]],
@@ -331,7 +330,6 @@ class HTMLTextDoc:
                  -> None:
         self.file_name = file_name
         self.doc_text = doc_text
-        self.nlp_doc_text = nlp_doc_text
         self.nlp_paras_with_attrs = nlp_paras_with_attrs
         self.exclude_offsets = exclude_offsets
 
@@ -407,7 +405,6 @@ def parse_document(file_name: str,
 
     html_text_doc = HTMLTextDoc(file_name,
                                 doc_text=orig_doc_text,
-                                nlp_doc_text=paras_doc_text,
                                 nlp_paras_with_attrs=lineinfos_paras,
                                 exclude_offsets=exclude_offsets)
 
