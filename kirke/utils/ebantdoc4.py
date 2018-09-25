@@ -37,18 +37,19 @@ logger.setLevel(logging.INFO)
 CORENLP_JSON_VERSION = '1.11'
 EBANTDOC_VERSION = '1.11'
 
+def get_text_md5(doc_nlp_text: str) -> str:
+    nlptxt_hash = md5()
+    nlptxt_hash.update(doc_nlp_text.encode('utf-8'))
+    return nlptxt_hash.hexdigest()
 
-def get_corenlp_json_fname(txt_basename, work_dir):
-    base_fn = txt_basename.replace('.txt',
-                                   '.corenlp.v{}.json'.format(CORENLP_JSON_VERSION))
+
+def get_corenlp_json_fname(doc_id: str, *, nlptxt_md5: str, work_dir: str) -> str:
+    base_fn = '{}-{}.corenlp.v{}.txt'.format(doc_id, nlptxt_md5, CORENLP_JSON_VERSION)
     return '{}/{}'.format(work_dir, base_fn)
 
 
-def get_nlp_file_name(doc_id, doc_text, work_dir):
-    nlptxt_hash = md5()
-    nlptxt_hash.update(doc_text.encode('utf-8'))
-    nlptxt_hashed = nlptxt_hash.hexdigest()
-    base_fn = '{}-{}.nlp.v{}.txt'.format(doc_id, nlptxt_hashed, CORENLP_JSON_VERSION)
+def get_nlp_file_name(doc_id: str, *, nlptxt_md5: str, work_dir: str) -> str:
+    base_fn = '{}-{}.nlp.v{}.txt'.format(doc_id, nlptxt_md5, CORENLP_JSON_VERSION)
     return '{}/{}'.format(work_dir, base_fn)
 
 
@@ -463,7 +464,7 @@ def html_to_ebantdoc4(txt_file_name: str,
     debug_mode = False
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
-    doc_id = txt_file_name.replace('.txt', '').split('/')[-1]
+    doc_id = osutils.get_docid_or_basename_prefix(txt_file_name)
     # print("html_to_ebantdoc4({}, {}, is_cache_eanbled={}".format(txt_file_name,
     #                                                              work_dir, is_cache_enabled))
 
@@ -475,7 +476,8 @@ def html_to_ebantdoc4(txt_file_name: str,
                                                  is_combine_line=True)
 
     nlp_text = text_from_para_with_attrs(doc_text, html_text_doc.nlp_paras_with_attrs)
-    nlptxt_file_name = get_nlp_file_name(doc_id, nlp_text, work_dir)
+    nlptxt_md5 = get_text_md5(nlp_text)
+    nlptxt_file_name = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=work_dir)
     txtreader.dumps(nlp_text, nlptxt_file_name)
 
     attrvec_list, nlp_prov_ant_list, origin_lnpos_list, nlp_lnpos_list = \
@@ -545,7 +547,7 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     logger.debug('pdf_to_ebantdoc4(%s)', txt_file_name)
     start_time1 = time.time()
     txt_base_fname = os.path.basename(txt_file_name)
-    doc_id = txt_file_name.replace('.txt', '').split('/')[-1]
+    doc_id = osutils.get_docid_or_basename_prefix(txt_file_name)
     offsets_base_fname = os.path.basename(offsets_file_name)
 
     # PDF files are mostly used by our users, not for training and test.
@@ -569,7 +571,8 @@ def pdf_to_ebantdoc4(txt_file_name: str,
                                                work_dir=work_dir)  # type: PDFTextDoc
 
     nlp_text = text_from_para_with_attrs(pdf_text_doc.doc_text, pdf_text_doc.nlp_paras_with_attrs)
-    nlptxt_file_name = get_nlp_file_name(doc_id, nlp_text, work_dir)
+    nlptxt_md5 = get_text_md5(nlp_text)
+    nlptxt_file_name = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=work_dir)
     txtreader.dumps(nlp_text, nlptxt_file_name)
 
     prov_annotation_list, is_test = \
@@ -631,11 +634,12 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
 
     # if cache version exists, load that and return
     start_time = time.time()
-    doc_id = txt_base_fname.replace('.txt', '').split('/')[-1]
+    doc_id = osutils.get_docid_or_basename_prefix(txt_base_fname)
     # we don't bother to check for is_use_corenlp, assume that's True
     if is_cache_enabled:
-        json_fn = get_corenlp_json_fname(txt_base_fname, work_dir)
-        nlp_fn = get_nlp_file_name(doc_id, doc_text, work_dir)
+        nlptxt_md5 = get_text_md5(doc_text)
+        json_fn = get_corenlp_json_fname(doc_id, nlptxt_md5=nlptxt_md5, work_dir=work_dir)
+        nlp_fn = get_nlp_file_name(doc_id, nlptxt_md5=nlptxt_md5, work_dir=work_dir)
         if os.path.exists(json_fn) and os.path.exists(nlp_fn):
             corenlp_json = json.loads(strutils.loads(json_fn))
             end_time = time.time()
