@@ -99,15 +99,10 @@ def cv_train_at_annotation_level(provision,
     # test_size = 0.33
     # this will be looped mutliple times, so a list, not a generator
 
-    ordered_list = []
-    for x_antdoc, label in zip(x_antdoc_list, bool_list):
-        ordered_list.append((x_antdoc.file_id, x_antdoc, label))
-    ordered_list = sorted(ordered_list)
-
     num_fold = DEFAULT_CV
     # distribute positives to all buckets
     pos_list, neg_list = [], []
-    for _, x_antdoc, label in ordered_list:
+    for x_antdoc, label in zip(x_antdoc_list, bool_list):
         if label:
             pos_list.append((x_antdoc, label))
         else:

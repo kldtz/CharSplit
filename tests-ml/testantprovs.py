@@ -3,7 +3,6 @@
 import copy
 import json
 import pprint
-import re
 import unittest
 from typing import Any, Dict, List, Tuple
 
@@ -96,6 +95,7 @@ class hashabledict(dict):
     def __hash__(self) -> int:
         return hash(tuple(sorted(self.items())))
 
+# pylint: disable=too-many-locals
 def convert_to_same_diff(file_name: str,
                          provision: str,
                          pred_ant_list: List[Dict],
@@ -197,7 +197,9 @@ class TestAntDocCat(unittest.TestCase):
                            ('demo-txt/8285.txt', 'force_majeure', 0, 0, 0),
                            # ('demo-txt/8285.txt', 'limliability', 6, 0, 0),
                            # seems to be an issue
+                           # pylint: disable=line-too-long
                            # ('demo-txt/8285.txt', 'limliability', 5, 1, 0),  # has_diff: verified, to fix
+                           # pylint: disable=line-too-long
                            ('demo-txt/8285.txt', 'limliability', 3, 3, 2),    # has_diff: verified, to fix
                            ('demo-txt/8285.txt', 'noncompete', 0, 0, 0),
                            ('demo-txt/8285.txt', 'party', 4, 0, 0),
@@ -283,8 +285,7 @@ class TestAntDocCat(unittest.TestCase):
                            ('demo-txt/8288.txt', 'party', 4, 0, 0),
                            # the FP seems invalid
                            # ('demo-txt/8288.txt', 'remedy', 2, 0, 0),
-                           # ('demo-txt/8288.txt', 'remedy', 2, 0, 1),  # has_diff: verified, to fix
-                           ('demo-txt/8288.txt', 'remedy', 2, 0, 0),
+                           ('demo-txt/8288.txt', 'remedy', 2, 0, 1),  # has_diff: verified, to fix
                            ('demo-txt/8288.txt', 'renewal', 1, 0, 0),
                            ('demo-txt/8288.txt', 'termination', 7, 0, 0),
                            ('demo-txt/8288.txt', 'term', 2, 0, 0),
@@ -394,6 +395,7 @@ class TestAntDocCat(unittest.TestCase):
                            ('demo-txt/8292.txt', 'renewal', 0, 0, 0),
                            # ('demo-txt/8292.txt', 'termination', 1, 0, 0),
                            # extracted fp is irrelevant
+                           # pylint: disable=line-too-long
                            ('demo-txt/8292.txt', 'termination', 1, 0, 1),  # has_diff: verified, to fix
                            ('demo-txt/8292.txt', 'term', 0, 0, 0),
                            ('demo-txt/8292.txt', 'title', 1, 0, 0),

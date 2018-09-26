@@ -3,7 +3,6 @@
 import configparser
 import json
 import unittest
-import pprint
 
 from kirke.client import postfileutils
 from kirke.utils import corenlputils
@@ -28,8 +27,10 @@ class TestLangs(unittest.TestCase):
 
         sents = corenlp_result['sentences']
         ner_string = " ".join([tok['ner'] for tok in sents[3]['tokens']])
+        # pylint: disable=line-too-long
         self.assertEqual(ner_string, 'O O O O O O O O LOCAL LOCAL LOCAL O O O O O ABSTRACCAO ABSTRACCAO ABSTRACCAO O ORGANIZACAO O O O O ORGANIZACAO O O O O O O O O O O O O O O')
         ner_string = " ".join([tok['ner'] for tok in sents[42]['tokens']])
+        # pylint: disable=line-too-long
         self.assertEqual(ner_string, 'O ORGANIZACAO O O PESSOA O O O PESSOA O O O O ORGANIZACAO ORGANIZACAO ORGANIZACAO ORGANIZACAO ORGANIZACAO ORGANIZACAO ORGANIZACAO ORGANIZACAO O')
         ner_string = " ".join([tok['ner'] for tok in sents[241]['tokens']])
         self.assertEqual(ner_string, 'O OBRA OBRA OBRA OBRA OBRA OBRA OBRA OBRA OBRA OBRA OBRA OBRA O O O O LOCAL LOCAL O O O O O O O VALOR O O O O O O')
@@ -49,12 +50,14 @@ class TestLangs(unittest.TestCase):
         corenlp_result = corenlputils.check_pipeline_lang('fr', fr_file)
         sents = corenlp_result['sentences']
         ner_string = " ".join([tok['ner'] for tok in sents[26]['tokens']])
+        # pylint: disable=line-too-long
         self.assertEqual(ner_string, 'O O O O O ORGANIZATION ORGANIZATION ORGANIZATION ORGANIZATION ORGANIZATION ORGANIZATION ORGANIZATION ORGANIZATION O O O O O O O O O O O O O DATE O')
         ner_string = " ".join([tok['ner'] for tok in sents[217]['tokens']])
         print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[217]['tokens']]))
         self.assertEqual(ner_string, 'O O O O O O O O O O O O O O')
         ner_string = " ".join([tok['ner'] for tok in sents[243]['tokens']])
         print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[243]['tokens']]))
+        # pylint: disable=line-too-long
         self.assertEqual(ner_string, 'LOCATION LOCATION LOCATION LOCATION LOCATION LOCATION LOCATION LOCATION O ORGANIZATION ORGANIZATION O LOCATION')
 
         result_text = \
@@ -93,8 +96,10 @@ class TestLangs(unittest.TestCase):
         corenlp_result = corenlputils.check_pipeline_lang('es', es_file)
         sents = corenlp_result['sentences']
         ner_string = " ".join([tok['ner'] for tok in sents[6]['tokens']])
+        # pylint: disable=line-too-long
         self.assertEqual(ner_string, 'PERS PERS PERS O O O O ORG O O LUG LUG O O O O LUG LUG O O O O O O O O O O O LUG LUG O O O O LUG LUG O O OTROS O')
         ner_string = " ".join([tok['ner'] for tok in sents[18]['tokens']])
+        # pylint: disable=line-too-long
         self.assertEqual(ner_string, 'O O O O O O O O O O O O ORG ORG PERS PERS PERS O O ORG ORG ORG O')
         ner_string = " ".join([tok['ner'] for tok in sents[138]['tokens']])
         self.assertEqual(ner_string, 'PERS PERS PERS O O ORG ORG ORG ORG ORG O')
@@ -117,10 +122,14 @@ class TestLangs(unittest.TestCase):
         corenlp_result = corenlputils.check_pipeline_lang('en', en_file)
         sents = corenlp_result['sentences']
         ner_string = " ".join([tok['ner'] for tok in sents[257]['tokens']])
-        # self.assertEqual(ner_string, 'O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O LOCATION LOCATION O O O ORGANIZATION ORGANIZATION ORGANIZATION O O O O O O O O O O O O O')
-        # NOTE: jshaw changed the gold data so this will pass.
-        # Please verify this change from previous line is reasonable.  Thanks.
-        self.assertEqual(ner_string, 'O O MISC O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O LOCATION LOCATION O O O ORGANIZATION ORGANIZATION ORGANIZATION O O O O O O O O O O O O O')
+        # there seems to be some randomization in CoreNLP.  Both results are acceptable to
+        # avoid false alarms.
+        if 'MISC' in ner_string:
+            # pylint: disable=line-too-long
+            self.assertEqual(ner_string, 'O O MISC O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O LOCATION LOCATION O O O ORGANIZATION ORGANIZATION ORGANIZATION O O O O O O O O O O O O O')
+        else:
+            # pylint: disable=line-too-long
+            self.assertEqual(ner_string, 'O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O O LOCATION LOCATION O O O ORGANIZATION ORGANIZATION ORGANIZATION O O O O O O O O O O O O O')
         ner_string = " ".join([tok['ner'] for tok in sents[336]['tokens']])
         self.assertEqual(ner_string, 'ORGANIZATION ORGANIZATION ORGANIZATION O O')
         ner_string = " ".join([tok['ner'] for tok in sents[362]['tokens']])

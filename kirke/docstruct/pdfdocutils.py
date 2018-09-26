@@ -213,39 +213,6 @@ def save_nlp_paras_with_attrs(pdftxt_doc: PDFTextDoc,
     print('wrote {}'.format(out_fname), file=sys.stderr)
 
 
-def save_nlp_paras_with_attrs_v2(pdftxt_doc: PDFTextDoc,
-                                 extension: str,
-                                 work_dir: str = 'dir-work') -> None:
-    base_fname = os.path.basename(pdftxt_doc.file_name)
-    out_fname = '{}/{}'.format(work_dir, base_fname.replace('.txt', extension))
-
-    # List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
-    #            PLineAttrs]],
-
-    nlp_text = pdftxt_doc.nlp_doc_text
-    with open(out_fname, 'wt') as fout:
-        # for from_to_span_list, out_line, attr_list in offsets_line_list:
-        para_seq = 1
-        for para_with_attrs in pdftxt_doc.nlp_paras_with_attrs:
-            from_to_lnpos_list, para_attrs = para_with_attrs
-
-            if len(from_to_lnpos_list) == 1:
-                from_lnpos, to_lnpos = from_to_lnpos_list[0]
-                if from_lnpos.start == from_lnpos.end:
-                    # an empty line, this is a paragraph break
-                    continue
-
-            print('\n----- para_with_attr #{}'.format(para_seq), file=fout)
-            for unused_from_lnpos, to_lnpos in from_to_lnpos_list:
-                ln_text = nlp_text[to_lnpos.start:to_lnpos.end]
-                if ln_text:
-                    print("ln_text: [{}]".format(ln_text), file=fout)
-            print('    {}\t{}'.format(from_to_lnpos_list, para_attrs), file=fout)
-            para_seq += 1
-
-        print('wrote {}'.format(out_fname), file=sys.stderr)
-
-
 def is_title_page(apage: PageInfo3) -> bool:
     """Determine is a page is a title page, only based on apage.content_linex_list."""
     content_lines = apage.content_linex_list
@@ -281,45 +248,6 @@ def is_title_page(apage: PageInfo3) -> bool:
         return True
     return False
 
-"""
-def linex_list_to_pblock_info(lineinfo_list: List[LineInfo3],
-                              block_id: int,
-                              page_num: int,
-                              nl_text: str) -> PBlockInfo:
-    block_start = lineinfo_list[0].start
-    block_end = lineinfo_list[-1].end
-    paraline_chunk_text = nl_text[block_start:block_end]
-
-    unused_para_line, is_multi_lines, unused_not_linebreaks = \
-        pdfutils.para_to_para_list(paraline_chunk_text)
-    # print('is_multi_lines = {}'.format(is_multi_lines))
-
-    # print("is_multi_lines = {}, paraline: [{}]\n".format(is_multi_lines,
-    #                                                      para_line))
-    # print("\nblock_chunk_text: [{}] is_multi={}".format(paraline_chunk_text,
-    #                                                     is_multi_lines))
-    if not is_multi_lines:
-        paraline_chunk_text = paraline_chunk_text.replace('\n', ' ')
-
-    # print('page: {}, block {}'.format(page_num, doc_block_id))
-    # print(paraline_chunk_text)
-    # print()
-
-    # for lineinfo in lineinfo_list:
-    #     lineinfo.ybid = doc_block_id
-
-    # print("is_multi_lines = {}, paraline: [{}]\n".format(is_multi_lines, para_line))
-    block_info = PBlockInfo(block_start,
-                            block_end,
-                            block_id,
-                            page_num,
-                            paraline_chunk_text,
-                            # bxid_lineinfos_map[pblock_id],
-                            lineinfo_list,
-                            is_multi_lines)
-    return block_info
-"""
-
 
 def linex_list_to_multi_line_pblock_info(linex_list: List[LineWithAttrs],
                                          block_id: int,
@@ -350,7 +278,6 @@ def linex_list_to_multi_line_pblock_info(linex_list: List[LineWithAttrs],
                             lineinfo_list,
                             is_multi_lines)
     return block_info
-
 
 
 def adjust_title_page_blocks(apage: PageInfo3) -> None:
