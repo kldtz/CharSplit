@@ -6,7 +6,7 @@ import os
 
 from kirke.docstruct import pdftxtparser
 
-from kirke.utils import ebantdoc4
+from kirke.utils import docversion, ebantdoc4
 from kirke.abbyyxml import abbyyxmlparser
 from kirke.abbyyxml.abbyypbox_syncher import sync_doc_offsets, print_abbyy_pbox_sync
 from kirke.abbyyxml.abbyypbox_syncher import print_abbyy_pbox_unsync
@@ -41,10 +41,8 @@ def main():
     txt_fname = fname
     base_fname = os.path.basename(txt_fname)
 
-    nlptxt_file_name = ebantdoc4.get_nlp_file_name(base_fname, work_dir)
     pdf_txt_doc = pdftxtparser.parse_document(txt_fname,
-                                              work_dir=work_dir,
-                                              nlptxt_file_name=nlptxt_file_name)  # type: PDFTextDoc
+                                              work_dir=work_dir)  # type: PDFTextDoc
 
     work_fname = '{}/{}'.format(work_dir, base_fname)
     txt_infer_fname = work_fname.replace('.txt', '.abbyy.infer222')

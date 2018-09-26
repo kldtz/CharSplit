@@ -576,7 +576,7 @@ def find_unsync_abbyy_frag_in_pbox_strs_by_match_str(unsync_abbyy_frag: Unsynced
 
     # pylint: disable=line-too-long
     as_mapper_list = []  # type: List[MatchedStrMapper]
-    out_abbyy_frag, out_pbox_frag = None, None
+    out_abbyy_frag_list, out_pbox_frag_list = [], []
     out_pbox_lines = []  # type: List[UnsyncedPBoxLine]
 
     abline_st = unsync_abbyy_frag.text
@@ -600,18 +600,22 @@ def find_unsync_abbyy_frag_in_pbox_strs_by_match_str(unsync_abbyy_frag: Unsynced
 
             if not asmapper.is_fully_synced:
                 # logger.info("not fully synced: %s", str(asmapper))
-                if asmapper.extra_fse:  # abbyy has this, but not pdfbox
-                    fstart, fend = asmapper.extra_fse
-                    out_abbyy_frag = UnsyncedStrWithY(um_abline_y,
-                                                      asmapper.extra_fse,
-                                                      abline_st[fstart:fend],
-                                                      asmapper)
-                if asmapper.extra_tse:  # pdfbox has this, but not abbyy
-                    tstart, tend = asmapper.extra_tse
-                    out_pbox_frag = UnsyncedStrWithY(pbox_y,
-                                                     asmapper.extra_tse,
-                                                     pbox_text[tstart-pstart:tend-pstart],
-                                                     asmapper)
+                if asmapper.extra_fse_list:  # abbyy has this, but not pdfbox
+                    for extra_fse in asmapper.extra_fse_list:
+                        fstart, fend = extra_fse
+                        out_abbyy_frag = UnsyncedStrWithY(um_abline_y,
+                                                          extra_fse,
+                                                          abline_st[fstart:fend],
+                                                          asmapper)
+                        out_abbyy_frag_list.append(out_abbyy_frag)
+                if asmapper.extra_tse_list:  # pdfbox has this, but not abbyy
+                    for extra_tse in asmapper.extra_tse_list:
+                        tstart, tend = extra_tse
+                        out_pbox_frag = UnsyncedStrWithY(pbox_y,
+                                                         extra_tse,
+                                                         pbox_text[tstart-pstart:tend-pstart],
+                                                         asmapper)
+                        out_pbox_frag_list.append(out_pbox_frag)
         else:
             out_pbox_lines.append(um_pbox_line)
 
@@ -625,10 +629,10 @@ def find_unsync_abbyy_frag_in_pbox_strs_by_match_str(unsync_abbyy_frag: Unsynced
         adj_to_se_list = matched_str_mapper.to_se_list
         abbyy_line_abbyy_pbox_as_mapper.update_with_mapper(adj_from_se_list,
                                                            adj_to_se_list)
-        if out_abbyy_frag:
-            abbyy_more_extra_frags.append(out_abbyy_frag)
-        if out_pbox_frag:
-            pbox_extra_se_list.append(out_pbox_frag)
+        if out_abbyy_frag_list:
+            abbyy_more_extra_frags.extend(out_abbyy_frag_list)
+        if out_pbox_frag_list:
+            pbox_extra_se_list.extend(out_pbox_frag_list)
         # pbox_extra_se_list is NOT modified
         return True, out_pbox_lines, abbyy_more_extra_frags, pbox_extra_se_list
 
@@ -652,18 +656,22 @@ def find_unsync_abbyy_frag_in_pbox_strs_by_match_str(unsync_abbyy_frag: Unsynced
 
             if not asmapper.is_fully_synced:
                 # logger.info("not fully synced: %s", str(asmapper))
-                if asmapper.extra_fse:  # abbyy has this, but not pdfbox
-                    fstart, fend = asmapper.extra_fse
-                    out_abbyy_frag = UnsyncedStrWithY(um_abline_y,
-                                                      asmapper.extra_fse,
-                                                      abline_st[fstart:fend],
-                                                      asmapper)
-                if asmapper.extra_tse:  # pdfbox has this, but not abbyy
-                    tstart, tend = asmapper.extra_tse
-                    out_pbox_frag = UnsyncedStrWithY(pbox_y,
-                                                     asmapper.extra_tse,
-                                                     pbox_text[tstart-pstart:tend-pstart],
-                                                     asmapper)
+                if asmapper.extra_fse_list:  # abbyy has this, but not pdfbox
+                    for extra_fse in asmapper.extra_fse_list:
+                        fstart, fend = extra_fse
+                        out_abbyy_frag = UnsyncedStrWithY(um_abline_y,
+                                                          extra_fse,
+                                                          abline_st[fstart:fend],
+                                                          asmapper)
+                        out_abbyy_frag_list.append(out_abbyy_frag)
+                if asmapper.extra_tse_list:  # pdfbox has this, but not abbyy
+                    for extra_tse in asmapper.extra_tse_list:
+                        tstart, tend = extra_tse
+                        out_pbox_frag = UnsyncedStrWithY(pbox_y,
+                                                         extra_tse,
+                                                         pbox_text[tstart-pstart:tend-pstart],
+                                                         asmapper)
+                        out_pbox_frag_list.append(out_pbox_frag)
         else:
             out_pbox_extra_se_list.append(pbox_extra_se)
 
@@ -678,10 +686,10 @@ def find_unsync_abbyy_frag_in_pbox_strs_by_match_str(unsync_abbyy_frag: Unsynced
                                                            adj_to_se_list)
         # abbyy_line_abbyy_pbox_as_mapper.update_with_mapper(matched_str_mapper.from_se_list,
         #                                                  matched_str_mapper.to_se_list)
-        if out_abbyy_frag:
-            abbyy_more_extra_frags.append(out_abbyy_frag)
-        if out_pbox_frag:
-            out_pbox_extra_se_list.append(out_pbox_frag)
+        if out_abbyy_frag_list:
+            abbyy_more_extra_frags.extend(out_abbyy_frag_list)
+        if out_pbox_frag_list:
+            out_pbox_extra_se_list.extend(out_pbox_frag_list)
         # pbox_extra_se_list is NOT modified
         return True, unsync_pbox_lines, abbyy_more_extra_frags, out_pbox_extra_se_list
 

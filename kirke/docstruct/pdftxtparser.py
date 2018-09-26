@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
-IS_DEBUG_MODE = False
+IS_DEBUG_MODE = True
 IS_DEBUG_TOC = False
 
 IS_DEBUG_DETAIL_MODE = False
@@ -179,6 +179,8 @@ def init_pageinfo_list(doc_text: str,
         else:
             lxid_strinfos_map[line_num].append(StrInfo(start, end,
                                                        xStart, xEnd, yStart))
+            # print('==222== strinfo(start={}, end={}, xs={}, xe={}, ys={}) [{}]'.format(
+            #     start, end, xStart, xEnd, yStart, str_text))
 
     # for y_diff_count, yy in enumerate(all_diffs):
     #     print('y_diff_count= {}, ydiff = {}'.format(y_diff_count, yy))
