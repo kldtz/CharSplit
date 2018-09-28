@@ -18,9 +18,9 @@ import psutil
 # pylint: disable=import-error
 from sklearn.externals import joblib
 
-from kirke.abbyyxml import abbyyxmlparser, abbyypbox_syncher, tableutils
+from kirke.abbyyxml import abbyyxmlparser, abbyypbox_tablesync, tableutils
 from kirke.abbyyxml.pdfoffsets import AbbyyBlock, AbbyyTableBlock, AbbyyXmlDoc
-
+from kirke.abbyyxml.abbyypbox_tablesync import AbbyyPBoxTable
 from kirke.eblearn import ebattrvec, sent2ebattrvec
 from kirke.docstruct import docstructutils, docutils, fromtomapper, htmltxtparser
 from kirke.docstruct import linepos, pdftxtparser
@@ -124,7 +124,8 @@ class EbAnnotatedDoc4:
         self.signature_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
 
         # abbyy's stuff
-        self.abbyy_table_list = []  # type: List[AbbyyTableBlock]
+        # self.abbyy_table_list = []  # type: List[AbbyyTableBlock]
+        self.pbox_table_list = []  # type: List[AbbyyPBoxTable]
         self.abbyy_signature_list = []  # type: List[AbbyyBlock]
         self.abbyy_address_list = []  # type: List[AbbyyBlock]
 
@@ -591,6 +592,7 @@ def pdf_to_ebantdoc(txt_file_name: str,
     if os.path.exists(xml_fname):
         abbyy_xml_doc = abbyyxmlparser.parse_document(xml_fname, work_dir=work_dir)
 
+        """
         abbyypbox_syncher.sync_doc_offsets(abbyy_xml_doc, pdf_text_doc)
 
         txt_unsync_fname = '{}/{}'.format(work_dir, txt_base_fname.replace('.txt', '.txt.unsync'))
@@ -616,6 +618,10 @@ def pdf_to_ebantdoc(txt_file_name: str,
                                                   para2_doc_text,
                                                   '{}/{}'.format(work_dir,
                                                                  tmp_para_attrs_fname))
+        """
+        # put all the tables from abbyy into str's in pbox's representation
+        pbox_table_list = abbyypbox_tablesync.extract_tables(abbyy_xml_doc,
+                                                             pdf_text_doc)
 
     if not IS_USE_ABBYY_FOR_PARAGRAPH_INFO:
         paras2_with_attrs = pdf_text_doc.nlp_paras_with_attrs
@@ -659,7 +665,8 @@ def pdf_to_ebantdoc(txt_file_name: str,
     update_special_block_info(eb_antdoc, pdf_text_doc)
 
     if abbyy_xml_doc:
-        eb_antdoc.abbyy_table_list = tableutils.get_abbyy_table_list(abbyy_xml_doc)
+        # eb_antdoc.abbyy_table_list = tableutils.get_abbyy_table_list(abbyy_xml_doc)
+        eb_antdoc.pbox_table_list = pbox_table_list
         eb_antdoc.abbyy_signature_list = tableutils.get_abbyy_signature_list(abbyy_xml_doc)
         eb_antdoc.abbyy_address_list = tableutils.get_abbyy_address_list(abbyy_xml_doc)
 

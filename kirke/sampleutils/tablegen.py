@@ -8,6 +8,7 @@ from kirke.utils import ebantdoc4, engutils, ebsentutils, osutils, strutils
 from kirke.abbyyxml import tableutils
 from kirke.abbyyxml.pdfoffsets import AbbyyBlock, AbbyyTableBlock
 
+
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -171,13 +172,23 @@ class TableGenerator:
             # a section might have multiple tables, so the pretext should start from
             # either the sechead or the last table_end
             prev_table_end = -1
-            for table_count, abbyy_table in enumerate(antdoc.abbyy_table_list):
-                table_start, table_end = tableutils.get_pbox_text_offset(abbyy_table)
+            for table_count, pbox_table in enumerate(antdoc.pbox_table_list):
 
-                table_text = doc_text[table_start:table_end].strip()
+                span_list = pbox_table.span_list
+                # assume only 1 table per page
+                abbyy_table = pbox_table.abbyy_table_list[0]
+                table_start, table_end = span_list[0][0], span_list[-1][1]
+
+                table_page_num, bot_left_point, top_right_point = pbox_table.bltr_list[0]
+
+                left_x, bot_y = bot_left_point
+                right_x, top_y = top_right_point
+
+                table_text = pbox_table.abbyy_text
                 table_text = fix_rate_table_text(table_text)
 
-                span_list = tableutils.get_pbox_text_span_list(abbyy_table, doc_text)
+                print("-------- table txt:")
+                print(table_text.replace('\n', ' || '))
 
                 # rate table related features
                 num_number, num_currency, num_percent, \
@@ -208,7 +219,7 @@ class TableGenerator:
                 if IS_DEBUG_TABLE:
                     print('\n\n==================================================')
                     print('ABBYY table count #{}, page_num = {}, table_start = {}'.format(table_count,
-                                                                                          abbyy_table.page_num,
+                                                                                          table_page_num,
                                                                                           table_start))
 
                     print("  is_abbyy_original: {}".format(abbyy_table.is_abbyy_original))
@@ -231,7 +242,7 @@ class TableGenerator:
                     sechead_text = ''
 
                 is_table_in_exhibit = is_in_exhibit_section(table_start,
-                                                            abbyy_table.page_num,
+                                                            table_page_num,
                                                             sechead_list)
                 doc_percent = table_start / doc_len
                 pre_table_text = get_before_table_text(table_start,
@@ -305,6 +316,10 @@ class TableGenerator:
                                                            table_text_alphanum]),
                                'start': table_start,
                                'end': table_end,
+                               'left_x': left_x,
+                               'bottom_y': bot_y,
+                               'right_x': right_x,
+                               'top_y': top_y,
                                'span_list': span_dict_list,
                                'pre_table_text': pre_table_text,
                                'len_pre_table_text': len_pre_table_text,

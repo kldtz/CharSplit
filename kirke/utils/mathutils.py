@@ -205,3 +205,21 @@ def is_interval_overlap(top: int,
         if perc_overlap >= threshold:
             return True
     return False
+
+
+def is_rect_overlap(bot_left_1: Tuple[int, int],
+                    top_right_1: Tuple[int, int],
+                    bot_left_2: Tuple[int, int],
+                    top_right_2: Tuple[int, int]) \
+                    -> bool:
+    # if one rectagle is on left side of the other
+    if bot_left_1[0] > top_right_2[0] or \
+       bot_left_2[0] > top_right_1[0]:
+        return False
+
+    # if one rectagle is is above other
+    if bot_left_1[1] < top_right_2[1] or \
+       bot_left_2[1] < top_right_1[1]:
+        return False
+
+    return True
