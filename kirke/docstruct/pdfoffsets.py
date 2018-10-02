@@ -59,7 +59,7 @@ class PageAttrs:
 # pylint: disable=too-many-instance-attributes
 class LineInfo3:
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-locals
     def __init__(self, start, end, line_num, block_num, strinfo_list) -> None:
         self.start = start
         self.end = end
@@ -123,12 +123,13 @@ class LineInfo3:
         #self.xEnd = self.strinfo_list[-1].xEnd
 
     def tostr2(self):
-        return 'se=(%d, %d), ybid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f ye=%.1f h=%.1f, font=%.1f' % \
-            (self.start, self.end,
-             self.bid, self.obid,
-             self.xStart, self.xEnd,
-             self.yStart, self.yEnd,
-             self.height, self.font_size)
+        return 'se=(%d, %d), ybid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f' \
+               'ye=%.1f h=%.1f, font=%.1f' % \
+               (self.start, self.end,
+                self.bid, self.obid,
+                self.xStart, self.xEnd,
+                self.yStart, self.yEnd,
+                self.height, self.font_size)
 
     def tostr3(self):
         return 'se=(%d, %d), bid= %d, obid = %d' % (self.start, self.end,
