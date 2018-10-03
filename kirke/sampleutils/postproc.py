@@ -45,8 +45,7 @@ class TablePostProcessing(DocCandidatesTransformer):
             del_keys = []
             for key, unused_val in candidate.items():
                 if key not in set(['start', 'end', 'label', 'prob', 'text',
-                                   'span_list', 'norm', 'json',
-                                   'left_x', 'bottom_y', 'right_x', 'top_y']):
+                                   'span_list', 'norm', 'json']):
                     del_keys.append(key)
 
             for del_key in del_keys:

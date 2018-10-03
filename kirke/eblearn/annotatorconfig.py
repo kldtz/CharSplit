@@ -191,6 +191,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('TABLE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                       'is_use_corenlp': True,
+                      'is_doc_structure': True,
                       'doc_to_candidates': [tablegen.TableGenerator('TABLE')],
                       'version': "1.0",
                       'doc_postproc_list': [postproc.TablePostProcessing()],
@@ -230,6 +231,7 @@ def validate_annotator_config_keys(aconfig: Tuple[str, str, Dict]) -> bool:
     for key, unused_value in adict.items():
         if key not in set(['doclist_to_antdoc_list',
                            'is_use_corenlp',
+                           'is_doc_structure',
                            'doc_to_candidates',
                            'version',
                            'doc_postproc_list',

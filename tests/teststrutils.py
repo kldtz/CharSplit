@@ -137,7 +137,6 @@ class TestStrUtils(unittest.TestCase):
                          ['a) ', ' b) ', ' c) ', ' d) '])
 
 
-
     def test_find_previous_word(self):
         line = '1) aba bd (b) a2df'
         start, end, word = strutils.find_previous_word(line, 3)
@@ -163,6 +162,32 @@ class TestStrUtils(unittest.TestCase):
 
         start, end, word = strutils.find_previous_word(line, 6)
         self.assertEqual(word, 'aba')
+
+    def test_text_strip(self):
+        line = ''
+        se_tuple = strutils.text_strip(start=0, end=len(line), text=line)
+        self.assertEqual(se_tuple, (0, 0))
+
+        line = '1'
+        se_tuple = strutils.text_strip(start=0, end=len(line), text=line)
+        self.assertEqual(se_tuple, (0, 1))
+
+        line = ' 1'
+        se_tuple = strutils.text_strip(start=0, end=len(line), text=line)
+        self.assertEqual(se_tuple, (1, 2))
+
+        line = ' 1 '
+        se_tuple = strutils.text_strip(start=0, end=len(line), text=line)
+        self.assertEqual(se_tuple, (1, 2))
+
+        line = ' 1 2 '
+        se_tuple = strutils.text_strip(start=0, end=len(line), text=line)
+        self.assertEqual(se_tuple, (1, 4))
+
+        line = ' 1  2 '
+        se_tuple = strutils.text_strip(start=0, end=len(line), text=line)
+        self.assertEqual(se_tuple, (1, 5))
+
 
 if __name__ == "__main__":
     unittest.main()

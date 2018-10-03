@@ -1210,6 +1210,20 @@ def find_non_space_index(line: str) -> int:
     return idx
 
 
+def text_strip(*, start: int, end: int, text: str) -> Tuple[int, int]:
+    while start < end:
+        if text[start].isspace():
+            start += 1
+        else:
+            break
+    while start < end:
+        if text[end-1].isspace():
+            end -= 1
+        else:
+            break
+    return start, end
+
+
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
     print(str(_get_num_prefix_space("abc")))      # 0

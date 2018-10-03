@@ -293,6 +293,10 @@ def is_invalid_sechead(unused_sechead_type: str,
 
     if prefix == 'a':   # 'a', 'Force Majeure Event.'
         return True
+
+    if 'by year' in lc_head:  # 'S/MWh by Year' in carousel.txt
+        return True
+
     words = head.split()
     # 'At the termination of the Transmission Force Majeure Event, the '
     if len(words) >= 8:
@@ -311,17 +315,20 @@ def extract_sechead(line: str,
                     *,
                     prev_line: str = '',
                     prev_line_idx: int = -1,
-                    is_combine_line: bool = True) \
+                    is_combine_line: bool = True,
+                    is_centered: bool = False) \
                     -> Optional[Tuple[str, str, str, int]]:
     if IS_DEBUG_SECHEAD:
         print("~12~ extract_sechead({})".format(line))
         print('         prev_line = [{}]'.format(prev_line))
         print('         prev_line_idx = {}'.format(prev_line_idx))
         print('         is_combine_line = {}'.format(is_combine_line))
+        print('         is_centered = {}'.format(is_centered))
     shead_tuple = extract_sechead_aux(line,
                                       prev_line=prev_line,
                                       prev_line_idx=prev_line_idx,
-                                      is_combine_line=is_combine_line)
+                                      is_combine_line=is_combine_line,
+                                      is_centered=is_centered)
     # handling if all sechead prefix are capitalized, but the rest is not
     # example: CONTRACT ENERGY RATE  By Commercial Operation Year
     # return: CONTRACT ENERGY RATE
@@ -350,16 +357,25 @@ def extract_sechead(line: str,
 def extract_sechead_aux(line: str,
                         prev_line: str = '',
                         prev_line_idx: int = -1,
-                        is_combine_line: bool = True) \
+                        is_combine_line: bool = True,
+                        is_centered: bool = False) \
                         -> Optional[Tuple[str, str, str, int]]:
     if not line:
         return None
 
-    if not is_combine_line:
+    if not is_combine_line or not prev_line:
 
         # 3 Months
         if is_invalid_heading(line):
             return None
+
+        # if all capitalized, short, and centered, it is
+        # a section head.
+        if is_centered and strutils.is_all_caps_space(line):
+            words = line.split()
+            words_len_gt4 = [word for word in words if len(word) > 4]
+            if len(words) < 6 and len(words_len_gt4) >= 1:
+                return ('sechead', '', line, -1)
 
         split_idx = split_subsection_head3(line)
         if split_idx != -1:

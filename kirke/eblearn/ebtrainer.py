@@ -578,9 +578,6 @@ def train_eval_annotator_with_trte(provision: str,
     return prov_annotator, ant_status['ant_status'], log_json
 
 
-# For our default provisions, we take 4/5 for training, 1/5 for testing
-# For bespoke, < 600 docs, train/test split we take 3/4 for training, 1/4 for testing
-# For bespoke, >= 600 docs, cross validate
 # TODO, for both is_doc_structure==True and is_doc_structure==False, the results so far is the
 # same.  But in the future, will try to move toward is_doc_structure==True when we get
 # a better PDF document text.
@@ -599,7 +596,7 @@ def train_eval_span_annotator(provision: str,
             -> Tuple[spanannotator.SpanAnnotator,
                      Dict[str, Dict]]:
 
-    #get configs based on candidate_type or provision
+    # get configs based on candidate_type or provision
     config = annotatorconfig.get_ml_annotator_config(candidate_types)
     if not model_file_name:
         model_file_name = '{}/{}_{}_annotator.v{}.pkl'.format(model_dir,
@@ -631,7 +628,8 @@ def train_eval_span_annotator(provision: str,
     # this is mainly for paragraph
     is_doc_structure = False
     if span_annotator.text_type == 'nlp_text' or \
-       config.get('is_doc_structure', False):
+       config.get('is_doc_structure', False) or \
+       config.get('is_use_corenlp', False):
         is_doc_structure = True
 
     if is_bespoke_mode:

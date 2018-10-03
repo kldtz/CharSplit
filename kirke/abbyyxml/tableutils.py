@@ -16,7 +16,7 @@ IS_DEBUG_TABLE = False
 IS_PRINT_HEADER_TABLE = False
 # IS_PRINT_HEADER_TABLE = True
 
-IS_DEBUG_INVALID_TABLE = False
+IS_DEBUG_INVALID_TABLE = True
 
 # in general, we want to preserve all
 # text in order to synch with pdfbox.
@@ -1162,8 +1162,8 @@ def is_invalid_table_aux(ab_table: AbbyyTableBlock) -> bool:
 
     toc_mat = re.search(r'\btable(.*)contents?\b', table_text, flags=re.I)
     pagenum_mat = re.search(r'\bPage(.*)N(o|um|umber)?\b', table_text, flags=re.I)
-    if toc_mat and len(toc_mat.group(1)) < 8 or \
-       pagenum_mat and len(pagenum_mat.group(1)) < 8:
+    if (toc_mat and len(toc_mat.group(1)) < 8) or \
+       (pagenum_mat and len(pagenum_mat.group(1)) < 8):
         if IS_DEBUG_INVALID_TABLE:
             print("--- is_invalid_table(), table of content or page number phrase found")
             print("  table_text: [{}]".format(table_text.replace('\n', r'|')))

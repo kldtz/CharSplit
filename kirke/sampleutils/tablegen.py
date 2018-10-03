@@ -8,12 +8,18 @@ from kirke.utils import ebantdoc4, engutils, ebsentutils, osutils, strutils
 from kirke.abbyyxml import tableutils
 from kirke.abbyyxml.pdfoffsets import AbbyyBlock, AbbyyTableBlock
 
+# on 2018/10/03, the precision and recall number for
+# data-rate-table, 8 documents (no goldwest.txt)
+# are fp=7, fn=1, tp=8
+# precision=0.53, recall=0.89, f=0.67
+# I am not putting this into unit test suite yet,
+# because table extraction is still unstable.
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-IS_DEBUG_TABLE = False
+IS_DEBUG_TABLE = True
 IS_DEBUG_INVALID_TABLE = False
 
 def find_prev_sechead(start: int,
@@ -77,7 +83,7 @@ def get_before_table_text(table_start: int,
                           exhibit_tuple: Optional[SecHeadTuple],
                           prev_table_end: int,
                           doc_text: str) \
-                          -> str:
+                          -> Tuple[str, Tuple[int, int]] :
     if sechead_tuple and exhibit_tuple:
         if sechead_tuple.end <= exhibit_tuple.end:
             last_tuple = exhibit_tuple
@@ -88,7 +94,7 @@ def get_before_table_text(table_start: int,
     elif exhibit_tuple:
         last_tuple = exhibit_tuple
     else:
-        return ''
+        return '', (-1, -1)
 
     unused_shead_start, shead_end, unused_shead_prefix, \
         unused_shead_st, unused_shead_page_num = last_tuple
@@ -100,10 +106,14 @@ def get_before_table_text(table_start: int,
     # only up to 1000 char are returned
     # print('  before table text len = {}'.format(table_start - shead_end))
     if table_start > shead_end and table_start - shead_end < 1000:
-        text = doc_text[shead_end:table_start].replace('\n', ' ')
-        return text
+        text = doc_text[shead_end:table_start].replace('\n', ' ').strip()
 
-    return ''
+        shead_end, table_start = strutils.text_strip(start=shead_end,
+                                                     end=table_start,
+                                                     text=doc_text)
+        return text, (shead_end, table_start)
+
+    return '', (-1, -1)
 
 
 def is_invalid_table(table_candidate: Dict,
@@ -187,8 +197,10 @@ class TableGenerator:
                 table_text = pbox_table.abbyy_text
                 table_text = fix_rate_table_text(table_text)
 
-                print("-------- table txt:")
-                print(table_text.replace('\n', ' || '))
+                if IS_DEBUG_TABLE:
+                    print('\n\n==================================================')
+                    print("-------- table txt:")
+                    print(table_text.replace('\n', ' || '))
 
                 # rate table related features
                 num_number, num_currency, num_percent, \
@@ -217,7 +229,7 @@ class TableGenerator:
                 perc_bad_word = (num_bad_word + num_alphanum_word) / num_word
 
                 if IS_DEBUG_TABLE:
-                    print('\n\n==================================================')
+                    print()
                     print('ABBYY table count #{}, page_num = {}, table_start = {}'.format(table_count,
                                                                                           table_page_num,
                                                                                           table_start))
@@ -226,12 +238,16 @@ class TableGenerator:
 
                 table_sechead = find_prev_sechead(table_start, sechead_list)
                 sechead_text = ''
+                out_sechead_dict = {}
                 if table_sechead:
                     if table_sechead.head_st:
                         sechead_text = table_sechead.head_st
                     else:
                         # will take prefix is no head_st found
                         sechead_text = table_sechead.head_prefix
+                    out_sechead_dict['start'] = table_sechead.start
+                    out_sechead_dict['end'] = table_sechead.end
+                    out_sechead_dict['text'] = sechead_text
 
                 lc_sechead_text = sechead_text.lower()
                 # remove useless and confusing secheads
@@ -245,11 +261,16 @@ class TableGenerator:
                                                             table_page_num,
                                                             sechead_list)
                 doc_percent = table_start / doc_len
-                pre_table_text = get_before_table_text(table_start,
-                                                       table_sechead,
-                                                       is_table_in_exhibit,
-                                                       prev_table_end,
-                                                       doc_text).strip()
+                pre_table_text, pre_table_se_tuple = get_before_table_text(table_start,
+                                                                           table_sechead,
+                                                                           is_table_in_exhibit,
+                                                                           prev_table_end,
+                                                                           doc_text)
+                pre_table_text_dict = {}
+                if pre_table_text:
+                    pre_table_text_dict['text'] = pre_table_text
+                    pre_table_text_dict['start'] = pre_table_se_tuple[0]
+                    pre_table_text_dict['end'] = pre_table_se_tuple[1]
                 len_pre_table_text = len(pre_table_text)
                 num_rows = len(abbyy_table.ab_rows)
                 num_cols = abbyy_table.get_num_cols()
@@ -309,6 +330,20 @@ class TableGenerator:
                                                                table_end,
                                                                label_ant_list)
 
+                out_table_json = tableutils.table_block_to_json(abbyy_table)
+
+                out_table_json['start'] = table_start
+                out_table_json['end'] = table_end
+                out_table_json['x_left'] = left_x
+                out_table_json['x_right'] = right_x
+                out_table_json['y_top'] = top_y
+                out_table_json['y_bottom'] = bot_y
+                out_table_json['span_list'] = span_dict_list
+                if out_sechead_dict:
+                    out_table_json['section_head'] = out_sechead_dict
+                if pre_table_text_dict:
+                    out_table_json['pre_table_text'] = pre_table_text_dict
+
                 a_candidate = {'candidate_type': self.candidate_type,
                                'text': '\n'.join([sechead_text,
                                                   table_text]),
@@ -316,10 +351,10 @@ class TableGenerator:
                                                            table_text_alphanum]),
                                'start': table_start,
                                'end': table_end,
-                               'left_x': left_x,
-                               'bottom_y': bot_y,
-                               'right_x': right_x,
-                               'top_y': top_y,
+                               # 'left_x': left_x,
+                               # 'bottom_y': bot_y,
+                               # 'right_x': right_x,
+                               # 'top_y': top_y,
                                'span_list': span_dict_list,
                                'pre_table_text': pre_table_text,
                                'len_pre_table_text': len_pre_table_text,
@@ -358,7 +393,7 @@ class TableGenerator:
                                'num_period_cap': num_period_cap,
                                'has_dollar_div': has_dollar_div,
                                'row_header_text': row_header_text,
-                               'json': tableutils.table_block_to_json(abbyy_table)}
+                               'json': out_table_json}
 
                 # Verify that thee table is valid
                 # "not is_label" make sure that is a table is annotated
@@ -382,9 +417,9 @@ class TableGenerator:
 
             if IS_DEBUG_TABLE:
                 osutils.mkpath('tmp')
-                save_tables_to_html_file(antdoc.file_id,
-                                         antdoc.abbyy_table_list,
-                                         extension='.abbyy')
+                # save_tables_to_html_file(antdoc.file_id,
+                #                          antdoc.pbox_table_list,
+                #                         extension='.abbyy')
 
                 save_cand_tables_to_html_file(antdoc.file_id,
                                               doc_abbyy_table_list,

@@ -16,6 +16,7 @@ from kirke.docstruct import pdfdocutils, pdfoffsets, pdfutils, secheadutils
 from kirke.docstruct.pdfoffsets import LineInfo3, LineWithAttrs
 from kirke.docstruct.pdfoffsets import PLineAttrs
 from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInfo
+from kirke.docstruct.secheadutils import SecHeadTuple
 from kirke.utils import docversion, mathutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
 
@@ -27,7 +28,7 @@ logger.setLevel(logging.INFO)
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
-IS_DEBUG_MODE = False
+IS_DEBUG_MODE = True
 IS_DEBUG_TOC = False
 
 IS_DEBUG_DETAIL_MODE = False
@@ -898,10 +899,30 @@ def add_doc_structure_to_page(apage: PageInfo3,
             # not skipped
         else:  # none-of-above
             # check if sechead
-            if secheadutils.is_line_sechead_prefix(line.line_text):
-                sechead_tuple = docstructutils.extract_line_sechead(line.line_text)
-                if sechead_tuple:
-                    line.attrs.sechead = sechead_tuple
+            # if secheadutils.is_line_sechead_prefix(line.line_text):
+            # print("pdftxtparser 1, extract_sechead")
+            sechead_tuple = secheadutils.extract_sechead(line.line_text, is_centered=line.is_centered)
+            if sechead_tuple:
+                # print("  ggg check_sechead: [{}]".format(line.line_text))
+                # print("      sechead_tuple: [{}]".format(sechead_tuple))
+
+                line.attrs.sechead = sechead_tuple
+                unused_sec_type, sechead_prefix, sechead_st, split_idx = sechead_tuple
+                if split_idx != -1:
+                    shead_end = line.lineinfo.start + split_idx
+                else:
+                    shead_end = line.lineinfo.end
+                if not sechead_st or 'continue' in sechead_st.lower():
+                    # 'exhibit c - continue'
+                    sechead_st = sechead_prefix
+                out_sechead = SecHeadTuple(line.lineinfo.start,
+                                           shead_end,
+                                           sechead_prefix,
+                                           sechead_st,
+                                           page_num)
+                # print("sechead_tuple: {}".format(sechead_tuple))
+                # print("             : {}".format(out_sechead))
+                pdf_txt_doc.sechead_list.append(out_sechead)
 
         # 2nd stage of rules
         is_footer, unused_score = docstructutils.is_line_footer(line.line_text,
@@ -1029,15 +1050,38 @@ def add_doc_structure_to_page(apage: PageInfo3,
     for line in apage.line_list[last_toc_line + 1:]:
         # sechead detection is applied later
         # sechead, prefix, head, split_idx
-        sechead_tuple = docstructutils.extract_line_sechead(line.line_text, prev_line_text)
+        # print("pdftxtparser 2, extract_sechead")
+        sechead_tuple = secheadutils.extract_sechead(line.line_text, is_centered=line.is_centered)
         is_sechead_prefix = secheadutils.is_line_sechead_prefix(line.line_text)
         if sechead_tuple or is_sechead_prefix:
+            # print("  hhh check_sechead: [{}]".format(line.line_text))
+            # print("      sechead_tuple: [{}]".format(sechead_tuple))
+            # print("     is_sechead_pre: [{}]".format(is_sechead_prefix))
             if apage.attrs.has_toc and not deactivate_toc_detection:
-                if IS_DEBUG_TOC:
-                    print("===323=5 sechead== line is toc, %d [%s]" %
-                          (line.page_num, line.line_text))
                 line.attrs.toc = True
             line.attrs.sechead = sechead_tuple
+            if sechead_tuple:
+                unused_sec_type, sechead_prefix, sechead_st, split_idx = sechead_tuple
+                if split_idx != -1:
+                    shead_end = line.lineinfo.start + split_idx
+                else:
+                    shead_end = line.lineinfo.end
+                if not sechead_st or 'continue' in sechead_st.lower():
+                    # 'exhibit c - continue'
+                    sechead_st = sechead_prefix
+            else:
+                shead_end = line.lineinfo.end
+                sechead_st = line.line_text
+                sechead_prefix = ''
+            out_sechead = SecHeadTuple(line.lineinfo.start,
+                                       shead_end,
+                                       sechead_prefix,
+                                       sechead_st,
+                                       # ' '.join([sechead_prefix, sechead_st]).strip(),
+                                       page_num)
+            # print("sechead_tuple2: {}".format(sechead_tuple))
+            # print("              : {}".format(out_sechead))
+            pdf_txt_doc.sechead_list.append(out_sechead)
         else:
             non_sechead_count += 1
 
