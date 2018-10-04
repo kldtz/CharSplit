@@ -135,7 +135,6 @@ def init_pageinfo_list(doc_text: str,
     ## Not sure how to fix it at the PDFBox side, in NoIndentPDFTextStripper.java, so
     ## fix it here.
     all_diffs = []  # type: List[int]
-    all_font_sizes = []  # type: List[int]
     prev_y = 0
     for str_offset in str_offsets:
         start = str_offset['start']
@@ -163,7 +162,6 @@ def init_pageinfo_list(doc_text: str,
         if y_diff > 0:
             all_diffs.append(y_diff)
         prev_y = yStart
-        all_font_sizes.append(font_size)
 
         # some times, empty strx might mix with page_num
         # don't add them
@@ -179,7 +177,6 @@ def init_pageinfo_list(doc_text: str,
     # for y_diff_count, yy in enumerate(all_diffs):
     #     print('y_diff_count= {}, ydiff = {}'.format(y_diff_count, yy))
     mode_diff = int(max(set(all_diffs), key=all_diffs.count))
-    mode_font_size = int(max(set(all_font_sizes), key=all_font_sizes.count))
     # print('mode_diff = {}'.format(mode_diff))
     # found_linenum_set = set(lxid_strinfos_map.keys())
 
@@ -232,6 +229,7 @@ def init_pageinfo_list(doc_text: str,
             # prev_line = lineinfo_list[0]
             prev_linenum = lineinfo_list[0].line_num
             prev_ystart = lxid_strinfos_map[prev_linenum][0].yStart
+            prev_font_size = lineinfo_list[0].font_size
             for lineinfo in lineinfo_list[1:]:
                 linenum = lineinfo.line_num
                 ystart = lxid_strinfos_map[linenum][0].yStart
@@ -242,17 +240,12 @@ def init_pageinfo_list(doc_text: str,
                 # print('block {}, y_diff = {}, mode_diff + 1 = {}'.format(pblock_id,
                 #                                                          y_diff, mode_diff + 1))
                 # print('prev_line: [{}]'.format(doc_text[prev_line.start:prev_line.end][:40]))
-                # print('line_info: [{}]'.format(doc_text[lineinfo.start:lineinfo.end][:40]))
 
-                height = lineinfo.height
+                height_adj = lineinfo.height * 0.7
                 font_size = lineinfo.font_size
 
                 # adjust the mode_diff according to font size
-                diff_font_size = font_size - mode_font_size
-                if diff_font_size > 0:
-                    adj_max_mode_diff = mode_diff + 1 + diff_font_size
-                else:
-                    adj_max_mode_diff = mode_diff + 1
+                adj_max_mode_diff = mode_diff + height_adj
 
                 if y_diff < 0 or y_diff > adj_max_mode_diff:
                     cur_linechunk = [lineinfo]
@@ -261,7 +254,6 @@ def init_pageinfo_list(doc_text: str,
                     cur_linechunk.append(lineinfo)
                 prev_linenum = line_num
                 prev_ystart = ystart
-                # prev_line = lineinfo
 
             for linechunk in block_linechunk_list:
                 block_start = linechunk[0].start
