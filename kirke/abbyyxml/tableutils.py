@@ -1,5 +1,7 @@
 # pylint: disable=too-many-lines
 from collections import defaultdict
+import configparser
+import os
 import re
 import sys
 
@@ -12,6 +14,16 @@ from kirke.abbyyxml.pdfoffsets import AbbyyLine, AbbyyPar, AbbyyCell, AbbyyRow
 from kirke.abbyyxml import abbyyutils, pdfoffsets
 from kirke.utils import engutils, mathutils, strutils
 
+
+# pylint: disable=invalid-name
+config = configparser.ConfigParser()
+config.read('kirke.ini')
+EB_FILES = os.environ['EB_FILES']
+KIRKE_TMP_DIR = EB_FILES + config['ebrevia.com']['KIRKE_TMP']
+WORK_DIR = KIRKE_TMP_DIR + '/dir-work'
+
+
+
 IS_DEBUG_TABLE = False
 IS_PRINT_HEADER_TABLE = False
 # IS_PRINT_HEADER_TABLE = True
@@ -21,6 +33,9 @@ IS_DEBUG_INVALID_TABLE = True
 # in general, we want to preserve all
 # text in order to synch with pdfbox.
 IS_PRESERVE_INVALID_TABLE_AS_TEXT = True
+
+# is is specific for KPMG's K1 form
+IS_K1_FORM = True
 
 def table_attrs_to_html(attr_dict: Dict) -> str:
     st_list = []  # type: List[str]
@@ -35,11 +50,44 @@ def table_attrs_to_html(attr_dict: Dict) -> str:
     return ', '.join(st_list)
 
 
-def table_block_to_html(ab_table_block: AbbyyTableBlock) -> str:
+def table_rect_to_html(ajson: Dict) -> str:
+    st_list = []  # type: List[str]
+    if ajson.get('start'):
+        st_list.append('start={}'.format(ajson['start']))
+    if ajson.get('end'):
+        st_list.append('end={}'.format(ajson['end']))
+    if ajson.get('y_top'):
+        st_list.append('y_top={}'.format(ajson['y_top']))
+    if ajson.get('y_bottom'):
+        st_list.append('y_bottom={}'.format(ajson['y_bottom']))
+    if ajson.get('x_left'):
+        st_list.append('x_left={}'.format(ajson['x_left']))
+    if ajson.get('x_right'):
+        st_list.append('x_right={}'.format(ajson['x_right']))
+    return ', '.join(st_list)
+
+
+def table_candidate_to_html(table_cand: Dict, table_id: int) -> str:
     st_list = []  # type: List[str]
 
-    st_list.append('<h3>Table {} on Page {}</h3>'.format(ab_table_block.table_id + 1,
-                                                         ab_table_block.page_num))
+    ajson = table_cand['json']
+
+    st_list.append('<h2>Table {} on Page {}</h2>'.format(table_id,
+                                                         ajson['page']))
+
+    st_list.append('<ul>')
+    st_list.append("<li><b>Section</b>: ")
+    st_list.append(ajson['section_head'])
+    st_list.append('</li>')
+    st_list.append("<li><b>Pre-Table Text</b>:<br/> ")
+    if ajson.get('pre_table_text'):
+        st_list.append(ajson['pre_table_text'])
+    else:
+        st_list.append('<i>None</i>')
+    st_list.append('</li>')
+    st_list.append("<li><b>Attributes</b>: ")
+    st_list.append(table_rect_to_html(ajson))
+    st_list.append('</li>\n</ul>')
 
     # this is mainly for printing attribute info, not a real table
     st_list.append('<table>')
@@ -47,10 +95,92 @@ def table_block_to_html(ab_table_block: AbbyyTableBlock) -> str:
     st_list.append('<td width="60%">')
     st_list.append('</td>')
     st_list.append('<td>')
-    st_list.append('<i>Attributes</i>: {}'.format(table_attrs_to_html(ab_table_block.attr_dict)))
     st_list.append('</td>')
     st_list.append('</tr>')
     st_list.append('</table>')
+
+    if ajson['is_abbyy_original']:
+        st_list.append('<table border="1" bgcolor="00ff99">')  # green
+    else:
+        # a haligned table
+        if ajson.get('is_header') or \
+           ajson.get('is_footer'):
+            st_list.append('<table border="1" bgcolor="DAA520">')  # brown
+            if not IS_PRINT_HEADER_TABLE:
+                # for now, no header for footer table
+                return ''
+        else:
+            st_list.append('<table border="1" bgcolor="ffff66">')  # yellow
+
+
+    for ab_row in ajson['row_list']:
+        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
+        st_list.append('  <tr>')
+        for ab_cell in ab_row['cell_list']:
+            cell_text = ab_cell['text']
+            st_list.append('    <td>')
+            st_list.append('      {}'.format(cell_text.replace('\n', '<br/>')))
+            st_list.append('    </td>')
+        st_list.append('  </tr>')
+    st_list.append('</table>')
+    st_list.append('<br/>')
+
+    st_list.append('')
+    st_list.append('')
+
+    return '\n'.join(st_list)
+
+
+def table_candidates_to_html(fname: str, table_cand_list: List[Dict]) -> str:
+    st_list = []  # type: List[str]
+
+    st_list.append('<!doctype html>')
+    st_list.append('<html lang=en>')
+    st_list.append('<head>')
+    st_list.append('<meta charset=utf-8>')
+    st_list.append('<title>{}</title>'.format(fname))
+    st_list.append('</head>')
+    st_list.append('<body>')
+
+    st_list.append('')
+
+    has_valid_table = False
+    for i, table_candidate in enumerate(table_cand_list, 1):
+        html_table_st = table_candidate_to_html(table_candidate, i)
+
+        if html_table_st:
+            st_list.append(html_table_st)
+
+            st_list.append('')
+            st_list.append('<br/>')
+            st_list.append('<hr/>')
+            st_list.append('<br/>')
+            st_list.append('')
+            has_valid_table = True
+
+    if not has_valid_table:
+        st_list.append('There is no tables in "{}".'.format(fname))
+        st_list.append('')
+
+    st_list.append('</body>')
+    st_list.append('</html>')
+
+    return '\n'.join(st_list)
+
+
+def abbyy_table_to_html(ab_table_block: AbbyyTableBlock, table_id: int = -1) -> str:
+    st_list = []  # type: List[str]
+
+    if table_id != -1:
+        st_list.append('<h2>Table {} on Page {}</h2>'.format(table_id,
+                                                             ab_table_block.page_num))
+    else:
+        st_list.append('<h2>Table on Page {}</h2>'.format(ab_table_block.page_num))
+
+    st_list.append('<ul>')
+    st_list.append("<li><b>Attributes</b>: ")
+    st_list.append(table_attrs_to_html(ab_table_block.attr_dict))
+    st_list.append('</li>\n</ul>')
 
     if ab_table_block.is_abbyy_original:
         st_list.append('<table border="1" bgcolor="00ff99">')  # green
@@ -87,6 +217,44 @@ def table_block_to_html(ab_table_block: AbbyyTableBlock) -> str:
         st_list.append('  </tr>')
     st_list.append('</table>')
     st_list.append('<br/>')
+
+    return '\n'.join(st_list)
+
+
+def abbyy_tables_to_html(fname: str,
+                         ab_table_list: List[AbbyyTableBlock]) -> str:
+    st_list = []  # type: List[str]
+
+    st_list.append('<!doctype html>')
+    st_list.append('<html lang=en>')
+    st_list.append('<head>')
+    st_list.append('<meta charset=utf-8>')
+    st_list.append('<title>{}</title>'.format(fname))
+    st_list.append('</head>')
+    st_list.append('<body>')
+
+    st_list.append('')
+
+    has_valid_table = False
+    for i, ab_table in enumerate(ab_table_list, 1):
+        html_table_st = abbyy_table_to_html(ab_table, i)
+
+        if html_table_st:
+            st_list.append(html_table_st)
+
+            st_list.append('')
+            st_list.append('<br/>')
+            st_list.append('<hr/>')
+            st_list.append('<br/>')
+            st_list.append('')
+            has_valid_table = True
+
+    if not has_valid_table:
+        st_list.append('There is no tables in "{}".'.format(fname))
+        st_list.append('')
+
+    st_list.append('</body>')
+    st_list.append('</html>')
 
     return '\n'.join(st_list)
 
@@ -162,16 +330,32 @@ def filter_out_header_footer_blocks(block_list: List[AbbyyBlock]) \
     return [ablock for ablock in block_list if not is_header_footer_block(ablock)]
 
 
-def to_html_tables(abbyy_doc: AbbyyXmlDoc) -> str:
-    st_list = []  # type: List[str]
+def save_cand_tables_to_html_file(fname: str,
+                                  table_candidates: List[Dict],
+                                  extension: str) -> None:
+    base_fname = os.path.basename(fname)
+    out_fname = '{}/{}'.format(WORK_DIR,
+                               base_fname.replace('.txt', extension))
+    with open(out_fname, 'wt') as fout:
+        print(table_candidates_to_html(fname, table_candidates), file=fout)
+    print('wrote "{}"'.format(out_fname))
 
-    st_list.append('<!doctype html>')
-    st_list.append('<html lang=en>')
-    st_list.append('<head>')
-    st_list.append('<meta charset=utf-8>')
-    st_list.append('<title>{}</title>'.format(abbyy_doc.file_id))
-    st_list.append('</head>')
-    st_list.append('<body>')
+
+def save_tables_to_html_file(fname: str,
+                             abbyy_tables: List[AbbyyTableBlock],
+                             extension: str) -> None:
+    base_fname = os.path.basename(fname)
+    out_fname = '{}/{}'.format(WORK_DIR,
+                               base_fname.replace('.txt', extension))
+    with open(out_fname, 'wt') as fout:
+        print(abbyy_tables_to_html(fname, abbyy_tables), file=fout)
+        print('wrote "{}"'.format(out_fname))
+
+def to_html_tables(fname: str,
+                   abbyy_doc: AbbyyXmlDoc,
+                   extension: str) -> None:
+
+    table_list = []  # type: List[AbbyyTableBlock]
 
     for ab_page in abbyy_doc.ab_pages:
 
@@ -180,25 +364,11 @@ def to_html_tables(abbyy_doc: AbbyyXmlDoc) -> str:
         else:
             table_block_list = filter_out_header_footer_blocks(ab_page.ab_table_blocks)
 
-        if table_block_list:
+        table_list.extend(table_block_list)
 
-            st_list.append('<h2>Page {}</h2>'.format(ab_page.num))
-            # for ab_text_block in abbyy_page.ab_text_blocks:
-            for ab_table_block in table_block_list:
-
-                html_table_st = table_block_to_html(ab_table_block)
-                st_list.append(html_table_st)
-                st_list.append('')
-                st_list.append('')
-
-            st_list.append('<br/>')
-            st_list.append('<hr/>')
-            st_list.append('<br/>')
-
-    st_list.append('</body>')
-    st_list.append('</html>')
-
-    return '\n'.join(st_list)
+    save_tables_to_html_file(fname,
+                             table_list,
+                             extension=extension)
 
 
 def get_abbyy_table_list(abbyy_doc: AbbyyXmlDoc,
@@ -641,10 +811,10 @@ def merge_aligned_blocks(haligned_blocks: List[AbbyyTextBlock],
     if IS_DEBUG_TABLE:
         abbyyutils.infer_ab_block_is_header_footer(table_block)
 
-        html_table = table_block_to_html(table_block)
+        html_table = abbyy_table_to_html(table_block)
         if not (table_block.infer_attr_dict.get('header') or \
                 table_block.infer_attr_dict.get('footer')):
-            print('\nafer merge_aligned_blocks(), html_table:')
+            print('\nafter merge_aligned_blocks(), html_table:')
             print(html_table)
 
     return table_block
@@ -898,6 +1068,7 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
 
         # now remove invalid tables, or put back invalid tables
         out_block_list = []  # type: List[AbbyyBlock]
+        invalid_tables = []  # type: List[AbbyyBlock]
         for ab_block, origblocks in out_block_origblocks_list:
 
             # for debug purpose
@@ -916,6 +1087,7 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
                         else:
                             # add all the original blocks back
                             out_block_list.extend(origblocks)
+                        invalid_tables.append(ab_block)
                     else:
                         out_block_list.append(ab_block)
                 else:
@@ -924,14 +1096,18 @@ def merge_haligned_block_as_table(ab_doc: AbbyyXmlDoc) -> None:
                     # simply ignore invalid tables
                     # don't bother keep them as text_blocks
                     if is_invalid_table(ab_block):
-                        pass
+                        invalid_tables.append(ab_block)
+                        # pass
                     else:
                         out_block_list.append(ab_block)
             else:
                 # normal text block
                 out_block_list.append(ab_block)
 
+        for tmp_table in invalid_tables:
+            tmp_table.page_num = pnum
         abbyy_page.ab_blocks = out_block_list
+        abbyy_page.invalid_tables = invalid_tables
 
 
 # pylint: disable=too-many-return-statements
@@ -1067,12 +1243,13 @@ NO_YES_PAT = re.compile(r'\bno\b(.*)\byes\b', re.I)
 YES_YES_PAT = re.compile(r'\byes\b(.*)\byes\b', re.I)
 NO_NO_PAT = re.compile(r'\bno\b(.*)\bno\b', re.I)
 
+# pylint: disable=invalid-name
 def count_number_yes_no_choices_orig(table_text: str) -> int:
     st_list = table_text.split('\n')
     num_yes_no = 0
     for line in st_list:
         mat = YES_NO_PAT.search(line)
-        if mat and len(mat.group(1) < 5):
+        if mat and len(mat.group(1)) < 5:
             num_yes_no += 1
     return num_yes_no
 
@@ -1111,10 +1288,93 @@ def count_yes_no_startswith(table_text: str) -> int:
 
 
 def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
-    out = is_invalid_table_aux(ab_table)
+    is_invalid = is_invalid_table_aux(ab_table)
     if IS_DEBUG_INVALID_TABLE:
-        print("***** is_invliad_table = {}".format(out))
-    return out
+        print("***** is_invliad_table = {}".format(is_invalid))
+
+    if is_invalid:
+        return is_invalid
+
+    if IS_K1_FORM:
+        is_invalid = is_invalid_k1_table(ab_table)
+    return is_invalid
+
+
+def is_invalid_k1_table(ab_table: AbbyyTableBlock) -> bool:
+    table_text = abbyyutils.table_block_to_text(ab_table)
+    words = table_text.split()
+    if IS_DEBUG_INVALID_TABLE:
+        print('\n***** is_invliad_k1_table[[{}]]'.format(table_text.replace('\n', '|')))
+
+    if 'See Statement' in table_text and \
+       'Self-employment earnings' in table_text and \
+       'Qualified nonrecourse financing' in table_text and \
+       'share of liabilities' in table_text:
+        return True
+
+    if 'capital account analysis' in table_text and \
+       'Beginning capital account' in table_text and \
+       'Current year increase' in table_text and \
+       'Ending capital account' in table_text:
+        return True
+
+    if 'Profit' in table_text and \
+       'Loss' in table_text and \
+       'Capital' in table_text and \
+       len(words) < 20:
+        return True
+
+    if 'Other Form 1116' in table_text and \
+       'Other portfolio income' in table_text and \
+       'Cancellation of debt' in table_text and \
+       'Involuntary conversions' in table_text:
+        return True
+
+    if 'Cash contributions' in table_text and \
+       'Noncash contributions' in table_text and \
+       'Investment interest expense' in table_text and \
+       'Section 59(e)(2) expenditures' in table_text:
+        return True
+
+    if 'Section 453(l)(3) information' in table_text and \
+       'Low-income housing credit' in table_text and \
+       'Disabled access credit' in table_text and \
+       'Recapture of section 179 deduction' in table_text:
+        return True
+
+    if 'Total foreign taxes paid' in table_text and \
+       'Form 8873' in table_text and \
+       'Form 1116, Part II' in table_text and \
+       'Extraterritorial income exclusion' in table_text:
+        return True
+
+    if 'Post-1986 depreciation adjustment' in table_text and \
+       'Oil, gas, & geothermal' in table_text and \
+       'gross income' in table_text and \
+       'deduction' in table_text and \
+       'Form 6251' in table_text and \
+       'Other AMT items' in table_text:
+        return True
+
+    if 'Form 4952, line 4a' in table_text and \
+       'Form 4136' in table_text and \
+       'Form 8611, line 8' in table_text and \
+       'Form 8697' in table_text:
+        return True
+
+    if 'identifying number' in table_text and \
+       '9a Net long-term capital gain' in table_text and \
+       '9b Collectibles' in table_text:
+        return True
+
+    if 'General category' in table_text and \
+       'Form 1116' in table_text and \
+       'Mining exploration costs' in table_text and \
+       'Sec. 1256 contracts & straddles' in table_text:
+        return True
+
+    return False
+
 
 # pylint: disable=too-many-return-statements
 def is_invalid_table_aux(ab_table: AbbyyTableBlock) -> bool:

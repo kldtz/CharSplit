@@ -128,6 +128,7 @@ class EbAnnotatedDoc4:
         self.pbox_table_list = []  # type: List[AbbyyPBoxTable]
         self.abbyy_signature_list = []  # type: List[AbbyyBlock]
         self.abbyy_address_list = []  # type: List[AbbyyBlock]
+        self.invalid_table_list = []  # type: List[AbbyyTableBlock]
 
 
     def get_file_id(self):
@@ -669,6 +670,7 @@ def pdf_to_ebantdoc(txt_file_name: str,
         eb_antdoc.pbox_table_list = pbox_table_list
         eb_antdoc.abbyy_signature_list = tableutils.get_abbyy_signature_list(abbyy_xml_doc)
         eb_antdoc.abbyy_address_list = tableutils.get_abbyy_address_list(abbyy_xml_doc)
+        eb_antdoc.invalid_table_list = abbyy_xml_doc.invalid_tables
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if txt_file_name and is_cache_enabled and is_use_corenlp:

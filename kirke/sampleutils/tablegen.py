@@ -4,9 +4,9 @@ import re
 from typing import Dict, List, Optional, Tuple
 
 from kirke.docstruct.secheadutils import SecHeadTuple
-from kirke.utils import ebantdoc4, engutils, ebsentutils, osutils, strutils
+from kirke.utils import ebantdoc4, engutils, ebsentutils, strutils
 from kirke.abbyyxml import tableutils
-from kirke.abbyyxml.pdfoffsets import AbbyyBlock, AbbyyTableBlock
+from kirke.abbyyxml.pdfoffsets import AbbyyTableBlock
 
 # on 2018/10/03, the precision and recall number for
 # data-rate-table, 8 documents (no goldwest.txt)
@@ -83,7 +83,7 @@ def get_before_table_text(table_start: int,
                           exhibit_tuple: Optional[SecHeadTuple],
                           prev_table_end: int,
                           doc_text: str) \
-                          -> Tuple[str, Tuple[int, int]] :
+                          -> Tuple[str, Tuple[int, int]]:
     if sechead_tuple and exhibit_tuple:
         if sechead_tuple.end <= exhibit_tuple.end:
             last_tuple = exhibit_tuple
@@ -179,6 +179,8 @@ class TableGenerator:
             doc_abbyy_table_list = []  # type: List[AbbyyTableBlock]
             doc_table_cand_list = []  # type: List[Dict]
 
+            invalid_tables = list(antdoc.invalid_table_list)  # type: List[AbbyyTableBlock]
+
             # a section might have multiple tables, so the pretext should start from
             # either the sechead or the last table_end
             prev_table_end = -1
@@ -227,6 +229,13 @@ class TableGenerator:
                 perc_alpha_word = num_alpha_word / num_word
                 perc_alphanum_word = num_alphanum_word / num_word
                 perc_bad_word = (num_bad_word + num_alphanum_word) / num_word
+
+                infer_attr_dict = abbyy_table.infer_attr_dict
+                is_header, is_footer = False, False
+                if infer_attr_dict.get('header'):
+                    is_header = True
+                if infer_attr_dict.get('footer'):
+                    is_footer = True
 
                 if IS_DEBUG_TABLE:
                     print()
@@ -340,9 +349,10 @@ class TableGenerator:
                 out_table_json['y_bottom'] = bot_y
                 out_table_json['span_list'] = span_dict_list
                 if out_sechead_dict:
-                    out_table_json['section_head'] = out_sechead_dict
+                    out_table_json['section_head'] = out_sechead_dict['text']
+
                 if pre_table_text_dict:
-                    out_table_json['pre_table_text'] = pre_table_text_dict
+                    out_table_json['pre_table_text'] = pre_table_text_dict['text']
 
                 a_candidate = {'candidate_type': self.candidate_type,
                                'text': '\n'.join([sechead_text,
@@ -395,10 +405,18 @@ class TableGenerator:
                                'row_header_text': row_header_text,
                                'json': out_table_json}
 
+                if is_header:
+                    a_candidate['is_header'] = True
+                    a_candidate['json']['is_header'] = True
+                if is_footer:
+                    a_candidate['is_footer'] = True
+                    a_candidate['json']['is_footer'] = True
+
                 # Verify that thee table is valid
                 # "not is_label" make sure that is a table is annotated
                 # for a provision, it is kept regardless of is_valid or not.
                 if not is_label and is_invalid_table(a_candidate, abbyy_table):
+                    invalid_tables.append(abbyy_table)
                     continue
 
                 candidates.append(a_candidate)
@@ -416,22 +434,21 @@ class TableGenerator:
 
 
             if IS_DEBUG_TABLE:
-                osutils.mkpath('tmp')
-                # save_tables_to_html_file(antdoc.file_id,
-                #                          antdoc.pbox_table_list,
-                #                         extension='.abbyy')
+                tableutils.save_cand_tables_to_html_file(antdoc.file_id,
+                                                         doc_table_cand_list,
+                                                         extension='.table.html')
 
-                save_cand_tables_to_html_file(antdoc.file_id,
-                                              doc_abbyy_table_list,
-                                              doc_table_cand_list)
+                tableutils.save_tables_to_html_file(antdoc.file_id,
+                                                    invalid_tables,
+                                                    extension='.invalid.table.html')
 
-                save_tables_to_html_file(antdoc.file_id,
-                                         antdoc.abbyy_signature_list,
-                                         extension='.sign')
+                tableutils.save_tables_to_html_file(antdoc.file_id,
+                                                    antdoc.abbyy_signature_list,
+                                                    extension='.sign.html')
 
-                save_tables_to_html_file(antdoc.file_id,
-                                         antdoc.abbyy_address_list,
-                                         extension='.addr')
+                tableutils.save_tables_to_html_file(antdoc.file_id,
+                                                    antdoc.abbyy_address_list,
+                                                    extension='.addr.html')
 
             result.append((antdoc, candidates, label_list, group_id_list))
         return result
@@ -449,102 +466,3 @@ def fix_rate_table_text(text: str) -> str:
     text = re.sub(r'\b(r)\s+(ate)\b', r'\1\2', text, flags=re.I)
     return text
 """
-
-def save_cand_tables_to_html_file(fname: str,
-                                  abbyy_tables: List[AbbyyTableBlock],
-                                  table_candidates: List[Dict]) -> None:
-    base_fname = os.path.basename(fname)
-    out_fname = 'tmp/{}'.format(base_fname.replace('.txt', '.cand.html'))
-    with open(out_fname, 'wt') as fout:
-        st_list = []  # type: List[str]
-
-        st_list.append('<!doctype html>')
-        st_list.append('<html lang=en>')
-        st_list.append('<head>')
-        st_list.append('<meta charset=utf-8>')
-        st_list.append('<title>{}</title>'.format(fname))
-        st_list.append('</head>')
-        st_list.append('<body>')
-
-        st_list.append('')
-
-        if abbyy_tables:
-            for i, (abbyy_table, table_candidate) in enumerate(zip(abbyy_tables,
-                                                                   table_candidates), 1):
-
-                st_list.append('<h2>Table {}</h2>'.format(i))
-                # for ab_text_block in abbyy_page.ab_text_blocks:
-
-                html_table_st = tableutils.table_block_to_html(abbyy_table)
-                st_list.append(html_table_st)
-                st_list.append('')
-                st_list.append('')
-
-                st_list.append("<h4>sechead: {}</h4>".format(table_candidate['sechead_text']))
-                st_list.append("<h4>pre_table_text</h4>")
-                st_list.append(table_candidate['sechead_text'])
-
-                st_list.append('<br/>')
-                st_list.append('<hr/>')
-                st_list.append('<br/>')
-        else:
-            st_list.append('There is no such table in "{}".'.format(fname))
-
-        st_list.append('</body>')
-        st_list.append('</html>')
-
-        print('\n'.join(st_list), file=fout)
-
-        print('wrote "{}"'.format(out_fname))
-
-
-def save_tables_to_html_file(fname: str,
-                             # because some signature might be texxtblock
-                             abbyy_tables: List[AbbyyBlock],
-                             extension: str) -> None:
-    osutils.mkpath('tmp')
-    base_fname = os.path.basename(fname)
-    out_fname = 'tmp/{}.html'.format(base_fname.replace('.txt', extension))
-    with open(out_fname, 'wt') as fout:
-        st_list = []  # type: List[str]
-
-        st_list.append('<!doctype html>')
-        st_list.append('<html lang=en>')
-        st_list.append('<head>')
-        st_list.append('<meta charset=utf-8>')
-        st_list.append('<title>{}</title>'.format(fname))
-        st_list.append('</head>')
-        st_list.append('<body>')
-
-        if abbyy_tables:
-            st_list.append('')
-
-            for i, abbyy_table in enumerate(abbyy_tables, 1):
-
-                if isinstance(abbyy_table, AbbyyTableBlock):
-                    st_list.append('<h2>Table {}</h2>'.format(i))
-                    # for ab_text_block in abbyy_page.ab_text_blocks:
-
-                    html_table_st = tableutils.table_block_to_html(abbyy_table)
-                else:
-                    st_list.append('<h2>Text {}</h2>'.format(i))
-                    # for ab_text_block in abbyy_page.ab_text_blocks:
-
-                    html_table_st = tableutils.text_block_to_html(abbyy_table)
-
-                st_list.append(html_table_st)
-                st_list.append('')
-                st_list.append('')
-
-                st_list.append('<br/>')
-                st_list.append('<hr/>')
-                st_list.append('<br/>')
-        else:
-            st_list.append('There is no such table in "{}".'.format(fname))
-
-        st_list.append('</body>')
-        st_list.append('</html>')
-
-        print('\n'.join(st_list), file=fout)
-
-        print('wrote "{}"'.format(out_fname))

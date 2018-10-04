@@ -284,6 +284,8 @@ class AbbyyPage:
         self.ab_table_blocks = []  # type: List[AbbyyTableBlock]
         self.ab_signature_blocks = []  # type: List[AbbyyBlock]
         self.ab_address_blocks = []  # type: List[AbbyyBlock]
+        # for debugging purpose
+        self.invalid_tables = []  # type: List[AbbyyTableBlock]
 
         self.is_multi_column = False
 
@@ -460,6 +462,7 @@ class AbbyyXmlDoc:
                  ab_pages: List[AbbyyPage]) -> None:
         self.file_id = file_name
         self.ab_pages = ab_pages
+        self.invalid_tables = []  # type: List[AbbyyTableBlock]
 
     def print_raw(self):
         for pnum, abbyy_page in enumerate(self.ab_pages):

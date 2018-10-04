@@ -562,6 +562,10 @@ def parse_document(file_name: str,
     # This also setup page.text_blocks, table_blocks, signature_blocks, address_blocks
     set_abbyy_page_numbers_tables(ab_xml_doc)
 
+    # collect invalid tables at document level
+    for apage in ab_xml_doc.ab_pages:
+        ab_xml_doc.invalid_tables.extend(apage.invalid_tables)
+
     return ab_xml_doc
 
     # pylint: disable=unreachable

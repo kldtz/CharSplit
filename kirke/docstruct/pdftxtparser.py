@@ -825,7 +825,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
 
     num_line_in_page = len(apage.line_list)
     page_num = apage.page_num
-    prev_line_text = ''
+    # prev_line_text = ''
     # take out lines that are clearly not useful for annotation extractions:
     #   - toc
     #   - header
@@ -901,7 +901,8 @@ def add_doc_structure_to_page(apage: PageInfo3,
             # check if sechead
             # if secheadutils.is_line_sechead_prefix(line.line_text):
             # print("pdftxtparser 1, extract_sechead")
-            sechead_tuple = secheadutils.extract_sechead(line.line_text, is_centered=line.is_centered)
+            sechead_tuple = secheadutils.extract_sechead(line.line_text,
+                                                         is_centered=line.is_centered)
             if sechead_tuple:
                 # print("  ggg check_sechead: [{}]".format(line.line_text))
                 # print("      sechead_tuple: [{}]".format(sechead_tuple))
@@ -952,7 +953,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
             # footer might appear first in the page instead of end, though
             # in PDF view, it is at the end.
 
-        prev_line_text = line.line_text
+        # prev_line_text = line.line_text
         if not is_skip and line.lineinfo.yStart < footer_yStart:
             content_line_list.append(line)
 
