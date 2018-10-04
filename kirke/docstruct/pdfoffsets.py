@@ -15,7 +15,7 @@ from kirke.utils.textoffset import TextCpointCunitMapper
 
 StrInfo = namedtuple('StrInfo', ['start', 'end',
                                  'xStart', 'xEnd', 'yStart', 'yEnd',
-                                 'height', 'font_size'])
+                                 'height', 'fontSizeInPt'])
 
 MAX_Y_DIFF = 10000
 MIN_X_END = -1
@@ -73,14 +73,14 @@ class LineInfo3:
         # pylint: disable=invalid-name
         max_xEnd, max_yEnd = MIN_X_END, MIN_X_END
         # the smaller than the smallest we have found so far
-        max_height, max_font_size = 4.0, 6
+        max_height, max_font_size_in_pt = 4.0, 6
         for strinfo in self.strinfo_list:
             syStart = strinfo.yStart
             syEnd = strinfo.yEnd
             sxStart = strinfo.xStart
             sxEnd = strinfo.xEnd
             sHeight = strinfo.height
-            sFontSize = strinfo.font_size
+            sFontSizeInPt = strinfo.fontSizeInPt
 
             ## Incorrect??
             ## whichever is lowest in the y-axis of page, use that
@@ -103,8 +103,8 @@ class LineInfo3:
                 max_yEnd = syEnd
             if sHeight > max_height:
                 max_height = sHeight
-            if sFontSize > max_font_size:
-                max_font_size = sFontSize
+            if sFontSizeInPt > max_font_size_in_pt:
+                max_font_size_in_pt = sFontSizeInPt
 
         # pylint: disable=invalid-name
         self.xStart = min_xStart
@@ -115,7 +115,7 @@ class LineInfo3:
         # pylint: disable=invalid-name
         self.yEnd = max_yEnd
         self.height = max_height
-        self.font_size = max_font_size
+        self.font_size_in_pt = max_font_size_in_pt  # this is in 'point', not pdf x, y
 
         # jshaw, maybe this is simpler?
         # self.xStart = self.strinfo_list[0].xStart
@@ -129,7 +129,7 @@ class LineInfo3:
                 self.bid, self.obid,
                 self.xStart, self.xEnd,
                 self.yStart, self.yEnd,
-                self.height, self.font_size)
+                self.height, self.font_size_in_pt)
 
     def tostr3(self):
         return 'se=(%d, %d), bid= %d, obid = %d' % (self.start, self.end,
@@ -655,3 +655,22 @@ def lines_to_blocknum_map(linex_list: List[LineWithAttrs]) \
         block_num = linex.block_num
         result[block_num].append(linex)
     return result
+
+
+def is_page_multi_column(apage: PageInfo3) -> bool:
+    linex_list = apage.line_list
+    num_lines = len(linex_list)
+    num_words = 0
+    num_english_line = 0
+    for linex in linex_list:
+        words = linex.line_text.split()
+        num_words += len(words)
+        if linex.is_english:
+            num_english_line += 1
+    num_words_per_line = num_words / num_lines
+    perc_english_line = num_english_line / num_lines
+    if num_words_per_line < 14 and \
+       num_lines > 20 and \
+       perc_english_line > 0.6:
+        return True
+    return False
