@@ -495,6 +495,7 @@ class PageInfo3:
         #   - page_num
         #   - header, footer
         self.content_line_list = []  # type: List[LineWithAttrs]
+        self.is_multi_column = False
 
     def get_blocked_lines(self) -> List[List[LineWithAttrs]]:
         if not self.line_list:

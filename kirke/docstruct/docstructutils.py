@@ -5,6 +5,7 @@ from typing import Dict, List, Match, Optional, Tuple
 
 from kirke.docstruct import docutils, linepos, secheadutils
 from kirke.docstruct.docutils import PLineAttrs
+from kirke.docstruct.pdfoffsets import PageInfo3
 from kirke.utils import corenlpsent, engutils, mathutils, stopwordutils, strutils
 
 # from kirke.ebrules import addresses
@@ -312,6 +313,7 @@ HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', re.I)
 HEADER_PARTIAL_PAT = re.compile(r'(State and Local Sales and Use Tax|'
                                 r'Exempt Use Certificate|State Department of)')
 
+# pylint: disable=too-many-statements
 def is_line_header(line: str,
                    yStart: float,
                    line_num: int,
@@ -322,8 +324,14 @@ def is_line_header(line: str,
                    num_line_in_page: int,
                    header_set=None):
 
+    is_debug = False
+    # if line.startswith('between'):
+    #     is_debug = True
+
     # for domain specific headers
     if header_set and line.lower().strip() in header_set:
+        if is_debug:
+            print("is_line_header({}), True, domain specific".format(line))
         return True
 
     # this is a normal sentences
@@ -331,30 +339,52 @@ def is_line_header(line: str,
         if is_line_title(line):
             pass
         elif 'LF' in align:
+            if is_debug:
+                print("is_line_header({}), False, is_en, is_lf_align".format(line))
             return False
 
     score = 0.0
     if HEADER_PAT.match(line) and yStart < 140:
+        if is_debug:
+            print("header_path_match 1, + 0.9")
         score += 0.9
     elif ((HEADER_PAT.match(line) or
            HEADER_PARTIAL_PAT.search(line)) and
           yStart < 140):
+        if is_debug:
+            print("header_path_match 2, + 1.0")
         score += 1.0
     elif yStart < 80.0:
+        if is_debug:
+            print("header_path_match 3, yStart < 80.0 + 0.7")
         score += 0.7
 
+    num_words = len(line.split())
+    if num_words >= 15:
+        if is_debug:
+            print("header_path_match 4.1, too many words , - 10.0")
+        score -= 0.6
+
     if not is_english or len(line) < 30:
+        if is_debug:
+            print("header_path_match 4, no is_eng, + 0.2")
         score += 0.2
 
     # don't use is_line_address(), too costly
     if secheadutils.is_line_sechead_prefix(line) or \
        is_line_address_prefix(line) or \
        is_line_signature_prefix(line):
+        if is_debug:
+            print("header_path_match 5, sechead , - 10.0")
         score -= 10.0
 
     if 'RT' in align or 'CN' in align:
+        if is_debug:
+            print("header_path_match 6, RT CN , + 0.3")
         score += 0.3
     elif is_centered:   # sometimes, 'exhibit a' can be mistaken for header
+        if is_debug:
+            print("header_path_match 6, is_centered , + 0.3")
         # a negative feature
         score -= 0.3
 
@@ -371,8 +401,28 @@ def is_line_header(line: str,
     elif line_num < 4:
         score += 0.2
 
-    # print("score = {}, is_line_header({})".format(score, line))
+    if is_debug:
+        print("score = {}, is_line_header({})".format(score, line))
     return score >= 1.0
+
+
+def is_page_multi_column(apage: PageInfo3) -> bool:
+    linex_list = apage.line_list
+    num_lines = len(linex_list)
+    num_words = 0
+    num_english_line = 0
+    for linex in linex_list:
+        words = linex.line_text.split()
+        num_words += len(words)
+        if linex.is_english:
+            num_english_line += 1
+    num_words_per_line = num_words / num_lines
+    perc_english_line = num_english_line / num_lines
+    if num_words_per_line < 14 and \
+       num_lines > 20 and \
+       perc_english_line > 0.6:
+        return True
+    return False
 
 
 def is_invalid_sechead(unused_sechead,

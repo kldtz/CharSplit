@@ -838,6 +838,8 @@ def add_doc_structure_to_page(apage: PageInfo3,
     num_toc_line = 0
     has_toc_heading = False
 
+    apage.is_multi_column = docstructutils.is_page_multi_column(apage)
+
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False
         if docstructutils.is_line_toc_heading(line.line_text):
@@ -872,7 +874,8 @@ def add_doc_structure_to_page(apage: PageInfo3,
                                                                                     'pagenum',
                                                                                     page_num))
             is_skip = True
-        elif docstructutils.is_line_header(line.line_text,
+        elif not apage.is_multi_column and \
+             docstructutils.is_line_header(line.line_text,
                                            line.lineinfo.yStart,
                                            line_num,
                                            line.is_english,
