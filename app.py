@@ -51,6 +51,10 @@ setup_logging()
 # logging.getLogger(__name__).addHandler(logging.NullHandler())
 logger = logging.getLogger(__name__)
 
+IS_DEVELOPMENT_MODE = False
+if os.environ.get('KIRKE_DEVELOPMENT'):
+    IS_DEVELOPMENT_MODE = True
+    logger.info('KIRKE_DEVELOPMENT = True')
 
 # pylint: disable=invalid-name
 app = Flask(__name__)
@@ -113,6 +117,7 @@ if warm_up_default_provisions:
                                     work_dir=WORK_DIR,
                                     doc_lang='en')
     logger.info("annotated document '%s'", warm_up_txt_file_name)
+    logger.info("Kirke warm-up is completed")
     del warm_up_prov_labels_map
     del ignore_ebantdoc
 
@@ -144,6 +149,18 @@ def annotate_uploaded_document():
             work_dir = WORK_DIR
 
         fn_list = request.files.getlist('file')
+
+        if IS_DEVELOPMENT_MODE:
+            txt_file_name = ''
+            for fstorage in fn_list:
+                if fstorage.filename.endswith('.txt'):
+                    txt_file_name = fstorage.filename
+                    break
+            # wipe the cache directory with that doc_id
+            if txt_file_name:
+                docid = osutils.get_docid(txt_file_name)
+                osutils.remove_files_with_docid(work_dir, docid)
+
         for fstorage in fn_list:
             knorm_base_filename = osutils.get_knorm_base_file_name(fstorage.filename)
             fn = '{}/{}'.format(work_dir, knorm_base_filename)

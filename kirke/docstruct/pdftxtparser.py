@@ -152,7 +152,6 @@ def init_pageinfo_list(doc_text: str,
             yEnd = str_offset['yEnd']
             height = str_offset['height']
             font_size_in_pt = str_offset['fontSizeInPt']
-            print('font_size_in_pt = {}'.format(font_size_in_pt))
         else:
             # the smaller than the smallest we have found so far
             yEnd = yStart + 4.0

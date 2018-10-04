@@ -2,6 +2,7 @@ import configparser
 from datetime import datetime
 import fcntl
 from fcntl import LOCK_EX, LOCK_SH
+import logging
 import os
 import re
 import shutil
@@ -18,6 +19,9 @@ from sklearn.externals import joblib
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
 config.read('kirke.ini')
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 # Create a directory and any missing ancestor directories.
@@ -217,3 +221,14 @@ def get_md5docid_file_name(full_file_name: str) -> str:
     dir_path, bname = os.path.split(full_file_name)
     md5docid_bname = get_md5docid_base_file_name(bname)
     return os.path.join(dir_path, md5docid_bname)
+
+
+def remove_files_with_docid(work_dir: str, docid: str):
+    logger.info('in DEVELOPMENT_MODE...')
+    for afile in os.listdir(work_dir):
+        docid_dash = docid + '-'
+        docid_dot = docid + '.'
+        if afile.startswith(docid_dash) or \
+           afile.startswith(docid_dot):
+            logger.info('remove_files_with_docid(%s, %s)', work_dir, afile)
+            os.remove(os.path.join(work_dir, afile))
