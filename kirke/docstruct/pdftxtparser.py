@@ -241,7 +241,7 @@ def init_pageinfo_list(doc_text: str,
                 #                                                          y_diff, mode_diff + 1))
                 # print('prev_line: [{}]'.format(doc_text[prev_line.start:prev_line.end][:40]))
 
-                height_adj = lineinfo.height * 0.7
+                height_adj = lineinfo.height * 0.8
                 font_size = lineinfo.font_size
 
                 # adjust the mode_diff according to font size
@@ -266,7 +266,7 @@ def init_pageinfo_list(doc_text: str,
 
                 # print("is_multi_lines = {}, paraline: [{}]\n".format(is_multi_lines,
                 #                                                      para_line))
-                # print("\nblock_chunk_text: [{}] is_multi={}".format(paraline_chunk_text,
+                #print("\nblock_chunk_text: [{}] is_multi={}".format(paraline_chunk_text,
                 #                                                     xxis_multi_lines))
                 if not xxis_multi_lines:
                     paraline_chunk_text = paraline_chunk_text.replace('\n', ' ')
@@ -455,7 +455,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
                 to_use_page_footer_linex_list_queue = []
 
             is_multi_line = pdfdocutils.is_block_multi_line(block_linex_list)
-
+            is_multi_line = False
             if is_multi_line:
                 # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
                 # It should similar to the code for not is_multi-line
@@ -654,7 +654,6 @@ def parse_document(file_name: str,
 
     if IS_DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.docstruct.tsv')
-
 
     # nlp_paras_with_attrs is based on information from pdfbox.
     # Current pdfbox outputs lines with only spaces, so it sometime put the text
