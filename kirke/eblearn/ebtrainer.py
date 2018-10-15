@@ -340,15 +340,14 @@ def train_eval_annotator(provision: str,
                          model_dir,
                          model_file_name,
                          eb_classifier,
-                         is_doc_structure=False,
-                         is_bespoke_mode=False) \
+                         is_bespoke_mode: bool = False) \
                          -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
     logger.info("training_eval_annotator(%s) called", provision)
     logger.info("    txt_fn_list = %s", txt_fn_list)
     logger.info("    work_dir = %s", work_dir)
     logger.info("    model_dir = %s", model_dir)
     logger.info("    model_file_name = %s", model_file_name)
-    logger.info("    is_doc_structure= %s", is_doc_structure)
+    logger.info("    is_bestpoke_mode= %r", is_bespoke_mode)
 
     # group_id is used to ensure all the attrvec for a document are together
     # and not distributed between both training and testing.  A document can
@@ -359,9 +358,9 @@ def train_eval_annotator(provision: str,
     eb_antdoc_list = \
         ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list,
                                            work_dir,
-                                           is_bespoke_mode=is_bespoke_mode,
-                                           is_doc_structure=is_doc_structure,
                                            doc_lang=doc_lang,
+                                           is_doc_structure=True,
+                                           is_bespoke_mode=is_bespoke_mode,
                                            # to keep file order stable to ensure
                                            # consistent numbers
                                            is_sort_by_file_id=True)
@@ -524,8 +523,7 @@ def train_eval_annotator_with_trte(provision: str,
                                    model_dir: str,
                                    model_file_name: str,
                                    eb_classifier,
-                                   is_cache_enabled=True,
-                                   is_doc_structure=False) \
+                                   is_cache_enabled=True) \
                                    -> Tuple[ebannotator.ProvisionAnnotator,
                                             Dict[str, Any],
                                             Dict[str, Dict]]:
@@ -539,7 +537,6 @@ def train_eval_annotator_with_trte(provision: str,
     X_train = ebantdoc4.doclist_to_ebantdoc_list(train_doclist_fn,
                                                  work_dir,
                                                  is_cache_enabled=is_cache_enabled,
-                                                 is_doc_structure=is_doc_structure,
                                                  is_sort_by_file_id=True)
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
     X_train = None  # free that memory
@@ -548,8 +545,7 @@ def train_eval_annotator_with_trte(provision: str,
     # pylint: disable=invalid-name
     X_test = ebantdoc4.doclist_to_ebantdoc_list(test_doclist_fn,
                                                 work_dir,
-                                                is_cache_enabled=is_cache_enabled,
-                                                is_doc_structure=is_doc_structure)
+                                                is_cache_enabled=is_cache_enabled)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)

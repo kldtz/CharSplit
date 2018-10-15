@@ -8,7 +8,6 @@ from typing import List, Optional, Tuple
 # from nltk.tokenize import sent_tokenize
 
 from kirke.docstruct import partyutils
-from kirke.ebrules import titlesold
 from kirke.utils import nlputils, strutils
 
 
@@ -83,10 +82,11 @@ def invalid_lower(word):
     return word.isalpha() and word.islower() and word not in VALID_LOWER
 
 
+# Should not depend on 'title.py'
 def keep(astr: str) -> bool:
     """Eliminate titles (the "Agreement") as potential parties and terms."""
     alphanum_chars = ''.join([c for c in astr if c.isalnum()])
-    return titlesold.title_ratio(alphanum_chars) < 73 if alphanum_chars else False
+    return not partyutils.is_invalid_party_name(astr) if alphanum_chars else False
 
 
 PARTY_REGEXES = [re.compile(party, re.IGNORECASE) for party in PARTY_CANT_HAVE]

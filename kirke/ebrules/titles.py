@@ -732,3 +732,33 @@ class TitleAnnotator:
 
         # print("tag date: {}".format(tag('12 January 2017')))
         return extract_nl_offsets(nl_text)
+
+
+# Note: currently not used
+def is_title(line: str) -> bool:
+    norm_line = tag(line)
+    line_wordset = set(norm_line.split())
+
+    if IS_DEBUG:
+        print("\ncheck line({}) versus".format(line))
+        print("         norm({})".format(norm_line))
+
+    # title_candidate_list.append((line, linex['start'], linex['end'], 1))
+
+    score, num_intersect, num_union, best_title = \
+        calc_jaccard_title_list(line,
+                                norm_line,
+                                num_lines=1,  # not used
+                                line_wordset=line_wordset,
+                                title_wordset_list=train_title_wordset_list)
+
+    if IS_DEBUG:
+        print('score = {}, num_intersection= {}, num_union={}'.format(score,
+                                                                      num_intersect,
+                                                                      num_union))
+        if score > MIN_JACCARD:
+            print('best_title = {}'.format(best_title))
+        else:
+            print("not title")
+
+    return score > MIN_JACCARD
