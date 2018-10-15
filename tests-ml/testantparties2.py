@@ -25,15 +25,13 @@ EB_RUNNER = ebrunner.EbRunner(MODEL_DIR,
 def annotate_doc(file_name: str) -> Dict[str, Any]:
     doc_lang = 'en'
     provision_set = set([])  # type: Set[str]
-    is_doc_structure = True
 
     # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
     #                      'party', 'warranty', 'termination', 'term']))
     prov_labels_map, _ = EB_RUNNER.annotate_document(file_name,
                                                      provision_set=provision_set,
                                                      work_dir=WORK_DIR,
-                                                     doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure)
+                                                     doc_lang=doc_lang)
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):

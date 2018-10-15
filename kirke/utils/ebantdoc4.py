@@ -843,10 +843,11 @@ def doclist_to_ebantdoc_list(doclist_file: str,
 
 # Just an alias, in case anyone prefer this.
 # pylint: disable=invalid-name
+# @deprecated
 def doclist_to_ebantdoc_list_no_corenlp(doclist_file: str,
                                         work_dir: str,
                                         doc_lang: str = 'en',
-                                        is_cache_enabled: bool = True,
+                                        is_cache_enabled: bool = False,
                                         is_bespoke_mode: bool = False,
                                         is_doc_structure: bool = True,
                                         is_sort_by_file_id: bool = False):

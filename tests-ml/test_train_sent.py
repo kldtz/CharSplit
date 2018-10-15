@@ -31,7 +31,6 @@ class TestTrainSent(unittest.TestCase):
                                                                 provision,
                                                                 SCUT_CLF_VERSION)
         is_cache_enabled = True
-        is_doc_structure = True
 
         _, ant_result, _ = \
             ebtrainer.train_eval_annotator_with_trte(provision,
@@ -39,8 +38,8 @@ class TestTrainSent(unittest.TestCase):
                                                      model_dir,
                                                      model_file_name,
                                                      eb_classifier,
-                                                     is_cache_enabled=is_cache_enabled,
-                                                     is_doc_structure=is_doc_structure)
+                                                     is_cache_enabled=is_cache_enabled)
+
         print("ant_result:")
         print(ant_result)
 
