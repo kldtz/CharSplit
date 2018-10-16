@@ -150,12 +150,12 @@ def init_pageinfo_list(doc_text: str,
         if str_offset.get('yEnd') is not None:
             yEnd = str_offset['yEnd']
             height = str_offset['height']
-            font_size = str_offset['font_size']
+            font_size_in_pt = str_offset['fontSizeInPt']
         else:
             # the smaller than the smallest we have found so far
             yEnd = yStart + 4.0
             height = 4.0
-            font_size = 6
+            font_size_in_pt = 6
 
         y_diff = int(round(yStart - prev_y))
 
@@ -172,7 +172,7 @@ def init_pageinfo_list(doc_text: str,
             lxid_strinfos_map[line_num].append(StrInfo(start, end,
                                                        xStart, xEnd,
                                                        yStart, yEnd,
-                                                       height, font_size))
+                                                       height, font_size_in_pt))
 
     # for y_diff_count, yy in enumerate(all_diffs):
     #     print('y_diff_count= {}, ydiff = {}'.format(y_diff_count, yy))
@@ -229,7 +229,7 @@ def init_pageinfo_list(doc_text: str,
             # prev_line = lineinfo_list[0]
             prev_linenum = lineinfo_list[0].line_num
             prev_ystart = lxid_strinfos_map[prev_linenum][0].yStart
-            prev_font_size = lineinfo_list[0].font_size
+            prev_font_size = lineinfo_list[0].font_size_in_pt
             for lineinfo in lineinfo_list[1:]:
                 linenum = lineinfo.line_num
                 ystart = lxid_strinfos_map[linenum][0].yStart
@@ -242,7 +242,7 @@ def init_pageinfo_list(doc_text: str,
                 # print('prev_line: [{}]'.format(doc_text[prev_line.start:prev_line.end][:40]))
 
                 height_adj = lineinfo.height * 0.8
-                font_size = lineinfo.font_size
+                font_size = lineinfo.font_size_in_pt
 
                 # adjust the mode_diff according to font size
                 adj_max_mode_diff = mode_diff + height_adj
@@ -455,7 +455,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
                 to_use_page_footer_linex_list_queue = []
 
             is_multi_line = pdfdocutils.is_block_multi_line(block_linex_list)
-            is_multi_line = False
+            #is_multi_line = False
             if is_multi_line:
                 # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
                 # It should similar to the code for not is_multi-line
@@ -829,7 +829,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
     num_toc_line = 0
     has_toc_heading = False
 
-    apage.is_multi_column = docstructutils.is_page_multi_column(apage)
+    apage.is_multi_column = pdfoffsets.is_page_multi_column(apage)
 
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False

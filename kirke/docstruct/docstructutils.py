@@ -5,7 +5,6 @@ from typing import Dict, List, Match, Optional, Tuple
 
 from kirke.docstruct import docutils, linepos, secheadutils
 from kirke.docstruct.docutils import PLineAttrs
-from kirke.docstruct.pdfoffsets import PageInfo3
 from kirke.utils import corenlpsent, engutils, mathutils, stopwordutils, strutils
 
 # from kirke.ebrules import addresses
@@ -404,25 +403,6 @@ def is_line_header(line: str,
     if is_debug:
         print("score = {}, is_line_header({})".format(score, line))
     return score >= 1.0
-
-
-def is_page_multi_column(apage: PageInfo3) -> bool:
-    linex_list = apage.line_list
-    num_lines = len(linex_list)
-    num_words = 0
-    num_english_line = 0
-    for linex in linex_list:
-        words = linex.line_text.split()
-        num_words += len(words)
-        if linex.is_english:
-            num_english_line += 1
-    num_words_per_line = num_words / num_lines
-    perc_english_line = num_english_line / num_lines
-    if num_words_per_line < 14 and \
-       num_lines > 20 and \
-       perc_english_line > 0.6:
-        return True
-    return False
 
 
 def is_invalid_sechead(unused_sechead,
