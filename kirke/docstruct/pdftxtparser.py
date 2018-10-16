@@ -454,48 +454,25 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
                                                                             pdf_text_doc=pdf_text_doc)
                 to_use_page_footer_linex_list_queue = []
 
-            is_multi_line = pdfdocutils.is_block_multi_line(block_linex_list)
-            #is_multi_line = False
-            if is_multi_line:
-                # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
-                # It should similar to the code for not is_multi-line
-                for linex in block_linex_list:
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                    pline_attrs = linex.to_attrvals()  # type: PLineAttrs
+            first_linex = block_linex_list[0]
+            pline_attrs = first_linex.to_attrvals()
 
-                    if linex.line_text and linex.attrs.sechead:
-                        sechead_context = linex.attrs.sechead
-                    elif sechead_context:
-                        pline_attrs.sechead = sechead_context
+            # don't check for block.line_list length here
+            # There are lines with sechead followed by sentences
+            if first_linex.line_text and first_linex.attrs.sechead:
+                sechead_context = first_linex.attrs.sechead
+            elif sechead_context:
+                pline_attrs.sechead = sechead_context
 
-                    span_se_list = [(linepos.LnPos(linex.lineinfo.start,
-                                                   linex.lineinfo.end),
-                                     linepos.LnPos(offset, offset + len(out_line)))]
-                    offsets_line_list.append((span_se_list, pline_attrs))
-                    offset += len(out_line) + 1  # to add eoln
-                    prev_linex = linex
-            else:
-                block_line_st_list = []  # type: List[str]
-                first_linex = block_linex_list[0]
-                pline_attrs = first_linex.to_attrvals()
+            span_se_list = []
+            for linex in block_linex_list:
+                out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                span_se_list.append((linepos.LnPos(linex.lineinfo.start, linex.lineinfo.end),
+                                     linepos.LnPos(offset, offset + len(out_line))))
+                offset += len(out_line) + 1  # to add eoln
+                prev_linex = linex
 
-                # don't check for block.line_list length here
-                # There are lines with sechead followed by sentences
-                if first_linex.line_text and first_linex.attrs.sechead:
-                    sechead_context = first_linex.attrs.sechead
-                elif sechead_context:
-                    pline_attrs.sechead = sechead_context
-
-                span_se_list = []
-                for linex in block_linex_list:
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                    block_line_st_list.append(out_line)
-                    span_se_list.append((linepos.LnPos(linex.lineinfo.start, linex.lineinfo.end),
-                                         linepos.LnPos(offset, offset + len(out_line))))
-                    offset += len(out_line) + 1  # to add eoln
-                    prev_linex = linex
-
-                offsets_line_list.append((span_se_list, pline_attrs))
+            offsets_line_list.append((span_se_list, pline_attrs))
 
             # merge the two broken paragraphs
             # we only do this if this is the first paragraph in the page
@@ -505,7 +482,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
             # from this page.  Not sure if merging will benefit if this is a mutlie-line
             # paragraph.
             if seq == 0 and \
-               not is_multi_line and \
                apage.is_continued_para_from_prev_page:
                 continued_span_se_list, unused_continued_para_attrs = offsets_line_list.pop()
                 prev_span_se_list, prev_para_attrs = offsets_line_list.pop()
