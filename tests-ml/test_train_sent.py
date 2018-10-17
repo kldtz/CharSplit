@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
 import configparser
-import copy
-import pprint
 import unittest
-from typing import Any, Dict, List, Set, Tuple
 
 from kirke.eblearn import ebtrainer, scutclassifier
 
@@ -21,6 +18,7 @@ CUSTOM_MODEL_DIR = 'dir-custom-model'
 
 class TestTrainSent(unittest.TestCase):
 
+    # pylint: disable=too-many-locals
     def test_train_xscut_ea_agreement_termination(self):
 
         provision = 'ea_agreement_termination'
