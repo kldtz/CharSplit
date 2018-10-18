@@ -307,18 +307,18 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
-        prov_annotations = candidates
-
+        if nbest > 0:
+            best_annotations = candidates[:nbest]
+        else:
+            best_annotations = candidates
         prov_annotations = recover_false_negatives(prov_human_ant_list,
                                                    eb_antdoc.get_text(),
                                                    self.provision,
-                                                   prov_annotations)
+                                                   best_annotations)
         # If there is no human annotation, must be normal annotation.
         # Remove anything below threshold
         if not prov_human_ant_list:
             prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= threshold]
-        if nbest > 0:
-            return prov_annotations[:nbest]
         return prov_annotations
 
     def get_eval_status(self):
