@@ -4,7 +4,7 @@ import unittest
 # import pprint
 import copy
 
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 from kirke.eblearn import ebrunner
 
@@ -332,10 +332,10 @@ class TestParties(unittest.TestCase):
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [# (213, 216, 'Box'),
-                          (224, 238, 'Documents Inc.'),
-                          (266, 275, '”Partner”'),
-                          (367, 382, 'Box and Partner'),
-                          (419, 459, 'a “Party” and together as the “Parties”.')])
+                             (224, 238, 'Documents Inc.'),
+                             (266, 275, '”Partner”'),
+                             (367, 382, 'Box and Partner'),
+                             (419, 459, 'a “Party” and together as the “Parties”.')])
 
     def test_party_101(self):
         # pylint: disable=invalid-name

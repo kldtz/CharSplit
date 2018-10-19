@@ -4,7 +4,7 @@ import unittest
 import pprint
 import copy
 
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 from kirke.eblearn import ebrunner
 
