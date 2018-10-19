@@ -36,6 +36,29 @@ class ProvisionAnnotator:
     def get_eval_status(self):
         return self.eval_status
 
+
+    def call_confusion_matrix(self,
+                              prov_human_ant_list,
+                              ant_list,
+                              ebantdoc,
+                              threshold):
+
+        if self.provision in PROVISION_EVAL_ANYMATCH_SET:
+            xtp, xfn, xfp, xtn, json_return = \
+                evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
+                                                                 ant_list,
+                                                                 ebantdoc.file_id,
+                                                                 ebantdoc.get_text())
+        else:
+            xtp, xfn, xfp, xtn, _, json_return = \
+                evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
+                                                        ant_list,
+                                                        ebantdoc.file_id,
+                                                        ebantdoc.get_text(),
+                                                        threshold,
+                                                        is_raw_mode=False)
+        return xtp, xfn, xfp, xtn, json_return
+
     # ProvisionAnnotator does not train, it only predict
     # Training is available only for classifiers
     # def train(self):
@@ -59,9 +82,13 @@ class ProvisionAnnotator:
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
             try:
-                ant_list = self.annotate_antdoc(ebantdoc,
-                                                specified_threshold=threshold,
-                                                prov_human_ant_list=prov_human_ant_list)
+                pred_list, full_list = self.annotate_antdoc(ebantdoc,
+                                                            specified_threshold=threshold,
+                                                            prov_human_ant_list=prov_human_ant_list)
+                ant_list = self.recover_false_negatives(prov_human_ant_list,
+                                                        ebantdoc.get_text(),
+                                                        self.provision,
+                                                        full_list)
             # pylint: disable=broad-except, unused-variable
             except Exception as e:
                 logger.warning('Faile to annotat_antdoc(%s) in test_antdoc_list.',
@@ -69,20 +96,24 @@ class ProvisionAnnotator:
                 raise
             # pylint: disable=unreachable, pointless-string-statement
 
-            if self.provision in PROVISION_EVAL_ANYMATCH_SET:
-                xtp, xfn, xfp, xtn, json_return = \
-                    evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
-                                                                     ant_list,
-                                                                     ebantdoc.file_id,
-                                                                     ebantdoc.get_text())
-            else:
-                xtp, xfn, xfp, xtn, _, json_return = \
-                    evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
-                                                            ant_list,
-                                                            ebantdoc.file_id,
-                                                            ebantdoc.get_text(),
-                                                            threshold,
-                                                            is_raw_mode=False)
+            xtp, xfn, xfp, xtn, json_return = self.call_confusion_matrix(prov_human_ant_list,
+                                                                         ant_list,
+                                                                         ebantdoc,
+                                                                         threshold)
+            if self.get_nbest() > 0:
+                best_annotations = pred_list[:self.get_nbest()]
+                ant_list = self.recover_false_negatives(prov_human_ant_list,
+                                                        ebantdoc.get_text(),
+                                                        self.provision,
+                                                        best_annotations)
+                xtp, xfn, xfp, xtn, _ = self.call_confusion_matrix(prov_human_ant_list,
+                                                                   ant_list,
+                                                                   ebantdoc,
+                                                                   threshold)
+                # adjust for top n extractions
+                nbest_diff = max(xtp + xfn - self.get_nbest(), 0)
+                xfn = max(xfn - nbest_diff, 0)
+
             tp += xtp
             fn += xfn
             fp += xfp
@@ -112,7 +143,7 @@ class ProvisionAnnotator:
             if not evalutils.find_annotation_overlap_x2(ant.start, ant.end, ant_result):
                 clean_text = strutils.sub_nltab_with_space(doc_text[ant.start:ant.end])
                 fn_ant = ebpostproc.to_ant_result_dict(label=provision,
-                                                       prob=0.0,
+                                                       prob=-1.0,
                                                        start=ant.start,
                                                        end=ant.end,
                                                        text=clean_text)
@@ -176,12 +207,25 @@ class ProvisionAnnotator:
                                                           # pylint: disable=line-too-long
                                                           prov_human_ant_list=adj_prov_human_ant_list)
 
+        if self.nbest > 0:
+            full_annotations, _ = \
+                ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
+                                                              prob_attrvec_list,
+                                                              threshold,
+                                                              nbest=-1,
+                                                              provision=prov,
+                                                              # pylint: disable=line-too-long
+                                                              prov_human_ant_list=adj_prov_human_ant_list)
+        else:
+            full_annotations = prov_annotations
+
         try:
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
                                                       eb_antdoc.get_nlp_sx_lnpos_list(),
                                                       eb_antdoc.get_origin_sx_lnpos_list())
             # this is an in-place modification
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
+            fromto_mapper.adjust_fromto_offsets(full_annotations)
         except IndexError:
             error = traceback.format_exc()
             logger.warning("IndexError, adj_fromto_offsets, %s", eb_antdoc.file_id)
@@ -189,13 +233,8 @@ class ProvisionAnnotator:
             # move on, probably because there is no input
 
         update_text_with_span_list(prov_annotations, eb_antdoc.text)
-
-        prov_annotations = self.recover_false_negatives(prov_human_ant_list,
-                                                        eb_antdoc.text,
-                                                        prov,
-                                                        prov_annotations)
-
-        return prov_annotations
+        update_text_with_span_list(full_annotations, eb_antdoc.text)
+        return prov_annotations, full_annotations
 
 # this is destructive
 def update_text_with_span_list(prov_annotations, doc_text):

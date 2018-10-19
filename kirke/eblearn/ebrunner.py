@@ -264,7 +264,7 @@ class EbRunner:
                                    provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                ant_list = future.result()
+                ant_list, _ = future.result()
                 # want to collapse language-specific cust models to one provision
 
                 if 'cust_' in provision and ant_list:

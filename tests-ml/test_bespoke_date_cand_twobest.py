@@ -35,8 +35,7 @@ class TestBespokeDate(unittest.TestCase):
         print(ant_result)
 
         conf_matrix = ant_result['confusion_matrix']
-        # {'fn': 11, 'fp': 3, 'tn': 0, 'tp': 42}
-        # [[0, 3], [11, 42]]
+        # [[0, 3], [14, 42]]
 
         tn = conf_matrix[0][0]
         fp = conf_matrix[0][1]
@@ -45,14 +44,14 @@ class TestBespokeDate(unittest.TestCase):
 
         self.assertEqual(tn, 0)
         self.assertAlmostEqual(fp, 3, delta=2)
-        self.assertAlmostEqual(fn, 11, delta=2)
+        self.assertAlmostEqual(fn, 14, delta=2)
         self.assertAlmostEqual(tp, 42, delta=2)
 
         # round(ant_result['f1'], 2)
-        # 0.86
+        # 0.83
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.84)
-        self.assertLessEqual(f1, 0.88)
+        self.assertGreaterEqual(f1, 0.81)
+        self.assertLessEqual(f1, 0.85)
 
         # round(ant_result['prec'], 2)
         # 0.93
@@ -60,10 +59,10 @@ class TestBespokeDate(unittest.TestCase):
         self.assertGreaterEqual(precision, 0.91)
         self.assertLessEqual(precision, 0.95)
 
-        # 0.79
+        # 0.75
         recall = round(ant_result['recall'], 2)
-        self.assertGreaterEqual(recall, 0.77)
-        self.assertLessEqual(recall, 0.81)
+        self.assertGreaterEqual(recall, 0.73)
+        self.assertLessEqual(recall, 0.77)
 
 if __name__ == "__main__":
     unittest.main()

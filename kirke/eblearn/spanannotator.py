@@ -192,6 +192,28 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         self.estimator = grid_search.best_estimator_
 
+    def call_confusion_matrix(self,
+                              prov_human_ant_list,
+                              ant_list,
+                              ebantdoc,
+                              threshold):
+
+        if self.provision in PROVISION_EVAL_ANYMATCH_SET:
+            xfallout = 0
+            xtp, xfn, xfp, xtn, json_return = \
+                evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
+                                                                 ant_list,
+                                                                 ebantdoc.file_id,
+                                                                 ebantdoc.get_text())
+        else:
+            xtp, xfn, xfp, xtn, xfallout, json_return = \
+                evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
+                                                        ant_list,
+                                                        ebantdoc.file_id,
+                                                        ebantdoc.get_text(),
+                                                        threshold,
+                                                        is_raw_mode=False)
+        return xtp, xfn, xfp, xtn, xfallout, json_return
 
     # ProvisionAnnotator does not train, it only predict
     # Training is available only for classifiers
@@ -217,27 +239,31 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
 
-            ant_list = self.annotate_antdoc(ebantdoc,
-                                            specified_threshold=threshold,
-                                            prov_human_ant_list=prov_human_ant_list,
-                                            work_dir=work_dir)
-            # print("\nfn: {}".format(ebantdoc.file_id))
-            # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
-            # pred_prob_start_end_list, txt)
-            if self.provision in PROVISION_EVAL_ANYMATCH_SET:
-                xtp, xfn, xfp, xtn, json_return = \
-                    evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
-                                                                     ant_list,
-                                                                     ebantdoc.file_id,
-                                                                     ebantdoc.get_text())
-            else:
-                xtp, xfn, xfp, xtn, xfallout, json_return = \
-                    evalutils.calc_doc_ant_confusion_matrix(prov_human_ant_list,
-                                                            ant_list,
-                                                            ebantdoc.file_id,
-                                                            ebantdoc.get_text(),
-                                                            threshold,
-                                                            is_raw_mode=False)
+            pred_list, full_list = self.annotate_antdoc(ebantdoc,
+                                                        specified_threshold=threshold,
+                                                        prov_human_ant_list=prov_human_ant_list,
+                                                        work_dir=work_dir)
+            ant_list = recover_false_negatives(prov_human_ant_list,
+                                               ebantdoc.get_text(),
+                                               self.provision,
+                                               full_list)
+            xtp, xfn, xfp, xtn, xfallout, json_return = self.call_confusion_matrix(prov_human_ant_list,
+                                                                                   ant_list,
+                                                                                   ebantdoc,
+                                                                                   threshold)
+
+            if self.nbest > 0:
+                best_annotations = pred_list[:self.nbest]
+                ant_list = recover_false_negatives(prov_human_ant_list,
+                                                   ebantdoc.get_text(),
+                                                   self.provision,
+                                                   best_annotations)
+                xtp, xfn, xfp, xtn, xfallout, _ = self.call_confusion_matrix(prov_human_ant_list,
+                                                                             ant_list,
+                                                                             ebantdoc,
+                                                                             threshold)
+                nbest_diff = max(xtp + xfn - self.nbest, 0) # in case self.nbest > num annotations
+                xfn = max(xfn - nbest_diff, 0) # adjust for top n extractions
             tp += xtp
             fn += xfn
             fp += xfp
@@ -300,26 +326,21 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             threshold = self.threshold
         else:
             threshold = specified_threshold
-        nbest = self.nbest
         start_time = time.time()
-        candidates, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir)
+        prov_annotations, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir, nbest=self.nbest)
         end_time = time.time()
         logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
-        if nbest > 0:
-            best_annotations = candidates[:nbest]
-        else:
-            best_annotations = candidates
-        prov_annotations = recover_false_negatives(prov_human_ant_list,
-                                                   eb_antdoc.get_text(),
-                                                   self.provision,
-                                                   best_annotations)
         # If there is no human annotation, must be normal annotation.
         # Remove anything below threshold
         if not prov_human_ant_list:
             prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= threshold]
-        return prov_annotations
+        if self.nbest > 0:
+            full_annotations, _ = self.predict_antdoc(eb_antdoc, work_dir, nbest=-1)
+        else:
+            full_annotations = prov_annotations
+        return prov_annotations, full_annotations
 
     def get_eval_status(self):
         eval_status = {'label': self.provision}
@@ -356,7 +377,10 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     # return a list of candidates, a list of labels
     def predict_antdoc(self,
                        eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
-                       work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
+                       work_dir: str,
+                       nbest: int = None) -> Tuple[List[Dict[str, Any]], List[float]]:
+        if not nbest:
+            nbest = self.nbest
         logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
         text = eb_antdoc.get_text()
         # label_list, group_id_list are ignored
@@ -379,7 +403,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         # apply post processing, such as date normalization
         # in case there is any bad apple, with 'reject' == True
         for post_proc in self.doc_postproc_list:
-            candidates = post_proc.doc_postproc(candidates, self.nbest)
+            candidates = post_proc.doc_postproc(candidates, nbest)
 
         return candidates, probs
 
