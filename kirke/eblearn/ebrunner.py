@@ -387,23 +387,32 @@ class EbRunner:
                           provision_set: Optional[Set[str]] = None,
                           work_dir: Optional[str] = None,
                           is_doc_structure: bool = True,
-                          doc_lang: str = 'en') \
+                          doc_lang: str = 'en',
+                          is_dev_mode: bool = False) \
                           -> Tuple[Dict[str, List],
                                    ebantdoc4.EbAnnotatedDoc4]:
         time1 = time.time()
-        if not provision_set:
-            # no provision specified.  Must be doing testing.
-            provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
-            provision_set.update(self.provisions)
-            # also get ALL custom provision set, since we are doing testing
-            logger.info("custom_model_dir: %s", self.custom_model_dir)
-            logger.info("provision_set: %r", provision_set)
-
-        #else:
-        #    logger.info('user specified provision list: %s', provision_set)
-
         if not work_dir:
             work_dir = self.work_dir
+
+        if not provision_set:
+            if is_dev_mode:
+                # no provision specified.  Must be doing testing.
+                provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
+                provision_set.update(self.provisions)
+                # also get ALL custom provision set, since we are doing testing
+                logger.info("custom_model_dir: %s", self.custom_model_dir)
+                logger.info("provision_set: %r", provision_set)
+            else:
+                logger.warning("annotate_document(%s), provision_set is empty", file_name)
+                empty_result = {}  # type: Dict[str, List]
+                # this is just to keep the API consistent for now
+                # TODO, in the future, maybe change the API to not pass back ebantdoc
+                eb_antdoc = ebantdoc4.text_to_ebantdoc4(file_name,
+                                                        work_dir=work_dir,
+                                                        is_doc_structure=is_doc_structure,
+                                                        doc_lang=doc_lang)
+                return empty_result, eb_antdoc
 
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
