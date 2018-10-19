@@ -15,6 +15,7 @@ from kirke.utils.ebantdoc4 import pdf_to_ebantdoc4
 
 
 WORK_DIR = 'dir-work'
+osutils.mkpath(WORK_DIR)
 
 
 class TestNLPText(unittest.TestCase):
