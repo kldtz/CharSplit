@@ -164,7 +164,7 @@ class ProvisionAnnotator:
                         eb_antdoc,
                         specified_threshold: Optional[float] = None,
                         prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
-        -> List[Dict]:
+        -> Tuple[List[Dict], List[Dict]]:
 
         if prov_human_ant_list is None:
             prov_human_ant_list = []

@@ -314,7 +314,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                         *,
                         specified_threshold: Optional[float] = None,
                         prov_human_ant_list: Optional[List] = None,
-                        work_dir: str = 'dir-work') -> List[Dict]:
+                        work_dir: str = 'dir-work') \
+                        -> Tuple[List[Dict], List[Dict]]:
         """Annotate a document.
 
         Will always run recover_false_negatives() if there is human annotation.
@@ -378,7 +379,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def predict_antdoc(self,
                        eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                        work_dir: str,
-                       nbest: int = None) -> Tuple[List[Dict[str, Any]], List[float]]:
+                       nbest: Optional[int] = None) -> Tuple[List[Dict[str, Any]], List[float]]:
         if not nbest:
             nbest = self.nbest
         logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
