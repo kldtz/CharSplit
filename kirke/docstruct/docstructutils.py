@@ -5,6 +5,7 @@ from typing import Dict, List, Match, Optional, Tuple
 
 from kirke.docstruct import docutils, linepos, secheadutils
 from kirke.docstruct.docutils import PLineAttrs
+from kirke.docstruct.pdfoffsets import PageInfo3
 from kirke.utils import corenlpsent, engutils, mathutils, stopwordutils, strutils
 
 # from kirke.ebrules import addresses
@@ -150,9 +151,12 @@ def is_line_page_num(line: str,
                      line_break: float = 6.0,
                      yStart: float = 700.0,
                      unused_is_centered: bool = False):
+    is_debug = False
     if line_break > 5.0 or yStart >= 675.0:  # seen yStart==687.6 as page number
         pass
     elif line_num_in_page > 2 and line_num_in_page <= num_line_in_page - 2:
+        if is_debug:
+            print("pagenumber x1.0, false: {}".format(line))
         return False
 
     # no sechead in page number, if it is obvious sechead
@@ -161,17 +165,20 @@ def is_line_page_num(line: str,
 
     # 'page' in toc header
     if line.lower() == 'page' or PAGENUM_SIMPLE1_PAT.match(line):
-        # print("pagenumber x1: {}".format(line))
+        if is_debug:
+            print("pagenumber x1, true: {}".format(line))
         return True
     # if is_center_lineinfo(lineinfo):
     # print("LINE is CENTERED")
     if PAGENUM_PAT.match(line):
-        # print("pagenumber x2: {}".format(line))
+        if is_debug:
+            print("pagenumber x2, true: {}".format(line))
         return True
 
     # Exhibit K -Page 2
     if PAGENUM_PAT2.match(line):
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x3, true: {}".format(line))
         return True
 
     mat = PAGENUM_PAT3.match(line)
@@ -181,22 +188,31 @@ def is_line_page_num(line: str,
         for word in words:
             if strutils.is_all_digits(word):
                 if int(word) > 20:
+                    if is_debug:
+                        print("pagenumber x4, false: {}".format(line))
                     return False
                 num_digit += 1
         if num_digit > 2:
+            if is_debug:
+                print("pagenumber x5, false: {}".format(line))
             return False
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x6, true: {}".format(line))
         return True
 
     if PAGENUM_PAT4.match(line):
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x7, true: {}".format(line))
         return True
 
     # page 4 of 5
     if PAGENUM_PAT5.match(line):
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x8: {}".format(line))
         return True
 
+    if is_debug:
+        print("pagenumber default, false: {}".format(line))
     return False
 
 
@@ -304,7 +320,7 @@ def is_line_footer(line: str,
     return score >= 1, score
 
 
-HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', re.I)
+HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', flags=re.I)
 
 # no re.I
 # TODO, jshaw, these should really be sechead, not headers.
@@ -324,7 +340,7 @@ def is_line_header(line: str,
                    header_set=None):
 
     is_debug = False
-    # if line.startswith('between'):
+    # if line == 'Execution Copy':
     #     is_debug = True
 
     # for domain specific headers
@@ -590,3 +606,53 @@ def text_from_para_with_attrs(doc_text: str,
         # para_st_list.append(' '.join(para_st_list))
     nlp_text = '\n'.join(para_st_list)
     return nlp_text
+
+
+def is_page_multi_column(apage: PageInfo3) -> bool:
+    linex_list = apage.line_list
+    num_lines = len(linex_list)
+    x_width_sum = 0
+
+    num_split_col_line, num_one_col_line = 0, 0
+    num_other_col_line = 0
+    num_english_line = 0
+    for linex in linex_list:
+        x_width = linex.lineinfo.xEnd - linex.lineinfo.xStart
+        x_width_sum += x_width
+        # words = linex.line_text.split()
+        # num_word = len(words)
+
+        if linex.is_english:
+            num_english_line += 1
+
+        if x_width > 200 and x_width <= 300:
+            num_split_col_line += 1
+        elif x_width > 300:
+            num_one_col_line += 1
+        else:
+            num_other_col_line += 1
+
+        # print('line: [{}]'.format(linex.line_text))
+        # print('  x_width = {}, num_word = {}, is_eng = {}'.format(x_width,
+        #                                                           num_word,
+        #                                                           linex.is_english))
+
+    print('num_split_col_line = {}, num_one_col_line = {}, '
+          'num_other_col_line = {}, num_english_line = {}'.format(num_split_col_line,
+                                                                  num_one_col_line,
+                                                                  num_other_col_line,
+                                                                  num_english_line))
+    if num_lines == 0:
+        return False
+    if num_split_col_line == 0:
+        return False
+
+    if num_split_col_line > 50 and \
+       num_one_col_line <= 10:
+        return True
+
+    if num_one_col_line / num_split_col_line < 0.05 and \
+       num_english_line / num_lines > 0.6:
+        return True
+
+    return False

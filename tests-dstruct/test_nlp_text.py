@@ -14,37 +14,7 @@ from kirke.utils import docworddiff, ebantdoc4, osutils, txtreader
 from kirke.utils.ebantdoc4 import pdf_to_ebantdoc4
 
 
-MODEL_DIR = 'dir-scut-model'
 WORK_DIR = 'dir-work'
-CUSTOM_MODEL_DIR = 'dir-custom-model'
-
-EB_RUNNER = ebrunner.EbRunner(MODEL_DIR,
-                              WORK_DIR,
-                              CUSTOM_MODEL_DIR)
-
-def annotate_doc(file_name: str) -> Dict[str, Any]:
-    doc_lang = 'en'
-    provision_set = set([])  # type: Set[str]
-    is_doc_structure = True
-
-    # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
-    #                      'party', 'warranty', 'termination', 'term']))
-    prov_labels_map, _ = EB_RUNNER.annotate_document(file_name,
-                                                     provision_set=provision_set,
-                                                     work_dir=WORK_DIR,
-                                                     doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure)
-
-    # because special case of 'effectivdate_auto'
-    if prov_labels_map.get('effectivedate'):
-        effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
-        for eff_ant in effectivedate_annotations:
-            eff_ant['label'] = 'effectivedate_auto'
-            prov_labels_map['effectivedate_auto'] = effectivedate_annotations
-            del prov_labels_map['effectivedate']
-
-    # pprint.pprint(prov_labels_map)
-    return prov_labels_map
 
 
 class TestNLPText(unittest.TestCase):

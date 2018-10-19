@@ -805,7 +805,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
     num_toc_line = 0
     has_toc_heading = False
 
-    apage.is_multi_column = pdfoffsets.is_page_multi_column(apage)
+    apage.is_multi_column = docstructutils.is_page_multi_column(apage)
 
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False
