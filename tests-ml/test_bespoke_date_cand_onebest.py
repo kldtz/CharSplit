@@ -2,7 +2,10 @@
 
 import configparser
 import json
+import pprint
 import unittest
+
+from typing import Any, Dict, List, Tuple
 
 from kirke.client import postfileutils
 
@@ -17,6 +20,18 @@ MODEL_DIR = 'dir-scut-model'
 WORK_DIR = 'dir-work'
 CUSTOM_MODEL_DIR = 'dir-custom-model'
 
+def upload_annotate_doc(file_name: str) -> Dict[str, Any]:
+
+    text = postfileutils.post_annotate_document(file_name,
+                                                ['cust_10'],
+                                                is_detect_lang=False,
+                                                is_classify_doc=False)
+
+    ajson = json.loads(text)
+
+    return ajson
+
+
 class TestBespokeDate(unittest.TestCase):
 
     def test_bespoke_date(self):
@@ -30,7 +45,7 @@ class TestBespokeDate(unittest.TestCase):
                                            nbest=1)
         ajson = json.loads(result_text)
         ant_result = ajson['en']
-        
+
         print("ant_result:")
         print(ant_result)
 
@@ -62,6 +77,15 @@ class TestBespokeDate(unittest.TestCase):
         recall = round(ant_result['recall'], 2)
         self.assertGreaterEqual(recall, 0.68)
         self.assertLessEqual(recall, 0.72)
+
+        prov_labels_map = upload_annotate_doc('cust_10/695.txt')
+        print('prov_labels_map')
+        print(prov_labels_map)
+        # prov_labels_map = upload_annotate_doc('cust_10/736.txt')
+        date_list = prov_labels_map['ebannotations'].get('cust_10', [])
+        print('date_list:')
+        pprint.pprint(date_list)
+        self.assertEqual(len(date_list), 1)
 
 if __name__ == "__main__":
     unittest.main()
