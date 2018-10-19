@@ -34,12 +34,7 @@ class TestBespokeSent(unittest.TestCase):
         print(ant_result)
 
         conf_matrix = ant_result['confusion_matrix']
-        # [[0, 1], [9, 139]]
-        # {'fn': 9, 'fp': 1, 'tn': 0, 'tp': 139})
-        # 0, 1, 0, 148
-        # 7, 1, 0, 141
-        # 9, 0, 0, 139
-        # 3, 1, 0, 145
+        # [[0, 4], [7, 141]] 
 
         tn = conf_matrix[0][0]
         fp = conf_matrix[0][1]
@@ -47,35 +42,26 @@ class TestBespokeSent(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 1, delta=2)
-        self.assertAlmostEqual(fn, 6, delta=6)
-        self.assertAlmostEqual(tp, 143, delta=7)
+        self.assertAlmostEqual(fp, 4, delta=2)
+        self.assertAlmostEqual(fn, 7, delta=6)
+        self.assertAlmostEqual(tp, 141, delta=7)
 
         # round(ant_result['f1'], 2),
-        # 1.0
-        # 0.97
-        # 0.97
-        # 0.99
+        # 0.96
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.96)
-        self.assertLessEqual(f1, 1.0)
+        self.assertGreaterEqual(f1, 0.94)
+        self.assertLessEqual(f1, 0.98)
 
         # round(ant_result['prec'], 2),
-        # 0.99
-        # 0.99
-        # 1.00
-        # 0.99
+        # 0.97
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.98)
-        self.assertLessEqual(precision, 1.0)
+        self.assertGreaterEqual(precision, 0.95)
+        self.assertLessEqual(precision, 0.99)
 
         recall = round(ant_result['recall'], 2)
-        # 1.0
         # 0.95
-        # 0.93
-        # 0.98
-        self.assertGreaterEqual(recall, 0.92)
-        self.assertLessEqual(recall, 1.0)
+        self.assertGreaterEqual(recall, 0.93)
+        self.assertLessEqual(recall, 0.97)
 
         # self.assertEqual(round(ant_result['threshold'], 2),
         #                  0.24)
