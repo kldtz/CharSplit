@@ -50,7 +50,8 @@ def annotate_provision(eb_annotator,
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc)
     """
-    return eb_annotator.annotate_antdoc(eb_antdoc)
+    annotations, _ = eb_annotator.annotate_antdoc(eb_antdoc)
+    return annotations
 
 
 def test_provision(eb_annotator,
@@ -264,7 +265,7 @@ class EbRunner:
                                    provision for provision in provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 provision = future_to_provision[future]
-                ant_list, _ = future.result()
+                ant_list = future.result()
                 # want to collapse language-specific cust models to one provision
 
                 if 'cust_' in provision and ant_list:
