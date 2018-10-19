@@ -16,7 +16,7 @@ from sklearn.pipeline import Pipeline
 
 from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
-
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -193,10 +193,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.estimator = grid_search.best_estimator_
 
     def call_confusion_matrix(self,
-                              prov_human_ant_list,
-                              ant_list,
-                              ebantdoc,
-                              threshold):
+                              prov_human_ant_list: List[ProvisionAnnotation],
+                              ant_list: List[Dict],
+                              ebantdoc: ebantdoc4.EbAnnotatedDoc4,
+                              threshold: float) -> Tuple[int, int, int, int, int,
+                                                         Dict[str, List[Tuple[int, int, str, float, str]]]]:
 
         if self.provision in PROVISION_EVAL_ANYMATCH_SET:
             xfallout = 0
