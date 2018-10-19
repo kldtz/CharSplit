@@ -236,7 +236,7 @@ def cv_candg_train_at_annotation_level(provision: str,
     pos_list.extend(neg_list)
     if num_pos_after_candgen < 6:
         exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found".format(num_pos_after_candgen))
-        exc.user_message =  "INSUFFICIENT_EXAMPLES"
+        exc.user_message = "INSUFFICIENT_EXAMPLES"
         raise exc
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
