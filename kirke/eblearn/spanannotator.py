@@ -196,7 +196,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                               prov_human_ant_list: List[ProvisionAnnotation],
                               ant_list: List[Dict],
                               ebantdoc: ebantdoc4.EbAnnotatedDoc4,
-                              threshold: float) -> Tuple[int, int, int, int, int,
+                              threshold: float,
+                              is_print: bool = False) -> Tuple[int, int, int, int, int,
                                                          Dict[str, List[Tuple[int, int, str, float, str]]]]:
 
         if self.provision in PROVISION_EVAL_ANYMATCH_SET:
@@ -213,7 +214,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                         ebantdoc.file_id,
                                                         ebantdoc.get_text(),
                                                         threshold,
-                                                        is_raw_mode=False)
+                                                        is_raw_mode=False,
+                                                        is_print=is_print)
         return xtp, xfn, xfp, xtn, xfallout, json_return
 
     # ProvisionAnnotator does not train, it only predict
@@ -236,7 +238,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         fallout, tp, fn, fp, tn = 0, 0, 0, 0, 0
         log_json = dict()
 
-        for ebantdoc in ebantdoc_list:
+        for seq, ebantdoc in enumerate(ebantdoc_list):
+            print("\ntest_antdoc_list, #{}, {}".format(seq, ebantdoc.file_id))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
 
@@ -262,7 +265,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                 xtp, xfn, xfp, xtn, xfallout, _ = self.call_confusion_matrix(prov_human_ant_list,
                                                                              ant_list,
                                                                              ebantdoc,
-                                                                             threshold)
+                                                                             threshold,
+                                                                             is_print=True)
                 nbest_diff = max(xtp + xfn - self.nbest, 0) # in case self.nbest > num annotations
                 xfn = max(xfn - nbest_diff, 0) # adjust for top n extractions
             tp += xtp
