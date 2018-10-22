@@ -229,7 +229,6 @@ def init_pageinfo_list(doc_text: str,
             # prev_line = lineinfo_list[0]
             prev_linenum = lineinfo_list[0].line_num
             prev_ystart = lxid_strinfos_map[prev_linenum][0].yStart
-            prev_font_size = lineinfo_list[0].font_size_in_pt
             for lineinfo in lineinfo_list[1:]:
                 linenum = lineinfo.line_num
                 ystart = lxid_strinfos_map[linenum][0].yStart
@@ -242,7 +241,6 @@ def init_pageinfo_list(doc_text: str,
                 # print('prev_line: [{}]'.format(doc_text[prev_line.start:prev_line.end][:40]))
 
                 height_adj = lineinfo.height * 0.8
-                font_size = lineinfo.font_size_in_pt
 
                 # adjust the mode_diff according to font size
                 adj_max_mode_diff = mode_diff + height_adj
@@ -805,7 +803,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
     num_toc_line = 0
     has_toc_heading = False
 
-    apage.is_multi_column = docstructutils.is_page_multi_column(apage)
+    apage.is_multi_column = is_page_multi_column(apage)
 
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False
@@ -1047,6 +1045,56 @@ def add_doc_structure_to_page(apage: PageInfo3,
                     print("===323=6 too-small== line is toc, %d [%s]" %
                           (line.page_num, line.line_text))
                 linex.attrs.toc = True
+
+
+def is_page_multi_column(apage: PageInfo3) -> bool:
+    linex_list = apage.line_list
+    num_lines = len(linex_list)
+    x_width_sum = 0
+
+    num_split_col_line, num_one_col_line = 0, 0
+    num_other_col_line = 0
+    num_english_line = 0
+    for linex in linex_list:
+        x_width = linex.lineinfo.xEnd - linex.lineinfo.xStart
+        x_width_sum += x_width
+        # words = linex.line_text.split()
+        # num_word = len(words)
+
+        if linex.is_english:
+            num_english_line += 1
+
+        if x_width > 200 and x_width <= 300:
+            num_split_col_line += 1
+        elif x_width > 300:
+            num_one_col_line += 1
+        else:
+            num_other_col_line += 1
+
+        # print('line: [{}]'.format(linex.line_text))
+        # print('  x_width = {}, num_word = {}, is_eng = {}'.format(x_width,
+        #                                                           num_word,
+        #                                                           linex.is_english))
+
+    # print('num_split_col_line = {}, num_one_col_line = {}, '
+    #       'num_other_col_line = {}, num_english_line = {}'.format(num_split_col_line,
+    #                                                               num_one_col_line,
+    #                                                               num_other_col_line,
+    #                                                               num_english_line))
+    if num_lines == 0:
+        return False
+    if num_split_col_line == 0:
+        return False
+
+    if num_split_col_line > 50 and \
+       num_one_col_line <= 10:
+        return True
+
+    if num_one_col_line / num_split_col_line < 0.05 and \
+       num_english_line / num_lines > 0.6:
+        return True
+
+    return False
 
 
 def main():

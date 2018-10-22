@@ -5,7 +5,6 @@ from typing import Dict, List, Match, Optional, Tuple
 
 from kirke.docstruct import docutils, linepos, secheadutils
 from kirke.docstruct.docutils import PLineAttrs
-from kirke.docstruct.pdfoffsets import PageInfo3
 from kirke.utils import corenlpsent, engutils, mathutils, stopwordutils, strutils
 
 # from kirke.ebrules import addresses
@@ -606,53 +605,3 @@ def text_from_para_with_attrs(doc_text: str,
         # para_st_list.append(' '.join(para_st_list))
     nlp_text = '\n'.join(para_st_list)
     return nlp_text
-
-
-def is_page_multi_column(apage: PageInfo3) -> bool:
-    linex_list = apage.line_list
-    num_lines = len(linex_list)
-    x_width_sum = 0
-
-    num_split_col_line, num_one_col_line = 0, 0
-    num_other_col_line = 0
-    num_english_line = 0
-    for linex in linex_list:
-        x_width = linex.lineinfo.xEnd - linex.lineinfo.xStart
-        x_width_sum += x_width
-        # words = linex.line_text.split()
-        # num_word = len(words)
-
-        if linex.is_english:
-            num_english_line += 1
-
-        if x_width > 200 and x_width <= 300:
-            num_split_col_line += 1
-        elif x_width > 300:
-            num_one_col_line += 1
-        else:
-            num_other_col_line += 1
-
-        # print('line: [{}]'.format(linex.line_text))
-        # print('  x_width = {}, num_word = {}, is_eng = {}'.format(x_width,
-        #                                                           num_word,
-        #                                                           linex.is_english))
-
-    print('num_split_col_line = {}, num_one_col_line = {}, '
-          'num_other_col_line = {}, num_english_line = {}'.format(num_split_col_line,
-                                                                  num_one_col_line,
-                                                                  num_other_col_line,
-                                                                  num_english_line))
-    if num_lines == 0:
-        return False
-    if num_split_col_line == 0:
-        return False
-
-    if num_split_col_line > 50 and \
-       num_one_col_line <= 10:
-        return True
-
-    if num_one_col_line / num_split_col_line < 0.05 and \
-       num_english_line / num_lines > 0.6:
-        return True
-
-    return False
