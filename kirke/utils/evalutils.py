@@ -185,6 +185,8 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                 if prob >= threshold:
                     tp_inst_map[(file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                     tp += 1
+                    logger.info('wowww TP: %r, %r', (file_id, hant.start, hant.end, hant.label),
+                                pred_overlap_list)
                 else:
                     fn_inst_map[(file_id, hant.start, hant.end, hant.label)] = pred_overlap_list
                     fn += 1
