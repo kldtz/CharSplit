@@ -1,3 +1,4 @@
+import copy
 import logging
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -41,8 +42,9 @@ class ProvisionAnnotator:
                               prov_human_ant_list: List[ProvisionAnnotation],
                               ant_list: List[Dict],
                               ebantdoc: ebantdoc4.EbAnnotatedDoc4,
-                              threshold: float) -> Tuple[int, int, int, int,
-                                                         Dict[str, List[Tuple[int, int, str, float, str]]]]:
+                              threshold: float) \
+                              -> Tuple[int, int, int, int,
+                                       Dict[str, List[Tuple[int, int, str, float, str]]]]:
 
         if self.provision in PROVISION_EVAL_ANYMATCH_SET:
             xtp, xfn, xfp, xtn, json_return = \
@@ -102,11 +104,10 @@ class ProvisionAnnotator:
                                                                          ebantdoc,
                                                                          threshold)
             if self.get_nbest() > 0:
-                best_annotations = pred_list[:self.get_nbest()]
                 ant_list = self.recover_false_negatives(prov_human_ant_list,
                                                         ebantdoc.get_text(),
                                                         self.provision,
-                                                        best_annotations)
+                                                        pred_list)
                 xtp, xfn, xfp, xtn, _ = self.call_confusion_matrix(prov_human_ant_list,
                                                                    ant_list,
                                                                    ebantdoc,
@@ -218,7 +219,7 @@ class ProvisionAnnotator:
                                                               # pylint: disable=line-too-long
                                                               prov_human_ant_list=adj_prov_human_ant_list)
         else:
-            full_annotations = prov_annotations
+            full_annotations = copy.deepcopy(prov_annotations)
 
         try:
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',

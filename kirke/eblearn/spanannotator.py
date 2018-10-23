@@ -1,3 +1,4 @@
+import copy
 from collections import defaultdict
 import configparser
 from datetime import datetime
@@ -196,10 +197,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                               prov_human_ant_list: List[ProvisionAnnotation],
                               ant_list: List[Dict],
                               ebantdoc: ebantdoc4.EbAnnotatedDoc4,
-                              threshold: float,
-                              is_print: bool = False) -> Tuple[int, int, int, int, int,
-                                                         Dict[str, List[Tuple[int, int, str, float, str]]]]:
-
+                              threshold: float) \
+                              -> Tuple[int, int, int, int, int,
+                                       Dict[str, List[Tuple[int, int, str, float, str]]]]:
         if self.provision in PROVISION_EVAL_ANYMATCH_SET:
             xfallout = 0
             xtp, xfn, xfp, xtn, json_return = \
@@ -214,8 +214,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                                         ebantdoc.file_id,
                                                         ebantdoc.get_text(),
                                                         threshold,
-                                                        is_raw_mode=False,
-                                                        is_print=is_print)
+                                                        is_raw_mode=False)
         return xtp, xfn, xfp, xtn, xfallout, json_return
 
     # ProvisionAnnotator does not train, it only predict
@@ -265,8 +264,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                 xtp, xfn, xfp, xtn, xfallout, _ = self.call_confusion_matrix(prov_human_ant_list,
                                                                              ant_list,
                                                                              ebantdoc,
-                                                                             threshold,
-                                                                             is_print=True)
+                                                                             threshold)
                 nbest_diff = max(xtp + xfn - self.nbest, 0) # in case self.nbest > num annotations
                 xfn = max(xfn - nbest_diff, 0) # adjust for top n extractions
             tp += xtp
@@ -345,7 +343,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         if self.nbest > 0:
             full_annotations, _ = self.predict_antdoc(eb_antdoc, work_dir, nbest=-1)
         else:
-            full_annotations = prov_annotations
+            full_annotations = copy.deepcopy(prov_annotations)
         return prov_annotations, full_annotations
 
     def get_eval_status(self):

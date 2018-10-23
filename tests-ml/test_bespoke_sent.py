@@ -21,8 +21,8 @@ class TestBespokeSent(unittest.TestCase):
 
     def test_bespoke_12345(self):
 
-        custid = '12345'
-        custid_data_dir = 'cust_' + custid
+        custid = 'change_control'
+        custid_data_dir = 'change_control'
         result_text = \
             postfileutils.upload_train_dir(custid,
                                            custid_data_dir,
@@ -34,12 +34,7 @@ class TestBespokeSent(unittest.TestCase):
         print(ant_result)
 
         conf_matrix = ant_result['confusion_matrix']
-        # [[0, 1], [9, 139]]
-        # {'fn': 9, 'fp': 1, 'tn': 0, 'tp': 139})
-        # 0, 1, 0, 148
-        # 7, 1, 0, 141
-        # 9, 0, 0, 139
-        # 3, 1, 0, 145
+        # [[0, 58], [55, 144]]
 
         tn = conf_matrix[0][0]
         fp = conf_matrix[0][1]
@@ -47,39 +42,26 @@ class TestBespokeSent(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 1, delta=2)
-        self.assertAlmostEqual(fn, 6, delta=6)
-        self.assertAlmostEqual(tp, 143, delta=7)
+        self.assertAlmostEqual(fp, 58, delta=10)
+        self.assertAlmostEqual(fn, 55, delta=6)
+        self.assertAlmostEqual(tp, 144, delta=6)
 
         # round(ant_result['f1'], 2),
-        # 1.0
-        # 0.97
-        # 0.97
-        # 0.99
+        # 0.72
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.96)
-        self.assertLessEqual(f1, 1.0)
+        self.assertGreaterEqual(f1, 0.70)
+        self.assertLessEqual(f1, 0.74)
 
         # round(ant_result['prec'], 2),
-        # 0.99
-        # 0.99
-        # 1.00
-        # 0.99
+        # 0.71
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.98)
-        self.assertLessEqual(precision, 1.0)
+        self.assertGreaterEqual(precision, 0.69)
+        self.assertLessEqual(precision, 0.73)
 
         recall = round(ant_result['recall'], 2)
-        # 1.0
-        # 0.95
-        # 0.93
-        # 0.98
-        self.assertGreaterEqual(recall, 0.92)
-        self.assertLessEqual(recall, 1.0)
-
-        # self.assertEqual(round(ant_result['threshold'], 2),
-        #                  0.24)
-
+        # 0.72
+        self.assertGreaterEqual(recall, 0.70)
+        self.assertLessEqual(recall, 0.74)
 
 if __name__ == "__main__":
     unittest.main()

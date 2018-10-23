@@ -103,6 +103,9 @@ class TestDateUtils(unittest.TestCase):
                          # {'year': 2011, 'month': 6, 'day': 30}
                          {'norm': {'date': '2011-06-30'}})
 
+        self.assertEqual(dnorm.parse_date('1st day of May, 2011'),
+                         {'norm': {'date': '2011-05-01'}})
+
         self.assertEqual(dnorm.parse_date('2011-53-20'),
                          None)
         self.assertEqual(dnorm.parse_date('2011-12-53'),

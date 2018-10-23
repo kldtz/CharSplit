@@ -37,8 +37,8 @@ class TestBespokeSent(unittest.TestCase):
     # pylint: disable=too-many-locals
     def test_bespoke_12345(self):
 
-        custid = '12345'
-        custid_data_dir = 'cust_' + custid
+        custid = 'change_control'
+        custid_data_dir = 'change_control'
         result_text = \
             postfileutils.upload_train_dir(custid,
                                            custid_data_dir,
@@ -50,7 +50,7 @@ class TestBespokeSent(unittest.TestCase):
         print(ant_result)
 
         conf_matrix = ant_result['confusion_matrix']
-        # [[0, 1], [1, 145]]
+        # [[0, 19], [14, 32]]
 
         tn = conf_matrix[0][0]
         fp = conf_matrix[0][1]
@@ -58,29 +58,26 @@ class TestBespokeSent(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 1, delta=2)
-        self.assertAlmostEqual(fn, 1, delta=6)
-        self.assertAlmostEqual(tp, 145, delta=7)
+        self.assertAlmostEqual(fp, 22, delta=4)
+        self.assertAlmostEqual(fn, 15, delta=4)
+        self.assertAlmostEqual(tp, 70, delta=4)
 
         # round(ant_result['f1'], 2),
-        # 0.99
+        # 0.80
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.97)
-        self.assertLessEqual(f1, 1.0)
+        self.assertGreaterEqual(f1, 0.77)
+        self.assertLessEqual(f1, 0.83)
 
         # round(ant_result['prec'], 2),
-        # 0.99
+        # 0.77
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.97)
-        self.assertLessEqual(precision, 1.0)
+        self.assertGreaterEqual(precision, 0.74)
+        self.assertLessEqual(precision, 0.80)
 
         recall = round(ant_result['recall'], 2)
-        # 0.99
-        self.assertGreaterEqual(recall, 0.97)
-        self.assertLessEqual(recall, 1.0)
-
-        # self.assertEqual(round(ant_result['threshold'], 2),
-        #                  0.24)
+        # 0.80
+        self.assertGreaterEqual(recall, 0.77)
+        self.assertLessEqual(recall, 0.83)
 
         txt_fnames = []
         for file in os.listdir(custid_data_dir):
@@ -90,8 +87,8 @@ class TestBespokeSent(unittest.TestCase):
 
         provision = '{}.{}'.format(custid_data_dir, ant_result['model_number'])
         return_lens = []
-        for fname in sorted(txt_fnames)[:5]:
-            prov_labels_map = upload_annotate_doc(fname, provision)
+        for fname in sorted(txt_fnames)[20:30]:
+            prov_labels_map = upload_annotate_doc(fname, custid)
             print('prov_labels_map')
             print(prov_labels_map)
             date_list = prov_labels_map['ebannotations'].get(custid_data_dir, [])
