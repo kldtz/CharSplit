@@ -1,3 +1,4 @@
+import copy
 import logging
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -218,7 +219,7 @@ class ProvisionAnnotator:
                                                               # pylint: disable=line-too-long
                                                               prov_human_ant_list=adj_prov_human_ant_list)
         else:
-            full_annotations = prov_annotations
+            full_annotations = copy.deepcopy(prov_annotations)
 
         try:
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
