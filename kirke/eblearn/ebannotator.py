@@ -42,8 +42,9 @@ class ProvisionAnnotator:
                               prov_human_ant_list: List[ProvisionAnnotation],
                               ant_list: List[Dict],
                               ebantdoc: ebantdoc4.EbAnnotatedDoc4,
-                              threshold: float) -> Tuple[int, int, int, int,
-                                                         Dict[str, List[Tuple[int, int, str, float, str]]]]:
+                              threshold: float) \
+                              -> Tuple[int, int, int, int,
+                                       Dict[str, List[Tuple[int, int, str, float, str]]]]:
 
         if self.provision in PROVISION_EVAL_ANYMATCH_SET:
             xtp, xfn, xfp, xtn, json_return = \
