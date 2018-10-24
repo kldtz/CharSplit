@@ -21,8 +21,8 @@ class TestBespokeSent(unittest.TestCase):
 
     def test_bespoke_12345(self):
 
-        custid = 'change_control'
-        custid_data_dir = 'change_control_small'
+        custid = 'cust_555'
+        custid_data_dir = 'cust_555'
         result_text = \
             postfileutils.upload_train_dir(custid,
                                            custid_data_dir,
