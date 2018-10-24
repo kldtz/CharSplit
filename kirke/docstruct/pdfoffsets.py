@@ -14,7 +14,8 @@ from kirke.utils.textoffset import TextCpointCunitMapper
 
 
 StrInfo = namedtuple('StrInfo', ['start', 'end',
-                                 'xStart', 'xEnd', 'yStart'])
+                                 'xStart', 'xEnd', 'yStart', 'yEnd',
+                                 'height', 'fontSizeInPt'])
 
 MAX_Y_DIFF = 10000
 MIN_X_END = -1
@@ -58,7 +59,7 @@ class PageAttrs:
 # pylint: disable=too-many-instance-attributes
 class LineInfo3:
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-locals
     def __init__(self, start, end, line_num, block_num, strinfo_list) -> None:
         self.start = start
         self.end = end
@@ -70,11 +71,16 @@ class LineInfo3:
         # pylint: disable=invalid-name
         min_xStart, min_yStart = MAX_Y_DIFF, MAX_Y_DIFF
         # pylint: disable=invalid-name
-        max_xEnd = MIN_X_END
+        max_xEnd, max_yEnd = MIN_X_END, MIN_X_END
+        # the smaller than the smallest we have found so far
+        max_height, max_font_size_in_pt = 4.0, 6
         for strinfo in self.strinfo_list:
             syStart = strinfo.yStart
+            syEnd = strinfo.yEnd
             sxStart = strinfo.xStart
             sxEnd = strinfo.xEnd
+            sHeight = strinfo.height
+            sFontSizeInPt = strinfo.fontSizeInPt
 
             ## Incorrect??
             ## whichever is lowest in the y-axis of page, use that
@@ -88,10 +94,17 @@ class LineInfo3:
             # for a line, str_list should be sorted by xStart, not yStart
             # do we care about min_yStart??
             if sxStart < min_xStart:
-                min_yStart = syStart
                 min_xStart = sxStart
             if sxEnd > max_xEnd:
                 max_xEnd = sxEnd
+            if syStart < min_yStart:
+                min_yStart = syStart
+            if syEnd > max_yEnd:
+                max_yEnd = syEnd
+            if sHeight > max_height:
+                max_height = sHeight
+            if sFontSizeInPt > max_font_size_in_pt:
+                max_font_size_in_pt = sFontSizeInPt
 
         # pylint: disable=invalid-name
         self.xStart = min_xStart
@@ -99,16 +112,24 @@ class LineInfo3:
         self.xEnd = max_xEnd
         # pylint: disable=invalid-name
         self.yStart = min_yStart
+        # pylint: disable=invalid-name
+        self.yEnd = max_yEnd
+        self.height = max_height
+        self.font_size_in_pt = max_font_size_in_pt  # this is in 'point', not pdf x, y
+
         # jshaw, maybe this is simpler?
         # self.xStart = self.strinfo_list[0].xStart
         # self.yStart = self.strinfo_list[0].yStart
         #self.xEnd = self.strinfo_list[-1].xEnd
 
     def tostr2(self):
-        return 'se=(%d, %d), bid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f' % \
-            (self.start, self.end,
-             self.bid, self.obid,
-             self.xStart, self.xEnd, self.yStart)
+        return 'se=(%d, %d), ybid= %d, obid = %d, xs=%.1f, xe= %.1f, ys=%.1f' \
+               'ye=%.1f h=%.1f, font=%.1f' % \
+               (self.start, self.end,
+                self.bid, self.obid,
+                self.xStart, self.xEnd,
+                self.yStart, self.yEnd,
+                self.height, self.font_size_in_pt)
 
     def tostr3(self):
         return 'se=(%d, %d), bid= %d, obid = %d' % (self.start, self.end,
@@ -474,6 +495,7 @@ class PageInfo3:
         #   - page_num
         #   - header, footer
         self.content_line_list = []  # type: List[LineWithAttrs]
+        self.is_multi_column = False
 
     def get_blocked_lines(self) -> List[List[LineWithAttrs]]:
         if not self.line_list:

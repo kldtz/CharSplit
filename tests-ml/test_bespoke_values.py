@@ -31,7 +31,7 @@ class TestBespokeValues(unittest.TestCase):
         ajson = json.loads(result_text)
         print(ajson)
         ant_result = ajson['en']
-        
+
         print("ant_result:")
         print(ant_result)
 
