@@ -66,18 +66,18 @@ class TestBespokeSent(unittest.TestCase):
         # 0.72
         f1 = round(ant_result['fscore'], 2)
         self.assertGreaterEqual(f1, 0.66)
-        self.assertLessEqual(f1, 0.77)
+        self.assertLessEqual(f1, 0.78)
 
         # round(ant_result['prec'], 2),
         # 0.71
         precision = round(ant_result['precision'], 2)
         self.assertGreaterEqual(precision, 0.65)
-        self.assertLessEqual(precision, 0.76)
+        self.assertLessEqual(precision, 0.77)
 
         recall = round(ant_result['recall'], 2)
         # 0.74
         self.assertGreaterEqual(recall, 0.70)
-        self.assertLessEqual(recall, 0.78)
+        self.assertLessEqual(recall, 0.8)
 
         txt_fnames = []
         for file in os.listdir(custid_data_dir):

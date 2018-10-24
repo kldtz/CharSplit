@@ -49,13 +49,13 @@ class TestBespokeSent(unittest.TestCase):
         # 0.66
         f1 = round(ant_result['fscore'], 2)
         self.assertGreaterEqual(f1, 0.63)
-        self.assertLessEqual(f1, 0.69)
+        self.assertLessEqual(f1, 0.70)
 
         # round(ant_result['prec'], 2),
         # 0.68
         precision = round(ant_result['precision'], 2)
         self.assertGreaterEqual(precision, 0.65)
-        self.assertLessEqual(precision, 0.71)
+        self.assertLessEqual(precision, 0.73)
 
         recall = round(ant_result['recall'], 2)
         # 0.65
