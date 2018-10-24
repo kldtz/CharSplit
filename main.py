@@ -101,8 +101,7 @@ def train_annotator(provision: str,
                     work_dir: str,
                     model_dir: str,
                     is_scut: bool,
-                    is_cache_enabled: bool = True,
-                    is_doc_structure: bool = True) -> None:
+                    is_cache_enabled: bool = True) -> None:
     if is_scut:
         eb_classifier = scutclassifier.ShortcutClassifier(provision)  # type: EbClassifier
         model_file_name = '{}/{}_scutclassifier.v{}.pkl'.format(model_dir,
@@ -119,8 +118,8 @@ def train_annotator(provision: str,
                                              model_dir,
                                              model_file_name,
                                              eb_classifier,
-                                             is_cache_enabled=is_cache_enabled,
-                                             is_doc_structure=is_doc_structure)
+                                             is_cache_enabled=is_cache_enabled)
+
 
 def train_span_annotator(label: str,
                          nbest: int,
@@ -128,7 +127,7 @@ def train_span_annotator(label: str,
                          work_dir: str,
                          model_dir: str) -> None:
     if candidate_types == ['SENTENCE']:
-        train_annotator(label, work_dir, model_dir, True)
+        train_annotator(label, work_dir, model_dir, is_scut=True)
     else:
         ebtrainer.train_eval_span_annotator(label,
                                             383838,
@@ -136,6 +135,7 @@ def train_span_annotator(label: str,
                                             nbest,
                                             candidate_types=candidate_types,
                                             work_dir=work_dir,
+                                            is_doc_structure=False,
                                             model_dir=model_dir)
 
 
@@ -163,13 +163,11 @@ def eval_rule_annotator(label: str,
 
 def eval_line_annotator_with_trte(provision: str,
                                   txt_fn_list_fn: str,
-                                  work_dir: str,
-                                  is_doc_structure: bool = True):
+                                  work_dir: str):
     """Test line annotators based on txt_fn_list."""
     ebtrainer.eval_line_annotator_with_trte(provision,
                                             txt_fn_list_fn,
-                                            work_dir=work_dir,
-                                            is_doc_structure=is_doc_structure)
+                                            work_dir=work_dir)
 
 
 def eval_mlxline_annotator(provision: str,
@@ -279,8 +277,7 @@ def annotate_document(file_name: str,
                       work_dir: str,
                       model_dir: str,
                       custom_model_dir: str,
-                      provision_set: Optional[Set[str]] = None,
-                      is_doc_structure: bool = True) -> Dict:
+                      provision_set: Optional[Set[str]] = None) -> Dict:
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
     eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
@@ -298,8 +295,7 @@ def annotate_document(file_name: str,
     prov_labels_map, _ = eb_runner.annotate_document(file_name,
                                                      provision_set=provision_set,
                                                      work_dir=work_dir,
-                                                     doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure)
+                                                     doc_lang=doc_lang)
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):
@@ -382,8 +378,7 @@ def main():
                         work_dir,
                         model_dir,
                         args.scut,
-                        is_cache_enabled=is_cache_enabled,
-                        is_doc_structure=True)
+                        is_cache_enabled=is_cache_enabled)
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,
                              args.nbest,
@@ -431,8 +426,7 @@ def main():
         result = annotate_document(args.doc,
                                    work_dir,
                                    model_dir,
-                                   custom_model_dir,
-                                   is_doc_structure=True)
+                                   custom_model_dir)
         pprint.pprint(result)
     elif cmd == 'print_para_cand':
         if not args.doc:
@@ -455,8 +449,7 @@ def main():
         result = annotate_document(args.doc,
                                    work_dir,
                                    model_dir,
-                                   custom_model_dir,
-                                   is_doc_structure=True)
+                                   custom_model_dir)
         pprint.pprint(result)
         prov_ants_map = result['ebannoations']
         party_ant_list = prov_ants_map['party']
@@ -476,8 +469,7 @@ def main():
             sys.exit(1)
         eval_line_annotator_with_trte(args.provision,
                                       txt_fn_list_fn,
-                                      work_dir,
-                                      is_doc_structure=True)
+                                      work_dir)
     elif cmd == 'eval_mlxline_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
@@ -497,12 +489,9 @@ def main():
             print('please specify --model_dirs', file=sys.stderr)
             sys.exit(1)
         model_dir_list = args.model_dirs.split(',')
-        # for HTML document, without doc structure
-        # is_doc_structure has to be false.
         splittrte.split_provision_trte(args.provfiles_dir,
                                        work_dir,
-                                       model_dir_list,
-                                       is_doc_structure=True)
+                                       model_dir_list)
     elif cmd == 'split_doccat_trte':
         doccatsplittrte.split_doccat_trte(txt_fn_list_fn)
     elif cmd == 'train_doc_classifier':
