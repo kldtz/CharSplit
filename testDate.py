@@ -35,15 +35,22 @@ if __name__ == '__main__':
         print("word = [{}]".format(word))
 
     print("divider chars: [{}]".format(line[19:21]))
-    
+
     words = strutils.get_prev_n_words(line, 19, 2)
     print("prev words: [{}]".format(words))
 
     words = strutils.get_post_n_words(line, 21, 2)
     print("post words: [{}]".format(words))
-    
-        
-    
+
+
+    line = '101012'
+    result = dates.extract_std_dates(line)
+    print('result: {}'.format(result))
+
+    result = dates.parse_date(line)
+    print('result: {}'.format(result))
+
+
     """
     line = '[ ], 2012'
     line = 'dated as of March     , 2009'

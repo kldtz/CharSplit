@@ -6,89 +6,90 @@
 # code from http://danieljlewis.org/files/2010/06/Jenks.pdf
 # described at http://danieljlewis.org/2010/06/07/jenks-natural-breaks-algorithm-in-python/
 
-def getJenksBreaks(dataList, numClass):
-    dataList.sort()
+# pylint: disable=invalid-name, too-many-locals, too-many-branches
+def getJenksBreaks(data_list, num_class):
+    data_list.sort()
     mat1 = []
-    for i in range(0, len(dataList) + 1):
+    for i in range(0, len(data_list) + 1):
         temp = []
-        for j in range(0, numClass + 1):
+        for j in range(0, num_class + 1):
             temp.append(0)
         mat1.append(temp)
     mat2 = []
-    for i in range(0, len(dataList) + 1):
+    for i in range(0, len(data_list) + 1):
         temp = []
-        for j in range(0, numClass + 1):
+        for j in range(0, num_class + 1):
             temp.append(0)
         mat2.append(temp)
-    for i in range(1, numClass + 1):
+    for i in range(1, num_class + 1):
         mat1[1][i] = 1
         mat2[1][i] = 0
-        for j in range(2, len(dataList) + 1):
+        for j in range(2, len(data_list) + 1):
             mat2[j][i] = float('inf')
     v = 0.0
-    for l in range(2, len(dataList) + 1):
+    for l in range(2, len(data_list) + 1):
         s1 = 0.0
         s2 = 0.0
         w = 0.0
         for m in range(1, l + 1):
             i3 = l - m + 1
-            val = float(dataList[i3 - 1])
+            val = float(data_list[i3 - 1])
             s2 += val * val
             s1 += val
             w += 1
             v = s2 - (s1 * s1) / w
             i4 = i3 - 1
             if i4 != 0:
-                for j in range(2, numClass + 1):
+                for j in range(2, num_class + 1):
                     if mat2[l][j] >= (v + mat2[i4][j - 1]):
                         mat1[l][j] = i3
                         mat2[l][j] = v + mat2[i4][j - 1]
         mat1[l][1] = 1
         mat2[l][1] = v
-    k = len(dataList)
+    k = len(data_list)
     kclass = []
-    for i in range(0, numClass + 1):
+    for i in range(0, num_class + 1):
         kclass.append(0)
-    kclass[numClass] = float(dataList[len(dataList) - 1])
-    countNum = numClass
+    kclass[num_class] = float(data_list[len(data_list) - 1])
+    countNum = num_class
     while countNum >= 2:  # print "rank = " + str(mat1[k][countNum])
-        id = int((mat1[k][countNum]) - 2)
-        # print "val = " + str(dataList[id])
-        kclass[countNum - 1] = dataList[id]
+        tid = int((mat1[k][countNum]) - 2)
+        # print "val = " + str(data_list[tid])
+        kclass[countNum - 1] = data_list[tid]
         k = int((mat1[k][countNum] - 1))
         countNum -= 1
     return kclass
 
 
-def getGVF(dataList, numClass):
+def getGVF(data_list, num_class):
     """
     The Goodness of Variance Fit (GVF) is found by taking the
     difference between the squared deviations
     from the array mean (SDAM) and the squared deviations from the
     class means (SDCM), and dividing by the SDAM
     """
-    breaks = getJenksBreaks(dataList, numClass)
-    dataList.sort()
-    listMean = sum(dataList) / len(dataList)
+    breaks = getJenksBreaks(data_list, num_class)
+    data_list.sort()
+    listMean = sum(data_list) / len(data_list)
     print(listMean)
     SDAM = 0.0
-    for i in range(0, len(dataList)):
-        sqDev = (dataList[i] - listMean) ** 2
+    for data in data_list:
+        sqDev = (data - listMean) ** 2
         SDAM += sqDev
     SDCM = 0.0
-    for i in range(0, numClass):
+    for i in range(0, num_class):
         if breaks[i] == 0:
             classStart = 0
         else:
-            classStart = dataList.index(breaks[i])
+            classStart = data_list.index(breaks[i])
             classStart += 1
-        classEnd = dataList.index(breaks[i + 1])
-        classList = dataList[classStart:classEnd + 1]
+        classEnd = data_list.index(breaks[i + 1])
+        classList = data_list[classStart:classEnd + 1]
         classMean = sum(classList) / len(classList)
         print(classMean)
         preSDCM = 0.0
-        for j in range(0, len(classList)):
-            sqDev2 = (classList[j] - classMean) ** 2
+        for aclass in classList:
+            sqDev2 = (aclass - classMean) ** 2
             preSDCM += sqDev2
         SDCM += preSDCM
     return (SDAM - SDCM) / SDAM
@@ -139,70 +140,134 @@ def breaks_to_groups(values, breaks):
     return result
 
 
-if __name__ == '__main__':
+def main():
+    # pylint: disable=line-too-long
     x = [54, 54, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 62, 62, 62, 66, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67,
+         # pylint: disable=line-too-long
          67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67,
+         # pylint: disable=line-too-long
          67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 68, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72,
+         # pylint: disable=line-too-long
          72, 72, 72, 72, 72, 72, 72, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73,
+         # pylint: disable=line-too-long
          73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73,
+         # pylint: disable=line-too-long
          73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73,
+         # pylint: disable=line-too-long
          73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73,
+         # pylint: disable=line-too-long
          73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 73, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+         # pylint: disable=line-too-long
          74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
+         # pylint: disable=line-too-long
          75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
+         # pylint: disable=line-too-long
          75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
+         # pylint: disable=line-too-long
          75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
+         # pylint: disable=line-too-long
          75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
+         # pylint: disable=line-too-long
          75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76,
+         # pylint: disable=line-too-long
          76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76,
+         # pylint: disable=line-too-long
          76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 77, 77, 77, 77, 77, 77, 77, 77,
+         # pylint: disable=line-too-long
          77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 78, 78, 78, 78, 87, 90, 101, 101, 101, 101, 102, 102, 102, 102,
+         # pylint: disable=line-too-long
          102, 102, 105, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108,
+         # pylint: disable=line-too-long
          108, 108, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109,
+         # pylint: disable=line-too-long
          109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109,
+         # pylint: disable=line-too-long
          109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109,
+         # pylint: disable=line-too-long
          109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109, 109,
+         # pylint: disable=line-too-long
          109, 109, 109, 109, 109, 109, 109, 109, 109, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110,
+         # pylint: disable=line-too-long
          110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110,
+         # pylint: disable=line-too-long
          110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110,
+         # pylint: disable=line-too-long
          110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110,
+         # pylint: disable=line-too-long
          110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110,
+         # pylint: disable=line-too-long
          110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 111, 111, 111, 111, 111, 111, 111, 111,
+         # pylint: disable=line-too-long
          111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111,
+         # pylint: disable=line-too-long
          111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111,
+         # pylint: disable=line-too-long
          111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111,
+         # pylint: disable=line-too-long
          111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111,
+         # pylint: disable=line-too-long
          111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111,
+         # pylint: disable=line-too-long
          111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111,
+         # pylint: disable=line-too-long
          111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111,
+         # pylint: disable=line-too-long
          111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111, 111,
+         # pylint: disable=line-too-long
          111, 111, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+         # pylint: disable=line-too-long
          112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+         # pylint: disable=line-too-long
          112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 112, 113, 113, 113,
+         # pylint: disable=line-too-long
          113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113,
+         # pylint: disable=line-too-long
          113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 114, 114, 114,
+         # pylint: disable=line-too-long
          114, 114, 114, 114, 114, 114, 114, 114, 114, 114, 114, 122, 126, 130, 137, 144, 145, 145, 145, 145, 146, 146,
+         # pylint: disable=line-too-long
          146, 146, 146, 146, 146, 146, 146, 146, 146, 146, 146, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147,
+         # pylint: disable=line-too-long
          147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 147, 148, 148,
+         # pylint: disable=line-too-long
          148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 149, 149, 149, 149, 149, 149, 149, 150, 150, 150,
+         # pylint: disable=line-too-long
          150, 153, 173, 173, 173, 173, 173, 183, 183, 183, 183, 183, 183, 183, 183, 183, 183, 183, 183, 192, 194, 195,
+         # pylint: disable=line-too-long
          200, 208, 210, 210, 213, 221, 226, 229, 235, 243, 253, 255, 256, 257, 269, 271, 276, 276, 276, 277, 277, 278,
+         # pylint: disable=line-too-long
          278, 278, 278, 279, 279, 280, 288, 289, 295, 295, 295, 300, 300, 300, 301, 302, 302, 302, 302, 302, 302, 303,
+         # pylint: disable=line-too-long
          303, 303, 303, 303, 304, 304, 304, 304, 304, 304, 304, 304, 304, 304, 304, 304, 304, 304, 305, 305, 305, 305,
+         # pylint: disable=line-too-long
          305, 305, 305, 305, 306, 306, 306, 306, 306, 306, 307, 307, 307, 308, 308, 314, 331, 333, 351, 366, 366, 367,
+         # pylint: disable=line-too-long
          370, 397, 545, 545, 549, 549, 549, 549, 549, 549, 549, 549, 549, 549, 549, 549, 549, 549, 549, 549, 549, 549,
          549, 550, 550, 550, 550, 550, 550, 551, 555, 555, 556, 556]
     bks = getJenksBreaks(x, 5)
@@ -210,3 +275,6 @@ if __name__ == '__main__':
     groups = breaks_to_groups(x, bks)
     for group_num, cur_group in enumerate(groups, 1):
         print("group[{}], size:{} = {}".format(group_num, len(cur_group), cur_group))
+
+if __name__ == '__main__':
+    main()

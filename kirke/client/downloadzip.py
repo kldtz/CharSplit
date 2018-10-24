@@ -1,29 +1,26 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-from pathlib import Path
 import re
+
 import requests
-import sys
-import zipfile, io
+
 
 
 def download_file(url: str, local_filename: str) -> str:
     # NOTE the stream=True parameter
-    r = requests.get(url, stream=True)
-    with open(local_filename, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024):
+    req = requests.get(url, stream=True)
+    with open(local_filename, 'wb') as fout:
+        for chunk in req.iter_content(chunk_size=1024):
             if chunk: # filter out keep-alive new chunks
-                f.write(chunk)
+                fout.write(chunk)
                 #f.flush() commented by recommendation from J.F.Sebastian
     print("finished saving '{}".format(local_filename))
     return local_filename
 
 
-# pylint: disable=C0103
-if __name__ == '__main__':
-
+# pylint: disable=too-many-locals
+def main():
     parser = argparse.ArgumentParser(description='identify the language')
     parser.add_argument('-v', '--verbosity', help='increase output verbosity')
     parser.add_argument('-d', '--debug', action='store_true', help='print debug information')
@@ -36,10 +33,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.verbosity:
         print('verbosity turned on')
-    if args.debug:
-        isDebug = True
 
-    url = 'http://127.0.0.1:8000/custom-train-export/cust_12345.1003'
+    # url = 'http://127.0.0.1:8000/custom-train-export/cust_12345.1003'
+    url = 'http://127.0.0.1:8000/custom-train-export/cust_9.1247'
     # use url='http://127.0.0.1:8000/detect-langs' to detect top langs with probabilities
     if args.url:
         url = args.url
@@ -57,3 +53,7 @@ if __name__ == '__main__':
     local_filename = '{}.custom_models'.format(cust_id_ver)
 
     download_file(url, local_filename)
+
+
+if __name__ == '__main__':
+    main()

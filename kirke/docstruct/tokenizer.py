@@ -1,7 +1,7 @@
 
-import nltk
 from typing import List
 
+import nltk
 from nltk.data import load
 
 # Copied tom nltk.tokenizer.__init__.py to access span
@@ -42,7 +42,7 @@ def word_tokenize(text: str) -> List[str]:
             result.append(token)
     return result
 
-    
+
 """
 PUNKT_TOKENIZER = nltk.tokenize.load('tokenizers/punkt/english.pickle')
 

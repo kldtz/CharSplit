@@ -10,6 +10,7 @@ import time
 
 from kirke.utils import stopwordutils, strutils
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -109,8 +110,8 @@ def to_cond_count_tuple(true_count_map,
         # print("resut = {}".format(result))
         return result
     except KeyError:
-        unused_error_type, error_instance, traceback  = sys.exc_info()
-        error_instance.user_message = 'No positive examples found during training.'
+        unused_error_type, error_instance, traceback = sys.exc_info()
+        error_instance.user_message = "INSUFFICIENT_EXAMPLES"
         error_instance.__traceback__ = traceback
         raise error_instance
 

@@ -7,7 +7,7 @@ import os
 
 from kirke.utils import osutils, ebantdoc4
 
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -16,12 +16,11 @@ logger.setLevel(logging.INFO)
 # for a particular provision or not.  Will modify this code if the situation
 # changes.
 # @deprecated
-def provisions_split(provision_list, txt_fn_list, work_dir=None, is_doc_structure=False):
+def provisions_split(provision_list, txt_fn_list, work_dir=None):
     warnings.warn("Shouldn't split based on positive labeled docs only.", DeprecationWarning)
 
     ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list,
-                                                       work_dir=work_dir,
-                                                       is_doc_structure=is_doc_structure)
+                                                       work_dir=work_dir)
     # print("len(ebantdoc_list) = {}".format(len(ebantdoc_list)))
 
     provision_posneg_doc_list_map = defaultdict(lambda: defaultdict(list))
@@ -65,7 +64,7 @@ def has_provision_ant(ebantdoc_provset: ebantdoc4.EbAntdocProvSet,
 
 
 # pylint: disable=too-many-locals
-def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structure=False):
+def split_provision_trte(provfiles_dir, work_dir, model_dir_list):
     osutils.mkpath(work_dir)
     for moddir in model_dir_list:
         osutils.mkpath(moddir)
@@ -86,8 +85,7 @@ def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structu
                     prov_filelist_map[prefix].append(line)
 
     fn_ebantdoc_map = ebantdoc4.fnlist_to_fn_ebantdoc_provset_map(list(txt_file_set),
-                                                                  work_dir=work_dir,
-                                                                  is_doc_structure=is_doc_structure)
+                                                                  work_dir=work_dir)
 
     for provision in provision_list:
         eb_antdoc_list = []
@@ -107,14 +105,15 @@ def split_provision_trte(provfiles_dir, work_dir, model_dir_list, is_doc_structu
                     X_train_positive.append(fn_ebantdoc_map[fname])
 
             # print("fnxxx = [{}], id= [{}]".format(fname, mat.group(1)))
-        print("provision: {}, len(train)= {}, len(test)= {}, len(train_pos)".format(provision,
-                                                                                    len(X_train),
-                                                                                    len(X_test),
-                                                                                    len(X_train_positive)))
+        print("provision: %s, len(train)= %d, len(test)= %d, len(train_pos)= %d" %
+              (provision,
+               len(X_train),
+               len(X_test),
+               len(X_train_positive)))
 
         if len(X_train) < 3:  # skip provisions with insufficient data
             logger.info("skipping '%s' in split_provision_trte(), len(X_train) = %d is < 3",
-                         provision, len(X_train))
+                        provision, len(X_train))
             continue
 
         for moddir in model_dir_list:

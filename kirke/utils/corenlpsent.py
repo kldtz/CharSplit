@@ -2,6 +2,7 @@ import sys
 import copy
 from typing import Dict, List
 
+# pylint: disable=unused-import
 from kirke.utils import ebsentutils
 
 
@@ -183,7 +184,10 @@ class EbSentence:
         # when extending tokens, should modify self.entities also?
 
     def __str__(self):
-        return 'EbSentence({}, {}, {}, {})'.format(self.start, self.end, self.get_tokens_text()[:40], self.sechead)
+        return 'EbSentence({}, {}, {}, {})'.format(self.start,
+                                                   self.end,
+                                                   self.get_tokens_text()[:40],
+                                                   self.sechead)
 
     def get_tokens(self):
         return self.tokens

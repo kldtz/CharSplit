@@ -1,4 +1,5 @@
 # From https://gist.github.com/schlamar/2311116
+# pylint: disable=line-too-long
 # Fecommended from http://chase-seibert.github.io/blog/2013/08/03/diagnosing-memory-leaks-python.html
 
 import os
@@ -8,6 +9,7 @@ from functools import wraps
 from multiprocessing import Process, Queue
 import logging
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -20,17 +22,18 @@ def processify(func):
     run in parallel.
     '''
 
-    def process_func(q, *args, **kwargs):
+    def process_func(qxx, *args, **kwargs):
         try:
             ret = func(*args, **kwargs)
+        # pylint: disable=broad-except
         except Exception:
-            ex_type, ex_value, tb = sys.exc_info()
-            error = ex_type, ex_value, ''.join(traceback.format_tb(tb))
+            ex_type, ex_value, tbk = sys.exc_info()
+            error = ex_type, ex_value, ''.join(traceback.format_tb(tbk))
             ret = None
         else:
             error = None
 
-        q.put((ret, error))
+        qxx.put((ret, error))
 
     # register original function with different name
     # in sys.modules so it is pickable
@@ -39,15 +42,15 @@ def processify(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        q = Queue()
-        p = Process(target=process_func, args=[q] + list(args), kwargs=kwargs)
-        p.start()
-        ret, error = q.get()
-        p.join()
+        qxx = Queue()
+        proc = Process(target=process_func, args=[qxx] + list(args), kwargs=kwargs)
+        proc.start()
+        ret, error = qxx.get()
+        proc.join()
 
         if error:
             # ex_value can be null, then it causes the process to crash
-            logger.error("error: {}".format(error))
+            logger.error("error: %r", error)
             # ex_type, ex_value, tb_str = error
             # message = '%s (in subprocess)\n%s' % (ex_value.message, tb_str)
             # raise ex_type(message)
@@ -80,4 +83,3 @@ def test():
 
 if __name__ == '__main__':
     test()
-

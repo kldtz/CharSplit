@@ -9,16 +9,15 @@ from typing import List
 import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import GroupKFold
 
-from sklearn.model_selection import cross_val_predict
-
-from kirke.eblearn import ebpostproc
+# pylint: disable=unused-import
+from kirke.eblearn import ebattrvec, ebpostproc
 from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformer import EbTransformer
-from kirke.utils import evalutils
-
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
+from kirke.utils import evalutils
+from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
+
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -96,10 +95,9 @@ class ShortcutClassifier(EbClassifier):
     # pylint: disable=too-many-statements, too-many-locals
     def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name) -> None:
         logger.info('train_antdoc_list()...')
-        is_debug = True
 
         sent_list = []
-        attrvec_list, group_id_list = [], []
+        attrvec_list, group_id_list = [], []  # type: List[ebattrvec.EbAttrVec], List[int]
         for group_id, eb_antdoc in enumerate(ebantdoc_list):
             tmp_attrvec_list = eb_antdoc.get_attrvec_list()
             attrvec_list.extend(tmp_attrvec_list)
@@ -134,7 +132,9 @@ class ShortcutClassifier(EbClassifier):
 
         #    parameters = {'C': [.01, .1, 1, 10, 100]}
         #    sgd_clf = LogisticRegression()
-        group_kfold = list(GroupKFold().split(X_train, y_train, groups=group_id_list))
+        group_kfold = list(StratifiedGroupKFold().split(X_train,
+                                                        y_train,
+                                                        groups=group_id_list))
 
         sgd_clf = SGDClassifier(loss='log', penalty='l2', n_iter=iterations, shuffle=True,
                                 random_state=42, class_weight={True: 3, False: 1})

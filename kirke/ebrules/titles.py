@@ -2,10 +2,7 @@ import re
 import string
 from typing import Dict, List, Optional, Set, Tuple
 
-from kirke.utils import regexutils, txtreader
-
-# IS_DEBUG = True
-# IS_DEBUG_MODE = True
+from kirke.utils import regexutils, strutils, txtreader
 
 IS_DEBUG = False
 IS_DEBUG_MODE = False
@@ -50,7 +47,7 @@ def tag(line: str) -> str:
     return line
 
 
-def process_as_title(line):
+def process_as_title(line: str) -> str:
     """Must lower before tag (1st) & tag before remove whitespace (New York)"""
     return ''.join(tag(alnum_strip(line.lower())).split())
 
@@ -98,12 +95,12 @@ for train_title in TRAIN_TITLE_LIST:
     line_wordset_x1 = set(norm_title_st.split())
     train_title_wordset_list.append(line_wordset_x1)
 
-def alnum_strip(line):
+def alnum_strip(line: str) -> str:
     non_alnum = set(line) - ALNUM
     return line.strip(str(non_alnum)) if non_alnum else line
 
 
-def remove_label_regexes(line):
+def remove_label_regexes(line: str) -> str:
     for label_regex in LABEL_REGEXES:
         line = label_regex.sub('', line)
     return line
@@ -123,15 +120,15 @@ def process_as_line(astr: str):
 
 with open(DATA_DIR + 'past_titles_train.list') as fin:
     # pylint: disable=invalid-name
-    titles = {process_as_title(t) for t in fin.read().split('\n') if t.strip()}
+    TITLES = {process_as_title(t) for t in fin.read().split('\n') if t.strip()}
 
 with open(DATA_DIR + 'uk_titles_train.list') as fin:
     # pylint: disable=invalid-name
-    uk_titles = {process_as_title(t) for t in fin.read().split('\n') if t.strip()}
+    UK_TITLES = {process_as_title(t) for t in fin.read().split('\n') if t.strip()}
 
 # print("titles:")
 # print(titles)
-titles.update(uk_titles)
+TITLES.update(UK_TITLES)
 
 
 # pylint: disable=too-many-return-statements
@@ -173,15 +170,6 @@ def is_ok_title_filter(line: str, norm_line: str = '') -> bool:
        re.search(r'\b(1111)\b', norm_line):
         return False
 
-    """
-    aaa = set(['1', '11', '1111'])
-    print("aaa = {}".format(aaa))
-
-    if len(norm_word) >= 3:
-        aaa = set(norm_words[:3])
-        print("aaa = {}".format(aaa))
-    """
-
     # probably a date, followed by something else
     if len(norm_words) >= 3 and \
        len(set(norm_words[:3]).intersection(set(['1', '11', '1111']))) >= 2:
@@ -193,9 +181,10 @@ def is_ok_title_filter(line: str, norm_line: str = '') -> bool:
 
 # the goal here is to find lines that might have titles
 # pylint: disable=too-many-locals
-def extract_lines_v2(paras_attr_list) -> Tuple[List[Dict],
-                                               List[Tuple[int, int]],
-                                               List[float]]:
+def extract_lines_v2(paras_attr_list: List[Tuple[str, List[str]]]) \
+    -> Tuple[List[Dict],
+             List[Tuple[int, int]],
+             List[float]]:
     lines = []  # type: List[Dict]
     start_end_list = []
     adjust_score_list = []  # type: List[float]
@@ -210,7 +199,7 @@ def extract_lines_v2(paras_attr_list) -> Tuple[List[Dict],
     num_lines_before_first_eng_para = 0
     for i, (line_st, para_attrs) in enumerate(paras_attr_list):
         if IS_DEBUG:
-            attrs_st = '|'.join([str(attr) for attr in para_attrs])
+            attrs_st = str(para_attrs)
             print("extract_line_v2()\t{}".format('\t'.join([attrs_st,
                                                             '[{}]'.format(line_st)])))
 
@@ -298,10 +287,8 @@ def calc_jaccard_title_list(line_st: str,
     score = orig_score + adjust_score
 
     if IS_DEBUG_MODE:
-        print("calc_jaccard_title_list({}) = {}, orig_score = {}, {}".format(norm_line_st,
-                                                                             score,
-                                                                             orig_score,
-                                                                             title_wordset))
+        print("calc_jaccard_title_list(%s) = %f, orig_score = %f, %s" %
+              (norm_line_st, score, orig_score, strutils.set_to_sorted_set_st(title_wordset)))
     return score, num_intersect, num_union, title_wordset
 
 
@@ -327,25 +314,45 @@ def calc_jaccard_title_list_aux(line_wordset: Set[str],
 # We want this to be more than 1/3 or 0.33
 MIN_JACCARD = 0.34
 
+
+# pylint: disable=too-few-public-methods
+class Title:
+
+    def __init__(self, start: int, end: int, score: float, intersect: int) -> None:
+        self.start = start
+        self.end = end
+        self.score = score
+        self.intersect = intersect
+
+
 # pylint: disable=too-many-branches, too-many-statements
-def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[int],
-                                                                      Optional[int]]:
+def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
+                    unused_paras_text: str) \
+                    -> Tuple[Optional[int],
+                             Optional[int]]:
     # pylint: disable=global-statement
     global train_title_wordset_list
 
     # Grab lines from the file
+    # linex_list and adjust_score_list is of the same length.
+    # start_end_list includes empty lines.  Watch out.
     linex_list, start_end_list, adjust_score_list = extract_lines_v2(paras_attr_list)
     if not linex_list:
         return None, None
 
     if IS_DEBUG:
-        for linex, start_end in zip(linex_list, start_end_list):
-            print("{}\t{}".format(start_end, linex))
+        print("len(linex_list) = %d, len(start_end_list) = %d, len(adj_list)= %d" %
+              (len(linex_list), len(start_end_list), len(adjust_score_list)))
+        # start_end_list includes empty lines.  Watch out.
+        # for linex, start_end in zip(linex_list, start_end_list):
+        #     print("ii\t{}\t{}".format(start_end, linex))
 
     if IS_DEBUG_MODE:
         for linex in linex_list:
             print()
-            print("jj({}, {})\t{}".format(linex['start'], linex['end'], linex))
+            print("jj({}, {})\t{}".format(linex['start'],
+                                          linex['end'],
+                                          strutils.dict_to_sorted_dict_st(linex)))
 
             if linex:
                 norm_ling = tag(linex['line'])
@@ -353,7 +360,8 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
                 print("      \t{}".format(norm_ling))
 
     # Placeholder title. offsets: start, end, end_char (exclusive)
-    title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1, 'intersect': -1}
+    # title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1, 'intersect': -1}
+    title = Title(start=-1, end=-1, score=-1.0, intersect=-1)
 
     title_candidate_list = []  # type: List[Tuple[str, int, int, int]]
 
@@ -378,6 +386,10 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
         line_wordset = set(norm_line_st.split())
         line_wordset_list.append(line_wordset)
 
+        if IS_DEBUG:
+            print("\ncheck line_st({}) versus".format(line_st))
+            print("         norm({})".format(norm_line_st))
+
         title_candidate_list.append((line_st, linex['start'], linex['end'], 1))
 
         score, num_intersect, num_union, best_title = \
@@ -387,20 +399,21 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
                                     line_wordset=line_wordset,
                                     title_wordset_list=train_title_wordset_list)
 
-        score_list.append((score, num_intersect, num_union, best_title, linex['start'], linex['end']))
+        score_list.append((score, num_intersect, num_union,
+                           best_title, linex['start'], linex['end']))
 
-        if score == title['score'] and num_intersect > title['intersect']:
-            title = {'start': linex['start'],
-                     'end':  linex['end'],
-                     'score': score,
-                     'intersect': num_intersect}
+        if score == title.score and num_intersect > title.intersect:
+            title = Title(start=linex['start'],
+                          end=linex['end'],
+                          score=score,
+                          intersect=num_intersect)
             if score > MIN_JACCARD:
                 found_title_try_limited = 5
-        elif score > title['score']:
-            title = {'start': linex['start'],
-                     'end':  linex['end'],
-                     'score': score,
-                     'intersect': num_intersect}
+        elif score > title.score:
+            title = Title(start=linex['start'],
+                          end=linex['end'],
+                          score=score,
+                          intersect=num_intersect)
             if score > MIN_JACCARD:
                 found_title_try_limited = 5
 
@@ -419,6 +432,10 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
             line_wordset = set(norm_line_st.split())
             line_wordset_list.append(line_wordset)
 
+            if IS_DEBUG:
+                print("\ncheck next_line_st({}) versus".format(next_line_st))
+                print("      norm_line_st({})".format(norm_line_st))
+
             score, num_intersect, num_union, best_title = \
                 calc_jaccard_title_list(two_lines,
                                         norm_line_st,
@@ -429,34 +446,35 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
             score_list.append((score, num_intersect, num_union, best_title,
                                linex['start'], next_linex['end']))
 
-            if score == title['score'] and num_intersect > title['intersect']:
-                title = {'start': linex['start'],
-                         'end':  next_linex['end'],
-                         'score': score,
-                         'intersect': num_intersect}
+            if score == title.score and num_intersect > title.intersect:
+                title = Title(start=linex['start'],
+                              end=next_linex['end'],
+                              score=score,
+                              intersect=num_intersect)
                 if score > MIN_JACCARD:
                     found_title_try_limited = 5
-            elif score > title['score']:
-                title = {'start': linex['start'],
-                         'end':  next_linex['end'],
-                         'score': score,
-                         'intersect': num_intersect}
+            elif score > title.score:
+                title = Title(start=linex['start'],
+                              end=next_linex['end'],
+                              score=score,
+                              intersect=num_intersect)
                 if score > MIN_JACCARD:
                     found_title_try_limited = 5
 
 
     if IS_DEBUG_MODE:
         print('\n\n')
-        for score, num_intersect, num_union, best_title, tstart, tend in sorted(score_list, reverse=True):
-            print('score {}, itx={}, un={}({}, {}), best_title = [{}]'.format(score,
-                                                                              num_intersect,
-                                                                              num_union,
-                                                                              tstart, tend,
-                                                                              best_title))
+        for score, num_intersect, num_union, best_title, tstart, tend in sorted(score_list,
+                                                                                reverse=True):
+            print('score1 {}, itx={}, un={} ({}, {}), best_title = [{}]'.format(score,
+                                                                                num_intersect,
+                                                                                num_union,
+                                                                                tstart, tend,
+                                                                                best_title))
 
-    if title['score'] > MIN_JACCARD:
-        line_start = title['start']
-        line_end = title['end']
+    if title.score > MIN_JACCARD:
+        line_start = title.start
+        line_end = title.end
 
         if IS_DEBUG_MODE:
             print("line_start = {}".format(line_start))
@@ -482,21 +500,22 @@ def extract_offsets(paras_attr_list, unused_paras_text: str) -> Tuple[Optional[i
 
 
 # pylint: disable=too-many-branches, too-many-statements
-def extract_offsets_not_line(paras_attr_list, paras_text: str) -> Tuple[Optional[int],
-                                                                        Optional[int]]:
+def extract_offsets_not_line(paras_attr_list: List[Tuple[str, List[str]]],
+                             paras_text: str) \
+                             -> Tuple[Optional[int], Optional[int]]:
     """Extract title based on regex.
 
     Example: 'This consuting agreement (the "agreement")...
     """
     offset = 0
-    for i, (line_st, para_attrs) in enumerate(paras_attr_list):
+    for line_st, para_attrs in paras_attr_list:
         line_st_len = len(line_st)
 
         if 'party_line' in para_attrs:
-            # must start from ebgin of a sentence
+            # must start from begin of a sentence
             mat = re.match(r'((\w+)(\s+\w+)+)\s+\(the [“"”]agreement[“"”]\)', line_st, re.I)
             if mat and len(mat.group(3).split()) < 5:
-                maybe_title_st = mat.group(1)
+                # maybe_title_st = mat.group(1)
                 first_word = mat.group(2)
                 span_start = offset + mat.start(1)
                 if first_word in set(['the', 'this']):
@@ -521,7 +540,8 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
     se_lines = list(txtreader.text_to_lines_with_offsets(nl_text))
 
     # Placeholder title. offsets: start, end, end_char (exclusive)
-    title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1, 'intersect': -1}
+    # title = {'offsets': (-1, -1, -1), 'score': -1, 'ratio': -1, 'intersect': -1}
+    title = Title(start=-1, end=-1, score=-1.0, intersect=-1)
 
     title_candidate_list = []  # type: List[Tuple[str, int, int, int]]
 
@@ -530,6 +550,10 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
     score_list = []
     for i, se_line in enumerate(se_lines):
         start, end, line = se_line
+
+        # blank line
+        if start == end:
+            continue
 
         if found_title_try_limited < 0:
             pass
@@ -546,6 +570,11 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
         line_wordset = set(norm_line_st.split())
         line_wordset_list.append(line_wordset)
 
+        if IS_DEBUG:
+            print("\nch#ck line_st({}) versus".format(line_st))
+            print("         norm({})".format(norm_line_st))
+
+
         title_candidate_list.append((line_st, start, end, 1))
 
         score, num_intersect, num_union, best_title = \
@@ -558,13 +587,13 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
         score_list.append((score, num_intersect, num_union, best_title, start, end))
 
         if score > MIN_JACCARD and \
-           ((score == title['score'] and num_intersect > title['intersect']) or \
-            score > title['score']):
+           ((score == title.score and num_intersect > title.intersect) or \
+            score > title.score):
 
-            title = {'start': start,
-                     'end':  end,
-                     'score': score,
-                     'intersect': num_intersect}
+            title = Title(start=start,
+                          end=end,
+                          score=score,
+                          intersect=num_intersect)
             found_title_try_limited = 5
 
         # now try 2 lines
@@ -572,44 +601,51 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
         if i + 1 < len(se_lines):
             next_start, next_end, next_line_st = se_lines[i+1]
 
-            two_lines = line_st + ' ' + next_line_st
+            if next_start != next_end:
+                two_lines = line_st + ' ' + next_line_st
 
-            title_candidate_list.append((two_lines, start, next_end, 2))
+                title_candidate_list.append((two_lines, start, next_end, 2))
 
-            norm_line_st = tag(two_lines)
-            line_wordset = set(norm_line_st.split())
-            line_wordset_list.append(line_wordset)
+                norm_line_st = tag(two_lines)
+                line_wordset = set(norm_line_st.split())
+                line_wordset_list.append(line_wordset)
 
-            score, num_intersect, num_union, best_title = \
-                calc_jaccard_title_list(two_lines,
-                                        norm_line_st,
-                                        num_lines=2,
-                                        line_wordset=line_wordset,
-                                        title_wordset_list=train_title_wordset_list)
+                if IS_DEBUG:
+                    print("\n     two_lines({}) versus".format(two_lines))
+                    print("  norm_line_st({})".format(norm_line_st))
 
-            score_list.append((score, num_intersect, num_union, best_title,
-                               start, next_end))
 
-            if score > MIN_JACCARD and \
-               ((score == title['score'] and num_intersect > title['intersect']) or \
-                score > title['score']):
-                title = {'start': start,
-                         'end':  next_end,
-                         'score': score,
-                         'intersect': num_intersect}
-                found_title_try_limited = 5
+                score, num_intersect, num_union, best_title = \
+                    calc_jaccard_title_list(two_lines,
+                                            norm_line_st,
+                                            num_lines=2,
+                                            line_wordset=line_wordset,
+                                            title_wordset_list=train_title_wordset_list)
+
+                score_list.append((score, num_intersect, num_union, best_title,
+                                   start, next_end))
+
+                if score > MIN_JACCARD and \
+                   ((score == title.score and num_intersect > title.intersect) or \
+                    score > title.score):
+                    title = Title(start=start,
+                                  end=next_end,
+                                  score=score,
+                                  intersect=num_intersect)
+                    found_title_try_limited = 5
 
     if IS_DEBUG_MODE:
         print('\n\n')
-        for score, num_intersect, num_union, best_title, tstart, tend in sorted(score_list, reverse=True):
-            print('score {}, itx={}, un={}({}, {}), best_title = [{}]'.format(score,
-                                                                              num_intersect,
-                                                                              num_union,
-                                                                              tstart, tend,
-                                                                              best_title))
+        for score, num_intersect, num_union, best_title, tstart, tend in sorted(score_list,
+                                                                                reverse=True):
+            print('score2 {}, itx={}, un={}({}, {}), best_title = [{}]'.format(score,
+                                                                               num_intersect,
+                                                                               num_union,
+                                                                               tstart, tend,
+                                                                               best_title))
 
-    if title['score'] > MIN_JACCARD:
-        span_start, span_end = title['start'], title['end']
+    if title.score > MIN_JACCARD:
+        span_start, span_end = title.start, title.end
         span_text = nl_text[span_start:span_end]
         # clean up spaces at the end
         end_space_mat = re.search(r'\s+$', span_text)
@@ -642,7 +678,7 @@ def extract_nl_offsets(nl_text: str) -> Tuple[Optional[int],
         # must start from ebgin of a sentence
         mat = re.match(r'((\w+)(\s+\w+)+)\s+\(the [“"”]agreement[“"”]\)', line, re.I)
         if mat and len(mat.group(3).split()) < 5:
-            maybe_title_st = mat.group(1)
+            # maybe_title_st = mat.group(1)
             first_word = mat.group(2)
             span_start = mat.start(1)
             if first_word in set(['the', 'this']):
@@ -663,7 +699,7 @@ class TitleAnnotator:
 
     # pylint: disable=no-self-use
     def extract_provision_offsets(self,
-                                  paras_with_attrs,
+                                  paras_with_attrs: List[Tuple[str, List[str]]],
                                   paras_text: str) -> Tuple[Optional[int],
                                                             Optional[int]]:
 
@@ -674,7 +710,7 @@ class TitleAnnotator:
         return extract_offsets(paras_with_attrs, paras_text)
 
     def extract_provision_offsets_not_line(self,
-                                           paras_with_attrs,
+                                           paras_with_attrs: List[Tuple[str, List[str]]],
                                            paras_text: str) -> Tuple[Optional[int],
                                                                      Optional[int]]:
         """Extract title based on regex.
@@ -697,3 +733,32 @@ class TitleAnnotator:
         # print("tag date: {}".format(tag('12 January 2017')))
         return extract_nl_offsets(nl_text)
 
+
+# Note: currently not used
+def is_title(line: str) -> bool:
+    norm_line = tag(line)
+    line_wordset = set(norm_line.split())
+
+    if IS_DEBUG:
+        print("\ncheck line({}) versus".format(line))
+        print("         norm({})".format(norm_line))
+
+    # title_candidate_list.append((line, linex['start'], linex['end'], 1))
+
+    score, num_intersect, num_union, best_title = \
+        calc_jaccard_title_list(line,
+                                norm_line,
+                                num_lines=1,  # not used
+                                line_wordset=line_wordset,
+                                title_wordset_list=train_title_wordset_list)
+
+    if IS_DEBUG:
+        print('score = {}, num_intersection= {}, num_union={}'.format(score,
+                                                                      num_intersect,
+                                                                      num_union))
+        if score > MIN_JACCARD:
+            print('best_title = {}'.format(best_title))
+        else:
+            print("not title")
+
+    return score > MIN_JACCARD

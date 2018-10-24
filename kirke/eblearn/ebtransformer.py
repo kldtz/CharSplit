@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 
 import logging
-import time
+# pylint: disable=unused-import
+from typing import List, Dict
 
 from nltk import FreqDist
 import numpy as np
 from scipy import sparse
 from sklearn import preprocessing
-from sklearn.base import BaseEstimator, TransformerMixin
 
 from kirke.eblearn import ebattrvec
 from kirke.eblearn import igain, bigramutils
 from kirke.eblearn.ebtransformerbase import EbTransformerBase
 from kirke.utils import stopwordutils, strutils
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -38,6 +39,7 @@ def get_transformer_attr_list_by_provision(provision: str):
 # this is a class specific transformer because of information gain and
 # class-specific cols_to_keep array.
 # class EbTransformer(BaseEstimator, TransformerMixin):
+# pylint: disable=too-many-instance-attributes
 class EbTransformer(EbTransformerBase):
 
     # MAX_NUM_TOP_WORDS_IN_BAG = 25000
@@ -48,9 +50,10 @@ class EbTransformer(EbTransformerBase):
     transform_count = 0
 
     """Transform a list ebantdoc to matrix."""
-    def __init__(self, provision):
+    def __init__(self, provision: str) -> None:
+        super().__init__(provision)
         # provision is needed because of infogain computation need to know the classes
-        self.provision = provision
+        # self.provision = provision
 
         (binary_attr_list, numeric_attr_list, categorical_attr_list) = \
             get_transformer_attr_list_by_provision(self.provision)
@@ -64,15 +67,16 @@ class EbTransformer(EbTransformerBase):
         self.min_max_scaler = preprocessing.MinMaxScaler()
         self.one_hot_encoder = preprocessing.OneHotEncoder(handle_unknown='ignore')
 
-        self.n_top_positive_words = []
-        self.vocab_id_map = {}
-        self.positive_vocab = {}
+        self.n_top_positive_words = []  # type: List
+        self.vocab_id_map = {}  # type: Dict[str, int]
+        self.positive_vocabs = {}  # type: Dict
 
-        self.vocabulary = {}  # used for bi_topgram_matrix generation
+        # used for bi_topgram_matrix generation
+        self.vocabulary = {}  # type: Dict
 
 
     # label_list is a list of booleans
-    # pylint: disable=R0912, R0914
+    # pylint: disable=too-many-statements, too-many-locals
     def ebantdoc_list_to_csr_matrix(self,
                                     attrvec_list,
                                     label_list,
@@ -198,6 +202,7 @@ class EbTransformer(EbTransformerBase):
         # return sparse_comb_matrix, bi_topgram_matrix, sent_st_list
         return X
 
+    # pylint: disable=too-many-locals
     def gen_bi_topgram_matrix(self, sent_st_list, fit_mode=False):
         # print("len(sent_st_list)= {}".format(len(sent_st_list)))
         # for each sentence, find which top words it contains.  Then generate all pairs of these,

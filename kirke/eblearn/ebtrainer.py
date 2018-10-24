@@ -16,6 +16,7 @@ from kirke.eblearn import lineannotator, ruleannotator, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import  ebantdoc4, evalutils, splittrte, strutils, txtreader
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -98,15 +99,10 @@ def cv_train_at_annotation_level(provision,
     # test_size = 0.33
     # this will be looped mutliple times, so a list, not a generator
 
-    ordered_list = []
-    for x_antdoc, label in zip(x_antdoc_list, bool_list):
-        ordered_list.append((x_antdoc.file_id, x_antdoc, label))
-    ordered_list = sorted(ordered_list)
-
     num_fold = DEFAULT_CV
     # distribute positives to all buckets
     pos_list, neg_list = [], []
-    for _, x_antdoc, label in ordered_list:
+    for x_antdoc, label in zip(x_antdoc_list, bool_list):
         if label:
             pos_list.append((x_antdoc, label))
         else:
@@ -217,6 +213,7 @@ def cv_candg_train_at_annotation_level(provision: str,
     # distribute positives to all buckets
     pos_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
     neg_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
+    num_pos_after_candgen = 0
     # pylint: disable=line-too-long
     for label, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in zip(antdoc_bool_list,
                                                                                     antdoc_candidatex_list):
@@ -228,8 +225,14 @@ def cv_candg_train_at_annotation_level(provision: str,
         all_candidates.extend(x_candidates)
         all_candidate_labels.extend(x_candidate_label_list)
         all_group_ids.extend(x_group_ids)
+        if True in x_candidate_label_list:
+            num_pos_after_candgen += 1
 
     pos_list.extend(neg_list)
+    if num_pos_after_candgen < 6:
+        exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found".format(num_pos_after_candgen))
+        exc.user_message = "INSUFFICIENT_EXAMPLES"  # type: ignore
+        raise exc
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
     for count, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in enumerate(pos_list):
@@ -337,15 +340,14 @@ def train_eval_annotator(provision: str,
                          model_dir,
                          model_file_name,
                          eb_classifier,
-                         is_doc_structure=False,
-                         is_bespoke_mode=False) \
+                         is_bespoke_mode: bool = False) \
                          -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
     logger.info("training_eval_annotator(%s) called", provision)
     logger.info("    txt_fn_list = %s", txt_fn_list)
     logger.info("    work_dir = %s", work_dir)
     logger.info("    model_dir = %s", model_dir)
     logger.info("    model_file_name = %s", model_file_name)
-    logger.info("    is_doc_structure= %s", is_doc_structure)
+    logger.info("    is_bespoke_mode= %r", is_bespoke_mode)
 
     # group_id is used to ensure all the attrvec for a document are together
     # and not distributed between both training and testing.  A document can
@@ -356,58 +358,72 @@ def train_eval_annotator(provision: str,
     eb_antdoc_list = \
         ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list,
                                            work_dir,
-                                           is_bespoke_mode=is_bespoke_mode,
-                                           is_doc_structure=is_doc_structure,
                                            doc_lang=doc_lang,
+                                           is_doc_structure=True,
+                                           is_bespoke_mode=is_bespoke_mode,
                                            # to keep file order stable to ensure
                                            # consistent numbers
                                            is_sort_by_file_id=True)
     num_docs = len(eb_antdoc_list)
     attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
-    group_id_list = []
+    group_id_list = []  # type: List[int]
+    # the y is document-based for ebantdoc, not for attrvec
+    # pylint: disable=invalid-name
+    y = []  # type: List[bool]
+    num_doc_pos, num_doc_neg = 0, 0
     num_pos_ant = 0
+    num_pos_label, num_neg_label = 0, 0
     for group_id, eb_antdoc in enumerate(eb_antdoc_list):
         tmp_attrvec_list = eb_antdoc.get_attrvec_list()
         attrvec_list.extend(tmp_attrvec_list)
         group_id_list.extend([group_id] * len(tmp_attrvec_list))
 
+        # pos counts only for this doc
+        doc_pos_ant, doc_pos_label = 0, 0
         human_ant_list = eb_antdoc.prov_annotation_list
         for human_ant in human_ant_list:
             if provision == human_ant.label:
                 num_pos_ant += 1
-    # based on human annotations only, we don't know the num_neg_ant
-    logger.info("num_docs: %d, num_pos_ant: %d", num_docs, num_pos_ant)
+                doc_pos_ant += 1
 
-    # these are for sentences
-    num_pos_label, num_neg_label = 0, 0
-    for attrvec in attrvec_list:
-        if provision in attrvec.labels:
-            num_pos_label += 1
-            # print("\npositive training for {}".format(provision))
-            # print("    [[{}]]".format(attrvec.bag_of_words))
+        has_pos_label = False
+        for attrvec in tmp_attrvec_list:
+            if provision in attrvec.labels:
+                num_pos_label += 1
+                doc_pos_label += 1
+                has_pos_label = True
+            else:
+                num_neg_label += 1
+
+        if has_pos_label:
+            num_doc_pos += 1
+            y.append(True)
         else:
-            num_neg_label += 1
+            num_doc_neg += 1
+            y.append(False)
+
+        if doc_pos_ant != doc_pos_label:
+            # sometimes a human annotation can go across mutliple sentences
+            logger.info('doc %s has %d human annotation, found %d in positive sentences',
+                        eb_antdoc.file_id, doc_pos_ant, doc_pos_label)
+
+    if num_pos_ant != num_pos_label:
+        # sometimes a human annotation can go across mutliple sentences
+        logger.info('train_eval_annotator, found %d human annotation, '
+                    'found %d in positive sentences',
+                    num_pos_ant, num_pos_label)
 
     # X is sorted by file_id already
     # pylint: disable=invalid-name
     X = eb_antdoc_list
-    y = [provision in eb_antdoc.get_provision_set()
-         for eb_antdoc in eb_antdoc_list]
 
-    #gets count for number of docs that have positive labels for specific provision
-    num_doc_pos, num_doc_neg = 0, 0
-    for yval in y:
-        if yval:
-            num_doc_pos += 1
-        else:
-            num_doc_neg += 1
-    logger.info("provision: %s, num_doc_pos= %d, num_doc_neg= %d",
-                 provision, num_doc_pos, num_doc_neg)
+    logger.info("provision: %s, num_doc = %d, num_doc_pos= %d, num_doc_neg= %d",
+                provision, num_docs, num_doc_pos, num_doc_neg)
 
     # TODO, jshaw, hack, such as for sechead
     if num_doc_neg < 2:
-        y[0] = 0
-        y[1] = 0
+        y[0] = False
+        y[1] = False
 
     # make sure nbest is know to everyone else
     eb_classifier.nbest = nbest
@@ -418,8 +434,8 @@ def train_eval_annotator(provision: str,
     # Always do cross validation to keep N constant as what people expect.
     if is_bespoke_mode:
         # pylint: disable=line-too-long
-        logger.info("training using cross validation with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
-                     len(attrvec_list), num_pos_label, num_neg_label)
+        logger.info("training using cross validation with %d instances across %d documents.  num_inst_pos= %d, num_inst_neg= %d",
+                    len(attrvec_list), len(eb_antdoc_list), num_pos_label, num_neg_label)
 
         X_train = X
         train_doclist_fn = "{}/{}_{}_train_doclist.txt".format(model_dir, provision, doc_lang)
@@ -442,7 +458,7 @@ def train_eval_annotator(provision: str,
 
     # pylint: disable=line-too-long
     logger.info("training using train/test split with %d instances.  num_inst_pos= %d, num_inst_neg= %d",
-                 len(attrvec_list), num_pos_label, num_neg_label)
+                len(attrvec_list), num_pos_label, num_neg_label)
 
     if is_bespoke_mode:
         test_size = 0.25
@@ -507,8 +523,7 @@ def train_eval_annotator_with_trte(provision: str,
                                    model_dir: str,
                                    model_file_name: str,
                                    eb_classifier,
-                                   is_cache_enabled=True,
-                                   is_doc_structure=False) \
+                                   is_cache_enabled=True) \
                                    -> Tuple[ebannotator.ProvisionAnnotator,
                                             Dict[str, Any],
                                             Dict[str, Dict]]:
@@ -522,7 +537,6 @@ def train_eval_annotator_with_trte(provision: str,
     X_train = ebantdoc4.doclist_to_ebantdoc_list(train_doclist_fn,
                                                  work_dir,
                                                  is_cache_enabled=is_cache_enabled,
-                                                 is_doc_structure=is_doc_structure,
                                                  is_sort_by_file_id=True)
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
     X_train = None  # free that memory
@@ -531,8 +545,7 @@ def train_eval_annotator_with_trte(provision: str,
     # pylint: disable=invalid-name
     X_test = ebantdoc4.doclist_to_ebantdoc_list(test_doclist_fn,
                                                 work_dir,
-                                                is_cache_enabled=is_cache_enabled,
-                                                is_doc_structure=is_doc_structure)
+                                                is_cache_enabled=is_cache_enabled)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
@@ -625,15 +638,17 @@ def train_eval_span_annotator(provision: str,
         # converts all docs to ebantdocs
         # intentially don't specify is_no_corenlp here.  It has to be done
         # using ebantdoc4.doclist_to_antdoc_list_no_corenlp
-        eb_antdoc_list = span_annotator.doclist_to_antdoc_list(txt_fn_list,
-                                                               work_dir,
-                                                               is_bespoke_mode=is_bespoke_mode,
-                                                               is_doc_structure=is_doc_structure,
-                                                               is_use_corenlp=span_annotator.get_is_use_corenlp(),
-                                                               # we need the files to be sorted in order to
-                                                               # ensure stable training.
-                                                               is_sort_by_file_id=True)
-        num_docs = len(eb_antdoc_list)
+        eb_antdoc_list = \
+            span_annotator.doclist_to_antdoc_list(txt_fn_list,
+                                                  work_dir,
+                                                  is_bespoke_mode=is_bespoke_mode,
+                                                  is_doc_structure=is_doc_structure,
+                                                  # pylint: disable=line-too-long
+                                                  is_use_corenlp=span_annotator.get_is_use_corenlp(),
+                                                  # we need the files to be sorted in order to
+                                                  # ensure stable training.
+                                                  is_sort_by_file_id=True)
+        # num_docs = len(eb_antdoc_list)
 
         #split training and test data, save doclists
         X = eb_antdoc_list
@@ -649,10 +664,9 @@ def train_eval_span_annotator(provision: str,
         # candidate generation on the whole training set
         X_all_antdoc_candidatex_list = \
             span_annotator.documents_to_candidates(X, provision)
-
         # pylint: disable=line-too-long
-        logger.info("%s training using cross validation with %d candidates.  num_inst_pos= %d, num_inst_neg= %d",
-                     candidate_types, len(X_all_antdoc_candidatex_list), num_pos_label, num_neg_label)
+        logger.info("%s extracted %d candidates across %d documents.",
+                    candidate_types, sum([len(x[1]) for x in X_all_antdoc_candidatex_list]), len(eb_antdoc_list))
 
         prov_annotator2, combined_log_json = \
             cv_candg_train_at_annotation_level(provision,
@@ -670,27 +684,30 @@ def train_eval_span_annotator(provision: str,
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
     # loads existing doclists
-    X_train = span_annotator.doclist_to_antdoc_list(train_doclist_fn,
-                                                    work_dir,
-                                                    is_bespoke_mode=is_bespoke_mode,
-                                                    is_doc_structure=is_doc_structure,
-                                                    is_use_corenlp=span_annotator.get_is_use_corenlp(),
-                                                    # we need the file order to be stable, even if input file
-                                                    # order is changed.
-                                                    is_sort_by_file_id=True)
+    X_train = \
+        span_annotator.doclist_to_antdoc_list(train_doclist_fn,
+                                              work_dir,
+                                              is_bespoke_mode=is_bespoke_mode,
+                                              is_doc_structure=is_doc_structure,
+                                              is_use_corenlp=span_annotator.get_is_use_corenlp(),
+                                              # we need the file order to be stable, even if input
+                                              # file order is changed.
+                                              is_sort_by_file_id=True)
     # we don't care about the file order for testing
     X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
                                                    work_dir,
                                                    is_bespoke_mode=is_bespoke_mode,
                                                    is_doc_structure=is_doc_structure,
+                                                   # pylint: disable=line-too-long
                                                    is_use_corenlp=span_annotator.get_is_use_corenlp())
 
     # candidate generation on training set
     train_antdoc_candidatex_list = \
         span_annotator.documents_to_candidates(X_train, provision)
+    # We use the whole doc for test later, in span_annotator.test_antdoc_list(X_test, ...)
     # candidate generation on test set
-    test_antdoc_candidatex_list = \
-        span_annotator.documents_to_candidates(X_test, provision)
+    # test_antdoc_candidatex_list = \
+    #     span_annotator.documents_to_candidates(X_test, provision)
 
     train_candidates, train_label_list, train_group_ids = \
         spanannotator.antdoc_candidatex_list_to_candidatex(train_antdoc_candidatex_list)
@@ -710,7 +727,7 @@ def train_eval_span_annotator(provision: str,
     # pred_status = \
     #     span_annotator.predict_and_evaluate(test_candidates,
     #                                         test_label_list,
-    #                                        work_dir)
+    #                                         work_dir)
 
     unused_ant_status, log_json = \
         span_annotator.test_antdoc_list(X_test,
@@ -745,10 +762,11 @@ def eval_rule_annotator_with_trte(label: str,
     else:
         test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, label)
 
-    test_antdoc_list = rule_annotator.doclist_to_antdoc_list(test_doclist_fn,
-                                                             work_dir,
-                                                             is_doc_structure=False,
-                                                             is_use_corenlp=rule_annotator.get_is_use_corenlp())
+    test_antdoc_list = \
+        rule_annotator.doclist_to_antdoc_list(test_doclist_fn,
+                                              work_dir,
+                                              is_doc_structure=False,
+                                              is_use_corenlp=rule_annotator.get_is_use_corenlp())
 
     # the eval result is already saved in span_annotator
     unused_ant_status = rule_annotator.test_antdoc_list(test_antdoc_list)

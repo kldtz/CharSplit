@@ -1,12 +1,13 @@
 
 import bisect
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 from kirke.docstruct import linepos
+from kirke.docstruct.docutils import PLineAttrs
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
-
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -71,8 +72,7 @@ def find_offset_to_linear(fromx: int,
 
 def paras_to_fromto_lists_aux(para_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                                linepos.LnPos]],
-                                                    # str,
-                                                    List[Tuple[Any]]]]) \
+                                                    PLineAttrs]]) \
                                                     -> List[Tuple[int, int, int,
                                                                   linepos.LnPos,
                                                                   linepos.LnPos]]:
@@ -98,8 +98,7 @@ def paras_to_fromto_lists_aux(para_list: List[Tuple[List[Tuple[linepos.LnPos,
 
 def paras_to_fromto_lists(para_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                            linepos.LnPos]],
-                                                # str,
-                                                List[Tuple[Any]]]]) \
+                                                PLineAttrs]]) \
                                                 -> Tuple[List[Tuple[int, linepos.LnPos]],
                                                          List[Tuple[int, linepos.LnPos]]]:
     sorted_alist = paras_to_fromto_lists_aux(para_list)
@@ -116,10 +115,9 @@ def paras_to_fromto_lists(para_list: List[Tuple[List[Tuple[linepos.LnPos,
 
 def paras_to_fromto_lnpos_lists(para_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                                  linepos.LnPos]],
-                                                # str,
-                                                List[Tuple[Any]]]]) \
-                                                -> Tuple[List[linepos.LnPos],
-                                                         List[linepos.LnPos]]:
+                                                      PLineAttrs]]) \
+                                                      -> Tuple[List[linepos.LnPos],
+                                                               List[linepos.LnPos]]:
     sorted_alist = paras_to_fromto_lists_aux(para_list)
 
     # a = to_lnpos.start
@@ -132,7 +130,6 @@ def paras_to_fromto_lnpos_lists(para_list: List[Tuple[List[Tuple[linepos.LnPos,
     return from_list, to_list
 
 
-
 def find_index_diff(the_offset: int, from_list: List[int]) -> Tuple[int, int]:
     return find_index_diff_binary(the_offset, from_list)
 
@@ -142,15 +139,13 @@ def find_index_diff(the_offset: int, from_list: List[int]) -> Tuple[int, int]:
 #         diff: where the point is from the line.start)
 # not tested
 def find_index_diff_binary(the_offset: int, from_list: List[int]) -> Tuple[int, int]:
-
-    # find rightmost value less than or equal to the_offset
+    """find rightmost value less than or equal to the_offset"""
     found_i = bisect.bisect_right(from_list, the_offset)
     if found_i:
         if the_offset == from_list[found_i-1]:
             return found_i - 1, 0
         diff = the_offset - from_list[found_i-1]
         return found_i - 1, diff
-
     logger.error('find_index_diff_binary(%d, _) failed', the_offset)
     return -1, -1
 
@@ -160,6 +155,7 @@ def find_index_diff_binary(the_offset: int, from_list: List[int]) -> Tuple[int, 
 #         diff: where the point is from the line.start)
 # not tested
 def find_index_diff_linear(the_offset: int, from_list: List[int]) -> Tuple[int, int]:
+    """find rightmost value less than or equal to the_offset"""
     for i, from_start in enumerate(from_list):
         if from_start == the_offset:
             return i, 0
@@ -212,16 +208,6 @@ class FromToMapper:
 
         self.name = name
 
-        # we don't trust other and make sure frstart_list is sorted.
-        alist = []
-        for from_sxlnpos, to_sxlnpos in zip(from_start_lnpos_list, to_start_lnpos_list):
-            from_start, from_lnpos = from_sxlnpos
-            to_start, to_lnpos = to_sxlnpos
-            # using to_lnpos.end, just in case there is a gap, which migth cause two
-            # to_lnpos.start to be the same
-            alist.append((from_lnpos.start, from_lnpos.end, to_lnpos.start,
-                          from_sxlnpos, to_sxlnpos))
-
         # this is for binary search
         self.frstart_list = []  # type: List[int]
         # this is for mapping, for returning as the offset
@@ -229,18 +215,26 @@ class FromToMapper:
         self.from_start_lnpos_list = []  # type: List[Tuple[int, linepos.LnPos]]
         self.to_start_lnpos_list = []  # type: List[Tuple[int, linepos.LnPos]]
 
-        for from_start, _, to_start, from_sxlnpos, to_sxlnpos in alist:
+        for from_sxlnpos, to_sxlnpos in zip(from_start_lnpos_list, to_start_lnpos_list):
+            from_start, unused_from_lnpos = from_sxlnpos
+            to_start, unused_to_lnpos = to_sxlnpos
             self.frstart_list.append(from_start)
             self.tostart_list.append(to_start)
             self.from_start_lnpos_list.append(from_sxlnpos)
             self.to_start_lnpos_list.append(to_sxlnpos)
 
-            # print("from_sxlnpos: {}".format(from_sxlnpos))
-            # print("to_sxlnpos: {}".format(to_sxlnpos))
 
     # pylint: disable=too-many-locals
-    def get_lnpos_list_se_offsets(self, from_start: int, from_end: int) \
-        -> Tuple[List[linepos.LnPos], int, int]:
+    def get_lnpos_list_se_offsets(self,
+                                  from_start: int,
+                                  from_end: int) \
+                                  -> Tuple[List[linepos.LnPos], int, int]:
+        """Returns a list of (linepos.LnPos, start_diff, end_diff) included in the
+           from_start, from_end.
+
+        There is no blank lines in the returned list.
+        """
+
         start_idx, start_diff = find_index_diff(from_start, self.frstart_list)
         if start_idx < 0:  # maybe empty text
             return [], -1, -1
@@ -252,32 +246,20 @@ class FromToMapper:
         #                                                                             start_idx,
         #                                                                             end_idx))
 
-        # TODO, jshaw, del
-        #if from_start == 99:
-        #    for i in range(start_idx, end_idx + 1):
-        #        fxstart, fx_lnpos = self.from_start_lnpos_list[i]
-        #        print("chosen from: {}".format(fx_lnpos))
-        #
-        #        zxstart, zx_lnpos = self.to_start_lnpos_list[i]
-        #        print("mapped to: {}".format(zx_lnpos))
-
         # now get the to_list corresponding to all the chosen from_list
         # NOTE: must remove the empty line, otherwise might appear at the end if the from_list, and
         # to_list has mismatch.  The offset at begin and end of block will then mess thing up
         # big time
-
         to_start_lnpos_ediff_list = []  # type: List[StartLnPosDiff]
         for i in range(start_idx, end_idx + 1):
-            if self.to_start_lnpos_list[i][1].is_gap or \
-               self.to_start_lnpos_list[i][1].start != self.to_start_lnpos_list[i][1].end:
-                # need to set the potential_end_diff, just in case if the line got swapped to
-                # be the last line for end_offset
-                potential_end_diff = self.to_start_lnpos_list[i][1].end - \
-                                     self.to_start_lnpos_list[i][1].start
-                # Originally use a list instead of tuple for assign
-                # Now, use StartLnPosDiff instead for typing
-                to_start_lnpos_ediff_list.append(StartLnPosDiff(self.to_start_lnpos_list[i],
-                                                                potential_end_diff))
+            # need to set the potential_end_diff, just in case if the line got swapped to
+            # be the last line for end_offset
+            potential_end_diff = self.to_start_lnpos_list[i][1].end - \
+                                 self.to_start_lnpos_list[i][1].start
+            if potential_end_diff == 0:  # remove blank lines
+                continue
+            to_start_lnpos_ediff_list.append(StartLnPosDiff(self.to_start_lnpos_list[i],
+                                                            potential_end_diff))
 
         # if there is only 1 line, no chance of diff being different, skip
         # print("len(to_start_lnpos_ediff_list) = {}".format(len(to_start_lnpos_ediff_list)))
@@ -286,18 +268,6 @@ class FromToMapper:
             # to_start_lnpos_ediff_list[0][1] = start_diff
             to_start_lnpos_ediff_list[-1].diff = end_diff
 
-        # order the chosen to_list by its starts
-        # but first, remove all lnpos with gap to avoid duplicated start.
-        # pylint: disable=invalid-name
-        removed_gap_to_start_lnpos_ediff_list = []
-        for tmp_start_lnpos_ediff in to_start_lnpos_ediff_list:
-            unused_tmp_start, tmp_lnpos_ediff = tmp_start_lnpos_ediff.start_lnpos
-            # remove those with 'gap'
-            if tmp_lnpos_ediff.start != tmp_lnpos_ediff.end:
-                removed_gap_to_start_lnpos_ediff_list.append(tmp_start_lnpos_ediff)
-            # else:
-            #    print("skipping {}".format(tmp_start_lnpos_ediff))
-        to_start_lnpos_ediff_list = removed_gap_to_start_lnpos_ediff_list
         # Now, order the list by 'start', which has no duplicates now
         tmp_to_start_lnpos_ediff_list = to_start_lnpos_ediff_list
         to_start_lnpos_ediff_list = sorted(to_start_lnpos_ediff_list)
@@ -314,11 +284,17 @@ class FromToMapper:
         to_lnpos_list = [sxlnposdiff.start_lnpos[1] for sxlnposdiff in to_start_lnpos_ediff_list]
 
         # the start and end diff really depends on the particular line beign first and last
-
         return to_lnpos_list, start_diff, end_diff
 
 
     def get_span_list(self, from_start: int, from_end: int) -> List[Dict]:
+        """Given start and end offsets, find all the span list in that range.
+
+        The gap is determined by there is a significant line_num difference (> 2).
+
+        Returns one or more dict's, each is a span.
+
+        """
 
         # TODO, jshaw, del
         # print("==in fromtomapper.get_span_list({}, {}) ==============".format(from_start,
@@ -327,19 +303,14 @@ class FromToMapper:
         #                                               self.to_start_lnpos_list):
         #    print("23 from({}, {})\tto({}, {})".format(fstart, flnpos, tstart, tlnpos))
 
+        # this also removes empty lines
         lnpos_list, start_diff, end_diff = \
             self.get_lnpos_list_se_offsets(from_start, from_end)
 
-        #if from_start == 99:
-        #    print("lnpos_list= {}, start_diff= {}, end_diff= {}".format(lnpos_list,
-        #                                                                start_diff, end_diff))
-
-        #if not lnpos_list:
-        #    print('\n\n')
-        #    print("get_span_list(self, {}, {}) is empty".format(from_start, from_end))
-        #    print('lnpos_list: {}'.format(lnpos_list))
-
         if not lnpos_list:
+            # print('\n\n')
+            # print("get_span_list(self, {}, {}) is empty".format(from_start, from_end))
+            # print('lnpos_list: {}'.format(lnpos_list))
             return []
 
         if len(lnpos_list) == 1:
@@ -349,26 +320,23 @@ class FromToMapper:
 
         result = [lnpos._asdict() for lnpos in lnpos_list]
 
-        # TODO, jshaw, del
-        # if from_start == 99:
-        #    print("result: {}".format(result))
-
         # adjust the start and end offsets
         start_lnpos = lnpos_list[0]
         result[0]['start'] = start_lnpos.start + start_diff
         end_lnpos = lnpos_list[-1]
         result[-1]['end'] = end_lnpos.start + end_diff
 
-        # TODO, jshaw, we can do the collapsing based on line_num
+        # The merging of the lines is based on line_num difference.
+        # If there are <= 2, then the line is merged into the span.
+        # Even if this logic is not precise, the result is still
+        # valid, just in two spans.
         cur_lnpos_dict = result[0]
         prev_line_num = cur_lnpos_dict['line_num']
         merged_list = [cur_lnpos_dict]
         for lnpos_dict in result[1:]:
-            if lnpos_dict.get('gap'):
-                # prev_line_num will be -1
-                pass
-            elif lnpos_dict['line_num'] == prev_line_num or \
-                 lnpos_dict['line_num'] == prev_line_num + 1:
+            # there can be a blank line, so prev_line_num + 1?
+            if lnpos_dict['line_num'] == prev_line_num or \
+               lnpos_dict['line_num'] == prev_line_num + 1:
                 cur_lnpos_dict['end'] = lnpos_dict['end']
             else:
                 cur_lnpos_dict = lnpos_dict
@@ -381,7 +349,7 @@ class FromToMapper:
 
         return merged_list
 
-    # this is destructive
+    # this is destructive operation
     # TODO, jshaw, maybe update in future
     # Should only update the offsets, not creating
     # new 'span_list' because now, ebpostproc.merge_sample_prob_list()
@@ -418,6 +386,7 @@ class FromToMapper:
             raw_start, raw_end, label = antx.to_tuple()
 
             span_list = self.get_span_list(raw_start, raw_end)
+
             if not span_list:  # cannot be found, mabye text is empty
                 continue
 
@@ -450,8 +419,7 @@ class FromToMapper:
 # pylint: disable=invalid-name
 def paras_to_fromto_mapper_sorted_by_from(para_list: List[Tuple[List[Tuple[linepos.LnPos,
                                                                            linepos.LnPos]],
-                                                                # str,
-                                                                List[Tuple[Any]]]]) -> FromToMapper:
+                                                                PLineAttrs]]) -> FromToMapper:
     alist = []
     for span_se_list, unused_attr_list in para_list:
         # print("  span_se_list: {}".format(span_se_list))

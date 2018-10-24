@@ -29,7 +29,7 @@ ST_PAT_LIST = ['is made and entered into by and between',
                'confirms its agreement',
                'the parties to this',
                'promises to pay',
-               'agreement.*is delivered by',               
+               'agreement.*is delivered by',
                'note.* is made by.*for.*benefit',
                'to the order of',
                'promises to pay to']
@@ -45,7 +45,7 @@ REGISTERED_PAT = re.compile(r'\bregistered\b', re.I)
 
 def is_made_by_check(line: str) -> bool:
     mat = MADE_BY_PAT.search(line)
-    return bool(mat) and len(mat.group(1)) < 20
+    return bool(mat and len(mat.group(1)) < 20)
 
 
 def is_valid_uppercase_party_name(line: str) -> bool:
@@ -247,8 +247,10 @@ def find_first_non_title_and_org(line: str) -> Optional[Tuple[Tuple[int, int], i
     elif nlputils.ORG_PERSON_SUFFIX_PAT.match(after_line):
         # do matching again, this will be rare, tolerate the cost
         mat = nlputils.ORG_PERSON_SUFFIX_PAT.match(after_line)
-        prev_end = other_start + mat.end()
-        other_start = strutils.find_next_not_space_idx(line, prev_end+1)
+        # mat has to be True because the "elif" check earlier
+        if mat:
+            prev_end = other_start + mat.end()
+            other_start = strutils.find_next_not_space_idx(line, prev_end+1)
 
     return (0, prev_end), other_start
 
@@ -376,6 +378,7 @@ def is_party_line_aux(line: str) -> str:
     # this has too many False positives
     # mat = re.match(r'\(?\s*(1|a|i|l)\s*\)\s*(.*)', line, re.I)
     # if mat and len(line) > 60:
+        # pylint: disable=fixme
         # TODO, jshaw, 36820.txt  Rediculous way of formatting
         # need to pass line number in to disable this aggressive matching
         # will fix later.  Not happening in PDF docs?
@@ -461,6 +464,7 @@ def is_party_line_aux(line: str) -> str:
         return 'True9.2'
     """
 
+    # pylint: disable=fixme
     # TODO, jshaw, look into this
     # [tn=0, fp=1347], [fn=2877, tp=8034]], f1=0.7918
     # => [[tn=0, fp=1335], [fn=2877, tp=8034]] f1= 0.7923
@@ -486,7 +490,7 @@ def is_party_line_aux(line: str) -> str:
         return 'True14'
 
     if line.startswith('T') and \
-       re.match('(this|the).*(contract|lease|agreement).*is made', line, re.I):
+       re.match('(this|the).*(contract|lease|agreement).*(is made|made and executed)', line, re.I):
         return 'True15'
     if len(line) < 40:  # don't want to match line "BY AND BETWEEN" in title page
         return 'False16'
@@ -506,13 +510,20 @@ def is_party_line_aux(line: str) -> str:
         return 'True8.8'  # bool(mat)
 
     lc_line = line.lower()
-    if 'between' in lc_line and engutils.has_date(lc_line):
+    if 'between' in lc_line and \
+       engutils.has_date(lc_line) and \
+       'following' not in lc_line and \
+       'previous' not in lc_line:
+        # demo-txt/8291.txt
+        # the last 2 words check are mainly for random sentences
         return 'True19'
     if 'made' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
         return 'True20'
     if 'issued' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
         return 'True21'
-    if re.search(r'\benter(ed|s)?\b', line, re.I) and engutils.has_date(lc_line) and 'agreement' in lc_line:
+    if re.search(r'\benter(ed|s)?\b', line, re.I) and \
+       engutils.has_date(lc_line) and \
+       'agreement' in lc_line:
         return 'True22'
     # power of attorney
     if 'made on' in lc_line and engutils.has_date(lc_line) and 'power' in lc_line:
@@ -643,14 +654,14 @@ def is_party_line_prefix_without_parties(line: str) -> bool:
 
 
 # Note: I have seen up to 13 companies
-def match_list_prefix(line: str) -> Match[str]:
+def match_list_prefix(line: str) -> Optional[Match[str]]:
     """This return the match of whatever is AFTER the prefix as group(1)."""
     # the first ' is due to some OCR error, mytest/doc16.txt
     return re.match(r"'?\(?\s*[\divx]+\s*\)\s*(.*)", line, re.I)
 
 
 # I have seen up to 13 companies
-def match_party_list_prefix(line: str) -> Match[str]:
+def match_party_list_prefix(line: str) -> Optional[Match[str]]:
     """This return the match of whatever is AFTER the prefix as group(1)."""
     num_mat = re.match(r"'?\(?\s*[\divx]+\s*\)\s*(.*)", line, re.I)
     if num_mat:
@@ -673,8 +684,7 @@ def is_party_list_with_end_between(line: str) -> bool:
     words = line.lower().split()
     last_8_words = words[-8:]
     # print("last_8_words = {}".format(last_8_words))
-    if ('between' in last_8_words or
-        'among' in last_8_words) and \
+    if ('between' in last_8_words or 'among' in last_8_words) and \
        words[-1] == 'and':
         return True
     elif words[-1] in set(['between', 'among']):
@@ -696,6 +706,14 @@ def is_all_english_title_case(line: str) -> bool:
             # print("failed tt: [{}]".format(word))
             return False
     return True
+
+def is_invalid_party_name(line: str) -> bool:
+    """Return True if a party name is invalid"""
+    if re.search(r'\b(agreement|amendment|contract|lease|note)\b',
+                 line,
+                 flags=re.I):
+        return True
+    return False
 
 
 

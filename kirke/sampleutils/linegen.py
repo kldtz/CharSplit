@@ -13,11 +13,11 @@ class LineSpanGenerator:
 
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
-                             antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                             label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                              List[Dict],
-                                                              List[bool],
-                                                              List[int]]]:
+                                antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                                label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                                                 List[Dict],
+                                                                 List[bool],
+                                                                 List[int]]]:
 
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
@@ -65,12 +65,12 @@ class LineSpanGenerator:
                                                                end,
                                                                label_ant_list)
                 a_candidate = {'candidate_type': 'line',
-                            'start': start,
-                            'end': end,
-                            'line_seq': notempty_line_seq,
-                            'text': nl_text[start:end],
-                            'prev_n_words': ' '.join(prev_n_words),
-                            'post_n_words': ' '.join(post_n_words)}
+                               'start': start,
+                               'end': end,
+                               'line_seq': notempty_line_seq,
+                               'text': nl_text[start:end],
+                               'prev_n_words': ' '.join(prev_n_words),
+                               'post_n_words': ' '.join(post_n_words)}
                 notempty_line_seq += 1
 
                 if is_label:

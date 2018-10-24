@@ -16,6 +16,7 @@ import urllib.parse
 from nltk.tokenize import TreebankWordTokenizer
 from nltk.tokenize.regexp import RegexpTokenizer
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -46,7 +47,7 @@ def loads(file_name: str) -> str:
             xst = myfile.read()
     except IOError as exc:
         logger.error("I/O error: %s in strutils.loads(%s)",
-                      exc, file_name)
+                     exc, file_name)
     except Exception as exc:  # handle other exceptions such as attribute errors
         # handle any other exception
         logger.error("Error %s", exc)
@@ -84,7 +85,7 @@ def dumps(xst: str, file_name: str) -> None:
             myfile.write(os.linesep)
     except IOError as exc:
         logger.error("I/O error(%s) in strutils.loads(%s)",
-                      exc, file_name)
+                     exc, file_name)
     # pylint: disable=W0703
     except Exception as exc:  # handle other exceptions such as attribute errors
         # handle any other exception
@@ -630,6 +631,22 @@ def is_double_quote(xch: str) -> bool:
 
 def dict_to_sorted_list(adict: Dict[Any, Any]) -> List[str]:
     return ['{}={}'.format(attr, value) for attr, value in sorted(adict.items())]
+
+
+def dict_to_sorted_dict_st(adict: Dict[Any, Any]) -> str:
+    st_list = dict_to_sorted_list(adict)
+    return '{' + ', '.join(st_list) + '}'
+
+
+def set_to_sorted_set_st(aset: Set) -> str:
+    """Convert a set to a string, but in sorted order."""
+    st_list = []  # type: List[str]
+    for aval in sorted(aset):
+        if isinstance(aval, str):
+            st_list.append("'{}'".format(aval))
+        else:
+            st_list.append(str(aval))
+    return '{' + ', '.join(st_list) + '}'
 
 
 def space_repl_same_length(mat: Match[str]) -> str:

@@ -4,7 +4,7 @@ import unittest
 import pprint
 import copy
 
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 from kirke.eblearn import ebrunner
 
@@ -25,15 +25,13 @@ EB_RUNNER = ebrunner.EbRunner(MODEL_DIR,
 def annotate_doc(file_name: str) -> Dict[str, Any]:
     doc_lang = 'en'
     provision_set = set([])  # type: Set[str]
-    is_doc_structure = True
 
     # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
     #                      'party', 'warranty', 'termination', 'term']))
     prov_labels_map, _ = EB_RUNNER.annotate_document(file_name,
                                                      provision_set=provision_set,
                                                      work_dir=WORK_DIR,
-                                                     doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure)
+                                                     doc_lang=doc_lang)
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):
@@ -56,12 +54,7 @@ def get_party_list(prov_labels_map: Dict) -> List[Tuple[int, int, str]]:
 
 class TestParties2(unittest.TestCase):
 
-    def test_party(self):
-        # pylint: disable=invalid-name
-        self.maxDiff = None
-
-
-    def test_export_train_party(self):
+    def test_export_train_party_35642(self):
         # pylint: disable=invalid-name
         self.maxDiff = None
 
@@ -73,6 +66,9 @@ class TestParties2(unittest.TestCase):
                           (754, 787, 'Integrated Capital Partners, Inc.'),
                           (811, 823, 'the “Holder”')])
 
+    def test_export_train_party_37028(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
 
         # The result not manually verified
         prov_labels_map = annotate_doc('export-train/37028.txt')
@@ -105,12 +101,20 @@ class TestParties2(unittest.TestCase):
                           (4647, 4681, 'Bluegreen/Big Cedar Vacations, LLC'),
                           (4721, 4734, 'the “Company”')])
 
+    def test_party_35753(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
+
         prov_labels_map = annotate_doc('export-train/35753.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [(184, 206, 'Game Face Gaming, Inc.'),
                           (231, 244, 'the "Company"'),
                           (314, 344, 'collectively, the "Purchasers"')])
+
+    def test_party_39871(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
 
         prov_labels_map = annotate_doc('export-train/39871.txt')
         party_list = get_party_list(prov_labels_map)
@@ -125,6 +129,9 @@ class TestParties2(unittest.TestCase):
                           # (6550, 6605, 'each, a “Purchaser” and, collectively, the “Purchasers”')])
                           (6389, 6445, '“Holdings” and together with the Company, the “Obligors”')])
 
+    def test_party_35754(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
 
         # promissory note, 2nd sentence
         prov_labels_map = annotate_doc('export-train/35754.txt')
@@ -138,6 +145,10 @@ class TestParties2(unittest.TestCase):
                           (671, 720, '“CAGP III,” and together with CAGP, the “Holders”'),
                           (726, 760, 'China Recycling Energy Corporation'),
                           (784, 797, 'the “Company”')])
+
+    def test_party_41296(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
 
         # TODO, parties are in 'Definitions'
         prov_labels_map = annotate_doc('export-train/41296.txt')
@@ -163,6 +174,10 @@ class TestParties2(unittest.TestCase):
         #                  (253, 258, '"EVS"')])
 
 
+    def test_party_35667(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
+
         prov_labels_map = annotate_doc('export-train/35667.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
@@ -171,6 +186,10 @@ class TestParties2(unittest.TestCase):
                           (266, 280, 'Keith Houlihan'),
                           (315, 323, '"Holder"')])
 
+    def test_party_41207(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
+
         prov_labels_map = annotate_doc('export-train/41207.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
@@ -178,6 +197,10 @@ class TestParties2(unittest.TestCase):
                           (239, 249, '“Licensor”'),
                           (256, 276, 'MY/ZP IP Group, Ltd.'),
                           (307, 317, '“Licensee”')])
+
+    def test_party_40228(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
 
         prov_labels_map = annotate_doc('export-train/40228.txt')
         party_list = get_party_list(prov_labels_map)
@@ -196,6 +219,10 @@ class TestParties2(unittest.TestCase):
                           [])
         """
 
+    def test_party_39206(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
+
         # TODO, somewhat difficult
         # required full parse to get it
         prov_labels_map = annotate_doc('export-train/39206.txt')
@@ -211,6 +238,10 @@ class TestParties2(unittest.TestCase):
                           #  'together with their respective successors and assigns, the “Banks”'),
                           (6746, 6763, 'BARCLAYS BANK PLC'),
                           (6768, 6774, 'Agent.')])
+
+    def test_party_39838(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
 
         # Note:
         # party line with itemized parties
@@ -230,6 +261,10 @@ class TestParties2(unittest.TestCase):
                           (296, 308, 'Escrow Agent'),
                           (317, 353, 'U.S. BANK TRUST NATIONAL ASSOCIATION'),
                           (358, 370, 'Paying Agent')])
+
+    def test_party_39829(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
 
         prov_labels_map = annotate_doc('export-train/39829.txt')
         party_list = get_party_list(prov_labels_map)
@@ -272,6 +307,10 @@ class TestParties2(unittest.TestCase):
         # HTML format issues, between\n(1)\nparty1\n(2)\nparty2
         # prov_labels_map = annotate_doc('export-train/38461.txt')
 
+    def test_party_38461(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
+
         prov_labels_map = annotate_doc('export-train/38461.txt')
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
@@ -287,6 +326,10 @@ class TestParties2(unittest.TestCase):
 
         # TODO, we don't handle 'Warrant' well at all
         # prov_labels_map = annotate_doc('export-train/37310.txt')
+
+    def test_party_40980(self):
+        # pylint: disable=invalid-name
+        self.maxDiff = None
 
         prov_labels_map = annotate_doc('export-train/40980.txt')
         party_list = get_party_list(prov_labels_map)
