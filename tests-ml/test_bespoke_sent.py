@@ -41,7 +41,7 @@ class TestBespokeSent(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 30, delta=5)
+        self.assertAlmostEqual(fp, 28, delta=6)
         self.assertAlmostEqual(fn, 33, delta=4)
         self.assertAlmostEqual(tp, 62, delta=4)
 
