@@ -347,7 +347,7 @@ def train_eval_annotator(provision: str,
     logger.info("    work_dir = %s", work_dir)
     logger.info("    model_dir = %s", model_dir)
     logger.info("    model_file_name = %s", model_file_name)
-    logger.info("    is_bestpoke_mode= %r", is_bespoke_mode)
+    logger.info("    is_bespoke_mode= %r", is_bespoke_mode)
 
     # group_id is used to ensure all the attrvec for a document are together
     # and not distributed between both training and testing.  A document can
