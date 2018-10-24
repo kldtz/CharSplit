@@ -4,8 +4,9 @@ from typing import List, Tuple
 
 from sklearn.externals import joblib
 
-from kirke.ebrules.addrclassifier import KEYWORDS
+from kirke.ebrules.addrclassifier import KEYWORDS, LogRegModel
 from kirke.utils import strutils
+
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -54,17 +55,26 @@ def find_addresses(text: str) -> List[Tuple[int, int, str]]:
                     prev_start, prev_end, prev_prob = ad_start, ad_end, address_prob
     return addr_se_st_list
 
-"""Load and prepare the classifier"""
-ADDR_MODEL_FILE_NAME = DATA_DIR+'addr_classifier.pkl'
-logger.info('loading ADDR_CLASSIFIER(%s)', ADDR_MODEL_FILE_NAME)
-ADDR_CLASSIFIER = joblib.load(ADDR_MODEL_FILE_NAME)
+ADDR_CLASSIFIER = None
+
+def load_address_classifier() -> LogRegModel:
+    """Load and prepare the classifier"""
+    ADDR_MODEL_FILE_NAME = DATA_DIR + 'addr_classifier.pkl'
+    logger.info('loading ADDR_CLASSIFIER(%s)', ADDR_MODEL_FILE_NAME)
+    return joblib.load(ADDR_MODEL_FILE_NAME)
+
 
 def classify(line: str) -> float:
+    # pylint: disable=global-statement
+    global ADDR_CLASSIFIER
+
     """Returns probability that line is an addr"""
     len_s = len(line)
     if (len_s <= MIN_ADDRESS_LEN or len_s >= MAX_ADDRESS_LEN + 1) or \
        not strutils.has_alpha(line):
         return 0
+    if ADDR_CLASSIFIER is None:
+        ADDR_CLASSIFIER = load_address_classifier()
     probs, unused_label = ADDR_CLASSIFIER.predict(line)
 
     return probs[1]

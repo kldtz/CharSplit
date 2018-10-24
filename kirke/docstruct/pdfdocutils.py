@@ -158,6 +158,7 @@ def save_page_list_by_lines(page_list: List[PageInfo3],
     print('wrote {}'.format(out_fname), file=sys.stderr)
 
 
+# @deprecated
 def is_block_multi_line(linex_list: List[LineWithAttrs]) -> bool:
 
     if len(linex_list) <= 1:

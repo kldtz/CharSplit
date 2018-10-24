@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import copy
+import json
 import pprint
 import unittest
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 from kirke.eblearn import ebrunner
 from kirke.client import postfileutils
