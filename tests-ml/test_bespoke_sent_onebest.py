@@ -38,7 +38,7 @@ class TestBespokeSent(unittest.TestCase):
     def test_bespoke_12345(self):
 
         custid = 'change_control'
-        custid_data_dir = 'change_control'
+        custid_data_dir = 'change_control_small'
         result_text = \
             postfileutils.upload_train_dir(custid,
                                            custid_data_dir,
@@ -58,26 +58,26 @@ class TestBespokeSent(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 22, delta=4)
-        self.assertAlmostEqual(fn, 15, delta=4)
-        self.assertAlmostEqual(tp, 70, delta=4)
+        self.assertAlmostEqual(fp, 11, delta=5)
+        self.assertAlmostEqual(fn, 11, delta=4)
+        self.assertAlmostEqual(tp, 35, delta=4)
 
         # round(ant_result['f1'], 2),
-        # 0.80
+        # 0.72
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.77)
-        self.assertLessEqual(f1, 0.83)
+        self.assertGreaterEqual(f1, 0.68)
+        self.assertLessEqual(f1, 0.76)
 
         # round(ant_result['prec'], 2),
-        # 0.77
+        # 0.71
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.74)
-        self.assertLessEqual(precision, 0.80)
+        self.assertGreaterEqual(precision, 0.66)
+        self.assertLessEqual(precision, 0.76)
 
         recall = round(ant_result['recall'], 2)
-        # 0.80
-        self.assertGreaterEqual(recall, 0.77)
-        self.assertLessEqual(recall, 0.83)
+        # 0.73
+        self.assertGreaterEqual(recall, 0.70)
+        self.assertLessEqual(recall, 0.76)
 
         txt_fnames = []
         for file in os.listdir(custid_data_dir):
@@ -91,7 +91,7 @@ class TestBespokeSent(unittest.TestCase):
             prov_labels_map = upload_annotate_doc(fname, custid)
             print('prov_labels_map')
             print(prov_labels_map)
-            date_list = prov_labels_map['ebannotations'].get(custid_data_dir, [])
+            date_list = prov_labels_map['ebannotations'].get('change_control', [])
             print('date_list:')
             pprint.pprint(date_list)
             return_lens.append(len(date_list))

@@ -22,7 +22,7 @@ class TestBespokeSent(unittest.TestCase):
     def test_bespoke_12345(self):
 
         custid = 'change_control'
-        custid_data_dir = 'change_control'
+        custid_data_dir = 'change_control_small'
         result_text = \
             postfileutils.upload_train_dir(custid,
                                            custid_data_dir,
@@ -34,7 +34,6 @@ class TestBespokeSent(unittest.TestCase):
         print(ant_result)
 
         conf_matrix = ant_result['confusion_matrix']
-        # [[0, 58], [55, 144]]
 
         tn = conf_matrix[0][0]
         fp = conf_matrix[0][1]
@@ -42,26 +41,26 @@ class TestBespokeSent(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 58, delta=10)
-        self.assertAlmostEqual(fn, 55, delta=6)
-        self.assertAlmostEqual(tp, 144, delta=6)
+        self.assertAlmostEqual(fp, 30, delta=5)
+        self.assertAlmostEqual(fn, 33, delta=4)
+        self.assertAlmostEqual(tp, 62, delta=4)
 
         # round(ant_result['f1'], 2),
-        # 0.72
+        # 0.66
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.70)
-        self.assertLessEqual(f1, 0.74)
+        self.assertGreaterEqual(f1, 0.63)
+        self.assertLessEqual(f1, 0.69)
 
         # round(ant_result['prec'], 2),
-        # 0.71
+        # 0.68
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.69)
-        self.assertLessEqual(precision, 0.73)
+        self.assertGreaterEqual(precision, 0.65)
+        self.assertLessEqual(precision, 0.71)
 
         recall = round(ant_result['recall'], 2)
-        # 0.72
-        self.assertGreaterEqual(recall, 0.70)
-        self.assertLessEqual(recall, 0.74)
+        # 0.65
+        self.assertGreaterEqual(recall, 0.61)
+        self.assertLessEqual(recall, 0.69)
 
 if __name__ == "__main__":
     unittest.main()
