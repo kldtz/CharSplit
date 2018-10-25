@@ -490,7 +490,7 @@ def is_party_line_aux(line: str) -> str:
         return 'True14'
 
     if line.startswith('T') and \
-       re.match('(this|the).*(contract|lease|agreement).*is made', line, re.I):
+       re.match('(this|the).*(contract|lease|agreement).*(is made|made and executed)', line, re.I):
         return 'True15'
     if len(line) < 40:  # don't want to match line "BY AND BETWEEN" in title page
         return 'False16'
@@ -510,7 +510,12 @@ def is_party_line_aux(line: str) -> str:
         return 'True8.8'  # bool(mat)
 
     lc_line = line.lower()
-    if 'between' in lc_line and engutils.has_date(lc_line):
+    if 'between' in lc_line and \
+       engutils.has_date(lc_line) and \
+       'following' not in lc_line and \
+       'previous' not in lc_line:
+        # demo-txt/8291.txt
+        # the last 2 words check are mainly for random sentences
         return 'True19'
     if 'made' in lc_line and engutils.has_date(lc_line) and 'agreement' in lc_line:
         return 'True20'
@@ -701,6 +706,14 @@ def is_all_english_title_case(line: str) -> bool:
             # print("failed tt: [{}]".format(word))
             return False
     return True
+
+def is_invalid_party_name(line: str) -> bool:
+    """Return True if a party name is invalid"""
+    if re.search(r'\b(agreement|amendment|contract|lease|note)\b',
+                 line,
+                 flags=re.I):
+        return True
+    return False
 
 
 

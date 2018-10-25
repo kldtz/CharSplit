@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import copy
+import json
 import pprint
 import unittest
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 from kirke.eblearn import ebrunner
 from kirke.client import postfileutils
@@ -21,15 +22,13 @@ EB_RUNNER = ebrunner.EbRunner(MODEL_DIR,
 def annotate_doc(file_name: str) -> Dict[str, Any]:
     doc_lang = 'en'
     provision_set = set([])  # type: Set[str]
-    is_doc_structure = True
 
     # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
     #                      'party', 'warranty', 'termination', 'term']))
     prov_labels_map, _ = EB_RUNNER.annotate_document(file_name,
                                                      provision_set=provision_set,
                                                      work_dir=WORK_DIR,
-                                                     doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure)
+                                                     doc_lang=doc_lang)
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):
@@ -67,7 +66,7 @@ class TestParties3(unittest.TestCase):
         self.maxDiff = None
 
 
-    def test_export_train_party(self):
+    def test_export_train_party_40980(self):
         # pylint: disable=invalid-name
         self.maxDiff = None
 

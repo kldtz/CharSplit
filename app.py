@@ -20,7 +20,7 @@ from flask import Flask, jsonify, request, send_file
 import yaml
 
 from kirke.eblearn import ebrunner
-from kirke.utils import corenlputils, osutils, strutils
+from kirke.utils import corenlputils, modelfileutils, osutils, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -51,6 +51,10 @@ setup_logging()
 # logging.getLogger(__name__).addHandler(logging.NullHandler())
 logger = logging.getLogger(__name__)
 
+IS_DEVELOPMENT_MODE = False
+if os.environ.get('KIRKE_DEVELOPMENT'):
+    IS_DEVELOPMENT_MODE = True
+    logger.info('KIRKE_DEVELOPMENT = True')
 
 # pylint: disable=invalid-name
 app = Flask(__name__)
@@ -69,7 +73,7 @@ CANDG_CLF_VERSION = config['ebrevia.com']['CANDG_CLF_VERSION']
 # classifiers
 WORK_DIR = KIRKE_TMP_DIR + '/dir-work'
 MODEL_DIR = EB_MODELS
-CUSTOM_MODEL_DIR = EB_FILES + 'pymodel'
+CUSTOM_MODEL_DIR = EB_FILES + '/pymodel'
 logger.info('custom_model_dir is [%s]', CUSTOM_MODEL_DIR)
 
 osutils.mkpath(WORK_DIR)
@@ -91,6 +95,32 @@ eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 if not eb_runner:
     logger.error('problem initializing ebrunner')
     exit(1)
+
+# Saves around 100 Mb per worker if warm up first to use
+# shared memory before the workers are initalized.
+warm_up_text = "Without warming up first will take up too much memory."
+warm_up_doc_lang = eb_langdetect_runner.detect_lang(warm_up_text)
+logger.info("warm-up detected language '%s'", warm_up_doc_lang)
+
+warm_up_txt_file_name = 'dir-text/8286.txt'
+
+if eb_doccat_runner.is_initialized:
+    warm_up_doc_catnames = eb_doccat_runner.classify_document(warm_up_txt_file_name)
+    logger.info("classify document '%s' is '%s'", warm_up_txt_file_name, warm_up_doc_catnames)
+
+warm_up_default_provisions = modelfileutils.get_default_provisions(MODEL_DIR)
+if warm_up_default_provisions:
+    # logger.info('warm_up_default_provisions: {}'.format(warm_up_default_provisions))
+    warm_up_prov_labels_map, ignore_ebantdoc = \
+        eb_runner.annotate_document(warm_up_txt_file_name,
+                                    provision_set=warm_up_default_provisions,
+                                    work_dir=WORK_DIR,
+                                    doc_lang='en')
+    logger.info("annotated document '%s'", warm_up_txt_file_name)
+    logger.info("Kirke warm-up is completed")
+    del warm_up_prov_labels_map
+    del ignore_ebantdoc
+
 
 @app.route('/annotate-doc', methods=['POST'])
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -119,8 +149,21 @@ def annotate_uploaded_document():
             work_dir = WORK_DIR
 
         fn_list = request.files.getlist('file')
+
+        if IS_DEVELOPMENT_MODE:
+            txt_file_name = ''
+            for fstorage in fn_list:
+                if fstorage.filename.endswith('.txt'):
+                    txt_file_name = fstorage.filename
+                    break
+            # wipe the cache directory with that doc_id
+            if txt_file_name:
+                docid = osutils.get_docid(txt_file_name)
+                osutils.remove_files_with_docid(work_dir, docid)
+
         for fstorage in fn_list:
-            fn = '{}/{}'.format(work_dir, fstorage.filename)
+            knorm_base_filename = osutils.get_knorm_base_file_name(fstorage.filename)
+            fn = '{}/{}'.format(work_dir, knorm_base_filename)
             print("saving file '{}'".format(fn))
             fstorage.save(fn)
 
@@ -132,12 +175,12 @@ def annotate_uploaded_document():
 
                 # save the file name
                 meta_fn = '{}/{}'.format(work_dir,
-                                         fstorage.filename.replace('.txt', '.meta'))
+                                         knorm_base_filename.replace('.txt', '.meta'))
                 # print("wrote meta_fn: '{}'".format(meta_fn))
                 # print("doc title: '{}'".format(file_title))
                 with open(meta_fn, 'wt') as meta_out:
                     print('pdf_file\t{}'.format(file_title), file=meta_out)
-                    print('txt_file\t{}'.format(fstorage.filename), file=meta_out)
+                    print('txt_file\t{}'.format(knorm_base_filename), file=meta_out)
             else:
                 logger.warning('unknown file extension in annotate_uploaded_document(%s)', fn)
 
@@ -185,11 +228,11 @@ def annotate_uploaded_document():
             if "rate_table" in provision_set:
                 provision_set.remove('rate_table')
 
-        provision_set = [x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
-                         for x in provision_set]
+        lang_provision_set = set([x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
+                                  for x in provision_set])
         # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
         prov_labels_map, _ = eb_runner.annotate_document(txt_file_name,
-                                                         provision_set=provision_set,
+                                                         provision_set=lang_provision_set,
                                                          work_dir=work_dir,
                                                          doc_lang=doc_lang)
 
@@ -225,10 +268,18 @@ def annotate_uploaded_document():
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 @app.route('/custom-train-export/<cust_id>', methods=['GET'])
 def custom_train_export(cust_id: str):
-    # to ensure that no accidental file name overlap
-    logger.info("cust_id = %s", cust_id)
+    """Export the model file for a Bespoke model.
 
-    cust_model_fnames = eb_runner.get_custom_model_files(cust_id)
+    Parameter:
+         cust_id is expected to have the format 'cust_12345.9393', with 9393 as the version info.
+
+    Currently, we only support exporting all the language models for a custom provision.  We do
+    not export a specific language model for a custom_id, such as cust_12345.9393_pt
+    """
+    # to ensure that no accidental file name overlap
+    logger.info("custom_train_export(%s) called", cust_id)
+
+    cust_model_fnames = eb_runner.get_provision_custom_model_files(cust_id)
     # create the zip file with all the provision and its langs
     # zip_filename =  + ".zip"
     # zip_file_obj = tempfile.NamedTemporaryFile(mode='wb')
@@ -236,13 +287,12 @@ def custom_train_export(cust_id: str):
     with zipfile.ZipFile(zip_filename, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
         for model_fname in cust_model_fnames:
             full_model_fname = "{}/{}".format(CUSTOM_MODEL_DIR, model_fname)
-            print("full_model_fname: [{}]".format(full_model_fname))
+            logger.info("full_model_fname: [%s]", full_model_fname)
             zf.write(full_model_fname, arcname=model_fname)
 
     zip_file = open(zip_filename, 'rb')
     # response = HttpResponse(zip_file, content_type='application/force-download')
     # response['Content-Disposition'] = 'attachment; filename="%s"' % 'cust_12345.1004.zip'
-    print("returned a zip file")
     return send_file(zip_file,
                      attachment_filename='{}.custom_models'.format(cust_id),
                      as_attachment=True)
@@ -252,7 +302,7 @@ def custom_train_export(cust_id: str):
 def custom_train_import(cust_id: str):
     # to ensure that no accidental file name overlap
     # logger.info("import a custom train model = {}".format(cust_id))
-    logger.info("import a custom train model")
+    logger.info("custom_train_import(%s)", cust_id)
 
     result_json = {'provision': 'unknown',
                    'model_number': -1}
@@ -328,21 +378,27 @@ def custom_train(cust_id: str):
         # to ensure that no accidental file name overlap
         logger.info("cust_id = '%s', candidate_types=%r, nbest= %d",
                     cust_id, candidate_types, nbest)
-        provision = 'cust_{}'.format(cust_id)
+        if strutils.is_digits(cust_id):
+            provision = 'cust_{}'.format(cust_id)
+        else:
+            provision = cust_id
         tmp_dir = '{}/{}'.format(work_dir, provision)
         osutils.mkpath(tmp_dir)
         fn_list = request.files.getlist('file')
 
         # save all the uploaded files in a location
+        knorm_basename_list = []  # type: List[str]
         for fstorage in fn_list:
-            fn = '{}/{}'.format(tmp_dir, fstorage.filename)
+            knorm_base_filename = osutils.get_knorm_base_file_name(fstorage.filename)
+            fn = '{}/{}'.format(tmp_dir, knorm_base_filename)
             # print("saving file '{}'".format(fn))
             fstorage.save(fn)
+            knorm_basename_list.append(knorm_base_filename)
 
         fname_provtypes_map = {}
         txt_fnames = []
         txt_offsets_fn_map = {}
-        for name in [fstorage.filename for fstorage in fn_list]:
+        for name in knorm_basename_list:
             file_id = name.split('.')[0]
             full_path = '{}/{}'.format(tmp_dir, name)
             if name.endswith('.ant'):
