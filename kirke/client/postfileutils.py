@@ -73,6 +73,18 @@ def upload_train_dir(custid: str,
                      upload_dir: str,
                      candidate_types: str,
                      nbest: int = -1) -> str:
+    resp = upload_train_dir_resp(custid,
+                                 upload_dir,
+                                 candidate_types,
+                                 nbest)
+    return resp.text
+
+
+# pylint: disable=too-many-locals
+def upload_train_dir_resp(custid: str,
+                          upload_dir: str,
+                          candidate_types: str,
+                          nbest: int = -1):
     txt_fnames, ant_fnames = [], []
     offsets_fnames = []
     for file in os.listdir(upload_dir):
@@ -123,7 +135,8 @@ def upload_train_dir(custid: str,
                          files=file_tuple_list,
                          data=payload,
                          timeout=6000)
-    return resp.text
+    return resp
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='identify the language')

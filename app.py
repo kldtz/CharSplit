@@ -370,6 +370,9 @@ def custom_train(cust_id: str):
 
         #logger.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
         all_stats = {}
+        has_one_lang_success = False
+        max_ant_count = 0
+        max_ant_count_lang = 'en'
         for doc_lang, names_per_lang in full_txt_fnames.items():
             if not doc_lang:  # if a document has no text, its langid can be None
                 continue
@@ -443,6 +446,7 @@ def custom_train(cust_id: str):
                 # all_stats[doc_lang] = status_and_antana
 
                 all_stats[doc_lang] = status
+                has_one_lang_success = True
             else:
                 # TODO, remove disabling log output until frontend is ready
                 # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
@@ -456,6 +460,16 @@ def custom_train(cust_id: str):
                                        'provision': provision,
                                        'model_number': -1,
                                        'recall': -1.0}
+                if ant_count > max_ant_count:
+                    max_ant_count = ant_count
+                    max_ant_count_lang = doc_lang
+
+        if not has_one_lang_success:
+            # pylint: disable=line-too-long
+            exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found for '{}'".format(max_ant_count, max_ant_count_lang))
+            exc.user_message = "INSUFFICIENT_EXAMPLES"  # type: ignore
+            raise exc
+
         return jsonify(all_stats)
     except Exception as e:  # pylint: disable=broad-except
         error = traceback.format_exc()
