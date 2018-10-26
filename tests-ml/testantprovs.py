@@ -354,6 +354,7 @@ class TestAntDocCat(unittest.TestCase):
                            ('demo-txt/8291.txt', 'choiceoflaw', 1, 0, 0),
                            # the real date is 'July 1, 1999', not "December 31, 2004"
                            # the gold annotation is wrong
+                           # ('demo-txt/8291.txt', 'date', 1, 0, 0),
                            ('demo-txt/8291.txt', 'date', 0, 1, 0),  # has_diff: verfied, ok
                            ('demo-txt/8291.txt', 'effectivedate', 0, 0, 0),
                            ('demo-txt/8291.txt', 'force_majeure', 1, 0, 0),
