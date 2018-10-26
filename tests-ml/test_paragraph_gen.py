@@ -9,6 +9,8 @@ from kirke.eblearn import annotatorconfig
 
 WORK_DIR = 'dir-work'
 
+osutils.mkpath(WORK_DIR)
+
 def get_antdoc(txt_fname):
     offsets_fname = txt_fname.replace('.txt', '.offsets.json')
     ebantdoc = pdf_to_ebantdoc4(txt_fname,

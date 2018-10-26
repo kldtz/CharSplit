@@ -474,7 +474,7 @@ def parties_to_offsets(parties: List[List[str]],
 # pylint: disable=too-many-return-statements
 def is_end_party_list(line: str, attrs: List[str]) -> bool:
     # IT IS AGREED
-    if re.search(r'\b(background|whereas|definitions?|interpretation|it is)\b', line, re.I):
+    if re.search(r'\b(background|preamble|whereas|definitions?|interpretation|it is)\b', line, re.I):
         return True
     # if there is 1)
     if partyutils.is_party_list_prefix_with_validation(line):
