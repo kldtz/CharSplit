@@ -332,8 +332,7 @@ class TestParties(unittest.TestCase):
                          [# (213, 216, 'Box'),
                              (224, 238, 'Documents Inc.'),
                              (266, 275, '”Partner”'),
-                             (367, 382, 'Box and Partner'),
-                             (419, 459, 'a “Party” and together as the “Parties”.')])
+                             (367, 382, 'Box and Partner')])
 
     def test_party_101(self):
         # pylint: disable=invalid-name
@@ -651,9 +650,9 @@ class TestParties(unittest.TestCase):
                          [(159, 183, 'Fidelity Funding Company'),
                           (207, 217, '“Landlord”'),
                           (225, 244, 'Extend Health, Inc.'),
-                          (270, 278, '“Tenant”'),
+                          (270, 278, '“Tenant”')])
                           # missing "Landlord and Tenant"
-                          (341, 386, 'the “Parties” and individually, as a “Party.”')])
+                          # (341, 386, 'the “Parties” and individually, as a “Party.”')])
 
     def test_party_130(self):
         # pylint: disable=invalid-name
