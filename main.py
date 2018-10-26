@@ -279,7 +279,8 @@ def annotate_document(file_name: str,
                       model_dir: str,
                       custom_model_dir: str,
                       provision_set: Optional[Set[str]] = None,
-                      is_doc_structure: bool = True) -> Dict[str, Any]:
+                      is_doc_structure: bool = True,
+                      is_dev_mode: bool = False) -> Dict[str, Any]:
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
     eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
@@ -298,7 +299,8 @@ def annotate_document(file_name: str,
                                                      provision_set=provision_set,
                                                      work_dir=work_dir,
                                                      doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure)
+                                                     is_doc_structure=is_doc_structure,
+                                                     is_dev_mode=is_dev_mode)
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):
@@ -426,7 +428,8 @@ def main():
                                           work_dir,
                                           model_dir,
                                           custom_model_dir,
-                                          is_doc_structure=True)
+                                          is_doc_structure=True,
+                                          is_dev_mode=True)
         pprint.pprint(dict(prov_ants_map))
     elif cmd == 'print_doc_parties':
         if not args.doc:
@@ -437,7 +440,8 @@ def main():
                                           work_dir,
                                           model_dir,
                                           custom_model_dir,
-                                          is_doc_structure=True)
+                                          is_doc_structure=True,
+                                          is_dev_mode=True)
         pprint.pprint(dict(prov_ants_map))
         party_ant_list = prov_ants_map['party']
         result = []
