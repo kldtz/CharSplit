@@ -305,8 +305,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         start_time = time.time()
         candidates, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir)
         end_time = time.time()
-        # logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
-        #             self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.debug('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
+                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates
 
@@ -358,7 +358,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     def predict_antdoc(self,
                        eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                        work_dir: str) -> Tuple[List[Dict[str, Any]], List[float]]:
-        # logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        # logger.debug('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
         text = eb_antdoc.get_text()
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
