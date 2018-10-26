@@ -149,8 +149,8 @@ class ProvisionAnnotator:
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
-        logger.info('annotate_antdoc(%s, %s) took %.0f msec, eb_antr',
-                    self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.debug('annotate_antdoc(%s, %s) took %.0f msec, eb_antr',
+                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         try:
             # mapping the offsets in prov_human_ant_list from raw_text to nlp_text
