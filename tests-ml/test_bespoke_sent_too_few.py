@@ -19,7 +19,7 @@ CUSTOM_MODEL_DIR = 'dir-custom-model'
 
 class TestBespokeSent(unittest.TestCase):
 
-    def test_bespoke_12345(self):
+    def test_bespoke_555(self):
 
         custid = 'cust_555'
         custid_data_dir = 'cust_555-too-few'
