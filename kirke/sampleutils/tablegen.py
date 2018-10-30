@@ -1,7 +1,7 @@
 import logging
-import os
 import re
-from typing import Dict, List, Optional, Tuple
+# pylint: disable=unused-import
+from typing import Any, Dict, List, Optional, Tuple
 
 from kirke.docstruct.secheadutils import SecHeadTuple
 from kirke.utils import ebantdoc4, engutils, ebsentutils, strutils
@@ -19,7 +19,7 @@ from kirke.abbyyxml.pdfoffsets import AbbyyTableBlock
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-IS_DEBUG_TABLE = True
+IS_DEBUG_TABLE = False
 IS_DEBUG_INVALID_TABLE = False
 
 def find_prev_sechead(start: int,
@@ -275,7 +275,7 @@ class TableGenerator:
                                                                            is_table_in_exhibit,
                                                                            prev_table_end,
                                                                            doc_text)
-                pre_table_text_dict = {}
+                pre_table_text_dict = {}  # type: Dict[str, Any]
                 if pre_table_text:
                     pre_table_text_dict['text'] = pre_table_text
                     pre_table_text_dict['start'] = pre_table_se_tuple[0]
@@ -353,6 +353,8 @@ class TableGenerator:
 
                 if pre_table_text_dict:
                     out_table_json['pre_table_text'] = pre_table_text_dict['text']
+
+                out_table_json['detect_source'] = abbyy_table.detect_source.name
 
                 a_candidate = {'candidate_type': self.candidate_type,
                                'text': '\n'.join([sechead_text,
@@ -442,11 +444,11 @@ class TableGenerator:
                                                     invalid_tables,
                                                     extension='.invalid.table.html')
 
-                tableutils.save_tables_to_html_file(antdoc.file_id,
+                tableutils.save_blocks_to_html_file(antdoc.file_id,
                                                     antdoc.abbyy_signature_list,
                                                     extension='.sign.html')
 
-                tableutils.save_tables_to_html_file(antdoc.file_id,
+                tableutils.save_blocks_to_html_file(antdoc.file_id,
                                                     antdoc.abbyy_address_list,
                                                     extension='.addr.html')
 

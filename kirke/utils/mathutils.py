@@ -2,10 +2,23 @@
 from typing import Dict, FrozenSet, List, Set, Tuple
 
 
-def start_end_overlap(stend1, stend2):
+def start_end_overlap(stend1: Tuple[int, int],
+                      stend2: Tuple[int, int]) \
+                      -> bool:
     start1, end1 = stend1
     start2, end2 = stend2
     return start1 < end2 and start2 < end1
+
+
+# we don't assume se_list is sorted
+def is_overlap_with_se_list(se_to_check: Tuple[int, int],
+                            se_list: List[Tuple[int, int]]) \
+                            -> bool:
+    for stend in se_list:
+        if start_end_overlap(se_to_check, stend):
+            return True
+    return False
+
 
 # 1st includes 2nd
 # [    stend1    ]
@@ -223,3 +236,21 @@ def is_rect_overlap(bot_left_1: Tuple[int, int],
         return False
 
     return True
+
+
+def rect_tblr_to_rect_points(tblr: Tuple[int, int, int, int]) \
+    -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    # bl, tr
+    return (tblr[2], tblr[1]), (tblr[3], tblr[0])
+
+
+# we don't assume se_list is sorted
+def is_overlap_with_rect_list(rect_to_check: Tuple[Tuple[int, int], Tuple[int, int]],
+                              rect_list: List[Tuple[Tuple[int, int], Tuple[int, int]]]) \
+                              -> bool:
+    ck_bl, ck_tr = rect_to_check
+    for x_bl, x_tr in rect_list:
+        if is_rect_overlap(ck_bl, ck_tr,
+                           x_bl, x_tr):
+            return True
+    return False

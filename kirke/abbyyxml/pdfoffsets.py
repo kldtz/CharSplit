@@ -1,10 +1,37 @@
 from collections import Counter
+from enum import Enum
 import re
 import sys
 # pylint: disable=unused-import
 from typing import Dict, List, Optional, TextIO, Tuple, Union
 
 from kirke.utils.alignedstr import AlignedStrMapper
+
+class TableType(Enum):
+    UNKNOWN = 1
+    VALID = 2
+    SIGNATURE = 3
+    ADDRESS = 4
+    INVALID = -1
+
+
+class DetectSource(Enum):
+    UNKNOWN = 1
+    ABBYY = 2
+    H_ALIGN = 3
+    FIELD_VALUE = 4
+
+
+def add_infer_line_attrs(attr_dict: Dict):
+    infer_attr_dict = {}
+    b_attr = attr_dict['@b']
+    l_attr = attr_dict['@l']
+    # if l_attr > 1800 and \
+    #    b_attr < 350:
+    #    infer_attr_dict['header'] = True
+    infer_attr_dict['x'] = l_attr
+    infer_attr_dict['y'] = b_attr
+    return infer_attr_dict
 
 
 # pylint: disable=too-few-public-methods
@@ -33,7 +60,7 @@ class AbbyyLine:
         self.span_list = []
         self.pbox_line_ids = []
 
-        self.infer_attr_dict = {}
+        self.infer_attr_dict = add_infer_line_attrs(attr_dict)
 
         # To map from any abby doc to pbox offset.
         # Will be set by synchronizer later
@@ -73,7 +100,7 @@ class AbbyyTextBlock:
 
         # for indexining into page's ab_blocks
         self.page_block_seq = -1
-
+        self.page_num = -1
 
     def __str__(self) -> str:
         st_list = []  # type: List[str]
@@ -170,9 +197,12 @@ class AbbyyTableBlock:
         # this will be set to True if is_invalid_table() is triggered
         # in tableutils
         self.is_invalid_kirke_table = False
+        self.invalid_table_reason = ''
 
         # for indexining into page's ab_blocks
         self.page_block_seq = -1
+        self.detect_source = DetectSource.UNKNOWN
+        self.table_type = TableType.UNKNOWN
 
     def get_num_cols(self) -> int:
         """Return the mode of the number of columns in a table."""
@@ -281,6 +311,9 @@ class AbbyyPage:
         self.num = -1
         self.ab_blocks = ab_blocks
         self.ab_text_blocks = []  # type: List[AbbyyTextBlock]
+        # Note: self.ab_table_blocks might have invalid tables.
+        #       Should check table.is_invalid_kirke_table before
+        #       display them.
         self.ab_table_blocks = []  # type: List[AbbyyTableBlock]
         self.ab_signature_blocks = []  # type: List[AbbyyBlock]
         self.ab_address_blocks = []  # type: List[AbbyyBlock]
@@ -763,3 +796,26 @@ def print_abbyy_page_unsynced_aux(unsync_abbyy_lines: List[AbbyyLine],
         print(file=file)
         count += 1
     return count
+
+
+def blocks_to_start_end_list(block_list: AbbyyBlock) -> List[Tuple[int, int]]:
+    result = []  # type: List[Tuple[int, int]]
+    for block in block_list:
+        start = block.attr_dict['start']
+        end = block.attr_dict['end']
+        result.append((start, end))
+    return result
+
+
+def block_to_rect(block: AbbyyBlock) -> Tuple[Tuple[int, int],
+                                             Tuple[int, int]]:
+    lb = block.attr_dict['@l'], block.attr_dict['@b']
+    tr = block.attr_dict['@r'], block.attr_dict['@t']
+    return lb, tr
+
+def blocks_to_rect_list(block_list: List[AbbyyBlock]) -> List[Tuple[Tuple[int, int],
+                                                                    Tuple[int, int]]]:
+    result = []  # type: List[Tuple[Tuple[int, int], Tuple[int, int]]]
+    for block in block_list:
+        result.append(block_to_rect(block))
+    return result

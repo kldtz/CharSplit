@@ -19,6 +19,7 @@ from kirke.docstruct import linepos
 from kirke.abbyyxml import abbyyutils, tableutils
 from kirke.utils import mathutils
 
+IS_DEBUG_MODE = False
 IS_DISPLAY_ATTRS = False
 # IS_DISPLAY_ATTRS = True
 
@@ -43,18 +44,6 @@ def is_position_attr(attr):
                         '@rightIndent',
                         '@startIndent',
                         '@lineSpacing'])
-
-
-def add_infer_line_attrs(attr_dict: Dict):
-    infer_attr_dict = {}
-    b_attr = attr_dict['@b']
-    l_attr = attr_dict['@l']
-    # if l_attr > 1800 and \
-    #    b_attr < 350:
-    #    infer_attr_dict['header'] = True
-    infer_attr_dict['x'] = l_attr
-    infer_attr_dict['y'] = b_attr
-    return infer_attr_dict
 
 
 def add_infer_par_attrs(attr_dict: Dict):
@@ -165,11 +154,9 @@ def parse_abbyy_line(ajson, resolution: int) -> Optional[AbbyyLine]:
                 text_list = [tmp_val['#text'] for tmp_val in val if tmp_val.get('#text')]
                 # add spaces between words, assume our AligneStrMapper will resolve issues
                 abbyy_line = AbbyyLine(' '.join(text_list), line_attr_dict)
-                abbyy_line.infer_attr_dict = add_infer_line_attrs(line_attr_dict)
             else:
                 if val.get('#text'):
                     abbyy_line = AbbyyLine(val['#text'], line_attr_dict)
-                    abbyy_line.infer_attr_dict = add_infer_line_attrs(line_attr_dict)
                 else:
                     # no '#text' attribute, in doc 367594.pdf
                     continue
@@ -533,16 +520,18 @@ def parse_document(file_name: str,
     ajson_fname = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.pdf.json'))
     with open(ajson_fname, 'wt') as fout:
         pprint.pprint(ajson, stream=fout)
-        print('wrote {}'.format(ajson_fname))
+        if IS_DEBUG_MODE:
+            print('wrote {}'.format(ajson_fname))
 
     abbyy_page_list = docjson_to_abbyy_page_list(ajson)
 
     ab_xml_doc = AbbyyXmlDoc(xml_fname, abbyy_page_list)
 
-    tmp_fname = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.debug_txt'))
+    tmp_fname = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.abbyy.debug_txt'))
     with open(tmp_fname, 'wt') as fout:
         ab_xml_doc.print_debug_text(fout)
-        print('wrote {}'.format(tmp_fname))
+        if IS_DEBUG_MODE:
+            print('wrote {}'.format(tmp_fname))
 
     # adjust the blocks of document according to our interpretation
     # based what we have seen in contracts
@@ -554,7 +543,11 @@ def parse_document(file_name: str,
     #
     # tableutils.find_haligned_blocks(ab_xml_doc)
 
-    tableutils.merge_haligned_block_as_table(ab_xml_doc)
+    tableutils.merge_haligned_blocks_as_table(ab_xml_doc)
+
+    # tableutils.print_page_tables(ab_xml_doc, 3)
+
+    tableutils.merge_field_value_as_table(ab_xml_doc)
 
     abbyyutils.infer_header_footer_doc(ab_xml_doc)
 
@@ -595,10 +588,17 @@ def set_abbyy_page_numbers_tables(ab_doc: AbbyyXmlDoc) -> None:
         for ab_block in abbyy_page.ab_blocks:
             # add extra information to signature and address tables
             # but they do NOT overrides if they are abbyytextblock or abbyytableblock
+            ab_block.page_num = pnum
             if tableutils.is_signature_block(ab_block):
                 abbyy_page.ab_signature_blocks.append(ab_block)
+                if isinstance(ab_block, AbbyyTableBlock):
+                    ab_block.is_invalid_kirke_table = True
+                    ab_block.invalid_table_reason = 'signature'
             elif tableutils.is_address_block(ab_block):
                 abbyy_page.ab_address_blocks.append(ab_block)
+                if isinstance(ab_block, AbbyyTableBlock):
+                    ab_block.is_invalid_kirke_table = True
+                    ab_block.invalid_table_reason = 'address'
 
             if isinstance(ab_block, AbbyyTextBlock):
                 abbyy_page.ab_text_blocks.append(ab_block)

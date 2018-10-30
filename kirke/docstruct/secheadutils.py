@@ -1583,7 +1583,7 @@ def st_sechead_str(xst):
     return ' '.join(words)
 
 
-line_sechead_prefix_pat_only = re.compile(r'^\s*\(?([\d\.]+|[a-zA-Z])\)?\s*$')
+line_sechead_prefix_pat_only = re.compile(r'^\s*\(?([\d\.]+|[a-zA-Z])|([ivxm\d]+)\)?\s*$')
 
 
 def is_line_sechead_prefix_only(line: str):

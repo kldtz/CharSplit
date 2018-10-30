@@ -444,7 +444,6 @@ def main():
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         provs = set(['TABLE'])
-        print("\nprint_table_cand() result:")
         prov_ants_map = annotate_document(args.doc,
                                           work_dir,
                                           model_dir,

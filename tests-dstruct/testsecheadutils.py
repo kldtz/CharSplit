@@ -69,7 +69,6 @@ class TestSecHeadUtils(unittest.TestCase):
                           ('8.1', 'Indemnification by Tenant. '))
 
 
-
     def test_transform_corp_in_text2(self):
         "Test transform_corp_in_text2()"
         self.assertEquals(parse_sechead('Commission Schedule',
@@ -113,6 +112,22 @@ class TestSecHeadUtils(unittest.TestCase):
     def test_is_line_sechead_prefix(self):
         "Test is_line_sechead_prefix"
         self.assertTrue(secheadutils.is_line_sechead_prefix('EXHIBITC'))
+
+    def test_is_line_sechead_prefix_only(self):
+        "Test is_line_sechead_prefix_only"
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(a)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(A)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.2'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.2.3'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.22.3'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.22.3.'))
+
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(i)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(ii)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(iii)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('ii)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('ii.'))
 
 
 if __name__ == "__main__":

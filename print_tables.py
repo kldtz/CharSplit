@@ -2,12 +2,14 @@
 
 import argparse
 import os
+import shutil
 
 from kirke.docstruct import pdftxtparser
 from kirke.abbyyxml import abbyyxmlparser, abbyypbox_syncher, tableutils
 from kirke.abbyyxml.abbyypbox_syncher import (sync_doc_offsets,
                                             print_abbyy_pbox_sync,
                                             print_abbyy_pbox_unsync)
+from kirke.utils import osutils
 
 
 def main():
@@ -26,10 +28,18 @@ def main():
     xml_fname = fname.replace(".txt", ".pdf.xml")
 
     base_fname = os.path.basename(txt_fname)
+    osutils.mkpath(work_dir)
+
+    pdfxml_base_fname = os.path.basename(xml_fname)
+    # copy txt file to work/txt_base_name, to be consistent with html_to_ebantdoc()
+    if pdfxml_base_fname:
+        shutil.copy2(xml_fname, '{}/{}'.format(work_dir, pdfxml_base_fname))
+        # print('copying {} to {}'.format(xml_fname, '{}/{}'.format(work_dir, pdfxml_base_fname)))
 
     abbyy_xml_doc = abbyyxmlparser.parse_document(xml_fname, work_dir)
 
     work_fname = '{}/{}'.format(work_dir, base_fname)
+    tableutils.WORK_DIR = work_dir
 
     # abbyydoc.print_raw_lines()
 
@@ -63,12 +73,10 @@ def main():
         print('wrote {}'.format(txt_meta_fname))
 
 
-    table_html_out_fn = '{}/{}'.format(work_dir, base_fname.replace('.txt', '.abbyy.html'))
-    with open(table_html_out_fn, 'wt') as fout:
-        html_st = tableutils.to_html_tables(abbyy_xml_doc)
-        print(html_st, file=fout)
-    print('wrote {}'.format(table_html_out_fn))
-
+    tableutils.to_html_tables(base_fname,
+                              abbyy_xml_doc,
+                              extension='.abbyy.html',
+                              work_dir=work_dir)
 
     table_list = tableutils.get_abbyy_table_list(abbyy_xml_doc)
     for table_seq, table_block in enumerate(table_list):
