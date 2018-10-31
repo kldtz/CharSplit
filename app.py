@@ -380,7 +380,7 @@ def custom_train(cust_id: str):
         # to ensure that no accidental file name overlap
         logger.info("cust_id = '%s', candidate_types=%r, nbest= %d",
                     cust_id, candidate_types, nbest)
-        if strutils.is_digits(cust_id):
+        if cust_id.isdigit():
             provision = 'cust_{}'.format(cust_id)
         else:
             provision = cust_id
