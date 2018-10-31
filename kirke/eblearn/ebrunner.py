@@ -624,43 +624,19 @@ class EbRunner:
         full_model_fname = '{}/{}'.format(custom_model_dir, base_model_fname)
         logger.info("custom_mode_file: %s", full_model_fname)
 
-        # SENTENCE runs the standard pipeline, if specified candidate type run candidate generation
-        if len(candidate_types) == 1 and candidate_types[0] == 'SENTENCE':
-            eb_classifier = scutclassifier.ShortcutClassifier(provision)
-            # It is know that 'eb_annotator' is ProvisionAnnotator, mypy.
-            # Conflicts with below.
-            # Please note, for 'sentence', we use is_doc_structure=True
-            eb_annotator, log_json = \
-                ebtrainer.train_eval_annotator(provision,
-                                               model_num,
-                                               doc_lang,
-                                               nbest,
-                                               txt_fn_list,
-                                               work_dir,
-                                               custom_model_dir,
-                                               full_model_fname,
-                                               eb_classifier,
-                                               # pylint: disable=line-too-long
-                                               is_bespoke_mode=True)  # type: Tuple[Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator], Dict[str, Any]]
-
-        else:
-            # It is know that 'eb_annotator' is SpanAnnotator, mypy.
-            # Conflicts with above.
-            # There is no use of doc_lang in spanannotator.  It's language
-            # independent for now.
-            # Please note, for 'non-sentence', we use is_doc_structure=False
-            eb_annotator, log_json = \
-                ebtrainer.train_eval_span_annotator(provision,
-                                                    model_num,
-                                                    doc_lang,
-                                                    nbest,
-                                                    candidate_types,
-                                                    work_dir,
-                                                    custom_model_dir,
-                                                    txt_fn_list,
-                                                    model_file_name=full_model_fname,
-                                                    is_doc_structure=False,
-                                                    is_bespoke_mode=True)
+        # Please note, for 'non-sentence', we use is_doc_structure=False
+        eb_annotator, log_json = \
+            ebtrainer.train_eval_span_annotator(provision,
+                                                model_num,
+                                                doc_lang,
+                                                nbest,
+                                                candidate_types,
+                                                work_dir,
+                                                custom_model_dir,
+                                                txt_fn_list,
+                                                model_file_name=full_model_fname,
+                                                is_doc_structure=False,
+                                                is_bespoke_mode=True)
 
         return eb_annotator.get_eval_status(), log_json
 

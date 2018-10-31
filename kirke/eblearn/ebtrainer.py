@@ -225,6 +225,7 @@ def cv_candg_train_at_annotation_level(provision: str,
         all_candidates.extend(x_candidates)
         all_candidate_labels.extend(x_candidate_label_list)
         all_group_ids.extend(x_group_ids)
+        #print(">>>>", x_candidate_label_list)
         if True in x_candidate_label_list:
             num_pos_after_candgen += 1
 
@@ -589,7 +590,7 @@ def train_eval_span_annotator(provision: str,
                               model_num: int,
                               # TODO, why is doc_lang not used?
                               # For now, there is no lang specific spanannotator?
-                              unused_doc_lang: str,
+                              doc_lang: str,
                               nbest: int,
                               candidate_types: List[str],
                               work_dir: str,
@@ -641,6 +642,7 @@ def train_eval_span_annotator(provision: str,
         eb_antdoc_list = \
             span_annotator.doclist_to_antdoc_list(txt_fn_list,
                                                   work_dir,
+                                                  doc_lang=doc_lang,
                                                   is_bespoke_mode=is_bespoke_mode,
                                                   is_doc_structure=is_doc_structure,
                                                   # pylint: disable=line-too-long

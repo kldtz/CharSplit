@@ -443,29 +443,18 @@ def custom_train(cust_id: str):
                     txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
                     fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
                     strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-                    if len(candidate_types) == 1 and candidate_types[0] == 'SENTENCE':
-                        base_model_fname = '{}.{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                                 next_model_num,
-                                                                                 SCUT_CLF_VERSION)
-                        if doc_lang != "en":
-                            base_model_fname = \
-                                '{}.{}_{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                         next_model_num,
-                                                                         doc_lang,
-                                                                         SCUT_CLF_VERSION)
-                    else:
+                    base_model_fname = \
+                        '{}.{}_{}_annotator.v{}.pkl'.format(provision,
+                                                            next_model_num,
+                                                            "-".join(candidate_types),
+                                                            CANDG_CLF_VERSION)
+                    if doc_lang != "en":
                         base_model_fname = \
-                            '{}.{}_{}_annotator.v{}.pkl'.format(provision,
-                                                                next_model_num,
-                                                                "-".join(candidate_types),
-                                                                CANDG_CLF_VERSION)
-                        if doc_lang != "en":
-                            base_model_fname = \
-                                '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
-                                                                       next_model_num,
-                                                                       doc_lang,
-                                                                       "-".join(candidate_types),
-                                                                       CANDG_CLF_VERSION)
+                            '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                   next_model_num,
+                                                                   doc_lang,
+                                                                   "-".join(candidate_types),
+                                                                   CANDG_CLF_VERSION)
 
                     # Intentionally not passing is_doc_structure=True
                     # For spanannotator, currently we use is_doc_structure=False to not missing
