@@ -3,6 +3,7 @@
 import unittest
 # import pprint
 import copy
+import os
 import shutil
 # pylint: disable=unused-import
 from typing import Any, Dict, Set
@@ -14,37 +15,8 @@ from kirke.utils import docversion, docworddiff, ebantdoc4, osutils, txtreader
 from kirke.utils.ebantdoc4 import pdf_to_ebantdoc
 
 
-MODEL_DIR = 'dir-scut-model'
 WORK_DIR = 'dir-work'
-CUSTOM_MODEL_DIR = 'dir-custom-model'
-
-EB_RUNNER = ebrunner.EbRunner(MODEL_DIR,
-                              WORK_DIR,
-                              CUSTOM_MODEL_DIR)
-
-def annotate_doc(file_name: str) -> Dict[str, Any]:
-    doc_lang = 'en'
-    provision_set = set([])  # type: Set[str]
-    is_doc_structure = True
-
-    # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
-    #                      'party', 'warranty', 'termination', 'term']))
-    prov_labels_map, _ = EB_RUNNER.annotate_document(file_name,
-                                                     provision_set=provision_set,
-                                                     work_dir=WORK_DIR,
-                                                     doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure)
-
-    # because special case of 'effectivdate_auto'
-    if prov_labels_map.get('effectivedate'):
-        effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
-        for eff_ant in effectivedate_annotations:
-            eff_ant['label'] = 'effectivedate_auto'
-            prov_labels_map['effectivedate_auto'] = effectivedate_annotations
-            del prov_labels_map['effectivedate']
-
-    # pprint.pprint(prov_labels_map)
-    return prov_labels_map
+osutils.mkpath(WORK_DIR)
 
 
 class TestNLPText(unittest.TestCase):
@@ -55,15 +27,17 @@ class TestNLPText(unittest.TestCase):
         txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
         offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
         offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
-        pdfxml_fname = '{}/{}'.format(WORK_DIR, txt_base_name.replace('.txt',
-                                                                      '.pdf.xml'))
+        pdfxml_base_name = txt_base_name.replace('.txt', '.pdf.xml')        
+        pdfxml_fname = '{}/{}'.format(WORK_DIR, pdfxml_base_name)
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
+        if os.path.exists('dir-test-doc/{}'.format(pdfxml_base_name)):        
+            shutil.copy2('dir-test-doc/{}'.format(pdfxml_base_name), pdfxml_fname)        
 
         ebantdoc = pdf_to_ebantdoc(txt_fname,
                                    offsets_fname,
                                    pdfxml_fname,
-                                   WORK_DIR)
+                                   work_dir=WORK_DIR)
         nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
         nlptxt_file_name = docversion.get_nlp_file_name(doc_id,
                                                         nlptxt_md5=nlptxt_md5,
@@ -79,21 +53,23 @@ class TestNLPText(unittest.TestCase):
         txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
         offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
         offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
-        pdfxml_fname = '{}/{}'.format(WORK_DIR, txt_base_name.replace('.txt',
-                                                                      '.pdf.xml'))
+        pdfxml_base_name = txt_base_name.replace('.txt', '.pdf.xml')        
+        pdfxml_fname = '{}/{}'.format(WORK_DIR, pdfxml_base_name)        
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
-
+        if os.path.exists('dir-test-doc/{}'.format(pdfxml_base_name)):
+            shutil.copy2('dir-test-doc/{}'.format(pdfxml_base_name), pdfxml_fname)
+        
         ebantdoc = pdf_to_ebantdoc(txt_fname,
                                    offsets_fname,
                                    pdfxml_fname,
-                                   WORK_DIR)
+                                   work_dir=WORK_DIR)
         nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
         nlptxt_file_name = docversion.get_nlp_file_name(doc_id,
                                                         nlptxt_md5=nlptxt_md5,
                                                         work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
-                                                                          nlptxt_file_name)
+                                                           nlptxt_file_name)
 
         self.assertEqual(len(same_list), 5963)
         self.assertEqual(len(diff_list), 0)
@@ -134,8 +110,6 @@ class TestNLPText(unittest.TestCase):
         txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
         offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
         offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
-        pdfxml_fname = '{}/{}'.format(WORK_DIR, txt_base_name.replace('.txt',
-                                                                      '.pdf.xml'))
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
 

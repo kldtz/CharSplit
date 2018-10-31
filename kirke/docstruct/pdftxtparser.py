@@ -166,6 +166,16 @@ def init_pageinfo_list(doc_text: str,
         xEnd = str_offset['xEnd']
         # pylint: disable=invalid-name
         yStart = str_offset['yStart']
+        if str_offset.get('yEnd') is not None:
+            yEnd = str_offset['yEnd']
+            height = str_offset['height']
+            font_size_in_pt = str_offset['fontSizeInPt']
+        else:
+            # the smaller than the smallest we have found so far
+            yEnd = yStart + 4.0
+            height = 4.0
+            font_size_in_pt = 6
+
         y_diff = int(round(yStart - prev_y))
 
         if y_diff > 0:
@@ -179,9 +189,9 @@ def init_pageinfo_list(doc_text: str,
             pass
         else:
             lxid_strinfos_map[line_num].append(StrInfo(start, end,
-                                                       xStart, xEnd, yStart))
-            # print('==222== strinfo(start={}, end={}, xs={}, xe={}, ys={}) [{}]'.format(
-            #     start, end, xStart, xEnd, yStart, str_text))
+                                                       xStart, xEnd,
+                                                       yStart, yEnd,
+                                                       height, font_size_in_pt))
 
     # for y_diff_count, yy in enumerate(all_diffs):
     #     print('y_diff_count= {}, ydiff = {}'.format(y_diff_count, yy))
@@ -249,16 +259,19 @@ def init_pageinfo_list(doc_text: str,
                 # print('block {}, y_diff = {}, mode_diff + 1 = {}'.format(pblock_id,
                 #                                                          y_diff, mode_diff + 1))
                 # print('prev_line: [{}]'.format(doc_text[prev_line.start:prev_line.end][:40]))
-                # print('line_info: [{}]'.format(doc_text[lineinfo.start:lineinfo.end][:40]))
 
-                if y_diff < 0 or y_diff > mode_diff + 1:
+                height_adj = lineinfo.height * 0.8
+
+                # adjust the mode_diff according to font size
+                adj_max_mode_diff = mode_diff + height_adj
+
+                if y_diff < 0 or y_diff > adj_max_mode_diff:
                     cur_linechunk = [lineinfo]
                     block_linechunk_list.append(cur_linechunk)
                 else:
                     cur_linechunk.append(lineinfo)
                 prev_linenum = line_num
                 prev_ystart = ystart
-                # prev_line = lineinfo
 
             for linechunk in block_linechunk_list:
                 block_start = linechunk[0].start
@@ -271,7 +284,7 @@ def init_pageinfo_list(doc_text: str,
 
                 # print("is_multi_lines = {}, paraline: [{}]\n".format(is_multi_lines,
                 #                                                      para_line))
-                # print("\nblock_chunk_text: [{}] is_multi={}".format(paraline_chunk_text,
+                #print("\nblock_chunk_text: [{}] is_multi={}".format(paraline_chunk_text,
                 #                                                     xxis_multi_lines))
                 if not xxis_multi_lines:
                     paraline_chunk_text = paraline_chunk_text.replace('\n', ' ')
@@ -462,48 +475,25 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
                                                                             pdf_text_doc=pdf_text_doc)
                 to_use_page_footer_linex_list_queue = []
 
-            is_multi_line = pdfdocutils.is_block_multi_line(block_linex_list)
+            first_linex = block_linex_list[0]
+            pline_attrs = first_linex.to_attrvals()
 
-            if is_multi_line:
-                # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
-                # It should similar to the code for not is_multi-line
-                for linex in block_linex_list:
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                    pline_attrs = linex.to_attrvals()  # type: PLineAttrs
+            # don't check for block.line_list length here
+            # There are lines with sechead followed by sentences
+            if first_linex.line_text and first_linex.attrs.sechead:
+                sechead_context = first_linex.attrs.sechead
+            elif sechead_context:
+                pline_attrs.sechead = sechead_context
 
-                    if linex.line_text and linex.attrs.sechead:
-                        sechead_context = linex.attrs.sechead
-                    elif sechead_context:
-                        pline_attrs.sechead = sechead_context
+            span_se_list = []
+            for linex in block_linex_list:
+                out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                span_se_list.append((linepos.LnPos(linex.lineinfo.start, linex.lineinfo.end),
+                                     linepos.LnPos(offset, offset + len(out_line))))
+                offset += len(out_line) + 1  # to add eoln
+                prev_linex = linex
 
-                    span_se_list = [(linepos.LnPos(linex.lineinfo.start,
-                                                   linex.lineinfo.end),
-                                     linepos.LnPos(offset, offset + len(out_line)))]
-                    offsets_line_list.append((span_se_list, pline_attrs))
-                    offset += len(out_line) + 1  # to add eoln
-                    prev_linex = linex
-            else:
-                block_line_st_list = []  # type: List[str]
-                first_linex = block_linex_list[0]
-                pline_attrs = first_linex.to_attrvals()
-
-                # don't check for block.line_list length here
-                # There are lines with sechead followed by sentences
-                if first_linex.line_text and first_linex.attrs.sechead:
-                    sechead_context = first_linex.attrs.sechead
-                elif sechead_context:
-                    pline_attrs.sechead = sechead_context
-
-                span_se_list = []
-                for linex in block_linex_list:
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
-                    block_line_st_list.append(out_line)
-                    span_se_list.append((linepos.LnPos(linex.lineinfo.start, linex.lineinfo.end),
-                                         linepos.LnPos(offset, offset + len(out_line))))
-                    offset += len(out_line) + 1  # to add eoln
-                    prev_linex = linex
-
-                offsets_line_list.append((span_se_list, pline_attrs))
+            offsets_line_list.append((span_se_list, pline_attrs))
 
             # merge the two broken paragraphs
             # we only do this if this is the first paragraph in the page
@@ -513,7 +503,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
             # from this page.  Not sure if merging will benefit if this is a mutlie-line
             # paragraph.
             if seq == 0 and \
-               not is_multi_line and \
                apage.is_continued_para_from_prev_page:
                 continued_span_se_list, unused_continued_para_attrs = offsets_line_list.pop()
                 prev_span_se_list, prev_para_attrs = offsets_line_list.pop()
@@ -662,7 +651,6 @@ def parse_document(file_name: str,
 
     if IS_DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.docstruct.tsv')
-
 
     # nlp_paras_with_attrs is based on information from pdfbox.
     # Current pdfbox outputs lines with only spaces, so it sometime put the text
@@ -838,6 +826,8 @@ def add_doc_structure_to_page(apage: PageInfo3,
     num_toc_line = 0
     has_toc_heading = False
 
+    apage.is_multi_column = is_page_multi_column(apage)
+
     for line_num, line in enumerate(apage.line_list, 1):
         is_skip = False
         if docstructutils.is_line_toc_heading(line.line_text):
@@ -872,7 +862,8 @@ def add_doc_structure_to_page(apage: PageInfo3,
                                                                                     'pagenum',
                                                                                     page_num))
             is_skip = True
-        elif docstructutils.is_line_header(line.line_text,
+        elif not apage.is_multi_column and \
+             docstructutils.is_line_header(line.line_text,
                                            line.lineinfo.yStart,
                                            line_num,
                                            line.is_english,
@@ -1123,6 +1114,56 @@ def add_doc_structure_to_page(apage: PageInfo3,
                     print("===323=6 too-small== line is toc, %d [%s]" %
                           (line.page_num, line.line_text))
                 linex.attrs.toc = True
+
+
+def is_page_multi_column(apage: PageInfo3) -> bool:
+    linex_list = apage.line_list
+    num_lines = len(linex_list)
+    x_width_sum = 0
+
+    num_split_col_line, num_one_col_line = 0, 0
+    num_other_col_line = 0
+    num_english_line = 0
+    for linex in linex_list:
+        x_width = linex.lineinfo.xEnd - linex.lineinfo.xStart
+        x_width_sum += x_width
+        # words = linex.line_text.split()
+        # num_word = len(words)
+
+        if linex.is_english:
+            num_english_line += 1
+
+        if x_width > 200 and x_width <= 300:
+            num_split_col_line += 1
+        elif x_width > 300:
+            num_one_col_line += 1
+        else:
+            num_other_col_line += 1
+
+        # print('line: [{}]'.format(linex.line_text))
+        # print('  x_width = {}, num_word = {}, is_eng = {}'.format(x_width,
+        #                                                           num_word,
+        #                                                           linex.is_english))
+
+    # print('num_split_col_line = {}, num_one_col_line = {}, '
+    #       'num_other_col_line = {}, num_english_line = {}'.format(num_split_col_line,
+    #                                                               num_one_col_line,
+    #                                                               num_other_col_line,
+    #                                                               num_english_line))
+    if num_lines == 0:
+        return False
+    if num_split_col_line == 0:
+        return False
+
+    if num_split_col_line > 50 and \
+       num_one_col_line <= 10:
+        return True
+
+    if num_one_col_line / num_split_col_line < 0.05 and \
+       num_english_line / num_lines > 0.6:
+        return True
+
+    return False
 
 
 def main():

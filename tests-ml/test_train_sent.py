@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
 import configparser
-import copy
-import pprint
 import unittest
-from typing import Any, Dict, List, Set, Tuple
 
 from kirke.eblearn import ebtrainer, scutclassifier
 
@@ -21,6 +18,7 @@ CUSTOM_MODEL_DIR = 'dir-custom-model'
 
 class TestTrainSent(unittest.TestCase):
 
+    # pylint: disable=too-many-locals
     def test_train_xscut_ea_agreement_termination(self):
 
         provision = 'ea_agreement_termination'
@@ -31,7 +29,6 @@ class TestTrainSent(unittest.TestCase):
                                                                 provision,
                                                                 SCUT_CLF_VERSION)
         is_cache_enabled = True
-        is_doc_structure = True
 
         _, ant_result, _ = \
             ebtrainer.train_eval_annotator_with_trte(provision,
@@ -39,8 +36,8 @@ class TestTrainSent(unittest.TestCase):
                                                      model_dir,
                                                      model_file_name,
                                                      eb_classifier,
-                                                     is_cache_enabled=is_cache_enabled,
-                                                     is_doc_structure=is_doc_structure)
+                                                     is_cache_enabled=is_cache_enabled)
+
         print("ant_result:")
         print(ant_result)
 

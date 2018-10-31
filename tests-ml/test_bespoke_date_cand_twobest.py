@@ -30,7 +30,7 @@ class TestBespokeDate(unittest.TestCase):
                                            nbest=2)
         ajson = json.loads(result_text)
         ant_result = ajson['en']
-        
+
         print("ant_result:")
         print(ant_result)
 

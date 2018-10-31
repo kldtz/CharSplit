@@ -457,8 +457,10 @@ def validate_dates(date_list: List[Tuple[int, int, str, str]]) \
         date_dict = DATE_NORMALIZER_.parse_date(tmp_text)
         if date_dict:
             result.append((start, end, text, date_type, date_dict['norm']['date']))
-        # else:
-        #    logger.info("failed to parse_date(%s)", text)
+        else:
+            # logger.info("failed to parse_date(%s)", text)
+            pass
+
     return result
 
 

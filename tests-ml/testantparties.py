@@ -4,7 +4,7 @@ import unittest
 # import pprint
 import copy
 
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 from kirke.eblearn import ebrunner
 
@@ -25,15 +25,13 @@ EB_RUNNER = ebrunner.EbRunner(MODEL_DIR,
 def annotate_doc(file_name: str) -> Dict[str, Any]:
     doc_lang = 'en'
     provision_set = set([])  # type: Set[str]
-    is_doc_structure = True
 
     # provision_set = set(['choiceoflaw','change_control', 'indemnify', 'jurisdiction',
     #                      'party', 'warranty', 'termination', 'term']))
     prov_labels_map, _ = EB_RUNNER.annotate_document(file_name,
                                                      provision_set=provision_set,
                                                      work_dir=WORK_DIR,
-                                                     doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure)
+                                                     doc_lang=doc_lang)
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):
@@ -332,10 +330,9 @@ class TestParties(unittest.TestCase):
         party_list = get_party_list(prov_labels_map)
         self.assertEqual(party_list,
                          [# (213, 216, 'Box'),
-                          (224, 238, 'Documents Inc.'),
-                          (266, 275, '”Partner”'),
-                          (367, 382, 'Box and Partner'),
-                          (419, 459, 'a “Party” and together as the “Parties”.')])
+                             (224, 238, 'Documents Inc.'),
+                             (266, 275, '”Partner”'),
+                             (367, 382, 'Box and Partner')])
 
     def test_party_101(self):
         # pylint: disable=invalid-name
@@ -653,9 +650,9 @@ class TestParties(unittest.TestCase):
                          [(159, 183, 'Fidelity Funding Company'),
                           (207, 217, '“Landlord”'),
                           (225, 244, 'Extend Health, Inc.'),
-                          (270, 278, '“Tenant”'),
+                          (270, 278, '“Tenant”')])
                           # missing "Landlord and Tenant"
-                          (341, 386, 'the “Parties” and individually, as a “Party.”')])
+                          # (341, 386, 'the “Parties” and individually, as a “Party.”')])
 
     def test_party_130(self):
         # pylint: disable=invalid-name

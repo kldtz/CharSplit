@@ -150,9 +150,12 @@ def is_line_page_num(line: str,
                      line_break: float = 6.0,
                      yStart: float = 700.0,
                      unused_is_centered: bool = False):
+    is_debug = False
     if line_break > 5.0 or yStart >= 675.0:  # seen yStart==687.6 as page number
         pass
     elif line_num_in_page > 2 and line_num_in_page <= num_line_in_page - 2:
+        if is_debug:
+            print("pagenumber x1.0, false: {}".format(line))
         return False
 
     # no sechead in page number, if it is obvious sechead
@@ -161,17 +164,20 @@ def is_line_page_num(line: str,
 
     # 'page' in toc header
     if line.lower() == 'page' or PAGENUM_SIMPLE1_PAT.match(line):
-        # print("pagenumber x1: {}".format(line))
+        if is_debug:
+            print("pagenumber x1, true: {}".format(line))
         return True
     # if is_center_lineinfo(lineinfo):
     # print("LINE is CENTERED")
     if PAGENUM_PAT.match(line):
-        # print("pagenumber x2: {}".format(line))
+        if is_debug:
+            print("pagenumber x2, true: {}".format(line))
         return True
 
     # Exhibit K -Page 2
     if PAGENUM_PAT2.match(line):
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x3, true: {}".format(line))
         return True
 
     mat = PAGENUM_PAT3.match(line)
@@ -181,22 +187,31 @@ def is_line_page_num(line: str,
         for word in words:
             if strutils.is_all_digits(word):
                 if int(word) > 20:
+                    if is_debug:
+                        print("pagenumber x4, false: {}".format(line))
                     return False
                 num_digit += 1
         if num_digit > 2:
+            if is_debug:
+                print("pagenumber x5, false: {}".format(line))
             return False
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x6, true: {}".format(line))
         return True
 
     if PAGENUM_PAT4.match(line):
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x7, true: {}".format(line))
         return True
 
     # page 4 of 5
     if PAGENUM_PAT5.match(line):
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x8: {}".format(line))
         return True
 
+    if is_debug:
+        print("pagenumber default, false: {}".format(line))
     return False
 
 
@@ -304,7 +319,7 @@ def is_line_footer(line: str,
     return score >= 1, score
 
 
-HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', re.I)
+HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', flags=re.I)
 
 # no re.I
 # TODO, jshaw, these should really be sechead, not headers.
@@ -312,6 +327,7 @@ HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', re.I)
 HEADER_PARTIAL_PAT = re.compile(r'(State and Local Sales and Use Tax|'
                                 r'Exempt Use Certificate|State Department of)')
 
+# pylint: disable=too-many-statements
 def is_line_header(line: str,
                    yStart: float,
                    line_num: int,
@@ -322,8 +338,14 @@ def is_line_header(line: str,
                    num_line_in_page: int,
                    header_set=None):
 
+    is_debug = False
+    # if line == 'Execution Copy':
+    #     is_debug = True
+
     # for domain specific headers
     if header_set and line.lower().strip() in header_set:
+        if is_debug:
+            print("is_line_header({}), True, domain specific".format(line))
         return True
 
     # this is a normal sentences
@@ -331,30 +353,52 @@ def is_line_header(line: str,
         if is_line_title(line):
             pass
         elif 'LF' in align:
+            if is_debug:
+                print("is_line_header({}), False, is_en, is_lf_align".format(line))
             return False
 
     score = 0.0
     if HEADER_PAT.match(line) and yStart < 140:
+        if is_debug:
+            print("header_path_match 1, + 0.9")
         score += 0.9
     elif ((HEADER_PAT.match(line) or
            HEADER_PARTIAL_PAT.search(line)) and
           yStart < 140):
+        if is_debug:
+            print("header_path_match 2, + 1.0")
         score += 1.0
     elif yStart < 80.0:
+        if is_debug:
+            print("header_path_match 3, yStart < 80.0 + 0.7")
         score += 0.7
 
+    num_words = len(line.split())
+    if num_words >= 15:
+        if is_debug:
+            print("header_path_match 4.1, too many words , - 10.0")
+        score -= 0.6
+
     if not is_english or len(line) < 30:
+        if is_debug:
+            print("header_path_match 4, no is_eng, + 0.2")
         score += 0.2
 
     # don't use is_line_address(), too costly
     if secheadutils.is_line_sechead_prefix(line) or \
        is_line_address_prefix(line) or \
        is_line_signature_prefix(line):
+        if is_debug:
+            print("header_path_match 5, sechead , - 10.0")
         score -= 10.0
 
     if 'RT' in align or 'CN' in align:
+        if is_debug:
+            print("header_path_match 6, RT CN , + 0.3")
         score += 0.3
     elif is_centered:   # sometimes, 'exhibit a' can be mistaken for header
+        if is_debug:
+            print("header_path_match 6, is_centered , + 0.3")
         # a negative feature
         score -= 0.3
 
@@ -371,7 +415,8 @@ def is_line_header(line: str,
     elif line_num < 4:
         score += 0.2
 
-    # print("score = {}, is_line_header({})".format(score, line))
+    if is_debug:
+        print("score = {}, is_line_header({})".format(score, line))
     return score >= 1.0
 
 

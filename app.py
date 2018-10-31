@@ -51,6 +51,10 @@ setup_logging()
 # logging.getLogger(__name__).addHandler(logging.NullHandler())
 logger = logging.getLogger(__name__)
 
+IS_DEVELOPMENT_MODE = False
+if os.environ.get('KIRKE_DEVELOPMENT'):
+    IS_DEVELOPMENT_MODE = True
+    logger.info('KIRKE_DEVELOPMENT = True')
 
 # pylint: disable=invalid-name
 app = Flask(__name__)
@@ -113,6 +117,7 @@ if warm_up_default_provisions:
                                     work_dir=WORK_DIR,
                                     doc_lang='en')
     logger.info("annotated document '%s'", warm_up_txt_file_name)
+    logger.info("Kirke warm-up is completed")
     del warm_up_prov_labels_map
     del ignore_ebantdoc
 
@@ -144,6 +149,18 @@ def annotate_uploaded_document():
             work_dir = WORK_DIR
 
         fn_list = request.files.getlist('file')
+
+        if IS_DEVELOPMENT_MODE:
+            txt_file_name = ''
+            for fstorage in fn_list:
+                if fstorage.filename.endswith('.txt'):
+                    txt_file_name = fstorage.filename
+                    break
+            # wipe the cache directory with that doc_id
+            if txt_file_name:
+                docid = osutils.get_docid(txt_file_name)
+                osutils.remove_files_with_docid(work_dir, docid)
+
         for fstorage in fn_list:
             knorm_base_filename = osutils.get_knorm_base_file_name(fstorage.filename)
             fn = '{}/{}'.format(work_dir, knorm_base_filename)
@@ -339,6 +356,7 @@ def custom_train_import(cust_id: str):
 def custom_train(cust_id: str):
     # dict of lang, with list of file in that lang
     full_txt_fnames = defaultdict(list)  # type: DefaultDict[str, List[str]]
+    # pylint: disable=too-many-nested-blocks
     try:
         request_work_dir = request.form.get('workdir')
         if request_work_dir:
@@ -412,93 +430,131 @@ def custom_train(cust_id: str):
 
         #logger.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
         all_stats = {}
+        has_one_lang_success = False
+        max_ant_count = 0
+        max_ant_count_lang = 'en'
         for doc_lang, names_per_lang in full_txt_fnames.items():
             if not doc_lang:  # if a document has no text, its langid can be None
                 continue
             ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
             logger.info('Number of annotations for %s: %d', doc_lang, ant_count)
-            if ant_count >= 6:
-                txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
-                fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
-                strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-                if len(candidate_types) == 1 and candidate_types[0] == 'SENTENCE':
-                    base_model_fname = '{}.{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                             next_model_num,
-                                                                             SCUT_CLF_VERSION)
-                    if doc_lang != "en":
+
+            # Because we don't want to fail on all language whenever one of them has
+            # an insufficient example issue despite ant_count >= 6, we catch all such
+            # exceptions.  As long as one of the langauges succeeds, we return valid results.
+            try:
+                if ant_count >= 6:
+                    txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
+                    fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
+                    strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
+                    if len(candidate_types) == 1 and candidate_types[0] == 'SENTENCE':
+                        base_model_fname = '{}.{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                                 next_model_num,
+                                                                                 SCUT_CLF_VERSION)
+                        if doc_lang != "en":
+                            base_model_fname = \
+                                '{}.{}_{}_scutclassifier.v{}.pkl'.format(provision,
+                                                                         next_model_num,
+                                                                         doc_lang,
+                                                                         SCUT_CLF_VERSION)
+                    else:
                         base_model_fname = \
-                            '{}.{}_{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                     next_model_num,
-                                                                     doc_lang,
-                                                                     SCUT_CLF_VERSION)
+                            '{}.{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                next_model_num,
+                                                                "-".join(candidate_types),
+                                                                CANDG_CLF_VERSION)
+                        if doc_lang != "en":
+                            base_model_fname = \
+                                '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
+                                                                       next_model_num,
+                                                                       doc_lang,
+                                                                       "-".join(candidate_types),
+                                                                       CANDG_CLF_VERSION)
+
+                    # Intentionally not passing is_doc_structure=True
+                    # For spanannotator, currently we use is_doc_structure=False to not missing
+                    # any lines in the original text.
+                    # For sentence-candidate, is_doc_structure=True
+                    start_time = time.time()
+                    # pylint: disable=unused-variable
+                    eval_status, log_json = \
+                        eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
+                                                                      provision,
+                                                                      CUSTOM_MODEL_DIR,
+                                                                      base_model_fname,
+                                                                      candidate_types,
+                                                                      nbest,
+                                                                      model_num=next_model_num,
+                                                                      work_dir=work_dir,
+                                                                      doc_lang=doc_lang)
+                    end_time = time.time()
+                    logging.info("custom_train(%s, %r), took %.2f sec",
+                                 provision, candidate_types, (end_time - start_time))
+
+                    # copy the result into the expected format for client
+                    ant_status = eval_status['ant_status']
+                    cf = ant_status['confusion_matrix']
+                    status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
+                              'fscore': ant_status['f1'],
+                              'precision': ant_status['prec'],
+                              'recall': ant_status['recall'],
+                              'provision': provision,
+                              'model_number': next_model_num}
+
+                    logger.info("status: %r", status)
+
+                    # return some json accuracy info
+                    # TODO add eval_log back in when PR 408 is merged and the front end is ready
+                    # to accept it
+                    # status_and_antana = {'status': stats,
+                    #                      'eval_log': log_json}
+                    # all_stats[doc_lang] = status_and_antana
+
+                    all_stats[doc_lang] = status
+                    has_one_lang_success = True
                 else:
-                    base_model_fname = \
-                        '{}.{}_{}_annotator.v{}.pkl'.format(provision,
-                                                            next_model_num,
-                                                            "-".join(candidate_types),
-                                                            CANDG_CLF_VERSION)
-                    if doc_lang != "en":
-                        base_model_fname = \
-                            '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
-                                                                   next_model_num,
-                                                                   doc_lang,
-                                                                   "-".join(candidate_types),
-                                                                   CANDG_CLF_VERSION)
+                    # TODO, remove disabling log output until frontend is ready
+                    # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
+                    #                                 'fscore': -1.0,
+                    #                                 'precision': -1.0,
+                    #                                 'recall': -1.0}
+                    #                       'eval_log': {}}
+                    all_stats[doc_lang] = {'confusion_matrix': [[0, 0], [ant_count, 0]],
+                                           'fscore': -1.0,
+                                           'precision': -1.0,
+                                           'provision': provision,
+                                           'model_number': -1,
+                                           'recall': -1.0}
+                    if ant_count > max_ant_count:
+                        max_ant_count = ant_count
+                        max_ant_count_lang = doc_lang
 
-                # Intentionally not passing is_doc_structure=True
-                # For spanannotator, currently we use is_doc_structure=False to not missing
-                # any lines in the original text.
-                # For sentence-candidate, is_doc_structure=True
-                start_time = time.time()
-                # pylint: disable=unused-variable
-                eval_status, log_json = \
-                    eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
-                                                                  provision,
-                                                                  CUSTOM_MODEL_DIR,
-                                                                  base_model_fname,
-                                                                  candidate_types,
-                                                                  nbest,
-                                                                  model_num=next_model_num,
-                                                                  work_dir=work_dir,
-                                                                  doc_lang=doc_lang)
-                end_time = time.time()
-                logging.info("custom_train(%s, %r), took %.2f sec",
-                             provision, candidate_types, (end_time - start_time))
-
-                # copy the result into the expected format for client
-                ant_status = eval_status['ant_status']
-                cf = ant_status['confusion_matrix']
-                status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
-                          'fscore': ant_status['f1'],
-                          'precision': ant_status['prec'],
-                          'recall': ant_status['recall'],
-                          'provision': provision,
-                          'model_number': next_model_num}
-
-                logger.info("status: %r", status)
-
-                # return some json accuracy info
-                # TODO add eval_log back in when PR 408 is merged and the front end is ready
-                # to accept it
-                # status_and_antana = {'status': stats,
-                #                      'eval_log': log_json}
-                # all_stats[doc_lang] = status_and_antana
-
-                all_stats[doc_lang] = status
-            else:
+            except Exception as e:  # pylint: disable=broad-except
                 # TODO, remove disabling log output until frontend is ready
                 # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
                 #                                 'fscore': -1.0,
                 #                                 'precision': -1.0,
                 #                                 'recall': -1.0}
                 #                       'eval_log': {}}
-                all_stats[doc_lang] = {'confusion_matrix': [[]],
+                all_stats[doc_lang] = {'confusion_matrix': [[0, 0], [ant_count, 0]],
                                        'fscore': -1.0,
                                        'precision': -1.0,
                                        'provision': provision,
                                        'model_number': -1,
                                        'recall': -1.0}
+                if ant_count > max_ant_count:
+                    max_ant_count = ant_count
+                    max_ant_count_lang = doc_lang
+
+        if not has_one_lang_success:
+            # pylint: disable=line-too-long
+            exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found for '{}'".format(max_ant_count,
+                                                                                                                          max_ant_count_lang))
+            exc.user_message = "INSUFFICIENT_EXAMPLES"  # type: ignore
+            raise exc
+
         return jsonify(all_stats)
+
     except Exception as e:  # pylint: disable=broad-except
         error = traceback.format_exc()
         logging.warning('error encountered in custom_train(%s)', cust_id)

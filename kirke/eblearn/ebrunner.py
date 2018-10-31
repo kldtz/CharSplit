@@ -395,7 +395,6 @@ class EbRunner:
                           file_name: str,
                           provision_set: Optional[Set[str]] = None,
                           work_dir: Optional[str] = None,
-                          is_doc_structure: bool = True,
                           doc_lang: str = 'en') \
                           -> Tuple[Dict[str, List],
                                    ebantdoc4.EbAnnotatedDoc4]:
@@ -426,9 +425,9 @@ class EbRunner:
         # print("provision_set: {}".format(provision_set))
         self.update_custom_models(lang_provision_set)
 
+
         eb_antdoc = ebantdoc4.text_to_ebantdoc(file_name,
                                                work_dir=work_dir,
-                                               is_doc_structure=is_doc_structure,
                                                doc_lang=doc_lang)
 
         # if the file contains too few words, don't bother
@@ -648,7 +647,6 @@ class EbRunner:
                                                custom_model_dir,
                                                full_model_fname,
                                                eb_classifier,
-                                               is_doc_structure=True,
                                                # pylint: disable=line-too-long
                                                is_bespoke_mode=True)  # type: Tuple[Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator], Dict[str, Any]]
 

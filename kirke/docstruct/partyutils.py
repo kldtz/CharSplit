@@ -707,6 +707,14 @@ def is_all_english_title_case(line: str) -> bool:
             return False
     return True
 
+def is_invalid_party_name(line: str) -> bool:
+    """Return True if a party name is invalid"""
+    if re.search(r'\b(agreement|amendment|contract|lease|note)\b',
+                 line,
+                 flags=re.I):
+        return True
+    return False
+
 
 
 if __name__ == '__main__':
