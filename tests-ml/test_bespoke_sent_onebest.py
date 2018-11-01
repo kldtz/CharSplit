@@ -71,7 +71,7 @@ class TestBespokeSentOneBest(unittest.TestCase):
         # 0.71
         precision = round(ant_result['precision'], 2)
         self.assertGreaterEqual(precision, 0.65)
-        self.assertLessEqual(precision, 0.77)
+        self.assertLessEqual(precision, 0.78)
 
         recall = round(ant_result['recall'], 2)
         # 0.74
