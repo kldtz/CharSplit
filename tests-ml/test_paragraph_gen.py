@@ -28,6 +28,7 @@ def get_para_md5(ebantdoc):
     para_md5 = osutils.get_text_md5(para_text)
     return para_md5
 
+
 class TestParagraphGen(unittest.TestCase):
 
     # ---------- PDF DOCS ----------
@@ -45,7 +46,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
     def test_demo_doc_8286(self):
         txt_base_name = '8286.txt'
@@ -61,7 +62,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
     def test_demo_doc_8287(self):
@@ -69,7 +70,7 @@ class TestParagraphGen(unittest.TestCase):
         txt_fname = 'demo-txt/{}'.format(txt_base_name)
         ebantdoc = get_antdoc(txt_fname)
         para_md5 = get_para_md5(ebantdoc)
-        self.assertEqual(para_md5, 'f2cefdd953c72e4bf711b7cbacb7fcfc')
+        self.assertEqual(para_md5, '6e0e6e26970b6aad06ec280e7dbdbeaa')
 
         config = annotatorconfig.get_ml_annotator_config(['PARAGRAPH'])
         para_gen = config['doc_to_candidates'][0]
@@ -78,7 +79,11 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+
+        with open('8287.para.out', 'wt') as fout:
+            xst = json.dumps(cands)
+            fout.write(xst)
+        self.assertEqual(cands, serial_para_cands)
 
     # ---------- TXT DOCS ----------
     def test_demo_doc_8288(self):
@@ -97,8 +102,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
-
+        self.assertEqual(cands, serial_para_cands)
 
     def test_demo_doc_8289(self):
         txt_base_name = '8289.txt'
@@ -116,8 +120,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
-
+        self.assertEqual(cands, serial_para_cands)
 
     def test_demo_doc_8290(self):
         txt_base_name = '8290.txt'
@@ -135,7 +138,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
     def test_para_docs_1953(self):
@@ -152,7 +155,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
     def test_para_docs_3388(self):
@@ -169,7 +172,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
     def test_para_docs_1960(self):
@@ -186,7 +189,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
     def test_para_docs_1964(self):
@@ -194,7 +197,7 @@ class TestParagraphGen(unittest.TestCase):
         txt_fname = 'paragraph-tests/{}'.format(txt_base_name)
         ebantdoc = get_antdoc(txt_fname)
         para_md5 = get_para_md5(ebantdoc)
-        self.assertEqual(para_md5, 'fba6876bac892381699f871ddf3161c0')
+        self.assertEqual(para_md5, '51ee09188609529622d41b96d7db757f')
 
         config = annotatorconfig.get_ml_annotator_config(['PARAGRAPH'])
         para_gen = config['doc_to_candidates'][0]
@@ -203,4 +206,5 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+
+        self.assertEqual(cands, serial_para_cands)
