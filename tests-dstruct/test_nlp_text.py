@@ -125,16 +125,22 @@ class TestNLPText(unittest.TestCase):
         gold_list = [False, False, False, False, False, False, False,
                      True, False, False, False, True, False, False, False,
                      True, False, True, False, True, False, False, False,
-                     False, False, False, False, True, False, False, True,
+                     False, False, True, False, True, False, False, True,
                      False, True, False, False, True, True, False, False,
                      True, True, True, False, True, True, False, False,
-                     True, False, False, False, True, False, True, False,
+                     True, False, False, False, True, True, True, False,
                      True, False, True, False, True, True, False, False, True,
                      False, False, False, False, True, False, False, True,
+                     True, False, False, False, False, False, False, True,
                      True, False, False, False, False, False, False, False,
-                     False, False, False, False, False, False, False, False,
                      False, False, False, False, False, False, True, False,
                      True, False, False]
+
+        for pnum, (is_continued, gval) in enumerate(zip(is_continued_list, gold_list), 1):
+            if is_continued != gval:
+                print("page {}, is_continued = {}, gold = {}".format(pnum,
+                                                                     is_continued,
+                                                                     gval))
 
         self.assertEqual(is_continued_list, gold_list)
 

@@ -82,11 +82,17 @@ def mark_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
 
         last_linex = prev_last_para[-1]
         cur_first_linex = apage_first_para[0]
+
+        # print("\npage {}, checking is_continue:".format(apage.page_num))
+        # print('last_line: {}'.format(last_linex.line_text))
+        # print('cur_first_line: {}'.format(cur_first_linex.line_text))
+
         if not last_linex.attrs.not_en and \
            (last_linex.line_text[-1].islower() or
             last_linex.line_text[-1] != '.'):
 
             if cur_first_linex.line_text[0].islower() and \
+               not cur_first_linex.attrs.center and \
                not secheadutils.is_line_sechead_prefix(cur_first_linex.line_text):
                 apage.is_continued_para_from_prev_page = True
                 prev_page.is_continued_para_to_next_page = True
@@ -434,7 +440,6 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
     linex = None  # type: Optional[LineWithAttrs]
     # pylint: disable=too-many-nested-blocks
     for apage in pdf_text_doc.page_list:
-
         # TODO, 09/20, xxx yyy
         # move this to         add_doc_structure_to_page(page, pdftxt_doc)
         # instead of here.  make this a part of the 'page'
@@ -948,7 +953,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
         if is_footer:
             line.attrs.footer = True
             is_skip = True
-            print("found footer in page {}: [{}]".format(page_num, line))
+            # print("found footer in page {}: [{}]".format(page_num, line))
             pdf_txt_doc.special_blocks_map['footer'].append(pdfoffsets \
                                                             .line_to_block_offsets(line,
                                                                                    'footer',
