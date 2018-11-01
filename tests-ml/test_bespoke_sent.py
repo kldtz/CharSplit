@@ -42,8 +42,8 @@ class TestBespokeSent(unittest.TestCase):
 
         self.assertEqual(tn, 0)
         self.assertAlmostEqual(fp, 30, delta=6)
-        self.assertAlmostEqual(fn, 28, delta=4)
-        self.assertAlmostEqual(tp, 65, delta=4)
+        self.assertAlmostEqual(fn, 28, delta=5)
+        self.assertAlmostEqual(tp, 65, delta=5)
 
         # round(ant_result['f1'], 2),
         # 0.69
@@ -59,8 +59,8 @@ class TestBespokeSent(unittest.TestCase):
 
         recall = round(ant_result['recall'], 2)
         # 0.70
-        self.assertGreaterEqual(recall, 0.66)
-        self.assertLessEqual(recall, 0.74)
+        self.assertGreaterEqual(recall, 0.65)
+        self.assertLessEqual(recall, 0.75)
 
 if __name__ == "__main__":
     unittest.main()

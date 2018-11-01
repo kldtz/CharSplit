@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Optional, Tuple
 from kirke.ebrules import addresses
-from kirke.utils import ebantdoc4, ebsentutils, strutils
+from kirke.utils import ebantdoc4, antutils, strutils
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -20,11 +20,11 @@ class AddrContextGenerator:
                                  nl_text: str,
                                  group_id: int = 0,
                                  # pylint: disable=line-too-long
-                                 label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
+                                 label_ant_list_param: Optional[List[antutils.ProvisionAnnotation]] = None,
                                  label_list_param: Optional[List[bool]] = None,
                                  label: Optional[str] = None):
          # pylint: disable=line-too-long
-        label_ant_list, label_list = [], []  # type: List[ebsentutils.ProvisionAnnotation], List[bool]
+        label_ant_list, label_list = [], []  # type: List[antutils.ProvisionAnnotation], List[bool]
         if label_ant_list_param is not None:
             label_ant_list = label_ant_list_param
         if label_list_param is not None:
@@ -36,9 +36,9 @@ class AddrContextGenerator:
         #finds all addresses in the text and adds window around each as a candidate
         for addr in addresses.find_addresses(nl_text):
             addr_start, addr_end, addr_st = addr
-            is_label = ebsentutils.check_start_end_overlap(addr_start,
-                                                           addr_end,
-                                                           label_ant_list)
+            is_label = antutils.check_start_end_overlap(addr_start,
+                                                        addr_end,
+                                                        label_ant_list)
             prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
                                                                       addr_start,
                                                                       self.num_prev_words)

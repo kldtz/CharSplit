@@ -2,7 +2,8 @@ import logging
 import re
 from typing import Dict, List, Optional, Tuple
 
-from kirke.utils import ebantdoc4, ebsentutils
+from kirke.utils import antutils, ebantdoc4
+from kirke.utils.antutils import ProvisionAnnotation
 
 
 # pylint: disable=invalid-name
@@ -22,12 +23,12 @@ class ParagraphGenerator:
                                      antdoc: ebantdoc4.EbAnnotatedDoc4,
                                      group_id: int = 0,
                                      # pylint: disable=line-too-long
-                                     label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
+                                     label_ant_list_param: Optional[List[ProvisionAnnotation]] = None,
                                      label_list_param: Optional[List[bool]] = None,
                                      label: Optional[str] = None):
 
         # pylint: disable=line-too-long
-        label_ant_list, label_list = [], []  # type: List[ebsentutils.ProvisionAnnotation], List[bool]
+        label_ant_list, label_list = [], []  # type: List[ProvisionAnnotation], List[bool]
         if label_ant_list_param is not None:
             label_ant_list = label_ant_list_param
         if label_list_param is not None:
@@ -77,9 +78,9 @@ class ParagraphGenerator:
                 else:
                     skipping = False
             if len(para_text.split()) > 5 and raw_end > raw_start:
-                is_label = ebsentutils.check_start_end_overlap(raw_start,
-                                                               raw_end,
-                                                               label_ant_list)
+                is_label = antutils.check_start_end_overlap(raw_start,
+                                                            raw_end,
+                                                            label_ant_list)
                 #update span based on window size
                 a_candidate = {'candidate_type': self.candidate_type,
                                'bow_start': match_start,

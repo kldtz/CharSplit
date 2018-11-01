@@ -9,7 +9,8 @@ from typing import Dict, List, Optional, Tuple
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties
 from kirke.utils import evalutils, entityutils, mathutils, nlputils, stopwordutils, strutils
-from kirke.utils.ebsentutils import EbEntityType, ProvisionAnnotation
+from kirke.utils.ebsentutils import EbEntityType
+from kirke.utils.antutils import ProvisionAnnotation
 
 PROVISION_PAT_MAP = {
     'change_control': (re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL), 1.0),

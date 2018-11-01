@@ -65,6 +65,7 @@ def mark_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
         apage_block_id_list, apage_block_linex_list_map = \
                 linex_list_to_block_map(apage.content_linex_list)
 
+        # pylint: disable=unused-variable
         prev_page_has_footer = False
         if prev_page.footer_linex_list:
             prev_page_has_footer = True

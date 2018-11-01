@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 from typing import Any, Dict, List, Optional, Tuple
 
-from kirke.utils import osutils, strutils, textoffset
+from kirke.utils import osutils, mathutils, strutils, textoffset
 
 
 # cannot use this because in line 600 prov_annotation.start = xxx in ebtext2antdoc.py
@@ -304,3 +304,18 @@ def remove_corenlp_features_dict_list(ant_list: List[Dict]) -> List[Dict]:
     for ant in ant_list:
         remove_corenlp_features_dict(ant)
     return ant_list
+
+
+def get_labels_if_start_end_overlap(sent_start, sent_end, ant_start_end_list):
+    result_label_list = []
+    for ant in ant_start_end_list:
+        if mathutils.start_end_overlap((sent_start, sent_end), (ant.start, ant.end)):
+            result_label_list.append(ant.label)
+    return result_label_list
+
+
+def check_start_end_overlap(sent_start: int, sent_end: int, ant_start_end_list) -> bool:
+    for ant in ant_start_end_list:
+        if mathutils.start_end_overlap((sent_start, sent_end), (ant.start, ant.end)):
+            return True
+    return False

@@ -26,10 +26,9 @@ from kirke.docstruct import docstructutils, docutils, fromtomapper, htmltxtparse
 from kirke.docstruct import linepos, pdftxtparser
 from kirke.docstruct.pdfoffsets import PDFTextDoc
 from kirke.docstruct.docutils import PLineAttrs
-from kirke.utils import corenlputils, docversion, ebsentutils, memutils
+from kirke.utils import antutils, corenlputils, docversion, ebsentutils, memutils
 from kirke.utils import osutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
-from kirke.utils.ebsentutils import ProvisionAnnotation
 
 from kirke.docstruct.secheadutils import SecHeadTuple
 
@@ -70,10 +69,10 @@ class EbAnnotatedDoc4:
                  doc_format: EbDocFormat,
                  text: str,
                  cpoint_cunit_mapper: TextCpointCunitMapper,
-                 prov_ant_list: List[ProvisionAnnotation],
+                 prov_ant_list: List[antutils.ProvisionAnnotation],
                  is_test: bool,
                  # nlp_offset adjusted
-                 para_prov_ant_list: List[ebsentutils.ProvisionAnnotation],
+                 para_prov_ant_list: List[antutils.ProvisionAnnotation],
                  attrvec_list: List[ebattrvec.EbAttrVec],         # nlp offset adjusted
                  # nlp_offset adjusted
                  nlp_paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
@@ -142,12 +141,12 @@ class EbAnnotatedDoc4:
             return mat.group(1)
         return 'no-doc-id-found:{}'.format(self.file_id)
 
-    def set_provision_annotations(self, ant_list: List[ProvisionAnnotation]) -> None:
+    def set_provision_annotations(self, ant_list: List[antutils.ProvisionAnnotation]) -> None:
         self.prov_annotation_list = ant_list
 
     def get_provision_annotations(self,
                                   provision: Optional[str] = None) \
-                                  -> List[ProvisionAnnotation]:
+                                  -> List[antutils.ProvisionAnnotation]:
         if provision:
             return [prov_ant for prov_ant in self.prov_annotation_list
                     if prov_ant.label == provision]
@@ -191,7 +190,7 @@ class EbAnnotatedDoc4:
     def get_origin_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
         return [(elt.start, elt) for elt in self.origin_lnpos_list]
 
-    def has_same_prov_ant_list(self, prov_ant_list2: List[ProvisionAnnotation]) -> bool:
+    def has_same_prov_ant_list(self, prov_ant_list2: List[antutils.ProvisionAnnotation]) -> bool:
         return self.prov_annotation_list == prov_ant_list2
 
     def get_doc_format(self) -> EbDocFormat:
@@ -241,7 +240,7 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
                            is_cache_enabled: bool = True,
                            is_use_corenlp: bool = True) \
                            -> Tuple[List[ebattrvec.EbAttrVec],
-                                    List[ebsentutils.ProvisionAnnotation],
+                                    List[antutils.ProvisionAnnotation],
                                     List[linepos.LnPos],
                                     List[linepos.LnPos]]:
 
@@ -261,7 +260,7 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
 
             xstart, xend = fromto_mapper.get_se_offsets(orig_start, orig_end)
 
-            nlp_prov_ant_list.append(ebsentutils.ProvisionAnnotation(xstart, xend, orig_label))
+            nlp_prov_ant_list.append(antutils.ProvisionAnnotation(xstart, xend, orig_label))
     else:
         # fromto_mapper = None
         nlp_prov_ant_list = prov_annotation_list
@@ -299,9 +298,9 @@ def nlptxt_to_attrvec_list(para_doc_text: str,
                                                  para_doc_text[ebsent.start:ebsent.end],
                                                  lang=doc_lang)
 
-            overlap_provisions = (ebsentutils.get_labels_if_start_end_overlap(ebsent.start,
-                                                                              ebsent.end,
-                                                                              nlp_prov_ant_list)
+            overlap_provisions = (antutils.get_labels_if_start_end_overlap(ebsent.start,
+                                                                           ebsent.end,
+                                                                           nlp_prov_ant_list)
                                   if nlp_prov_ant_list else [])
             ebsent.set_labels(overlap_provisions)
 
@@ -397,14 +396,14 @@ def chop_at_exhibit_complete(txt_file_name: str,
                              txt_base_fname: str,
                              work_dir: str,
                              debug_mode: bool = False) \
-                             -> Tuple[str, str, List[ProvisionAnnotation], bool,
+                             -> Tuple[str, str, List[antutils.ProvisionAnnotation], bool,
                                       TextCpointCunitMapper]:
     doc_text = txtreader.loads(txt_file_name)
     # sub single newlines for spaces to preserve paragraphs in text documents
     doc_text = re.sub('(?<![\r\n])(\n)(?! *[\r\n])', ' ', doc_text)
     cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
-    prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
-                                                                          cpoint_cunit_mapper)
+    prov_annotation_list, is_test = antutils.load_prov_annotation_list(txt_file_name,
+                                                                       cpoint_cunit_mapper)
     max_txt_size = len(doc_text)
     is_chopped = False
     for prov_ant in prov_annotation_list:
@@ -573,8 +572,8 @@ def pdf_to_ebantdoc(txt_file_name: str,
     txtreader.dumps(nlp_text, nlptxt_file_name)
 
     prov_annotation_list, is_test = \
-        ebsentutils.load_prov_annotation_list(txt_file_name,
-                                              pdf_text_doc.cpoint_cunit_mapper)
+        antutils.load_prov_annotation_list(txt_file_name,
+                                           pdf_text_doc.cpoint_cunit_mapper)
 
     xml_fname = txt_file_name.replace('.txt', '.pdf.xml')
     # For test documents, there is no new .pdf.xml file available.
@@ -779,8 +778,8 @@ def text_to_ebantdoc(txt_fname: str,
                 eb_antdoc = load_cached_ebantdoc(eb_antdoc_fn)
                 if is_bespoke_mode and eb_antdoc:
                     tmp_prov_ant_list, unused_is_test = \
-                        ebsentutils.load_prov_annotation_list(txt_fname,
-                                                              eb_antdoc.codepoint_to_cunit_mapper)
+                        antutils.load_prov_annotation_list(txt_fname,
+                                                           eb_antdoc.codepoint_to_cunit_mapper)
                     if eb_antdoc.has_same_prov_ant_list(tmp_prov_ant_list):
                         eb_antdoc.file_id = txt_fname
                         return eb_antdoc

@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 
 from kirke.docstruct import linepos
 from kirke.docstruct.docutils import PLineAttrs
-from kirke.utils.ebsentutils import ProvisionAnnotation
+from kirke.utils.antutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)

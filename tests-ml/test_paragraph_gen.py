@@ -30,11 +30,8 @@ def get_para_md5(ebantdoc):
 
 class TestParagraphGen(unittest.TestCase):
 
-    # pylint: disable=too-many-statements
-    def test_demo_docs(self):
-
-        # ---------- PDF DOCS ----------
-
+    # ---------- PDF DOCS ----------
+    def test_demo_doc_8285(self):
         txt_base_name = '8285.txt'
         txt_fname = 'demo-txt/{}'.format(txt_base_name)
         ebantdoc = get_antdoc(txt_fname)
@@ -50,8 +47,7 @@ class TestParagraphGen(unittest.TestCase):
         cands = [x['text'] for x in para_cands]
         self.assertEqual(serial_para_cands, cands)
 
-
-
+    def test_demo_doc_8286(self):
         txt_base_name = '8286.txt'
         txt_fname = 'demo-txt/{}'.format(txt_base_name)
         ebantdoc = get_antdoc(txt_fname)
@@ -68,7 +64,7 @@ class TestParagraphGen(unittest.TestCase):
         self.assertEqual(serial_para_cands, cands)
 
 
-
+    def test_demo_doc_8287(self):
         txt_base_name = '8287.txt'
         txt_fname = 'demo-txt/{}'.format(txt_base_name)
         ebantdoc = get_antdoc(txt_fname)
@@ -84,8 +80,8 @@ class TestParagraphGen(unittest.TestCase):
         cands = [x['text'] for x in para_cands]
         self.assertEqual(serial_para_cands, cands)
 
-        # ---------- TXT DOCS ----------
-
+    # ---------- TXT DOCS ----------
+    def test_demo_doc_8288(self):
         txt_base_name = '8288.txt'
         txt_fname = 'demo-txt/{}'.format(txt_base_name)
         ebantdoc = html_to_ebantdoc(txt_fname,
@@ -104,7 +100,7 @@ class TestParagraphGen(unittest.TestCase):
         self.assertEqual(serial_para_cands, cands)
 
 
-
+    def test_demo_doc_8289(self):
         txt_base_name = '8289.txt'
         txt_fname = 'demo-txt/{}'.format(txt_base_name)
         ebantdoc = html_to_ebantdoc(txt_fname,
@@ -123,7 +119,7 @@ class TestParagraphGen(unittest.TestCase):
         self.assertEqual(serial_para_cands, cands)
 
 
-
+    def test_demo_doc_8290(self):
         txt_base_name = '8290.txt'
         txt_fname = 'demo-txt/{}'.format(txt_base_name)
         ebantdoc = html_to_ebantdoc(txt_fname,
@@ -142,7 +138,7 @@ class TestParagraphGen(unittest.TestCase):
         self.assertEqual(serial_para_cands, cands)
 
 
-    def test_para_docs(self):
+    def test_para_docs_1953(self):
         txt_base_name = '1953.txt'
         txt_fname = 'paragraph-tests/{}'.format(txt_base_name)
         ebantdoc = get_antdoc(txt_fname)
@@ -159,7 +155,7 @@ class TestParagraphGen(unittest.TestCase):
         self.assertEqual(serial_para_cands, cands)
 
 
-
+    def test_para_docs_3388(self):
         txt_base_name = '3388.txt'
         txt_fname = 'paragraph-tests/{}'.format(txt_base_name)
         ebantdoc = get_antdoc(txt_fname)
@@ -176,7 +172,7 @@ class TestParagraphGen(unittest.TestCase):
         self.assertEqual(serial_para_cands, cands)
 
 
-
+    def test_para_docs_1960(self):
         txt_base_name = '1960.txt'
         txt_fname = 'paragraph-tests/{}'.format(txt_base_name)
         ebantdoc = get_antdoc(txt_fname)
@@ -193,7 +189,7 @@ class TestParagraphGen(unittest.TestCase):
         self.assertEqual(serial_para_cands, cands)
 
 
-
+    def test_para_docs_1964(self):
         txt_base_name = '1964.txt'
         txt_fname = 'paragraph-tests/{}'.format(txt_base_name)
         ebantdoc = get_antdoc(txt_fname)

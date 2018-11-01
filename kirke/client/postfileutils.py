@@ -43,6 +43,7 @@ def upload_annotate_doc(file_name: str, prov_list: Optional[List[str]] = None) \
     return ajson
 
 
+# pylint: disable=too-many-arguments
 def post_annotate_document(file_name: str,
                            prov_list: List[str],
                            is_detect_lang: bool = False,

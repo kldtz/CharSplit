@@ -7,7 +7,7 @@ import traceback
 from kirke.docstruct import fromtomapper
 from kirke.eblearn import ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
-from kirke.utils.ebsentutils import ProvisionAnnotation
+from kirke.utils.antutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)

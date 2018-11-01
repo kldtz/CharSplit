@@ -2,7 +2,8 @@ import logging
 import re
 from typing import Dict, List, Match, Pattern, Tuple
 
-from kirke.utils import ebantdoc4, ebsentutils, strutils
+from kirke.utils import antutils, ebantdoc4, strutils
+from kirke.utils.antutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -109,7 +110,7 @@ class IdNumContextGenerator:
                                  nl_text: str,
                                  group_id: int,
                                  # pylint: disable=line-too-long
-                                 label_ant_list: List[ebsentutils.ProvisionAnnotation],
+                                 label_ant_list: List[ProvisionAnnotation],
                                  label: str = '') \
                                  -> Tuple[List[Dict],
                                           List[bool],
@@ -125,9 +126,9 @@ class IdNumContextGenerator:
         for idnum_dict in idnum_list:
             match_start, match_end = idnum_dict['start'], idnum_dict['end']
             match_str = idnum_dict['chars']
-            is_label = ebsentutils.check_start_end_overlap(match_start,
-                                                           match_end,
-                                                           label_ant_list)
+            is_label = antutils.check_start_end_overlap(match_start,
+                                                        match_end,
+                                                        label_ant_list)
             prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
                                                                       match_start,
                                                                       self.num_prev_words)
@@ -184,7 +185,7 @@ class IdNumContextGenerator:
 
             #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
-            label_ant_list = []  # type: List[ebsentutils.ProvisionAnnotation]
+            label_ant_list = []  # type: List[ProvisionAnnotation]
             for ant in ant_list:
                 if ant.label == label:
                     label_ant_list.append(ant)

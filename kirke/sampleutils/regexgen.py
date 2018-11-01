@@ -1,7 +1,8 @@
 import logging
 from typing import Dict, List, Optional, Pattern, Tuple
 
-from kirke.utils import ebantdoc4, ebsentutils, strutils
+from kirke.utils import antutils, ebantdoc4, strutils
+from kirke.utils.antutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -31,11 +32,11 @@ class RegexContextGenerator:
                                  nl_text: str,
                                  group_id: int = 0,
                                  # pylint: disable=line-too-long
-                                 label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
+                                 label_ant_list_param: Optional[List[ProvisionAnnotation]] = None,
                                  label_list_param: Optional[List[bool]] = None,
                                  label: Optional[str] = None):
         # pylint: disable=line-too-long
-        label_ant_list, label_list = [], []  # type: List[ebsentutils.ProvisionAnnotation], List[bool]
+        label_ant_list, label_list = [], []  # type: List[ProvisionAnnotation], List[bool]
         if label_ant_list_param is not None:
             label_ant_list = label_ant_list_param
         if label_list_param is not None:
@@ -47,9 +48,9 @@ class RegexContextGenerator:
         for match in matches:
             match_start, match_end = match.span(self.group_num)
             match_str = match.group(self.group_num)
-            is_label = ebsentutils.check_start_end_overlap(match_start,
-                                                           match_end,
-                                                           label_ant_list)
+            is_label = antutils.check_start_end_overlap(match_start,
+                                                        match_end,
+                                                        label_ant_list)
             prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
                                                                       match_start,
                                                                       self.num_prev_words)
@@ -118,7 +119,7 @@ class RegexContextGenerator:
 
             #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
-            label_ant_list = []  # type: List[ebsentutils.ProvisionAnnotation]
+            label_ant_list = []  # type: List[ProvisionAnnotation]
             for ant in ant_list:
                 if ant.label == label:
                     label_ant_list.append(ant)

@@ -75,8 +75,8 @@ class TestBespokeSentOneBest(unittest.TestCase):
 
         recall = round(ant_result['recall'], 2)
         # 0.87
-        self.assertGreaterEqual(recall, 0.81)
-        self.assertLessEqual(recall, 0.93)
+        self.assertGreaterEqual(recall, 0.80)
+        self.assertLessEqual(recall, 0.94)
 
         txt_fnames = []
         for file in os.listdir(custid_data_dir):
