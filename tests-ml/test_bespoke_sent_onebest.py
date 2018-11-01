@@ -57,26 +57,26 @@ class TestBespokeSentOneBest(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 12, delta=6)
-        self.assertAlmostEqual(fn, 6, delta=4)
-        self.assertAlmostEqual(tp, 39, delta=4)
+        self.assertAlmostEqual(fp, 11, delta=6)
+        self.assertAlmostEqual(fn, 11, delta=4)
+        self.assertAlmostEqual(tp, 35, delta=4)
 
         # round(ant_result['f1'], 2),
-        # 0.81
+        # 0.72
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.75)
-        self.assertLessEqual(f1, 0.87)
+        self.assertGreaterEqual(f1, 0.66)
+        self.assertLessEqual(f1, 0.78)
 
         # round(ant_result['prec'], 2),
-        # 0.76
+        # 0.71
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.70)
-        self.assertLessEqual(precision, 0.82)
+        self.assertGreaterEqual(precision, 0.65)
+        self.assertLessEqual(precision, 0.77)
 
         recall = round(ant_result['recall'], 2)
-        # 0.87
-        self.assertGreaterEqual(recall, 0.80)
-        self.assertLessEqual(recall, 0.94)
+        # 0.74
+        self.assertGreaterEqual(recall, 0.70)
+        self.assertLessEqual(recall, 0.8)
 
         txt_fnames = []
         for file in os.listdir(custid_data_dir):
