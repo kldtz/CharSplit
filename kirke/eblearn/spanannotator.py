@@ -17,9 +17,8 @@ from sklearn.pipeline import Pipeline
 
 from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
+from kirke.utils.antutils import ProvisionAnnotation
 from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
-
-from kirke.utils.antutil import ProvisionAnnotation
 
 
 # pylint: disable=invalid-name

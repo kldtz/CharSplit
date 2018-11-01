@@ -19,7 +19,7 @@ CUSTOM_MODEL_DIR = 'dir-custom-model'
 
 class TestBespokeSent(unittest.TestCase):
 
-    def test_bespoke_12345(self):
+    def test_bespoke_555(self):
 
         custid = 'cust_555'
         custid_data_dir = 'cust_555'
@@ -41,15 +41,15 @@ class TestBespokeSent(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 28, delta=6)
-        self.assertAlmostEqual(fn, 33, delta=4)
-        self.assertAlmostEqual(tp, 62, delta=4)
+        self.assertAlmostEqual(fp, 30, delta=6)
+        self.assertAlmostEqual(fn, 28, delta=4)
+        self.assertAlmostEqual(tp, 65, delta=4)
 
         # round(ant_result['f1'], 2),
-        # 0.66
+        # 0.69
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.63)
-        self.assertLessEqual(f1, 0.70)
+        self.assertGreaterEqual(f1, 0.65)
+        self.assertLessEqual(f1, 0.73)
 
         # round(ant_result['prec'], 2),
         # 0.68
@@ -58,9 +58,9 @@ class TestBespokeSent(unittest.TestCase):
         self.assertLessEqual(precision, 0.73)
 
         recall = round(ant_result['recall'], 2)
-        # 0.65
-        self.assertGreaterEqual(recall, 0.61)
-        self.assertLessEqual(recall, 0.69)
+        # 0.70
+        self.assertGreaterEqual(recall, 0.66)
+        self.assertLessEqual(recall, 0.74)
 
 if __name__ == "__main__":
     unittest.main()

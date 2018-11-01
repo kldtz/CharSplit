@@ -431,7 +431,8 @@ def main():
                                           work_dir,
                                           model_dir,
                                           custom_model_dir,
-                                          provision_set=provs)
+                                          provision_set=provs,
+                                          is_dev_mode=True)
         pprint.pprint(dict(prov_ants_map), width=160)
     elif cmd == 'print_table_cand':
         if not args.doc:
@@ -442,7 +443,8 @@ def main():
                                           work_dir,
                                           model_dir,
                                           custom_model_dir,
-                                          provision_set=provs)
+                                          provision_set=provs,
+                                          is_dev_mode=True)
         pprint.pprint(dict(prov_ants_map), width=160)
     elif cmd == 'print_para_cand':
         if not args.doc:

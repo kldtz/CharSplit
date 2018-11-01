@@ -12,6 +12,7 @@ from kirke.sampleutils.doccandidatesutils import DocCandidatesTransformer
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+IS_DEBUG_MODE = False
 
 # pylint: disable=too-few-public-methods
 class NoDefaultDate(object):
@@ -184,7 +185,7 @@ def extract_before_and_party_line(paras_attr_list: List[Tuple[str, List[str]]]) 
 # DATE_AS_OF_PAT = re.compile(r"as of (\S+\s+){1,2,3,4}(by\b|[\(\"•]+effective)", re.IGNORECASE)
 DATE_AS_OF_PAT = re.compile(r"as of (.*)", re.IGNORECASE)
 DIGIT_PAT = re.compile(r'[oOl\d]')
-BY_PAT = re.compile(r'\s+(by\b|\(|[, ]*between)', re.IGNORECASE)
+BY_PAT = re.compile(r',?\s+(by\b|\(|[, ]*between)', re.IGNORECASE)
 EFFECTIVE_FOR_AS_IF_PAT = re.compile(r'\s*[\(\“\"]+effective', re.IGNORECASE)
 # 'the effective|distribution|lease date'
 SET_FORTH_PAT = re.compile(r'\b(the date set forth in section \S+ of the summary|the (\S+) date)\b',
@@ -209,7 +210,8 @@ def extract_dates_from_party_line(line: str) \
         #    continue
         if by_mat:  # hand written date
             maybe_date_st = line[mat.start(1):mat.start(1)+by_mat.start()]
-            # print("maybe_date_st1: [{}], len= {}".format(maybe_date_st, len(maybe_date_st)))
+            if IS_DEBUG_MODE:
+                print("maybe_date_st1: [{}], len= {}".format(maybe_date_st, len(maybe_date_st)))
             if len(maybe_date_st) < 20 or (len(maybe_date_st) < 35 and
                                            'day' in maybe_date_st.lower()):  # signature
                 date_start = mat.start(1)
@@ -227,6 +229,8 @@ def extract_dates_from_party_line(line: str) \
         #        date_start = mat.start(1)
         #        date_end = mat.start(1)+by_mat.start()
         if date_start != -1:
+            if IS_DEBUG_MODE:
+                print("date_as_of: {}".format(mat.group()))
             char40_before = line[max(mat.start()-40, 0):mat.start()]
             char40_after = line[mat.end():mat.end()+40]
             if EFFECTIVE_PAT.search(char40_before) or \
@@ -238,6 +242,8 @@ def extract_dates_from_party_line(line: str) \
     for mat in DATE_MADE_ON_PAT.finditer(line):
         maybe_date_st = mat.group(1)
         if maybe_date_st:
+            if IS_DEBUG_MODE:
+                print("date_made_on: {}".format(mat.group()))
             char40_before = line[max(mat.start()-40, 0):mat.start()]
             char40_after = line[mat.end():mat.end()+40]
             if EFFECTIVE_PAT.search(char40_before) or \
@@ -249,7 +255,8 @@ def extract_dates_from_party_line(line: str) \
     # print("as_if result date: {}".format(result))
 
     for mat in DATE_PAT1.finditer(line):
-        # print("date_pat1: {}".format(mat.group()))
+        if IS_DEBUG_MODE:
+            print("date_pat1: {}".format(mat.group()))
         char40_before = line[max(mat.start()-40, 0):mat.start()]
         char40_after = line[mat.end():mat.end()+40]
         if EFFECTIVE_PAT.search(char40_before) or \
@@ -259,7 +266,8 @@ def extract_dates_from_party_line(line: str) \
             result.append((mat.start(), mat.end(), mat.group(), 'date'))
 
     for mat in DATE_PAT3.finditer(line):
-        # print("date_pat3: {}".format(mat.group()))
+        if IS_DEBUG_MODE:
+            print("date_pat3: {}".format(mat.group()))
         char40_before = line[max(mat.start()-40, 0):mat.start()]
         char40_after = line[mat.end():mat.end()+40]
         if EFFECTIVE_PAT.search(char40_before) or \
@@ -269,7 +277,8 @@ def extract_dates_from_party_line(line: str) \
             result.append((mat.start(), mat.end(), mat.group(), 'date'))
 
     for mat in DATE_PAT2.finditer(line):
-        # print("date_pat2: {}".format(mat.group()))
+        if IS_DEBUG_MODE:
+            print("date_pat2: {}".format(mat.group()))
         char40_before = line[max(mat.start()-40, 0):mat.start()]
         char40_after = line[mat.end():mat.end()+40]
         if EFFECTIVE_PAT.search(char40_before) or \
@@ -279,7 +288,8 @@ def extract_dates_from_party_line(line: str) \
             result.append((mat.start(), mat.end(), mat.group(), 'date'))
 
     for mat in DATE_PAT4.finditer(line):
-        # print("date_pat4: {}".format(mat.group()))
+        if IS_DEBUG_MODE:
+            print("date_pat4: {}".format(mat.group()))
         char40_before = line[max(mat.start()-40, 0):mat.start()]
         char40_after = line[mat.end():mat.end()+40]
         if EFFECTIVE_PAT.search(char40_before) or \
@@ -531,7 +541,9 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
             partyline_dates = [(partyline_start + start, partyline_start + end,
                                 date_st, date_type, date_norm)
                                for start, end, date_st, date_type, date_norm in partyline_dates]
-    # logger.debug('3555 partyline_dates: %r', partyline_dates)
+
+    if IS_DEBUG_MODE:
+        print('3555 partyline_dates: %r' % partyline_dates)
 
     before_dates = []  # type: List[Tuple[int, int, str, str, str]]
     for line_start, unused_line_end, xline in before_lines:
@@ -541,6 +553,8 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
                 start, end, date_st, date_type, norm_date = date_ox
                 before_dates.append((line_start + start, line_start + end, date_st, date_type, norm_date))
 
+    if IS_DEBUG_MODE:
+        print('3556 before_dates: %r' % before_dates)
     # logger.debug('3556 before_dates: %r', before_dates)
     # x1 = before_dates[0]
     # print("paras_text: [{}]".format(paras_text[x1[0]:x1[1]]))
@@ -566,7 +580,8 @@ def extract_offsets(paras_attr_list: List[Tuple[str, List[str]]],
     if xx_dates:
         out_list.append(xx_dates[0])
 
-    logger.debug("dates out_list: %r", out_list)
+    if IS_DEBUG_MODE:
+        print("dates out_list: %r" % out_list)
     return out_list
 
 
@@ -587,3 +602,20 @@ def get_last_day_of_month(year: int, month: int) -> int:
     """Returns the number of days in a month."""
     _, num_day = calendar.monthrange(year, month)
     return num_day
+
+def remove_invalid_dates(datedict_list: List[Dict]) -> List[Dict]:
+    """Remove dates that just have year information not in range 1700-2500."""
+    result = []  # type: List[Dict]
+    for datedict in datedict_list:
+        date_text = datedict['text']
+        if date_text.isdigit():
+            date_val = int(date_text)
+            if date_val >= 1700 and \
+               date_val <= 2500:
+                result.append(datedict)
+            else:
+                pass
+        else:
+            # not just a digits, assume correct
+            result.append(datedict)
+    return result

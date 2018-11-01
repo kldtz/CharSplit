@@ -260,6 +260,11 @@ def is_line_footer(line: str,
                    unused_align: str,
                    yStart: float):
 
+    # if last line in a page and just a number
+    if page_line_num == num_line_in_page and \
+       (line.isdigit() or \
+        is_line_footer_by_content(line)):
+        return True, 1.0
     if yStart < 700.0:
         return False, -1.0
     if is_line_not_footer_by_content(line):

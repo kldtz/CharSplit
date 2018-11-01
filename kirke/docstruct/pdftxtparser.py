@@ -7,6 +7,7 @@ from array import ArrayType
 from collections import defaultdict
 import logging
 import os
+import re
 import sys
 # pylint: disable=unused-import
 from typing import Any, Dict, DefaultDict, List, Optional, Set, Tuple
@@ -28,9 +29,10 @@ logger.setLevel(logging.INFO)
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
-IS_DEBUG_MODE = False
 IS_DEBUG_TOC = False
 
+IS_DEBUG_MODE = False
+# this is to see what are any header or footer
 IS_DEBUG_DETAIL_MODE = False
 
 EMPTY_PLINE_ATTRS = PLineAttrs()
@@ -63,6 +65,10 @@ def mark_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
         apage_block_id_list, apage_block_linex_list_map = \
                 linex_list_to_block_map(apage.content_linex_list)
 
+        prev_page_has_footer = False
+        if prev_page.footer_linex_list:
+            prev_page_has_footer = True
+
         if not apage_block_id_list:
             logger.info("%s, page #%d has no content block.",
                         pdf_text_doc.file_name, apage.page_num)
@@ -79,11 +85,23 @@ def mark_if_continued_from_prev_page(pdf_text_doc: PDFTextDoc) -> None:
            (last_linex.line_text[-1].islower() or
             last_linex.line_text[-1] != '.'):
 
-
             if cur_first_linex.line_text[0].islower() and \
                not secheadutils.is_line_sechead_prefix(cur_first_linex.line_text):
                 apage.is_continued_para_from_prev_page = True
                 prev_page.is_continued_para_to_next_page = True
+            elif re.search(r'\b(a|the|these|those|that)$', last_linex.line_text, re.I) and \
+                 not secheadutils.is_line_sechead_prefix(cur_first_linex.line_text):
+                apage.is_continued_para_from_prev_page = True
+                prev_page.is_continued_para_to_next_page = True
+
+        # it's possible that a paragraph is all caps and was split between pages
+        # current not handle.  page 6 in 8290.txt
+        # if prev_page_has_footer and \
+        #    docutils.is_all_cap_words(last_linex.line_text) and
+        #    docutils.is_all_cap_words(first_line)
+        #    both not centered,  Watch out for title
+        #    TOC, etc
+        # Not implemented yet.
 
         # print("checking page %d [%s] with page %d [%s]" %
         #       (prev_page.page_num, last_linex.line_text[-20:],
@@ -767,7 +785,6 @@ def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
             # else:
             #     print("-- page #{} is NOT a title".format(page.page_num))
 
-
     # this only add footer and header's start, end to
     # apage.exclude_offsets
     update_page_removed_lines(pdftxt_doc)
@@ -930,6 +947,7 @@ def add_doc_structure_to_page(apage: PageInfo3,
         if is_footer:
             line.attrs.footer = True
             is_skip = True
+            print("found footer in page {}: [{}]".format(page_num, line))
             pdf_txt_doc.special_blocks_map['footer'].append(pdfoffsets \
                                                             .line_to_block_offsets(line,
                                                                                    'footer',

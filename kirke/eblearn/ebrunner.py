@@ -67,6 +67,7 @@ def update_dates_by_domain_rules(ant_result_dict):
 
     # special handling for dates, as in PythonDateOfAgreementClassifier.java
     date_annotations = ant_result_dict.get('date')
+    # print('date_annotations date: {}'.format(date_annotations))
     if not date_annotations:
         effectivedate_annotations = ant_result_dict.get('effectivedate', [])
         # print("effectivedate_annotation = {}".format(effectivedate_annotations))
@@ -78,7 +79,9 @@ def update_dates_by_domain_rules(ant_result_dict):
             ant_result_dict['date'] = effectivedate_annotations
         else:
             # update 'date' with 'sigdate' if 'date' is empty
-            sigdate_annotations = ant_result_dict.get('sigdate')
+            sigdate_annotations = ant_result_dict.get('sigdate', [])
+            # print("sigdate_annotation = {}".format(sigdate_annotations))
+            sigdate_annotations = dates.remove_invalid_dates(sigdate_annotations)
             if not ant_result_dict.get('date') and sigdate_annotations:
                 # make a copy to preserve original list
                 sigdate_annotations = copy.deepcopy(sigdate_annotations)
@@ -413,21 +416,24 @@ class EbRunner:
         if not provision_set:
             if is_dev_mode:
                 # no provision specified.  Must be doing testing.
-                provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
-                provision_set.update(self.provisions)
+                lang_provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
+                lang_provision_set.update(self.provisions)
                 # also get ALL custom provision set, since we are doing testing
                 logger.info("custom_model_dir: %s", self.custom_model_dir)
-                logger.info("provision_set: %r", provision_set)
+                logger.info("lang_provision_set: %r", lang_provision_set)
             else:
                 logger.warning("annotate_document(%s), provision_set is empty", file_name)
                 empty_result = {}  # type: Dict[str, List]
                 # this is just to keep the API consistent for now
                 # TODO, in the future, maybe change the API to not pass back ebantdoc
-                eb_antdoc = ebantdoc4.text_to_ebantdoc4(file_name,
-                                                        work_dir=work_dir,
-                                                        is_doc_structure=is_doc_structure,
-                                                        doc_lang=doc_lang)
+                eb_antdoc = ebantdoc4.text_to_ebantdoc(file_name,
+                                                       work_dir=work_dir,
+                                                       is_doc_structure=is_doc_structure,
+                                                       doc_lang=doc_lang)
                 return empty_result, eb_antdoc
+        else:
+            # logger.info('user specified provision list: %s', provision_set)
+            lang_provision_set = provision_set
 
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
