@@ -458,12 +458,11 @@ def main():
                                           custom_model_dir,
                                           provision_set=provs,
                                           is_dev_mode=True)
-        pprint.pprint(dict(prov_ants_map))
+        pprint.pprint(dict(prov_ants_map), width=160)
     elif cmd == 'print_doc_parties':
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        provs = set(['PARAGRAPH'])
         prov_ants_map = annotate_document(args.doc,
                                           work_dir,
                                           model_dir,

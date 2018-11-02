@@ -387,7 +387,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                        nbest: Optional[int] = None) -> Tuple[List[Dict[str, Any]], List[float]]:
         if not nbest:
             nbest = self.nbest
-        logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        # logger.debug('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+
         text = eb_antdoc.get_text()
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])
