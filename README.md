@@ -187,9 +187,13 @@ The likely reason is that the size of the matrix is 0, which is caused by not fi
 
 Please see https://ebrevia.atlassian.net/wiki/spaces/EX/pages/423526403/Kirke+UnitTests
 
-
 ```
+setup_unittest.sh
 nosetests tests
+nosetests tests-dstruct
+startup_unittest.sh
+
+# go to a different terminal
 nosetests tests-ml
 ```
 
