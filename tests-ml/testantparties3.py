@@ -29,7 +29,6 @@ def annotate_doc(file_name: str) -> Dict[str, Any]:
                                                      provision_set=provision_set,
                                                      work_dir=WORK_DIR,
                                                      doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure,
                                                      is_dev_mode=True)
 
     # because special case of 'effectivdate_auto'
