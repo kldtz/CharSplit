@@ -101,11 +101,12 @@ class DateNormalizer(DocCandidatesTransformer):
 
         return norm_dict
 
-
+    # Note: all doc_postproc() needs to have a 'nbest' argument
+    #       because spanannotator's code calls doc_postproc with it.
     def doc_postproc(self,
                      candidates: List[Dict],
+                     # pylint: disable=unused-argument
                      nbest: int) -> List[Dict]:
-        num_used = 0
         out_list = []  # type: List[Dict]
         for candidate in candidates:
             text = candidate['text']
@@ -118,12 +119,7 @@ class DateNormalizer(DocCandidatesTransformer):
                 # shortcut this
                 date_dict['norm'] = date_dict['norm']['date']
 
-                if nbest == -1 or num_used < nbest:
-                    num_used += 1  # do really nothing
-                    out_list.append(candidate)
-                else:
-                    # set anything >= nbest to none
-                    candidate['prob'] = 0.0112
+                out_list.append(candidate)
 
                 candidate.update(date_dict)
         return out_list

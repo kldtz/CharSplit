@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 # pylint: disable=import-error
 from sklearn.pipeline import Pipeline
@@ -50,7 +50,8 @@ class BaseAnnotator(ABC):
     @abstractmethod
     def predict_antdoc(self,
                        eb_antdoc,
-                       work_dir: str):
+                       work_dir: str,
+                       nbest: Optional[int] = None):
         pass
 
     @abstractmethod

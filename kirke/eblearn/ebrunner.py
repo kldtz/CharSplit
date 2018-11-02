@@ -50,7 +50,8 @@ def annotate_provision(eb_annotator,
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc)
     """
-    return eb_annotator.annotate_antdoc(eb_antdoc)
+    annotations, _ = eb_annotator.annotate_antdoc(eb_antdoc)
+    return annotations
 
 
 def test_provision(eb_annotator,
