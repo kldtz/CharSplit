@@ -355,6 +355,7 @@ def custom_train_import(cust_id: str):
 def custom_train(cust_id: str):
     # dict of lang, with list of file in that lang
     full_txt_fnames = defaultdict(list)  # type: DefaultDict[str, List[str]]
+    # pylint: disable=too-many-nested-blocks
     try:
         request_work_dir = request.form.get('workdir')
         if request_work_dir:
@@ -378,7 +379,7 @@ def custom_train(cust_id: str):
         # to ensure that no accidental file name overlap
         logger.info("cust_id = '%s', candidate_types=%r, nbest= %d",
                     cust_id, candidate_types, nbest)
-        if strutils.is_digits(cust_id):
+        if cust_id.isdigit():
             provision = 'cust_{}'.format(cust_id)
         else:
             provision = cust_id

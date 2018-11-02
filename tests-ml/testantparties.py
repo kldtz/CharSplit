@@ -31,7 +31,8 @@ def annotate_doc(file_name: str) -> Dict[str, Any]:
     prov_labels_map, _ = EB_RUNNER.annotate_document(file_name,
                                                      provision_set=provision_set,
                                                      work_dir=WORK_DIR,
-                                                     doc_lang=doc_lang)
+                                                     doc_lang=doc_lang,
+                                                     is_dev_mode=True)
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):

@@ -1978,6 +1978,7 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
 
 # a 'term' might have multiple span_chunk because 'as' defined term might have
 # multiple spanchunk instead of parens
+# pylint: disable=too-many-return-statements
 def remove_invalid_defined_terms_as(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
 
@@ -2066,7 +2067,7 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
             # 'Suite 123', 'CO 23534'
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, ends in a number')
-            pass
+            # pass
         elif re.search(r'\b(agreement|extension|amendment|whereas)\b', span_chunk.text, re.I):
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid word')
@@ -2090,11 +2091,11 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
             # got the wrong heading instead.
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid prefix({})'.format(span_chunk.text))
-            pass
+            # pass
         elif re.match(r'^\s*(party)\s*$', span_chunk.text, re.I):
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid term({})'.format(span_chunk.text))
-            pass
+            # pass
         else:
             result.append(span_chunk)
     return result

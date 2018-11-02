@@ -15,13 +15,15 @@ def main():
     if args.verbosity:
         print("verbosity turned on")
 
+    payload = {'dev-mode': True}
+
     url = 'http://127.0.0.1:8000/detect-lang'
     if args.url:
         url = args.url
 
     if args.filename:
         files = {'file': open(args.filename, 'rt')}
-        req = requests.post(url, files=files)
+        req = requests.post(url, files=files, data=payload)
         print(req.text)
 
 if __name__ == '__main__':
