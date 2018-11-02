@@ -1,3 +1,7 @@
 #!/bin/bash
 
-python3 kirke/client/uploaddir.py --custid 9 cust_9 --candidate_types CURRENCY
+python3 -m kirke.client.postfileutils \
+        --cmd uploaddir \
+        --custid 9 \
+        --candidate_types CURRENCY \
+        cust_9
