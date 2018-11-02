@@ -33,18 +33,10 @@ UNIT_TEST_PROVS = ['change_control',
 
 
 def upload_annotate_doc(file_name: str) -> Dict[str, Any]:
-    text = postfileutils.post_unittest_annotate_document(file_name,
-                                                         UNIT_TEST_PROVS)
+    text = postfileutils.upload_unittest_annotate_doc(file_name,
+                                                      prov_list=UNIT_TEST_PROVS)
     ajson = json.loads(text)
     return ajson
-
-
-def upload_get_antdoc_prov_list(file_name: str,
-                                provision: str) -> List[Dict]:
-    ajson = upload_annotate_doc(file_name)
-    prov_list = antdocutils.get_ant_out_json_prov_list(ajson,
-                                                       provision)
-    return prov_list
 
 
 def get_antdoc_validate_prov_list(file_name: str,

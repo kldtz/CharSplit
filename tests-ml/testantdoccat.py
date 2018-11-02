@@ -14,7 +14,8 @@ CUSTOM_MODEL_DIR = 'dir-custom-model'
 
 def upload_annotate_doc(file_name: str) -> Dict[str, Any]:
 
-    text = postfileutils.post_unittest_annotate_document(file_name)
+    text = postfileutils.upload_unittest_annotate_doc(file_name,
+                                                      is_classify_doc=True)
 
     ajson = json.loads(text)
 
