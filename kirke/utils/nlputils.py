@@ -1798,6 +1798,12 @@ def span_chunk_list_to_words(span_chunk_list: List[SpanChunk]) \
     return all_words
 
 
+def span_chunk_list_to_text(span_chunk_list: List[SpanChunk]) \
+    -> str:
+    words = span_chunk_list_to_words(span_chunk_list)
+    return ' '.join(words)
+
+
 def find_as_span_chunks(span_chunk_list: List[SpanChunk]) \
         -> List[List[SpanChunk]]:
     as_idx_list = []  # type: List[int]
@@ -1915,6 +1921,10 @@ def chop_spanchunk_paren(span_chunk: SpanChunk) -> SpanChunk:
 def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
     result = []
+
+    # TODO, jshaw, ot sure we should be using span_chunks_text instead of
+    # span_chunk.text
+    # span_chunks_text = span_chunk_list_to_text(span_chunk_list)
     for span_chunk in span_chunk_list:
         if len(span_chunk.text) < 30 and \
            re.search(r'.*\btogether.*the.*parties', span_chunk.text, re.I):
@@ -1933,8 +1943,9 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
         elif re.search(r'\b(number|loan|rate|amount|principal|warrant|act|registration)\b', span_chunk.text, re.I):
             # (registered number SC183333)
             pass
-        elif re.search(r'\bparty\b.*and.*collectively.*parties.*', span_chunk.text, re.I):
-            # pylint: disable=fixme
+
+        elif re.search(r'\bparty.+and.+(together|collectively).*parties.*', span_chunk.text, re.I) or \
+             re.search(r'\bparties.+and.+individually.+', span_chunk.text, re.I):
             # TODO, not sure why adding following caused failure in
             # export-train/52082.txt failed??
             # or \
@@ -1967,8 +1978,17 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
 
 # a 'term' might have multiple span_chunk because 'as' defined term might have
 # multiple spanchunk instead of parens
+# pylint: disable=too-many-return-statements
 def remove_invalid_defined_terms_as(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
+
+    span_chunks_text = span_chunk_list_to_text(span_chunk_list)
+    # "... xxx as Parties and individually as a Party"
+    if re.search(r'\b(parties.+and.+individually)\b', span_chunks_text, re.I):
+        return []
+    if re.search(r'\b(party.+and.+(together|collectively))\b', span_chunks_text, re.I):
+        return []
+
     for span_chunk in span_chunk_list:
         if re.search(r'\b(date|amend(ed)?|follows?)\b', span_chunk.text, re.I):
             return []
@@ -2048,7 +2068,7 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, ends in a number')
             # pass
-        elif re.search(r'\b(agreement|extension|amendment)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(agreement|extension|amendment|whereas)\b', span_chunk.text, re.I):
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid word')
             # pass
@@ -2071,6 +2091,10 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
             # got the wrong heading instead.
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid prefix({})'.format(span_chunk.text))
+            # pass
+        elif re.match(r'^\s*(party)\s*$', span_chunk.text, re.I):
+            if IS_DEBUG_ORGS_TERM:
+                print('removed invalid party, invalid term({})'.format(span_chunk.text))
             # pass
         else:
             result.append(span_chunk)
@@ -2153,7 +2177,7 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
         if as_in_paren:
             # remove the last paren
             term = as_in_paren
-
+            term = remove_invalid_defined_terms_as(term)
     elif as_list:
         if len(as_list) == 1:
             term = as_list[0]  # List[SpanChunk]

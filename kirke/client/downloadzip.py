@@ -34,7 +34,8 @@ def main():
     if args.verbosity:
         print('verbosity turned on')
 
-    url = 'http://127.0.0.1:8000/custom-train-export/cust_12345.1003'
+    # url = 'http://127.0.0.1:8000/custom-train-export/cust_12345.1003'
+    url = 'http://127.0.0.1:8000/custom-train-export/cust_9.1247'
     # use url='http://127.0.0.1:8000/detect-langs' to detect top langs with probabilities
     if args.url:
         url = args.url

@@ -11,13 +11,14 @@ import time
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 # pylint: disable=import-error
-from sklearn.model_selection import GridSearchCV, GroupKFold
+from sklearn.model_selection import GridSearchCV
 # pylint: disable=import-error
 from sklearn.pipeline import Pipeline
 
 from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
+from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -170,9 +171,9 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for label, count in pos_neg_map.items():
             logger.info("train_candidates(), pos_neg_map[%s] = %d", label, count)
 
-        group_kfold = list(GroupKFold(n_splits=self.kfold).split(candidates,
-                                                                 label_list,
-                                                                 groups=group_id_list))
+        group_kfold = list(StratifiedGroupKFold(n_splits=self.kfold).split(candidates,
+                                                                           label_list,
+                                                                           groups=group_id_list))
         grid_search = GridSearchCV(pipeline,
                                    parameters,
                                    n_jobs=2,
@@ -333,8 +334,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         start_time = time.time()
         prov_annotations, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir, nbest=self.nbest)
         end_time = time.time()
-        logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
-                    self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.debug('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
+                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         # If there is no human annotation, must be normal annotation.
         # Remove anything below threshold
@@ -385,7 +386,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                        nbest: Optional[int] = None) -> Tuple[List[Dict[str, Any]], List[float]]:
         if not nbest:
             nbest = self.nbest
-        logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        # logger.debug('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+
         text = eb_antdoc.get_text()
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])

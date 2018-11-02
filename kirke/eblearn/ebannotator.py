@@ -182,8 +182,8 @@ class ProvisionAnnotator:
         start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
         end_time = time.time()
-        logger.info('annotate_antdoc(%s, %s) took %.0f msec, eb_antr',
-                    self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        logger.debug('annotate_antdoc(%s, %s) took %.0f msec, eb_antr',
+                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         try:
             # mapping the offsets in prov_human_ant_list from raw_text to nlp_text
@@ -226,6 +226,7 @@ class ProvisionAnnotator:
                                                       eb_antdoc.get_nlp_sx_lnpos_list(),
                                                       eb_antdoc.get_origin_sx_lnpos_list())
             # this is an in-place modification
+            # This add span list.  If there is a gap, one will be inserted into span list.
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
             fromto_mapper.adjust_fromto_offsets(full_annotations)
         except IndexError:

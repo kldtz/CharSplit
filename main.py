@@ -7,6 +7,7 @@ import logging
 import os
 import pprint
 import sys
+# pylint: disable=unused-import
 from typing import Any, Dict, List, Optional, Set
 
 # pylint: disable=import-error
@@ -100,8 +101,7 @@ def train_annotator(provision: str,
                     work_dir: str,
                     model_dir: str,
                     is_scut: bool,
-                    is_cache_enabled: bool = True,
-                    is_doc_structure: bool = True) -> None:
+                    is_cache_enabled: bool = True) -> None:
     if is_scut:
         eb_classifier = scutclassifier.ShortcutClassifier(provision)  # type: EbClassifier
         model_file_name = '{}/{}_scutclassifier.v{}.pkl'.format(model_dir,
@@ -118,8 +118,8 @@ def train_annotator(provision: str,
                                              model_dir,
                                              model_file_name,
                                              eb_classifier,
-                                             is_cache_enabled=is_cache_enabled,
-                                             is_doc_structure=is_doc_structure)
+                                             is_cache_enabled=is_cache_enabled)
+
 
 def train_span_annotator(label: str,
                          nbest: int,
@@ -127,7 +127,7 @@ def train_span_annotator(label: str,
                          work_dir: str,
                          model_dir: str) -> None:
     if candidate_types == ['SENTENCE']:
-        train_annotator(label, work_dir, model_dir, True)
+        train_annotator(label, work_dir, model_dir, is_scut=True)
     else:
         ebtrainer.train_eval_span_annotator(label,
                                             383838,
@@ -135,6 +135,7 @@ def train_span_annotator(label: str,
                                             nbest,
                                             candidate_types=candidate_types,
                                             work_dir=work_dir,
+                                            is_doc_structure=False,
                                             model_dir=model_dir)
 
 
@@ -162,13 +163,11 @@ def eval_rule_annotator(label: str,
 
 def eval_line_annotator_with_trte(provision: str,
                                   txt_fn_list_fn: str,
-                                  work_dir: str,
-                                  is_doc_structure: bool = True):
+                                  work_dir: str):
     """Test line annotators based on txt_fn_list."""
     ebtrainer.eval_line_annotator_with_trte(provision,
                                             txt_fn_list_fn,
-                                            work_dir=work_dir,
-                                            is_doc_structure=is_doc_structure)
+                                            work_dir=work_dir)
 
 
 def eval_mlxline_annotator(provision: str,
@@ -318,16 +317,21 @@ def annotate_document(file_name: str,
     # pprint.pprint(prov_labels_map)
 
     eb_doccat_runner = None
+    doc_catnames = []  # type: List[str]
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists('{}/{}'.format(model_dir,
                                                                        DOCCAT_MODEL_FILE_NAME)):
         eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
 
-    print("eb_doccat_runner = {}".format(eb_doccat_runner))
+    logger.info("eb_doccat_runner = %r", eb_doccat_runner)
     if eb_doccat_runner:
         doc_catnames = eb_doccat_runner.classify_document(file_name)
-        pprint.pprint({'tags': doc_catnames})
 
-    return prov_labels_map
+    ebannotations = {}  # type: Dict[str, Any]
+    ebannotations['lang'] = doc_lang
+    ebannotations['tags'] = doc_catnames
+    ebannotations['ebannotations'] = dict(prov_labels_map)
+
+    return ebannotations
 
 
 # pylint: disable=too-many-branches, too-many-statements
@@ -378,8 +382,7 @@ def main():
                         work_dir,
                         model_dir,
                         args.scut,
-                        is_cache_enabled=is_cache_enabled,
-                        is_doc_structure=True)
+                        is_cache_enabled=is_cache_enabled)
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,
                              args.nbest,
@@ -423,14 +426,26 @@ def main():
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        print("\nannotate_document() result:")
+        # print("\nannotate_document() result:")
+        result = annotate_document(args.doc,
+                                   work_dir,
+                                   model_dir,
+                                   custom_model_dir)
+        pprint.pprint(result)
+    elif cmd == 'print_para_cand':
+        if not args.doc:
+            print('please specify --doc', file=sys.stderr)
+            sys.exit(1)
+        provs = set(['PARAGRAPH'])
+        print("\nprint_para_cand() result:")
         prov_ants_map = annotate_document(args.doc,
                                           work_dir,
                                           model_dir,
                                           custom_model_dir,
+                                          provision_set=provs,
                                           is_doc_structure=True,
                                           is_dev_mode=True)
-        pprint.pprint(dict(prov_ants_map))
+        pprint.pprint(dict(prov_ants_map), width=160)
     elif cmd == 'print_doc_parties':
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
@@ -460,8 +475,7 @@ def main():
             sys.exit(1)
         eval_line_annotator_with_trte(args.provision,
                                       txt_fn_list_fn,
-                                      work_dir,
-                                      is_doc_structure=True)
+                                      work_dir)
     elif cmd == 'eval_mlxline_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
@@ -481,12 +495,9 @@ def main():
             print('please specify --model_dirs', file=sys.stderr)
             sys.exit(1)
         model_dir_list = args.model_dirs.split(',')
-        # for HTML document, without doc structure
-        # is_doc_structure has to be false.
         splittrte.split_provision_trte(args.provfiles_dir,
                                        work_dir,
-                                       model_dir_list,
-                                       is_doc_structure=True)
+                                       model_dir_list)
     elif cmd == 'split_doccat_trte':
         doccatsplittrte.split_doccat_trte(txt_fn_list_fn)
     elif cmd == 'train_doc_classifier':

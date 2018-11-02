@@ -2,8 +2,11 @@ import re
 # pylint: disable=unused-import
 from typing import Dict, List, Match, Optional, Tuple
 
-from kirke.utils import engutils, stopwordutils, strutils
-from kirke.docstruct import secheadutils
+
+from kirke.docstruct import docutils, linepos, secheadutils
+from kirke.docstruct.docutils import PLineAttrs
+from kirke.utils import corenlpsent, engutils, mathutils, stopwordutils, strutils
+
 # from kirke.ebrules import addresses
 
 # TODO, jshaw
@@ -77,11 +80,12 @@ TOC_HEADING_PAT = re.compile(r'^\s*(table\s*of\s*contents?|contents?)\s*:?$', re
 # 5 periods
 TOC_PREFIX_2_PAT = re.compile(r'(\.\.\.\.\.|\. \. \. \. \. )')
 
-def is_line_toc_heading(line: str):
-    return TOC_HEADING_PAT.search(line)
+def is_line_toc_heading(line: str) -> bool:
+    mat = TOC_HEADING_PAT.search(line)
+    return bool(mat and mat.end() < 40)
 
 
-def is_line_toc(line: str):
+def is_line_toc(line: str) -> bool:
     # sometimes a signature line might look like toc
     # By: .,.....
     if is_line_signature_prefix(line):
@@ -93,10 +97,25 @@ def is_line_toc(line: str):
 
     mat = TOC_PREFIX_2_PAT.search(line)
     if mat:
+        # first verify that the number of words is less than 12
+        no_multi_period_line = re.sub(r'\.\s*[\.\s]+', ' ', line)
+        num_words = no_multi_period_line.split()
+        if len(num_words) >= 12:
+            # check if there are 3 or more of the multi-period frags.
+            # some TOC lines might have been stuck together on the
+            # same line or block
+
+            # if there is OCR error on unknown stuff, it might form
+            # multi-period frags.  If known as a sentence, don't bother.
+            multi_period_mat = re.search(TOC_PREFIX_2_PAT, line)
+            if multi_period_mat and multi_period_mat.start() > 70:
+                return False
+            return True
+
         # need to verify it again for the rest of the line
         line_left = line[mat.end(1):]
         # print('line_left = [{}]'.format(line_left))
-        return TOC_PREFIX_2_PAT.search(line_left)
+        return bool(TOC_PREFIX_2_PAT.search(line_left))
     return False
 
 
@@ -131,9 +150,12 @@ def is_line_page_num(line: str,
                      line_break: float = 6.0,
                      yStart: float = 700.0,
                      unused_is_centered: bool = False):
+    is_debug = False
     if line_break > 5.0 or yStart >= 675.0:  # seen yStart==687.6 as page number
         pass
     elif line_num_in_page > 2 and line_num_in_page <= num_line_in_page - 2:
+        if is_debug:
+            print("pagenumber x1.0, false: {}".format(line))
         return False
 
     # no sechead in page number, if it is obvious sechead
@@ -142,17 +164,20 @@ def is_line_page_num(line: str,
 
     # 'page' in toc header
     if line.lower() == 'page' or PAGENUM_SIMPLE1_PAT.match(line):
-        # print("pagenumber x1: {}".format(line))
+        if is_debug:
+            print("pagenumber x1, true: {}".format(line))
         return True
     # if is_center_lineinfo(lineinfo):
     # print("LINE is CENTERED")
     if PAGENUM_PAT.match(line):
-        # print("pagenumber x2: {}".format(line))
+        if is_debug:
+            print("pagenumber x2, true: {}".format(line))
         return True
 
     # Exhibit K -Page 2
     if PAGENUM_PAT2.match(line):
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x3, true: {}".format(line))
         return True
 
     mat = PAGENUM_PAT3.match(line)
@@ -162,22 +187,31 @@ def is_line_page_num(line: str,
         for word in words:
             if strutils.is_all_digits(word):
                 if int(word) > 20:
+                    if is_debug:
+                        print("pagenumber x4, false: {}".format(line))
                     return False
                 num_digit += 1
         if num_digit > 2:
+            if is_debug:
+                print("pagenumber x5, false: {}".format(line))
             return False
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x6, true: {}".format(line))
         return True
 
     if PAGENUM_PAT4.match(line):
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x7, true: {}".format(line))
         return True
 
     # page 4 of 5
     if PAGENUM_PAT5.match(line):
-        # print("pagenumber x3: {}".format(line))
+        if is_debug:
+            print("pagenumber x8: {}".format(line))
         return True
 
+    if is_debug:
+        print("pagenumber default, false: {}".format(line))
     return False
 
 
@@ -233,41 +267,59 @@ def is_line_footer(line: str,
     if is_line_footer_by_content(line):
         return True, 1.0
 
+    # if it is a part of the last block
+    # if lbk < 1.1:
+    #    return False, -1
+
+    is_debug_footer = False
+
+    if is_debug_footer:
+        print("is_line_footer({}, {})".format(line, page_line_num))
+
     score = 0.0
     if yStart >= 725.0:
         score += 0.4
-    # print("score = {}, after yStart".format(score))
+    if is_debug_footer:
+        print("score = {}, after yStart".format(score))
     if num_line_in_page - page_line_num <= 2:
         score += 0.5
-    # print("score = {}, after num_line_in_page".format(score))
-    if not is_english:
+    if is_debug_footer:
+        print("score = {}, after num_line_in_page".format(score))
+    if is_english:
+        score -= 0.8
+    else:
         score += 0.2
-    # print("score = {}, after is_english".format(score))
+    if is_debug_footer:
+        print("score = {}, after is_english".format(score))
     if len(line) < 30:
         score += 0.2
-    # print("score = {}, after len(line)".format(score))
+    if is_debug_footer:
+        print("score = {}, after len(line)".format(score))
     if lbk >= 2.0:
         score += 0.2
-    # print("score = {}, after lbk".format(score))
+    if is_debug_footer:
+        print("score = {}, after lbk".format(score))
     if page_num_index != -1 and page_line_num >= page_num_index:
         score += 0.8
-    # print("score = {}, after page_num_index = {}, page_line_num = {}".format(score,
-    #                                                                          page_num_index,
-    #                                                                          page_line_num))
+    if is_debug_footer:
+        print("score = {}, after page_num_index = {}, page_line_num = {}".format(score,
+                                                                                 page_num_index,
+                                                                                 page_line_num))
 
     if 'confidential information' in line.lower() and is_centered:
         score += 0.8
-    # print("score = {}, confid".format(score))
+    if is_debug_footer:
+        print("score = {}, confid".format(score))
 
     # no sechead in footer, if it is obvious sechead
     if secheadutils.is_line_sechead_strict_prefix(line):
         score -= 20
-
-    # print('is_footer.score = {}'.format(score))
+    if is_debug_footer:
+        print('is_footer.score = {}'.format(score))
     return score >= 1, score
 
 
-HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', re.I)
+HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', flags=re.I)
 
 # no re.I
 # TODO, jshaw, these should really be sechead, not headers.
@@ -275,6 +327,7 @@ HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', re.I)
 HEADER_PARTIAL_PAT = re.compile(r'(State and Local Sales and Use Tax|'
                                 r'Exempt Use Certificate|State Department of)')
 
+# pylint: disable=too-many-statements
 def is_line_header(line: str,
                    yStart: float,
                    line_num: int,
@@ -285,8 +338,14 @@ def is_line_header(line: str,
                    num_line_in_page: int,
                    header_set=None):
 
+    is_debug = False
+    # if line == 'Execution Copy':
+    #     is_debug = True
+
     # for domain specific headers
     if header_set and line.lower().strip() in header_set:
+        if is_debug:
+            print("is_line_header({}), True, domain specific".format(line))
         return True
 
     # this is a normal sentences
@@ -294,30 +353,52 @@ def is_line_header(line: str,
         if is_line_title(line):
             pass
         elif 'LF' in align:
+            if is_debug:
+                print("is_line_header({}), False, is_en, is_lf_align".format(line))
             return False
 
     score = 0.0
     if HEADER_PAT.match(line) and yStart < 140:
+        if is_debug:
+            print("header_path_match 1, + 0.9")
         score += 0.9
     elif ((HEADER_PAT.match(line) or
            HEADER_PARTIAL_PAT.search(line)) and
           yStart < 140):
+        if is_debug:
+            print("header_path_match 2, + 1.0")
         score += 1.0
     elif yStart < 80.0:
+        if is_debug:
+            print("header_path_match 3, yStart < 80.0 + 0.7")
         score += 0.7
 
+    num_words = len(line.split())
+    if num_words >= 15:
+        if is_debug:
+            print("header_path_match 4.1, too many words , - 10.0")
+        score -= 0.6
+
     if not is_english or len(line) < 30:
+        if is_debug:
+            print("header_path_match 4, no is_eng, + 0.2")
         score += 0.2
 
     # don't use is_line_address(), too costly
     if secheadutils.is_line_sechead_prefix(line) or \
        is_line_address_prefix(line) or \
        is_line_signature_prefix(line):
+        if is_debug:
+            print("header_path_match 5, sechead , - 10.0")
         score -= 10.0
 
     if 'RT' in align or 'CN' in align:
+        if is_debug:
+            print("header_path_match 6, RT CN , + 0.3")
         score += 0.3
     elif is_centered:   # sometimes, 'exhibit a' can be mistaken for header
+        if is_debug:
+            print("header_path_match 6, is_centered , + 0.3")
         # a negative feature
         score -= 0.3
 
@@ -334,7 +415,8 @@ def is_line_header(line: str,
     elif line_num < 4:
         score += 0.2
 
-    # print("score = {}, is_line_header({})".format(score, line))
+    if is_debug:
+        print("score = {}, is_line_header({})".format(score, line))
     return score >= 1.0
 
 
@@ -442,3 +524,84 @@ def line_list_to_block_list(linex_list):
             cur_block.append(linex)
         prev_block_num = block_num
     return tmp_block_list
+
+
+# this is in-place
+# pylint: disable=too-many-locals
+def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
+                                paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
+                                                                        linepos.LnPos]],
+                                                             PLineAttrs]]) \
+                                -> None:
+    if not ebsent_list:  # if there is no data
+        return
+
+    para_i, len_paras = 0, len(paras_with_attrs)
+    ebsent_i, len_ebsents = 0, len(ebsent_list)
+    ebsent = ebsent_list[ebsent_i]
+    ebsent_start, ebsent_end = ebsent.start, ebsent.end
+
+    while para_i < len_paras and ebsent_i < len_ebsents:
+        span_se_list, pline_attrs = paras_with_attrs[para_i]
+        (unused_para_from_start, unused_para_from_end), \
+            (para_to_start, para_to_end) = \
+                docutils.span_frto_list_to_fromto(span_se_list)
+
+        if para_to_start == para_to_end:  # empty line, move on
+            para_i += 1
+            continue
+
+        sechead_attr = pline_attrs.sechead
+        if sechead_attr:
+            # print("attrs: {}".format(attrs[0]))
+            unused_sechead_type, unused_sh_prefix_num, sh_header, unused_sh_idx = \
+                sechead_attr
+        else:
+            sh_header = ''
+        # ttx_span_se_list, ttx_pline_attrs = paras_with_attrs[para_i]
+        # print("para #{}: ({}, {})".format(para_i, ttx_span_se_list,
+        #                                   # this is to make the output look the same as
+        #                                   # before 2018-08-25, can be removed in the future
+        #                                   '[' + str(ttx_pline_attrs)[8:] + ']'))
+        while ebsent_start <= para_to_end:
+            if mathutils.start_end_overlap((ebsent_start, ebsent_end),
+                                           (para_to_start, para_to_end)):
+                # print("\tebsent set sechead ({}, {}): {}". \
+                #       format(ebsent_start, ebsent_end, sh_header))
+                if sh_header:
+                    ebsent.set_sechead(' '. \
+                        join(stopwordutils. \
+                        tokens_remove_stopwords([word.lower()
+                                                 for word in re.findall(r'\w+',
+                                                                        sh_header)],
+                                                is_lower=True)))
+                # else, don't even set it
+            ebsent_i += 1
+            if ebsent_i < len_ebsents:
+                ebsent = ebsent_list[ebsent_i]
+                ebsent_start, ebsent_end = ebsent.start, ebsent.end
+            else:
+                ebsent_start = para_to_end + 1  # end the loop
+        para_i += 1
+    #ebsent_i = 0
+    #while ebsent_i < len_ebsents:
+    #    print("sent #{}: {}".format(ebsent_i, ebsent_list[ebsent_i]))
+    #    ebsent_i += 1
+
+
+def text_from_para_with_attrs(doc_text: str,
+                              nlp_paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
+                                                                          linepos.LnPos]],
+                                                               PLineAttrs]]) -> str:
+    para_st_list = []  # type: List[str]
+    for nlp_para_with_attrs in nlp_paras_with_attrs:
+
+        # print("para_with_attrs: {}".format(para_with_attrs))
+        lnpos_pair_list, unused_attrs = nlp_para_with_attrs
+        for from_lnpos, unused_to_lnpos in lnpos_pair_list:
+            from_start, from_end, unused_from_line_num = from_lnpos.to_tuple()
+            para_st_list.append(doc_text[from_start:from_end])
+
+        # para_st_list.append(' '.join(para_st_list))
+    nlp_text = '\n'.join(para_st_list)
+    return nlp_text

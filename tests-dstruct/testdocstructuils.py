@@ -16,6 +16,25 @@ class TestStrUtils(unittest.TestCase):
         self.assertTrue(is_line_page_num('PAge 3'))
         self.assertFalse(is_line_page_num('Page 3a'))
 
+    def test_is_line_page_num_roman(self):
+        self.assertTrue(is_line_page_num('i'))
+        self.assertTrue(is_line_page_num('ii'))
+        self.assertTrue(is_line_page_num('iii'))
+        self.assertTrue(is_line_page_num('iv'))
+        self.assertTrue(is_line_page_num('v'))
+        self.assertTrue(is_line_page_num('vi'))
+        self.assertTrue(is_line_page_num('x'))
+        self.assertTrue(is_line_page_num('xi'))
+        
+        self.assertTrue(is_line_page_num('Page i'))
+        self.assertTrue(is_line_page_num('Page ii'))
+        self.assertTrue(is_line_page_num('Page iii'))
+        self.assertTrue(is_line_page_num('Page iv'))
+        self.assertTrue(is_line_page_num('Page v'))
+        self.assertTrue(is_line_page_num('Page vi'))
+        self.assertTrue(is_line_page_num('Page x'))
+        self.assertTrue(is_line_page_num('Page xi'))                                        
+
     def test_is_line_signature_prefix(self):
         "Test is_line_signature_prefix()"
         self.assertTrue(is_line_signature_prefix('By: _'))

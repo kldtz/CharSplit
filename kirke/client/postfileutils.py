@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 from pathlib import Path
 import os
 import sys
 # pylint: disable=unused-import
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import requests
 
+from kirke.utils import modelfileutils
+
+
+MODEL_DIR = 'dir-scut-model'
+WORK_DIR = 'dir-work'
+CUSTOM_MODEL_DIR = 'eb_files_test/pymodel'
 
 UNIT_TEST_PROVS = ['change_control',
                    'choiceoflaw',
@@ -24,8 +31,19 @@ UNIT_TEST_PROVS = ['change_control',
                    'term',
                    'title',
                    'warranty',
-                   'cust_9']
+                   'cust_9.1005']
 
+
+def upload_annotate_doc(file_name: str, prov_list: Optional[List[str]] = None) \
+    -> Dict[str, Any]:
+    if not prov_list:
+        prov_list = UNIT_TEST_PROVS
+    text = post_unittest_annotate_document(file_name, prov_list)
+    ajson = json.loads(text)
+    return ajson
+
+
+# pylint: disable=too-many-arguments
 def post_annotate_document(file_name: str,
                            prov_list: List[str],
                            is_detect_lang: bool = False,
@@ -63,9 +81,12 @@ def post_annotate_document(file_name: str,
     raise ValueError
 
 
-def post_unittest_annotate_document(file_name: str) -> str:
+def post_unittest_annotate_document(file_name: str,
+                                    prov_list: Optional[List[str]] = None) -> str:
+    if not prov_list:
+        prov_list = UNIT_TEST_PROVS
     result = post_annotate_document(file_name,
-                                    UNIT_TEST_PROVS,
+                                    prov_list,
                                     is_detect_lang=True,
                                     is_classify_doc=True,
                                     is_dev_mode=True)
@@ -77,6 +98,18 @@ def upload_train_dir(custid: str,
                      upload_dir: str,
                      candidate_types: str,
                      nbest: int = -1) -> str:
+    resp = upload_train_dir_resp(custid,
+                                 upload_dir,
+                                 candidate_types,
+                                 nbest)
+    return resp.text
+
+
+# pylint: disable=too-many-locals
+def upload_train_dir_resp(custid: str,
+                          upload_dir: str,
+                          candidate_types: str,
+                          nbest: int = -1):
     txt_fnames, ant_fnames = [], []
     offsets_fnames = []
     for file in os.listdir(upload_dir):
@@ -127,7 +160,8 @@ def upload_train_dir(custid: str,
                          files=file_tuple_list,
                          data=payload,
                          timeout=6000)
-    return resp.text
+    return resp
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='identify the language')

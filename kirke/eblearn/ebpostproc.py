@@ -380,12 +380,12 @@ def extract_ea_employer(sent_start, sent_end, attrvec_entities, doc_text) -> Opt
 
             entity_doc_st = doc_text[entity.start:entity.end]
             # pylint: disable=too-many-boolean-expressions
-            if ("Company" in entity_doc_st or \
-                "COMPANY" in entity_doc_st or \
-                "Corporation" in entity_doc_st or \
-                "CORPORATION" in entity_doc_st or \
-                "Employer" in entity_doc_st or \
-                "EMPLOYER" in entity_doc_st):
+            if "Company" in entity_doc_st or \
+               "COMPANY" in entity_doc_st or \
+               "Corporation" in entity_doc_st or \
+               "CORPORATION" in entity_doc_st or \
+               "Employer" in entity_doc_st or \
+               "EMPLOYER" in entity_doc_st:
                 found_provision_list.append((entity_doc_st,
                                              entity.start,
                                              entity.end, 'x1'))
@@ -866,8 +866,12 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
             for ag in agent:
                 if ag in ref.lower():
                     mat = re.search(re.escape(party), sent_st, re.I)
-                    ant_start, ant_end = mat.span()
-                    found_provision_list.append((party, sent_start+ant_start, sent_start+ant_end, 'x1'))
+                    # the try-except will take care of the None case
+                    ant_start, ant_end = mat.span()  # type: ignore
+                    found_provision_list.append((party,
+                                                 sent_start+ant_start,
+                                                 sent_start+ant_end,
+                                                 'x1'))
                     is_provision_found = True
     # not sure exactly what exception can be triggerred, out of range index?
     # pylint: disable=bare-except

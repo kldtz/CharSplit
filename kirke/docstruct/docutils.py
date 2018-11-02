@@ -6,11 +6,71 @@ from kirke.utils import strutils
 from kirke.docstruct import linepos
 
 
+# pylint: disable=too-few-public-methods, too-many-instance-attributes
+class PLineAttrs:
+
+    def __init__(self):
+        self.pnum = -1
+        self.bnum = -1
+        self.not_en = False
+        self.center = False
+        self.toc = False
+        self.sechead = None  # type: Optional[Tuple[str, str, str, int]]
+        self.footer = False
+        self.header = False
+
+        self.signature = False
+        self.address = False
+        self.table = ''
+        self.chart = ''
+
+        # whether a page has a page number line or not
+        self.has_page_num = False
+
+        self.table_row = -1
+
+    def __str__(self):
+        alist = []  # List[str]
+        if self.pnum != -1:
+            alist.append('{}={}'.format('pnum', self.pnum))
+        if self.bnum != -1:
+            alist.append('{}={}'.format('bnum', self.bnum))
+        if self.not_en:
+            alist.append('{}={}'.format('not_en', self.not_en))
+        if self.center:
+            alist.append('{}={}'.format('center', self.center))
+        if self.toc:
+            alist.append('{}={}'.format('toc', self.toc))
+        if self.sechead:
+            alist.append('{}={}'.format('sechead', self.sechead))
+        if self.footer:
+            alist.append('{}={}'.format('footer', self.footer))
+        if self.header:
+            alist.append('{}={}'.format('header', self.header))
+
+        if self.signature:
+            alist.append('{}={}'.format('signature', self.signature))
+        if self.address:
+            alist.append('{}={}'.format('address', self.address))
+        if self.table:
+            alist.append('{}={}'.format('table', self.table))
+        if self.chart:
+            alist.append('{}={}'.format('chart', self.chart))
+
+        if self.table_row != -1:
+            alist.append('{}={}'.format('table_row', self.table_row))
+
+        if self.has_page_num:
+            alist.append('{}={}'.format('has_page_num', self.has_page_num))
+
+        return ', '.join(alist)
+
+
 def lnpos2dict(start: int, end: int, lnpos: linepos.LnPos) -> Dict:
     adict = {'start': start,
              'end': end,
              'line_num': lnpos.line_num}
-    if lnpos.is_gap:
+    if lnpos.start == lnpos.end:
         adict['gap'] = True
     return adict
 

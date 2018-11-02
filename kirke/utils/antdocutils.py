@@ -3,6 +3,7 @@ import json
 from operator import itemgetter
 from typing import Any, List
 
+from kirke.utils import modelfileutils
 
 def get_ant_out_json(json_fn: str) -> Any:
     with open(json_fn, 'rt') as handle:
@@ -17,7 +18,9 @@ def get_ant_out_file_prov_list(json_fn: str,
 
 def get_ant_out_json_prov_list(ajson,
                                provision: str) -> List:
-    prov_list = ajson['ebannotations'].get(provision, [])
+    adj_provision = modelfileutils.remove_custom_provision_version(provision)
+
+    prov_list = ajson['ebannotations'].get(adj_provision, [])
     sorted_list = sorted(prov_list, key=itemgetter('start'))
     return sorted_list
 
