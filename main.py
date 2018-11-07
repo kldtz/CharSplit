@@ -126,17 +126,14 @@ def train_span_annotator(label: str,
                          candidate_types: List[str],
                          work_dir: str,
                          model_dir: str) -> None:
-    if candidate_types == ['SENTENCE']:
-        train_annotator(label, work_dir, model_dir, is_scut=True)
-    else:
-        ebtrainer.train_eval_span_annotator(label,
-                                            383838,
-                                            'en',
-                                            nbest,
-                                            candidate_types=candidate_types,
-                                            work_dir=work_dir,
-                                            is_doc_structure=False,
-                                            model_dir=model_dir)
+    ebtrainer.train_eval_span_annotator(label,
+                                        383838,
+                                        'en',
+                                        nbest,
+                                        candidate_types=candidate_types,
+                                        work_dir=work_dir,
+                                        is_doc_structure=False,
+                                        model_dir=model_dir)
 
 
 def eval_span_annotator(label: str,

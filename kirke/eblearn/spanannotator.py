@@ -14,6 +14,7 @@ from sklearn.model_selection import GridSearchCV
 # pylint: disable=import-error
 from sklearn.pipeline import Pipeline
 
+from kirke.sampleutils import transformerutils
 from kirke.eblearn import baseannotator, ebpostproc
 from kirke.utils import ebantdoc4, evalutils, strutils
 from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
@@ -120,6 +121,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.doc_to_candidates = doc_to_candidates
         self.candidate_transformers = candidate_transformers
         self.pipeline = pipeline
+        self.transformer = None
         self.gridsearch_parameters = gridsearch_parameters
         self.threshold = threshold
         self.kfold = kfold
@@ -170,7 +172,14 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for label, count in pos_neg_map.items():
             logger.info("train_candidates(), pos_neg_map[%s] = %d", label, count)
 
-        group_kfold = list(StratifiedGroupKFold(n_splits=self.kfold).split(candidates,
+
+        if 'SENTENCE' in self.candidate_types:
+            self.transformer = transformerutils.SentTransformer()
+            self.transformer.fit(candidates, label_list)
+            X_train = self.transformer.transform(candidates)
+        else:
+            X_train = candidates
+        group_kfold = list(StratifiedGroupKFold(n_splits=self.kfold).split(X_train,
                                                                            label_list,
                                                                            groups=group_id_list))
         grid_search = GridSearchCV(pipeline,
@@ -182,7 +191,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                    cv=group_kfold)
 
         time_0 = time.time()
-        grid_search.fit(candidates, label_list)
+        grid_search.fit(X_train, label_list)
         logger.info("done in %0.3fs", (time.time() - time_0))
 
         logger.info("Best score: %0.3f", grid_search.best_score_)
@@ -368,8 +377,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             return [], []
 
         probs = [1.0] * len(candidates) # type: List[float]
+        if 'SENTENCE' in self.candidate_types:
+            X_test = self.transformer.transform(candidates)
+        else:
+            X_test = candidates
         if self.estimator:
-            probs = self.estimator.predict_proba(candidates)[:, 1]
+            probs = self.estimator.predict_proba(X_test)[:, 1]
 
         # to indicate which type of annotation this is
         for candidate, prob in zip(candidates, probs):
