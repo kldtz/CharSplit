@@ -231,9 +231,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                             specified_threshold=threshold,
                                             prov_human_ant_list=prov_human_ant_list,
                                             work_dir=work_dir)
-            # print("\nfn: {}".format(ebantdoc.file_id))
-            # tp, fn, fp, tn = self.calc_doc_confusion_matrix(prov_ant_list,
-            # pred_prob_start_end_list, txt)
             if self.provision in PROVISION_EVAL_ANYMATCH_SET:
                 xtp, xfn, xfp, xtn, json_return = \
                     evalutils.calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list,
@@ -318,15 +315,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         prov_annotations = candidates
-
+        # Remove anything below threshold
+        prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= threshold]
         prov_annotations = recover_false_negatives(prov_human_ant_list,
                                                    eb_antdoc.get_text(),
                                                    self.provision,
                                                    prov_annotations)
-        # If there is no human annotation, must be normal annotation.
-        # Remove anything below threshold
-        if not prov_human_ant_list:
-            prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= threshold]
         if nbest > 0:
             return prov_annotations[:nbest]
         return prov_annotations
@@ -375,7 +369,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                 antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list)
         if not candidates:
             return [], []
-
         probs = [1.0] * len(candidates) # type: List[float]
         if 'SENTENCE' in self.candidate_types:
             X_test = self.transformer.transform(candidates)
@@ -389,7 +382,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             candidate['label'] = self.provision
             candidate['prob'] = prob
             candidate['text'] = text[candidate['start']:candidate['end']]
-
         # apply post processing, such as date normalization
         # in case there is any bad apple, with 'reject' == True
         for post_proc in self.doc_postproc_list:

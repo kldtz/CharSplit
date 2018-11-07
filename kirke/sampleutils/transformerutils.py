@@ -180,21 +180,21 @@ class SentTransformer(EbTransformerBase):
             self.vocab_id_map = vocab_id_map
             self.positive_vocab = positive_vocab
 
-        try:
-            self.sechead_vectorizer.fit(sechead_st_list) 
-        except ValueError:
-            self.sechead_vectorizer = CountVectorizer(vocabulary=['dummy'])
+            try:
+                self.sechead_vectorizer.fit(sechead_st_list)
+            except ValueError:
+                self.sechead_vectorizer = CountVectorizer(vocabulary=['dummy'])
 
-        logger.info("starting computing bi_topgram")
-        nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
-        filtered_list = []
-        for nostop_positive_sent in nostop_positive_sent_st_list:
-            for tmp_w in nostop_positive_sent.split():
-                if len(tmp_w) > 3:
-                    filtered_list.append(tmp_w)
-        fdistribution = FreqDist(filtered_list)
-        self.n_top_positive_words = [item[0] for item in
-                                     fdistribution.most_common(MAX_NUM_BI_TOPGRAM_WORDS)]
+            logger.info("starting computing bi_topgram")
+            nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
+            filtered_list = []
+            for nostop_positive_sent in nostop_positive_sent_st_list:
+                for tmp_w in nostop_positive_sent.split():
+                    if len(tmp_w) > 3:
+                        filtered_list.append(tmp_w)
+            fdistribution = FreqDist(filtered_list)
+            self.n_top_positive_words = [item[0] for item in
+                                         fdistribution.most_common(MAX_NUM_BI_TOPGRAM_WORDS)]
 
         bow_matrix, perc_positive_ngrams = self.gen_top_ngram_matrix(sent_st_list,
                                                                      # pylint: disable=line-too-long
@@ -211,10 +211,9 @@ class SentTransformer(EbTransformerBase):
         comb_matrix = sparse.hstack((numeric_matrix,
                                      perc_pos_ngram_matrix,
                                      categorical_matrix,
-                                     bow_matrix))
-                                     #sechead_matrix))
+                                     bow_matrix,
+                                     sechead_matrix))
         sparse_comb_matrix = sparse.csr_matrix(comb_matrix)
-        print("NUM", numeric_matrix.shape, "PERC", perc_pos_ngram_matrix.shape, "CAT", categorical_matrix.shape, "BOW", bow_matrix.shape, "SEC", sechead_matrix.shape)
         nozero_sparse_comb_matrix = self.remove_zero_column(sparse_comb_matrix, fit_mode=fit_mode)
 
         X = sparse.hstack((nozero_sparse_comb_matrix, bi_topgram_matrix), format='csr')
