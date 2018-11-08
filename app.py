@@ -377,8 +377,11 @@ def custom_train(cust_id: str):
             if not doc_lang:  # if a document has no text, its langid can be None
                 continue
             ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
-            logger.info('Number of annotations for %s: %d', doc_lang, ant_count)
-            if ant_count >= 6:
+            # pylint: disable=line-too-long
+            pos_docs = len([fname_provtypes_map[x].count(provision) for x in names_per_lang if fname_provtypes_map[x].count(provision) > 0])
+            # pylint: disable=line-too-long
+            logger.info('For %s: %d annotations in %d positive documents, %d documents total', doc_lang, ant_count, pos_docs, len(names_per_lang))
+            if pos_docs >= 6:
                 txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
                 fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
                 strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
