@@ -378,7 +378,7 @@ def custom_train(cust_id: str):
                 continue
             ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
             # pylint: disable=line-too-long
-            pos_docs = len([fname_provtypes_map[x].count(provision) for x in names_per_lang if fname_provtypes_map[x].count(provision) > 0])
+            pos_docs = sum([fname_provtypes_map[x].count(provision) > 0 for x in names_per_lang])
             # pylint: disable=line-too-long
             logger.info('For %s: %d annotations in %d positive documents, %d documents total', doc_lang, ant_count, pos_docs, len(names_per_lang))
             if pos_docs >= 6:
