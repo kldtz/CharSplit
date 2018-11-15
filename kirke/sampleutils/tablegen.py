@@ -340,13 +340,23 @@ class TableGenerator:
                                                             label_ant_list)
 
                 out_table_json = tableutils.table_block_to_json(abbyy_table)
+                if out_table_json.get('page'):
+                    del out_table_json['page']
 
                 out_table_json['start'] = table_start
                 out_table_json['end'] = table_end
-                out_table_json['x_left'] = left_x
-                out_table_json['x_right'] = right_x
-                out_table_json['y_top'] = top_y
-                out_table_json['y_bottom'] = bot_y
+                multiplier = 72.0 / 300
+                rect_region_list = []
+
+                rect_region = {}
+                rect_region['page'] = table_page_num
+                rect_region['x_left'] = round(left_x * multiplier)
+                rect_region['x_right'] = round(right_x * multiplier)
+                rect_region['y_top'] = round(top_y * multiplier)
+                rect_region['y_bottom'] = round(bot_y * multiplier)
+                rect_region_list.append(rect_region)
+                out_table_json['rect_region_list'] = rect_region_list
+
                 out_table_json['span_list'] = span_dict_list
                 if out_sechead_dict:
                     out_table_json['section_head'] = out_sechead_dict['text']
