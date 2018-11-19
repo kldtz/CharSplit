@@ -225,7 +225,6 @@ def cv_candg_train_at_annotation_level(provision: str,
         all_candidates.extend(x_candidates)
         all_candidate_labels.extend(x_candidate_label_list)
         all_group_ids.extend(x_group_ids)
-        #print(">>>>", x_candidate_label_list)
         if True in x_candidate_label_list:
             num_pos_after_candgen += 1
 
@@ -669,7 +668,6 @@ def train_eval_span_annotator(provision: str,
         # pylint: disable=line-too-long
         logger.info("%s extracted %d candidates across %d documents.",
                     candidate_types, sum([len(x[1]) for x in X_all_antdoc_candidatex_list]), len(eb_antdoc_list))
-
         prov_annotator2, combined_log_json = \
             cv_candg_train_at_annotation_level(provision,
                                                X_all_antdoc_candidatex_list,
