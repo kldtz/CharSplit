@@ -45,7 +45,7 @@ class SentDefaultPostProcessing(DocCandidatesTransformer):
         min_start = min([cand['start'] for cand in cand_list])
         max_end = max([cand['end'] for cand in cand_list])
         new_text = " ".join([cand['text'] for cand in cand_list]) ####
-        new_span = []
+        new_span = [] #List[List[int]]
         for cand in cand_list:
             new_span.extend(cand['span_list'])
         new_cand = {'start': min_start,
@@ -90,3 +90,6 @@ class SentDefaultPostProcessing(DocCandidatesTransformer):
             return nbest_candidates
 
         return candidates
+
+    def enrich(self, candidate: Dict) -> None:
+        pass
