@@ -274,7 +274,9 @@ def annotate_document(file_name: str,
                       work_dir: str,
                       model_dir: str,
                       custom_model_dir: str,
-                      provision_set: Optional[Set[str]] = None) -> Dict:
+                      provision_set: Optional[Set[str]] = None,
+                      is_doc_structure: bool = True,
+                      is_dev_mode: bool = False) -> Dict[str, Any]:
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
     eb_langdetect_runner = ebrunner.EbLangDetectRunner()
 
@@ -292,7 +294,9 @@ def annotate_document(file_name: str,
     prov_labels_map, _ = eb_runner.annotate_document(file_name,
                                                      provision_set=provision_set,
                                                      work_dir=work_dir,
-                                                     doc_lang=doc_lang)
+                                                     doc_lang=doc_lang,
+                                                     is_doc_structure=is_doc_structure,
+                                                     is_dev_mode=is_dev_mode)
 
     # because special case of 'effectivdate_auto'
     if prov_labels_map.get('effectivedate'):
@@ -436,19 +440,21 @@ def main():
                                           model_dir,
                                           custom_model_dir,
                                           provision_set=provs,
-                                          is_doc_structure=True)
+                                          is_doc_structure=True,
+                                          is_dev_mode=True)
         pprint.pprint(dict(prov_ants_map), width=160)
     elif cmd == 'print_doc_parties':
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
         print("\nannotate_document() result:")
-        result = annotate_document(args.doc,
-                                   work_dir,
-                                   model_dir,
-                                   custom_model_dir)
-        pprint.pprint(result)
-        prov_ants_map = result['ebannoations']
+        prov_ants_map = annotate_document(args.doc,
+                                          work_dir,
+                                          model_dir,
+                                          custom_model_dir,
+                                          is_doc_structure=True,
+                                          is_dev_mode=True)
+        pprint.pprint(dict(prov_ants_map))
         party_ant_list = prov_ants_map['party']
         result = []
         for party_ant in party_ant_list:

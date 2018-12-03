@@ -26,7 +26,7 @@ def main():
     if args.url:
         url = args.url
 
-    payload = {}
+    payload = {'dev-mode': True}
     if args.lang:
         payload['detect-lang'] = True
     if args.doccat:

@@ -43,11 +43,13 @@ def upload_annotate_doc(file_name: str, prov_list: Optional[List[str]] = None) \
     return ajson
 
 
+# pylint: disable=too-many-arguments
 def post_annotate_document(file_name: str,
                            prov_list: List[str],
                            is_detect_lang: bool = False,
                            is_classify_doc: bool = False,
-                           is_show_header: bool = False) -> str:
+                           is_show_header: bool = False,
+                           is_dev_mode: bool = False) -> str:
 
     url = 'http://localhost:8000/annotate-doc'
     payload = {'types': ','.join(prov_list)}  # type: Dict[str, Any]
@@ -56,6 +58,8 @@ def post_annotate_document(file_name: str,
         payload['detect-lang'] = True
     if is_classify_doc:
         payload['classify-doc'] = True
+    if is_dev_mode:
+        payload['dev-mode'] = True
 
     txt_file = Path(file_name)
     if txt_file.is_file() and file_name.endswith('.txt'):
@@ -84,7 +88,8 @@ def post_unittest_annotate_document(file_name: str,
     result = post_annotate_document(file_name,
                                     prov_list,
                                     is_detect_lang=True,
-                                    is_classify_doc=True)
+                                    is_classify_doc=True,
+                                    is_dev_mode=True)
     return result
 
 

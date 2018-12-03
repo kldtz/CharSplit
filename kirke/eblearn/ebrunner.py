@@ -49,7 +49,8 @@ def annotate_provision(eb_annotator,
     if isinstance(eb_annotator, spanannotator.SpanAnnotator):
         return eb_annotator.annotate_antdoc(eb_antdoc)
     """
-    return eb_annotator.annotate_antdoc(eb_antdoc)
+    annotations, _ = eb_annotator.annotate_antdoc(eb_antdoc)
+    return annotations
 
 
 def test_provision(eb_annotator,
@@ -395,7 +396,9 @@ class EbRunner:
                           file_name: str,
                           provision_set: Optional[Set[str]] = None,
                           work_dir: Optional[str] = None,
-                          doc_lang: str = 'en') \
+                          is_doc_structure: bool = True,
+                          doc_lang: str = 'en',
+                          is_dev_mode: bool = False) \
                           -> Tuple[Dict[str, List],
                                    ebantdoc4.EbAnnotatedDoc4]:
         """Annotate a document with the provisions specified in provision_set.
@@ -404,19 +407,30 @@ class EbRunner:
         'cust_12345.9393_pt'
         """
         time1 = time.time()
+        if not work_dir:
+            work_dir = self.work_dir
+
         if not provision_set:
-            # no provision specified.  Must be doing testing.
-            lang_provision_set = modelfileutils.get_custom_prov_ver_langs(self.custom_model_dir)
-            lang_provision_set.update(self.provisions)
-            # also get ALL custom provision set, since we are doing testing
-            logger.info("custom_model_dir: %s", self.custom_model_dir)
-            logger.info("lang_provision_set: %r", lang_provision_set)
+            if is_dev_mode:
+                # no provision specified.  Must be doing testing.
+                lang_provision_set = osutils.get_all_custom_provisions(self.custom_model_dir)
+                lang_provision_set.update(self.provisions)
+                # also get ALL custom provision set, since we are doing testing
+                logger.info("custom_model_dir: %s", self.custom_model_dir)
+                logger.info("provision_set: %r", provision_set)
+            else:
+                logger.warning("annotate_document(%s), provision_set is empty", file_name)
+                empty_result = {}  # type: Dict[str, List]
+                # this is just to keep the API consistent for now
+                # TODO, in the future, maybe change the API to not pass back ebantdoc
+                eb_antdoc = ebantdoc4.text_to_ebantdoc4(file_name,
+                                                        work_dir=work_dir,
+                                                        is_doc_structure=is_doc_structure,
+                                                        doc_lang=doc_lang)
+                return empty_result, eb_antdoc
         else:
             # logger.info('user specified provision list: %s', provision_set)
             lang_provision_set = provision_set
-
-        if not work_dir:
-            work_dir = self.work_dir
 
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
