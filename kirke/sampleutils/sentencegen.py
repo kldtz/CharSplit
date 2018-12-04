@@ -1,8 +1,7 @@
 import logging
-import traceback
-from typing import Dict, List, Optional, Pattern, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from kirke.utils import ebantdoc4, ebsentutils, strutils
+from kirke.utils import ebantdoc4, ebsentutils
 from kirke.docstruct import fromtomapper
 
 # pylint: disable=invalid-name
@@ -17,7 +16,7 @@ class SentenceGenerator:
         self.candidate_type = candidate_type
         self.group_num = group_num
 
-
+    # pylint: disable=too-many-arguments, unused-argument
     def get_candidates_from_ebantdoc(self,
                                      ebantdoc: ebantdoc4.EbAnnotatedDoc4,
                                      group_id: int = 0,
@@ -32,7 +31,6 @@ class SentenceGenerator:
             match_start = attrvec.start
             match_end = attrvec.end
             match_str = ebantdoc.get_nlp_text()[match_start:match_end]
-            
 
             a_candidate = {'candidate_type': self.candidate_type,
                            'bow_start': match_start,
@@ -46,9 +44,10 @@ class SentenceGenerator:
                            'attrvec': attrvec}
             candidates.append(a_candidate)
             group_id_list.append(group_id)
-        
+
         return candidates, group_id_list, label_list_param
 
+    # pylint: disable=too-many-locals
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
                                 label: Optional[str] = None) \
@@ -78,11 +77,11 @@ class SentenceGenerator:
                                                                                       label_list_param=label_list,
                                                                                       label=label)
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
-                                                          antdoc.get_nlp_sx_lnpos_list(),
-                                                          antdoc.get_origin_sx_lnpos_list())
+                                                      antdoc.get_nlp_sx_lnpos_list(),
+                                                      antdoc.get_origin_sx_lnpos_list())
             # this is an in-place modification
             fromto_mapper.adjust_fromto_offsets(candidates)
-            
+
             for candidate in candidates:
                 is_label = ebsentutils.check_start_end_overlap(candidate['start'],
                                                                candidate['end'],

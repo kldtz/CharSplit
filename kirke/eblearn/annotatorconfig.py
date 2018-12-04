@@ -41,7 +41,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
     ('SENTENCE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                          'is_use_corenlp': True,
                          'text_type': 'nlp_text',
-                         'doc_to_candidates': [sentencegen.SentenceGenerator('SENTENCE')], 
+                         'doc_to_candidates': [sentencegen.SentenceGenerator('SENTENCE')],
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SentDefaultPostProcessing(0.24)],
                          'pipeline': Pipeline([

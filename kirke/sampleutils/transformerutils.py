@@ -1,7 +1,7 @@
 from datetime import datetime
 import logging
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 import numpy as np
 from scipy import sparse
@@ -165,10 +165,10 @@ class SentTransformer(EbTransformerBase):
         if fit_mode:
             logger.info("starting computing info_gain")
             ##### not used???
-            igain_vocab = igain.doc_label_list_to_vocab(sent_st_list,
-                                                        y,
-                                                        tokenize=bigramutils.eb_doc_to_all_ngrams,
-                                                        debug_mode=False)
+            #igain_vocab = igain.doc_label_list_to_vocab(sent_st_list,
+            #                                            y,
+            #                                            tokenize=bigramutils.eb_doc_to_all_ngrams,
+            #                                            debug_mode=False)
             logger.info("starting computing unigram and bigram")
             vocab, positive_vocab = bigramutils.doc_label_list_to_vocab(sent_st_list,
                                                                         y,
@@ -186,6 +186,7 @@ class SentTransformer(EbTransformerBase):
                 self.sechead_vectorizer = CountVectorizer(vocabulary=['dummy'])
 
             logger.info("starting computing bi_topgram")
+            #pylint: disable=line-too-long
             nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
             filtered_list = []
             for nostop_positive_sent in nostop_positive_sent_st_list:

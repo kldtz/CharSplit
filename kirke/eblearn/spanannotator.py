@@ -346,32 +346,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         logger.debug('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
                      self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
-<<<<<<< HEAD
-        prov_annotations = candidates
-        # Remove anything below threshold
-        prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= threshold]
-        prov_annotations = recover_false_negatives(prov_human_ant_list,
-                                                   eb_antdoc.get_text(),
-                                                   self.provision,
-                                                   prov_annotations)
-        if nbest > 0:
-            return prov_annotations[:nbest]
-        return prov_annotations
-||||||| merged common ancestors
-        prov_annotations = candidates
-
-        prov_annotations = recover_false_negatives(prov_human_ant_list,
-                                                   eb_antdoc.get_text(),
-                                                   self.provision,
-                                                   prov_annotations)
-        # If there is no human annotation, must be normal annotation.
-        # Remove anything below threshold
-        if not prov_human_ant_list:
-            prov_annotations = [ant for ant in prov_annotations if ant['prob'] >= threshold]
-        if nbest > 0:
-            return prov_annotations[:nbest]
-        return prov_annotations
-=======
         # If there is no human annotation, must be normal annotation.
         # Remove anything below threshold
         if not prov_human_ant_list:
@@ -381,7 +355,6 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         else:
             full_annotations = copy.deepcopy(prov_annotations)
         return prov_annotations, full_annotations
->>>>>>> 4fb459b87ba368a3585db465819b9b0d4801db72
 
     def get_eval_status(self):
         eval_status = {'label': self.provision}

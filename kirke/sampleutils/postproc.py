@@ -38,6 +38,7 @@ class SentDefaultPostProcessing(DocCandidatesTransformer):
         self.label = 'sent_default'
         self.threshold = threshold
 
+    # pylint: disable=no-self-use
     def get_merged_cand(self, cand_list: List[Dict]) -> Dict:
         if len(cand_list) == 1:
             return cand_list[0]
@@ -45,7 +46,7 @@ class SentDefaultPostProcessing(DocCandidatesTransformer):
         min_start = min([cand['start'] for cand in cand_list])
         max_end = max([cand['end'] for cand in cand_list])
         new_text = " ".join([cand['text'] for cand in cand_list]) ####
-        new_span = [] #List[List[int]]
+        new_span = [] # List[List[int]]
         for cand in cand_list:
             new_span.extend(cand['span_list'])
         new_cand = {'start': min_start,
