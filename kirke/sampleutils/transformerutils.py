@@ -165,20 +165,34 @@ class SentTransformer(EbTransformerBase):
         if fit_mode:
             logger.info("starting computing info_gain")
             ##### not used???
-            #igain_vocab = igain.doc_label_list_to_vocab(sent_st_list,
-            #                                            y,
-            #                                            tokenize=bigramutils.eb_doc_to_all_ngrams,
-            #                                            debug_mode=False)
+            igain_vocab = igain.doc_label_list_to_vocab(sent_st_list,
+                                                        y,
+                                                        tokenize=bigramutils.eb_doc_to_all_ngrams,
+                                                        debug_mode=False)
+
             logger.info("starting computing unigram and bigram")
-            vocab, positive_vocab = bigramutils.doc_label_list_to_vocab(sent_st_list,
-                                                                        y,
-                                                                        # pylint: disable=line-too-long
-                                                                        tokenize=bigramutils.eb_doc_to_all_ngrams)
+            unused_vocab, positive_vocab = bigramutils.doc_label_list_to_vocab(sent_st_list,
+                                                                               y,
+                                                                               # pylint: disable=line-too-long
+                                                                               tokenize=bigramutils.eb_doc_to_all_ngrams)
+
             vocab_id_map = {}
-            for vid, word in enumerate(vocab):
-                vocab_id_map[word] = vid
+            for vid, vocab in enumerate(igain_vocab):
+                vocab_id_map[vocab] = vid
             self.vocab_id_map = vocab_id_map
             self.positive_vocab = positive_vocab
+
+            DEBUG_MODE = True
+            if DEBUG_MODE:
+                with open("/tmp/v3344_vocabs.tsv", "wt") as fvcabout:
+                    for word in igain_vocab:
+                        print(word, file=fvcabout)
+                print('wrote {}'.format("/tmp/v3344_vocabs.tsv"))
+
+                with open("/tmp/v3344_posvocabs.tsv", "wt") as fvcabout:
+                    for word in positive_vocab:
+                        print(word, file=fvcabout)
+                print('wrote {}'.format("/tmp/v3344_posvocabs.tsv"))
 
             try:
                 self.sechead_vectorizer.fit(sechead_st_list)

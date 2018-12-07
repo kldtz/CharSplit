@@ -693,13 +693,6 @@ def train_eval_span_annotator(provision: str,
                                               # we need the file order to be stable, even if input
                                               # file order is changed.
                                               is_sort_by_file_id=True)
-    # we don't care about the file order for testing
-    X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
-                                                   work_dir,
-                                                   is_bespoke_mode=is_bespoke_mode,
-                                                   is_doc_structure=is_doc_structure,
-                                                   # pylint: disable=line-too-long
-                                                   is_use_corenlp=span_annotator.get_is_use_corenlp())
 
     # candidate generation on training set
     train_antdoc_candidatex_list = \
@@ -722,6 +715,14 @@ def train_eval_span_annotator(provision: str,
                                     span_annotator.pipeline,
                                     span_annotator.gridsearch_parameters,
                                     work_dir)
+
+    # we don't care about the file order for testing
+    X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
+                                                   work_dir,
+                                                   is_bespoke_mode=is_bespoke_mode,
+                                                   is_doc_structure=is_doc_structure,
+                                                   # pylint: disable=line-too-long
+                                                   is_use_corenlp=span_annotator.get_is_use_corenlp())
 
     # annotates the test set and runs through evaluation
     # pred_status = \

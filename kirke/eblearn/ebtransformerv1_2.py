@@ -145,21 +145,24 @@ class EbTransformerV1_2(EbTransformerBase):
                                                                           label_list,
                                                                           tokenize=bigramutils.eb_doc_to_all_ngrams)
             # replace vocabs with igain.vocab
-            vocab = igain_vocabs
+            vocabs = igain_vocabs
             vocab_id_map = {}
             for vid, vocab in enumerate(vocabs):
                 vocab_id_map[vocab] = vid
             self.vocab_id_map = vocab_id_map
             self.positive_vocabs = positive_vocabs
 
+            DEBUG_MODE = True
             if DEBUG_MODE:
                 with open("/tmp/{}_vocabs.tsv".format(self.provision), "wt") as fvcabout:
                     for vocab in vocabs:
                         print(vocab, file=fvcabout)
+                print('wrote {}'.format("/tmp/{}_vocabs.tsv".format(self.provision)))
 
                 with open("/tmp/{}_posvocabs.tsv".format(self.provision), "wt") as fvcabout:
                     for vocab in positive_vocabs:
                         print(vocab, file=fvcabout)
+                print('wrote {}'.format("/tmp/{}_posvocabs.tsv".format(self.provision)))
 
             # handling sechead, with min appearance in sentence = 5
             # now changed to 2 because custom training corpus might have only 6 docs

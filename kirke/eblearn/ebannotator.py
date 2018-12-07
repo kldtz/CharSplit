@@ -104,10 +104,11 @@ class ProvisionAnnotator:
                                                                          ebantdoc,
                                                                          threshold)
             if self.get_nbest() > 0:
+                best_annotations = pred_list[:self.get_nbest()]
                 ant_list = self.recover_false_negatives(prov_human_ant_list,
                                                         ebantdoc.get_text(),
                                                         self.provision,
-                                                        pred_list)
+                                                        best_annotations)
                 xtp, xfn, xfp, xtn, _ = self.call_confusion_matrix(prov_human_ant_list,
                                                                    ant_list,
                                                                    ebantdoc,
