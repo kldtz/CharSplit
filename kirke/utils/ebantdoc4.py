@@ -792,7 +792,14 @@ def doclist_to_ebantdoc_list(doclist_file: str,
                              is_doc_structure: bool = True,
                              is_use_corenlp: bool = True,
                              is_sort_by_file_id: bool = False):
-    logger.debug('ebantdoc4.doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
+    logger.info('ebantdoc4.doclist_to_ebantdoc_list(%s, %s)', doclist_file, work_dir)
+    logger.info('doc_lang = [%s]', doc_lang)
+    logger.info('is_cache_enabled = %r', is_cache_enabled)
+    logger.info('is_bespoke_mode = %r', is_bespoke_mode)
+    logger.info('is_doc_structure = %r', is_doc_structure)
+    logger.info('is_use_corenlp = %r', is_use_corenlp)
+    logger.info('is_sort_by_file_id = %r', is_sort_by_file_id)
+
     if work_dir is not None and not os.path.isdir(work_dir):
         logger.debug("mkdir %s", work_dir)
         osutils.mkpath(work_dir)

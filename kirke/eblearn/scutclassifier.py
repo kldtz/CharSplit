@@ -157,20 +157,18 @@ class ShortcutClassifier(EbClassifier):
                                    verbose=1,
                                    cv=group_kfold)
 
-        print("Performing grid search...")
-        print("parameters:")
-        pprint.pprint(parameters)
+        logger.info("Performing grid search...")
+        logger.info("parameters:")
+        logger.info(parameters)
         time_0 = time()
         grid_search.fit(X_train, y_train)
-        print("done in %0.3fs" % (time() - time_0))
+        logger.info("done in %0.3fs" % (time() - time_0))
 
-        print("Best score: %0.3f" % grid_search.best_score_)
-        print("Best parameters set:")
+        logger.info("Best score: %0.3f", grid_search.best_score_)
+        logger.info("Best parameters set:")
         self.best_parameters = grid_search.best_estimator_.get_params()
-        # pylint: disable=C0201
-        for param_name in sorted(parameters.keys()):
-            print("\t%s: %r" % (param_name, self.best_parameters[param_name]))
-        print()
+        for param_name in sorted(self.best_parameters.keys()):
+            logger.info("\t%s: %r", param_name, self.best_parameters[param_name])
 
         self.eb_grid_search = grid_search.best_estimator_
         self.save(model_file_name)
