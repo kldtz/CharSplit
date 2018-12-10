@@ -95,7 +95,7 @@ class TestBespokeSent(unittest.TestCase):
             print('pred list:')
             pprint.pprint(pred_list)
             return_lens.append(len(pred_list))
-        self.assertEqual(return_lens, [1, 1, 1, 1, 1, 0, 0, 0, 1, 0])
+        self.assertEqual(return_lens, [0, 1, 1, 1, 1, 0, 0, 0, 1, 0])
 
 if __name__ == "__main__":
     unittest.main()

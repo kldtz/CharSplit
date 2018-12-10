@@ -46,7 +46,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
 
@@ -63,7 +63,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
 
@@ -80,7 +80,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
         # ---------- TXT DOCS ----------
 
@@ -99,7 +99,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
 
@@ -118,7 +118,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
 
@@ -137,7 +137,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
 
 
     def test_para_docs(self):
@@ -154,8 +154,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
-
+        self.assertEqual(cands, serial_para_cands)
 
 
         txt_base_name = '3388.txt'
@@ -171,8 +170,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
-
+        self.assertEqual(cands, serial_para_cands)
 
 
         txt_base_name = '1960.txt'
@@ -188,8 +186,7 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
-
+        self.assertEqual(cands, serial_para_cands)
 
 
         txt_base_name = '1964.txt'
@@ -205,4 +202,4 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-        self.assertEqual(serial_para_cands, cands)
+        self.assertEqual(cands, serial_para_cands)
