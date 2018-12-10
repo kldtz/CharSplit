@@ -72,7 +72,7 @@ class ProvisionAnnotator:
                          specified_threshold: Optional[float] = None) \
                          -> Tuple[Dict[str, Any],
                                   Dict[str, Dict]]:
-        logger.debug('test_document_list')
+        logger.debug('ebannotator.testantdoc_list(), len = %d', len(ebantdoc_list))
         if specified_threshold is None:
             threshold = self.threshold
         else:
@@ -201,6 +201,7 @@ class ProvisionAnnotator:
             adj_prov_human_ant_list = prov_human_ant_list
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
+
         prov_annotations, unused_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,

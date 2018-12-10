@@ -28,11 +28,12 @@ class SentenceGenerator:
         candidates = [] # type: List[Dict]
         group_id_list = [] # type: List[int]
 
+        nlp_text = ebantdoc.get_nlp_text()
         # candidates are sentences from corenlp stored in the attrvec list
         for attrvec in ebantdoc.get_attrvec_list():
             match_start = attrvec.start
             match_end = attrvec.end
-            match_str = ebantdoc.get_nlp_text()[match_start:match_end]
+            match_str = nlp_text[match_start:match_end]
 
             a_candidate = {'candidate_type': self.candidate_type,
                            'bow_start': match_start,
@@ -78,7 +79,7 @@ class SentenceGenerator:
                                                                                       label_ant_list_param=label_ant_list,
                                                                                       label_list_param=label_list,
                                                                                       label=label)
-            # map offsets from nlp_text to raw_text 
+            # map offsets from nlp_text to raw_text
             fromto_mapper = fromtomapper.FromToMapper('an offset mapper',
                                                       antdoc.get_nlp_sx_lnpos_list(),
                                                       antdoc.get_origin_sx_lnpos_list())

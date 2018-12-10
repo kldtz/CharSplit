@@ -1,5 +1,6 @@
 
-from typing import List, Dict
+# pylint: disable=unused-import
+from typing import Dict, List, Tuple
 from operator import itemgetter
 from kirke.sampleutils.doccandidatesutils import DocCandidatesTransformer
 
@@ -46,7 +47,7 @@ class SentDefaultPostProcessing(DocCandidatesTransformer):
         min_start = min([cand['start'] for cand in cand_list])
         max_end = max([cand['end'] for cand in cand_list])
         new_text = " ".join([cand['text'] for cand in cand_list]) ####
-        new_span = [] # List[List[int]]
+        new_span = []  # type: List[Tuple[int, int]]
         for cand in cand_list:
             new_span.extend(cand['span_list'])
         new_cand = {'start': min_start,
@@ -87,10 +88,10 @@ class SentDefaultPostProcessing(DocCandidatesTransformer):
             for del_key in del_keys:
                 del candidate[del_key]
         if nbest > 0:
-            nbest_candidates = sorted(candidates, key=itemgetter('prob'), reverse=True)[:nbest]
+            nbest_candidates = sorted(merged_cands, key=itemgetter('prob'), reverse=True)[:nbest]
             return nbest_candidates
 
-        return candidates
+        return merged_cands
 
     def enrich(self, candidate: Dict) -> None:
         pass

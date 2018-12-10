@@ -2,7 +2,6 @@
 
 import configparser
 import logging
-import pprint
 from time import time
 from typing import List
 
@@ -162,7 +161,7 @@ class ShortcutClassifier(EbClassifier):
         logger.info(parameters)
         time_0 = time()
         grid_search.fit(X_train, y_train)
-        logger.info("done in %0.3fs" % (time() - time_0))
+        logger.info("done in %0.3fs", (time() - time_0))
 
         logger.info("Best score: %0.3f", grid_search.best_score_)
         logger.info("Best parameters set:")

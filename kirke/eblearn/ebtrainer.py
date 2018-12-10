@@ -546,13 +546,13 @@ def train_eval_annotator_with_trte(provision: str,
     X_test = ebantdoc4.doclist_to_ebantdoc_list(test_doclist_fn,
                                                 work_dir,
                                                 is_cache_enabled=is_cache_enabled)
-    pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
+    # pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
     ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
 
     ant_status['provision'] = provision
-    ant_status['pred_status'] = pred_status
+    # ant_status['pred_status'] = pred_status
     prov_annotator.eval_status = ant_status
     pprint.pprint(ant_status)
 
@@ -560,17 +560,17 @@ def train_eval_annotator_with_trte(provision: str,
     strutils.dumps(json.dumps(ant_status), model_status_fn)
 
     with open('provision_model_stat.tsv', 'a') as pmout:
-        pstatus = pred_status['pred_status']
-        pcfmtx = pstatus['confusion_matrix']
+        # pstatus = pred_status['pred_status']
+        # pcfmtx = pstatus['confusion_matrix']
         astatus = ant_status['ant_status']
         acfmtx = astatus['confusion_matrix']
         timestamp = int(time.time())
         aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
                  str(timestamp),
                  provision,
-                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
-                 pred_status['best_params_']['alpha'],
-                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
+                 # pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
+                 # pred_status['best_params_']['alpha'],
+                 # pstatus['prec'], pstatus['recall'], pstatus['f1'],
                  acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
                  astatus['threshold'],
                  astatus['prec'], astatus['recall'], astatus['f1']]
@@ -693,7 +693,6 @@ def train_eval_span_annotator(provision: str,
                                               # we need the file order to be stable, even if input
                                               # file order is changed.
                                               is_sort_by_file_id=True)
-
     # candidate generation on training set
     train_antdoc_candidatex_list = \
         span_annotator.documents_to_candidates(X_train, provision)
@@ -715,7 +714,6 @@ def train_eval_span_annotator(provision: str,
                                     span_annotator.pipeline,
                                     span_annotator.gridsearch_parameters,
                                     work_dir)
-
     # we don't care about the file order for testing
     X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
                                                    work_dir,

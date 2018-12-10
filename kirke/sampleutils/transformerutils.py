@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 import time
+# pylint: disable=unused-import
 from typing import Dict, List, Optional, Set
 
 import numpy as np
@@ -30,7 +31,8 @@ class SentTransformer(EbTransformerBase):
     fit_count = 0
     transform_count = 0
 
-    def __init__(self) -> None:
+    def __init__(self, provision: str) -> None:
+        super().__init__(provision)
         self.name = 'SentTransformer'
         self.version = '1.2'
         self.binary_attr_list = ebattrvec.DEFAULT_BINARY_ATTR_LIST
@@ -150,15 +152,22 @@ class SentTransformer(EbTransformerBase):
         positive_sent_st_list = []  # only populated if fit_mode
         sechead_st_list = []
         if fit_mode:
-            for span_candidate, label in zip(span_candidate_list, y):
-                sent_st_list.append(span_candidate['text'])
+            # mypy complaining about 'y'
+            # Argument 2 to "zip" has incompatible type "Optional[List[bool]]"; expected
+            # "Iterable[bool]"
+            for span_candidate, label in zip(span_candidate_list, y):  # type: ignore
+                attrvec = span_candidate['attrvec']
+                sent_st = attrvec.bag_of_words
+                sent_st_list.append(sent_st)
                 if label:
-                    positive_sent_st_list.append(span_candidate['text'])
-                sechead_st_list.append(span_candidate['attrvec'].sechead)
+                    positive_sent_st_list.append(sent_st)
+                sechead_st_list.append(attrvec.sechead)
         else:
             for span_candidate in span_candidate_list:
-                sent_st_list.append(span_candidate['text'])
-                sechead_st_list.append(span_candidate['attrvec'].sechead)
+                attrvec = span_candidate['attrvec']
+                sent_st = attrvec.bag_of_words
+                sent_st_list.append(sent_st)
+                sechead_st_list.append(attrvec.sechead)
 
         nostop_sent_st_list = stopwordutils.remove_stopwords(sent_st_list, mode=2)
 
@@ -182,7 +191,7 @@ class SentTransformer(EbTransformerBase):
             self.vocab_id_map = vocab_id_map
             self.positive_vocab = positive_vocab
 
-            DEBUG_MODE = True
+            DEBUG_MODE = False
             if DEBUG_MODE:
                 with open("/tmp/v3344_vocabs.tsv", "wt") as fvcabout:
                     for word in igain_vocab:
@@ -190,7 +199,7 @@ class SentTransformer(EbTransformerBase):
                 print('wrote {}'.format("/tmp/v3344_vocabs.tsv"))
 
                 with open("/tmp/v3344_posvocabs.tsv", "wt") as fvcabout:
-                    for word in positive_vocab:
+                    for word in sorted(positive_vocab):
                         print(word, file=fvcabout)
                 print('wrote {}'.format("/tmp/v3344_posvocabs.tsv"))
 
@@ -207,9 +216,23 @@ class SentTransformer(EbTransformerBase):
                 for tmp_w in nostop_positive_sent.split():
                     if len(tmp_w) > 3:
                         filtered_list.append(tmp_w)
+
+            # The words in FreqDist at the same frequency is unordered.
+            # To make the classification result consistent, take the wanted
+            # frequency and perform cut-off based on that frequency.
             fdistribution = FreqDist(filtered_list)
-            self.n_top_positive_words = [item[0] for item in
-                                         fdistribution.most_common(MAX_NUM_BI_TOPGRAM_WORDS)]
+            wfreq_list = fdistribution.most_common(MAX_NUM_BI_TOPGRAM_WORDS * 2)
+            cut_off = wfreq_list[MAX_NUM_BI_TOPGRAM_WORDS][1]
+            ntop_positive_words = []
+            for wfreq in wfreq_list:
+                word, freq = wfreq
+                if freq >= cut_off:
+                    ntop_positive_words.append(word)
+            self.n_top_positive_words = sorted(ntop_positive_words)
+            if DEBUG_MODE:
+                with open("/tmp/v3344_n_top_positive_words", 'wt') as faaout:
+                    for word in self.n_top_positive_words:
+                        print(word, file=faaout)
 
         bow_matrix, perc_positive_ngrams = self.gen_top_ngram_matrix(sent_st_list,
                                                                      # pylint: disable=line-too-long
@@ -222,7 +245,6 @@ class SentTransformer(EbTransformerBase):
         for instance_i, perc_pos_ngram in enumerate(perc_positive_ngrams):
             perc_pos_ngram_matrix[instance_i, 0] = perc_pos_ngram
 
-
         comb_matrix = sparse.hstack((numeric_matrix,
                                      perc_pos_ngram_matrix,
                                      categorical_matrix,
@@ -233,8 +255,22 @@ class SentTransformer(EbTransformerBase):
 
         X = sparse.hstack((nozero_sparse_comb_matrix, bi_topgram_matrix), format='csr')
 
+        is_debug = False
+        if is_debug:
+            print('  shape of bow_matrix: {}'.format(bow_matrix.shape))
+            print('  shape of sechead_matrix: {}'.format(sechead_matrix.shape))
+            print('  shape of bi_topgram_matrix: {}'.format(bi_topgram_matrix.shape))
+            print('  shape of numeric_matrix: {}'.format(numeric_matrix.shape))
+            print('  shape of perc_pos_ngram_matrix: {}'.format(perc_pos_ngram_matrix.shape))
+            print('  shape of categorical_matrix: {}'.format(categorical_matrix.shape))
+            print('  shape of sparse_comb_matrix: {}'.format(sparse_comb_matrix.shape))
+            # pylint: disable=line-too-long
+            print('  shape of nozero_sparse_comb_matrix: {}'.format(nozero_sparse_comb_matrix.shape))
+            print('  shape of X: {}'.format(X.shape))
+
         return X
 
+    # pylint: disable=arguments-differ
     def fit(self,
             span_candidate_list: List[Dict],
             # pylint: disable=invalid-name
@@ -248,14 +284,15 @@ class SentTransformer(EbTransformerBase):
                      (end_time - start_time) * 1000)
         return self
 
+    # pylint: disable=arguments-differ
     def transform(self,
                   span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
         X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
         end_time = time.time()
-        SentTransformer.fit_count += 1
-        logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
-                     self.name, SentTransformer.fit_count, len(span_candidate_list),
+        SentTransformer.transform_count += 1
+        logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
+                     self.name, SentTransformer.transform_count, len(span_candidate_list),
                      (end_time - start_time) * 1000)
         return X_out
 

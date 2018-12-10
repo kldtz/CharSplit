@@ -420,14 +420,14 @@ class EbRunner:
                 logger.info("provision_set: %r", provision_set)
             else:
                 logger.warning("annotate_document(%s), provision_set is empty", file_name)
-                empty_result = {}  # type: Dict[str, List]
+                empty_result_ants1 = {}  # type: Dict[str, List]
                 # this is just to keep the API consistent for now
                 # TODO, in the future, maybe change the API to not pass back ebantdoc
                 eb_antdoc = ebantdoc4.text_to_ebantdoc4(file_name,
                                                         work_dir=work_dir,
                                                         is_doc_structure=is_doc_structure,
                                                         doc_lang=doc_lang)
-                return empty_result, eb_antdoc
+                return empty_result_ants1, eb_antdoc
         else:
             # logger.info('user specified provision list: %s', provision_set)
             lang_provision_set = provision_set
