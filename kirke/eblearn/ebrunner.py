@@ -350,8 +350,8 @@ class EbRunner:
                 # print(prov_classifier)
                 logger.info(prov_classifier)
                 prov_classifier.provision = prov_name
-                if hasattr(prov_classifier, 'transformer'):
-                    # only for scut_classifiers
+                if hasattr(prov_classifier, 'transformer') and \
+                   prov_classifier.transformer is not None:
                     prov_classifier.transformer.provision = prov_name
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))

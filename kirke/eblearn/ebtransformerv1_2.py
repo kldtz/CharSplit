@@ -190,7 +190,10 @@ class EbTransformerV1_2(EbTransformerBase):
             MAX_NUM_BI_TOPGRAM_WORDS = EbTransformerV1_2.MAX_NUM_BI_TOPGRAM_WORDS
             fdistribution = FreqDist(filtered_list)
             wfreq_list = fdistribution.most_common(MAX_NUM_BI_TOPGRAM_WORDS * 2)
-            cut_off = wfreq_list[MAX_NUM_BI_TOPGRAM_WORDS][1]
+            if  MAX_NUM_BI_TOPGRAM_WORDS < len(wfreq_list):
+                cut_off = wfreq_list[MAX_NUM_BI_TOPGRAM_WORDS][1]
+            else:
+                cut_off = 1
             ntop_positive_words = []
             for wfreq in wfreq_list:
                 word, freq = wfreq
