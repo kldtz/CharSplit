@@ -79,11 +79,8 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-
-        with open('8287.para.out', 'wt') as fout:
-            xst = json.dumps(cands)
-            fout.write(xst)
         self.assertEqual(cands, serial_para_cands)
+
 
     # ---------- TXT DOCS ----------
     def test_demo_doc_8288(self):
@@ -104,6 +101,7 @@ class TestParagraphGen(unittest.TestCase):
         cands = [x['text'] for x in para_cands]
         self.assertEqual(cands, serial_para_cands)
 
+
     def test_demo_doc_8289(self):
         txt_base_name = '8289.txt'
         txt_fname = 'demo-txt/{}'.format(txt_base_name)
@@ -121,6 +119,7 @@ class TestParagraphGen(unittest.TestCase):
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
         self.assertEqual(cands, serial_para_cands)
+
 
     def test_demo_doc_8290(self):
         txt_base_name = '8290.txt'
@@ -206,5 +205,4 @@ class TestParagraphGen(unittest.TestCase):
 
         para_cands, _, _ = para_gen.get_candidates_from_ebantdoc(ebantdoc)
         cands = [x['text'] for x in para_cands]
-
         self.assertEqual(cands, serial_para_cands)

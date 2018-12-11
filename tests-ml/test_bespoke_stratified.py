@@ -52,9 +52,23 @@ class TestBespokeStratifiedGroupKFold(unittest.TestCase):
         # This error is due to without stratification, 2 fold might
         # get no positive training documents during GridSearchCV.
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 0, delta=2)
-        self.assertAlmostEqual(fn, 3, delta=2)
-        self.assertAlmostEqual(tp, 0, delta=2)
+        self.assertAlmostEqual(fp, 3, delta=2)
+        self.assertAlmostEqual(fn, 0, delta=2)
+        self.assertAlmostEqual(tp, 6, delta=2)
+
+
+    def test_bespoke_myparty_fail(self):
+
+        custid = 'my_party'
+        custid_data_dir = 'data-myparty-fail'
+        result_text = \
+            postfileutils.upload_train_dir(custid,
+                                           custid_data_dir,
+                                           candidate_types='SENTENCE',
+                                           nbest=-1)
+        ajson = json.loads(result_text)
+        user_msg = ajson['user_message']
+        self.assertEqual(user_msg, 'INSUFFICIENT_EXAMPLES')
 
 
 if __name__ == "__main__":

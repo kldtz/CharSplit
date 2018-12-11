@@ -12,8 +12,9 @@ from sklearn.pipeline import FeatureUnion, Pipeline
 
 from kirke.ebrules import dates, dummyannotator
 from kirke.sampleutils import postproc
-from kirke.sampleutils import addrgen, dategen, idnumgen, paragen, tablegen
-from kirke.sampleutils import regexgen, transformerutils
+from kirke.sampleutils import addrgen, dategen, idnumgen, paragen
+from kirke.sampleutils import regexgen, sentencegen, tablegen
+from kirke.sampleutils import transformerutils
 from kirke.utils import ebantdoc4
 
 # pylint: disable=invalid-name
@@ -38,6 +39,19 @@ PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|\.[0-
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
+    ('SENTENCE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                         'is_use_corenlp': True,
+                         'text_type': 'nlp_text',
+                         'doc_to_candidates': [sentencegen.SentenceGenerator('SENTENCE')],
+                         'version': "1.0",
+                         'doc_postproc_list': [postproc.SentDefaultPostProcessing(0.24)],
+                         'pipeline': Pipeline([
+                             ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                                   shuffle=True, random_state=42,
+                                                   class_weight={True: 3, False: 1}))]),
+                         'threshold': 0.24,
+                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 8)}}),
+
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                      'is_use_corenlp': False,
                      'doc_to_candidates': [dategen.DateSpanGenerator(30, 30, 'DATE')],

@@ -95,6 +95,8 @@ class TestBespokeSentOneBest(unittest.TestCase):
             print('pred list:')
             pprint.pprint(pred_list)
             return_lens.append(len(pred_list))
+        # self.assertEqual(return_lens, [0, 1, 1, 1, 1, 0, 0, 0, 1, 0])
+        # this is not verified
         self.assertEqual(return_lens, [1, 1, 1, 1, 0, 0, 0, 1, 0, 1])
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 import argparse
 import configparser
 import copy
+import json
 import logging
 import os
 import pprint
@@ -113,12 +114,18 @@ def train_annotator(provision: str,
                                                                 provision,
                                                                 PROV_CLF_VERSION)
 
-    ebtrainer.train_eval_annotator_with_trte(provision,
-                                             work_dir,
-                                             model_dir,
-                                             model_file_name,
-                                             eb_classifier,
-                                             is_cache_enabled=is_cache_enabled)
+    # pylint: disable=unused-variable
+    prov_annotator, ant_status, log_json = \
+        ebtrainer.train_eval_annotator_with_trte(provision,
+                                                 work_dir,
+                                                 model_dir,
+                                                 model_file_name,
+                                                 eb_classifier,
+                                                 is_cache_enabled=is_cache_enabled)
+
+    tmp_log_fname = '{}.xscut.eval.json'.format(provision)
+    strutils.dumps(json.dumps(log_json), tmp_log_fname)
+    print('wrote {}'.format(tmp_log_fname))
 
 
 def train_span_annotator(label: str,
@@ -126,9 +133,8 @@ def train_span_annotator(label: str,
                          candidate_types: List[str],
                          work_dir: str,
                          model_dir: str) -> None:
-    if candidate_types == ['SENTENCE']:
-        train_annotator(label, work_dir, model_dir, is_scut=True)
-    else:
+    # pylint: disable=unused-variable
+    span_annotator, log_json = \
         ebtrainer.train_eval_span_annotator(label,
                                             383838,
                                             doc_lang='en',
@@ -136,6 +142,9 @@ def train_span_annotator(label: str,
                                             candidate_types=candidate_types,
                                             work_dir=work_dir,
                                             model_dir=model_dir)
+    tmp_log_fname = '{}.spanant.eval.json'.format(label)
+    strutils.dumps(json.dumps(log_json), tmp_log_fname)
+    print('wrote {}'.format(tmp_log_fname))
 
 
 def eval_span_annotator(label: str,

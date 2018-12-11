@@ -906,7 +906,7 @@ def doclist_to_ebantdoc_list(doclist_file: str,
                                             is_doc_structure=is_doc_structure,
                                             is_use_corenlp=is_use_corenlp):
                             txt_fn for txt_fn in txt_fn_list}
-        for count, future in enumerate(concurrent.futures.as_completed(future_to_antdoc)):
+        for count, future in enumerate(concurrent.futures.as_completed(future_to_antdoc), 1):
             txt_fn = future_to_antdoc[future]
             data = future.result()
             fn_eb_antdoc_map[txt_fn] = data
