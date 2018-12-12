@@ -406,7 +406,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         if not candidates:
             return [], []
         probs = [1.0] * len(candidates) # type: List[float]
-        if 'SENTENCE' in self.candidate_types:
+        # old l_commencement_date might not have self.candidate_types
+        if hasattr(self, 'candidate_types') and 'SENTENCE' in self.candidate_types:
             # mypy complains:
             # Item "None" of "Optional[EbTransformerBase]" has no attribute "transform"
             X_test = self.transformer.transform(candidates)  # type: ignore
