@@ -769,6 +769,9 @@ def text_to_ebantdoc(txt_fname: str,
         txt_base_fname = os.path.basename(txt_fname)
         if work_dir is None:
             work_dir = '/tmp'
+        else:
+            # in case that directory is not there
+            osutils.mkpath(work_dir)
         eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
 
         if is_cache_enabled and is_use_corenlp:
