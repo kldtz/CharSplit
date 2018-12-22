@@ -1843,7 +1843,9 @@ def find_as_in_paren(span_chunk_list: List[SpanChunk]) \
         postags_out = postag_list[cur_tok_idx:last_tok_idx]
         cur_span_chunk = span_chunk_list[0]
         se_tok_list_out = cur_span_chunk.se_tok_list[cur_tok_idx:last_tok_idx]
-
+        # if there is nothing after the word "as"
+        if not se_tok_list_out:
+            return []
         sc_start = cur_span_chunk.se_tok_list[0][0]
         nstart, nend = se_tok_list_out[0][0], se_tok_list_out[-1][1]
         shorten_text = cur_span_chunk.text[nstart - sc_start:nend - sc_start]
@@ -1916,6 +1918,11 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
     result = []
     for span_chunk in span_chunk_list:
+        # this is another potential location to throw away empty parenthesis
+        # if span_chunk.text.startswith('(') and \
+        #    span_chunk.text.endswith(')') and \
+        #    not span_chunk.text[1:-1].strip():
+        #     pass
         if len(span_chunk.text) < 30 and \
            re.search(r'.*\btogether.*the.*parties', span_chunk.text, re.I):
             # '(together, the "Parties")', not precise enough
@@ -2126,7 +2133,10 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             print("filtered paren: {}".format(pprn))
     if paren_list:
         if len(paren_list) == 1:
-            term = [chop_spanchunk_paren(paren_list[0])]
+            if len(paren_list[0].se_tok_list) > 2:  # must have more than just '(' and ')'
+                term = [chop_spanchunk_paren(paren_list[0])]
+            else:
+                term = []
         else:  # there are multiple
 
 
