@@ -964,7 +964,8 @@ def extract_parties_term_list_from_list_lines(se_after_paras_attr_list: List[Tup
             # party_name_sentinel = partyutils.find_uppercase_party_name(linex)
             if tmp_parties_term_offset:
 
-                while tmp_parties_term_offset:
+                while tmp_parties_term_offset and \
+                      se_curline_idx < len(se_after_paras_attr_list):
                     se_line_attrs = se_after_paras_attr_list[se_curline_idx]
                     fstart, _, unused_first_line, attr_list = se_line_attrs
                     party_list_term = adjust_start_offset_ptoffset(tmp_parties_term_offset, fstart)
