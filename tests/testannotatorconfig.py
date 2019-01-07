@@ -150,6 +150,10 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(extract_str(currency_pat,
                                      line),
                          'INR 33.33')
+        line = "Bob received 33.33  INR from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         '33.33  INR')        
         line = 'Rs.50,000.00 (Rupees Fifty Thousand only)'
         self.assertEqual(extract_str(currency_pat,
                                      line),
