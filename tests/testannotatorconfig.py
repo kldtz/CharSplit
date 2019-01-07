@@ -121,6 +121,50 @@ class TestCurrency(unittest.TestCase):
                                      line),
                          'USD   33.33')
 
+        line = "Bob received IRs   33.33 from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         'IRs   33.33')
+        line = "Bob received Rs   3 from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         'Rs   3')
+        line = "Bob received Rs.   3 from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         'Rs.   3')
+
+        line = "Bob received 33.33 IRs from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         '33.33 IRs')
+        line = "Bob received 3  Rs from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         '3  Rs')
+        line = "Bob received 3 Rs. from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         '3 Rs.')
+
+        line = "Bob received 33.33 Rupees from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         '33.33 Rupees')
+        line = "Bob received 33.33 Rupee from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         '33.33 Rupee')        
+        line = "Bob received INR 33.33 from Alice"
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         'INR 33.33')
+        line = 'Rs.50,000.00 (Rupees Fifty Thousand only)'
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         'Rs.50,000.00')        
+
+
 
     def test_number(self):
         "Test NUMBER_PAT"
