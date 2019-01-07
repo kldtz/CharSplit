@@ -115,16 +115,11 @@ class TestCurrency(unittest.TestCase):
                                      line),
                          'USD   33')
 
-
         line = "Bob received USD   33.33 from Alice"
         self.assertEqual(extract_str(currency_pat,
                                      line),
                          'USD   33.33')
 
-        line = "Bob received IRs   33.33 from Alice"
-        self.assertEqual(extract_str(currency_pat,
-                                     line),
-                         'IRs   33.33')
         line = "Bob received Rs   3 from Alice"
         self.assertEqual(extract_str(currency_pat,
                                      line),
@@ -134,10 +129,6 @@ class TestCurrency(unittest.TestCase):
                                      line),
                          'Rs.   3')
 
-        line = "Bob received 33.33 IRs from Alice"
-        self.assertEqual(extract_str(currency_pat,
-                                     line),
-                         '33.33 IRs')
         line = "Bob received 3  Rs from Alice"
         self.assertEqual(extract_str(currency_pat,
                                      line),
@@ -145,7 +136,7 @@ class TestCurrency(unittest.TestCase):
         line = "Bob received 3 Rs. from Alice"
         self.assertEqual(extract_str(currency_pat,
                                      line),
-                         '3 Rs.')
+                         '3 Rs')
 
         line = "Bob received 33.33 Rupees from Alice"
         self.assertEqual(extract_str(currency_pat,
