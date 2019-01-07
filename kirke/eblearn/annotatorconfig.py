@@ -28,7 +28,7 @@ logger.setLevel(logging.INFO)
 
 # pylint: disable=line-too-long
 CURRENCY_PAT = re.compile(r'(((\b(USD|GBP|JPY|INR|Rs\.?|IRs?)|[\$€₹£¥円]) *(\d{1,3}[,\.]?)+([,\.]\d{,2})?( *[tTbBmM]illion| *[tT]housand| *[TMB])?)|'
-                          r'((\d{1,3},?)+([,\.]\d{,2})? *([tTbBmM]illion|[tT]housand|[TMB])? *((USD|EUR|INR|GBP|CNY|JPY|Rs|IRs?|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?)\b\.?|[yY]en|[\$€₹£¥円])))')
+                          r'((\d{1,3},?)+([,\.]\d{,2})? *([tTbBmM]illion|[tT]housand|[TMB])? *((USD|EUR|INR|GBP|CNY|JPY|Rs|IRs?|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en)\b\.?|[\$€₹£¥円])))')
 
 # must pick gruop 2 instead of group 1
 # pylint: disable=line-too-long
