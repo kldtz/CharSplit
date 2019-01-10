@@ -152,6 +152,7 @@ class AbbyyCell:
         self.ab_pars = ab_pars
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
+        self.is_label = False
 
     def get_text(self) -> str:
         st_list = []  # type: List[str]
@@ -159,6 +160,14 @@ class AbbyyCell:
             for unused_lid, ab_line in enumerate(ab_par.ab_lines):
                 st_list.append(ab_line.text)
         return '\n'.join(st_list)
+
+
+def cells_to_text(cell_list: List[AbbyyCell]) -> str:
+    st_list = []  # type: List[str]
+    for unused_cell_seq, ab_cell in enumerate(cell_list):
+        cell_text = ab_cell.get_text()
+        st_list.append(cell_text)
+    return '\n'.join(st_list)
 
 
 # pylint: disable=too-few-public-methods
@@ -171,13 +180,10 @@ class AbbyyRow:
         self.ab_cells = ab_cells
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
+        self.is_label = False
 
     def get_text(self) -> str:
-        st_list = []  # type: List[str]
-        for unused_cell_seq, ab_cell in enumerate(self.ab_cells):
-            cell_text = ab_cell.get_text()
-            st_list.append(cell_text)
-        return '\n'.join(st_list)
+        return cells_to_text(self.ab_cells)
 
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
@@ -198,6 +204,8 @@ class AbbyyTableBlock:
         # in tableutils
         self.is_invalid_kirke_table = False
         self.invalid_table_reason = ''
+        self.label_row_index = -1
+        self.label_col_index = -1
 
         # for indexining into page's ab_blocks
         self.page_block_seq = -1

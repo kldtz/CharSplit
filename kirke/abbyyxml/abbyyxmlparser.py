@@ -14,7 +14,7 @@ from typing import DefaultDict, Dict, List, Optional, Tuple
 from kirke.abbyyxml.pdfoffsets import AbbyyCell, AbbyyLine, AbbyyPar, AbbyyRow
 from kirke.abbyyxml.pdfoffsets import AbbyyBlock, AbbyyTextBlock, AbbyyTableBlock
 from kirke.abbyyxml.pdfoffsets import AbbyyPage, AbbyyXmlDoc
-from kirke.abbyyxml.pdfoffsets import print_text_block_meta
+from kirke.abbyyxml.pdfoffsets import cells_to_text, print_text_block_meta
 from kirke.docstruct import linepos
 from kirke.abbyyxml import abbyyutils, tableutils
 from kirke.utils import mathutils
@@ -502,6 +502,81 @@ def docjson_to_abbyy_page_list(ajson) -> List[AbbyyPage]:
     return ab_page_list
 
 
+# def get_after_col_text(ab_row: AbbyyRow, idx: int) -> str:
+#     cell_list = ab_row.ab_cells[idx:]
+#     return cells_to_text(cell_list)
+
+def get_col_cells(ab_table: AbbyyTableBlock) -> List[List[AbbyyCell]]:
+    col_list = []  # type: List[List[AbbyyCell]]
+    for row_i, ab_row in enumerate(ab_table.ab_rows):
+        # add a new list if such row doesn't exist before.
+        # some rows might have extra
+        for extra_col in range(len(col_list), len(ab_row.ab_cells)):
+            col_list.append([])
+        for col_i, acell in enumerate(ab_row.ab_cells):
+            col_list[col_i].append(acell)
+    return col_list
+
+
+def update_table_label_rows_cols_indices(ab_table: AbbyyTableBlock) -> None:
+    """
+    prev_row = ab_table.ab_rows[0]
+    after_col_text = get_after_col_text(prev_row, 1)
+    prev_perc_digit = perc_digits(after_col_text)
+    print("row #{} [{}]".format(0, prev_row.get_text().replace('\n', '|')))
+    print("   after_col_idx, perc_dig= {} [{}]".format(prev_perc_digit, after_col_text.replace('\n', '|')))
+    """
+    for row_i, ab_row in enumerate(ab_table.ab_rows[1:], 1):
+        after_col_text = cells_to_text(ab_row.ab_cells[row_i:])
+        perc_digit = perc_digits(after_col_text)
+        # print("row #{} [{}]".format(row_i, ab_row.get_text().replace('\n', '|')))
+        # print("   after_col_idx, perc_dig= {}, [{}]".format(perc_digit, after_col_text.replace('\n', '|')))
+        if perc_digit >= 0.75:
+            ab_table.label_row_index = row_i
+            # print('ab_table_label_row_index = {}'.format(ab_table.label_row_index))
+            break
+
+    for col_i, col_cell_list in enumerate(get_col_cells(ab_table)[1:], 1):
+        if ab_table.label_row_index != -1:
+            col_text = cells_to_text(col_cell_list[ab_table.label_row_index:])
+        else:
+            col_text = cells_to_text(col_cell_list)
+        perc_digit = perc_digits(col_text)
+        # print("col #{} perc_digit= {} [{}]".format(col_i,
+        #                                            perc_digit,
+        #                                            col_text.replace('\n', '|')))
+        if perc_digit >= 0.75:
+            ab_table.label_col_index = col_i
+            # print('ab_table_label_col_index = {}'.format(ab_table.label_col_index))
+            break
+
+    # now set all the cells before label_row_index's is_label to True
+    if ab_table.label_row_index != -1:
+        for ab_row in ab_table.ab_rows[:ab_table.label_row_index]:
+            ab_row.is_label = True
+            for ab_cell in ab_row.ab_cells:
+                ab_cell.is_label = True
+    # now set all the cells before label_col_index's is_label to True
+    if ab_table.label_col_index != -1:
+        for col_cells in get_col_cells(ab_table)[:ab_table.label_col_index]:
+            for ab_cell in col_cells:
+                ab_cell.is_label = True
+
+def perc_digits(text: str) -> float:
+    words = text.split()
+    num_digit = 0
+    for word in words:
+        if word.isdigit():
+            num_digit += 1
+    return num_digit / len(words)
+
+
+def set_label_rows_and_columns(ab_xml_doc: AbbyyXmlDoc) -> None:
+    for apage in ab_xml_doc.ab_pages:
+        for ab_table in apage.ab_table_blocks:
+            update_table_label_rows_cols_indices(ab_table)
+
+
 def parse_document(file_name: str,
                    work_dir: str,
                    debug_mode: bool = False) \
@@ -554,6 +629,9 @@ def parse_document(file_name: str,
     # set page number block number at the end
     # This also setup page.text_blocks, table_blocks, signature_blocks, address_blocks
     set_abbyy_page_numbers_tables(ab_xml_doc)
+
+    # go through the xmldoc and go page by page, classify each table's lines and columns
+    set_label_rows_and_columns(ab_xml_doc)
 
     # collect invalid tables at document level
     for apage in ab_xml_doc.ab_pages:

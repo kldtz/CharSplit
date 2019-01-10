@@ -363,6 +363,8 @@ def table_block_to_json(ab_table_block: AbbyyTableBlock) -> Dict:
                 for unused_lid, ab_line in enumerate(ab_par.ab_lines):
                     cell_st_list.append(ab_line.text)
             cell_dict['text'] = '\n'.join(cell_st_list)
+            if ab_cell.is_label:
+                cell_dict['is_label'] = True
             cell_list.append(cell_dict)
         row_dict['cell_list'] = cell_list
         row_list.append(row_dict)
