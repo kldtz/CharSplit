@@ -570,6 +570,8 @@ def update_table_label_rows_cols_indices(ab_table: AbbyyTableBlock) -> None:
 
 def perc_digits(text: str) -> float:
     words = text.split()
+    if not words:
+        return 0.0
     num_digit = 0
     for word in words:
         if word.isdigit():
