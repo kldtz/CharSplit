@@ -348,12 +348,17 @@ def table_block_to_json(ab_table_block: AbbyyTableBlock) -> Dict:
     if ab_table_block.infer_attr_dict.get('footer'):
         table_dict['footer'] = ab_table_block.infer_attr_dict.get('footer')
 
-    if hasattr(ab_table_block, 'label_row_index') and \
-       ab_table_block.label_row_index != -1:
+    if hasattr(ab_table_block, 'label_row_index'):
         table_dict['label_row_index'] = ab_table_block.label_row_index
-    if hasattr(ab_table_block, 'label_column_index') and \
-       ab_table_block.label_column_index != -1:
+    else:
+        ab_table_block.label_row_index = -1
+        table_dict['label_row_index'] = -1
+
+    if hasattr(ab_table_block, 'label_column_index'):
         table_dict['label_column_index'] = ab_table_block.label_column_index
+    else:
+        ab_table_block.label_column_index = -1
+        table_dict['label_column_index'] = -1
 
     row_list = []  # type: List[Dict]
     for unused_row_id, ab_row in enumerate(ab_table_block.ab_rows):
