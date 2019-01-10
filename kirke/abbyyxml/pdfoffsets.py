@@ -205,7 +205,7 @@ class AbbyyTableBlock:
         self.is_invalid_kirke_table = False
         self.invalid_table_reason = ''
         self.label_row_index = -1
-        self.label_col_index = -1
+        self.label_column_index = -1
 
         # for indexining into page's ab_blocks
         self.page_block_seq = -1

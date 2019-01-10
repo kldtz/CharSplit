@@ -526,6 +526,7 @@ def update_table_label_rows_cols_indices(ab_table: AbbyyTableBlock) -> None:
     print("row #{} [{}]".format(0, prev_row.get_text().replace('\n', '|')))
     print("   after_col_idx, perc_dig= {} [{}]".format(prev_perc_digit, after_col_text.replace('\n', '|')))
     """
+    # we only check for label row for the first 4 rows
     for row_i, ab_row in enumerate(ab_table.ab_rows[1:], 1):
         after_col_text = cells_to_text(ab_row.ab_cells[row_i:])
         perc_digit = perc_digits(after_col_text)
@@ -535,7 +536,10 @@ def update_table_label_rows_cols_indices(ab_table: AbbyyTableBlock) -> None:
             ab_table.label_row_index = row_i
             # print('ab_table_label_row_index = {}'.format(ab_table.label_row_index))
             break
+        if row_i >= 3:
+            break
 
+    # we only check for label column for the first 4 columns
     for col_i, col_cell_list in enumerate(get_col_cells(ab_table)[1:], 1):
         if ab_table.label_row_index != -1:
             col_text = cells_to_text(col_cell_list[ab_table.label_row_index:])
@@ -546,8 +550,10 @@ def update_table_label_rows_cols_indices(ab_table: AbbyyTableBlock) -> None:
         #                                            perc_digit,
         #                                            col_text.replace('\n', '|')))
         if perc_digit >= 0.75:
-            ab_table.label_col_index = col_i
-            # print('ab_table_label_col_index = {}'.format(ab_table.label_col_index))
+            ab_table.label_column_index = col_i
+            # print('ab_table_label_column_index = {}'.format(ab_table.label_column_index))
+            break
+        if col_i >= 3:
             break
 
     # now set all the cells before label_row_index's is_label to True
@@ -556,9 +562,9 @@ def update_table_label_rows_cols_indices(ab_table: AbbyyTableBlock) -> None:
             ab_row.is_label = True
             for ab_cell in ab_row.ab_cells:
                 ab_cell.is_label = True
-    # now set all the cells before label_col_index's is_label to True
-    if ab_table.label_col_index != -1:
-        for col_cells in get_col_cells(ab_table)[:ab_table.label_col_index]:
+    # now set all the cells before label_column_index's is_label to True
+    if ab_table.label_column_index != -1:
+        for col_cells in get_col_cells(ab_table)[:ab_table.label_column_index]:
             for ab_cell in col_cells:
                 ab_cell.is_label = True
 
