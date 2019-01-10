@@ -143,8 +143,10 @@ def annotate_uploaded_document():
         file_title = request.form.get('fileName')
         if request_work_dir:
             work_dir = request_work_dir
-            print("work_dir = {}".format(work_dir))
+            if work_dir.startsiwth('/Users'):
+                work_dir = WORK_DIR
             osutils.mkpath(work_dir)
+            print("work_dir = {}".format(work_dir))
         else:
             work_dir = WORK_DIR
 
