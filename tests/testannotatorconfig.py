@@ -8,11 +8,11 @@ from kirke.utils import ebsentutils
 from kirke.eblearn import annotatorconfig
 from kirke.sampleutils import regexgen
 
-def extract_str(pat: Pattern, line: str, group_num: int = 1) -> str:
+def extract_str(pat: Pattern, line: str, group_num: int = 0) -> str:
     mat = re.search(pat, line)
     if mat:
         mat_st = line[mat.start(group_num):mat.end(group_num)]
-        return mat_st
+        return mat_st.strip()
     return ''
 
 def extract_cand(alphanum: regexgen.RegexContextGenerator, line: str):
@@ -64,7 +64,7 @@ class TestCurrency(unittest.TestCase):
         # didn't check for \b
         line = "Bob received 33.444 M dollars from Alice"
         self.assertEqual(extract_str(currency_pat, line),
-                         '444 M dollars')
+                         '33.444 M dollars')
 
 
         line = "Bob received 333,333  dollars from Alice"
@@ -145,7 +145,7 @@ class TestCurrency(unittest.TestCase):
         line = "Bob received 33.33 Rupee from Alice"
         self.assertEqual(extract_str(currency_pat,
                                      line),
-                         '33.33 Rupee')        
+                         '33.33 Rupee')
         line = "Bob received INR 33.33 from Alice"
         self.assertEqual(extract_str(currency_pat,
                                      line),
@@ -153,11 +153,11 @@ class TestCurrency(unittest.TestCase):
         line = "Bob received 33.33  INR from Alice"
         self.assertEqual(extract_str(currency_pat,
                                      line),
-                         '33.33  INR')        
+                         '33.33  INR')
         line = 'Rs.50,000.00 (Rupees Fifty Thousand only)'
         self.assertEqual(extract_str(currency_pat,
                                      line),
-                         'Rs.50,000.00')        
+                         'Rs.50,000.00')
 
 
 
@@ -296,3 +296,47 @@ class TestCurrency(unittest.TestCase):
         line = "Bob received 0.3802 percent from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
                          '0.3802 percent')
+
+
+    def test_word_currency(self):
+        "Test CURRENCY_PAT"
+
+        currency_pat = annotatorconfig.CURRENCY_PAT
+
+
+        line = "Bob received 1 pound from Alice"
+        self.assertEqual(extract_str(currency_pat, line),
+                         '1 pound')
+
+        """
+        line = "Bob received one pound from Alice"
+        self.assertEqual(extract_str(currency_pat, line),
+                         'one pound')
+        """
+
+    """
+
+        line = "Bob received thirty-three dollars from Alice"
+        self.assertEqual(extract_str(currency_pat, line),
+                         'thirty-three dollars')
+
+        line = "Bob received 33M dollars from Alice"
+        self.assertEqual(extract_str(currency_pat, line),
+                         '33M dollars')
+
+        line = "Bob received 33 M dollars from Alice"
+        self.assertEqual(extract_str(currency_pat, line),
+                         '33 M dollars')
+
+        line = "Bob received 33B dollars from Alice"
+        self.assertEqual(extract_str(currency_pat, line),
+                         '33B dollars')
+
+        line = "Bob received 33 B dollars from Alice"
+        self.assertEqual(extract_str(currency_pat, line),
+                         '33 B dollars')
+
+        line = "Bob received 33 B dollars from Alice"
+        self.assertEqual(extract_str(currency_pat, line),
+                         '33 B dollars')
+"""

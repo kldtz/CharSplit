@@ -14,7 +14,7 @@ from kirke.sampleutils import postproc
 from kirke.ebrules import dummyannotator, dates
 from kirke.sampleutils import addrgen, idnumgen, dategen, paragen
 from kirke.sampleutils import regexgen, transformerutils
-from kirke.utils import ebantdoc4
+from kirke.utils import ebantdoc4, text2int
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -27,14 +27,15 @@ logger.setLevel(logging.INFO)
 # any of the classes mentioned in the frozen config lists.
 
 # pylint: disable=line-too-long
-CURRENCY_PAT = re.compile(r'(((\b(USD|GBP|JPY|INR|Rs\.?)|[\$€₹£¥円]) *(\d{1,3}[,\.]?)+([,\.]\d{,2})?( *[tTbBmM]illion| *[tT]housand| *[TMB])?)|'
-                          r'((\d{1,3},?)+([,\.]\d{,2})? *([tTbBmM]illion|[tT]housand|[TMB])? *((USD|EUR|INR|GBP|CNY|JPY|Rs|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en)\b|[\$€₹£¥円])))')
+CURRENCY_PAT_ST = r'(((\b(USD|GBP|JPY|INR|Rs\.?)|[\$€₹£¥円]) *({})|({}) *((USD|EUR|INR|GBP|CNY|JPY|Rs|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en)\b|[\$€₹£¥円])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st)
+CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
 
 # must pick gruop 2 instead of group 1
 # pylint: disable=line-too-long
-NUMBER_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))\)?[,\.:;]?(\s|$)')
+NUMBER_PAT = re.compile(r'(^|\s)\(?(-?({}))\)?[,\.:;]?(\s|$)'.format(text2int.numeric_regex_st), re.I)
 # pylint: disable=line-too-long
-PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|\.[0-9]+)\s*(%|percent))\)?[,\.:;]?(\s|$)', re.I)
+PERCENT_PAT = re.compile(r'(^|\s)\(?(-?({})\s*(%|percent))\)?[,\.:;]?(\s|$)'.format(text2int.numeric_regex_st),
+                                                                                    re.I)
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
