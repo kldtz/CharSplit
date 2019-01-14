@@ -159,6 +159,10 @@ class TestCurrency(unittest.TestCase):
                                      line),
                          'Rs.50,000.00')
 
+        line = '$1,000,000 base'
+        self.assertEqual(extract_str(currency_pat,
+                                     line),
+                         '$1,000,000')
 
 
     def test_number(self):
@@ -167,63 +171,67 @@ class TestCurrency(unittest.TestCase):
         number_pat = annotatorconfig.NUMBER_PAT
 
         line = "33.3 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '33.3')
 
         line = "3.3 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '3.3')
 
         line = ".3 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '.3')
 
         line = "0.3 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '0.3')
 
 
         line = "-0.3 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '-0.3')
 
 
         line = "-333,333.3 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '-333,333.3')
 
         line = "-22,333.3 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '-22,333.3')
 
         line = "Bob received 33 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '33')
 
         line = "Bob received 33.3 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '33.3')
 
         line = "Bob received 33.3802 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '33.3802')
 
 
         line = "Bob received 33. dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
-                         '33.')
+        self.assertEqual(extract_str(number_pat, line, 1),
+                         '33')
 
         line = "Bob received .3802 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '.3802')
 
         line = "Bob received 0.3802 dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '0.3802')
 
         line = "Bob received (0.3802) dollars from Alice"
-        self.assertEqual(extract_str(number_pat, line, 2),
+        self.assertEqual(extract_str(number_pat, line, 1),
                          '0.3802')
+
+        line = "Bob received ten dollars from Alice"
+        self.assertEqual(extract_str(number_pat, line, 1),
+                         'ten')
 
 
     def test_percent(self):
@@ -296,6 +304,10 @@ class TestCurrency(unittest.TestCase):
         line = "Bob received 0.3802 percent from Alice"
         self.assertEqual(extract_str(percent_pat, line, 2),
                          '0.3802 percent')
+
+        line = "Bob received ten percent from Alice"
+        self.assertEqual(extract_str(percent_pat, line, 2),
+                         'ten percent')
 
 
     def test_word_currency(self):

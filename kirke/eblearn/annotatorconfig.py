@@ -27,12 +27,18 @@ logger.setLevel(logging.INFO)
 # any of the classes mentioned in the frozen config lists.
 
 # pylint: disable=line-too-long
-CURRENCY_PAT_ST = r'(((\b(USD|GBP|JPY|INR|Rs\.?)|[\$€₹£¥円]) *({})|({}) *((USD|EUR|INR|GBP|CNY|JPY|Rs|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en)\b|[\$€₹£¥円])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st)
+CURRENCY_PAT_ST = r'(((\b(USD|EUR|GBP|CNY|JPY|INR|Rs\.?)|[\$€£円¥₹]) *({})|({}) *((USD|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|[eE]uros?|[pP]ounds?|[yY]uans?|[yY]ens?|[rR]upees?)\b|[\$€£円¥₹])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st)
 CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
 
-# must pick gruop 2 instead of group 1
 # pylint: disable=line-too-long
-NUMBER_PAT = re.compile(r'(^|\s)\(?(-?({}))\)?[,\.:;]?(\s|$)'.format(text2int.numeric_regex_st), re.I)
+# NUMBER_PAT = re.compile(r'(^|\s)\(?(-?({}))\)?[,\.:;]?(\s|$)'.format(text2int.numeric_regex_st), re.I)
+# NUMBER_PAT = re.compile(r'((^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))\)?[,\.:;]?(\s|$))' +
+#                         r'|({})'.format(text2int.numeric_words_regex_st))
+
+NUM_PAT_ST = r'\(?(([\-\.]?\b([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))|' + \
+             r'\b({}))\b\)?'.format(text2int.numeric_words_regex_st)
+NUMBER_PAT = re.compile(NUM_PAT_ST)
+
 # pylint: disable=line-too-long
 PERCENT_PAT = re.compile(r'(^|\s)\(?(-?({})\s*(%|percent))\)?[,\.:;]?(\s|$)'.format(text2int.numeric_regex_st),
                                                                                     re.I)
@@ -99,7 +105,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                             10,
                                                                             NUMBER_PAT,
                                                                             'NUMBER',
-                                                                            group_num=2)],
+                                                                            group_num=1)],
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                        'pipeline': Pipeline([('union', FeatureUnion(

@@ -1,11 +1,32 @@
 import logging
+import re
 from typing import Dict, List, Optional, Pattern, Tuple
 
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
+from kirke.utils.text2int import extract_number
+
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+def normalize_currency_unit(line: str) -> str:
+    lc_line = line.lower()
+    if lc_line in set(['$', 'usd', 'dollar', 'dollars']) or \
+       re.search(r'u\.\s*s\.\s*dollars?', lc_line):
+        return 'USD'
+    elif lc_line in set(['€', 'eur', 'euro', 'euros']):
+        return 'EUR'
+    elif lc_line in set(['£', 'gbp', 'pound', 'pounds']):
+        return 'GBP'
+    elif lc_line in set(['円', 'cny', 'yuan', 'yuans']):
+        return 'CNY'
+    elif lc_line in set(['¥', 'jpy', 'yen', 'yens']):
+        return 'JPY'
+    elif lc_line in set(['₹', 'inr', 'rupee', 'rupees', 'rs']):
+        return 'INR'
+
+    return 'UNKNOWN_CURRENCY'
 
 # pylint: disable=too-few-public-methods
 class RegexContextGenerator:
@@ -68,6 +89,51 @@ class RegexContextGenerator:
             if post_spans:
                 new_end = post_spans[-1][-1]
 
+            norm_dict = {}
+            if self.candidate_type == 'CURRENCY':
+                cx_mat = self.center_regex.search(match.group())
+                # print('\ncx_mat group: {} {} [{}]'.format(cx_mat.start(), cx_mat.end(), cx_mat.group()))
+                # for gi, group in enumerate(cx_mat.groups()):
+                #     print("  cx_mat.group #{}: [{}]".format(gi+1, cx_mat.group(gi+1)))
+                norm_unit = 'USD'
+                norm_value = -1
+                if cx_mat.group(3):
+                    norm_unit = normalize_currency_unit(cx_mat.group(3))
+                    norm_value = extract_number(cx_mat.group(5)).get('value', -1)
+                elif cx_mat.group(9):
+                    norm_unit = normalize_currency_unit(cx_mat.group(13))
+                    norm_value = extract_number(cx_mat.group(9)).get('value', -1)
+                norm_dict = {'unit': norm_unit,
+                             'value': norm_value}
+            elif self.candidate_type == 'NUMBER':
+                cx_mat = self.center_regex.search(match.group())
+                print('\nnum cx_mat group: {} {} [{}]'.format(cx_mat.start(), cx_mat.end(), cx_mat.group()))
+                for gi, group in enumerate(cx_mat.groups()):
+                    print("  num cx_mat.group #{}: [{}]".format(gi+1, cx_mat.group(gi+1)))
+                # mat_text = re.sub('[\.,]$', '', cx_mat.group().strip())
+                # if len(list(re.finditer(r'\.', mat_text))) >= 2:  # this is sectionhead 7.2.1
+                #    # this is NOT a number
+                #    print('skipping, not a number')
+                #    continue
+                norm_value = -1
+                if cx_mat.group(2):
+                    norm_value = extract_number(cx_mat.group(2)).get('value', -1)
+                elif cx_mat.group(5):
+                    norm_value = extract_number(cx_mat.group(5)).get('value', -1)
+
+                norm_dict = norm_value
+            elif self.candidate_type == 'PERCENT':
+                cx_mat = self.center_regex.search(match.group())
+                print('\nperc cx_mat group: {} {} [{}]'.format(cx_mat.start(), cx_mat.end(), cx_mat.group()))
+                for gi, group in enumerate(cx_mat.groups()):
+                    print("  perc cx_mat.group #{}: [{}]".format(gi+1, cx_mat.group(gi+1)))
+                norm_value = -1
+                if cx_mat.group(4):
+                    norm_value = extract_number(cx_mat.group(4)).get('value', -1)
+                norm_dict = {'unit': '%',
+                             'value': norm_value}
+
+
             a_candidate = {'candidate_type': self.candidate_type,
                            'bow_start': new_start,
                            'bow_end': new_end,
@@ -77,6 +143,9 @@ class RegexContextGenerator:
                            'prev_n_words': ' '.join(prev_n_words),
                            'post_n_words': ' '.join(post_n_words),
                            'chars': match_str}
+            if norm_dict:
+                a_candidate['norm'] = norm_dict
+
             candidates.append(a_candidate)
             group_id_list.append(group_id)
             if is_label:
