@@ -295,8 +295,8 @@ def text2number(textnum: str) -> Union[int, float]:
                     word = "%s%s" % (word[:-len(ending)], replacement)
 
             if word not in numwords:
-                raise Exception("Illegal word: " + word)
-                # return -1
+                # raise Exception("Illegal word: " + word)
+                return -1
 
             scale, increment = numwords[word]
 
