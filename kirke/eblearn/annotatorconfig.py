@@ -14,7 +14,7 @@ from kirke.sampleutils import postproc
 from kirke.ebrules import dummyannotator, dates
 from kirke.sampleutils import addrgen, idnumgen, dategen, paragen
 from kirke.sampleutils import regexgen, transformerutils
-from kirke.utils import ebantdoc4, text2int
+from kirke.utils import ebantdoc4
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -25,23 +25,6 @@ logger.setLevel(logging.INFO)
 #
 # There are "frozen" lists of those config so that developer are aware not to touch
 # any of the classes mentioned in the frozen config lists.
-
-# pylint: disable=line-too-long
-CURRENCY_PAT_ST = r'(((\b(USD|EUR|GBP|CNY|JPY|INR|Rs\.?)|[\$€£円¥₹]) *({})|({}) *((USD|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|[eE]uros?|[pP]ounds?|[yY]uans?|[yY]ens?|[rR]upees?)\b|[\$€£円¥₹])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st)
-CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
-
-# pylint: disable=line-too-long
-# NUMBER_PAT = re.compile(r'(^|\s)\(?(-?({}))\)?[,\.:;]?(\s|$)'.format(text2int.numeric_regex_st), re.I)
-# NUMBER_PAT = re.compile(r'((^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))\)?[,\.:;]?(\s|$))' +
-#                         r'|({})'.format(text2int.numeric_words_regex_st))
-
-NUM_PAT_ST = r'\(?(([\-\.]?\b([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))|' + \
-             r'\b({}))\b\)?'.format(text2int.numeric_words_regex_st)
-NUMBER_PAT = re.compile(NUM_PAT_ST)
-
-# pylint: disable=line-too-long
-PERCENT_PAT = re.compile(r'(^|\s)\(?(-?({})\s*(%|percent))\)?[,\.:;]?(\s|$)'.format(text2int.numeric_regex_st),
-                                                                                    re.I)
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
@@ -79,18 +62,22 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.35,
                         'kfold': 3}),
 
+    # the regex here is correct, but due to we normalize result, we are using
+    # regexgen.extract_currencies() when generating candidates, not just this regex
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                          'is_use_corenlp': False,
                          'doc_to_candidates':
                          [regexgen.RegexContextGenerator(20,
                                                          5,
-                                                         CURRENCY_PAT,
-                                                         'CURRENCY')],
+                                                         regexgen.CURRENCY_PAT,
+                                                         'CURRENCY',
+                                                         1)],
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                          'pipeline': Pipeline([
                              ('union', FeatureUnion(
-                                 transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
+                                 transformer_list=[('surround_transformer',
+                                                    transformerutils.SimpleTextTransformer()),
                                                   ])),
                              ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                    shuffle=True, random_state=42,
@@ -98,12 +85,17 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                          'threshold': 0.25,
                          'kfold': 3}),
-
+    # the regex here is correct, but due to
+    #   1. the number expression is very permissive, such as accepting 1.2.3 due to
+    #      in some countries, we can have 123.234.000,00, extra filtering is performed
+    #   2. normalize the result also,
+    # we use regexgen.extract_numbers() inside regexgen when generating candidates, not just
+    # this regex
     ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                        'is_use_corenlp': False,
                        'doc_to_candidates': [regexgen.RegexContextGenerator(10,
                                                                             10,
-                                                                            NUMBER_PAT,
+                                                                            regexgen.NUMBER_PAT,
                                                                             'NUMBER',
                                                                             group_num=1)],
                        'version': "1.0",
@@ -123,12 +115,14 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'threshold': 0.25,
                        'kfold': 3}),
 
+    # the regex here is correct, but due to we normalize result, we are using
+    # regexgen.extract_percents() when generating candidates, not just this regex
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
                         'doc_to_candidates': \
                         [regexgen.RegexContextGenerator(15,
                                                         5,
-                                                        PERCENT_PAT,
+                                                        regexgen.PERCENT_PAT,
                                                         'PERCENT',
                                                         group_num=2)],
                         'version': "1.0",
@@ -262,8 +256,10 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
                     'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                     'pipeline': Pipeline([
                         ('union', FeatureUnion(
-                            transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
-                                              ('char_transformer', transformerutils.CharacterTransformer())
+                            transformer_list=[('surround_transformer',
+                                               transformerutils.SimpleTextTransformer()),
+                                              ('char_transformer',
+                                               transformerutils.CharacterTransformer())
                                              ])),
                         ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                               shuffle=True, random_state=42,
