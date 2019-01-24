@@ -21,7 +21,7 @@ class TestText2Int(unittest.TestCase):
         self.assertEqual(text2number(line), 135)
 
         line = '1 hundred thirty five'
-        self.assertEqual(text2number(line), 135)        
+        self.assertEqual(text2number(line), 135)
 
         line = 'three billion and thirty five'
         self.assertEqual(text2number(line), 3000000035)
@@ -33,14 +33,14 @@ class TestText2Int(unittest.TestCase):
         self.assertEqual(text2number(line), 12144066)
 
         line = 'twelve million one hundred forty four thousand and Sixty-Six'
-        self.assertEqual(text2number(line), 12144066)        
+        self.assertEqual(text2number(line), 12144066)
 
         line = 'twelve million one hundred 44 thousand and 66'
-        self.assertEqual(text2number(line), 12144066)        
+        self.assertEqual(text2number(line), 12144066)
 
         line = 'twelve million 144 thousand and 66'
         self.assertEqual(text2number(line), 12144066)
-        
+
         line = '12 million and 44 thousand and 66'
         self.assertEqual(text2number(line), 12044066)
 
@@ -89,7 +89,7 @@ class TestText2Int(unittest.TestCase):
 
         line = "1.101,401"
         self.assertEqual(text2number(line), 1101.401)
-        
+
 
     def test_text2number_acronym(self):
         "Test text2number() with acronym"
@@ -111,9 +111,9 @@ class TestText2Int(unittest.TestCase):
 
         line = "0.2 B"
         self.assertEqual(text2number(line), 200000000)
-        
+
         line = ".2 B"
-        self.assertEqual(text2number(line), 200000000)        
+        self.assertEqual(text2number(line), 200000000)
 
         line = "1.2 t"
         self.assertEqual(text2number(line), 1200000000000)
@@ -123,12 +123,12 @@ class TestText2Int(unittest.TestCase):
 
         line = "33M"
         self.assertEqual(text2number(line), 33000000)
-        
+
         line = "1.2B"
         self.assertEqual(text2number(line), 1200000000)
-        
+
         line = "1.2T"
-        self.assertEqual(text2number(line), 1200000000000)        
+        self.assertEqual(text2number(line), 1200000000000)
 
 
     def test_extract_numbers_comma(self):
@@ -138,12 +138,12 @@ class TestText2Int(unittest.TestCase):
         self.assertTrue(math.isclose(text2number(line), 33300000))
 
         line = "33,32 m"
-        self.assertEqual(text2number(line), 33320000)        
+        self.assertEqual(text2number(line), 33320000)
 
 
     def test_float(self):
         "Test text2number(), floating point parsing"
-        
+
         line = 'one point one'
         self.assertEqual(text2number(line), 1.1)
 
@@ -163,23 +163,23 @@ class TestText2Int(unittest.TestCase):
         self.assertTrue(math.isclose(text2number(line), 5.431))
 
         line = 'five point four three zero'
-        self.assertTrue(math.isclose(text2number(line), 5.43))        
+        self.assertTrue(math.isclose(text2number(line), 5.43))
 
         line = 'seventeen point four'
         # self.assertTrue(math.isclose(text2number(line), 17.4))
         self.assertEqual(text2number(line), 17.4)
 
         line = 'twenty-one point four'
-        self.assertEqual(text2number(line), 21.4)                                
+        self.assertEqual(text2number(line), 21.4)
 
         line = 'fifty one point four'
-        self.assertEqual(text2number(line), 51.4)                        
+        self.assertEqual(text2number(line), 51.4)
 
         line = 'one hundred one point four'
-        self.assertEqual(text2number(line), 101.4)                        
+        self.assertEqual(text2number(line), 101.4)
 
         line = 'one thousand one point four'
-        self.assertEqual(text2number(line), 1001.4)                        
+        self.assertEqual(text2number(line), 1001.4)
 
         # line = 'five point thirty three'
         # print('[{}] => {}'.format(st, text2number(st)))
@@ -196,7 +196,7 @@ class TestText2Int(unittest.TestCase):
 
     def test_extract_numbers(self):
         "Test extract_numbers()"
-        
+
         line = 'I found three billion and thirty five dollars'
         adict_list = extract_numbers(line)
         self.assertEqual(len(adict_list), 1)
@@ -214,14 +214,26 @@ class TestText2Int(unittest.TestCase):
         self.assertEqual(adict['value'], 11000000)
         adict = adict_list[1]
         self.assertEqual(adict['value'], 1000000)
-        adict = adict_list[2]        
+        adict = adict_list[2]
         self.assertEqual(adict['value'], 1000000)
         """
+
+        line = "one and half pound and three and half pound, eight and half dollars three and half million dollars"
+        adict_list = extract_numbers(line)
+        self.assertEqual(len(adict_list), 4)
+        adict = adict_list[0]
+        self.assertEqual(adict['value'], 1.5)
+        adict = adict_list[1]
+        self.assertEqual(adict['value'], 3.5)
+        adict = adict_list[2]
+        self.assertEqual(adict['value'], 8.5)
+        adict = adict_list[3]
+        self.assertEqual(adict['value'], 3500000)
 
 
     def test_extract_number(self):
         "Test extract_numbers()"
-        
+
         line = 'three billion and thirty five'
         adict = extract_number(line)
         self.assertEqual(adict['value'], 3000000035)
@@ -306,8 +318,8 @@ class TestText2Int(unittest.TestCase):
         print('adict_list: {}'.format(adict_list))
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 123)                
-        
+        self.assertEqual(adict['value'], 123)
+
         line = 'one hundred thirty five'
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
@@ -332,5 +344,5 @@ class TestText2Int(unittest.TestCase):
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 12144066)        
+        self.assertEqual(adict['value'], 12144066)
     """

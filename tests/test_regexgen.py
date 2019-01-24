@@ -265,6 +265,23 @@ class TestCurrency(unittest.TestCase):
                                             'unit': 'USD',
                                             'value': 1000000})
 
+        line = "one and half pound and three and half pound, eight and half dollars three and half million dollars"
+        mat_list = regexgen.extract_currencies(line)
+        self.assertEqual(len(mat_list), 4)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'one and half pound',
+                                            'unit': 'GBP',
+                                            'value': 1.5})
+        # the prefix 'and' is not ideal
+        self.assertEqual(tuv(mat_list[1]), {'text': 'and three and half pound',
+                                            'unit': 'GBP',
+                                            'value': 3.5})
+        self.assertEqual(tuv(mat_list[2]), {'text': 'eight and half dollars',
+                                            'unit': 'USD',
+                                            'value': 8.5})
+        self.assertEqual(tuv(mat_list[3]), {'text': 'three and half million dollars',
+                                            'unit': 'USD',
+                                            'value': 3500000})
+
 
     def test_number(self):
         "Test NUMBER_PAT"
@@ -384,6 +401,19 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(len(mat_list), 1)
         self.assertEqual(tuv(mat_list[0]), {'text': 'ten',
                                             'value': 10})
+
+        line = "one and half pound and three and half pound, eight and half dollars three and half million dollars"
+        mat_list = regexgen.extract_numbers(line)
+        self.assertEqual(len(mat_list), 4)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'one and half',
+                                            'value': 1.5})
+        self.assertEqual(tuv(mat_list[1]), {'text': 'three and half',
+                                            'value': 3.5})
+        self.assertEqual(tuv(mat_list[2]), {'text': 'eight and half',
+                                            'value': 8.5})
+        self.assertEqual(tuv(mat_list[3]), {'text': 'three and half million',
+                                            'value': 3500000})
+
 
 
     def test_percent(self):
