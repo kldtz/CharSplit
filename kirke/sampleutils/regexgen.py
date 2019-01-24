@@ -35,7 +35,7 @@ CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
 # NUM_PAT_ST = r'(([-+]?\b[0-9,\.]*[0-9]+)|' + \
 #              r'\b({}))\b'.format(text2int.numeric_words_regex_st)
 
-NUM_PAT_ST = r'(((?<=\s)|(?<=^)|(?<=\()|(?<=\[))({}))\b'.format(text2int.numeric_regex_st)
+NUM_PAT_ST = r'(((?<=\s)|(?<=^)|(?<=\()|(?<=\[)|(?<=\<))({}))\b'.format(text2int.numeric_regex_st)
 
 NUMBER_PAT = re.compile(NUM_PAT_ST, re.I)
 
@@ -159,7 +159,7 @@ def num_num_split(line: str, offset: int = 0) -> List[Tuple[int, int, str]]:
 
 # following numbers are not valid
 # 'm'  'b', 't'
-INVALID_NUM_REGEX = re.compile(r'(\s*\b[mbt]\-\S+\s*|^and\s*|(?<=\d)\s+and\s+(?=\d))')
+INVALID_NUM_REGEX = re.compile(r'(\s*\b[mbt]\-\S+\s*|^and\s*|(?<=\d)\s+and\s+(?=\d)|,(?=\d{4})|(?<=\d)\s*\-\s*(?=\d))')
 
 MATCH_ALL_REGEX = re.compile(r'^.*$')
 
@@ -178,8 +178,13 @@ def is_invalid_number_word(word: str) -> bool:
         return True
     return False
 
+NUM_MBT_REGEX = re.compile(r'^\d+[mbt]$', re.I)
+
 def is_invalid_number_phrase(line: str) -> bool:
     if line.lower() in set(['b', 'm', 't']):
+        return True
+
+    if NUM_MBT_REGEX.search(line):
         return True
 
     return False
@@ -243,7 +248,8 @@ def extract_numbers(line: str) -> List[Dict]:
         # norm_st = text2int.normalize_comma_period(mat.group())
         # 2.3.4, or section head
         # 2018-01-01 or date
-        if is_invalid_number_word(mat.group()):
+        if is_invalid_number_phrase(mat.group()) or \
+           is_invalid_number_word(mat.group()):
             continue
 
         norm_dict = number_to_norm_dict(mat, line, mat_start)
