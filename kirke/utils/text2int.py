@@ -43,7 +43,7 @@ def setup_numwords():
 
     # for numword in numwords:
     #    print('numword: {}'.format(numword))
-
+    numwords['half'] = (1, 0.5)
     numwords['m'] = (1000000, 0)
     numwords['b'] = (1000000000, 0)
     numwords['t'] = (1000000000000, 0)
@@ -51,16 +51,17 @@ def setup_numwords():
     numeric_words = list(units)
     numeric_words.extend([term for term in tens if term])
     numeric_words.extend(scales)
-    numeric_words.extend([r'm\b', r'b\b', r't\b'])
+    numeric_words.extend([r'half\b', r'm\b', r'b\b', r't\b'])
     numeric_words.sort(key=len, reverse=True)
 
     numeric_and_words = list(numeric_words)
-    numeric_and_words.extend(['and', 'point', r'm\b', r'b\b', r't\b'])
+    numeric_and_words.extend(['and', 'point', 'half', r'm\b', r'b\b', r't\b'])
     numeric_and_words.sort(key=len, reverse=True)
 
     numeric_words_no_acronym = list(units)
     numeric_words_no_acronym.extend([term for term in tens if term])
     numeric_words_no_acronym.extend(scales)
+    numeric_words_no_acronym.extend(['and', 'half'])
     numeric_words_no_acronym.sort(key=len, reverse=True)
 
     # print('numeric_words: {}'.format(numeric_words))
