@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 # pylint: disable=line-too-long
 # (?:^| |\()
 # want to avoid "rst", which is "rs" + "t" where "t" is just trillion
-CURRENCY_PAT_ST = r'((((USD\b|EUR\b|GBP\b|CNY\b|JPY\b|INR\b|Rupees?\b|Rs\b\.?)|[\$€£円¥₹]) *({})|({}) *((USD|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|[eE]uros?|[pP]ounds?|[yY]uans?|[yY]ens?|[rR]upees?)\b|[\$€£円¥₹])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st_with_b)
+CURRENCY_PAT_ST = r'((((\bUSD\b|\bEUR\b|\bGBP\b|\bCNY\b|\bJPY\b|\bINR\b|\bRupees?\b|\bRs\b\.?)|[\$€£円¥₹]) *({})|({}) *((USD|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|[eE]uros?|[pP]ounds?|[yY]uans?|[yY]ens?|[rR]upees?)\b|[\$€£円¥₹])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st_with_b)
 CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
 
 # print('\nCURRENCY_PAT_ST')
