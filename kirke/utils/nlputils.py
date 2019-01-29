@@ -1892,14 +1892,14 @@ def make_span_chunk_from_span_chunk_list(span_chunk_list: List[SpanChunk]) -> Sp
     return merged_span_chunk
 
 
-def chop_spanchunk_paren(span_chunk: SpanChunk) -> Optional[SpanChunk]:
+def chop_spanchunk_paren(span_chunk: SpanChunk) -> List[SpanChunk]:
     cur_tok_idx = 1
     last_tok_idx = -1
     postag_list = span_chunk.to_postag_list()
     postags_out = postag_list[cur_tok_idx:last_tok_idx]
     se_tok_list_out = span_chunk.se_tok_list[cur_tok_idx:last_tok_idx]
     if not se_tok_list_out:
-        return None
+        return []
     nstart = se_tok_list_out[0][0]
     nend = se_tok_list_out[-1][1]
     sc_start = span_chunk.se_tok_list[0][0]
@@ -1912,7 +1912,7 @@ def chop_spanchunk_paren(span_chunk: SpanChunk) -> Optional[SpanChunk]:
                                    Tree('xPAREN', postags_out),
                                    shorten_text,
                                    se_tok_list_out)
-    return shorten_span_chunk
+    return [shorten_span_chunk]
 
 
 def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
@@ -2135,11 +2135,7 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
     if paren_list:
         if len(paren_list) == 1:
             if len(paren_list[0].se_tok_list) > 2:  # must have more than just '(' and ')'
-                tmp_span_chunk = chop_spanchunk_paren(paren_list[0])
-                if tmp_span_chunk:
-                    term = [tmp_span_chunk]
-                else:
-                    term = []
+                term = chop_spanchunk_paren(paren_list[0])
             else:
                 term = []
         else:  # there are multiple
@@ -2154,11 +2150,7 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             #     term = [chop_spanchunk_paren(last_paren)]
 
             ordered_paren_list = rerank_defined_term_parens(paren_list, org_list)
-            tmp_span_chunk = chop_spanchunk_paren(ordered_paren_list[0])
-            if tmp_span_chunk:
-                term = [tmp_span_chunk]
-            else:
-                term = []
+            term = chop_spanchunk_paren(ordered_paren_list[0])
 
             # in future, might check if term/paren doesn't overlap with org
             # pylint: disable=line-too-long
