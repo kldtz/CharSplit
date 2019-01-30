@@ -26,16 +26,6 @@ logger.setLevel(logging.INFO)
 # There are "frozen" lists of those config so that developer are aware not to touch
 # any of the classes mentioned in the frozen config lists.
 
-# pylint: disable=line-too-long
-CURRENCY_PAT = re.compile(r'(((\b(USD|GBP|JPY|INR|Rs\.?)|[\$€₹£¥円]) *(\d{1,3}[,\.]?)+([,\.]\d{,2})?( *[tTbBmM]illion| *[tT]housand| *[TMB])?)|'
-                          r'((\d{1,3},?)+([,\.]\d{,2})? *([tTbBmM]illion|[tT]housand|[TMB])? *((USD|EUR|INR|GBP|CNY|JPY|Rs|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en)\b|[\$€₹£¥円])))')
-
-# must pick gruop 2 instead of group 1
-# pylint: disable=line-too-long
-NUMBER_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))\)?[,\.:;]?(\s|$)')
-# pylint: disable=line-too-long
-PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|\.[0-9]+)\s*(%|percent))\)?[,\.:;]?(\s|$)', re.I)
-
 
 ML_ANNOTATOR_CONFIG_LIST = [
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
@@ -72,18 +62,22 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.35,
                         'kfold': 3}),
 
+    # the regex here is correct, but due to we normalize result, we are using
+    # regexgen.extract_currencies() when generating candidates, not just this regex
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                          'is_use_corenlp': False,
                          'doc_to_candidates':
                          [regexgen.RegexContextGenerator(20,
                                                          5,
-                                                         CURRENCY_PAT,
-                                                         'CURRENCY')],
+                                                         regexgen.CURRENCY_PAT,
+                                                         'CURRENCY',
+                                                         1)],
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                          'pipeline': Pipeline([
                              ('union', FeatureUnion(
-                                 transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
+                                 transformer_list=[('surround_transformer',
+                                                    transformerutils.SimpleTextTransformer()),
                                                   ])),
                              ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                    shuffle=True, random_state=42,
@@ -91,14 +85,19 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                          'threshold': 0.25,
                          'kfold': 3}),
-
+    # the regex here is correct, but due to
+    #   1. the number expression is very permissive, such as accepting 1.2.3 due to
+    #      in some countries, we can have 123.234.000,00, extra filtering is performed
+    #   2. normalize the result also,
+    # we use regexgen.extract_numbers() inside regexgen when generating candidates, not just
+    # this regex
     ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                        'is_use_corenlp': False,
                        'doc_to_candidates': [regexgen.RegexContextGenerator(10,
                                                                             10,
-                                                                            NUMBER_PAT,
+                                                                            regexgen.NUMBER_PAT,
                                                                             'NUMBER',
-                                                                            group_num=2)],
+                                                                            group_num=1)],
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                        'pipeline': Pipeline([('union', FeatureUnion(
@@ -116,12 +115,14 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'threshold': 0.25,
                        'kfold': 3}),
 
+    # the regex here is correct, but due to we normalize result, we are using
+    # regexgen.extract_percents() when generating candidates, not just this regex
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
                         'doc_to_candidates': \
                         [regexgen.RegexContextGenerator(15,
                                                         5,
-                                                        PERCENT_PAT,
+                                                        regexgen.PERCENT_PAT,
                                                         'PERCENT',
                                                         group_num=2)],
                         'version': "1.0",
@@ -255,8 +256,10 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
                     'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                     'pipeline': Pipeline([
                         ('union', FeatureUnion(
-                            transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
-                                              ('char_transformer', transformerutils.CharacterTransformer())
+                            transformer_list=[('surround_transformer',
+                                               transformerutils.SimpleTextTransformer()),
+                                              ('char_transformer',
+                                               transformerutils.CharacterTransformer())
                                              ])),
                         ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                               shuffle=True, random_state=42,
