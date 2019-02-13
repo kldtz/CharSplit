@@ -76,7 +76,7 @@ def table_candidate_to_html(table_cand: Dict, table_id: int) -> str:
     ajson = table_cand['json']
 
     st_list.append('<h2>Table {} on Page {}</h2>'.format(table_id,
-                                                         ajson['page']))
+                                                         ajson.get('page', -1)))
 
     st_list.append('<ul>')
     st_list.append("<li><b>Detect Source</b>: " + ajson['detect_source'] + '</li>')
