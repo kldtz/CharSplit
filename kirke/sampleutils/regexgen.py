@@ -42,12 +42,17 @@ NUMBER_PAT = re.compile(NUM_PAT_ST, re.I)
 # print('\nNUM_PAT_ST')
 # print(NUM_PAT_ST)
 
+# TODO
+# WARNING, this is no longer used due to backtracking take took long
+# a new version of extract_percents() is used.  Not this regex.
+# TO_FIX
 # pylint: disable=line-too-long
 PERCENT_PAT_ST = r'({})\s*(%|percent)'.format(text2int.numeric_regex_st_with_b)
 PERCENT_PAT = re.compile(PERCENT_PAT_ST, re.I)
 
 # print('\nPERCENT_PAT_ST:')
 # print(PERCENT_PAT_ST)
+
 
 # pylint: disable=too-many-return-statements
 def normalize_currency_unit(line: str) -> str:
@@ -99,28 +104,70 @@ def extract_currencies(line: str) -> List[Dict]:
     return result
 
 
-def percent_to_norm_dict(cx_mat: Match, line: str) -> Dict:
-    # print('  percent cx_mat group: {} {} [{}]'.format(cx_mat.start(), cx_mat.end(), cx_mat.group()))
-    # for gi, group in enumerate(cx_mat.groups(), 1):
-    #     print("    perc cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
+PERCENT_SYMBOL_PAT_ST = r'(%|\bpercent\b)'
+PERCENT_SYMBOL_PAT = re.compile(PERCENT_SYMBOL_PAT_ST, re.I)
+
+
+def find_prev_start_end_in_dict_list(number_dict_list: List[Dict],
+                                     number_idx: int,
+                                     percent_start: int,
+                                     line: str) -> Tuple[int, int, int]:
+    list_len = len(number_dict_list)
+    idx = number_idx
+    ok_start, ok_end = -1, -1
+    while idx < list_len:
+        ndict = number_dict_list[idx]
+        dstart, dend = ndict['start'], ndict['end']
+        if dend < percent_start:
+            ok_start, ok_end = dstart, dend
+        elif dend == percent_start:
+            ok_start, ok_end = dstart, dend
+            return ok_start, ok_end, idx + 1
+        else:
+            if ok_end != -1 and \
+               not line[ok_end:percent_start].strip():
+                return ok_start, ok_end, idx
+            return -1, -1, idx
+        idx += 1
+
+    # last one
+    if ok_end != -1 and \
+       not line[ok_end:percent_start].strip():
+        return ok_start, ok_end, idx
+
+    return -1, -1, list_len
+
+
+def percent_to_norm_dict(prev_num_start: int,
+                         prev_num_end: int,
+                         percent_end: int,
+                         line: str) -> Dict:
     norm_value = -1
-    if cx_mat.group(1):
-        norm_value = text2int.extract_number(cx_mat.group(1)).get('value', -1)
+    num_st = line[prev_num_start:prev_num_end]
+    norm_value = text2int.extract_number(num_st).get('value', -1)
     norm_dict = {'norm': {'unit': '%',
                           'value': norm_value},
-                 'text': line[cx_mat.start():cx_mat.end()],
-                 'start': cx_mat.start(),
-                 'end': cx_mat.end()}
+                 'text': line[prev_num_start:percent_end],
+                 'start': prev_num_start,
+                 'end': percent_end}
     return norm_dict
 
 
 def extract_percents(line: str) -> List[Dict]:
     norm_line = remove_num_words_join_hyphen(line)
     result = []
-    mat_list = PERCENT_PAT.finditer(norm_line)
+    number_dict_list = extract_numbers(line)
+    mat_list = PERCENT_SYMBOL_PAT.finditer(norm_line)
+
+    number_idx = 0
     for mat in mat_list:
-        norm_dict = percent_to_norm_dict(mat, line)
-        result.append(norm_dict)
+        prev_num_start, prev_num_end, number_idx = find_prev_start_end_in_dict_list(number_dict_list,
+                                                                                    number_idx,
+                                                                                    mat.start(),
+                                                                                    line)
+        if prev_num_start != -1:
+            norm_dict = percent_to_norm_dict(prev_num_start, prev_num_end, mat.end(), line)
+            result.append(norm_dict)
     return result
 
 
