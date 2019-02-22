@@ -628,7 +628,7 @@ def parse_document(file_name: str,
         yStart = str_offset['yStart']
         y_diff = yStart - prev_y
 
-        if y_diff < min_diff and y_diff > 0:
+        if y_diff < min_diff and y_diff > 2:
             all_diffs.append(y_diff)
         prev_y = yStart
         str_text = nl_text[start:end]
