@@ -14,6 +14,31 @@ StrInfo = namedtuple('StrInfo', ['start', 'end',
 MAX_Y_DIFF = 10000
 MIN_X_END = -1
 
+class PageFormatStatus:
+
+    def __init__(self,
+                 is_empty: bool = False,
+                 is_one_para_per_page: bool = False,
+                 has_periods: bool = True) -> None:
+        self.is_empty = is_empty
+        self.is_one_para_per_page = is_one_para_per_page
+        self.has_periods = has_periods
+
+    def is_double_spaced_no_period(self) -> bool:
+        return self.is_one_para_per_page and not self.has_periods
+
+    def is_normal(self) -> bool:
+        return not self.is_double_spaced_no_period()
+
+    def __str__(self) -> str:
+        if self.is_empty:
+            return 'PAGE_FORMAT.EMPTY'
+        if self.is_double_spaced_no_period():
+            return 'PAGE_FORMAT.DOUBLE_SPACED_NO_PERIOD'
+
+        return 'PAGE_FORMAT.NORMAL'
+
+
 
 # pylint: disable=too-many-instance-attributes
 class PageInfo3:
@@ -74,6 +99,7 @@ class PageInfo3:
         #   - page_num
         #   - header, footer
         self.content_line_list = []  # type: List[LineWithAttrs]
+        self.page_format = None  # type: Optional[PageFormatSTatus]
 
     # pylint: disable=invalid-name
     def compute_avg_single_line_break_ydiff(self):
@@ -121,6 +147,7 @@ class PDFTextDoc:
         self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
         # pylint: disable=line-too-long
         self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
+        self.is_one_paragraph_per_page = False
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]
