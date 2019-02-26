@@ -27,7 +27,10 @@ def calc_page_stats(apage: PageInfo3, doc_text: str) -> PageFormatStatus:
     # print('\npage #{}, len(page_text) = {}'.format(apage.page_num, len(page_text)))
     num_new_lines = page_text.count('\n')
     # print('  num_new_lines = {}'.format(num_new_lines))
-    num_periods = page_text.count('.\n') + page_text.count('.')
+    num_periods = page_text.count('.\n') + page_text.count('. ')
+    if page_text.endswith('.'):
+        num_periods += 1
+        
     # print('  num_periods = {}'.format(num_periods))
 
     is_one_para_per_page = False
