@@ -595,6 +595,10 @@ def to_paralines(pdf_text_doc, file_name, work_dir, debug_mode=False):
     return paraline_text, offsets_line_list
 
 
+# After the system decides that the document is a double-spaced document, then
+# parse_document() will recursively call itself, but with is_redo_double_spaces set
+# to True.  In that case, instead of using PDFBox's delimitation, a document-level
+# line-spacing heuristics will be used to perform paragraph-delimitation.
 def parse_document(file_name: str,
                    work_dir: str,
                    debug_mode: bool = False,
@@ -653,7 +657,9 @@ def parse_document(file_name: str,
             print('   y_diff_count[{}] = {}'.format(key, val))
 
     if not is_redo_double_spaced:
-        # this is for normal documents, with good paragraph boundaries
+        # First time parse_document() is call, is_redo_double_spaced is always False, and
+        # this branch will be taken
+        # It uses PDFBox's paragraph delimitation
 
         # this is the old code, from jsawh/switch-all-cv, PR 74
         bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
@@ -704,7 +710,9 @@ def parse_document(file_name: str,
                 block_info_list.append(block_info)
 
     else:
-        # this is for document that has one paragraph per page
+        # If previous call to parse_document() determined that the document is double-spaced
+        # and that it has one paragraph per page, then we use document-level line-spacing info
+        # to perform paragraph-delimitation instead of using PDFBox's.
         pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]]
         bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
         # tmp_prev_end = 0
@@ -778,6 +786,11 @@ def parse_document(file_name: str,
     if DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.docstruct.tsv')
 
+    # in the normal situation in which the document is not double-spaced,
+    # the following code won't be triggered.  Only if the document is
+    # double-spaced and has one paragraph per page, then we want to redo
+    # the paragraph segmentation.  So we make a recursive call with
+    # is_redo_double_spaced set to True.
     if not is_redo_double_spaced and pdf_text_doc.is_one_paragraph_per_page:
         pdf_text_doc = parse_document(file_name,
                                       work_dir,
