@@ -274,7 +274,6 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(tuv(mat_list[0]), {'text': 'one and half pound',
                                             'unit': 'GBP',
                                             'value': 1.5})
-        # the prefix 'and' is not ideal
         self.assertEqual(tuv(mat_list[1]), {'text': 'three and half pound',
                                             'unit': 'GBP',
                                             'value': 3.5})
