@@ -17,8 +17,13 @@ logger.setLevel(logging.INFO)
 # pylint: disable=line-too-long
 # (?:^| |\()
 # want to avoid "rst", which is "rs" + "t" where "t" is just trillion
-CURRENCY_PAT_ST = r'((((\bUSD\b|\bEUR\b|\bGBP\b|\bCNY\b|\bJPY\b|\bINR\b|\bRupees?\b|\bRs\b\.?)|[\$€£円¥₹]) *({})|({}) *((USD|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|[eE]uros?|[pP]ounds?|[yY]uans?|[yY]ens?|[rR]upees?)\b|[\$€£円¥₹])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st_with_b)
+CURRENCY_PAT_ST = r'((\bUSD\b|\bEUR\b|\bGBP\b|\bCNY\b|\bJPY\b|\bINR\b|\bRupees?\b|\bRs\b\.?)|[\$€£円¥₹]) *({})'.format(text2int.numeric_regex_st, text2int.numeric_regex_st_with_b)
 CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
+
+
+CURRENCY_SYMBOL_PAT_ST = r'((USD|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|' \
+                         r'[eE]uros?|[pP]ounds?|[yY]uans?|[yY]ens?|[rR]upees?)\b|[\$€£円¥₹])'
+CURRENCY_SYMBOL_PAT = re.compile(CURRENCY_SYMBOL_PAT_ST)
 
 # print('\nCURRENCY_PAT_ST')
 # print(CURRENCY_PAT_ST)
@@ -78,19 +83,28 @@ def currency_to_norm_dict(cx_mat: Match, line: str) -> Dict:
     # print('  currency cx_mat group: {} {} [{}]'.format(cx_mat.start(), cx_mat.end(), cx_mat.group()))
     # for gi, group in enumerate(cx_mat.groups(), 1):
     #    print("    cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
-    norm_unit = 'USD'
-    norm_value = -1
-    if cx_mat.group(3):
-        norm_unit = normalize_currency_unit(cx_mat.group(3))
-        norm_value = text2int.extract_number(cx_mat.group(5)).get('value', -1)
-    elif cx_mat.group(11):
-        norm_unit = normalize_currency_unit(cx_mat.group(19))
-        norm_value = text2int.extract_number(cx_mat.group(11)).get('value', -1)
+    norm_unit = normalize_currency_unit(cx_mat.group(1))
+    norm_value = text2int.extract_number(cx_mat.group(3)).get('value', -1)
     norm_dict = {'norm': {'unit': norm_unit,
                           'value': norm_value},
                  'text': line[cx_mat.start():cx_mat.end()],
                  'start': cx_mat.start(),
                  'end': cx_mat.end()}
+    return norm_dict
+
+
+def currency_to_norm_dict_symbol(prev_num_start: int,
+                                 prev_num_end: int,
+                                 currency_end: int,
+                                 line: str) -> Dict:
+    num_st = line[prev_num_start:prev_num_end]
+    norm_value = text2int.extract_number(num_st).get('value', -1)
+    norm_unit = normalize_currency_unit(line[prev_num_end:currency_end].strip())
+    norm_dict = {'norm': {'unit': norm_unit,
+                          'value': norm_value},
+                 'text': line[prev_num_start:currency_end],
+                 'start': prev_num_start,
+                 'end': currency_end}
     return norm_dict
 
 
@@ -101,6 +115,25 @@ def extract_currencies(line: str) -> List[Dict]:
     for mat in mat_list:
         norm_dict = currency_to_norm_dict(mat, line)
         result.append(norm_dict)
+
+    # Handle 'XXX dollars' using simplified regex to avoid nasty backtracking.
+    #
+    # '$XXX dollar' will trigger both prevoius and this regex.
+    # For now, I am OK with capturing both and providing two positive
+    # results.  In future, we can user overlap function to remove one
+    # of them.
+    number_dict_list = extract_numbers(norm_line)
+    mat_list = CURRENCY_SYMBOL_PAT.finditer(norm_line)
+    number_idx = 0
+    for mat in mat_list:
+        prev_num_start, prev_num_end, number_idx = find_prev_start_end_in_dict_list(number_dict_list,
+                                                                                    number_idx,
+                                                                                    mat.start(),
+                                                                                    line)
+        if prev_num_start != -1:
+            norm_dict = currency_to_norm_dict_symbol(prev_num_start, prev_num_end, mat.end(), line)
+            result.append(norm_dict)
+
     return result
 
 
