@@ -3,6 +3,7 @@
 import argparse
 import configparser
 import copy
+import glob
 import logging
 import os
 import pprint
@@ -296,6 +297,16 @@ def test_one_annotator(txt_fn_list_fn: str,
     pprint.pprint(ant_status)
 
 
+def clear_work_cache(file_name: str,
+                     work_dir: str) -> None:
+    base_fname = os.path.basename(file_name)
+    prefix, ext = os.path.splitext(base_fname)
+    cached_files = os.path.join(work_dir,
+                                prefix + '.*')
+    for rm_filename in glob.glob(cached_files):
+        print('remove cached file: [{}]'.format(rm_filename), file=sys.stderr)
+        os.remove(rm_filename)
+
 # pylint: disable=too-many-locals
 def annotate_document(file_name: str,
                       work_dir: str,
@@ -447,11 +458,17 @@ def main():
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
+        provision_set = set([])
+        if args.provisions:
+            provision_set = set(args.provisions.split(','))
+
+        clear_work_cache(args.doc, work_dir)
         print("\nannotate_document() result:")
         prov_ants_map = annotate_document(args.doc,
                                           work_dir,
                                           model_dir,
                                           custom_model_dir,
+                                          provision_set=provision_set,
                                           is_doc_structure=True,
                                           is_dev_mode=True)
         pprint.pprint(dict(prov_ants_map))
