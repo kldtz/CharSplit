@@ -2,7 +2,7 @@ from collections import namedtuple, defaultdict
 from functools import total_ordering
 import os
 import sys
-from typing import Any, DefaultDict, Dict, List, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 from kirke.docstruct import jenksutils, docstructutils
 from kirke.utils import engutils, strutils
@@ -99,7 +99,7 @@ class PageInfo3:
         #   - page_num
         #   - header, footer
         self.content_line_list = []  # type: List[LineWithAttrs]
-        self.page_format = None  # type: Optional[PageFormatSTatus]
+        self.page_format = None  # type: Optional[PageFormatStatus]
 
     # pylint: disable=invalid-name
     def compute_avg_single_line_break_ydiff(self):
