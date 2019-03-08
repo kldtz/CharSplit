@@ -669,6 +669,7 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
 
     print('page_paras_ydiff_init()')
     page_ydiff_mode_map = {}
+    failed_page_ydiff_mode_pages = []
 
     for page_num in page_num_list:
         page_linenum_set = set(page_linenum_list_map[page_num])
@@ -686,7 +687,7 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
         full_hz_col_count_map = defaultdict(int)
 
         full_ydiff_count_map = defaultdict(int)
-
+        ydiff_count_map = defaultdict(int)
 
         prev_y = 1000
         prev_hz_nth_len = 0
@@ -738,6 +739,8 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                y_diff != -1:
                 full_ydiff_count_map[y_diff] += 1
 
+            if y_diff != -1:
+                ydiff_count_map[y_diff] += 1
 
         # pylint: disable=line-too-long
         sorted_freq_col_list = sorted(((freq, nth_col) for nth_col, freq in hz_col_count_map.items()),
@@ -768,7 +771,9 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
 
         print()
         # pylint: disable=line-too-long
-        sorted_count_ydiff_list = sorted(((count, ydiff) for ydiff, count in full_ydiff_count_map.items()),
+        sorted_count_full_ydiff_list = sorted(((count, ydiff) for ydiff, count in full_ydiff_count_map.items()),
+                                              reverse=True)
+        sorted_count_ydiff_list = sorted(((count, ydiff) for ydiff, count in ydiff_count_map.items()),
                                          reverse=True)
         if IS_DEBUG:
             total_full_ydiff_count = 0
@@ -781,23 +786,158 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                 print("    >>>> full_ydiff= {}, freq={}, perc={}%".format(ydiff, freq, perc))
             print()
 
-        page_ydiff_mode_map[page_num] = sorted_count_ydiff_list[0][1]
+            total_ydiff_count = 0
+            for freq, ydiff in sorted(((count, ydiff) for ydiff, count in ydiff_count_map.items()),
+                                      reverse=True):
+                total_full_ydiff_count += freq
+            for freq, ydiff in sorted(((count, ydiff) for ydiff, count in ydiff_count_map.items()),
+                                      reverse=True):
+                perc = round(freq /  total_full_ydiff_count * 100.0)
+                print("    >>>> ydiff= {}, freq={}, perc={}%".format(ydiff, freq, perc))
+            print()
+
+        if sorted_count_full_ydiff_list:
+            if sorted_count_full_ydiff_list[0][0] >= 5:
+                # too infrequent
+                page_ydiff_mode_map[page_num] = sorted_count_full_ydiff_list[0][1]
+            elif sorted_count_full_ydiff_list[0][1] >= 22:
+                # too big
+                page_ydiff_mode_map[page_num] = sorted_count_full_ydiff_list[0][1]
+                failed_page_ydiff_mode_pages.append(page_num)
+            else:
+                page_ydiff_mode_map[page_num] = sorted_count_full_ydiff_list[0][1]
+                failed_page_ydiff_mode_pages.append(page_num)
+        else:
+            # for title page, or last page in a doc?
+            page_ydiff_mode_map[page_num] = sorted_count_ydiff_list[0][1]
+            failed_page_ydiff_mode_pages.append(page_num)
 
 
+    print('page_ydiff_mode_map:');
+    page_ydiff_mode_list = [0]
+    page_num_set = set(page_num_list)
+    for page_num in range(max(page_num_list) + 1):
+        if page_num not in page_num_set:
+            page_ydiff_mode_list.append(0)
+        else:
+            page_ydiff_mode_list.append(page_ydiff_mode_map[page_num])
+            if page_num in failed_page_ydiff_mode_pages:
+                print('     page {}: {}, failed'.format(page_num, page_ydiff_mode_map[page_num]))
+            else:
+                print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
+
+    print('page_ydiff_mode_list:')
+    for tmp_page_num, tmp_ydiff in enumerate(page_ydiff_mode_list):
+        print('   {}\t{}'.format(tmp_page_num, tmp_ydiff))
+
+
+    print('failed_page_ydiff_mode_pages: {}'.format(failed_page_ydiff_mode_pages))
+    # adjust page_ydiff_mode using neighbors
+    for page_num in failed_page_ydiff_mode_pages:
+        if page_num < 3:
+            print('taking post {} to {}'.format(page_num-3, page_num))
+            page_ydiff_mode_list[page_num] = mathutils.get_mode_in_list(page_ydiff_mode_list[page_num+1:page_num+4])
+        else:
+            print('taking prev {} to {}'.format(page_num-3, page_num))
+            page_ydiff_mode_list[page_num] = mathutils.get_mode_in_list(page_ydiff_mode_list[page_num-3:page_num])
+
+    for page_num in failed_page_ydiff_mode_pages:
+        page_ydiff_mode_map[page_num] = page_ydiff_mode_list[page_num]
+
+    print('\nadjusted page_ydiff_mode_map:');
+    for page_num in page_num_list:
+        if page_num in failed_page_ydiff_mode_pages:
+            print('     page {}: {}, failed'.format(page_num, page_ydiff_mode_map[page_num]))
+        else:
+            print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
+
+
+    # the old code
+    block_num = 0
+    doc_ydiff_mode = mathutils.get_mode_in_list(all_diffs)
+    for page_num in page_num_list:
+        page_linenum_list = page_linenum_list_map[page_num]
+
+        line_start, line_end = -1, -1  # type Tuple[int, int]
+        lxline_strinfos = []  # type: List[StrInfo]
+
+        page_ydiff_mode = page_ydiff_mode_map[page_num]
+        if page_ydiff_mode == -1:  # the worst case scenario
+            doc_ydiff_mode = doc_ydiff_mode
+
+        start = None
+        tmp_strinfos = []
+
+        page_linenum_set = set(page_linenum_list)
+
+        for line_num in page_linenum_list:
+
+            lx_strinfos = lxid_strinfos_map[line_num]
+            tmp_start = lx_strinfos[0].start
+            tmp_end = lx_strinfos[-1].end
+            line_len = len(nl_text[tmp_start:tmp_end].strip())
+
+            # checks the difference in y val between this line and the next,
+            # if below the mode, join into a block, otherwise add block to block_info
+            if line_num + 1 in page_linenum_set and \
+               line_len > 0:
+                y_diff = round(lxid_strinfos_map[line_num + 1][0].yStart - \
+                               lx_strinfos[0].yStart,
+                               2)
+            else:
+                y_diff = -1
+
+            if tmp_start != tmp_end and \
+               (y_diff < 0 or \
+                y_diff > page_ydiff_mode + 1):
+                block_num += 1
+
+                tmp_strinfos.extend(lxid_strinfos_map[line_num])
+
+                print('bb2 linenum = {}, len(tmp_strinfos) = {}'.format(line_num, len(tmp_strinfos)))
+                if not start:
+                    start = tmp_start
+                end = tmp_end
+                page_num = page_nums[line_num]
+                bxid_lineinfos_map[block_num].append(LineInfo3(start,
+                                                               end,
+                                                               line_num,
+                                                               block_num,
+                                                               tmp_strinfos))
+                para_line, unused_is_multi_lines, unused_not_linebreaks = \
+                    pdfutils.para_to_para_list(nl_text[start:end])
+
+                print('----- para_line: {}'.format(para_line))
+                block_info = PBlockInfo(start,
+                                        end,
+                                        block_num,
+                                        page_num,
+                                        para_line,
+                                        bxid_lineinfos_map[block_num],
+                                        False)
+                pgid_pblockinfos_map[page_num].append(block_info)
+                # block_info_list.append(block_info)
+                tmp_strinfos = []
+                start = None
+            else:
+                if not start:
+                    start = lxid_strinfos_map[line_num][0].start
+                tmp_strinfos.extend(lxid_strinfos_map[line_num])
+                print('bb3 len(tmp_strinfos) = {}'.format(len(tmp_strinfos)))
+
+
+    """
     # If previous call to parse_document() determined that the document is double-spaced
     # and that it has one paragraph per page, then we use document-level line-spacing info
     # to perform paragraph-delimitation instead of using PDFBox's.
     # tmp_prev_end = 0
     block_num = 0
-    mode_diff = max(set(all_diffs), key=all_diffs.count)
-    max_line_num = max(lxid_strinfos_map.keys())
-
+    mode_diff = mathutils.get_mode_in_list(all_diffs)
     for page_num in page_num_list:
         page_linenum_list = page_linenum_list_map[page_num]
 
-        tmp_end = 0
-        start = None
-        tmp_strinfos = []  # type: List[StrInfo]
+        line_start, line_end = -1, -1  # type Tuple[int, int]
+        lxline_strinfos = []  # type: List[StrInfo]
 
         page_ydiff_mode = page_ydiff_mode_map[page_num]
 
@@ -806,42 +946,41 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
         for page_line_seq, line_num in enumerate(page_linenum_list):
             lxid_strinfos = lxid_strinfos_map[line_num]
 
-            tmp_start = lxid_strinfos[0].start
-            tmp_end = lxid_strinfos[-1].end
-            line_text = nl_text[tmp_start:tmp_end]
-            line_len = len(line_text.strip())
+            lxid_start = lxid_strinfos[0].start
+            lxid_end = lxid_strinfos[-1].end
+            lxid_text = nl_text[lxid_start:lxid_end]
 
-            lx_ystart = round(lxid_strinfos[0].yStart, 2)
+            lxid_ystart = round(lxid_strinfos[0].yStart, 2)
 
             # checks the difference in y val between this line and the next,
             # if below the mode, join into a block, otherwise add block to block_info
-            if line_len > 0 and page_line_seq != 0:
-                y_diff = lx_ystart - prev_ystart
+            if len(lxid_text.strip()) > 0 and page_line_seq != 0:
+                y_diff = lxid_ystart - prev_ystart
             else:
                 y_diff = -1
 
-            if tmp_start == tmp_end:
+            if lxid_start == lxid_end:
                 # pylint: disable=line-too-long
-                print('---------------------- tmp_start ({}) == tmp_end {}'.format(tmp_start, tmp_end))
+                print('---------------------- lxid_start ({}) == lxid_end {}'.format(lxid_start, lxid_end))
             elif page_line_seq == 0:
-                line_start = tmp_start
-                line_end = tmp_end
-                tmp_strinfos.extend(lxid_strinfos)
-                print('cc1 len(tmp_strinfos) = {}'.format(len(tmp_strinfos)))
+                line_start = lxid_start
+                line_end = lxid_end
+                prev_line_num = line_num
+                lxline_strinfos.extend(lxid_strinfos)
+                print('cc1 len(lxline_strinfos) = {}'.format(len(lxline_strinfos)))
             elif y_diff < 0 or \
-                 line_text.isspace() or \
                  y_diff > page_ydiff_mode + 1:
+                # lxid_text.isspace() or \
 
-                print('cc2 line_num = {}, len(tmp_strinfos) = {}'.format(line_num, len(tmp_strinfos)))                
+                print('cc2 line_num = {}, len(lxid_strinfos) = {}'.format(line_num, len(lxid_strinfos)))
                 bxid_lineinfos_map[block_num].append(LineInfo3(line_start,
                                                                line_end,
                                                                prev_line_num,
                                                                block_num,
-                                                               tmp_strinfos))
+                                                               lxline_strinfos))
 
                 para_line, unused_is_multi_lines, unused_not_linebreaks = \
                     pdfutils.para_to_para_list(nl_text[line_start:line_end])
-
                 block_info = PBlockInfo(line_start,
                                         line_end,
                                         block_num,
@@ -851,29 +990,29 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                                         False)
                 pgid_pblockinfos_map[page_num].append(block_info)
 
-                tmp_strinfos = []
-                tmp_strinfos.extend(lxid_strinfos)
-                line_start = tmp_start
-                line_end = tmp_end
+                # add the current line to the new paragraph
+                lxline_strinfos = list(lxid_strinfos)
+                line_start = lxid_start
+                line_end = lxid_end
+                prev_line_num = line_num
                 block_num += 1
-                print('cc2.1 len(tmp_strinfos) = {}'.format(len(tmp_strinfos)))                                
+                print('cc2.1 len(lxline_strinfos) = {}'.format(len(lxline_strinfos)))
             else:
-                tmp_strinfos.extend(lxid_strinfos)
-                line_end = tmp_end
-                print('cc3 len(tmp_strinfos) = {}'.format(len(tmp_strinfos)))
-                
+                lxline_strinfos.extend(lxid_strinfos)
+                line_end = lxid_end
+                print('cc3 len(lxline_strinfos) = {}'.format(len(lxline_strinfos)))
 
             # for next loop
-            prev_ystart = lx_ystart
-            prev_line_num = line_num
+            prev_ystart = lxid_ystart
+            # prev_line_num = line_num
 
         # for the last line in a page
-        if tmp_strinfos:
+        if lxline_strinfos:
             bxid_lineinfos_map[block_num].append(LineInfo3(line_start,
                                                            line_end,
                                                            prev_line_num,
                                                            block_num,
-                                                           tmp_strinfos))
+                                                           lxline_strinfos))
 
             para_line, unused_is_multi_lines, unused_not_linebreaks = \
                 pdfutils.para_to_para_list(nl_text[line_start:line_end])
@@ -886,6 +1025,7 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                                     bxid_lineinfos_map[block_num],
                                     False)
             pgid_pblockinfos_map[page_num].append(block_info)
+    """
 
 
 
@@ -1055,7 +1195,7 @@ def parse_document_aux(file_name: str,
 
                 tmp_strinfos.extend(lxid_strinfos_map[line_num])
 
-                print('bb2 linenum = {}, len(tmp_strinfos) = {}'.format(line_num, len(tmp_strinfos)))                
+                print('bb2 linenum = {}, len(tmp_strinfos) = {}'.format(line_num, len(tmp_strinfos)))
                 if not start:
                     start = tmp_start
                 end = tmp_end
