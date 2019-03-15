@@ -16,6 +16,8 @@ HZ_10TH_DIV = 61.2   # 612.0 / 10, weidth
 MAX_Y = 792.0
 ONE_THIRD_MAX_Y = 792.0 * 2 / 3
 
+MIN_FULL_YDIFF = 3
+
 """
 pformat_classifier = pageformat.PageFormatClassifier()
 
@@ -286,7 +288,16 @@ def calc_one_page_format(page_num: int,
                        hz_len_count_map.get(3, 0)
     num_col_len_le_3_perc = num_col_len_le_3 / num_lines * 100.0
 
+    num_col_len_ge_5 = hz_len_count_map.get(5, 0) + \
+                       hz_len_count_map.get(6, 0) + \
+                       hz_len_count_map.get(7, 0) + \
+                       hz_len_count_map.get(8, 0) + \
+                       hz_len_count_map.get(9, 0) + \
+                       hz_len_count_map.get(10, 0)
+    num_col_len_ge_5_perc = num_col_len_ge_5 / num_lines * 100.0
+
     print('\n    num_col_len_le_3 = {}, perc = {}%'.format(num_col_len_le_3, num_col_len_le_3_perc))
+    print('\n    num_col_len_ge_5 = {}, perc = {}%'.format(num_col_len_ge_5, num_col_len_ge_5_perc))
 
     num_col_in_page = -1
     is_template_page = False
@@ -362,11 +373,20 @@ def calc_one_page_format(page_num: int,
         print("\n  ===>>> page {}, page_format: 1 column, br default".format(page_num))
         num_col_in_page = 1
 
-
     valid_line_nth_len = 5
-    if top_col_len < 5:
-        valid_line_nth_len = top_col_len
-
+    # we don't really care about number of column in a page, just
+    # if top_col_len < 5:
+    # For some pages, there might not be enough lines with full text.
+    # Even for those with full text, y-diff is only computed between
+    # adjacent lines.  So we set long line check value to 7.
+    if num_col_len_ge_5 < MIN_FULL_YDIFF:
+        # check if the page is 1-column or 0=template
+        # if num_col_in_page not in set([0, 1]):
+        if top_col_len == 1:
+            # top_col_len == 1 is never the correct solution
+            valid_line_nth_len = 2
+        else:
+            valid_line_nth_len = top_col_len
     print('    top_col_len = {}, valid_line_nth_len = {}'.format(top_col_len, valid_line_nth_len))
     print()
 
@@ -392,7 +412,7 @@ def calc_one_page_format(page_num: int,
         tmp_end = lxid_strinfos[-1].end
         line_len = len(nl_text[tmp_start:tmp_end].strip())
 
-        IS_DETAIL_DEBUG = False
+        IS_DETAIL_DEBUG = True
         if IS_DETAIL_DEBUG:
             print('   x3 line: [{}]'.format(nl_text[tmp_start:tmp_end]))
             print('     hz_start_nth: {}, end_nth: {}, hz_nth_len: {}'.format(hz_start_nth,
@@ -407,9 +427,6 @@ def calc_one_page_format(page_num: int,
                 print('     y_diff = {}, current_y = {}, prev_y = {}'.format(y_diff,
                                                                              lx_ystart,
                                                                              prev_y))
-            # only increment prev_y is not empty
-            prev_y = lx_ystart
-            prev_hz_nth_len = hz_nth_len
         else:
             y_diff = -1
             if IS_DEBUG:
@@ -417,12 +434,22 @@ def calc_one_page_format(page_num: int,
                                                                              lx_ystart,
                                                                              prev_y))
 
+        print('  prev_hz_nth_len = {}, valid_line_nth_len = {}, y_diff = {}'.format(
+            prev_hz_nth_len, valid_line_nth_len, y_diff))
         if prev_hz_nth_len >= valid_line_nth_len and \
            y_diff != -1:
             full_ydiff_count_map[y_diff] += 1
+            if page_num == 55:
+                print('adding full_ydiff_count_map[{}] = {}'.format(y_diff, full_ydiff_count_map[y_diff]))
 
         if y_diff != -1:
             ydiff_count_map[y_diff] += 1
+
+        if line_len > 0 and \
+           not nl_text[tmp_start:tmp_end].isspace():
+            # only increment prev_y is not empty
+            prev_y = lx_ystart
+            prev_hz_nth_len = hz_nth_len
 
 
     perc = round(nth_len_ge_5 / num_lines * 100.0)
@@ -459,25 +486,70 @@ def calc_one_page_format(page_num: int,
 
     if sorted_count_full_ydiff_list:
         # this 5 is not related to valid_line_nth_len
-        if sorted_count_full_ydiff_list[0][0] < 5:
+        if sorted_count_full_ydiff_list[0][0] < MIN_FULL_YDIFF:
+            # if sorted_count_full_ydiff_list[0][0] < MIN_FULL_YDIFF and \
+            #    not (len(sorted_count_full_ydiff_list) >= 2 and \
+            #    abs(sorted_count_full_ydiff_list[0][1] - sorted_count_full_ydiff_list[1][1]) < 1):
             # too infrequent
+            # 2nd check if to NOT fail those with enough info, doc 9326, page 55
             page_ydiff_mode_map[page_num] = sorted_count_full_ydiff_list[0][1]
             failed_page_ydiff_mode_pages.append(page_num)
-        elif sorted_count_full_ydiff_list[0][1] >= 22:
+            print('failed page {}, branch 1'.format(page_num))
+        # elif sorted_count_full_ydiff_list[0][1] >= 22:
+        elif sorted_count_full_ydiff_list[0][1] >= 28:  # have seen 27,5, doc 9325, page 64
             # too big
             page_ydiff_mode_map[page_num] = sorted_count_full_ydiff_list[0][1]
             failed_page_ydiff_mode_pages.append(page_num)
+            print('failed page {}, branch 2'.format(page_num))
         else:
             # ok
+            """
+            if len(sorted_count_full_ydiff_list) >= 2 and \
+               abs(sorted_count_full_ydiff_list[0][0] - sorted_count_full_ydiff_list[1][0]) <= 2 and \
+               abs(sorted_count_full_ydiff_list[0][1] - sorted_count_full_ydiff_list[1][1]) < 1:
+                page_ydiff_mode_map[page_num] = max(sorted_count_full_ydiff_list[0][1],
+                                                    sorted_count_full_ydiff_list[1][1])
+            else:
+            """
             page_ydiff_mode_map[page_num] = sorted_count_full_ydiff_list[0][1]
     else:
         # for title page, or last page in a doc?
         page_ydiff_mode_map[page_num] = sorted_count_ydiff_list[0][1]
         failed_page_ydiff_mode_pages.append(page_num)
+        print('failed page {}, branch 3'.format(page_num))
 
     print('  Done.  calc_one_page_format()')
     return num_col_in_page
 
+
+def pick_page_adjacent_ydiff_mode(ydiff_mode_list: List[float],
+                                  global_ydiff: float,
+                                  is_after_page: bool = False) -> float:
+    """This specifically handle the case where the 3 ydiff in
+       previous 3 page before or after doesn't agree.
+
+       Previous approach of taking the most frequent failed when
+       all 3 page ydiff are distinct.  Now this is deterministic.
+    """
+    # print("ydiff_mode_list: {}".format(ydiff_mode_list))
+    count_dict = defaultdict(int)
+    for ydiff_mode in ydiff_mode_list:
+        count_dict[ydiff_mode] += 1
+    count_ydiff_list = sorted(((freq, ydiff) for ydiff, freq in count_dict.items()),
+                              reverse=True)
+    # if multiple pages say the X, we take X
+    if count_ydiff_list[0][0] > 1:
+        return count_ydiff_list[0][1]
+    if is_after_page:
+        # this is only for first 3 pages
+        maybe_result = count_ydiff_list[0][1]
+    else:
+        # take the last page
+        maybe_result = count_ydiff_list[-1][1]
+    # if all else failed, take the global_ydiff
+    if maybe_result == -1:
+        maybe_result = global_ydiff
+    return maybe_result
 
 
 # pylint: disable=too-many-branches, too-many-statements
@@ -547,6 +619,7 @@ def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
         print('   page {} num_col = {}'.format(tmp_page_num, tmp_page_col_num))
     print()
 
+    doc_ydiff_mode = mathutils.get_mode_in_list(all_ydiffs)
 
     print('failed_page_ydiff_mode_pages: {}'.format(failed_page_ydiff_mode_pages))
     # adjust page_ydiff_mode using neighbors
@@ -554,11 +627,18 @@ def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
         if page_num < 3:
             print('taking post {} to {}'.format(page_num-3, page_num))
             page_ydiff_mode_list[page_num] = \
-                mathutils.get_mode_in_list(page_ydiff_mode_list[page_num+1:page_num+4])
+                pick_page_adjacent_ydiff_mode(page_ydiff_mode_list[page_num+1:page_num+4],
+                                              global_ydiff=doc_ydiff_mode,
+                                              is_after_page=True)
+                # mathutils.get_mode_in_list(page_ydiff_mode_list[page_num+1:page_num+4])
         else:
             print('taking prev {} to {}'.format(page_num-3, page_num))
             page_ydiff_mode_list[page_num] = \
-                mathutils.get_mode_in_list(page_ydiff_mode_list[page_num-3:page_num])
+                pick_page_adjacent_ydiff_mode(page_ydiff_mode_list[page_num-3:page_num],
+                                              global_ydiff=doc_ydiff_mode)
+                # mathutils.get_mode_in_list(page_ydiff_mode_list[page_num-3:page_num])
+        print('    page_ydiff_mode_list[{}] = {}'.format(page_num,
+                                                         page_ydiff_mode_list[page_num]))
 
     for page_num in failed_page_ydiff_mode_pages:
         page_ydiff_mode_map[page_num] = page_ydiff_mode_list[page_num]
@@ -570,7 +650,5 @@ def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
         else:
             print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
 
-
-    doc_ydiff_mode = mathutils.get_mode_in_list(all_ydiffs)
 
     return doc_ydiff_mode, page_ydiff_mode_map
