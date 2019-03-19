@@ -10,6 +10,8 @@ from kirke.docstruct.pdfoffsets import PageFormatStatus
 
 IS_DEBUG = False
 
+IS_TOP_LEVEL_DEBUG = False
+
 # Page Size in Point at 72 dpi
 # letter size: width 8.5 in, height 11 in
 HZ_10TH_DIV = 61.2   # 612.0 / 10, weidth
@@ -195,14 +197,14 @@ def calc_one_page_format(page_num: int,
                          -> int:
     """Return the number of column in the page."""
 
-    IS_DEBUG = True
     unused_last_linenum_in_page = lxid_strinfos_list[-1][0]
     num_lines = len(lxid_strinfos_list)
 
-    print('\n=calc_one_page_format  @page {}, num_lines = {}, prev_page_num_col = {}'.format(page_num,
-                                                                                             num_lines,
-                                                                                             prev_page_num_col))
-    print()
+    if IS_DEBUG:
+        print('\n=calc_one_page_format  @page {}, num_lines = {}, prev_page_num_col = {}'.format(page_num,
+                                                                                                 num_lines,
+                                                                                                 prev_page_num_col))
+        print()
 
     hz_len_count_map = defaultdict(int)  # type: Dict[int, int]
     hz_col_count_map = defaultdict(int)  # type: Dict[int, int]
@@ -276,11 +278,12 @@ def calc_one_page_format(page_num: int,
     if len(sorted_col_len_list) > 1:
         _, top_2nd_col_len = sorted_col_len_list[1]
 
-    print('    top_col = {}, top_col_perc = {}'.format(top_col, top_col_perc))
-    print('    top_2nd_col = {}, top_2nd_col_perc = {}'.format(top_2nd_col, top_2nd_col_perc))
-    print()
-    print('    top_col_len_ = {}'.format(top_col_len))
-    print('    top_2nd_col_len = {}'.format(top_2nd_col_len))
+    if IS_DEBUG:
+        print('    top_col = {}, top_col_perc = {}'.format(top_col, top_col_perc))
+        print('    top_2nd_col = {}, top_2nd_col_perc = {}'.format(top_2nd_col, top_2nd_col_perc))
+        print()
+        print('    top_col_len_ = {}'.format(top_col_len))
+        print('    top_2nd_col_len = {}'.format(top_2nd_col_len))
 
     num_col_len_le_3 = hz_len_count_map.get(0, 0) + \
                        hz_len_count_map.get(1, 0) + \
@@ -296,8 +299,9 @@ def calc_one_page_format(page_num: int,
                        hz_len_count_map.get(10, 0)
     num_col_len_ge_5_perc = num_col_len_ge_5 / num_lines * 100.0
 
-    print('\n    num_col_len_le_3 = {}, perc = {}%'.format(num_col_len_le_3, num_col_len_le_3_perc))
-    print('\n    num_col_len_ge_5 = {}, perc = {}%'.format(num_col_len_ge_5, num_col_len_ge_5_perc))
+    if IS_DEBUG:
+        print('\n    num_col_len_le_3 = {}, perc = {}%'.format(num_col_len_le_3, num_col_len_le_3_perc))
+        print('\n    num_col_len_ge_5 = {}, perc = {}%'.format(num_col_len_ge_5, num_col_len_ge_5_perc))
 
     num_col_in_page = -1
     is_template_page = False
@@ -308,7 +312,8 @@ def calc_one_page_format(page_num: int,
        sorted_freq_col_perc_list[1][2] > 12 and \
        sorted_freq_col_perc_list[2][2] > 12 and \
        sorted_freq_col_perc_list[3][2] > 10:
-        print("\n  ===>>> page {}, page_format: template, br 1".format(page_num))
+        if IS_DEBUG:
+            print("\n  ===>>> page {}, page_format: template, br 1".format(page_num))
         num_col_in_page = 0
         is_template_page = True
     elif num_lines >= 200:
@@ -317,17 +322,20 @@ def calc_one_page_format(page_num: int,
            sorted_freq_col_perc_list[0][0] > 60 and \
            sorted_freq_col_perc_list[1][0] > 60 and \
            sorted_freq_col_perc_list[2][0] > 60:
-            print("\n  ===>>> page {}, page_format: 3 columns, br 1".format(page_num))
+            if IS_DEBUG:
+                print("\n  ===>>> page {}, page_format: 3 columns, br 1".format(page_num))
             num_col_in_page = 3
         # below is a case where 2 and 3 column are often joined
         elif len(hz_col_count_map) >= 2 and \
              num_col_len_le_3_perc > 58 and \
              sorted_freq_col_perc_list[0][0] > 90 and \
              sorted_freq_col_perc_list[1][0] > 90:
-            print("\n  ===>>> page {}, page_format: 3 columns, br 2".format(page_num))
+            if IS_DEBUG:
+                print("\n  ===>>> page {}, page_format: 3 columns, br 2".format(page_num))
             num_col_in_page = 3
         else:
-            print("\n  ===>>> page {}, page_format: 3 columns, br 3".format(page_num))
+            if IS_DEBUG:
+                print("\n  ===>>> page {}, page_format: 3 columns, br 3".format(page_num))
             num_col_in_page = 3
     elif top_col_len == 3 or top_col_len == 4:
         """
@@ -344,8 +352,8 @@ def calc_one_page_format(page_num: int,
               (top_col in set([4, 5, 6]) and top_2nd_col in set([1, 2]))):
 
             # for 2 column, I have seen 2, 5, 6 as top cols
-
-            print("\n  ===>>> page {}, page_format: 2 columns, br 1".format(page_num))
+            if IS_DEBUG:
+                print("\n  ===>>> page {}, page_format: 2 columns, br 1".format(page_num))
             # pformat = PageFormatStatus(num_column=2)
             num_col_in_page = 2
         elif top_col_perc >= 35 and \
@@ -353,7 +361,8 @@ def calc_one_page_format(page_num: int,
              ((top_col in set([1, 2]) and top_2nd_col in set([4, 5, 6])) or
               (top_col in set([4, 5, 6]) and top_2nd_col in set([1, 2]))) and \
              top_col_perc + top_2nd_col_perc > 80:   # doc 8921, page 8, 52 + 38
-            print("\n  ===>>> page {}, page_format: 2 columns, br 1.2".format(page_num))
+            if IS_DEBUG:
+                print("\n  ===>>> page {}, page_format: 2 columns, br 1.2".format(page_num))
             num_col_in_page = 2
             # pformat = PageFormatStatus(num_column=2)
             # elif top_col == 2 and top_col_perc > 85:
@@ -363,14 +372,17 @@ def calc_one_page_format(page_num: int,
              top_col in set([1, 2]):
             # just one column
             if prev_page_num_col == 3:
-                print("\n  ===>>> page {}, page_format: 3 columns, br 3.3".format(page_num))
+                if IS_DEBUG:
+                    print("\n  ===>>> page {}, page_format: 3 columns, br 3.3".format(page_num))
                 num_col_in_page = 3
             else:
-                print("\n  ===>>> page {}, page_format: 2 columns, br 1.3".format(page_num))
+                if IS_DEBUG:
+                    print("\n  ===>>> page {}, page_format: 2 columns, br 1.3".format(page_num))
                 num_col_in_page = 2
 
     if num_col_in_page == -1:
-        print("\n  ===>>> page {}, page_format: 1 column, br default".format(page_num))
+        if IS_DEBUG:
+            print("\n  ===>>> page {}, page_format: 1 column, br default".format(page_num))
         num_col_in_page = 1
 
     valid_line_nth_len = 5
@@ -379,7 +391,8 @@ def calc_one_page_format(page_num: int,
     # For some pages, there might not be enough lines with full text.
     # Even for those with full text, y-diff is only computed between
     # adjacent lines.  So we set long line check value to 7.
-    if num_col_len_ge_5 < MIN_FULL_YDIFF:
+    if num_col_len_ge_5 < MIN_FULL_YDIFF or \
+       num_col_in_page in set([2, 3]):
         # check if the page is 1-column or 0=template
         # if num_col_in_page not in set([0, 1]):
         if top_col_len == 1:
@@ -387,8 +400,9 @@ def calc_one_page_format(page_num: int,
             valid_line_nth_len = 2
         else:
             valid_line_nth_len = top_col_len
-    print('    top_col_len = {}, valid_line_nth_len = {}'.format(top_col_len, valid_line_nth_len))
-    print()
+    if IS_DEBUG:
+        print('    top_col_len = {}, valid_line_nth_len = {}'.format(top_col_len, valid_line_nth_len))
+        print()
 
     full_hz_col_count_map = defaultdict(int)  # type: Dict[int, int]
 
@@ -412,7 +426,7 @@ def calc_one_page_format(page_num: int,
         tmp_end = lxid_strinfos[-1].end
         line_len = len(nl_text[tmp_start:tmp_end].strip())
 
-        IS_DETAIL_DEBUG = True
+        IS_DETAIL_DEBUG = False
         if IS_DETAIL_DEBUG:
             print('   x3 line: [{}]'.format(nl_text[tmp_start:tmp_end]))
             print('     hz_start_nth: {}, end_nth: {}, hz_nth_len: {}'.format(hz_start_nth,
@@ -434,13 +448,12 @@ def calc_one_page_format(page_num: int,
                                                                              lx_ystart,
                                                                              prev_y))
 
-        print('  prev_hz_nth_len = {}, valid_line_nth_len = {}, y_diff = {}'.format(
-            prev_hz_nth_len, valid_line_nth_len, y_diff))
+        if IS_DEBUG:
+            print('  prev_hz_nth_len = {}, valid_line_nth_len = {}, y_diff = {}'.format(
+                prev_hz_nth_len, valid_line_nth_len, y_diff))
         if prev_hz_nth_len >= valid_line_nth_len and \
            y_diff != -1:
             full_ydiff_count_map[y_diff] += 1
-            if page_num == 55:
-                print('adding full_ydiff_count_map[{}] = {}'.format(y_diff, full_ydiff_count_map[y_diff]))
 
         if y_diff != -1:
             ydiff_count_map[y_diff] += 1
@@ -453,15 +466,15 @@ def calc_one_page_format(page_num: int,
 
 
     perc = round(nth_len_ge_5 / num_lines * 100.0)
-    print('    >> nth_len_ge_5 = {}, perc={}%'.format(nth_len_ge_5, perc))
-    print()
+    if IS_DEBUG:
+        print('    >> nth_len_ge_5 = {}, perc={}%'.format(nth_len_ge_5, perc))
+        print()
 
     # pylint: disable=line-too-long
     sorted_count_full_ydiff_list = sorted(((count, ydiff) for ydiff, count in full_ydiff_count_map.items()),
                                           reverse=True)
     sorted_count_ydiff_list = sorted(((count, ydiff) for ydiff, count in ydiff_count_map.items()),
                                      reverse=True)
-    IS_DEBUG = True
     if IS_DEBUG:
         total_full_ydiff_count = 0
         for freq, ydiff in sorted(((count, ydiff) for ydiff, count in full_ydiff_count_map.items()),
@@ -494,13 +507,15 @@ def calc_one_page_format(page_num: int,
             # 2nd check if to NOT fail those with enough info, doc 9326, page 55
             page_ydiff_mode_map[page_num] = sorted_count_full_ydiff_list[0][1]
             failed_page_ydiff_mode_pages.append(page_num)
-            print('failed page {}, branch 1'.format(page_num))
+            if IS_DEBUG:
+                print('failed page {}, branch 1'.format(page_num))
         # elif sorted_count_full_ydiff_list[0][1] >= 22:
         elif sorted_count_full_ydiff_list[0][1] >= 28:  # have seen 27,5, doc 9325, page 64
             # too big
             page_ydiff_mode_map[page_num] = sorted_count_full_ydiff_list[0][1]
             failed_page_ydiff_mode_pages.append(page_num)
-            print('failed page {}, branch 2'.format(page_num))
+            if IS_DEBUG:
+                print('failed page {}, branch 2'.format(page_num))
         else:
             # ok
             """
@@ -513,12 +528,17 @@ def calc_one_page_format(page_num: int,
             """
             page_ydiff_mode_map[page_num] = sorted_count_full_ydiff_list[0][1]
     else:
-        # for title page, or last page in a doc?
-        page_ydiff_mode_map[page_num] = sorted_count_ydiff_list[0][1]
+        if sorted_count_ydiff_list:
+            # for title page, or last page in a doc?
+            page_ydiff_mode_map[page_num] = sorted_count_ydiff_list[0][1]
+        else:
+            page_ydiff_mode_map[page_num] = -1
         failed_page_ydiff_mode_pages.append(page_num)
-        print('failed page {}, branch 3'.format(page_num))
+        if IS_DEBUG:
+            print('failed page {}, branch 3'.format(page_num))
 
-    print('  Done.  calc_one_page_format()')
+    if IS_DEBUG:
+        print('  Done.  calc_one_page_format()')
     return num_col_in_page
 
 
@@ -531,6 +551,10 @@ def pick_page_adjacent_ydiff_mode(ydiff_mode_list: List[float],
        Previous approach of taking the most frequent failed when
        all 3 page ydiff are distinct.  Now this is deterministic.
     """
+    # print('pick_page_adjacent_ydiff_mode: {}'.format(ydiff_mode_list))
+    if not ydiff_mode_list:
+        return global_ydiff
+
     # print("ydiff_mode_list: {}".format(ydiff_mode_list))
     count_dict = defaultdict(int)
     for ydiff_mode in ydiff_mode_list:
@@ -566,7 +590,8 @@ def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
     """
     page_num_list = sorted(page_linenum_list_map.keys())
 
-    print('\n========= calc_page_formats()')
+    if IS_TOP_LEVEL_DEBUG:
+        print('\n========= calc_page_formats()')
     page_ydiff_mode_map = {}  # type: Dict[int, float]
     failed_page_ydiff_mode_pages = []  # type: List[int]
 
@@ -593,8 +618,8 @@ def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
         page_num_col_map[page_num] = page_num_col
         prev_page_num_col = page_num_col
 
-
-    print('page_ydiff_mode_map:')
+    if IS_DEBUG:
+        print('page_ydiff_mode_map:')
     page_num_set = set(page_num_list)
     page_ydiff_mode_list = []  # type: List[float]
     for page_num in range(max(page_num_list) + 1):
@@ -602,53 +627,60 @@ def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
             page_ydiff_mode_list.append(0)
         else:
             page_ydiff_mode_list.append(page_ydiff_mode_map[page_num])
-            if page_num in failed_page_ydiff_mode_pages:
-                print('     page {}: {}, failed'.format(page_num, page_ydiff_mode_map[page_num]))
-            else:
-                print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
+            if IS_DEBUG:
+                if page_num in failed_page_ydiff_mode_pages:
+                    print('     page {}: {}, failed'.format(page_num, page_ydiff_mode_map[page_num]))
+                else:
+                    print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
 
-    print('page_ydiff_mode_list:')
-    for tmp_page_num, tmp_ydiff in enumerate(page_ydiff_mode_list):
-        if tmp_page_num == 0:
-            continue
-        print('   page {}\t{}'.format(tmp_page_num, tmp_ydiff))
+    if IS_TOP_LEVEL_DEBUG:
+        print('page_ydiff_mode_list:')
+        for tmp_page_num, tmp_ydiff in enumerate(page_ydiff_mode_list):
+            if tmp_page_num == 0:
+                continue
+            print('   page {}\t{}'.format(tmp_page_num, tmp_ydiff))
 
-    print('\npage_num_col_list:')
-    for tmp_page_num in page_num_list:
-        tmp_page_col_num = page_num_col_map[tmp_page_num]
-        print('   page {} num_col = {}'.format(tmp_page_num, tmp_page_col_num))
-    print()
+        print('\npage_num_col_list:')
+        for tmp_page_num in page_num_list:
+            tmp_page_col_num = page_num_col_map[tmp_page_num]
+            print('   page {} num_col = {}'.format(tmp_page_num, tmp_page_col_num))
+        print()
 
     doc_ydiff_mode = mathutils.get_mode_in_list(all_ydiffs)
 
-    print('failed_page_ydiff_mode_pages: {}'.format(failed_page_ydiff_mode_pages))
+    if IS_TOP_LEVEL_DEBUG:
+        print('failed_page_ydiff_mode_pages: {}'.format(failed_page_ydiff_mode_pages))
     # adjust page_ydiff_mode using neighbors
     for page_num in failed_page_ydiff_mode_pages:
         if page_num < 3:
-            print('taking post {} to {}'.format(page_num-3, page_num))
+            if IS_DEBUG:
+                print('taking post {} to {}'.format(page_num-3, page_num))
             page_ydiff_mode_list[page_num] = \
                 pick_page_adjacent_ydiff_mode(page_ydiff_mode_list[page_num+1:page_num+4],
                                               global_ydiff=doc_ydiff_mode,
                                               is_after_page=True)
                 # mathutils.get_mode_in_list(page_ydiff_mode_list[page_num+1:page_num+4])
         else:
-            print('taking prev {} to {}'.format(page_num-3, page_num))
+            if IS_DEBUG:
+                print('taking prev {} to {}'.format(page_num-3, page_num))
             page_ydiff_mode_list[page_num] = \
                 pick_page_adjacent_ydiff_mode(page_ydiff_mode_list[page_num-3:page_num],
                                               global_ydiff=doc_ydiff_mode)
                 # mathutils.get_mode_in_list(page_ydiff_mode_list[page_num-3:page_num])
-        print('    page_ydiff_mode_list[{}] = {}'.format(page_num,
-                                                         page_ydiff_mode_list[page_num]))
+        if IS_DEBUG:
+            print('    page_ydiff_mode_list[{}] = {}'.format(page_num,
+                                                             page_ydiff_mode_list[page_num]))
 
     for page_num in failed_page_ydiff_mode_pages:
         page_ydiff_mode_map[page_num] = page_ydiff_mode_list[page_num]
 
-    print('\nadjusted page_ydiff_mode_map:')
-    for page_num in page_num_list:
-        if page_num in failed_page_ydiff_mode_pages:
-            print('     page {}: {}, failed'.format(page_num, page_ydiff_mode_map[page_num]))
-        else:
-            print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
+    if IS_TOP_LEVEL_DEBUG:
+        print('\nadjusted page_ydiff_mode_map:')
+        for page_num in page_num_list:
+            if page_num in failed_page_ydiff_mode_pages:
+                print('     page {}: {}, failed'.format(page_num, page_ydiff_mode_map[page_num]))
+            else:
+                print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
 
 
     return doc_ydiff_mode, page_ydiff_mode_map

@@ -26,12 +26,13 @@ MAX_FOOTER_YSTART = 10000
 
 DEBUG_MODE = False
 
-PARA_SEG_DEBUG_MODE = True
+PARA_SEG_DEBUG_MODE = False
 
 
 IS_DEBUG_PAGE_CLASSIFIER = False
 
-IS_DEBUG = True
+IS_DEBUG = False
+IS_DEBUG_YDIFF = False
 
 pformat_classifier = pageformat.PageFormatClassifier()
 
@@ -45,6 +46,22 @@ def get_paraline_fname(base_fname: str,
                        work_dir: str) -> str:
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paraline.txt'))
 
+
+# get better newline for some documents that has 3 /n between lines
+# in a paragraph.
+# Original PDF, "2.3.1.18.9 180718-AXA-TA-3.pdf"
+def update_nl_using_pblock(nl_text: str, pageinfo_list) -> str:
+    nl2_chars = list(nl_text)
+    for page_info in pageinfo_list:
+        # print("\n== pageinfo {}".format(page_info.page_num))
+        for pblockinfo in page_info.pblockinfo_list:
+            pb_text = pblockinfo.text
+            pb_chars = list(pb_text)
+            nl2_chars[pblockinfo.start:pblockinfo.end] = pb_chars
+            # print("\n  block {}".format(pblockinfo.bid))
+            # print("  [{}]".format(pb_text))
+    nl2_text = ''.join(nl2_chars)
+    return nl2_text
 
 def text_offsets_to_nl(base_fname: str,
                        orig_doc_text: str,
@@ -373,6 +390,11 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     sechead_context = []  # type: List[Any]
     not_gapped_line_nums = set([])  # type: Set[int]
 
+    # get better newline for some documents that has 3 /n between lines
+    # in a paragraph.
+    # Original PDF, "2.3.1.18.9 180718-AXA-TA-3.pdf"
+    better_text = update_nl_using_pblock(pdf_text_doc.doc_text, pdf_text_doc.page_list)
+
     # not_empty_line_num = 0
     # pylint: disable=too-many-nested-blocks
     for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
@@ -386,7 +408,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
                 # It should similar to the code for not is_multi-line
                 for linex in grouped_block.line_list:
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    out_line = better_text[linex.lineinfo.start:linex.lineinfo.end]
                     # sorted(linex.attrs.items())
                     attr_list = linex.to_para_attrvals()  # type: List[Any]
 
@@ -440,7 +462,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                                                  # -100 will be reset later
                                                  linepos.LnPos(offset, offset, is_gap=True)))
 
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    out_line = better_text[linex.lineinfo.start:linex.lineinfo.end]
                     block_lines.append(out_line)
                     span_se_list.append((linepos.LnPos(linex.lineinfo.start, linex.lineinfo.end),
                                          linepos.LnPos(offset, offset + len(out_line))))
@@ -669,7 +691,8 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
             lx_strinfos = lxid_strinfos_map[line_num]
             tmp_start = lx_strinfos[0].start
             tmp_end = lx_strinfos[-1].end
-            line_len = len(nl_text[tmp_start:tmp_end].strip())
+            line_text = nl_text[tmp_start:tmp_end]
+            line_len = len(line_text.strip())
 
             # checks the difference in y val between this line and the next,
             # if below the mode, join into a block, otherwise add block to block_info
@@ -681,9 +704,14 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
             else:
                 y_diff = -1
 
+            if IS_DEBUG_YDIFF:
+                print('  page_ydiff_mode = {}, ydiff = {}'.format(page_ydiff_mode, y_diff))
+
             if tmp_start != tmp_end and \
                (y_diff < 0 or \
                 y_diff > page_ydiff_mode + 1):
+                if IS_DEBUG_YDIFF:
+                    print("  kk88, branch 1")
                 block_num += 1
 
                 tmp_strinfos.extend(lxid_strinfos_map[line_num])
@@ -697,8 +725,15 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                                                                line_num,
                                                                block_num,
                                                                tmp_strinfos))
+                if IS_DEBUG_YDIFF:
+                    print("  para_line: [{}]".format(nl_text[start:end]))
+                    print("  para_line2: [{}]".format(strutils.sub_newlines(nl_text[start:end])))
+                # since all the lines in a paragraph should have maximum 1 newline between
+                # the lines, we are replace multple \n's with just 1.  All others become spaces.
                 para_line, unused_is_multi_lines, unused_not_linebreaks = \
-                    pdfutils.para_to_para_list(nl_text[start:end])
+                    pdfutils.para_to_para_list(strutils.sub_newlines(nl_text[start:end]))
+                if IS_DEBUG_YDIFF:
+                    print("  paraline3: [{}]".format(para_line))
 
                 block_info = PBlockInfo(start,
                                         end,
@@ -714,6 +749,8 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
             else:
                 if not start:
                     start = lxid_strinfos_map[line_num][0].start
+                if IS_DEBUG_YDIFF:
+                    print("  kk88, branch 2")
                 tmp_strinfos.extend(lxid_strinfos_map[line_num])
 
 
@@ -1232,6 +1269,13 @@ def add_doc_structure_to_doc(pdftxt_doc, work_dir: str) -> None:
         paged_grouped_block_list[page_num].append(GroupedBlockInfo(page_num,
                                                                    block_num,
                                                                    line_list))
+        """
+        print('paged_grouped, block_num = {}'.format(block_num))
+        for linexy in line_list:
+            # print("  linexy: {}, {}".format(type(linexy), linexy))
+            print("  linexy: [{}]".format(linexy.line_text))
+        """
+
     # each page is a list of grouped_block
     pdftxt_doc.paged_grouped_block_list = []
     for page_num in range(1, pdftxt_doc.num_pages + 1):
