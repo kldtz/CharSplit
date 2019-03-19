@@ -442,7 +442,10 @@ class TestParaCandGen(unittest.TestCase):
 
     # 8917.txt is ignorable, in Dutch?
 
-    # originally failed due to 3 nl in 8918.paraline.txt
+    # Withtout this PR, each line would be a separate paragraph
+    # because PDFBox behaved weirdly.
+    # originally failed due to 3 new lines between lines inside a
+    # paragraph in 8918.paraline.txt
     # Original PDF, "2.3.1.18.9 180718-AXA-TA-3.pdf"
     def test_paracand_8918(self):
         gold_se_list, gold_str_list = load_gold_para_tsv('dir-paracand/gold-target/8918.para.tsv')
@@ -756,10 +759,3 @@ class TestParaCandGen(unittest.TestCase):
         # nl_text seems to have removed page numbers
         self.assertEqual(test_se_list,
                          gold_se_list)                
-        
-
-
-        
-        
-
-        
