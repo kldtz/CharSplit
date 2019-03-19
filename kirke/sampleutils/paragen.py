@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 
 from kirke.utils import ebantdoc4, ebsentutils
 
-IS_DEBUG = True
+IS_DEBUG = False
 
 # pylint: disable=too-few-public-methods
 class ParagraphGenerator:
@@ -99,6 +99,8 @@ class ParagraphGenerator:
                 i += 1
 
             if IS_DEBUG:
+                """This code produces paragraph candidates in /tmp directory.
+                   We use such files in dir-paracand/gold-target for unit tests."""
                 tmp_fname = os.path.join('/tmp', os.path.basename(antdoc.file_id).replace('.txt', '.para.tsv'))
                 with open(tmp_fname, 'wt') as fout:
                     for para_seq, para_cand in enumerate(candidates):
