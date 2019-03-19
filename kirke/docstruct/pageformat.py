@@ -5,9 +5,6 @@ from typing import Dict, List, Tuple
 from kirke.docstruct.pdfoffsets import PageInfo3, PDFTextDoc, StrInfo
 from kirke.utils import mathutils
 
-# TODO, is this still used?
-from kirke.docstruct.pdfoffsets import PageFormatStatus
-
 IS_DEBUG = False
 
 IS_TOP_LEVEL_DEBUG = False
@@ -19,139 +16,6 @@ MAX_Y = 792.0
 ONE_THIRD_MAX_Y = 792.0 * 2 / 3
 
 MIN_FULL_YDIFF = 3
-
-"""
-pformat_classifier = pageformat.PageFormatClassifier()
-
-def is_double_spaced_doc(pdftxt_doc) -> bool:
-    "Classifying a double_spaced_no_period_document."
-
-    num_page_double_spaced_no_period = 0
-    for page in pdftxt_doc.page_list:
-        # assume add_doc_structure_to_page(page, pdftxt_doc) has already been applied
-        page.page_format = pformat_classifier.classify(page, pdftxt_doc.doc_text)
-        if page.page_format.is_double_spaced_no_period():
-            num_page_double_spaced_no_period += 1
-        # break blocks if they are in the middle of header, english sents
-        # adjust_blocks_in_page(page, pdftxt_doc)
-
-
-    if len(pdftxt_doc.page_list) >= 4 and \
-       num_page_double_spaced_no_period / len(pdftxt_doc.page_list) >= 0.75:
-        # allowing first page to be title page and not too much text
-        # pdftxt_doc.is_one_paragraph_per_page = True
-        return True
-    return False
-"""
-
-
-# pylint: disable=too-few-public-methods
-class PageFormatClassifier:
-
-    def __init__(self) -> None:
-        pass
-
-    # pylint: disable=no-self-use
-    def classify(self,
-                 apage: PageInfo3,
-                 text: str) \
-                 -> PageFormatStatus:
-        pformat = calc_page_stats(apage, text)
-
-        return pformat
-
-
-# pylint: disable=too-many-locals
-def calc_page_stats(apage: PageInfo3, doc_text: str) -> PageFormatStatus:
-
-    # page_start, unused_page_end = apage.start, apage.end
-    page_text = doc_text[apage.start:apage.end].strip()
-    # print('\npage #{}, len(page_text) = {}'.format(apage.page_num, len(page_text)))
-    num_new_lines = page_text.count('\n')
-    # print('  num_new_lines = {}'.format(num_new_lines))
-    num_periods = page_text.count('.\n') + page_text.count('. ')
-    if page_text.endswith('.'):
-        num_periods += 1
-
-    # print('  num_periods = {}'.format(num_periods))
-
-    hz_col_count_map = defaultdict(int)  # type: Dict[int, int]
-    hz_len_count_map = defaultdict(int)  # type: Dict[int, int]
-    num_line = 0
-    block_list = apage.get_blocked_lines()
-    unused_prev_yend = 0
-    # pylint: disable=invalid-name
-    unused_len_col_ge_6_before_1third_page = 0
-    print('calc_page_stats, page_num = {}, num_block = {}'.format(apage.page_num,
-                                                                  len(block_list)))
-    for block_seq, lines_with_attrs in enumerate(block_list):
-        if IS_DEBUG:
-            print('  j1  page_para_seq= {}'.format(block_seq))
-        para_lines = []  # type: List[str]
-        for line_attrs in lines_with_attrs:
-            line_info = line_attrs.lineinfo
-            if IS_DEBUG:
-                # pylint: disable=line-too-long
-                print('  page={}, ln={} bnum= {} se=({}, {}) xstart={}, ltext=[{}]'.format(apage.page_num,
-                                                                                           line_attrs.page_line_num,
-                                                                                           line_attrs.block_num,
-                                                                                           line_info.start,
-                                                                                           line_info.end,
-                                                                                           line_info.xStart,
-                                                                                           line_attrs.line_text))
-            # print('   verify_text [{}]'.format(text[line_info.start:line_info.end]))
-            para_lines.append(doc_text[line_info.start:line_info.end])
-
-
-            hz_start_nth = round(line_info.xStart / HZ_10TH_DIV)
-            hz_end_nth = round(line_info.xEnd / HZ_10TH_DIV)
-            hz_nth_len = round((line_info.xEnd - line_info.xStart) / HZ_10TH_DIV)
-
-            if IS_DEBUG:
-                print("    hz_start_nth= {}, hz_end_nth={}, hz_nth_len= {}".format(hz_start_nth,
-                                                                                   hz_end_nth,
-                                                                                   hz_nth_len))
-
-            hz_col_count_map[hz_start_nth] += 1
-            hz_len_count_map[hz_nth_len] += 1
-            num_line += 1
-
-
-    unused_is_one_para_per_page = False
-    if len(page_text) > 1500 and \
-       num_new_lines == 0:
-        # pylint: disable=unused-variable
-        is_one_para_per_page = True
-
-        pformat = PageFormatStatus(is_one_para_per_page=True,
-                                   has_periods=False)
-        return pformat
-
-    """
-    if is_one_para_per_page and \
-       num_periods < 5:
-        pformat = PageFormatStatus(is_one_para_per_page=True,
-                                   has_periods=False)
-        return pformat
-    """
-    # return a normal page
-    return PageFormatStatus()
-
-
-"""
-class PageFormatStatus:
-
-    def __init__(self,
-                 page_num: int,
-                 num_lines: int) -> None:
-        self.page_num = page_num
-        self.num_lines = num_lines
-        self.num_columns = 0  # default, 1, 2, 3, 0=unknown
-
-    def __str__(self):
-        out_st = '{}'.format(self.page_num)
-        return out_st
-"""
 
 
 def get_lx_min_max_x(strinfo_list: List[StrInfo]) -> Tuple[int, int]:
@@ -187,7 +51,7 @@ def merge_adjacent_hz_cols(freq_col_list: List[Tuple[int, int]]) \
     return freq_col_list
 
 
-# pylint: disable=too-many-statements
+# pylint: disable=too-many-statements, too-many-arguments, too-many-locals
 def calc_one_page_format(page_num: int,
                          lxid_strinfos_list: List[Tuple[int, List[StrInfo]]],
                          nl_text: str,
@@ -201,9 +65,10 @@ def calc_one_page_format(page_num: int,
     num_lines = len(lxid_strinfos_list)
 
     if IS_DEBUG:
-        print('\n=calc_one_page_format  @page {}, num_lines = {}, prev_page_num_col = {}'.format(page_num,
-                                                                                                 num_lines,
-                                                                                                 prev_page_num_col))
+        print('\n=calc_one_page_format  @page {}, num_lines = {},'
+              'prev_page_num_col = {}'.format(page_num,
+                                              num_lines,
+                                              prev_page_num_col))
         print()
 
     hz_len_count_map = defaultdict(int)  # type: Dict[int, int]
@@ -232,10 +97,10 @@ def calc_one_page_format(page_num: int,
                                         for nth_col, freq in hz_col_count_map.items()),
                                        reverse=True)
     if IS_DEBUG:
-        # pylint: disable=line-too-longpp
+        # pylint: disable=line-too-long
         for freq, nth_col, perc in sorted(((freq, nth_col, round(freq / num_lines * 100.0))
                                            for nth_col, freq in hz_col_count_map.items()),
-                                    reverse=True):
+                                          reverse=True):
             print("    >>>> hz_col= {}, freq={}, perc={}%".format(nth_col, freq, perc))
         print()
 
@@ -304,7 +169,7 @@ def calc_one_page_format(page_num: int,
         print('\n    num_col_len_ge_5 = {}, perc = {}%'.format(num_col_len_ge_5, num_col_len_ge_5_perc))
 
     num_col_in_page = -1
-    is_template_page = False
+    unused_is_template_page = False
     # first check if template
     if len(hz_col_count_map) >= 4 and \
        num_lines > 50 and \
@@ -315,7 +180,7 @@ def calc_one_page_format(page_num: int,
         if IS_DEBUG:
             print("\n  ===>>> page {}, page_format: template, br 1".format(page_num))
         num_col_in_page = 0
-        is_template_page = True
+        unused_is_template_page = True
     elif num_lines >= 200:
         if len(hz_col_count_map) >= 3 and \
            num_col_len_le_3_perc > 75 and \
@@ -426,6 +291,7 @@ def calc_one_page_format(page_num: int,
         tmp_end = lxid_strinfos[-1].end
         line_len = len(nl_text[tmp_start:tmp_end].strip())
 
+        # pylint: disable=invalid-name
         IS_DETAIL_DEBUG = False
         if IS_DETAIL_DEBUG:
             print('   x3 line: [{}]'.format(nl_text[tmp_start:tmp_end]))
@@ -576,7 +442,7 @@ def pick_page_adjacent_ydiff_mode(ydiff_mode_list: List[float],
     return maybe_result
 
 
-# pylint: disable=too-many-branches, too-many-statements
+# pylint: disable=too-many-branches, too-many-statements, too-many-locals
 def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
                       lxid_strinfos_map: Dict[int, List[StrInfo]],
                       nl_text: str,
@@ -629,7 +495,8 @@ def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
             page_ydiff_mode_list.append(page_ydiff_mode_map[page_num])
             if IS_DEBUG:
                 if page_num in failed_page_ydiff_mode_pages:
-                    print('     page {}: {}, failed'.format(page_num, page_ydiff_mode_map[page_num]))
+                    print('     page {}: {}, failed'.format(page_num,
+                                                            page_ydiff_mode_map[page_num]))
                 else:
                     print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
 

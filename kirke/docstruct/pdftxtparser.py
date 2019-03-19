@@ -34,9 +34,6 @@ IS_DEBUG_PAGE_CLASSIFIER = False
 IS_DEBUG = False
 IS_DEBUG_YDIFF = False
 
-pformat_classifier = pageformat.PageFormatClassifier()
-
-
 def get_nl_fname(base_fname: str,
                  work_dir: str) -> str:
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
@@ -626,33 +623,8 @@ PARA_SEG_PDFBOX_MODE = 1
 PARA_SEG_DOC_YDIFF_MODE = 2
 PARA_SEG_PAGE_YDIFF_MODE = 3
 
-def parse_document(file_name: str,
-                   work_dir: str,
-                   debug_mode: bool = False) \
-                   -> PDFTextDoc:
 
-    pdf_text_doc = parse_document_aux(file_name,
-                                      work_dir,
-                                      # paragraph_seg_mode=PARA_SEG_PDFBOX_MODE,
-                                      # paragraph_seg_mode=PARA_SEG_DOC_YDIFF_MODE,
-                                      paragraph_seg_mode=PARA_SEG_PAGE_YDIFF_MODE,
-                                      debug_mode=debug_mode)
-
-    """
-    # if the document is deemed to be one-paragraph per page
-    # use a doc level y-diff mode to do pasragraph segmentation
-    if pdf_text_doc.is_one_paragraph_per_page:
-        print("----------------------------------------------------------")
-        print('applying PARA_SEG_DOC_YDIFF_MODE')
-        print("----------------------------------------------------------")
-        pdf_text_doc = parse_document_aux(file_name,
-                                          work_dir,
-                                          paragraph_seg_mode=PARA_SEG_DOC_YDIFF_MODE,
-                                          debug_mode=debug_mode)
-    """
-    return pdf_text_doc
-
-
+# pylint: disable=too-many-arguments
 def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                           lxid_strinfos_map: Dict[int, List[StrInfo]],
                           nl_text: str,
@@ -674,8 +646,8 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
     for page_num in page_num_list:
         page_linenum_list = page_linenum_list_map[page_num]
 
-        line_start, line_end = -1, -1  # type Tuple[int, int]
-        lxline_strinfos = []  # type: List[StrInfo]
+        unused_line_start, unused_line_end = -1, -1  # type Tuple[int, int]
+        unused_lxline_strinfos = []  # type: List[StrInfo]
 
         page_ydiff_mode = page_ydiff_mode_map[page_num]
         if page_ydiff_mode == -1:  # the worst case scenario
@@ -857,6 +829,33 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
 
 
 
+def parse_document(file_name: str,
+                   work_dir: str,
+                   debug_mode: bool = False) \
+                   -> PDFTextDoc:
+
+    pdf_text_doc = parse_document_aux(file_name,
+                                      work_dir,
+                                      # paragraph_seg_mode=PARA_SEG_PDFBOX_MODE,
+                                      # paragraph_seg_mode=PARA_SEG_DOC_YDIFF_MODE,
+                                      paragraph_seg_mode=PARA_SEG_PAGE_YDIFF_MODE,
+                                      debug_mode=debug_mode)
+
+    """
+    # if the document is deemed to be one-paragraph per page
+    # use a doc level y-diff mode to do pasragraph segmentation
+    if pdf_text_doc.is_one_paragraph_per_page:
+        print("----------------------------------------------------------")
+        print('applying PARA_SEG_DOC_YDIFF_MODE')
+        print("----------------------------------------------------------")
+        pdf_text_doc = parse_document_aux(file_name,
+                                          work_dir,
+                                          paragraph_seg_mode=PARA_SEG_DOC_YDIFF_MODE,
+                                          debug_mode=debug_mode)
+    """
+    return pdf_text_doc
+
+
 def parse_document_aux(file_name: str,
                        work_dir: str,
                        paragraph_seg_mode: int = PARA_SEG_PDFBOX_MODE,
@@ -879,7 +878,7 @@ def parse_document_aux(file_name: str,
                                                                debug_mode=debug_mode)
 
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
-    min_ydiff, max_ydiff = 5, 30
+    min_ydiff, unused_max_ydiff = 5, 30
     prev_y = 0
     all_diffs = []  # type: List[float]
     lxid_pnum_map = {}  # type: Dict[int int]
@@ -919,7 +918,8 @@ def parse_document_aux(file_name: str,
             doc_ydiff_count_map[yyy] += 1
         print()
         print('At document level:')
-        for val, key in sorted(((val, key) for key, val in doc_ydiff_count_map.items()), reverse=True):
+        for val, key in sorted(((val, key) for key, val in doc_ydiff_count_map.items()),
+                               reverse=True):
             print('   doc_ydiff_count_map[{}] = {}'.format(key, val))
 
         for tmp_pnum in sorted(page_ydiff_list_map.keys()):
@@ -936,7 +936,6 @@ def parse_document_aux(file_name: str,
 
     bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
     pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]]
-    page_format_list = []  # type: List[PageFormatList]
     if paragraph_seg_mode == PARA_SEG_PDFBOX_MODE:
         # First time parse_document() is call, is_redo_double_spaced is always False, and
         # this branch will be taken
