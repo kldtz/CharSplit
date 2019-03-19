@@ -2,7 +2,7 @@ from collections import namedtuple, defaultdict
 from functools import total_ordering
 import os
 import sys
-from typing import Any, DefaultDict, Dict, List, Optional, Tuple
+from typing import Any, DefaultDict, Dict, List, Tuple
 
 from kirke.docstruct import jenksutils, docstructutils
 from kirke.utils import engutils, strutils
@@ -121,7 +121,6 @@ class PDFTextDoc:
         self.paged_grouped_block_list = []  # type: List[List[GroupedBlockInfo]]
         # pylint: disable=line-too-long
         self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
-        self.is_one_paragraph_per_page = False
 
     def get_page_offsets(self) -> List[Tuple[int, int]]:
         return [(page.start, page.end) for page in self.page_list]
