@@ -305,6 +305,7 @@ def custom_train_import(cust_id: str):
 def custom_train(cust_id: str):
     # dict of lang, with list of file in that lang
     full_txt_fnames = defaultdict(list)  # type: DefaultDict[str, List[str]]
+    tmp_dir = None
     try:
         request_work_dir = request.form.get('workdir')
         if request_work_dir:
@@ -332,8 +333,7 @@ def custom_train(cust_id: str):
             provision = 'cust_{}'.format(cust_id)
         else:
             provision = cust_id
-        tmp_dir = '{}/{}'.format(work_dir, provision)
-        osutils.mkpath(tmp_dir)
+        tmp_dir = tempfile.mkdtemp("bespokeTrainRequest")
         fn_list = request.files.getlist('file')
 
         # save all the uploaded files in a location
@@ -482,6 +482,9 @@ def custom_train(cust_id: str):
             ('Content-type', 'application/json')
         ]
         return data_st, status_code, response_headers
+    finally:
+      if tmp_dir is not None:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # https://github.com/Mimino666/langdetect
