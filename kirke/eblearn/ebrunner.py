@@ -864,7 +864,7 @@ class EbLangDetectRunner:
     # pylint: disable=no-self-use
     def detect_lang(self, atext: str) -> Optional[str]:
         try:
-            detect_lang = langdetect.detect(atext)
+            detect_lang = langdetect.detect(atext.lower())
         except LangDetectException:
             detect_lang = None
         # logger.info("detected language '{}'".format(detect_lang))
@@ -873,7 +873,7 @@ class EbLangDetectRunner:
     # pylint: disable=no-self-use
     def detect_langs(self, atext: str) -> str:
         try:
-            lang_probs = langdetect.detect_langs(atext)
+            lang_probs = langdetect.detect_langs(atext.lower())
             if lang_probs is None:
                 return ''
             detect_langs = ','.join(['{}={}'.format(lang.lang, lang.prob) for lang in lang_probs])
