@@ -663,3 +663,22 @@ def line_list_to_grouped_block_list(linex_list: List[LineWithAttrs],
         grouped_block_list.append(GroupedBlockInfo(page_num, block_num, tmp_linex_list))
 
     return grouped_block_list
+
+
+def print_page_blockinfos_map(pgid_pblockinfos_map, lines_text: str, fname: str) -> None:
+    with open(fname, 'wt') as fout:
+        page_nums = sorted(pgid_pblockinfos_map.keys())
+        max_page_num = max(page_nums)
+        for page_num in range(1, max_page_num + 1):
+            print('\n========== page #{} ==========\n'.format(page_num), file=fout)
+
+            pblockinfo_list = pgid_pblockinfos_map.get(page_num)
+            for pblockinfo in pblockinfo_list:
+
+                print('\n                   ||=== Block #{}, se= ({}, {})\n'.format(
+                    pblockinfo.bid, pblockinfo.start, pblockinfo.end), file=fout)
+
+                for lineinfo in pblockinfo.lineinfo_list:
+                    line_text = lines_text[lineinfo.start:lineinfo.end]
+                    print(line_text, file=fout)
+    print('wrote {}'.format(fname))

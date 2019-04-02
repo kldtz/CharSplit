@@ -733,6 +733,13 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
     return corenlp_json
 
 
+def clear_cache(txt_fname: str,
+                work_dir: str) -> None:
+    txt_base_fname = os.path.basename(txt_fname)
+    eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
+    if os.path.exists(eb_antdoc_fn):
+        os.remove(eb_antdoc_fn)
+
 def text_to_ebantdoc4(txt_fname: str,
                       work_dir: str = None,
                       is_cache_enabled: bool = True,
@@ -1082,3 +1089,80 @@ def prov_ants_cpoint_to_cunit(prov_ants_map, cpoint_to_cunit_mapper):
                 span_json['start'], span_json['end'] = \
                     cpoint_to_cunit_mapper.to_cunit_offsets(span_json['start'],
                                                             span_json['end'])
+
+
+def gen_sent_candidates(eb_antdoc: EbAnnotatedDoc4) \
+    -> List[Tuple[int, int, str]]:
+    se_str_list = []  # type: List[Tuple[int, int, str]]
+    doc_text = eb_antdoc.text
+    nlp_text = eb_antdoc.get_nlp_text()
+
+    fromto_mapper = fromtomapper.FromToMapper('nlp_text to raw_text offset mapper',
+                                              eb_antdoc.get_nlp_sx_lnpos_list(),
+                                              eb_antdoc.get_origin_sx_lnpos_list())
+
+    for attrvec in eb_antdoc.attrvec_list:
+        start, end = attrvec.start, attrvec.end
+        # sent_text = nlp_text[start:end]
+        span_list = fromto_mapper.get_span_list(start, end)
+        # se_str_list.append((start, end, sent_text))
+
+        orig_start = span_list[0]['start']
+        orig_end = span_list[-1]['end']
+        orig_sent_text = doc_text[orig_start:orig_end]
+        se_str_list.append((orig_start, orig_end,
+                            orig_sent_text))
+    return se_str_list
+
+
+def gen_para_candidates(eb_antdoc: EbAnnotatedDoc4) \
+    -> List[Tuple[int, int, str]]:
+    se_str_list = []  # type: List[Tuple[int, int, str]]
+    doc_text = eb_antdoc.text
+    nlp_text = eb_antdoc.get_nlp_text()
+
+    fromto_mapper = fromtomapper.FromToMapper('nlp_text to raw_text offset mapper',
+                                              eb_antdoc.get_nlp_sx_lnpos_list(),
+                                              eb_antdoc.get_origin_sx_lnpos_list())
+
+    for para_with_attrs in eb_antdoc.paras_with_attrs:
+        start, end = xxx
+
+        attrvec.start, attrvec.end
+        # sent_text = nlp_text[start:end]
+        span_list = fromto_mapper.get_span_list(start, end)
+        # se_str_list.append((start, end, sent_text))
+
+        orig_start = span_list[0]['start']
+        orig_end = span_list[-1]['end']
+        orig_sent_text = doc_text[orig_start:orig_end]
+        se_str_list.append((orig_start, orig_end,
+                            orig_sent_text))
+    return se_str_list
+
+
+def save_sent_se_text(eb_antdoc: EbAnnotatedDoc4,
+                      file_name: str) -> None:
+    se_str_list = gen_sent_candidates(eb_antdoc)
+    with open(file_name, 'wt') as fout:
+        for start, end, sent_text in se_str_list:
+            # out_st = '{}\t{}\t{}'.format(start,
+            #                              end,
+            #                              sent_text.replace('\n', '|'))
+            out_st = sent_text.replace('\n', '|')
+            print(out_st, file=fout)
+            print(file=fout)
+
+
+def save_para_se_text(eb_antdoc: EbAnnotatedDoc4,
+                      file_name: str) -> None:
+    se_str_list = gen_para_candidates(eb_antdoc)
+    with open(file_name, 'wt') as fout:
+        for start, end, sent_text in se_str_list:
+            # out_st = '{}\t{}\t{}'.format(start,
+            #                              end,
+            #                              sent_text.replace('\n', '|'))
+            out_st = sent_text.replace('\n', '|')
+            print(out_st, file=fout)
+            print(file=fout)
+
