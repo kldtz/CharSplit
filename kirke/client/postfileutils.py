@@ -26,6 +26,8 @@ UNIT_TEST_PROVS = ['change_control',
                    'warranty',
                    'cust_9']
 
+
+# pylint: disable=too-many-arguments
 def post_annotate_document(file_name: str,
                            prov_list: List[str],
                            is_detect_lang: bool = False,

@@ -92,8 +92,8 @@ def cv_train_at_annotation_level(provision,
                                  nbest,
                                  eb_classifier_orig,
                                  model_file_name: str,
-                                 model_num: int,
-                                 model_dir: str,
+                                 model_status_fname: str,
+                                 model_result_fname: str,
                                  work_dir: str):
     # we do 3-fold cross validation, as the big set for custom training
     # test_size = 0.33
@@ -146,11 +146,8 @@ def cv_train_at_annotation_level(provision,
                 print("bucknum={}, test_num={}, fn={}".format(bucket_num, te_num, te_doc.file_id))
 
         cv_eb_classifier = eb_classifier_orig.make_bare_copy()
-        timestr = time.strftime("%Y%m%d-%H%M%S")
-        cv_eb_classifier_fn = '/tmp/{}-{}-{}'.format(provision, timestr, bucket_num)
-        cv_eb_classifier.train_antdoc_list(train_buckets,
-                                           work_dir,
-                                           cv_eb_classifier_fn)
+        cv_eb_classifier.train_antdoc_list(train_buckets, work_dir)
+
         cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir, nbest=nbest)
 
         cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket)
@@ -161,10 +158,12 @@ def cv_train_at_annotation_level(provision,
         cv_ant_status_list.append(cv_ant_status)
 
     # now build the annotator using ALL training data
+    # eb_classifier is scutclassifier
     eb_classifier = eb_classifier_orig.make_bare_copy()
-    eb_classifier.train_antdoc_list(x_antdoc_list,
-                                    work_dir,
-                                    model_file_name)
+    eb_classifier.train_antdoc_list(x_antdoc_list, work_dir)
+    eb_classifier.save(model_file_name)
+    logger.info('wrote bespoke model file: %s', model_file_name)
+
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir, nbest=nbest)
     log_json = log_list
     merged_ant_status = \
@@ -177,15 +176,10 @@ def cv_train_at_annotation_level(provision,
     prov_annotator.eval_status = ant_status
     pprint.pprint(ant_status)
 
-    model_status_fn = '{}/{}.{}.status'.format(model_dir,
-                                               provision,
-                                               model_num)
-    strutils.dumps(json.dumps(ant_status), model_status_fn)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    result_fn = model_dir + '/' + provision + "-ant_result-" + \
-                timestr + ".json"
-    logger.info('wrote result file at: %s', result_fn)
-    strutils.dumps(json.dumps(log_json), result_fn)
+    strutils.dumps(json.dumps(ant_status), model_status_fname)
+    # logger.info('wrote status file: %s', model_status_fname)
+    strutils.dumps(json.dumps(log_json), model_result_fname)
+    # logger.info('wrote result file: %s', model_result_fname)
 
     log_custom_model_eval_status({'provision': provision,
                                   'ant_status': merged_ant_status})
@@ -205,8 +199,12 @@ def cv_candg_train_at_annotation_level(provision: str,
                                                                           List[int]]],
                                        antdoc_bool_list: List[bool],
                                        sp_annotator_orig: spanannotator.SpanAnnotator,
-                                       model_dir: str,
-                                       work_dir: str):
+                                       model_file_name: str,
+                                       model_status_fname: str,
+                                       model_result_fname: str,
+                                       work_dir: str) \
+                                       -> Tuple[Optional[spanannotator.SpanAnnotator],
+                                                Dict[str, Dict]]:
     # we do 4-fold cross validation, as the big set for custom training
     # test_size = 0.25
 
@@ -235,9 +233,19 @@ def cv_candg_train_at_annotation_level(provision: str,
 
     pos_list.extend(neg_list)
     if num_pos_after_candgen < 6:
-        exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found".format(num_pos_after_candgen))
-        exc.user_message = "INSUFFICIENT_EXAMPLES"
-        raise exc
+        train_result = {'confusion_matrix': {'tn': 0, 'fp': 0,
+                                             'fn': 0, 'tp': 0},
+                        'f1': -1.0,
+                        'prec': -1.0,
+                        'provision': provision,
+                        'model_number': -1,
+                        'recall': -1.0,
+                        # pylint: disable=line-too-long
+                        'user_message': 'Training failed.  Number of docs is {}.  Only {} (< 6) positive candidates are found.'.format(len(antdoc_candidatex_list), num_pos_after_candgen),
+                        'failure_cause': 'num_positive_candidates',
+                        'failure_value': num_pos_after_candgen}
+        return None, {'ant_status': train_result}
+
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
     for count, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in enumerate(pos_list):
@@ -312,18 +320,21 @@ def cv_candg_train_at_annotation_level(provision: str,
     merged_ant_status = \
         evalutils.aggregate_ant_status_list(cv_ant_status_list)['ant_status']
 
-    ant_status = {'provision': provision}
     prov_annotator.classifier_status['eval_status'] = merged_ant_status
     prov_annotator.ant_status['eval_status'] = merged_ant_status
-    # pprint.pprint(prov_annotator.ant_status)
 
-    model_status_fn = model_dir + '/' +  provision + ".status"
-    strutils.dumps(json.dumps(ant_status), model_status_fn)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    result_fn = model_dir + '/' + provision + "-ant_result-" + \
-                timestr + ".json"
-    logger.info('wrote result file at: %s', result_fn)
-    strutils.dumps(json.dumps(log_json), result_fn)
+    # this log the model result in top level label_model_stat.tsv
+    prov_annotator.print_and_log_label_model_stat_tsv()
+    prov_annotator.save(model_file_name)
+    logger.info('wrote bespoke model file: %s', model_file_name)
+
+    ant_status = {'provision': provision}
+    ant_status['ant_status'] = prov_annotator.ant_status['eval_status']
+    strutils.dumps(json.dumps(ant_status), model_status_fname)
+    # logger.info('wrote status file: %s', model_status_fname)
+
+    strutils.dumps(json.dumps(log_json), model_result_fname)
+    # logger.info('wrote result file: %s', model_result_fname)
 
     log_custom_model_eval_status({'provision': provision,
                                   'ant_status': merged_ant_status})
@@ -337,13 +348,14 @@ def cv_candg_train_at_annotation_level(provision: str,
 # For bespoke, >= 600 docs, cross validate
 # pylint: disable=too-many-branches
 def train_eval_annotator(provision: str,
-                         model_num: int,
                          doc_lang: str,
                          nbest: int,
                          txt_fn_list,
                          work_dir,
                          model_dir,
                          model_file_name,
+                         model_status_fname,
+                         model_result_fname,
                          eb_classifier,
                          is_doc_structure=False,
                          is_bespoke_mode=False) \
@@ -351,8 +363,10 @@ def train_eval_annotator(provision: str,
     logger.info("training_eval_annotator(%s) called", provision)
     logger.info("    txt_fn_list = %s", txt_fn_list)
     logger.info("    work_dir = %s", work_dir)
-    logger.info("    model_dir = %s", model_dir)
+    # logger.info("    model_dir = %s", model_dir)
     logger.info("    model_file_name = %s", model_file_name)
+    logger.info("    model_status_fname = %s", model_status_fname)
+    logger.info("    model_result_fname = %s", model_result_fname)
     logger.info("    is_doc_structure= %s", is_doc_structure)
 
     # group_id is used to ensure all the attrvec for a document are together
@@ -414,8 +428,8 @@ def train_eval_annotator(provision: str,
 
     # TODO, jshaw, hack, such as for sechead
     if num_doc_neg < 2:
-        y[0] = 0
-        y[1] = 0
+        y[0] = False
+        y[1] = False
     # make sure nbest is know to everyone else
     eb_classifier.nbest = nbest
 
@@ -440,10 +454,11 @@ def train_eval_annotator(provision: str,
                                          y,
                                          nbest,
                                          eb_classifier,
-                                         model_file_name,
-                                         model_num,
-                                         model_dir,
-                                         work_dir)
+                                         model_file_name=model_file_name,
+                                         model_status_fname=model_status_fname,
+                                         model_result_fname=model_result_fname,
+                                         work_dir=work_dir)
+
 
         return prov_annotator2, combined_log_json
 
@@ -484,8 +499,8 @@ def train_eval_annotator(provision: str,
     prov_annotator.eval_status = ant_status
     pprint.pprint(ant_status)
 
-    model_status_fn = model_dir + '/' +  provision + ".status"
-    strutils.dumps(json.dumps(ant_status), model_status_fn)
+    strutils.dumps(json.dumps(ant_status), model_status_fname)
+    logger.info('wrote status file: %s', model_status_fname)
 
     with open('provision_model_stat.tsv', 'a') as pmout:
         pstatus = pred_status['pred_status']
@@ -580,20 +595,23 @@ def train_eval_annotator_with_trte(provision: str,
 # same.  But in the future, will try to move toward is_doc_structure==True when we get
 # a better PDF document text.
 def train_eval_span_annotator(provision: str,
-                              model_num: int,
-                              # TODO, why is doc_lang not used?
-                              # For now, there is no lang specific spanannotator?
-                              unused_doc_lang: str,
+                              doc_lang: str,
                               nbest: int,
                               candidate_types: List[str],
                               work_dir: str,
                               model_dir: str,
+                              model_file_name: str,
+                              model_status_fname: str,
+                              model_result_fname: str,
                               txt_fn_list: Optional[str] = None,
-                              model_file_name: Optional[str] = None,
                               is_doc_structure: bool = True,
                               is_bespoke_mode: bool = False) \
-            -> Tuple[spanannotator.SpanAnnotator,
+            -> Tuple[Optional[spanannotator.SpanAnnotator],
                      Dict[str, Dict]]:
+    """If training failed, the first parameter will be None.  This can
+       happen if there is not enough positive candidate.  In such case,
+       the 2nd returned value will contain the rrror message.
+    """
 
     #get configs based on candidate_type or provision
     config = annotatorconfig.get_ml_annotator_config(candidate_types)
@@ -623,6 +641,8 @@ def train_eval_span_annotator(provision: str,
     logger.info("training_eval_span_annotator(%s) called", provision)
     logger.info("    work_dir = %s", work_dir)
     logger.info("    model_file_name = %s", model_file_name)
+    logger.info("    model_status_fname = %s", model_status_fname)
+    logger.info("    model_result_fname = %s", model_result_fname)
 
     # this is mainly for paragraph
     if span_annotator.text_type == 'nlp_text':
@@ -633,10 +653,11 @@ def train_eval_span_annotator(provision: str,
         # intentially don't specify is_no_corenlp here.  It has to be done
         # using ebantdoc4.doclist_to_antdoc_list_no_corenlp
         eb_antdoc_list = \
-            span_annotator.doclist_to_antdoc_list(txt_fn_list,
-                                                  work_dir,
+            span_annotator.doclist_to_antdoc_list(doclist_file=txt_fn_list,
+                                                  work_dir=work_dir,
                                                   is_bespoke_mode=is_bespoke_mode,
                                                   is_doc_structure=is_doc_structure,
+                                                  doc_lang=doc_lang,
                                                   # pylint: disable=line-too-long
                                                   is_use_corenlp=span_annotator.get_is_use_corenlp(),
                                                   # we need the files to be sorted in order to
@@ -667,10 +688,13 @@ def train_eval_span_annotator(provision: str,
                                                X_all_antdoc_candidatex_list,
                                                y,
                                                span_annotator,
-                                               model_dir,
+                                               model_file_name,
+                                               model_status_fname,
+                                               model_result_fname,
                                                work_dir)
-        prov_annotator2.print_eval_status(model_dir, model_num)
-        prov_annotator2.save(model_file_name)
+
+        # if prov_annotator2 is None, training failed.
+        # error msg in combed_log_json.
 
         return prov_annotator2, combined_log_json
 
@@ -726,8 +750,13 @@ def train_eval_span_annotator(provision: str,
     unused_ant_status, log_json = \
         span_annotator.test_antdoc_list(X_test,
                                         span_annotator.threshold)
-    span_annotator.print_eval_status(model_dir, model_num)
+
+    # There are only two location spanannotator saves its model:
+    #   1. Here
+    #   2. in cv_candg_train_at_annotation_level(), when Bespoke trains
+    span_annotator.print_and_log_label_model_stat_tsv()
     span_annotator.save(model_file_name)
+    logger.info('wrote bespoke model file: %s', model_file_name)
 
     return span_annotator, log_json
 

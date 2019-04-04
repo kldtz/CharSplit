@@ -3,6 +3,11 @@ import re
 from typing import Dict, List, Tuple
 from kirke.utils import ebantdoc4, ebsentutils
 
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 # pylint: disable=too-few-public-methods
 class ParagraphGenerator:
 
@@ -33,10 +38,11 @@ class ParagraphGenerator:
                     label_ant_list.append(ant)
             nl_text = antdoc.get_nlp_text()
 
-            if group_id % 10 == 0:
-                logging.info('ContextGenerator.documents_to_candidates(), group_id = %d',
-                             group_id)
-            #finds all matches in the text and adds window around each as a candidate
+            # if group_id % 10 == 0:
+            #     logger.info('ParagraphGenerator.documents_to_candidates(), group_id = %d',
+            #                 group_id)
+
+            # finds all matches in the text and adds window around each as a candidate
             i = 0
             sorted_paras = sorted(antdoc.para_indices, key=lambda x: x[0][0].start)
             while i < len(antdoc.para_indices):
@@ -60,7 +66,7 @@ class ParagraphGenerator:
                     if not preamble:
                         preamble = re.search(r'(as +follows[:;])|(defined +terms)', para_text, re.I)
                     try:
-                        next_start_punct = re.search(r'(\([A-z]+\))? +([A-z])', next_text).group()[-1].islower()
+                        next_start_punct = re.search(r'(\([A-z]+\))? +([A-z])', next_text).group()[-1].islower()  # type: ignore
                     except AttributeError:
                         next_start_punct = False
                     if ((not preamble) and para_end_punct and next_end_punct and len(para_text.split()) > 1) or (not next_text) or next_start_punct:

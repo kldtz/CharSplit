@@ -4,7 +4,7 @@ import configparser
 import logging
 import pprint
 from time import time
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 from sklearn.linear_model import SGDClassifier
@@ -58,6 +58,21 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
 IS_DEBUG_TP = False
 
 
+# This is for debugging purpose only.
+# It doesn't handle model_number at all
+def get_model_base_fnames(provision: str,
+                          doc_lang: str) -> Tuple[str, str, str]:
+    if doc_lang == 'en':
+        base_no_ext = '{}'.format(provision)
+    else:
+        base_no_ext = '{}_{}'.format(provision, doc_lang)
+    base_model_fname = '{}_scutclassifier.v{}.pkl'.format(base_no_ext,
+                                                          SCUT_CLF_VERSION)
+    base_status_fname = '{}.status'.format(base_no_ext)
+    base_result_fname = '{}-ant_result.json'.format(base_no_ext)
+    return base_model_fname, base_status_fname, base_result_fname
+
+
 class ShortcutClassifier(EbClassifier):
 
     def __init__(self, provision):
@@ -93,7 +108,7 @@ class ShortcutClassifier(EbClassifier):
         return result
 
     # pylint: disable=too-many-statements, too-many-locals
-    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name) -> None:
+    def train_antdoc_list(self, ebantdoc_list, work_dir) -> None:
         logger.info('train_antdoc_list()...')
 
         sent_list = []
@@ -171,7 +186,6 @@ class ShortcutClassifier(EbClassifier):
         print()
 
         self.eb_grid_search = grid_search.best_estimator_
-        self.save(model_file_name)
 
     def predict_antdoc(self, eb_antdoc, work_dir) -> List[float]:
         # logger.info('predict_antdoc()...')
