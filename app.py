@@ -385,29 +385,14 @@ def custom_train(cust_id: str):
                 txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
                 fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
                 strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-                if len(candidate_types) == 1 and candidate_types[0] == 'SENTENCE':
-                    base_model_fname = '{}.{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                             next_model_num,
-                                                                             SCUT_CLF_VERSION)
-                    if doc_lang != "en":
-                        base_model_fname = \
-                            '{}.{}_{}_scutclassifier.v{}.pkl'.format(provision,
-                                                                     next_model_num,
-                                                                     doc_lang,
-                                                                     SCUT_CLF_VERSION)
-                else:
-                    base_model_fname = \
-                        '{}.{}_{}_annotator.v{}.pkl'.format(provision,
-                                                            next_model_num,
-                                                            "-".join(candidate_types),
-                                                            CANDG_CLF_VERSION)
-                    if doc_lang != "en":
-                        base_model_fname = \
-                            '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
-                                                                   next_model_num,
-                                                                   doc_lang,
-                                                                   "-".join(candidate_types),
-                                                                   CANDG_CLF_VERSION)
+
+                base_model_fname, base_status_fname, base_result_fname = \
+                    ebrunner.assemble_model_base_fnames(provision,
+                                                        candidate_types=candidate_types,
+                                                        next_model_num=next_model_num,
+                                                        doc_lang=doc_lang,
+                                                        scut_version=SCUT_CLF_VERSION,
+                                                        candg_version=CANDG_CLF_VERSION)
 
                 # Intentionally not passing is_doc_structure=True
                 # For spanannotator, currently we use is_doc_structure=False to not missing
@@ -420,9 +405,10 @@ def custom_train(cust_id: str):
                                                                   provision,
                                                                   CUSTOM_MODEL_DIR,
                                                                   base_model_fname,
+                                                                  base_status_fname,
+                                                                  base_result_fname,
                                                                   candidate_types,
                                                                   nbest,
-                                                                  model_num=next_model_num,
                                                                   work_dir=work_dir,
                                                                   doc_lang=doc_lang)
                 end_time = time.time()
@@ -438,7 +424,14 @@ def custom_train(cust_id: str):
                           'recall': ant_status['recall'],
                           'provision': provision,
                           'model_number': next_model_num}
-
+                if ant_status.get('f1') == -1:
+                    status['model_number'] = -1
+                if ant_status.get('failure_cause') is not None:
+                    status['failure_cause'] = ant_status.get('failure_cause')
+                if ant_status.get('failure_value') is not None:
+                    status['failure_value'] = ant_status.get('failure_value')
+                if ant_status.get('user_message') is not None:
+                    status['user_message'] = ant_status.get('user_message')
                 logger.info("status: %r", status)
 
                 # return some json accuracy info
@@ -456,12 +449,16 @@ def custom_train(cust_id: str):
                 #                                 'precision': -1.0,
                 #                                 'recall': -1.0}
                 #                       'eval_log': {}}
-                all_stats[doc_lang] = {'confusion_matrix': [[]],
+                all_stats[doc_lang] = {'confusion_matrix': [[0, 0], [0, 0]],
                                        'fscore': -1.0,
                                        'precision': -1.0,
                                        'provision': provision,
                                        'model_number': -1,
-                                       'recall': -1.0}
+                                       'recall': -1.0,
+                                       # pylint: disable=line-too-long
+                                       'user_message': 'Training failed.  Number of docs is {}.  Only {} (< 6) are positive training documents.'.format(len(names_per_lang), pos_docs),
+                                       'failure_cause': 'num_positive_docs',
+                                       'failure_value': pos_docs}
         return jsonify(all_stats)
     except Exception as e:  # pylint: disable=broad-except
         error = traceback.format_exc()
@@ -483,8 +480,8 @@ def custom_train(cust_id: str):
         ]
         return data_st, status_code, response_headers
     finally:
-      if tmp_dir is not None:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # https://github.com/Mimino666/langdetect

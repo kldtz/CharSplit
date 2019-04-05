@@ -31,7 +31,7 @@ class BaseAnnotator(ABC):
         return self.pred_status
 
     def save(self, model_file_name) -> None:
-        logger.info("saving model file: %s", model_file_name)
+        # logger.debug("saving model file: %s", model_file_name)
         self.file_name = model_file_name
         # joblib.dump(self, model_file_name)
         osutils.joblib_atomic_dump(self, model_file_name)

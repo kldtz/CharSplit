@@ -2,7 +2,6 @@ import copy
 from collections import defaultdict
 import configparser
 from datetime import datetime
-import json
 import logging
 import pprint
 import time
@@ -41,13 +40,24 @@ def adapt_pipeline_params(best_params):
     return result
 
 
-def get_model_file_name(provision: str,
-                        candidate_types: List[str],
-                        model_dir: str):
-    base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
+# This is for debugging purpose only.
+# It doesn't handle model_number at all
+def get_model_base_fnames(provision: str,
+                          doc_lang: str,
+                          candidate_types: List[str]) -> Tuple[str, str, str]:
+    if doc_lang == 'en':
+        base_no_ext = '{}'.format(provision)
+    else:
+        base_no_ext = '{}_{}'.format(provision, doc_lang)
+
+    base_model_fname = '{}_{}_annotator.v{}.pkl'.format(base_no_ext,
                                                         "-".join(candidate_types),
                                                         CANDG_CLF_VERSION)
-    return "{}/{}".format(model_dir, base_model_fname)
+    base_status_fname = '{}_{}.status'.format(base_no_ext,
+                                              "-".join(candidate_types))
+    base_result_fname = '{}_{}-ant_result.json'.format(base_no_ext,
+                                                       "-".join(candidate_types))
+    return base_model_fname, base_status_fname, base_result_fname
 
 
 def recover_false_negatives(prov_human_ant_list,
@@ -237,8 +247,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         fallout, tp, fn, fp, tn = 0, 0, 0, 0, 0
         log_json = dict()
 
-        for seq, ebantdoc in enumerate(ebantdoc_list):
-            print("\ntest_antdoc_list, #{}, {}".format(seq, ebantdoc.file_id))
+        for unused_seq, ebantdoc in enumerate(ebantdoc_list):
+            # print("\ntest_antdoc_list, #{}, {}".format(seq, ebantdoc.file_id))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
 
@@ -330,11 +340,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             threshold = self.threshold
         else:
             threshold = specified_threshold
-        start_time = time.time()
+        # start_time = time.time()
         prov_annotations, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir, nbest=self.nbest)
-        end_time = time.time()
-        logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
-                    self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        # end_time = time.time()
+        # logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
+        #             self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         # If there is no human annotation, must be normal annotation.
         # Remove anything below threshold
@@ -352,14 +362,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         eval_status['ant_status'] = self.ant_status['eval_status']
         return eval_status
 
-    def print_eval_status(self, model_dir: str, model_num: int):
+    def print_and_log_label_model_stat_tsv(self) -> None:
 
         eval_status = {'label': self.provision}
         eval_status['ant_status'] = self.ant_status['eval_status']
         pprint.pprint(eval_status)
-
-        model_status_fn = '{}/{}.{}.status'.format(model_dir, self.provision, model_num)
-        strutils.dumps(json.dumps(eval_status), model_status_fn)
 
         with open('label_model_stat.tsv', 'a') as pmout:
             cls_status = self.ant_status['eval_status']
@@ -385,7 +392,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                        nbest: Optional[int] = None) -> Tuple[List[Dict[str, Any]], List[float]]:
         if not nbest:
             nbest = self.nbest
-        logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
+        # logger.info('prov = %s, predict_antdoc(%s)', self.provision, eb_antdoc.file_id)
         text = eb_antdoc.get_text()
         # label_list, group_id_list are ignored
         antdoc_candidatex_list = self.documents_to_candidates([eb_antdoc])

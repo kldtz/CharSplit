@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 # pylint: disable=line-too-long
 # (?:^| |\()
 # want to avoid "rst", which is "rs" + "t" where "t" is just trillion
-CURRENCY_PAT_ST = r'((\bUSD\b|\bEUR\b|\bGBP\b|\bCNY\b|\bJPY\b|\bINR\b|\bRupees?\b|\bRs\b\.?)|[\$€£円¥₹]) *({})'.format(text2int.numeric_regex_st, text2int.numeric_regex_st_with_b)
+CURRENCY_PAT_ST = r'((\bUSD\b|\bEUR\b|\bGBP\b|\bCNY\b|\bJPY\b|\bINR\b|\bRupees?\b|\bRs\b\.?)|[\$€£円¥₹]) *({})'.format(text2int.numeric_regex_st)
 CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
 
 
@@ -285,11 +285,11 @@ def invalid_num_split(mat: Match) -> List[Tuple[Match, int]]:
         for split_chunk in split_chunks:
             chunk_st = line[prev:split_chunk.start()]
             tmp_mat = NUMBER_PAT.search(chunk_st)
-            if chunk_st and not is_invalid_number_word(chunk_st):
+            if tmp_mat and chunk_st and not is_invalid_number_word(chunk_st):
                 result.append((tmp_mat, adjusted_offset + prev))
             prev = split_chunk.end()
         tmp_mat = NUMBER_PAT.search(line[prev:])
-        if line[prev:] and not is_invalid_number_word(line[prev:]):
+        if tmp_mat and line[prev:] and not is_invalid_number_word(line[prev:]):
             result.append((tmp_mat, adjusted_offset + prev))
         return result
 
@@ -317,7 +317,8 @@ def extract_numbers(line: str) -> List[Dict]:
                     continue
 
                 mat2 = NUMBER_PAT.search(span_st)
-                mat_offset_list.append((mat2, offset_start))
+                if mat2:
+                    mat_offset_list.append((mat2, offset_start))
         else:
             # get rid of 'm-2'
             # remove_invalid_num_spans = invalid_num_split(mat)

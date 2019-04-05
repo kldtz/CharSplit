@@ -1,11 +1,10 @@
 import copy
 import logging
-import time
 from typing import Any, Dict, List, Optional, Tuple
 import traceback
 
 from kirke.docstruct import fromtomapper
-from kirke.eblearn import ebpostproc
+from kirke.eblearn import ebpostproc, scutclassifier
 from kirke.utils import ebantdoc4, evalutils, strutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
@@ -19,7 +18,7 @@ PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 class ProvisionAnnotator:
 
     def __init__(self,
-                 prov_classifier,
+                 prov_classifier: scutclassifier.ShortcutClassifier,
                  work_dir: str,
                  threshold: Optional[float] = None,
                  nbest: int = -1) -> None:
@@ -179,11 +178,11 @@ class ProvisionAnnotator:
         else:
             threshold = specified_threshold
 
-        start_time = time.time()
+        # start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
-        end_time = time.time()
-        logger.info('annotate_antdoc(%s, %s) took %.0f msec, eb_antr',
-                    self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        # end_time = time.time()
+        # logger.info('annotate_antdoc(%s, %s) took %.0f msec, eb_antr',
+        #             self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         try:
             # mapping the offsets in prov_human_ant_list from raw_text to nlp_text

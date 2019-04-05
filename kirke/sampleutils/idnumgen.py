@@ -198,7 +198,7 @@ class IdNumContextGenerator:
                 nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logger.debug('RegexContextGenerator.documents_to_candidates(), group_id = %d',
+                logger.debug('IdNumContextGenerator.documents_to_candidates(), group_id = %d',
                              group_id)
 
             candidates, cand_label_list, cand_group_id_list = \

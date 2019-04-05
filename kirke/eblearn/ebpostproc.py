@@ -866,7 +866,7 @@ def extract_landlord_tenant(sent_start, sent_end, attrvec_entities, doc_text, pr
             for ag in agent:
                 if ag in ref.lower():
                     mat = re.search(re.escape(party), sent_st, re.I)
-                    ant_start, ant_end = mat.span()
+                    ant_start, ant_end = mat.span()  # type: ignore
                     found_provision_list.append((party, sent_start+ant_start, sent_start+ant_end, 'x1'))
                     is_provision_found = True
     # not sure exactly what exception can be triggerred, out of range index?

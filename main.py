@@ -14,7 +14,7 @@ from sklearn.externals import joblib
 
 from kirke.docclassifier.unigramclassifier import UnigramDocClassifier
 from kirke.docclassifier import doccatsplittrte
-from kirke.eblearn import ebannotator, ebrunner, ebtrainer, provclassifier, scutclassifier
+from kirke.eblearn import ebannotator, ebrunner, ebtrainer, scutclassifier, spanannotator
 # from kirke.ebrules import rateclassifier
 # pylint: disable=unused-import
 from kirke.eblearn.ebclassifier import EbClassifier
@@ -56,10 +56,13 @@ def train_classifier(provision, txt_fn_list_fn, work_dir, model_dir, is_scut):
                                                                 provision,
                                                                 SCUT_CLF_VERSION)
     else:
-        eb_classifier = provclassifier.ProvisionClassifier(provision)
-        model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
-                                                                provision,
-                                                                PROV_CLF_VERSION)
+        # this is never triggered, ProvisionClassifier is remove from provclassifer.py
+        # on 2018-04-03
+        # eb_classifier = provclassifier.ProvisionClassifier(provision)
+        # model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
+        #                                                         provision,
+        #                                                         PROV_CLF_VERSION)
+        pass
 
     # pylint: disable=protected-access
     ebtrainer._train_classifier(txt_fn_list_fn,
@@ -108,10 +111,13 @@ def train_annotator(provision: str,
                                                                 provision,
                                                                 SCUT_CLF_VERSION)
     else:
-        eb_classifier = provclassifier.ProvisionClassifier(provision)
-        model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
-                                                                provision,
-                                                                PROV_CLF_VERSION)
+        # this is never triggered, ProvisionClassifier is remove from provclassifer.py
+        # on 2018-04-03
+        # eb_classifier = provclassifier.ProvisionClassifier(provision)
+        # model_file_name = '{}/{}_provclassifier.v{}.pkl'.format(model_dir,
+        #                                                         provision,
+        #                                                         PROV_CLF_VERSION)
+        pass
 
     ebtrainer.train_eval_annotator_with_trte(provision,
                                              work_dir,
@@ -129,16 +135,28 @@ def train_span_annotator(label: str,
     if candidate_types == ['SENTENCE']:
         train_annotator(label, work_dir, model_dir, True)
     else:
+        doc_lang = 'en'
+        base_model_fname, base_status_fname, base_result_fname = \
+            spanannotator.get_model_base_fnames(label,
+                                                doc_lang=doc_lang,
+                                                candidate_types=candidate_types)
+        model_file_name = '{}/{}'.format(model_dir, base_model_fname)
+        model_status_fname = '{}/{}'.format(model_dir, base_status_fname)
+        model_result_fname = '{}/{}'.format(model_dir, base_result_fname)
+
         ebtrainer.train_eval_span_annotator(label,
-                                            383838,
-                                            'en',
-                                            nbest,
+                                            doc_lang=doc_lang,
+                                            nbest=nbest,
                                             candidate_types=candidate_types,
                                             work_dir=work_dir,
-                                            model_dir=model_dir)
+                                            model_dir=model_dir,
+                                            model_file_name=model_file_name,
+                                            model_status_fname=model_status_fname,
+                                            model_result_fname=model_result_fname)
 
 
 def eval_span_annotator(label: str,
+                        doc_lang: str,
                         candidate_types: List[str],
                         txt_fn_list_fn: str,
                         work_dir: str,
@@ -147,8 +165,10 @@ def eval_span_annotator(label: str,
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir=model_dir)
     # ebtrainer.eval_rule_annotator_with_trte(label, is_train_mode=True)
     eb_runner.eval_span_annotator(label,
-                                  candidate_types,
-                                  txt_fn_list_fn)
+                                  doc_lang=doc_lang,
+                                  candidate_types=candidate_types,
+                                  test_doclist_fn=txt_fn_list_fn,
+                                  work_dir=work_dir)
 
 
 def eval_rule_annotator(label: str,
@@ -195,17 +215,20 @@ def custom_train_annotator(provision: str,
     # cust_id = '12345'
     # provision = 'cust_12345'
 
-    base_model_fname = '{}_scutclassifier.v{}.pkl'.format(provision,
-                                                          SCUT_CLF_VERSION)
+    doc_lang = 'en'
+    base_model_fname, base_status_fname, base_result_fname = \
+        scutclassifier.get_model_base_fnames(provision,
+                                             doc_lang=doc_lang)
 
     unused_eval_status, unused_log_json = \
         eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
                                                       provision,
                                                       custom_model_dir,
-                                                      base_model_fname,
+                                                      base_model_fname=base_model_fname,
+                                                      base_status_fname=base_status_fname,
+                                                      base_result_fname=base_result_fname,
                                                       candidate_types=candidate_types,
                                                       nbest=nbest,
-                                                      model_num=383838,
                                                       work_dir=work_dir)
 
 
@@ -388,6 +411,7 @@ def main():
                              model_dir=model_dir)
     elif cmd == 'eval_span_annotator':
         eval_span_annotator(provision,
+                            doc_lang='en',
                             candidate_types=args.candidate_types.split(','),
                             txt_fn_list_fn=txt_fn_list_fn,
                             work_dir=work_dir,
