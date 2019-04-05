@@ -247,7 +247,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         fallout, tp, fn, fp, tn = 0, 0, 0, 0, 0
         log_json = dict()
 
-        for seq, ebantdoc in enumerate(ebantdoc_list):
+        for unused_seq, ebantdoc in enumerate(ebantdoc_list):
             # print("\ntest_antdoc_list, #{}, {}".format(seq, ebantdoc.file_id))
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]

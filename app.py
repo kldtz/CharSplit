@@ -480,8 +480,8 @@ def custom_train(cust_id: str):
         ]
         return data_st, status_code, response_headers
     finally:
-      if tmp_dir is not None:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # https://github.com/Mimino666/langdetect
