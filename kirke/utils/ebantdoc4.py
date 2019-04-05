@@ -578,14 +578,19 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
-    doc_text, unused_nl_text, linebreak_arr, \
-        unused_paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
-            pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
+    # doc_text, unused_nl_text, linebreak_arr, \
+    #     unused_paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
+    #         pdftxtparser.to_lines_paraline_texts(txt_file_name,
+    #                                              offsets_file_name,
+    #                                              work_dir=work_dir)
+
+    # pylint: disable=line-too-long
+    pdf_text_doc, linebreak_arr, para_not_linebreak_arr, cpoint_cunit_mapper = \
+        pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)  # type: Tuple[PDFTextDoc, ArrayType, ArrayType, TextCpointCunitMapper]
+    doc_text = pdf_text_doc.doc_text
 
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
                                                                           cpoint_cunit_mapper)
-
-    pdf_text_doc = pdftxtparser.parse_document(txt_file_name, work_dir=work_dir)  # type: PDFTextDoc
 
 
     # paras2 here is based on information from pdfbox.
@@ -1095,7 +1100,7 @@ def gen_sent_candidates(eb_antdoc: EbAnnotatedDoc4) \
     -> List[Tuple[int, int, str]]:
     se_str_list = []  # type: List[Tuple[int, int, str]]
     doc_text = eb_antdoc.text
-    nlp_text = eb_antdoc.get_nlp_text()
+    # nlp_text = eb_antdoc.get_nlp_text()
 
     fromto_mapper = fromtomapper.FromToMapper('nlp_text to raw_text offset mapper',
                                               eb_antdoc.get_nlp_sx_lnpos_list(),
@@ -1115,54 +1120,14 @@ def gen_sent_candidates(eb_antdoc: EbAnnotatedDoc4) \
     return se_str_list
 
 
-def gen_para_candidates(eb_antdoc: EbAnnotatedDoc4) \
-    -> List[Tuple[int, int, str]]:
-    se_str_list = []  # type: List[Tuple[int, int, str]]
-    doc_text = eb_antdoc.text
-    nlp_text = eb_antdoc.get_nlp_text()
-
-    fromto_mapper = fromtomapper.FromToMapper('nlp_text to raw_text offset mapper',
-                                              eb_antdoc.get_nlp_sx_lnpos_list(),
-                                              eb_antdoc.get_origin_sx_lnpos_list())
-
-    for para_with_attrs in eb_antdoc.paras_with_attrs:
-        start, end = xxx
-
-        attrvec.start, attrvec.end
-        # sent_text = nlp_text[start:end]
-        span_list = fromto_mapper.get_span_list(start, end)
-        # se_str_list.append((start, end, sent_text))
-
-        orig_start = span_list[0]['start']
-        orig_end = span_list[-1]['end']
-        orig_sent_text = doc_text[orig_start:orig_end]
-        se_str_list.append((orig_start, orig_end,
-                            orig_sent_text))
-    return se_str_list
-
-
 def save_sent_se_text(eb_antdoc: EbAnnotatedDoc4,
                       file_name: str) -> None:
     se_str_list = gen_sent_candidates(eb_antdoc)
     with open(file_name, 'wt') as fout:
-        for start, end, sent_text in se_str_list:
+        for unused_start, unused_end, sent_text in se_str_list:
             # out_st = '{}\t{}\t{}'.format(start,
             #                              end,
             #                              sent_text.replace('\n', '|'))
             out_st = sent_text.replace('\n', '|')
             print(out_st, file=fout)
             print(file=fout)
-
-
-def save_para_se_text(eb_antdoc: EbAnnotatedDoc4,
-                      file_name: str) -> None:
-    se_str_list = gen_para_candidates(eb_antdoc)
-    with open(file_name, 'wt') as fout:
-        for start, end, sent_text in se_str_list:
-            # out_st = '{}\t{}\t{}'.format(start,
-            #                              end,
-            #                              sent_text.replace('\n', '|'))
-            out_st = sent_text.replace('\n', '|')
-            print(out_st, file=fout)
-            print(file=fout)
-

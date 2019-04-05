@@ -300,7 +300,7 @@ def test_one_annotator(txt_fn_list_fn: str,
 def clear_work_cache(file_name: str,
                      work_dir: str) -> None:
     base_fname = os.path.basename(file_name)
-    prefix, ext = os.path.splitext(base_fname)
+    prefix, unused_ext = os.path.splitext(base_fname)
     cached_files = os.path.join(work_dir,
                                 prefix + '.*')
     for rm_filename in glob.glob(cached_files):

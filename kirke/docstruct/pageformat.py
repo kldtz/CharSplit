@@ -7,7 +7,7 @@ from kirke.utils import mathutils
 
 IS_DEBUG = False
 
-IS_TOP_LEVEL_DEBUG = False
+IS_TOP_LEVEL_DEBUG = True
 
 # Page Size in Point at 72 dpi
 # letter size: width 8.5 in, height 11 in
@@ -422,7 +422,7 @@ def pick_page_adjacent_ydiff_mode(ydiff_mode_list: List[float],
         return global_ydiff
 
     # print("ydiff_mode_list: {}".format(ydiff_mode_list))
-    count_dict = defaultdict(int)
+    count_dict = defaultdict(int)  # type: Dict[float, int]
     for ydiff_mode in ydiff_mode_list:
         count_dict[ydiff_mode] += 1
     count_ydiff_list = sorted(((freq, ydiff) for ydiff, freq in count_dict.items()),
