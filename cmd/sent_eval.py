@@ -15,6 +15,7 @@ def read_sent_file(file_name: str) -> List[str]:
             # skip empty line and lines that are too short
             if not line.strip():
                 continue
+            # this is to avoid a lot of noise
             if len(line) < 10:
                 continue
             out_list.append(line)
@@ -48,7 +49,7 @@ def main():
         if gold_sent in pred_sent_set:
             tp += 1
             tp_list.append(gold_sent)
-            print("TP: [{}]".format(gold_sent.replace('\n', ' ')))
+            # print("TP: [{}]".format(gold_sent.replace('\n', ' ')))
         else:
             fn += 1
             fn_list.append(gold_sent)

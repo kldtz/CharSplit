@@ -7,7 +7,7 @@ from kirke.utils import mathutils
 
 IS_DEBUG = False
 
-IS_TOP_LEVEL_DEBUG = True
+IS_TOP_LEVEL_DEBUG = False
 
 # Page Size in Point at 72 dpi
 # letter size: width 8.5 in, height 11 in
@@ -446,13 +446,12 @@ def pick_page_adjacent_ydiff_mode(ydiff_mode_list: List[float],
 def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
                       lxid_strinfos_map: Dict[int, List[StrInfo]],
                       nl_text: str,
-                      all_ydiffs: List[float]) -> Tuple[int, Dict[int, float]]:
+                      all_ydiffs: List[float]) -> Dict[int, float]:
     """Return the following:
 
-    doc_ydiff
     page_ydiff_map: has the ydiff for each page
-    page_colnum_map: has the -1, 1-, 2-, or 3-column page
-                     Not sure if this is necessary
+    # page_colnum_map: has the -1, 1-, 2-, or 3-column page
+    #                  Not sure if this is necessary
     """
     page_num_list = sorted(page_linenum_list_map.keys())
 
@@ -541,13 +540,19 @@ def calc_page_formats(page_linenum_list_map: Dict[int, List[int]],
     for page_num in failed_page_ydiff_mode_pages:
         page_ydiff_mode_map[page_num] = page_ydiff_mode_list[page_num]
 
+    for page_num in page_num_list:
+        # reset if there are any issue, 0 or -1
+        if page_ydiff_mode_map[page_num] <= 0:
+            page_ydiff_mode_map[page_num] = doc_ydiff_mode
+            # print('page_ydiff_mode_map[{}] after = {}'.format(page_num,
+            #                                                   doc_ydiff_mode))
+
     if IS_TOP_LEVEL_DEBUG:
-        print('\nadjusted page_ydiff_mode_map:')
+        print('\nadjusted page_ydiff_mode_mao:')
         for page_num in page_num_list:
             if page_num in failed_page_ydiff_mode_pages:
                 print('     page {}: {}, failed'.format(page_num, page_ydiff_mode_map[page_num]))
             else:
                 print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
 
-
-    return doc_ydiff_mode, page_ydiff_mode_map
+    return page_ydiff_mode_map

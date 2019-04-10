@@ -636,11 +636,10 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
 
     page_num_list = sorted(page_linenum_list_map.keys())
 
-    doc_ydiff_mode, page_ydiff_mode_map = \
-        pageformat.calc_page_formats(page_linenum_list_map,
-                                     lxid_strinfos_map,
-                                     nl_text,
-                                     all_ydiffs)
+    page_ydiff_mode_map = pageformat.calc_page_formats(page_linenum_list_map,
+                                                       lxid_strinfos_map,
+                                                       nl_text,
+                                                       all_ydiffs)
 
     # the old code
     block_num = 0
@@ -651,8 +650,6 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
         unused_lxline_strinfos = []  # type: List[StrInfo]
 
         page_ydiff_mode = page_ydiff_mode_map[page_num]
-        if page_ydiff_mode == -1:  # the worst case scenario
-            doc_ydiff_mode = doc_ydiff_mode
 
         start = None
         tmp_strinfos = []
