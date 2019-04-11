@@ -230,6 +230,9 @@ def is_line_footer(line: str,
         return False, -1.0
     if is_line_not_footer_by_content(line):
         return False, -1.0
+    words = line.split()
+    if len(words) > 20:  # it cannot have too many word
+        return False, -1.0
     if is_line_footer_by_content(line):
         return True, 1.0
 

@@ -25,7 +25,7 @@ logger.setLevel(logging.INFO)
 # for setting footer attribute when reading pdf.offsets.json files from PDFBox
 MAX_FOOTER_YSTART = 10000
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 PARA_SEG_DEBUG_MODE = False
 
@@ -1311,7 +1311,6 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                 sechead_tuple = docstructutils.extract_line_sechead(line.line_text)
                 if sechead_tuple:
                     line.attrs['sechead'] = sechead_tuple
-
         # 2nd stage of rules
         is_footer, unused_score = docstructutils.is_line_footer(line.line_text,
                                                                 line_num,
@@ -1342,13 +1341,16 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
             # in PDF view, it is at the end.
 
         prev_line_text = line.line_text
-        if not is_skip and line.lineinfo.yStart < footer_yStart:
+        if not is_skip and \
+           (line.lineinfo.yStart < footer_yStart or
+            len(line.line_text) >= 80):  # not delete normal para
             content_line_list.append(line)
     # if footer is found, set everything afterward as footer
     # if footer_index != -1:
     if footer_yStart != MAX_FOOTER_YSTART:
         for linex in apage.line_list:
-            if linex.lineinfo.yStart >= footer_yStart:
+            if linex.lineinfo.yStart >= footer_yStart and \
+               len(linex.line_text) < 80:  # not delete normal para
                 linex.attrs['footer'] = True
     apage.content_line_list = content_line_list
     # now decide if this is a toc page, based on
