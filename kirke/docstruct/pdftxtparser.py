@@ -943,6 +943,14 @@ def parse_document(file_name: str,
                           lxid_pnum_map,
                           para_not_linebreak_offsets)
 
+    # prepare paraline.txt
+    paraline_fname = get_paraline_fname(base_fname, work_dir)
+    ch_list = list(nl_text)
+    for offset in para_not_linebreak_offsets:
+        ch_list[offset] = ' '
+    paraline_text = ''.join(ch_list)
+    txtreader.dumps(paraline_text, paraline_fname)
+
     pageinfo_list = []  # type: List[PageInfo3]
     for page_offset in page_offsets:
         #id, start, end
@@ -953,12 +961,13 @@ def parse_document(file_name: str,
         pinfo = PageInfo3(doc_text, start, end, page_num, pblockinfo_list)
         pageinfo_list.append(pinfo)
 
-    page_blockinfos_fname = os.path.join(work_dir,
-                                         base_fname.replace('.txt',
-                                                            '.pblockinfos.txt'))
-    print_page_blockinfos_map(pgid_pblockinfos_map,
-                              nl_text,
-                              page_blockinfos_fname)
+    if DEBUG_MODE:
+        page_blockinfos_fname = os.path.join(work_dir,
+                                             base_fname.replace('.txt',
+                                                                '.pblockinfos.txt'))
+        print_page_blockinfos_map(pgid_pblockinfos_map,
+                                  nl_text,
+                                  page_blockinfos_fname)
 
     pdf_text_doc = PDFTextDoc(file_name, doc_text, pageinfo_list)
 

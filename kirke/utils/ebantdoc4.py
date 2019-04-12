@@ -235,8 +235,8 @@ def load_cached_ebantdoc4(eb_antdoc_fn: str) -> Optional[EbAnnotatedDoc4]:
             eb_antdoc = joblib.load(eb_antdoc_fn)
             # print("done loading\t{}".format(eb_antdoc_fn))
             end_time = time.time()
-            logger.info("loading from cache: %s, took %.0f msec",
-                        eb_antdoc_fn, (end_time - start_time) * 1000)
+            logger.debug("loading from cache: %s, took %.0f msec",
+                         eb_antdoc_fn, (end_time - start_time) * 1000)
 
             return eb_antdoc
         # pylint: disable=broad-except
@@ -412,12 +412,12 @@ def html_no_docstruct_to_ebantdoc4(txt_file_name,
         osutils.joblib_atomic_dump(eb_antdoc, eb_antdoc_fn)
         t2_end_time = time.time()
         if (t2_end_time - t2_start_time) * 1000 > 30000:
-            logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-                        eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
+            logger.debug("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                         eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
     end_time1 = time.time()
-    logger.info("html_no_docstruct_to_ebantdoc4: %s, %d attrvecs, took %.0f msec",
-                eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
+    logger.debug("html_no_docstruct_to_ebantdoc4: %s, %d attrvecs, took %.0f msec",
+                 eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
 
@@ -529,12 +529,12 @@ def html_to_ebantdoc4(txt_file_name: str,
         osutils.joblib_atomic_dump(eb_antdoc, eb_antdoc_fn)
         t2_end_time = time.time()
         if (t2_end_time - t2_start_time) * 1000 > 30000:
-            logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-                        eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
+            logger.debug("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                         eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
     end_time1 = time.time()
-    logger.info("html_to_ebantdoc4: %s, %d attrvecs, took %.0f msec",
-                eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
+    logger.debug("html_to_ebantdoc4: %s, %d attrvecs, took %.0f msec",
+                 eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
 def update_special_block_info(eb_antdoc, pdf_txt_doc):
@@ -613,8 +613,8 @@ def pdf_to_ebantdoc4(txt_file_name: str,
     #     print("gap {}: [{}]".format(i, doc_text[gap_start:gap_end]))
     skip_st_list = []
     if not paras2_with_attrs:
-        logger.info("Empty paras2_with_attrs.  Not urgent.  File: %s", txt_file_name)
-        logger.info("  Likely cause: either no text or looked too much like table-of-content.")
+        logger.debug("Empty paras2_with_attrs.  Not urgent.  File: %s", txt_file_name)
+        logger.debug("  Likely cause: either no text or looked too much like table-of-content.")
     for para_with_attrs in paras2_with_attrs:
         # para_with_attrs = List[Tuple[linepos.LnPos, linepos.LnPos]],
         #                   str,
@@ -677,12 +677,12 @@ def pdf_to_ebantdoc4(txt_file_name: str,
         osutils.joblib_atomic_dump(eb_antdoc, eb_antdoc_fn)
         t2_end_time = time.time()
         if (t2_end_time - t2_start_time) * 1000 > 30000:
-            logger.info("wrote cache file: %s, num_sent = %d, took %.0f msec",
-                        eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
+            logger.debug("wrote cache file: %s, num_sent = %d, took %.0f msec",
+                         eb_antdoc_fn, len(attrvec_list), (t2_end_time - t2_start_time) * 1000)
 
     end_time1 = time.time()
-    logger.info("pdf_to_ebantdoc4: %s, %d attrvecs, took %.0f msec",
-                eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
+    logger.debug("pdf_to_ebantdoc4: %s, %d attrvecs, took %.0f msec",
+                 eb_antdoc_fn, len(attrvec_list), (end_time1 - start_time1) * 1000)
     return eb_antdoc
 
 
@@ -701,8 +701,8 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
         if os.path.exists(json_fn):
             corenlp_json = json.loads(strutils.loads(json_fn))
             end_time = time.time()
-            logger.info("loading from cache: %s, took %.0f msec",
-                        json_fn, (end_time - start_time) * 1000)
+            logger.debug("loading from cache: %s, took %.0f msec",
+                         json_fn, (end_time - start_time) * 1000)
 
             if isinstance(corenlp_json, str):
                 # Error in corenlp json file.  Probably caused invalid
@@ -717,8 +717,8 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
                 # strutils.dumps(json.dumps(corenlp_json), json_fn)
                 osutils.atomic_dumps(json.dumps(corenlp_json), json_fn)
                 end_time = time.time()
-                logger.info("wrote cache file: %s, took %.0f msec",
-                            json_fn, (end_time - start_time) * 1000)
+                logger.debug("wrote cache file: %s, took %.0f msec",
+                             json_fn, (end_time - start_time) * 1000)
         else:
             logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
                         work_dir, txt_base_fname, doc_lang, len(doc_text))
@@ -726,8 +726,8 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
             # strutils.dumps(json.dumps(corenlp_json), json_fn)
             osutils.atomic_dumps(json.dumps(corenlp_json), json_fn)
             end_time = time.time()
-            logger.info("wrote cache file: %s, took %.0f msec",
-                        json_fn, (end_time - start_time) * 1000)
+            logger.debug("wrote cache file: %s, took %.0f msec",
+                         json_fn, (end_time - start_time) * 1000)
     else:
         logger.info('calling corenlp on [%s/%s], lang=%s, len=%d',
                     work_dir, txt_base_fname, doc_lang, len(doc_text))
@@ -988,7 +988,7 @@ def fnlist_to_fn_ebantdoc_provset_map(fn_list: List[str],
     fn_ebantdoc_map = {}
     for i, txt_file_name in enumerate(fn_list, 1):
         # if i % 10 == 0:
-        logger.info("loaded #%d ebantdoc: %s", i, txt_file_name)
+        logger.debug("loaded #%d ebantdoc: %s", i, txt_file_name)
 
         eb_antdoc = text_to_ebantdoc4(txt_file_name,
                                       work_dir,
