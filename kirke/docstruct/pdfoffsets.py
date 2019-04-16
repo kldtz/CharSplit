@@ -8,8 +8,17 @@ from kirke.docstruct import jenksutils, docstructutils
 from kirke.utils import engutils, strutils
 
 
+# In extractor, we store PDFBox's 'str' in this format.
+# We only has 1 y coordinate for the string, not top and bottom
 StrInfo = namedtuple('StrInfo', ['start', 'end',
                                  'xStart', 'xEnd', 'yStart'])
+
+# Page Size in Point at 72 dpi
+# letter size: width 8.5 in, height 11 in
+# range of x = 0 to 612
+# range of y = 0 to 792
+MAX_PAGE_X = 612
+MAX_PAGE_Y = 792
 
 MAX_Y_DIFF = 10000
 MIN_X_END = -1
@@ -649,3 +658,39 @@ def print_page_blockinfos_map(pgid_pblockinfos_map, lines_text: str, fname: str)
                     line_text = lines_text[lineinfo.start:lineinfo.end]
                     print(line_text, file=fout)
     print('wrote {}'.format(fname))
+
+
+def get_lx_min_max_x(strinfo_list: List[StrInfo]) -> Tuple[int, int]:
+    """Find the min and max of x coordinates of a list of PDFBox strs.
+
+    Args:
+        strinfo_list: a list of StrInfo, or strings of a line in PDFBox.
+    Returns:
+        the min and max of x coordinates in strinfo_list
+
+    """
+    min_x, max_x = MAX_PAGE_X, 0
+    for strinfo in strinfo_list:
+        if strinfo.xEnd > max_x:
+            max_x = strinfo.xEnd
+        if strinfo.xStart < min_x:
+            min_x = strinfo.xStart
+    return min_x, max_x
+
+
+def get_lx_min_max_y(strinfo_list: List[StrInfo]) -> Tuple[int, int]:
+    """Find the min and max of x coordinates of a list of PDFBox strs.
+
+    Args:
+        strinfo_list: a list of StrInfo, or strings of a line in PDFBox.
+    Returns:
+        the min and max of x coordinates in strinfo_list
+
+    """
+    min_y, max_y = MAX_PAGE_Y, 0
+    for strinfo in strinfo_list:
+        if strinfo.yStart > max_y:
+            max_y = strinfo.yStart
+        if strinfo.yStart < min_y:
+            min_y = strinfo.yStart
+    return min_y, max_y
