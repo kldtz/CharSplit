@@ -64,9 +64,8 @@ def main():
     print();
     print('tp= {}, fn= {}, fp= {}'.format(tp, fn, fp))
     prec, recall, f1 = evalutils.calc_precision_recall_f1(0, fp, fn, tp)
-    print('prec = {:.3f}, recall = {:.3f}, f1 = {:.3f}'.format(prec,
-                                                               recall,
-                                                               f1))
+    print('senteval resul:\t%s\tprec = %.3f, recall = %.3f, f1 = %.3f'
+          % (args.file2, prec, recall, f1))
 
 
 if __name__ == '__main__':
