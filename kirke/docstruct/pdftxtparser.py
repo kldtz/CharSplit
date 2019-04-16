@@ -475,6 +475,8 @@ def pbox_page_blocks_init(page_num: int,
                           lxid_strinfos_map: Dict[int, List[StrInfo]],
                           page_lineoffset_list: List[Dict],
                           page_blockoffset_list: List[Dict],
+                          # the variables below are
+                          # modified inline
                           pgid_pblockinfos_map: Dict[int, List[PBlockInfo]],
                           para_not_linebreak_offsets: List[int]) \
                           -> int:
@@ -483,29 +485,27 @@ def pbox_page_blocks_init(page_num: int,
         line_num = lineoffset['lineNum']
         blockid_linenums_map[lineoffset['blockNum']].append(line_num)
 
-    bxid_lineinfos = []  # type: List[LineInfo3]
     for blockoffset in page_blockoffset_list:
-        block_num += 1
-
         pbox_block_num = blockoffset['id']
         linenum_list = blockid_linenums_map[pbox_block_num]
         if not linenum_list:
             # print('skipping empty paragraph, with just spaces, block_num {}'.format(pbox_block_num))
             continue
-            # print('finding pbox_block_num {}'.format(pbox_block_num))
+
+        block_num += 1
         tmp_strinfos = []  # type: List[StrInfo]
         for linenum in linenum_list:
             tmp_strinfos.extend(lxid_strinfos_map[linenum])
 
-        # get the start and end
-        tmp_start, tmp_end = 100000, 0
-        for tmp_strinfo in tmp_strinfos:
-            if tmp_strinfo.start < tmp_start:
-                tmp_start = tmp_strinfo.start
-            if tmp_strinfo.end > tmp_end:
-                tmp_end = tmp_strinfo.end
+        # Do not get 'start' and 'end' from tmp_strinfos.
+        # The strinfos in a block might NOT be continuous
+        # and include too much text (whole page?).  Need to get
+        # 'start' and 'end' from blockoffset instead.
 
-        start, end = tmp_start, tmp_end
+        start = blockoffset['start']
+        end = blockoffset['end']
+
+        bxid_lineinfos = []  # type: List[LineInfo3]
         paraline_text = nl_text[start:end]
         # is_multi_lines = False
         # compute the para_not_linebreak_offsets
@@ -529,7 +529,6 @@ def pbox_page_blocks_init(page_num: int,
                                 bxid_lineinfos,
                                 is_multi_lines=False)
         pgid_pblockinfos_map[page_num].append(block_info)
-        bxid_lineinfos = []
 
     return block_num
 

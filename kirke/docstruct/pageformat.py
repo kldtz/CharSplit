@@ -71,7 +71,7 @@ def is_form_page_vt_row(vt_row_count_map: Dict[int, int],
                         num_lines: int) -> bool:
     """Rerturn true is the page is a form-page based on vt_row info.
 
-    A page is now divided into 4 rows.  If 3/4 of the rows has > 50% short lines.
+    A page is now divided into 4 rows.  If 3/4 of the rows has > 39% short lines.
 
     Question, how to distinguish this from a table page?  In that case, don't want
     apply page-level ydiff to such a page anyway, so this is not an issue.
@@ -135,8 +135,11 @@ def calc_one_page_format(page_num: int,
     length of those lines in those hz_col units.  This is to simplify the problem
     using more rough estimates.
 
-    Note:
-      page_ydiff_mode_map and failed_page_ydiff_mode_pages ARE modified in place.
+    vt_row is another mechanism to detect form-page.  A page is divided into 4
+    horizontal rows.  If 3+ of them have a lot of short lines (> 39% of the lines
+    in that row), then it is a form-page.  This will detect false-positive
+    form-pages.  But it doesn't have a significant negative impact.  In those
+    scenario, the PDFBox's paragraph will be used instead of page-level y-diff.
 
     """
 
