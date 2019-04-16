@@ -36,6 +36,9 @@ python -m cmd.sent_eval dir-sent-check/gold/8964.sent.tsv.gold dir-work/8964.sen
 echo "python -m cmd.sent_eval dir-sent-check/gold/8969.sent.tsv.gold dir-work/8969.sent.txt"
 python -m cmd.sent_eval dir-sent-check/gold/8969.sent.tsv.gold dir-work/8969.sent.txt
 
+echo "python -m cmd.sent_eval dir-sent-check/gold/8970.sent.tsv.gold dir-work/8970.sent.txt"
+python -m cmd.sent_eval dir-sent-check/gold/8970.sent.tsv.gold dir-work/8970.sent.txt
+
 echo "python -m cmd.sent_eval dir-sent-check/gold/8971.sent.tsv.gold dir-work/8971.sent.txt"
 python -m cmd.sent_eval dir-sent-check/gold/8971.sent.tsv.gold dir-work/8971.sent.txt
 
@@ -114,3 +117,8 @@ python -m cmd.sent_eval dir-sent-check/gold/9042.sent.tsv.gold dir-work/9042.sen
 echo "python -m cmd.sent_eval dir-sent-check/gold/9045.sent.tsv.gold dir-work/9045.sent.txt"
 python -m cmd.sent_eval dir-sent-check/gold/9045.sent.tsv.gold dir-work/9045.sent.txt
 
+echo "python -m cmd.sent_eval dir-sent-check/gold/9325.sent.tsv.gold dir-work/9325.sent.txt"
+python -m cmd.sent_eval dir-sent-check/gold/9325.sent.tsv.gold dir-work/9325.sent.txt
+
+echo "python -m cmd.sent_eval dir-sent-check/gold/9326.sent.tsv.gold dir-work/9326.sent.txt"
+python -m cmd.sent_eval dir-sent-check/gold/9326.sent.tsv.gold dir-work/9326.sent.txt

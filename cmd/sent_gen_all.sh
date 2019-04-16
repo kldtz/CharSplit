@@ -36,6 +36,9 @@ python -m cmd.run_gen_goldsent dir-sent-check/txt/8964.txt
 echo "python -m cmd.run_gen_goldsent dir-sent-check/txt/8969.txt"
 python -m cmd.run_gen_goldsent dir-sent-check/txt/8969.txt
 
+echo "python -m cmd.run_gen_goldsent dir-sent-check/txt/8970.txt"
+python -m cmd.run_gen_goldsent dir-sent-check/txt/8970.txt
+
 echo "python -m cmd.run_gen_goldsent dir-sent-check/txt/8971.txt"
 python -m cmd.run_gen_goldsent dir-sent-check/txt/8971.txt
 
@@ -113,4 +116,10 @@ python -m cmd.run_gen_goldsent dir-sent-check/txt/9042.txt
 
 echo "python -m cmd.run_gen_goldsent dir-sent-check/txt/9045.txt"
 python -m cmd.run_gen_goldsent dir-sent-check/txt/9045.txt
+
+echo "python -m cmd.run_gen_goldsent dir-sent-check/txt/9325.txt"
+python -m cmd.run_gen_goldsent dir-sent-check/txt/9325.txt
+
+echo "python -m cmd.run_gen_goldsent dir-sent-check/txt/9326.txt"
+python -m cmd.run_gen_goldsent dir-sent-check/txt/9326.txt
 
