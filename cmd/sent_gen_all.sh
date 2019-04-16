@@ -93,9 +93,6 @@ python -m cmd.run_gen_goldsent dir-sent-check/txt/8995.txt
 echo "python -m cmd.run_gen_goldsent dir-sent-check/txt/8996.txt"
 python -m cmd.run_gen_goldsent dir-sent-check/txt/8996.txt
 
-echo "python -m cmd.run_gen_goldsent dir-sent-check/txt/8998.txt"
-python -m cmd.run_gen_goldsent dir-sent-check/txt/8998.txt
-
 echo "python -m cmd.run_gen_goldsent dir-sent-check/txt/9001.txt"
 python -m cmd.run_gen_goldsent dir-sent-check/txt/9001.txt
 

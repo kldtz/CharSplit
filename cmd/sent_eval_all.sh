@@ -93,9 +93,6 @@ python -m cmd.sent_eval dir-sent-check/gold/8995.sent.tsv.gold dir-work/8995.sen
 echo "python -m cmd.sent_eval dir-sent-check/gold/8996.sent.tsv.gold dir-work/8996.sent.txt"
 python -m cmd.sent_eval dir-sent-check/gold/8996.sent.tsv.gold dir-work/8996.sent.txt
 
-echo "python -m cmd.sent_eval dir-sent-check/gold/8998.sent.tsv.gold dir-work/8998.sent.txt"
-python -m cmd.sent_eval dir-sent-check/gold/8998.sent.tsv.gold dir-work/8998.sent.txt
-
 echo "python -m cmd.sent_eval dir-sent-check/gold/9001.sent.tsv.gold dir-work/9001.sent.txt"
 python -m cmd.sent_eval dir-sent-check/gold/9001.sent.tsv.gold dir-work/9001.sent.txt
 
