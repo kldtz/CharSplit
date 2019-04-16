@@ -744,6 +744,10 @@ def clear_cache(txt_fname: str,
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
     if os.path.exists(eb_antdoc_fn):
         os.remove(eb_antdoc_fn)
+    corenlp_json_fname = get_corenlp_json_fname(txt_base_fname, work_dir)
+    if os.path.exists(corenlp_json_fname):
+        os.remove(corenlp_json_fname)
+
 
 def text_to_ebantdoc4(txt_fname: str,
                       work_dir: str = None,
