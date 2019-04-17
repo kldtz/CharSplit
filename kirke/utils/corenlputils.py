@@ -6,7 +6,7 @@ from typing import Any, List, Optional
 from stanfordcorenlp import StanfordCoreNLP
 
 from kirke.utils.corenlpsent import EbSentence
-from kirke.utils.strutils import corenlp_normalize_text
+from kirke.utils.strutils import corenlp_normalize_text, normalize_acronym_text
 from kirke.utils.textoffset import TextCpointCunitMapper
 
 # pylint: disable=invalid-name
@@ -49,14 +49,15 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
         return {'sentences': []}
 
     no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
+    no_acronym_text = normalize_acronym_text(no_ctrl_chars_text)
 
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
     doc_lang = doc_lang[:2]
     supported_langs = ["fr", "es", "zh"] #ar and de also supported, can add later
     if doc_lang in supported_langs:
-        logger.debug("corenlp running on %s, len=%d", doc_lang, len(no_ctrl_chars_text))
-        output = NLP_SERVER.annotate(no_ctrl_chars_text,
+        logger.debug("corenlp running on %s, len=%d", doc_lang, len(no_acronym_text))
+        output = NLP_SERVER.annotate(no_acronym_text,
                                      properties={'annotators': 'tokenize,ssplit,ner',
                                                  'outputFormat': 'json',
                                                  'enforceRequirements': 'false',
@@ -64,8 +65,8 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
                                                  'useKnownLCWords': 'false',
                                                  'pipelineLanguage': doc_lang})
     elif doc_lang == "pt":
-        logger.debug("corenlp running on %s, len=%d", doc_lang, len(no_ctrl_chars_text))
-        output = NLP_SERVER.annotate(no_ctrl_chars_text,
+        logger.debug("corenlp running on %s, len=%d", doc_lang, len(no_acronym_text))
+        output = NLP_SERVER.annotate(no_acronym_text,
                                      properties={'annotators': 'tokenize,ssplit,ner',
                                                  'outputFormat': 'json',
                                                  'enforceRequirements': 'false',
@@ -73,8 +74,8 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
                                                  'useKnownLCWords': 'false',
                                                  'ner.model':'portuguese-ner.ser.gz'})
     else:
-        logger.debug("corenlp running on en, len=%d", len(no_ctrl_chars_text))
-        output = NLP_SERVER.annotate(no_ctrl_chars_text,
+        logger.debug("corenlp running on en, len=%d", len(no_acronym_text))
+        output = NLP_SERVER.annotate(no_acronym_text,
                                      properties={'annotators': 'tokenize,ssplit,pos,ner',
                                                  'outputFormat': 'json',
                                                  'ssplit.newlineIsSentenceBreak': 'two',

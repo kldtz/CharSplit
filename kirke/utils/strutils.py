@@ -616,6 +616,27 @@ def corenlp_normalize_text(doc_text: str) -> str:
     line = urllib.parse.quote(line)
     return line
 
+def init_acronym_regex():
+    acronym_list = []  # type: List[str]
+    with open('dict/acronyms.txt', 'rt') as fin:
+        for line in fin:
+            # the last char is always a period
+            line = line.strip()[:-1]
+            acronym_list.append(line)
+    aregex_st = r'\b({})\.'.format('|'.join(acronym_list))
+    print('aregex_st =')
+    print(aregex_st)
+    return re.compile(aregex_st, re.I)
+
+ACRONYMS_REGEX = init_acronym_regex()
+
+def sub_period_space(match: Match) -> str:
+    line = match.group()
+    return '{} '.format(line[:-1])
+
+def normalize_acronym_text(text: str) -> str:
+    return re.sub(ACRONYMS_REGEX, sub_period_space, text)
+
 def is_space_or_nl(xch: str) -> bool:
     return (xch == ' ' or
             xch == '\n' or

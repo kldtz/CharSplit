@@ -152,6 +152,18 @@ class TestStrUtils(unittest.TestCase):
         self.assertEqual(word, 'aba')
 
 
+    def test_norm_acronym_text(self):
+        line = 'I got 5 per cent. margin from dR. Chou'
+        out = strutils.normalize_acronym_text(line)
+        self.assertEqual(out, 'I got 5 per cent  margin from dR  Chou')
+
+        line = 'I got 5 per cent. margin from Ave.'
+        out = strutils.normalize_acronym_text(line)
+        self.assertEqual(out, 'I got 5 per cent  margin from Ave ')
+
+        line = 'I got 5 per notcent. margin from Ave. 5'
+        out = strutils.normalize_acronym_text(line)
+        self.assertEqual(out, 'I got 5 per notcent. margin from Ave  5')
 
 
 if __name__ == "__main__":
