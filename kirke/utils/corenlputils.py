@@ -8,6 +8,8 @@ from stanfordcorenlp import StanfordCoreNLP
 from kirke.utils.corenlpsent import EbSentence
 from kirke.utils.strutils import corenlp_normalize_text
 from kirke.utils.textoffset import TextCpointCunitMapper
+# from kirke.nlputil import jpnagisa, zhutil
+from kirke.nlputil import jpkytea, zhutil
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -19,6 +21,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 # loading it here causes nosetests to be stuck
 # NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
 NLP_SERVER = None
+jp_word_segmenter = None
 
 def init_corenlp_server():
     # pylint: disable=global-statement
@@ -41,19 +44,23 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
     # to get rid of mypy error: NLP_SERVER has no attribute 'annotate'
     # init_corenlp_server()
     # pylint: disable=global-statement
-    global NLP_SERVER
+    global NLP_SERVER, jp_word_segmenter
     if NLP_SERVER is None:
         NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
 
     if not doc_lang: # no language detected, text is probably too short or empty
         return {'sentences': []}
 
+    if doc_lang == 'ja' and jp_word_segmenter is None:
+        # jp_word_segmenter = jpnagisa.NagisaWordSegmenter()
+        jp_word_segmenter = jpkytea.KyteaWordSegmenter()
+
     no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
 
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
     doc_lang = doc_lang[:2]
-    supported_langs = ["fr", "es", "zh"] #ar and de also supported, can add later
+    supported_langs = ['fr', 'es', 'zh'] #ar and de also supported, can add later
     if doc_lang in supported_langs:
         logger.debug("corenlp running on %s, len=%d", doc_lang, len(no_ctrl_chars_text))
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
@@ -72,6 +79,10 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
                                                  'ssplit.newlineIsSentenceBreak': 'two',
                                                  'useKnownLCWords': 'false',
                                                  'ner.model':'portuguese-ner.ser.gz'})
+    elif doc_lang == 'ja':
+        logger.debug("jp segmenter running on %s, len=%d",
+                     doc_lang, len(no_ctrl_chars_text))
+        output = jp_word_segmenter.to_corenlp_json(text_as_string)
     else:
         logger.debug("corenlp running on en, len=%d", len(no_ctrl_chars_text))
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
@@ -80,6 +91,13 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
                                                  'ssplit.newlineIsSentenceBreak': 'two',
                                                  'useKnownLCWords': 'false',
                                                  'pipelineLanguage': 'en'})
+
+    # CoreNLP for Chinese does not respect 'full_stop' punctuations.
+    # So we try to fix this here.
+    # print("doc_lang = {}".format(doc_lang))
+    if doc_lang == 'zh':
+        output = zhutil.fix_zh_corenlp_sent_seg(output)
+        # zhutil.print_sent_toks_verbatim(output)
     return json.loads(output)
 
 

@@ -1,3 +1,4 @@
+import logging
 import re
 # pylint: disable=unused-import
 from typing import Dict, List, Match, Optional, Tuple
@@ -15,6 +16,10 @@ from kirke.docstruct import secheadutils
 # and
 # other normal section headings, such as "Article" and more obvious centered
 # title.  Even a page title.
+
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def is_line_title(line: str) -> bool:
@@ -225,7 +230,6 @@ def is_line_footer(line: str,
                    # TODO, remove, not used.  Mentioned in pdftxtparser.py
                    unused_align: str,
                    yStart: float):
-
     if yStart < 700.0:
         return False, -1.0
     if is_line_not_footer_by_content(line):
@@ -236,34 +240,24 @@ def is_line_footer(line: str,
     score = 0.0
     if yStart >= 725.0:
         score += 0.4
-    # print("score = {}, after yStart".format(score))
     if num_line_in_page - page_line_num <= 2:
         score += 0.5
-    # print("score = {}, after num_line_in_page".format(score))
     if not is_english:
         score += 0.2
-    # print("score = {}, after is_english".format(score))
     if len(line) < 30:
         score += 0.2
-    # print("score = {}, after len(line)".format(score))
     if lbk >= 2.0:
         score += 0.2
-    # print("score = {}, after lbk".format(score))
     if page_num_index != -1 and page_line_num >= page_num_index:
         score += 0.8
-    # print("score = {}, after page_num_index = {}, page_line_num = {}".format(score,
-    #                                                                          page_num_index,
-    #                                                                          page_line_num))
 
     if 'confidential information' in line.lower() and is_centered:
         score += 0.8
-    # print("score = {}, confid".format(score))
 
     # no sechead in footer, if it is obvious sechead
     if secheadutils.is_line_sechead_strict_prefix(line):
         score -= 20
 
-    # print('is_footer.score = {}'.format(score))
     return score >= 1, score
 
 
@@ -284,10 +278,12 @@ def is_line_header(line: str,
                    # num_line_in_block, int,
                    num_line_in_page: int,
                    header_set=None):
-
     # for domain specific headers
     if header_set and line.lower().strip() in header_set:
         return True
+
+    if len(line) > 100:
+        return False
 
     # this is a normal sentences
     if is_english:
@@ -334,7 +330,6 @@ def is_line_header(line: str,
     elif line_num < 4:
         score += 0.2
 
-    # print("score = {}, is_line_header({})".format(score, line))
     return score >= 1.0
 
 
