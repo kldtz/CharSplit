@@ -292,10 +292,7 @@ class EbTransformerV1_2(EbTransformerBase):
         data = []
         perc_positive_ngram_list = []
         for sent_st in sent_st_list:
-            print('sent_st: [{}]'.format(sent_st))
             sent_wordset = tokenize(sent_st)
-            for xngram in sent_wordset:
-                print('  ngram [{}]'.format(xngram))
 
             count_pos_ngram = 0
             for ngram in sent_wordset:
