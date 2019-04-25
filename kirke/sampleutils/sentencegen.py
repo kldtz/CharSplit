@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Optional, Tuple
 
-from kirke.utils import antutils, ebantdoc4
+from kirke.utils import ebsentutils, ebantdoc4
 from kirke.docstruct import fromtomapper
 
 # pylint: disable=invalid-name
@@ -21,7 +21,7 @@ class SentenceGenerator:
                                      ebantdoc: ebantdoc4.EbAnnotatedDoc4,
                                      group_id: int = 0,
                                      # pylint: disable=line-too-long
-                                     label_ant_list_param: Optional[List[antutils.ProvisionAnnotation]] = None,
+                                     label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
                                      label_list_param: Optional[List[bool]] = None,
                                      label: Optional[str] = None):
 
@@ -66,7 +66,7 @@ class SentenceGenerator:
 
             #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
-            label_ant_list = []  # type: List[antutils.ProvisionAnnotation]
+            label_ant_list = []  # type: List[ebsentutils.ProvisionAnnotation]
             for ant in ant_list:
                 if ant.label == label:
                     label_ant_list.append(ant)
@@ -87,9 +87,9 @@ class SentenceGenerator:
             fromto_mapper.adjust_fromto_offsets(candidates)
 
             for candidate in candidates:
-                is_label = antutils.check_start_end_overlap(candidate['start'],
-                                                            candidate['end'],
-                                                            label_ant_list)
+                is_label = ebsentutils.check_start_end_overlap(candidate['start'],
+                                                               candidate['end'],
+                                                               label_ant_list)
                 if is_label:
                     candidate['label_human'] = label
                     label_list.append(True)

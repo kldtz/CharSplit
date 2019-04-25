@@ -2,8 +2,8 @@ import logging
 import re
 from typing import Dict, List, Match, Pattern, Tuple
 
-from kirke.utils import antutils, ebantdoc4, strutils
-from kirke.utils.antutils import ProvisionAnnotation
+from kirke.utils import ebsentutils, ebantdoc4, strutils
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -126,9 +126,9 @@ class IdNumContextGenerator:
         for idnum_dict in idnum_list:
             match_start, match_end = idnum_dict['start'], idnum_dict['end']
             match_str = idnum_dict['chars']
-            is_label = antutils.check_start_end_overlap(match_start,
-                                                        match_end,
-                                                        label_ant_list)
+            is_label = ebsentutils.check_start_end_overlap(match_start,
+                                                           match_end,
+                                                           label_ant_list)
             prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
                                                                       match_start,
                                                                       self.num_prev_words)
@@ -199,7 +199,7 @@ class IdNumContextGenerator:
                 nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logger.debug('RegexContextGenerator.documents_to_candidates(), group_id = %d',
+                logger.debug('IdNumContextGenerator.documents_to_candidates(), group_id = %d',
                              group_id)
 
             candidates, cand_label_list, cand_group_id_list = \

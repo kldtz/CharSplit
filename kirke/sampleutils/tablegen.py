@@ -4,7 +4,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from kirke.docstruct.secheadutils import SecHeadTuple
-from kirke.utils import antutils, ebantdoc4, engutils, strutils
+from kirke.utils import ebsentutils, ebantdoc4, engutils, strutils
 from kirke.abbyyxml import tableutils
 from kirke.abbyyxml.pdfoffsets import AbbyyTableBlock
 
@@ -335,9 +335,9 @@ class TableGenerator:
                                    'end': end} for start, end in span_list]
                 # looks ahead to see if it should merge the next paragraph
 
-                is_label = antutils.check_start_end_overlap(table_start,
-                                                            table_end,
-                                                            label_ant_list)
+                is_label = ebsentutils.check_start_end_overlap(table_start,
+                                                               table_end,
+                                                               label_ant_list)
 
                 out_table_json = tableutils.table_block_to_json(abbyy_table)
                 if out_table_json.get('page'):

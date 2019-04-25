@@ -1,11 +1,14 @@
 from collections import namedtuple
 from enum import Enum
+import json
+import os
+from pathlib import Path
+import re
 # pylint: disable=unused-import
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from kirke.utils import entityutils, mathutils, stopwordutils, textoffset
 from kirke.docstruct import docutils
-from kirke.utils.antutils import ProvisionAnnotation
 
 class EbEntityType(Enum):
     PERSON = 1
@@ -283,6 +286,80 @@ def _extract_entities_v2(tokens,
                 if mathutils.start_end_overlap((pat[1], pat[2]), (token.start, token.end)):
                     token.ner = EbEntityType.DEFINE_TERM.name
 
+    #print()
+    #for i, token in enumerate(tokens, 1):
+    #    print('x234 {}\t{}'.format(i, token))
+
+
+def get_sechead_attr(attrs):
+    for attr in attrs:
+        # print("is_attr_section_head: {} || {}".format(attr, attr[2]))
+        if len(attr) > 3 and attr[0] == 'sechead':
+            return attr
+    return ''
+
+
+# this is in-place
+# pylint: disable=fixme
+# TODO, this type declaration will cause recursive import.
+# Should move to a better location.
+# def update_ebsents_with_sechead(ebsent_list: List[corenlpsent.EbSentence],
+#                                 paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
+#                                                                        linepos.LnPos]],
+#                                                             List[Any]]]) \
+#                                                             -> None:
+# pylint: disable=too-many-locals
+def update_ebsents_with_sechead(ebsent_list,
+                                paras_with_attrs) -> None:
+    if not ebsent_list:  # if there is no data
+        return
+
+    para_i, len_paras = 0, len(paras_with_attrs)
+    ebsent_i, len_ebsents = 0, len(ebsent_list)
+    ebsent = ebsent_list[ebsent_i]
+    ebsent_start, ebsent_end = ebsent.start, ebsent.end
+
+    while para_i < len_paras and ebsent_i < len_ebsents:
+        span_se_list, attrs = paras_with_attrs[para_i]
+        (unused_para_from_start, unused_para_from_end), (para_to_start, para_to_end) = \
+            docutils.span_frto_list_to_fromto(span_se_list)
+
+        if para_to_start == para_to_end:  # empty line, move on
+            para_i += 1
+            continue
+        sechead_attr = get_sechead_attr(attrs)
+        if sechead_attr:
+            # print("attrs: {}".format(attrs[0]))
+            unused_sechead_type, unused_sh_prefix_num, sh_header, unused_sh_idx = \
+                sechead_attr
+        else:
+            sh_header = ''
+        # print("para #{}: {}".format(para_i, paras_with_attrs[para_i]))
+        while ebsent_start <= para_to_end:
+            if mathutils.start_end_overlap((ebsent_start, ebsent_end),
+                                           (para_to_start, para_to_end)):
+                # print("\tebsent set sechead ({}, {}): {}". \
+                #       format(ebsent_start, ebsent_end, sh_header))
+                if sh_header:
+                    ebsent.set_sechead(' '. \
+                        join(stopwordutils. \
+                        tokens_remove_stopwords([word.lower()
+                                                 for word in re.findall(r'\w+',
+                                                                        sh_header)],
+                                                is_lower=True)))
+                # else, don't even set it
+            ebsent_i += 1
+            if ebsent_i < len_ebsents:
+                ebsent = ebsent_list[ebsent_i]
+                ebsent_start, ebsent_end = ebsent.start, ebsent.end
+            else:
+                ebsent_start = para_to_end + 1  # end the loop
+        para_i += 1
+    #ebsent_i = 0
+    #while ebsent_i < len_ebsents:
+    #    print("sent #{}: {}".format(ebsent_i, ebsent_list[ebsent_i]))
+    #    ebsent_i += 1
+
 def populate_ebsent_entities(ebsent, raw_sent_text, lang: str = 'en'):
     tokens = ebsent.get_tokens()
     _extract_entities_v2(tokens, raw_sent_text, ebsent.start, lang=lang)
@@ -296,3 +373,151 @@ def fix_ner_tags(ebsent):
     for token in tokens:
         if token.word == 'Lessee' and token.ner in _LOC_OR_ORG:
             token.ner = 'O'
+
+def get_labels_if_start_end_overlap(sent_start, sent_end, ant_start_end_list):
+    result_label_list = []
+    for ant in ant_start_end_list:
+        if mathutils.start_end_overlap((sent_start, sent_end), (ant.start, ant.end)):
+            result_label_list.append(ant.label)
+    return result_label_list
+
+def check_start_end_overlap(sent_start: int, sent_end: int, ant_start_end_list) -> bool:
+    for ant in ant_start_end_list:
+        if mathutils.start_end_overlap((sent_start, sent_end), (ant.start, ant.end)):
+            return True
+    return False
+
+
+
+# cannot use this because in line 600 prov_annotation.start = xxx in ebtext2antdoc.py
+# maybe fix in future.
+# ProvisionAnnotation = namedtuple('ProvisionAnnotation', ['start', 'end', 'label'])
+# pylint: disable=R0903
+class ProvisionAnnotation:
+    __slots__ = ['start', 'end', 'label']
+
+    def __init__(self, start, end, label):
+        self.start = start  # type: int
+        self.end = end  # type: int
+        self.label = label  # type: str
+
+    def __repr__(self) -> str:
+        return "ProvisionAnnotation({}, {}, '{}')".format(self.start, self.end, self.label)
+
+    def __lt__(self, other) -> Any:
+        return (self.start, self.end) < (other.start, other.end)
+
+    def __eq__(self, other) -> bool:
+        return self.to_tuple() == other.to_tuple()
+
+    def to_tuple(self) -> Tuple[int, int, str]:
+        return (self.start, self.end, self.label)
+
+#    def to_tuple(self):
+#        return (self.lable, self.start, self.end)
+
+
+# pylint: disable=R0902
+class EbProvisionAnnotation:
+    __slots__ = ['confidence', 'correctness', 'start', 'end',
+                 'label', 'text', 'pid', 'custom_text']
+
+    def __init__(self, ajson) -> None:
+        self.confidence = ajson['confidence']
+        self.correctness = ajson.get('correctness')
+        self.start = ajson.get('start')
+        self.end = ajson.get('end')
+        self.label = ajson.get('type')
+        self.text = ajson.get('text')
+        self.pid = ajson.get('id')    # string, not 'id' but 'pid'
+        self.custom_text = ajson.get('customText')  # boolean
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {'confidence': self.confidence,
+                'correctness': self.correctness,
+                'customText': self.custom_text,
+                'start': self.start,
+                'end': self.end,
+                'id': self.pid,
+                'text': self.text,
+                'type': self.label}
+
+    def __str__(self) -> str:
+        return str(self.to_dict())
+
+    def to_tuple(self) -> ProvisionAnnotation:
+        return ProvisionAnnotation(self.start, self.end, self.label)
+
+
+# the result is a list of
+# (start, end, ant_name)
+def load_prov_annotation_list(txt_file_name: str,
+                              cpoint_cunit_mapper: textoffset.TextCpointCunitMapper,
+                              provision: Optional[str] = None) \
+                              -> Tuple[List[ProvisionAnnotation], bool]:
+    prov_ant_fn = txt_file_name.replace('.txt', '.ant')
+    prov_ant_file = Path(prov_ant_fn)
+    prov_ebdata_fn = txt_file_name.replace('.txt', '.ebdata')
+    prov_ebdata_file = Path(prov_ebdata_fn)
+
+    prov_annotation_list = []  # type:  List[EbProvisionAnnotation]
+    is_test = False
+    if os.path.exists(prov_ant_fn):
+        # in is_bespoke_mode, only the annotation for a particular provision
+        # is returned.
+        prov_annotation_list = (load_prov_ant(prov_ant_fn, provision)
+                                if prov_ant_file.is_file() else [])
+
+    elif os.path.exists(prov_ebdata_fn):
+        prov_annotation_list, is_test = (load_prov_ebdata(prov_ebdata_fn, provision)
+                                         if prov_ebdata_file.is_file() else ([], False))
+
+    # in-place update offsets
+    result = []  # type: List[ProvisionAnnotation]
+    for eb_prov_ant in prov_annotation_list:
+        if eb_prov_ant.start < eb_prov_ant.end:
+            eb_prov_ant.start, eb_prov_ant.end = \
+                cpoint_cunit_mapper.to_codepoint_offsets(eb_prov_ant.start,
+                                                         eb_prov_ant.end)
+            result.append(eb_prov_ant.to_tuple())
+        # manual annotation: eb_prov_ant.start == 0 and eb_prov_ant.end == 0
+        # else:
+        #     pass
+
+    return result, is_test
+
+
+def load_prov_ant(filename, provision_name=None) -> List[EbProvisionAnnotation]:
+
+    # logging.info('load provision %s annotation: [%s]', provision_name, filename)
+    with open(filename, 'rt') as handle:
+        parsed = json.load(handle)
+
+    result = [EbProvisionAnnotation(ajson) for ajson in parsed]
+
+    # if provision_name is specified, only return that specific provision
+    if provision_name:
+        return [provision_se for provision_se in result if provision_se.label == provision_name]
+
+    return result
+
+
+def load_prov_ebdata(filename, provision_name=None):
+    result = []
+    is_test_set = False
+    with open(filename, 'rt') as handle:
+        parsed = json.load(handle)
+
+    for _, ajson_list in parsed['ants'].items():
+        # print("ajson_map: {}".format(ajson_map))
+        for ajson in ajson_list:
+            result.append(EbProvisionAnnotation(ajson))
+
+    is_test_set = parsed.get('isTestSet', False)
+
+    # if provision_name is specified, only return that specific provision
+    if provision_name:
+        return [provision_se for provision_se in result
+                if provision_se.label == provision_name], is_test_set
+
+    return result, is_test_set

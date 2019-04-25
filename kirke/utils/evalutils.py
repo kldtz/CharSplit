@@ -5,7 +5,7 @@ import re
 from typing import DefaultDict, Dict, List, Optional, Set, Tuple
 
 from kirke.utils import mathutils, wordutils
-from kirke.utils.antutils import ProvisionAnnotation
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)

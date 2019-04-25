@@ -2,8 +2,8 @@ import logging
 import re
 from typing import Dict, List, Optional, Tuple
 
-from kirke.utils import antutils, ebantdoc4
-from kirke.utils.antutils import ProvisionAnnotation
+from kirke.utils import ebsentutils, ebantdoc4
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 
 # pylint: disable=invalid-name
@@ -78,9 +78,9 @@ class ParagraphGenerator:
                 else:
                     skipping = False
             if len(para_text.split()) > 5 and raw_end > raw_start:
-                is_label = antutils.check_start_end_overlap(raw_start,
-                                                            raw_end,
-                                                            label_ant_list)
+                is_label = ebsentutils.check_start_end_overlap(raw_start,
+                                                               raw_end,
+                                                               label_ant_list)
                 #update span based on window size
                 a_candidate = {'candidate_type': self.candidate_type,
                                'bow_start': match_start,

@@ -1,7 +1,7 @@
 
 from typing import Dict, List, Optional, Tuple
 
-from kirke.utils import antutils, ebantdoc4, strutils
+from kirke.utils import ebsentutils, ebantdoc4, strutils
 
 
 
@@ -62,9 +62,9 @@ class LineSpanGenerator:
                 post_n_words, _ = strutils.get_lc_post_n_words(nl_text,
                                                                end,
                                                                self.num_post_words)
-                is_label = antutils.check_start_end_overlap(start,
-                                                            end,
-                                                            label_ant_list)
+                is_label = ebsentutils.check_start_end_overlap(start,
+                                                               end,
+                                                               label_ant_list)
                 a_candidate = {'candidate_type': 'line',
                                'start': start,
                                'end': end,

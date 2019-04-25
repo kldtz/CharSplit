@@ -358,6 +358,8 @@ def custom_train_import(cust_id: str):
 def custom_train(cust_id: str):
     # dict of lang, with list of file in that lang
     full_txt_fnames = defaultdict(list)  # type: DefaultDict[str, List[str]]
+    tmp_dir = None
+
     # pylint: disable=too-many-nested-blocks
     try:
         request_work_dir = request.form.get('workdir')
@@ -386,8 +388,7 @@ def custom_train(cust_id: str):
             provision = 'cust_{}'.format(cust_id)
         else:
             provision = cust_id
-        tmp_dir = '{}/{}'.format(work_dir, provision)
-        osutils.mkpath(tmp_dir)
+        tmp_dir = tempfile.mkdtemp("bespokeTrainRequest")
         fn_list = request.files.getlist('file')
 
         # save all the uploaded files in a location
@@ -432,119 +433,92 @@ def custom_train(cust_id: str):
 
         #logger.info("full_txt_fnames (size={}) = {}".format(len(full_txt_fnames), full_txt_fnames))
         all_stats = {}
-        has_one_lang_success = False
-        max_ant_count = 0
-        max_ant_count_lang = 'en'
         for doc_lang, names_per_lang in full_txt_fnames.items():
             if not doc_lang:  # if a document has no text, its langid can be None
                 continue
             ant_count = sum([fname_provtypes_map[x].count(provision) for x in names_per_lang])
-            logger.info('Number of annotations for %s: %d', doc_lang, ant_count)
+            # pylint: disable=line-too-long
+            pos_docs = sum([fname_provtypes_map[x].count(provision) > 0 for x in names_per_lang])
+            # pylint: disable=line-too-long
+            logger.info('For %s: %d annotations in %d positive documents, %d documents total', doc_lang, ant_count, pos_docs, len(names_per_lang))
+            if pos_docs >= 6:
+                txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
+                fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
+                strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
 
-            # Because we don't want to fail on all language whenever one of them has
-            # an insufficient example issue despite ant_count >= 6, we catch all such
-            # exceptions.  As long as one of the langauges succeeds, we return valid results.
-            try:
-                if ant_count >= 6:
-                    txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
-                    fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
-                    strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
-                    base_model_fname = \
-                        '{}.{}_{}_annotator.v{}.pkl'.format(provision,
-                                                            next_model_num,
-                                                            "-".join(candidate_types),
-                                                            CANDG_CLF_VERSION)
-                    if doc_lang != "en":
-                        base_model_fname = \
-                            '{}.{}_{}_{}_annotator.v{}.pkl'.format(provision,
-                                                                   next_model_num,
-                                                                   doc_lang,
-                                                                   "-".join(candidate_types),
-                                                                   CANDG_CLF_VERSION)
+                base_model_fname, base_status_fname, base_result_fname = \
+                    ebrunner.assemble_model_base_fnames(provision,
+                                                        candidate_types=candidate_types,
+                                                        next_model_num=next_model_num,
+                                                        doc_lang=doc_lang,
+                                                        scut_version=SCUT_CLF_VERSION,
+                                                        candg_version=CANDG_CLF_VERSION)
 
-                    # Intentionally not passing is_doc_structure=True
-                    # For spanannotator, currently we use is_doc_structure=False to not missing
-                    # any lines in the original text.
-                    # For sentence-candidate, is_doc_structure=True
-                    start_time = time.time()
-                    # pylint: disable=unused-variable
-                    eval_status, log_json = \
-                        eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
-                                                                      provision,
-                                                                      CUSTOM_MODEL_DIR,
-                                                                      base_model_fname,
-                                                                      candidate_types,
-                                                                      nbest,
-                                                                      model_num=next_model_num,
-                                                                      work_dir=work_dir,
-                                                                      doc_lang=doc_lang)
-                    end_time = time.time()
-                    logging.info("custom_train(%s, %r), took %.2f sec",
-                                 provision, candidate_types, (end_time - start_time))
+                # Intentionally not passing is_doc_structure=True
+                # For spanannotator, currently we use is_doc_structure=False to not missing
+                # any lines in the original text.
+                # For sentence-candidate, is_doc_structure=True
+                start_time = time.time()
+                # pylint: disable=unused-variable
+                eval_status, log_json = \
+                    eb_runner.custom_train_provision_and_evaluate(txt_fn_list_fn,
+                                                                  provision,
+                                                                  CUSTOM_MODEL_DIR,
+                                                                  base_model_fname,
+                                                                  base_status_fname,
+                                                                  base_result_fname,
+                                                                  candidate_types,
+                                                                  nbest,
+                                                                  work_dir=work_dir,
+                                                                  doc_lang=doc_lang)
+                end_time = time.time()
+                logging.info("custom_train(%s, %r), took %.2f sec",
+                             provision, candidate_types, (end_time - start_time))
 
-                    # copy the result into the expected format for client
-                    ant_status = eval_status['ant_status']
-                    cf = ant_status['confusion_matrix']
-                    status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
-                              'fscore': ant_status['f1'],
-                              'precision': ant_status['prec'],
-                              'recall': ant_status['recall'],
-                              'provision': provision,
-                              'model_number': next_model_num}
+                # copy the result into the expected format for client
+                ant_status = eval_status['ant_status']
+                cf = ant_status['confusion_matrix']
+                status = {'confusion_matrix': [[cf['tn'], cf['fp']], [cf['fn'], cf['tp']]],
+                          'fscore': ant_status['f1'],
+                          'precision': ant_status['prec'],
+                          'recall': ant_status['recall'],
+                          'provision': provision,
+                          'model_number': next_model_num}
+                if ant_status.get('f1') == -1:
+                    status['model_number'] = -1
+                if ant_status.get('failure_cause') is not None:
+                    status['failure_cause'] = ant_status.get('failure_cause')
+                if ant_status.get('failure_value') is not None:
+                    status['failure_value'] = ant_status.get('failure_value')
+                if ant_status.get('user_message') is not None:
+                    status['user_message'] = ant_status.get('user_message')
+                logger.info("status: %r", status)
 
-                    logger.info("status: %r", status)
+                # return some json accuracy info
+                # TODO add eval_log back in when PR 408 is merged and the front end is ready
+                # to accept it
+                # status_and_antana = {'status': stats,
+                #                      'eval_log': log_json}
+                # all_stats[doc_lang] = status_and_antana
 
-                    # return some json accuracy info
-                    # TODO add eval_log back in when PR 408 is merged and the front end is ready
-                    # to accept it
-                    # status_and_antana = {'status': stats,
-                    #                      'eval_log': log_json}
-                    # all_stats[doc_lang] = status_and_antana
-
-                    all_stats[doc_lang] = status
-                    has_one_lang_success = True
-                else:
-                    # TODO, remove disabling log output until frontend is ready
-                    # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
-                    #                                 'fscore': -1.0,
-                    #                                 'precision': -1.0,
-                    #                                 'recall': -1.0}
-                    #                       'eval_log': {}}
-                    all_stats[doc_lang] = {'confusion_matrix': [[0, 0], [ant_count, 0]],
-                                           'fscore': -1.0,
-                                           'precision': -1.0,
-                                           'provision': provision,
-                                           'model_number': -1,
-                                           'recall': -1.0}
-                    if ant_count > max_ant_count:
-                        max_ant_count = ant_count
-                        max_ant_count_lang = doc_lang
-
-            except Exception as e:  # pylint: disable=broad-except
+                all_stats[doc_lang] = status
+            else:
                 # TODO, remove disabling log output until frontend is ready
                 # all_stats[doc_lang] = {'stats': {'confusion_matrix': [[]],
                 #                                 'fscore': -1.0,
                 #                                 'precision': -1.0,
                 #                                 'recall': -1.0}
                 #                       'eval_log': {}}
-                print('got exception 534: {}'.format(e))
                 all_stats[doc_lang] = {'confusion_matrix': [[0, 0], [ant_count, 0]],
                                        'fscore': -1.0,
                                        'precision': -1.0,
                                        'provision': provision,
                                        'model_number': -1,
-                                       'recall': -1.0}
-                if ant_count > max_ant_count:
-                    max_ant_count = ant_count
-                    max_ant_count_lang = doc_lang
-
-        if not has_one_lang_success:
-            # pylint: disable=line-too-long
-            exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found for '{}'".format(max_ant_count,
-                                                                                                                          max_ant_count_lang))
-            exc.user_message = "INSUFFICIENT_EXAMPLES"  # type: ignore
-            raise exc
-
+                                       'recall': -1.0,
+                                       # pylint: disable=line-too-long
+                                       'user_message': 'Training failed.  Number of docs is {}.  Only {} (< 6) are positive training documents.'.format(len(names_per_lang), pos_docs),
+                                       'failure_cause': 'num_positive_docs',
+                                       'failure_value': pos_docs}
         return jsonify(all_stats)
 
     except Exception as e:  # pylint: disable=broad-except
@@ -566,6 +540,9 @@ def custom_train(cust_id: str):
             ('Content-type', 'application/json')
         ]
         return data_st, status_code, response_headers
+    finally:
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # https://github.com/Mimino666/langdetect

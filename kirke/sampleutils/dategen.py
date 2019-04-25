@@ -1,9 +1,8 @@
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Optional, Dict, List, Tuple
 
 from kirke.ebrules import dates
-from kirke.utils import antutils, ebantdoc4, strutils
-from kirke.utils.antutils import ProvisionAnnotation
+from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -23,11 +22,12 @@ class DateSpanGenerator:
                                  nl_text: str,
                                  group_id: int = 0,
                                  # pylint: disable=line-too-long
-                                 label_ant_list_param: Optional[List[ProvisionAnnotation]] = None,
+                                 label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
                                  label_list_param: Optional[List[bool]] = None,
                                  label: Optional[str] = None):
+
         # pylint: disable=line-too-long
-        label_ant_list, label_list = [], []  # type: List[ProvisionAnnotation], List[bool]
+        label_ant_list, label_list = [], []  # type: List[ebsentutils.ProvisionAnnotation], List[bool]
         if label_ant_list_param is not None:
             label_ant_list = label_ant_list_param
         if label_list_param is not None:
@@ -46,9 +46,9 @@ class DateSpanGenerator:
         doc_len = len(nl_text)
         for mat_i, (match_start, match_end) in enumerate(matches):
             match_str = nl_text[match_start:match_end]
-            is_label = antutils.check_start_end_overlap(match_start,
-                                                        match_end,
-                                                        label_ant_list)
+            is_label = ebsentutils.check_start_end_overlap(match_start,
+                                                           match_end,
+                                                           label_ant_list)
 
             prev_n_words, prev_spans = \
                 strutils.get_prev_n_clx_tokens(nl_text,
@@ -67,10 +67,8 @@ class DateSpanGenerator:
             post_5_words = ['PS5_' + wd for wd in post_n_words[:5]]
             prev_2_words = ['PV2_' + wd for wd in prev_n_words[-2:]]
             post_2_words = ['PS2_' + wd for wd in post_n_words[:2]]
-            prev_n_words_plus = prev_n_words + ['EOLN'] + prev_15_words + ['EOLN'] + \
-                                prev_10_words + ['EOLN'] + prev_5_words + ['EOLN'] + prev_2_words
-            post_n_words_plus = post_n_words + ['EOLN'] + post_15_words + ['EOLN'] + \
-                                post_10_words + ['EOLN'] + post_5_words + ['EOLN'] + post_2_words
+            prev_n_words_plus = prev_n_words + ['EOLN'] + prev_15_words + ['EOLN'] + prev_10_words + ['EOLN'] + prev_5_words + ['EOLN'] + prev_2_words
+            post_n_words_plus = post_n_words + ['EOLN'] + post_15_words + ['EOLN'] + post_10_words + ['EOLN'] + post_5_words + ['EOLN'] + post_2_words
 
             new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                         match_str,
@@ -108,11 +106,10 @@ class DateSpanGenerator:
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                                label: Optional[str] = None) \
-                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                              List[Dict],
-                                              List[bool],
-                                              List[int]]]:
+                                label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                                                 List[Dict],
+                                                                 List[bool],
+                                                                 List[int]]]:
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):

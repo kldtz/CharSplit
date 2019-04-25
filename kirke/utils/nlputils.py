@@ -1852,7 +1852,9 @@ def find_as_in_paren(span_chunk_list: List[SpanChunk]) \
         postags_out = postag_list[cur_tok_idx:last_tok_idx]
         cur_span_chunk = span_chunk_list[0]
         se_tok_list_out = cur_span_chunk.se_tok_list[cur_tok_idx:last_tok_idx]
-
+        # if there is nothing after the word "as"
+        if not se_tok_list_out:
+            return []
         sc_start = cur_span_chunk.se_tok_list[0][0]
         nstart, nend = se_tok_list_out[0][0], se_tok_list_out[-1][1]
         shorten_text = cur_span_chunk.text[nstart - sc_start:nend - sc_start]
@@ -1899,13 +1901,14 @@ def make_span_chunk_from_span_chunk_list(span_chunk_list: List[SpanChunk]) -> Sp
     return merged_span_chunk
 
 
-def chop_spanchunk_paren(span_chunk: SpanChunk) -> SpanChunk:
-
+def chop_spanchunk_paren(span_chunk: SpanChunk) -> List[SpanChunk]:
     cur_tok_idx = 1
     last_tok_idx = -1
     postag_list = span_chunk.to_postag_list()
     postags_out = postag_list[cur_tok_idx:last_tok_idx]
     se_tok_list_out = span_chunk.se_tok_list[cur_tok_idx:last_tok_idx]
+    if not se_tok_list_out:
+        return []
     nstart = se_tok_list_out[0][0]
     nend = se_tok_list_out[-1][1]
     sc_start = span_chunk.se_tok_list[0][0]
@@ -1918,7 +1921,7 @@ def chop_spanchunk_paren(span_chunk: SpanChunk) -> SpanChunk:
                                    Tree('xPAREN', postags_out),
                                    shorten_text,
                                    se_tok_list_out)
-    return shorten_span_chunk
+    return [shorten_span_chunk]
 
 
 def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
@@ -1929,6 +1932,11 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     # span_chunk.text
     # span_chunks_text = span_chunk_list_to_text(span_chunk_list)
     for span_chunk in span_chunk_list:
+        # this is another potential location to throw away empty parenthesis
+        # if span_chunk.text.startswith('(') and \
+        #    span_chunk.text.endswith(')') and \
+        #    not span_chunk.text[1:-1].strip():
+        #     pass
         if len(span_chunk.text) < 30 and \
            re.search(r'.*\btogether.*the.*parties', span_chunk.text, re.I):
             # '(together, the "Parties")', not precise enough
@@ -2153,7 +2161,10 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             print("filtered paren: {}".format(pprn))
     if paren_list:
         if len(paren_list) == 1:
-            term = [chop_spanchunk_paren(paren_list[0])]
+            if len(paren_list[0].se_tok_list) > 2:  # must have more than just '(' and ')'
+                term = chop_spanchunk_paren(paren_list[0])
+            else:
+                term = []
         else:  # there are multiple
             # # if the 2nd paren has 'each a  "Party", and collectively the "Parties"'
             # last_paren = paren_list[-1]
@@ -2164,7 +2175,7 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             #     term = [chop_spanchunk_paren(last_paren)]
 
             ordered_paren_list = rerank_defined_term_parens(paren_list, org_list)
-            term = [chop_spanchunk_paren(ordered_paren_list[0])]
+            term = chop_spanchunk_paren(ordered_paren_list[0])
 
             # in future, might check if term/paren doesn't overlap with org
             # if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:
