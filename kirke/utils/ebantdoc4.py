@@ -50,7 +50,10 @@ def get_nlp_file_name(doc_id: str,
                       nlptxt_md5: str,
                       work_dir: str) \
                       -> str:
-    base_fn = '{}-{}.nlp.v{}.txt'.format(doc_id, nlptxt_md5, CORENLP_JSON_VERSION)
+    if nlptxt_md5:
+        base_fn = '{}-{}.nlp.v{}.txt'.format(doc_id, nlptxt_md5, CORENLP_JSON_VERSION)
+    else:
+        base_fn = '{}.nlp.v{}.txt'.format(doc_id, CORENLP_JSON_VERSION)
     return '{}/{}'.format(work_dir, base_fn)
 
 
@@ -59,7 +62,10 @@ def get_corenlp_json_fname(doc_id: str,
                            nlptxt_md5: str,
                            work_dir: str) \
                            -> str:
-    base_fn = '{}-{}.corenlp.v{}.txt'.format(doc_id, nlptxt_md5, CORENLP_JSON_VERSION)
+    if nlptxt_md5:
+        base_fn = '{}-{}.corenlp.v{}.txt'.format(doc_id, nlptxt_md5, CORENLP_JSON_VERSION)
+    else:
+        base_fn = '{}.corenlp.v{}.txt'.format(doc_id, CORENLP_JSON_VERSION)
     return '{}/{}'.format(work_dir, base_fn)
 
 
@@ -102,6 +108,7 @@ class EbAnnotatedDoc4:
                  exclude_offsets: List[Tuple[int, int]],
                  linebreak_arr: ArrayType,
                  page_offsets_list: Optional[List[Tuple[int, int]]] = None,
+                 para_not_linebreak_arr: ArrayType,
                  doc_lang: str = 'en') \
                  -> None:
         self.version = '5.0'
@@ -132,6 +139,7 @@ class EbAnnotatedDoc4:
         self.exclude_offsets = exclude_offsets
 
         self.linebreak_arr = linebreak_arr
+        self.para_not_linebreak_arr = para_not_linebreak_arr
         self.page_offsets_list = page_offsets_list
 
         self.table_list = []  # type: List[Tuple[int, int, Dict[str, Any]]]
@@ -202,6 +210,12 @@ class EbAnnotatedDoc4:
         if not self.nlp_paras_with_attrs:  # html or html_no_docstruct
             return doc_text
         return docstructutils.text_from_para_with_attrs(doc_text, self.nlp_paras_with_attrs)
+
+    def get_paraline_text(self) -> str:
+        ch_list = list(self.get_nl_text())
+        for offset in self.para_not_linebreak_arr:
+            ch_list[offset] = ' '
+        return ''.join(ch_list)
 
     def get_nlp_sx_lnpos_list(self) -> List[Tuple[int, linepos.LnPos]]:
         return [(elt.start, elt) for elt in self.nlp_lnpos_list]
@@ -400,6 +414,7 @@ def html_no_docstruct_to_ebantdoc(txt_file_name,
                                 exclude_offsets=exclude_offsets,
                                 # there is no page_offsets_list
                                 linebreak_arr=array.array('i'),
+                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     end_time = time.time()
@@ -510,6 +525,7 @@ def html_to_ebantdoc(txt_file_name: str,
                                 exclude_offsets=html_text_doc.exclude_offsets,
                                 # there is no page_offsets_list
                                 linebreak_arr=array.array('i'),
+                                para_not_linebreak_arr=array.array('i'),
                                 doc_lang=doc_lang)
 
     eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
@@ -668,6 +684,7 @@ def pdf_to_ebantdoc(txt_file_name: str,
                                 nlp_lnpos_list=nlp_lnpos_list,
                                 exclude_offsets=pdf_text_doc.exclude_offsets,
                                 linebreak_arr=pdf_text_doc.linebreak_arr,
+                                para_not_linebreak_arr=pdf_text_doc.para_not_linebreak_arr,
                                 page_offsets_list=pdf_text_doc.get_page_offsets(),
                                 doc_lang=doc_lang)
 
@@ -1139,3 +1156,58 @@ def prov_ants_cpoint_to_cunit(prov_ants_map, cpoint_to_cunit_mapper):
                 span_json['start'], span_json['end'] = \
                     cpoint_to_cunit_mapper.to_cunit_offsets(span_json['start'],
                                                             span_json['end'])
+
+def clear_cache(txt_fname: str,
+                work_dir: str) -> None:
+    txt_base_fname = os.path.basename(txt_fname)
+    eb_antdoc_fn = get_ebant_fname(txt_base_fname, work_dir)
+    if os.path.exists(eb_antdoc_fn):
+        os.remove(eb_antdoc_fn)
+
+    corenlp_json_fn = get_corenlp_json_fname(txt_base_fname,
+                                             nlptxt_md5='',
+                                             work_dir=work_dir)
+    if os.path.exists(corenlp_json_fn):
+        os.remove(corenlp_json_fn)
+
+    nlp_fn = get_nlp_file_name(txt_base_fname,
+                               nlptxt_md5='',
+                               work_dir=work_dir)
+    if os.path.exists(nlp_fn):
+        os.remove(nlp_fn)
+
+def gen_sent_candidates(eb_antdoc: EbAnnotatedDoc4) \
+    -> List[Tuple[int, int, str]]:
+    se_str_list = []  # type: List[Tuple[int, int, str]]
+    doc_text = eb_antdoc.text
+    # nlp_text = eb_antdoc.get_nlp_text()
+
+    fromto_mapper = fromtomapper.FromToMapper('nlp_text to raw_text offset mapper',
+                                              eb_antdoc.get_nlp_sx_lnpos_list(),
+                                              eb_antdoc.get_origin_sx_lnpos_list())
+
+    for attrvec in eb_antdoc.attrvec_list:
+        start, end = attrvec.start, attrvec.end
+        # sent_text = nlp_text[start:end]
+        span_list = fromto_mapper.get_span_list(start, end)
+        # se_str_list.append((start, end, sent_text))
+
+        orig_start = span_list[0]['start']
+        orig_end = span_list[-1]['end']
+        orig_sent_text = doc_text[orig_start:orig_end]
+        se_str_list.append((orig_start, orig_end,
+                            orig_sent_text))
+    return se_str_list
+
+
+def save_sent_se_text(eb_antdoc: EbAnnotatedDoc4,
+                      file_name: str) -> None:
+    se_str_list = gen_sent_candidates(eb_antdoc)
+    with open(file_name, 'wt') as fout:
+        for unused_start, unused_end, sent_text in se_str_list:
+            # out_st = '{}\t{}\t{}'.format(start,
+            #                              end,
+            #                              sent_text.replace('\n', '|'))
+            out_st = sent_text.replace('\n', '|')
+            print(out_st, file=fout)
+            print(file=fout)

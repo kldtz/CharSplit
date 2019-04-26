@@ -532,7 +532,8 @@ class PDFTextDoc:
                  *,
                  cpoint_cunit_mapper: TextCpointCunitMapper,
                  pageinfo_list: List[PageInfo3],
-                 linebreak_arr: ArrayType) \
+                 linebreak_arr: ArrayType,
+                 para_not_linebreak_arr: ArrayType) \
                  -> None:
         self.file_name = file_name
         self.doc_text = doc_text
@@ -543,6 +544,7 @@ class PDFTextDoc:
         self.special_blocks_map = defaultdict(list)  # type: DefaultDict[str, List[Tuple[int, int, Dict[str, Any]]]]
         self.sechead_list = []  # type: List[SecHeadTuple]
         self.linebreak_arr = linebreak_arr
+        self.para_not_linebreak_arr = para_not_linebreak_arr
         self.removed_lines = []  # type: List[LineWithAttrs]
         self.exclude_offsets = []  # type: List[Tuple[int, int]]
 

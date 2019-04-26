@@ -160,16 +160,21 @@ def init_pageinfo_list(doc_text: str,
                        paraline_fname: str,
                        page_offsets: List[Dict],
                        str_offsets: List[Dict]) \
-                       -> List[PageInfo3]:
+                       -> Tuple[List[PageInfo3], List[int]]:
     """Returns the list of page based on PDFBox info.
 
     The only interpretation added to the block is whether the block is_multi_line.
     A is_mutli_line block is a block that is not a sentence, such as address, or
     table content.  A block is just one line is not is_multi_line.
+
+    The 2nd returned value is para_not_linebreak_offsets, which is
+    used to recreate paraline.txt
     """
     # linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
 
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
+    para_not_linebreak_offsets = []  # type: List[int]
+
     ## WARNING, some strx have no word/char in them, just spaces.
     ## It seems that some str with empty spaces might be intermixed with
     ## other strx, such as top of a page, blank_str, mixed with page_num
@@ -303,7 +308,7 @@ def init_pageinfo_list(doc_text: str,
                 block_end = linechunk[-1].end
                 paraline_chunk_text = nl_text[block_start:block_end]
 
-                unused_para_line, xxis_multi_lines, unused_not_linebreaks = \
+                unused_para_line, xxis_multi_lines, not_linebreaks = \
                         pdfutils.para_to_para_list(paraline_chunk_text)
                 # print('xxis_multi_lines = {}'.format(xxis_multi_lines))
 
@@ -313,6 +318,10 @@ def init_pageinfo_list(doc_text: str,
                 #                                                     xxis_multi_lines))
                 if not xxis_multi_lines:
                     paraline_chunk_text = paraline_chunk_text.replace('\n', ' ')
+
+                if not xxis_multi_lines:
+                    for i in not_linebreaks:
+                        para_not_linebreak_offsets.append(block_start + i)
 
                 # print('page: {}, block {}'.format(page_num, doc_block_id))
                 # print(paraline_chunk_text)
@@ -349,7 +358,7 @@ def init_pageinfo_list(doc_text: str,
         pinfo = PageInfo3(doc_text, start, end, page_num, pblockinfo_list)
         pageinfo_list.append(pinfo)
 
-    return pageinfo_list
+    return pageinfo_list, para_not_linebreak_offsets
 
 
 # pylint: disable=too-many-arguments
@@ -647,13 +656,14 @@ def parse_document(file_name: str,
     linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
 
     paraline_fn = pdfdocutils.get_paraline_fname(base_fname, work_dir)
-    pageinfo_list = init_pageinfo_list(doc_text=doc_text,
-                                       nl_text=nl_text,
-                                       line_breaks=line_breaks,
-                                       pblock_offsets=pblock_offsets,
-                                       paraline_fname=paraline_fn,
-                                       page_offsets=page_offsets,
-                                       str_offsets=str_offsets)
+    pageinfo_list, para_not_linebreak_offsets = \
+        init_pageinfo_list(doc_text=doc_text,
+                           nl_text=nl_text,
+                           line_breaks=line_breaks,
+                           pblock_offsets=pblock_offsets,
+                           paraline_fname=paraline_fn,
+                           page_offsets=page_offsets,
+                           str_offsets=str_offsets)
 
     if IS_DEBUG_MODE:
         pdfdocutils.save_page_list_by_lines(pageinfo_list,
@@ -662,11 +672,13 @@ def parse_document(file_name: str,
                                             extension='.raw.byline.tsv',
                                             work_dir=work_dir)
 
+    para_not_linebreak_arr = array.array('i', para_not_linebreak_offsets)  # type: ArrayType
     pdf_text_doc = PDFTextDoc(file_name,
                               doc_text,
                               cpoint_cunit_mapper=cpoint_cunit_mapper,
                               pageinfo_list=pageinfo_list,
-                              linebreak_arr=linebreak_arr)
+                              linebreak_arr=linebreak_arr,
+                              para_not_linebreak_arr=para_not_linebreak_arr)
 
     if IS_DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.tsv')

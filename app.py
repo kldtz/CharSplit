@@ -19,7 +19,7 @@ from typing import DefaultDict, Dict, List, Optional, Tuple
 from flask import Flask, jsonify, request, send_file
 import yaml
 
-from kirke.eblearn import ebrunner
+from kirke.eblearn import ebrunner, ebtrainer
 from kirke.utils import corenlputils, modelfileutils, osutils, strutils
 
 # pylint: disable=invalid-name
@@ -80,7 +80,6 @@ osutils.mkpath(WORK_DIR)
 osutils.mkpath(MODEL_DIR)
 osutils.mkpath(CUSTOM_MODEL_DIR)
 osutils.mkpath(KIRKE_TMP_DIR)
-
 
 # start corenlp server
 corenlputils.init_corenlp_server()
@@ -441,7 +440,7 @@ def custom_train(cust_id: str):
             pos_docs = sum([fname_provtypes_map[x].count(provision) > 0 for x in names_per_lang])
             # pylint: disable=line-too-long
             logger.info('For %s: %d annotations in %d positive documents, %d documents total', doc_lang, ant_count, pos_docs, len(names_per_lang))
-            if pos_docs >= 6:
+            if pos_docs >= ebtrainer.MIN_NUM_POS_DOC_BESPOKE:
                 txt_fn_list_fn = '{}/{}'.format(tmp_dir, 'txt_fnames_{}.list'.format(doc_lang))
                 fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
                 strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)

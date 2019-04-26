@@ -33,6 +33,10 @@ DEFAULT_CV = 3
 # MIN_FULL_TRAINING_SIZE = 150
 MIN_FULL_TRAINING_SIZE = 100
 
+# minimum number of positive doc required for
+# bespoke training
+MIN_NUM_POS_DOC_BESPOKE = 6
+
 # training using cross validation of 600 docs took around 38 minutes
 # MAX_DOCS_FOR_TRAIN_CROSS_VALIDATION = 600
 
@@ -428,6 +432,20 @@ def train_eval_annotator(provision: str,
         logger.info('train_eval_annotator, found %d human annotation, '
                     'found %d in positive sentences',
                     num_pos_ant, num_pos_label)
+
+    if num_doc_pos < MIN_NUM_POS_DOC_BESPOKE:
+        train_result = {'confusion_matrix': {'tn': 0, 'fp': 0,
+                                             'fn': 0, 'tp': 0},
+                        'f1': -1.0,
+                        'prec': -1.0,
+                        'provision': provision,
+                        'model_number': -1,
+                        'recall': -1.0,
+                        # pylint: disable=line-too-long
+                        'user_message': 'Training failed.  Number of docs is {}.  Only {} (< 6) doc with positive candidates are found.'.format(num_docs, num_doc_pos),
+                        'failure_cause': 'num_positive_candidates',
+                        'failure_value': num_doc_pos}
+        return None, {'ant_status': train_result}
 
     # X is sorted by file_id already
     # pylint: disable=invalid-name

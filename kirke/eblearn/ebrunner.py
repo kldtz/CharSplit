@@ -707,7 +707,12 @@ class EbRunner:
                                                is_doc_structure=True,
                                                # pylint: disable=line-too-long
                                                is_bespoke_mode=True)  # type: Tuple[ebannotator.ProvisionAnnotator, Dict[str, Any]]
-            return eb_annotator_scut.get_eval_status(), log_json
+            if eb_annotator_scut:
+                return eb_annotator_scut.get_eval_status(), log_json
+
+            # eb_annotator_span == None, or the training failed
+            # return the error message stored in in log_json_span
+            return log_json, {}
 
         # Please note, for 'non-sentence', we use is_doc_structure=False
         eb_annotator_span, log_json_span = \

@@ -116,6 +116,12 @@ class EbTransformerV1_2(EbTransformerBase):
         if fit_mode:  # label_list:  # for testing, there is no label_list
             for attrvec, label in zip(attrvec_list, label_list):
                 sent_st = attrvec.bag_of_words
+
+                # if label:
+                #     print("++++++++++ pos sent_st: {}".format(sent_st))
+                # else:
+                #     print("neg sent_st: {}".format(sent_st))
+
                 sent_st_list.append(sent_st)
                 if label:
                     positive_sent_st_list.append(sent_st)
