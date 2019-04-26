@@ -11,8 +11,8 @@ from typing import Any, Dict, Set
 from kirke.eblearn import ebrunner
 
 from kirke.docstruct import pdftxtparser
-from kirke.utils import docversion, docworddiff, ebantdoc4, osutils, txtreader
-from kirke.utils.ebantdoc4 import pdf_to_ebantdoc
+from kirke.utils import docworddiff, ebantdoc4, osutils, txtreader
+from kirke.utils.ebantdoc4 import pdf_to_ebantdoc, get_nlp_file_name
 
 
 WORK_DIR = 'dir-work'
@@ -39,9 +39,9 @@ class TestNLPText(unittest.TestCase):
                                    pdfxml_fname,
                                    work_dir=WORK_DIR)
         nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
-        nlptxt_file_name = docversion.get_nlp_file_name(doc_id,
-                                                        nlptxt_md5=nlptxt_md5,
-                                                        work_dir=WORK_DIR)
+        nlptxt_file_name = get_nlp_file_name(doc_id,
+                                             nlptxt_md5=nlptxt_md5,
+                                             work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
                                                            nlptxt_file_name)
         self.assertEqual(len(same_list), 1974)
@@ -65,9 +65,9 @@ class TestNLPText(unittest.TestCase):
                                    pdfxml_fname,
                                    work_dir=WORK_DIR)
         nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
-        nlptxt_file_name = docversion.get_nlp_file_name(doc_id,
-                                                        nlptxt_md5=nlptxt_md5,
-                                                        work_dir=WORK_DIR)
+        nlptxt_file_name = get_nlp_file_name(doc_id,
+                                             nlptxt_md5=nlptxt_md5,
+                                             work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
                                                            nlptxt_file_name)
 

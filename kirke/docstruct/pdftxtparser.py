@@ -18,7 +18,7 @@ from kirke.docstruct.pdfoffsets import LineInfo3, LineWithAttrs
 from kirke.docstruct.pdfoffsets import PLineAttrs
 from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInfo
 from kirke.docstruct.secheadutils import SecHeadTuple
-from kirke.utils import docversion, mathutils, strutils, txtreader
+from kirke.utils import mathutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
 
 # pylint: disable=invalid-name

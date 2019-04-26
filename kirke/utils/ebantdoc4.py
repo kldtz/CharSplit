@@ -26,7 +26,7 @@ from kirke.docstruct import docstructutils, docutils, fromtomapper, htmltxtparse
 from kirke.docstruct import linepos, pdftxtparser
 from kirke.docstruct.pdfoffsets import PDFTextDoc
 from kirke.docstruct.docutils import PLineAttrs
-from kirke.utils import corenlputils, docversion, ebsentutils, memutils
+from kirke.utils import corenlputils, ebsentutils, memutils
 from kirke.utils import osutils, strutils, txtreader
 from kirke.utils.textoffset import TextCpointCunitMapper
 
@@ -43,10 +43,23 @@ EBANTDOC_VERSION = '1.15'
 
 IS_USE_ABBYY_FOR_PARAGRAPH_INFO = False
 
+CORENLP_JSON_VERSION = '1.12'
 
-def get_corenlp_json_fname(txt_basename, work_dir):
-    base_fn = txt_basename.replace('.txt',
-                                   '.corenlp.v{}.json'.format(CORENLP_JSON_VERSION))
+def get_nlp_file_name(doc_id: str,
+                      *,
+                      nlptxt_md5: str,
+                      work_dir: str) \
+                      -> str:
+    base_fn = '{}-{}.nlp.v{}.txt'.format(doc_id, nlptxt_md5, CORENLP_JSON_VERSION)
+    return '{}/{}'.format(work_dir, base_fn)
+
+
+def get_corenlp_json_fname(doc_id: str,
+                           *,
+                           nlptxt_md5: str,
+                           work_dir: str) \
+                           -> str:
+    base_fn = '{}-{}.corenlp.v{}.txt'.format(doc_id, nlptxt_md5, CORENLP_JSON_VERSION)
     return '{}/{}'.format(work_dir, base_fn)
 
 
@@ -466,9 +479,9 @@ def html_to_ebantdoc(txt_file_name: str,
 
     nlp_text = html_text_doc.get_nlp_text()
     nlptxt_md5 = osutils.get_text_md5(nlp_text)
-    nlptxt_file_name = docversion.get_nlp_file_name(doc_id,
-                                                    nlptxt_md5=nlptxt_md5,
-                                                    work_dir=work_dir)
+    nlptxt_file_name = get_nlp_file_name(doc_id,
+                                         nlptxt_md5=nlptxt_md5,
+                                         work_dir=work_dir)
     txtreader.dumps(nlp_text, nlptxt_file_name)
 
     attrvec_list, nlp_prov_ant_list, origin_lnpos_list, nlp_lnpos_list = \
@@ -572,9 +585,9 @@ def pdf_to_ebantdoc(txt_file_name: str,
 
     nlp_text = pdf_text_doc.get_nlp_text()
     nlptxt_md5 = osutils.get_text_md5(nlp_text)
-    nlptxt_file_name = docversion.get_nlp_file_name(doc_id,
-                                                    nlptxt_md5=nlptxt_md5,
-                                                    work_dir=work_dir)
+    nlptxt_file_name = get_nlp_file_name(doc_id,
+                                         nlptxt_md5=nlptxt_md5,
+                                         work_dir=work_dir)
     txtreader.dumps(nlp_text, nlptxt_file_name)
 
     prov_annotation_list, is_test = \
@@ -697,12 +710,12 @@ def text_to_corenlp_json(doc_text: str,  # this is what is really processed by c
     # we don't bother to check for is_use_corenlp, assume that's True
     if is_cache_enabled:
         nlptxt_md5 = osutils.get_text_md5(doc_text)
-        json_fn = docversion.get_corenlp_json_fname(doc_id,
-                                                    nlptxt_md5=nlptxt_md5,
-                                                    work_dir=work_dir)
-        nlp_fn = docversion.get_nlp_file_name(doc_id,
-                                              nlptxt_md5=nlptxt_md5,
-                                              work_dir=work_dir)
+        json_fn = get_corenlp_json_fname(doc_id,
+                                         nlptxt_md5=nlptxt_md5,
+                                         work_dir=work_dir)
+        nlp_fn = get_nlp_file_name(doc_id,
+                                   nlptxt_md5=nlptxt_md5,
+                                   work_dir=work_dir)
         if os.path.exists(json_fn) and os.path.exists(nlp_fn):
             corenlp_json = json.loads(strutils.loads(json_fn))
             end_time = time.time()
