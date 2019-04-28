@@ -57,6 +57,7 @@ class TestCandGen(unittest.TestCase):
 
     def test_bespoke_cand_currency(self):
         # ------- CURRENCY -------
+        self.maxDiff = None
         config = annotatorconfig.get_ml_annotator_config(['CURRENCY'])
         currency_gen = config['doc_to_candidates'][0]
         all_currency_cands = []

@@ -706,7 +706,7 @@ class EbRunner:
                                                eb_classifier=eb_classifier,
                                                is_doc_structure=True,
                                                # pylint: disable=line-too-long
-                                               is_bespoke_mode=True)  # type: Tuple[ebannotator.ProvisionAnnotator, Dict[str, Any]]
+                                               is_bespoke_mode=True)  # type: Tuple[Optional[ebannotator.ProvisionAnnotator], Dict[str, Any]]
             if eb_annotator_scut:
                 return eb_annotator_scut.get_eval_status(), log_json
 

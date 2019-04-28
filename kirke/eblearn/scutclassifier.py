@@ -107,7 +107,7 @@ class ShortcutClassifier(EbClassifier):
         return result
 
     # pylint: disable=too-many-statements, too-many-locals
-    def train_antdoc_list(self, ebantdoc_list, work_dir) -> None:
+    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name) -> None:
         logger.info('train_antdoc_list()...')
 
         sent_list = []
@@ -185,6 +185,7 @@ class ShortcutClassifier(EbClassifier):
             logger.info("\t%s: %r", param_name, self.best_parameters[param_name])
 
         self.eb_grid_search = grid_search.best_estimator_
+        self.save(model_file_name)
 
     def predict_antdoc(self, eb_antdoc, work_dir) -> List[float]:
         # logger.info('predict_antdoc()...')

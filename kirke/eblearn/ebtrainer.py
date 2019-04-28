@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split
 
 from kirke.eblearn import annotatorconfig, ebannotator, ebattrvec, ebpostproc
 from kirke.eblearn import lineannotator, ruleannotator, spanannotator
+from kirke.eblearn.scutclassifier import ShortcutClassifier
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import  ebantdoc4, evalutils, splittrte, strutils, txtreader
 
@@ -145,7 +146,7 @@ def cv_train_at_annotation_level(provision,
                 print("bucknum={}, test_num={}, fn={}".format(bucket_num, te_num, te_doc.file_id))
 
         cv_eb_classifier = eb_classifier_orig.make_bare_copy()
-        cv_eb_classifier.train_antdoc_list(train_buckets, work_dir)
+        cv_eb_classifier.train_antdoc_list(train_buckets, work_dir, model_file_name=model_file_name)
 
         cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir, nbest=nbest)
 
@@ -158,8 +159,8 @@ def cv_train_at_annotation_level(provision,
 
     # now build the annotator using ALL training data
     # eb_classifier is scutclassifier
-    eb_classifier = eb_classifier_orig.make_bare_copy()
-    eb_classifier.train_antdoc_list(x_antdoc_list, work_dir)
+    eb_classifier = eb_classifier_orig.make_bare_copy()  # type: ShortcutClassifier
+    eb_classifier.train_antdoc_list(x_antdoc_list, work_dir, model_file_name=model_file_name)
     eb_classifier.save(model_file_name)
     logger.info('wrote bespoke model file: %s', model_file_name)
 
@@ -358,7 +359,8 @@ def train_eval_annotator(provision: str,
                          eb_classifier,
                          is_doc_structure=False,
                          is_bespoke_mode: bool = False) \
-                         -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
+                         -> Tuple[Optional[ebannotator.ProvisionAnnotator],
+                                  Dict[str, Dict]]:
     logger.info("training_eval_annotator(%s) called", provision)
     logger.info("    txt_fn_list = %s", txt_fn_list)
     logger.info("    work_dir = %s", work_dir)
