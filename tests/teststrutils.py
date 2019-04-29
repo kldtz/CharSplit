@@ -188,6 +188,11 @@ class TestStrUtils(unittest.TestCase):
         se_tuple = strutils.text_strip(start=0, end=len(line), text=line)
         self.assertEqual(se_tuple, (1, 5))
 
+    def normalize_spaces(self):
+        line = '60,161.40\n\n\xa0\n\n\xa0\n\n$'
+        out_line = strutils.normalize_spaces(line)
+        self.assertEqual('60,161.40\n\n \n\n \n\n$',
+                         out_line)
 
 if __name__ == "__main__":
     unittest.main()

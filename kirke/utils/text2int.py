@@ -7,6 +7,7 @@ numwords = {}
 numeric_regex_st = ''
 numeric_regex_st_with_b = ''
 numeric_words_regex_st = ''
+numeric_words_no_acaronym = []
 
 ordinal_words = {'first':1, 'second':2, 'third':3, 'fifth':5,
                  'eighth':8, 'ninth':9, 'twelfth':12}
@@ -20,6 +21,7 @@ def setup_numwords():
     global numeric_regex_st
     global numeric_regex_st_with_b
     global numeric_words_regex_st
+    global numeric_words_no_acronym
     units = ["zero", "one", "two", "three", "four", "five", "six",
              "seven", "eight", "nine", "ten", "eleven", "twelve",
              "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
@@ -113,18 +115,27 @@ NUM_REGEX = re.compile(numeric_regex_st_with_b, re.I)
 
 NUM_IN_WORDS_REGEX = re.compile(numeric_words_regex_st, re.I)
 
+# NUM_WORD_HYPHEN_NUM_WORD_REGEX_ST = r'({})\-({})'.format(numeric_words_regex_st,
+#                                                          numeric_words_regex_st)
+NUM_WORD_HYPHEN_NUM_WORD_REGEX_ST = r'({})\-({})'.format('|'.join(numeric_words_no_acronym),
+                                                         '|'.join(numeric_words_no_acronym))
+NUM_WORD_HYPHEN_NUM_WORD = re.compile(NUM_WORD_HYPHEN_NUM_WORD_REGEX_ST, re.I)
 
-NUM_WORD_HYPHEN_NUM_WORD = re.compile(r'({})\-({})'.format(numeric_words_regex_st,
-                                                           numeric_words_regex_st))
+def remove_hyphen_among_num_words(line: str) -> str:
+    orig_line = line
+    line = NUM_WORD_HYPHEN_NUM_WORD.sub(r'\1 \2', line)
 
-def remove_num_words_join_hyphen(line: str) -> str:
-    line = NUM_WORD_HYPHEN_NUM_WORD.sub(r'\1 \5', line)
+    if orig_line != line:
+        # need to do this twice to ensure
+        # "one-hundred-thirty-five" is processed correctly because
+        # the pattern overlap each other
+        line = NUM_WORD_HYPHEN_NUM_WORD.sub(r'\1 \2', line)
     return line
 
 
 def extract_numbers(line: str) -> List[Dict]:
     # don't want '-' to confuse words
-    line = remove_num_words_join_hyphen(line)
+    line = remove_hyphen_among_num_words(line)
     mat_list = list(NUM_REGEX.finditer(line))
     #for cx_mat in mat_list:
     #    print('\nnumber cx_mat group: {} {} [{}]'.format(cx_mat.start(),
@@ -150,7 +161,7 @@ def extract_numbers(line: str) -> List[Dict]:
 
 def extract_numbers_in_words(line: str) -> List[Dict]:
     # don't want '-' to confuse words
-    line = remove_num_words_join_hyphen(line)
+    line = remove_hyphen_among_num_words(line)
     mat_list = list(NUM_IN_WORDS_REGEX.finditer(line))
     # print('mat_listxxxx: {}'.format(mat_list))
     # for cx_mat in mat_list:
@@ -176,7 +187,7 @@ def extract_numbers_in_words(line: str) -> List[Dict]:
 
 
 def extract_number(line: str) -> Dict:
-    line = remove_num_words_join_hyphen(line)
+    line = remove_hyphen_among_num_words(line)
     mat = NUM_REGEX.search(line)
     if mat:
         # numeric_span = (mat.start(), mat.end(), mat.group())

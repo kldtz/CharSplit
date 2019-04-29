@@ -16,7 +16,27 @@ def tuv(adict: Dict) -> Dict:
     return out_dict
 
 
-class TestCurrency(unittest.TestCase):
+def extract_currencies(line: str) -> List[str]:
+    currency_dict_list = regexgen.extract_currencies(line)
+    currency_st_list = [adict['text'] for adict in currency_dict_list]
+    return currency_st_list
+
+
+def extract_numbers(line: str, is_ignore_currency_symbol: bool = False) -> List[str]:
+    dict_list = regexgen.extract_numbers(line, is_ignore_currency_symbol)
+    st_list = [adict['text'] for adict in dict_list]
+    return st_list
+
+
+class TestRegexGen(unittest.TestCase):
+
+    def test_remove_num_words_join_hyphen(self):
+        line = 'I have one-hundred-thirty-five dollars.'
+        got_line = regexgen.remove_hyphen_among_num_words(line)
+        target_line = 'I have one hundred thirty five dollars.'
+        self.assertEqual(target_line,
+                         got_line)
+
 
     def test_currency(self):
         "Test CURRENCY_PAT"
@@ -285,8 +305,77 @@ class TestCurrency(unittest.TestCase):
                                             'value': 3500000})
 
 
+        line = 'I have $35 (Thirty-Five Dollars).'
+        currency_st_list = extract_currencies(line)
+        self.assertEqual(['$35',
+                          'Thirty-Five Dollars'],
+                         currency_st_list)
+
+
+        line = 'I have 35 dollars.'
+        currency_st_list = extract_currencies(line)
+        self.assertEqual(['35 dollars'],
+                         currency_st_list)
+
+    def test_extract_currency_prefer_prefix(self):
+        line = """AnnualInstallment
+
+1-12
+
+$
+
+28.25
+
+$
+
+114,104.10
+
+$
+
+1,369,249.25
+
+13-24
+
+$
+
+28.75
+
+$
+
+116,123.65
+
+$"""
+        currency_st_list = extract_currencies(line)
+
+        target_list = ['$\n\n28.25',
+                       '$\n\n114,104.10',
+                       '$\n\n1,369,249.25',
+                       '$\n\n28.75',
+                       '$\n\n116,123.65']
+
+        self.assertEqual(target_list,
+                         currency_st_list)
+
+
+
+
     def test_number(self):
         "Test NUMBER_PAT"
+
+        line = 'I have $35 (Thirty-Five Dollars).'
+
+        st_list = extract_numbers(line)
+        self.assertEqual(['Thirty-Five'],
+                         st_list)
+
+        st_list = extract_numbers(line, is_ignore_currency_symbol=True)
+        self.assertEqual(["35", 'Thirty-Five'],
+                         st_list)
+
+        line = 'I have 35 dollars.'
+        st_list = extract_numbers(line)
+        self.assertEqual(['35'],
+                         st_list)
 
         line = "33.3 dollars from Alice"
         mat_list = regexgen.extract_numbers(line)
@@ -416,6 +505,17 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(tuv(mat_list[3]), {'text': 'three and half million',
                                             'value': 3500000})
 
+
+    def test_extract_numbers_difficult(self):
+        line = '$\n\n1,369,249.25\n\n13-24'
+        st_list = extract_numbers(line)
+        self.assertEqual(['1,369,249.25'],
+                         st_list)
+
+        line = '$\n\n1,369,249.25\n\n13-24\n$'
+        st_list = extract_numbers(line)
+        self.assertEqual(['1,369,249.25'],
+                         st_list)
 
 
     def test_percent(self):

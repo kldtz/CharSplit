@@ -33,11 +33,16 @@ CAP_SPACE_PAT = re.compile(r'^[A-Z\s\(\).,\[\]\-/\\{\}`\'"]+$')  # type: Pattern
 
 def sub_nltab_with_space(line: str) -> str:
     # return re.sub(r'[\s\t\r\n]+', ' ', line)
-    return re.sub(r'[\s\t\r\n]', ' ', line)
+    return re.sub(r'[\s\t\r\n\xa0]', ' ', line)
 
 
 def remove_space_nl(line: str) -> str:
-    return re.sub(r'[\s\n]', '', line)
+    return re.sub(r'[\s\n\xa0]', '', line)
+
+
+def normalize_spaces(line: str) -> str:
+    """Replace non-breaking spaces with regular spaces."""
+    return line.replace('\xa0', ' ')
 
 
 def loads(file_name: str) -> str:
