@@ -259,6 +259,125 @@ def find_post_start_end_in_dict_list(number_dict_list: List[Dict],
     return -1, -1, list_len
 
 
+FRACTION_PAT_1 = re.compile(r'\b(\d{1,2})/(\d{1,3})(\s*(th|rd))*\b', re.I)
+
+vulgar_fractions = ['½',
+                    '⅓', '⅔',
+                    '¼', '¾',
+                    '⅕', '⅖', '⅗', '⅘',
+                    '⅙', '⅚',
+                    '⅐',
+                    '⅛', '⅜', '⅝', '⅞',
+                    '⅑',
+                    '⅒']
+
+vulgar_frac_val_list = [0.5,
+                        0.33, 0.66,
+                        0.25, 0.75,
+                        0.2, 0.4, 0.6, 0.8,
+                        round(1/6, 2), round(5/6, 2),
+                        round(1/7, 2),
+                        0.125, 0.375, 0.625, 0.875,
+                        round(1/9, 2),
+                        0.1]
+
+# FRACTION_PAT_2 = re.compile(r'\b(\d+)\s*({})'.format('|'.join(vulgar_fractions)),
+#                             re.I)
+
+FIRST_19_ST_LIST = ["zero", "one", "two", "three", "four", "five", "six",
+                    "seven", "eight", "nine", "ten", "eleven", "twelve",
+                    "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+                    "eighteen", "nineteen"]
+
+FIRST_19_ORD_ST_LIST = ["zeroth", "first", "half", "third", "fourth", "fifth", "sixth",
+                        "seventh", "eighth", "ninth", "tenth", "eleventh", "twelveth",
+                        "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth",
+                        "eighteenth", "nineteenth"]
+
+
+FRACTION_PAT_2 = re.compile(r'\b({})[\-/\s]({})\b'.format('|'.join(FIRST_19_ST_LIST),
+                                                          '|'.join(FIRST_19_ORD_ST_LIST)),
+                            re.I)
+
+
+def extract_fractions(line: str) -> List[Dict]:
+    print('extract_fractions({})'.format(line))
+    result = []  # type: List[Dict]
+
+    mat_list = FRACTION_PAT_1.finditer(line)
+    for mat in mat_list:
+        print('in mat: [{}]'.format(mat.group()))
+        val1 = int(mat.group(1))
+        val2 = int(mat.group(2))
+
+        if val2 >= 1 and val2 <= 100:
+            norm_dict = {'start': mat.start(),
+                         'end': mat.end(),
+                         'text': mat.group(),
+                         # cannot round this, because other use this
+                         # to get back how many month, 1/60 -> 60 months
+                         'norm': {'value': val1 / val2}}
+
+            result.append(norm_dict)
+
+    mat_list = FRACTION_PAT_2.finditer(line)
+    for mat in mat_list:
+        print('in mat: [{}]'.format(mat.group()))
+        val1 = FIRST_19_ST_LIST.index(mat.group(1).lower())
+        val2 = FIRST_19_ORD_ST_LIST.index(mat.group(2).lower())
+
+        if val2 >= 1 and val2 <= 100:
+            norm_dict = {'start': mat.start(),
+                         'end': mat.end(),
+                         'text': mat.group(),
+                         # cannot round this, because other use this
+                         # to get back how many month, 1/60 -> 60 months
+                         'norm': {'value': val1 / val2}}
+            result.append(norm_dict)
+
+    mat_list = FRACTION_PAT_2.finditer(line)
+
+    return result
+
+
+FRACTION_PERCENT_PAT_1 = re.compile(r'\b(\d+) *(\d{1,2})/(\d{1,3})\s*(%|percent\b)',
+                                    re.I)
+FRACTION_PERCENT_PAT_2 = re.compile(r'\b(\d+) *({})\s*(%|percent\b)'.format('|'.join(vulgar_fractions)),
+                                    re.I)
+
+def extract_fraction_percents(line: str) -> List[Dict]:
+    print('extract_fractions({})'.format(line))
+    result = []  # type: List[Dict]
+
+    mat_list = FRACTION_PERCENT_PAT_1.finditer(line)
+    for mat in mat_list:
+        val1 = int(mat.group(1))
+        val2 = int(mat.group(2))
+        val3 = int(mat.group(3))
+
+        if val3 >= 1 and val3 <= 100:
+            norm_dict = {'start': mat.start(),
+                         'end': mat.end(),
+                         'text': mat.group(),
+                         'norm': {'value': val1 + round(val2 / val3, 2),
+                                  'unit': '%'}}
+            result.append(norm_dict)
+
+    mat_list = FRACTION_PERCENT_PAT_2.finditer(line)
+    for mat in mat_list:
+        val1 = int(mat.group(1))
+        val_idx = vulgar_fractions.index(mat.group(2))
+        val2 = vulgar_frac_val_list[val_idx]
+
+        norm_dict = {'start': mat.start(),
+                     'end': mat.end(),
+                     'text': mat.group(),
+                     'norm': {'value': val1 + val2,
+                              'unit': '%'}}
+        result.append(norm_dict)
+
+    return result
+
 def percent_to_norm_dict(prev_num_start: int,
                          prev_num_end: int,
                          percent_end: int,
@@ -277,18 +396,32 @@ def percent_to_norm_dict(prev_num_start: int,
 def extract_percents(line: str) -> List[Dict]:
     norm_line = remove_hyphen_among_num_words(line)
     result = []
+    # try detect '33 1/3%' first
+    fraction_dict_list = extract_fraction_percents(line)
+    for fraction_dict in fraction_dict_list:
+        result.append(fraction_dict)
+
+    prefix_se_list = [(adict['start'], adict['end']) for adict in result]
+
     number_dict_list = extract_numbers(line)
     mat_list = PERCENT_SYMBOL_PAT.finditer(norm_line)
-
     number_idx = 0
     for mat in mat_list:
-        prev_num_start, prev_num_end, number_idx = find_prev_start_end_in_dict_list(number_dict_list,
-                                                                                    number_idx,
-                                                                                    mat.start(),
-                                                                                    line)
-        if prev_num_start != -1:
-            norm_dict = percent_to_norm_dict(prev_num_start, prev_num_end, mat.end(), line)
+        prev_num_start, prev_num_end, number_idx = \
+            find_prev_start_end_in_dict_list(number_dict_list,
+                                             number_idx,
+                                             mat.start(),
+                                             line)
+        if prev_num_start != -1 and \
+           not mathutils.is_overlap_with_se_list((prev_num_start, mat.end()),
+                                                 prefix_se_list):
+
+            norm_dict = percent_to_norm_dict(prev_num_start,
+                                             prev_num_end,
+                                             mat.end(),
+                                             line)
             result.append(norm_dict)
+
     return result
 
 

@@ -640,6 +640,55 @@ $"""
                                             'value': 10,
                                             'unit': '%'})
 
+    def test_fractions(self):
+        line = "Bob received 18/60th of the share from Alice"
+        mat_list = regexgen.extract_fractions(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '18/60th',
+                                            'value': 0.3})
+
+
+        line = "Bob received 18/60 th of the share from Alice"
+        mat_list = regexgen.extract_fractions(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '18/60 th',
+                                            'value': 0.3})
+
+        line = 'schedule  one-fourth on April 9, 2015'
+        mat_list = regexgen.extract_fractions(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'one-fourth',
+                                            'value': 0.25})
+
+    def test_fraction_percent(self):
+        line = "Bob received 33 1/3% of the share from Alice"
+        mat_list = regexgen.extract_fraction_percents(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '33 1/3%',
+                                            'value': 33.33,
+                                            'unit': '%'})
+
+        line = "Bob received 33⅝% of the share from Alice"
+        mat_list = regexgen.extract_fraction_percents(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '33⅝%',
+                                            'value': 33.625,
+                                            'unit': '%'})
+
+    def test_percent_hard(self):
+        line = "Bob received 33 1/3% of the share from Alice"
+        mat_list = regexgen.extract_percents(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '33 1/3%',
+                                            'value': 33.33,
+                                            'unit': '%'})
+
+        line = "Bob received 33⅝% of the share from Alice"
+        mat_list = regexgen.extract_percents(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '33⅝%',
+                                            'value': 33.625,
+                                            'unit': '%'})
 
     def test_word_currency(self):
         "Test CURRENCY_PAT"
