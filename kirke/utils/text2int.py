@@ -1,13 +1,14 @@
 import re
 # pylint: disable=unused-import
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 # pylint: disable=invalid-name
-numwords = {}
+# the Any below should be float
+numwords = {}  # type: Dict[str, Tuple[Any, int]]
 numeric_regex_st = ''
 numeric_regex_st_with_b = ''
 numeric_words_regex_st = ''
-numeric_words_no_acaronym = []
+numeric_words_no_acronym = []  # type: List[str]
 
 ordinal_words = {'first':1, 'second':2, 'third':3, 'fifth':5,
                  'eighth':8, 'ninth':9, 'twelfth':12}

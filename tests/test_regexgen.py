@@ -510,6 +510,28 @@ $"""
                                             'value': 3500000})
 
 
+    def test_extract_number_paren_numbers(self):
+        line = 'subsection 3.2 in a case in which Optionee dies within three (3) months after Optionee is Terminated'
+        dict_list = regexgen.extract_number_paren_numbers(line)
+        self.assertEquals(1, len(dict_list))
+        self.assertEqual(3,
+                         dict_list[0]['norm']['value'])
+
+
+    def test_extract_ordinal_numbers(self):
+        line = 'subsection 9th months after Optionee is Terminated'
+        dict_list = regexgen.extract_ordinal_numbers(line)
+        self.assertEquals(1, len(dict_list))
+        self.assertEqual(9,
+                         dict_list[0]['norm']['value'])
+
+        line = 'subsection twelveth months after Optionee is Terminated'
+        dict_list = regexgen.extract_ordinal_numbers(line)
+        self.assertEquals(1, len(dict_list))
+        self.assertEqual(12,
+                         dict_list[0]['norm']['value'])
+
+
     def test_extract_numbers_difficult(self):
         line = '$\n\n1,369,249.25\n\n13-24'
         st_list = extract_numbers(line)
