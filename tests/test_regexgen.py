@@ -690,6 +690,40 @@ $"""
                                             'value': 33.625,
                                             'unit': '%'})
 
+    def test_time_duration(self):
+        line = 'the expiration of 12 months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '12 months',
+                                            'value': 12,
+                                            'unit': 'month'})
+
+        line = 'the expiration of three months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'three months',
+                                            'value': 3,
+                                            'unit': 'month'})
+
+        line = 'the expiration of twelve (12) months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'twelve (12) months',
+                                            'value': 12,
+                                            'unit': 'month'})
+
+        line = 'the expiration of three (3) months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'three (3) months',
+                                            'value': 3,
+                                            'unit': 'month'})
+
+        line = 'the expiration of three (3 plus) months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 0)
+
+
     def test_word_currency(self):
         "Test CURRENCY_PAT"
 

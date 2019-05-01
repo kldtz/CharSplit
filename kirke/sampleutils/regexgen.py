@@ -1,3 +1,4 @@
+import copy
 import logging
 import re
 from typing import Dict, List, Match, Optional, Pattern, Tuple
@@ -43,7 +44,6 @@ CURRENCY_SYMBOL_SUFFIX_PAT = re.compile(CURRENCY_SYMBOL_SUFFIX_PAT_ST)
 #              r'\b({}))\b'.format(text2int.numeric_words_regex_st)
 
 NUM_PAT_ST = r'(((?<=\s)|(?<=^)|(?<=\()|(?<=\[)|(?<=\<))({}))\b'.format(text2int.numeric_regex_st)
-
 NUMBER_PAT = re.compile(NUM_PAT_ST, re.I)
 
 # print('\nNUM_PAT_ST')
@@ -169,7 +169,6 @@ def extract_currencies(line: str) -> List[Dict]:
 
 PERCENT_SYMBOL_PAT_ST = r'(%|\bpercent\b)'
 PERCENT_SYMBOL_PAT = re.compile(PERCENT_SYMBOL_PAT_ST, re.I)
-
 
 def find_prev_start_end_in_dict_list(number_dict_list: List[Dict],
                                      number_idx: int,
@@ -425,6 +424,74 @@ def extract_percents(line: str) -> List[Dict]:
     return result
 
 
+TIME_DURATION_PAT_ST = r'\b(weeks?|months?|years?|decades?)\b'
+TIME_DURATION_PAT = re.compile(TIME_DURATION_PAT_ST, re.I)
+
+def time_duration_to_norm_dict(prev_num_start: int,
+                               prev_num_end: int,
+                               duration_end: int,
+                               line: str) -> Dict:
+    norm_value = -1
+    num_st = line[prev_num_start:prev_num_end]
+    norm_value = text2int.extract_number(num_st).get('value', -1)
+
+    duration_st = line[prev_num_end:duration_end].strip()
+    if duration_st.endswith('s'):
+        duration_st = duration_st[:-1]
+    norm_dict = {'norm': {'unit': duration_st,
+                          'value': norm_value},
+                 'text': line[prev_num_start:duration_end],
+                 'start': prev_num_start,
+                 'end': duration_end}
+    return norm_dict
+
+
+def extract_time_durations(line: str) -> List[Dict]:
+    norm_line = remove_hyphen_among_num_words(line)
+    result = []
+
+    mat_list = list(TIME_DURATION_PAT.finditer(norm_line))
+
+    number_dict_list = extract_number_paren_numbers(line)
+    number_idx = 0
+    for mat in mat_list:
+        prev_num_start, prev_num_end, number_idx = \
+            find_prev_start_end_in_dict_list(number_dict_list,
+                                             number_idx,
+                                             mat.start(),
+                                             line)
+        if prev_num_start != -1:
+            norm_dict = time_duration_to_norm_dict(prev_num_start,
+                                                   prev_num_end,
+                                                   mat.end(),
+                                                   line)
+            result.append(norm_dict)
+
+    # remember the start and end of above duration to avoid
+    # detecting duplicates
+    prefix_se_list = [(adict['start'], adict['end']) for adict in result]
+
+    number_dict_list = extract_numbers(line)
+    number_idx = 0
+    for mat in mat_list:
+        prev_num_start, prev_num_end, number_idx = \
+            find_prev_start_end_in_dict_list(number_dict_list,
+                                             number_idx,
+                                             mat.start(),
+                                             line)
+        if prev_num_start != -1 and \
+           not mathutils.is_overlap_with_se_list((prev_num_start, mat.end()),
+                                                 prefix_se_list):
+            norm_dict = time_duration_to_norm_dict(prev_num_start,
+                                                   prev_num_end,
+                                                   mat.end(),
+                                                   line)
+            result.append(norm_dict)
+
+    return result
+
+
+
 def number_to_norm_dict(num_st: str,
                         start: int,
                         end: int,
@@ -632,6 +699,59 @@ def extract_numbers(line: str, is_ignore_currency_symbol: bool = False) -> List[
 
         result.append(norm_dict)
     return result
+
+
+def get_nspace_char_at_after(idx: int, line: str) -> Tuple[int, str]:
+    """Return the index + 1 and non-space character at or after idx in line."""
+    len_line = len(line)
+    if idx >= len_line:
+        return len_line, ''
+
+    while idx < len_line:
+        if line[idx] != ' ':
+            return idx+1, line[idx]
+        idx += 1
+
+    return len_line, ''
+
+
+def extract_number_paren_numbers(line: str) -> List[Dict]:
+    """Extract number (number), i.e. 'three (3)' or 3 (three) .
+
+    Args:
+        line: the string to extract the numbers from.
+
+    """
+    number_dict_list = extract_numbers(line)
+
+    if len(number_dict_list) <= 1:
+        return []
+
+    # take any consecutive numbers and see if there is a '(' between them.
+    len_num_list = len(number_dict_list)
+    result = []  # type: List[Dict]
+    prev_num_dict = number_dict_list[0]
+    idx = 1
+    while idx < len_num_list:
+        num_dict = number_dict_list[idx]
+        gap_st = line[prev_num_dict['end']:num_dict['start']].strip()
+
+        if gap_st == '(':
+            achar_idx_plus_1, achar = get_nspace_char_at_after(num_dict['end'], line)
+            if  achar == ')':
+                merged_dict = copy.copy(prev_num_dict)
+                merged_dict['end'] = achar_idx_plus_1
+                merged_dict['text'] = line[prev_num_dict['start']:
+                                           achar_idx_plus_1]
+                result.append(merged_dict)
+
+                # move the index accordingly
+                if idx + 1 < len_num_list:
+                    prev_num_dict = number_dict_list[idx + 1]
+                    idx += 1
+        idx += 1
+    return result
+
 
 
 # pylint: disable=too-few-public-methods
