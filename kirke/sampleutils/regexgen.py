@@ -300,12 +300,10 @@ FRACTION_PAT_2 = re.compile(r'\b({})[\-/\s]({})\b'.format('|'.join(FIRST_19_ST_L
 
 
 def extract_fractions(line: str) -> List[Dict]:
-    print('extract_fractions({})'.format(line))
     result = []  # type: List[Dict]
 
     mat_list = FRACTION_PAT_1.finditer(line)
     for mat in mat_list:
-        print('in mat: [{}]'.format(mat.group()))
         val1 = int(mat.group(1))
         val2 = int(mat.group(2))
 
@@ -321,7 +319,6 @@ def extract_fractions(line: str) -> List[Dict]:
 
     mat_list = FRACTION_PAT_2.finditer(line)
     for mat in mat_list:
-        print('in mat: [{}]'.format(mat.group()))
         val1 = FIRST_19_ST_LIST.index(mat.group(1).lower())
         val2 = FIRST_19_ORD_ST_LIST.index(mat.group(2).lower())
 
@@ -345,7 +342,6 @@ FRACTION_PERCENT_PAT_2 = re.compile(r'\b(\d+) *({})\s*(%|percent\b)'.format('|'.
                                     re.I)
 
 def extract_fraction_percents(line: str) -> List[Dict]:
-    print('extract_fractions({})'.format(line))
     result = []  # type: List[Dict]
 
     mat_list = FRACTION_PERCENT_PAT_1.finditer(line)
@@ -424,7 +420,7 @@ def extract_percents(line: str) -> List[Dict]:
     return result
 
 
-TIME_DURATION_PAT_ST = r'\b(weeks?|months?|years?|decades?)\b'
+TIME_DURATION_PAT_ST = r'\b(days?|weeks?|months?|years?|decades?)\b'
 TIME_DURATION_PAT = re.compile(TIME_DURATION_PAT_ST, re.I)
 
 def time_duration_to_norm_dict(prev_num_start: int,
@@ -490,6 +486,29 @@ def extract_time_durations(line: str) -> List[Dict]:
 
     return result
 
+
+def extract_nth_time_durations(line: str) -> List[Dict]:
+    norm_line = remove_hyphen_among_num_words(line)
+    result = []
+
+    mat_list = list(TIME_DURATION_PAT.finditer(norm_line))
+
+    number_dict_list = extract_ordinal_numbers(line)
+    number_idx = 0
+    for mat in mat_list:
+        prev_num_start, prev_num_end, number_idx = \
+            find_prev_start_end_in_dict_list(number_dict_list,
+                                             number_idx,
+                                             mat.start(),
+                                             line)
+        if prev_num_start != -1:
+            norm_dict = time_duration_to_norm_dict(prev_num_start,
+                                                   prev_num_end,
+                                                   mat.end(),
+                                                   line)
+            result.append(norm_dict)
+
+    return result
 
 
 def number_to_norm_dict(num_st: str,
@@ -641,6 +660,35 @@ def invalid_num_split(mat: Match) -> List[Tuple[int, int, str]]:
     return [(mat.start(), mat.end(), mat.group())]
 
 
+DIGIT_ORDINAL_PAT_ST = r'\b(\d+)(st|nd|rd|th)\b'
+DIGIT_ORDINAL_PAT = re.compile(DIGIT_ORDINAL_PAT_ST, re.I)
+
+WORD_ORDINAL_PAT = re.compile('({})'.format('|'.join(FIRST_19_ORD_ST_LIST)), re.I)
+
+def extract_ordinal_numbers(line: str) -> List[Dict]:
+    result = []  # type: List[Dict]
+    mat_list = DIGIT_ORDINAL_PAT.finditer(line)
+    for mat in mat_list:
+        adict = {'norm': {'value': int(mat.group(1)),
+                          'ordinal': True},
+                 'text': mat.group(),
+                 'start': mat.start(),
+                 'end': mat.end()}
+        result.append(adict)
+
+    mat_list = WORD_ORDINAL_PAT.finditer(line)
+    for mat in mat_list:
+        val1 = FIRST_19_ORD_ST_LIST.index(mat.group().lower())
+        adict = {'norm': {'value': val1,
+                          'ordinal': True},
+                 'text': mat.group(),
+                 'start': mat.start(),
+                 'end': mat.end()}
+        result.append(adict)
+
+    return result
+
+
 def extract_numbers(line: str, is_ignore_currency_symbol: bool = False) -> List[Dict]:
     """Extract numbers.
 
@@ -722,6 +770,8 @@ def extract_number_paren_numbers(line: str) -> List[Dict]:
         line: the string to extract the numbers from.
 
     """
+    # this is really a hack
+    line = line.replace(';', ' ')
     number_dict_list = extract_numbers(line)
 
     if len(number_dict_list) <= 1:
@@ -749,6 +799,7 @@ def extract_number_paren_numbers(line: str) -> List[Dict]:
                 if idx + 1 < len_num_list:
                     prev_num_dict = number_dict_list[idx + 1]
                     idx += 1
+        prev_num_dict = num_dict
         idx += 1
     return result
 
