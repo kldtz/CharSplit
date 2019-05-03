@@ -729,7 +729,6 @@ def extract_ordinal_numbers(line: str) -> List[Dict]:
     return result
 
 
-# pylint: disable=too-many-locals
 def extract_numbers(line: str, is_ignore_currency_symbol: bool = False) -> List[Dict]:
     """Extract numbers.
 
