@@ -107,3 +107,26 @@ def choose_closest(xval: int,
     sorted_diff_list = sorted(diff_list)
     _, chosen_idx = sorted_diff_list[0]
     return other_list[chosen_idx]
+
+
+def half_round(aval: float) -> float:
+    twice = aval * 2
+    chopped = round(twice)
+    half = round(chopped / 2, 1)
+    return half
+
+
+def one_fifth_round(aval: float) -> float:
+    five_times = aval * 5
+    chopped = round(five_times)
+    one_fifth = round(chopped / 5, 1)
+    return one_fifth
+
+
+def get_mode_in_list(alist):
+    """Return the most frequent element in the list.
+
+    Note: if there is a tie, this is undefined among the most frequent
+          entities.
+    """
+    return max(set(alist), key=alist.count)

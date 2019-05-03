@@ -1037,6 +1037,35 @@ def find_non_space_index(line: str) -> int:
     return idx
 
 
+MULTI_NEWLINES_PAT = re.compile(r'\n\n+')
+
+def sub_newlines(st: str) -> str:
+    """Replace multple adjacent new lines with
+       spaces followed by just one new line.  This perserves
+       the original string length.
+
+       The purpose of this function is to make all lines
+       in a paragraph to have maximum 1 new line, not
+       multiple.  This happens sometimes from pdfbox.
+    """
+    if not st:
+        return st
+
+    # to avoid unnecessary transformation if
+    # no double new_line chars are found.
+    if not MULTI_NEWLINES_PAT.search(st):
+        return st
+
+    chars = list(st)
+    prev_char = chars[0]
+    for i, achar in enumerate(chars[1:], 1):
+        if prev_char == '\n' and \
+           achar == '\n':
+            chars[i-1] = ' '
+        prev_char = achar
+    return ''.join(chars)
+
+
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
     print(str(_get_num_prefix_space("abc")))      # 0

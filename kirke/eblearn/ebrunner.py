@@ -412,8 +412,8 @@ class EbRunner:
             total_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
             avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
             # pylint: disable=line-too-long
-            logger.info('total mem: %.2f,  model mem: %.2f,  avg: %.2f',
-                        total_mem_usage, total_mem_usage - orig_mem_usage, avg_model_mem)
+            logger.debug('total mem: %.2f,  model mem: %.2f,  avg: %.2f',
+                         total_mem_usage, total_mem_usage - orig_mem_usage, avg_model_mem)
             start_time_2 = time.time()
             logger.info('updating custom models took %.0f msec', (start_time_2 - start_time_1) * 1000)
 

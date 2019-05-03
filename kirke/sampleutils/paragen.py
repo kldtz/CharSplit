@@ -1,12 +1,11 @@
-import logging
+import os
 import re
+import sys
 from typing import Dict, List, Tuple
+
 from kirke.utils import ebantdoc4, ebsentutils
 
-# pylint: disable=invalid-name
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
+IS_DEBUG = False
 
 # pylint: disable=too-few-public-methods
 class ParagraphGenerator:
@@ -98,5 +97,18 @@ class ParagraphGenerator:
                     else:
                         label_list.append(False)
                 i += 1
+
+            if IS_DEBUG:
+                """This code produces paragraph candidates in /tmp directory.
+                   We use such files in dir-paracand/gold-target for unit tests."""
+                tmp_fname = os.path.join('/tmp', os.path.basename(antdoc.file_id).replace('.txt', '.para.tsv'))
+                with open(tmp_fname, 'wt') as fout:
+                    for para_seq, para_cand in enumerate(candidates):
+                        print('{}\t{}\t{}\t{}'.format(para_seq,
+                                                      para_cand['start'],
+                                                      para_cand['end'],
+                                                      para_cand['text'].replace('\n', '||')),
+                              file=fout)
+                print('wrote {}'.format(tmp_fname, file=sys.stderr))
             result.append((antdoc, candidates, label_list, group_id_list))
         return result

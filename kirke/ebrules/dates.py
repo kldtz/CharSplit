@@ -10,7 +10,7 @@ from kirke.sampleutils.doccandidatesutils import DocCandidatesTransformer
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 # pylint: disable=too-few-public-methods

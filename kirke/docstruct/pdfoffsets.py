@@ -8,14 +8,23 @@ from kirke.docstruct import jenksutils, docstructutils
 from kirke.utils import engutils, strutils
 
 
+# In extractor, we store PDFBox's 'str' in this format.
+# We only has 1 y coordinate for the string, not top and bottom
 StrInfo = namedtuple('StrInfo', ['start', 'end',
                                  'xStart', 'xEnd', 'yStart'])
+
+# Page Size in Point at 72 dpi
+# letter size: width 8.5 in, height 11 in
+# range of x = 0 to 612
+# range of y = 0 to 792
+MAX_PAGE_X = 612
+MAX_PAGE_Y = 792
 
 MAX_Y_DIFF = 10000
 MIN_X_END = -1
 
 
-# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes, too-few-public-methods
 class PageInfo3:
 
     # pylint: disable=too-many-arguments, too-many-locals
@@ -29,7 +38,6 @@ class PageInfo3:
         # Fixes header and footer issues due to out of order lines.
         # Also out of order blocks due to tables and header.  p76 carousel.txt
         self.pblockinfo_list = sorted(pblockinfo_list, key=lambda x: x.start)
-        self.avg_single_line_break_ydiff = self.compute_avg_single_line_break_ydiff()
 
         # self.line_list = init_line_with_attr_list()
 
@@ -48,23 +56,14 @@ class PageInfo3:
 
         line_attrs = []
         # pylint: disable=invalid-name
-        prev_yStart = 0
         for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
-            ydiff = lineinfo.yStart - prev_yStart
-            # it possible for self.avg_single_line_break_ydiff to be 0 when
-            # the document has only vertical lines.
-            if self.avg_single_line_break_ydiff == 0:
-                num_linebreak = 1  # hopeless, default to 1 for now
-            else:
-                num_linebreak = round(ydiff / self.avg_single_line_break_ydiff, 1)
             align = jenks.classify(lineinfo.xStart)
             line_text = doc_text[lineinfo.start:lineinfo.end]
             is_english = engutils.classify_english_sentence(line_text)
             is_centered = docstructutils.is_line_centered(line_text, lineinfo.xStart, lineinfo.xEnd)
             line_attrs.append(LineWithAttrs(page_line_num,
-                                            lineinfo, line_text, page_num, ydiff, num_linebreak,
+                                            lineinfo, line_text, page_num,
                                             align, is_centered, is_english))
-            prev_yStart = lineinfo.yStart
         self.line_list = line_attrs
         # attrs of page, such as 'page_num_index'
         self.attrs = {}  # type: Dict[str, Any]
@@ -74,21 +73,6 @@ class PageInfo3:
         #   - page_num
         #   - header, footer
         self.content_line_list = []  # type: List[LineWithAttrs]
-
-    # pylint: disable=invalid-name
-    def compute_avg_single_line_break_ydiff(self):
-        total_merged_ydiff, total_merged_lines = 0, 0
-        for pblockinfo in self.pblockinfo_list:
-            is_multi_lines = pblockinfo.is_multi_lines
-            if not (is_multi_lines or len(pblockinfo.lineinfo_list) == 1):
-                total_merged_ydiff += pblockinfo.yEnd - pblockinfo.yStart
-                total_merged_lines += len(pblockinfo.lineinfo_list) - 1
-
-        result = 14.0  # default value, just in case
-        if total_merged_lines != 0:
-            result = total_merged_ydiff / total_merged_lines
-        # print("\npage #{}, avg_single_line_ydiff = {}".format(self.page_num, result))
-        return result
 
     def get_blocked_lines(self):
         if not self.line_list:
@@ -261,12 +245,13 @@ class PDFTextDoc:
 class LineInfo3:
 
     # pylint: disable=too-many-arguments
-    def __init__(self, start, end, line_num, block_num, strinfo_list) -> None:
+    def __init__(self, start, end, line_num, block_num, prev_linebreak_ratio, strinfo_list) -> None:
         self.start = start
         self.end = end
         self.line_num = line_num
         self.obid = block_num   # original block id from pdfbox
         self.bid = block_num    # ordered by block's yStart
+        self.prev_linebreak_ratio = prev_linebreak_ratio
         self.strinfo_list = strinfo_list
 
         # pylint: disable=invalid-name
@@ -329,8 +314,6 @@ class LineWithAttrs:
                  lineinfo: LineInfo3,
                  line_text: str,
                  page_num: int,
-                 ydiff: float,
-                 linebreak: float,
                  align: str,
                  is_centered: bool,
                  is_english: bool) -> None:
@@ -340,8 +323,6 @@ class LineWithAttrs:
         self.line_text = line_text
         self.num_word = len(line_text.split())
         self.page_num = page_num
-        self.ydiff = ydiff
-        self.linebreak = linebreak
         self.align = align  # inferred
         self.is_centered = is_centered
         self.is_english = is_english
@@ -357,7 +338,7 @@ class LineWithAttrs:
         alist.append('plno=%d' % self.page_line_num)
         alist.append('bnum=%d' % self.block_num)
         alist.append(self.lineinfo.tostr2())
-        alist.append('lbk=%.1f' % self.linebreak)
+        alist.append('prev_lbk=%.1f' % self.lineinfo.prev_linebreak_ratio)
         alist.append('align=%s' % self.align)
         if self.is_centered:
             alist.append('center')
@@ -375,9 +356,7 @@ class LineWithAttrs:
         # alist.append('plno=%d' % self.page_line_num)
         alist.append(self.lineinfo.tostr2())
         alist.append('align=%s' % self.align)
-        if self.linebreak != 1.0:
-            alist.append('lbk=%.1f' % self.linebreak)
-
+        alist.append('prev_lbk=%.1f' % self.lineinfo.prev_linebreak_ratio)
         if len(self.lineinfo.strinfo_list) != 1:
             alist.append('len(strlst)=%d' % len(self.lineinfo.strinfo_list))
 
@@ -395,8 +374,7 @@ class LineWithAttrs:
         alist.append('pn=%d' % self.page_num)
         alist.append('bnum=%d' % self.block_num)
         alist.append('align=%s' % self.align)
-        if self.linebreak != 1.0:
-            alist.append('lbk=%.1f' % self.linebreak)
+        alist.append('prev_lbk=%.1f' % self.lineinfo.prev_linebreak_ratio)
 
         if self.is_centered:
             alist.append('center')
@@ -413,8 +391,7 @@ class LineWithAttrs:
         alist.append('bnum=%d' % self.block_num)
         alist.append(self.lineinfo.tostr2())
         alist.append('align=%s' % self.align)
-        if self.linebreak != 1.0:
-            alist.append('lbk=%.1f' % self.linebreak)
+        alist.append('prev_lbk=%.1f' % self.lineinfo.prev_linebreak_ratio)
 
         if len(self.lineinfo.strinfo_list) != 1:
             alist.append('len(strlst)=%d' % len(self.lineinfo.strinfo_list))
@@ -521,7 +498,6 @@ class PBlockInfo:
         # print("self.xStart = {}, xEnd = {}, yStart= {}".format(self.xStart, self.xEnd,
         #                                                        self.yStart))
         self.is_english = engutils.classify_english_sentence(text)
-        self.ydiff = MAX_Y_DIFF  # will compute this across PBlockInfo
 
     def __eq__(self, other) -> bool:
         #if hasattr(other, 'start') and hasattr(other, 'end'):
@@ -663,3 +639,58 @@ def line_list_to_grouped_block_list(linex_list: List[LineWithAttrs],
         grouped_block_list.append(GroupedBlockInfo(page_num, block_num, tmp_linex_list))
 
     return grouped_block_list
+
+
+def print_page_blockinfos_map(pgid_pblockinfos_map, lines_text: str, fname: str) -> None:
+    with open(fname, 'wt') as fout:
+        page_nums = sorted(pgid_pblockinfos_map.keys())
+        max_page_num = max(page_nums)
+        for page_num in range(1, max_page_num + 1):
+            print('\n========== page #{} ==========\n'.format(page_num), file=fout)
+
+            pblockinfo_list = pgid_pblockinfos_map.get(page_num)
+            for pblockinfo in pblockinfo_list:
+
+                print('\n                   ||=== Block #{}, se= ({}, {})\n'.format(
+                    pblockinfo.bid, pblockinfo.start, pblockinfo.end), file=fout)
+
+                for lineinfo in pblockinfo.lineinfo_list:
+                    line_text = lines_text[lineinfo.start:lineinfo.end]
+                    print(line_text, file=fout)
+    print('wrote {}'.format(fname))
+
+
+def get_lx_min_max_x(strinfo_list: List[StrInfo]) -> Tuple[int, int]:
+    """Find the min and max of x coordinates of a list of PDFBox strs.
+
+    Args:
+        strinfo_list: a list of StrInfo, or strings of a line in PDFBox.
+    Returns:
+        the min and max of x coordinates in strinfo_list
+
+    """
+    min_x, max_x = MAX_PAGE_X, 0
+    for strinfo in strinfo_list:
+        if strinfo.xEnd > max_x:
+            max_x = strinfo.xEnd
+        if strinfo.xStart < min_x:
+            min_x = strinfo.xStart
+    return min_x, max_x
+
+
+def get_lx_min_max_y(strinfo_list: List[StrInfo]) -> Tuple[int, int]:
+    """Find the min and max of x coordinates of a list of PDFBox strs.
+
+    Args:
+        strinfo_list: a list of StrInfo, or strings of a line in PDFBox.
+    Returns:
+        the min and max of x coordinates in strinfo_list
+
+    """
+    min_y, max_y = MAX_PAGE_Y, 0
+    for strinfo in strinfo_list:
+        if strinfo.yStart > max_y:
+            max_y = strinfo.yStart
+        if strinfo.yStart < min_y:
+            min_y = strinfo.yStart
+    return min_y, max_y

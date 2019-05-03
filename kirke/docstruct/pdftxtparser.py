@@ -9,10 +9,11 @@ import sys
 # pylint: disable=unused-import
 from typing import Any, Dict, DefaultDict, List, Set, Tuple
 
-from kirke.docstruct import docstructutils, linepos
+from kirke.docstruct import docstructutils, linepos, pageformat
 from kirke.docstruct import pdfutils, pdfoffsets, secheadutils
 from kirke.docstruct.pdfoffsets import GroupedBlockInfo, LineInfo3, LineWithAttrs
 from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, StrInfo
+from kirke.docstruct.pdfoffsets import print_page_blockinfos_map
 from kirke.utils import strutils, txtreader, mathutils
 from kirke.utils.textoffset import TextCpointCunitMapper
 
@@ -25,10 +26,14 @@ logger.setLevel(logging.INFO)
 MAX_FOOTER_YSTART = 10000
 
 DEBUG_MODE = False
+PARA_SEG_DEBUG_MODE = False
+IS_DEBUG_PAGE_CLASSIFIER = False
+IS_DEBUG = False
+IS_DEBUG_YDIFF = False
 
 def get_nl_fname(base_fname: str,
                  work_dir: str) -> str:
-    return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.nl.txt'))
+    return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.lines.txt'))
 
 
 def get_paraline_fname(base_fname: str,
@@ -36,11 +41,26 @@ def get_paraline_fname(base_fname: str,
     return '{}/{}'.format(work_dir, base_fname.replace('.txt', '.paraline.txt'))
 
 
+# get better newline for some documents that has 3 /n between lines
+# in a paragraph.
+# Original PDF, "2.3.1.18.9 180718-AXA-TA-3.pdf"
+def update_nl_using_pblock(nl_text: str, pageinfo_list) -> str:
+    nl2_chars = list(nl_text)
+    for page_info in pageinfo_list:
+        # print("\n== pageinfo {}".format(page_info.page_num))
+        for pblockinfo in page_info.pblockinfo_list:
+            pb_text = pblockinfo.text
+            pb_chars = list(pb_text)
+            nl2_chars[pblockinfo.start:pblockinfo.end] = pb_chars
+            # print("\n  block {}".format(pblockinfo.bid))
+            # print("  [{}]".format(pb_text))
+    nl2_text = ''.join(nl2_chars)
+    return nl2_text
+
 def text_offsets_to_nl(base_fname: str,
                        orig_doc_text: str,
                        line_breaks: List[Dict],
-                       work_dir: str,
-                       debug_mode: bool = False) \
+                       work_dir: str) \
                        -> Tuple[str, List[int]]:
     # We allow only 1 diff, some old cached file might have the issue
     # where a value == len(orig_doc_text).
@@ -62,150 +82,7 @@ def text_offsets_to_nl(base_fname: str,
     for linebreak_offset in linebreak_offset_list:
         ch_list[linebreak_offset] = '\n'
     nl_text = ''.join(ch_list)
-    if debug_mode:
-        nl_fname = get_nl_fname(base_fname, work_dir)
-        txtreader.dumps(nl_text, nl_fname)
-        print('wrote {}, size= {}'.format(nl_fname, len(nl_text)), file=sys.stderr)
     return nl_text, linebreak_offset_list
-
-
-# pylint: disable=too-many-locals, too-many-branches, too-many-statements
-def to_nl_paraline_texts(file_name: str,
-                         offsets_file_name: str,
-                         work_dir: str,
-                         debug_mode: bool = False) \
-                         -> Tuple[str, str, ArrayType, str, ArrayType,
-                                  TextCpointCunitMapper]:
-    """Returns various format of the original document.
-
-
-    """
-    # args: orig_doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr,
-    #       nl_fname, paraline_fn, cpoint_cunit_mapper:
-    base_fname = os.path.basename(file_name)
-
-    if debug_mode:
-        print('reading text doc: [{}]'.format(file_name), file=sys.stderr)
-    orig_doc_text = strutils.loads(file_name)
-
-    cpoint_cunit_mapper = TextCpointCunitMapper(orig_doc_text)
-    unused_doc_len, str_offsets, line_breaks, pblock_offsets, unused_page_offsets = \
-        pdfutils.load_pdf_offsets(offsets_file_name, cpoint_cunit_mapper)
-    # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
-
-    # because previous issues with bad 'line_breaks', we might adjust the
-    # line_break here.  That's why it is being passed back here.
-    nl_text, linebreak_offset_list = text_offsets_to_nl(base_fname,
-                                                        orig_doc_text,
-                                                        line_breaks,
-                                                        work_dir=work_dir,
-                                                        debug_mode=debug_mode)
-
-    linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
-
-    lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
-    ## WARNING, some strx have no word/char in them, just spaces.
-    ## It seems that some str with empty spaces might be intermixed with
-    ## other strx, such as top of a page, blank_str, mixed with page_num
-    ## toward the end of a page.  They are treated as the SAME line because
-    ## no linebreak is issues in PDFBox.  As a result, removing all blank strx.
-    ## Hopefully, the mix of different strx at vastly different yStart will disappear.
-    ## Not sure how to fix it at the PDFBox side, in NoIndentPDFTextStripper.java, so
-    ## fix it here.
-    for str_offset in str_offsets:
-        start = str_offset['start']
-        end = str_offset['end']
-        # page_num = str_offset['pageNum']
-        line_num = str_offset['lineNum']
-        # pylint: disable=invalid-name
-        xStart = str_offset['xStart']
-        # pylint: disable=invalid-name
-        xEnd = str_offset['xEnd']
-        # pylint: disable=invalid-name
-        yStart = str_offset['yStart']
-
-        # some times, empty strx might mix with page_num
-        # don't add them
-        str_text = nl_text[start:end]
-        if yStart < 100 and not str_text.strip():
-            pass
-        else:
-            lxid_strinfos_map[line_num].append(StrInfo(start, end,
-                                                       xStart, xEnd, yStart))
-
-    bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
-    tmp_prev_end = 0
-    for i, break_offset in enumerate(line_breaks):
-        start = tmp_prev_end
-        end = break_offset['offset']
-        line_num = break_offset['lineNum']
-        block_num = break_offset['blockNum']
-
-        # adjust the start to exclude nl or space
-        # print("start = {}, end= {}".format(start, end))
-        while start < end and strutils.is_space_or_nl(nl_text[start]):
-            # print("start2 = {}".format(start))
-            start += 1
-        while start <= end - 1 and strutils.is_nl(nl_text[end -1]):
-            end -= 1
-        if start != end:
-            bxid_lineinfos_map[block_num].append(LineInfo3(start, end, line_num, block_num,
-                                                           lxid_strinfos_map[line_num]))
-        tmp_prev_end = end + 1
-
-    pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]]
-    block_info_list = []
-    # for nl_text, those that are not really line breaks
-    para_not_linebreak_offsets = []  # type: List[int]
-    for pblock_offset in pblock_offsets:
-        pblock_id = pblock_offset['id']
-        start = pblock_offset['start']
-        end = pblock_offset['end']
-        page_num = pblock_offset['pageNum']
-
-        while start <= end - 1 and strutils.is_nl(nl_text[end -1]):
-            end -= 1
-
-        if start != end:
-            para_line, is_multi_lines, not_linebreaks = \
-                pdfutils.para_to_para_list(nl_text[start:end])
-
-            if not is_multi_lines:
-                for i in not_linebreaks:
-                    para_not_linebreak_offsets.append(start + i)
-
-            # print("is_multi_lines = {}, paraline: [{}]\n".format(is_multi_lines, para_line))
-            block_info = PBlockInfo(start,
-                                    end,
-                                    pblock_id,
-                                    page_num,
-                                    para_line,
-                                    bxid_lineinfos_map[pblock_id],
-                                    is_multi_lines)
-            pgid_pblockinfos_map[page_num].append(block_info)
-            block_info_list.append(block_info)
-
-    # Now, switch to array replacement.  This is not affected by the wrong block info.
-    # It simply override everys block based on the indexes, so guarantees not to create
-    # extra stuff.
-    ch_list = list(nl_text)
-    for block_info in block_info_list:
-        block_text = block_info.text
-        # block_text is already formatted correct because of above
-        # pdfutils.para_to_para_list(nl_text[start:end])
-        ch_list[block_info.start:block_info.end] = list(block_text)
-    paraline_text = ''.join(ch_list)
-
-    para_not_linebreak_arr = array.array('i', para_not_linebreak_offsets)  # type: ArrayType
-
-    # save the result
-    paraline_fn = get_paraline_fname(base_fname, work_dir)
-    txtreader.dumps(paraline_text, paraline_fn)
-    if debug_mode:
-        print('wrote {}, size= {}'.format(paraline_fn, len(paraline_text)), file=sys.stderr)
-
-    return (orig_doc_text, nl_text, linebreak_arr, paraline_text, para_not_linebreak_arr, \
-            cpoint_cunit_mapper)
 
 
 def is_block_multi_line(linex_list):
@@ -295,15 +172,13 @@ def get_gap_frto_list(prev_linex: LineWithAttrs,
             for tmp_linex in next_page.line_list:
                 if tmp_linex != linex:
                     result.append(tmp_linex)
-
     return result
 
 
 def save_str_list(pdf_text_doc: PDFTextDoc,
                   file_name: str,
                   work_dir: str) -> None:
-    base_fname = os.path.basename(file_name)
-    out_fname = '{}/{}'.format(work_dir, base_fname)
+    out_fname = '{}/{}'.format(work_dir, os.path.basename(file_name))
 
     doc_text = pdf_text_doc.doc_text
     with open(out_fname, 'wt') as fout:
@@ -313,9 +188,7 @@ def save_str_list(pdf_text_doc: PDFTextDoc,
                 for lineinfo in pblockinfo.lineinfo_list:
                     block_line_num += 1
                     for str_num, strinfo in enumerate(lineinfo.strinfo_list):
-                        start = strinfo.start
-                        end = strinfo.end
-                        text = doc_text[start:end]
+                        text = doc_text[strinfo.start:strinfo.end]
                         print("{}\t{}\t{}\t{}\t{}\t[{}]".format(page_num,
                                                                 pblock_num,
                                                                 block_line_num,
@@ -331,6 +204,7 @@ def save_str_list(pdf_text_doc: PDFTextDoc,
 # offsets_line_list = List[Tuple[span_se_list, str, attr_list]]
 # gap_span_list = List[Tuple[int, int]]
 
+# pylint: disable=too-many-locals, too-many-statements
 def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                         file_name: str,
                         work_dir: str,
@@ -363,6 +237,11 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
     sechead_context = []  # type: List[Any]
     not_gapped_line_nums = set([])  # type: Set[int]
 
+    # get better newline for some documents that has 3 /n between lines
+    # in a paragraph.
+    # Original PDF, "2.3.1.18.9 180718-AXA-TA-3.pdf"
+    better_text = update_nl_using_pblock(pdf_text_doc.doc_text, pdf_text_doc.page_list)
+
     # not_empty_line_num = 0
     # pylint: disable=too-many-nested-blocks
     for page_num, grouped_block_list in enumerate(pdf_text_doc.paged_grouped_block_list, 1):
@@ -376,7 +255,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                 # TODO, jshaw, this doesn't handle the page_num gap line correct yet.
                 # It should similar to the code for not is_multi-line
                 for linex in grouped_block.line_list:
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    out_line = better_text[linex.lineinfo.start:linex.lineinfo.end]
                     # sorted(linex.attrs.items())
                     attr_list = linex.to_para_attrvals()  # type: List[Any]
 
@@ -430,7 +309,7 @@ def to_paras_with_attrs(pdf_text_doc: PDFTextDoc,
                                                  # -100 will be reset later
                                                  linepos.LnPos(offset, offset, is_gap=True)))
 
-                    out_line = pdf_text_doc.doc_text[linex.lineinfo.start:linex.lineinfo.end]
+                    out_line = better_text[linex.lineinfo.start:linex.lineinfo.end]
                     block_lines.append(out_line)
                     span_se_list.append((linepos.LnPos(linex.lineinfo.start, linex.lineinfo.end),
                                          linepos.LnPos(offset, offset + len(out_line))))
@@ -589,31 +468,216 @@ def to_paralines(pdf_text_doc, file_name, work_dir, debug_mode=False):
     return paraline_text, offsets_line_list
 
 
-def parse_document(file_name: str,
-                   work_dir: str,
-                   debug_mode: bool = False) \
-                   -> PDFTextDoc:
-    base_fname = os.path.basename(file_name)
+# pylint: disable=too-many-arguments
+def pbox_page_blocks_init(page_num: int,
+                          block_num: int,
+                          nl_text: str,
+                          lxid_strinfos_map: Dict[int, List[StrInfo]],
+                          page_lineoffset_list: List[Dict],
+                          page_blockoffset_list: List[Dict],
+                          # the variables below are
+                          # modified inline
+                          pgid_pblockinfos_map: Dict[int, List[PBlockInfo]],
+                          para_not_linebreak_offsets: List[int]) \
+                          -> int:
+    blockid_linenums_map = defaultdict(list)  # type: Dict[int, List[int]]
+    for lineoffset in page_lineoffset_list:
+        line_num = lineoffset['lineNum']
+        blockid_linenums_map[lineoffset['blockNum']].append(line_num)
 
-    doc_text = strutils.loads(file_name)
-    # len_doc_text = len(doc_text)
+    for blockoffset in page_blockoffset_list:
+        pbox_block_num = blockoffset['id']
+        linenum_list = blockid_linenums_map[pbox_block_num]
+        if not linenum_list:
+            # print('skipping empty paragraph, with just spaces, block_num {}'.format(pbox_block_num))
+            continue
 
-    cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
-    unused_doc_len, str_offsets, line_breaks, unused_pblock_offsets, page_offsets = \
-        pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name), cpoint_cunit_mapper)
-    # print('doc_len = {}, another {}'.format(doc_len, len(doc_text)))
+        block_num += 1
+        tmp_strinfos = []  # type: List[StrInfo]
+        for linenum in linenum_list:
+            tmp_strinfos.extend(lxid_strinfos_map[linenum])
 
-    nl_text, unused_linebreak_offset_list = text_offsets_to_nl(base_fname,
-                                                               doc_text,
-                                                               line_breaks,
-                                                               work_dir=work_dir,
-                                                               debug_mode=debug_mode)
+        # Do not get 'start' and 'end' from tmp_strinfos.
+        # The strinfos in a block might NOT be continuous
+        # and include too much text (whole page?).  Need to get
+        # 'start' and 'end' from blockoffset instead.
 
+        start = blockoffset['start']
+        end = blockoffset['end']
+
+        bxid_lineinfos = []  # type: List[LineInfo3]
+        paraline_text = nl_text[start:end]
+        # is_multi_lines = False
+        # compute the para_not_linebreak_offsets
+        for char_i, chx in enumerate(paraline_text, start):
+            if chx == '\n':
+                para_not_linebreak_offsets.append(char_i)
+        paraline_text = paraline_text.replace('\n', ' ')
+
+        bxid_lineinfos.append(LineInfo3(start,
+                                        end,
+                                        linenum_list[0],  # take first one
+                                        block_num,
+                                        -1,  # prev_linebreak_ratio,
+                                        tmp_strinfos))
+
+        block_info = PBlockInfo(start,
+                                end,
+                                block_num,
+                                page_num,
+                                paraline_text,
+                                bxid_lineinfos,
+                                is_multi_lines=False)
+        pgid_pblockinfos_map[page_num].append(block_info)
+
+    return block_num
+
+
+# pylint: disable=too-many-arguments
+def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
+                          lxid_strinfos_map: Dict[int, List[StrInfo]],
+                          nl_text: str,
+                          all_ydiffs: List[float],
+                          lxid_pnum_map: Dict[int, int],
+                          page_lineoffsets_map: Dict[int, List[Dict]],
+                          page_blockoffsets_map: Dict[int, List[Dict]],
+                          pgid_pblockinfos_map: Dict[int, List[PBlockInfo]],
+                          para_not_linebreak_offsets: List[int]) \
+                          -> None:
+
+    page_num_list = sorted(page_linenum_list_map.keys())
+
+    # compute the page_ydiff_mode for all pages
+    # Please note that if a page is a form-page, page_ydiff_mode is -1.
+    page_ydiff_mode_map = \
+        pageformat.calc_page_ydiff_modes(page_linenum_list_map,
+                                         lxid_strinfos_map,
+                                         nl_text,
+                                         all_ydiffs)
+
+    block_num = 0
+    for page_num in page_num_list:
+        page_linenum_list = page_linenum_list_map[page_num]
+
+        unused_line_start, unused_line_end = -1, -1  # type Tuple[int, int]
+        unused_lxline_strinfos = []  # type: List[StrInfo]
+
+        page_ydiff_mode = page_ydiff_mode_map[page_num]
+
+        if page_ydiff_mode < 0:  # a form-page
+            # use pdfbox's block info to create the paragraphs in
+            # pgid_pblockinfos_map
+            block_num = pbox_page_blocks_init(page_num,
+                                              block_num,
+                                              nl_text,
+                                              lxid_strinfos_map=lxid_strinfos_map,
+                                              page_lineoffset_list=page_lineoffsets_map[page_num],
+                                              page_blockoffset_list=page_blockoffsets_map[page_num],
+                                              pgid_pblockinfos_map=pgid_pblockinfos_map,
+                                              para_not_linebreak_offsets=para_not_linebreak_offsets)
+            # Eone setting up pgid_blockinfos_map, go to next page
+            continue
+
+        # not a form-page, use page_ydiff_mode to create paragraphs
+        start = None
+        tmp_strinfos = []
+        bxid_lineinfos = []  # type: List[LineInfo3]
+        page_linenum_set = set(page_linenum_list)
+
+        prev_y = 0
+        for line_num in page_linenum_list:
+
+            lx_strinfos = lxid_strinfos_map[line_num]
+            tmp_start = lx_strinfos[0].start
+            tmp_end = lx_strinfos[-1].end
+            line_text = nl_text[tmp_start:tmp_end]
+            line_len = len(line_text.strip())
+
+            # checks the difference in y val between this line and the next,
+            # if below the mode, join into a block, otherwise add block to block_info
+            if line_num + 1 in page_linenum_set and \
+               line_len > 0:
+                y_diff_next_line = round(lxid_strinfos_map[line_num + 1][0].yStart - \
+                                         lx_strinfos[0].yStart,
+                                         2)
+            else:
+                y_diff_next_line = -1
+
+            y_diff_prev_line = round(lx_strinfos[0].yStart - prev_y, 2)
+
+            if IS_DEBUG_YDIFF:
+                print('  page_ydiff_mode = {}, ydiff = {}'.format(page_ydiff_mode,
+                                                                  y_diff_next_line))
+
+            if tmp_start != tmp_end and \
+               (y_diff_next_line < 0 or \
+                y_diff_next_line > page_ydiff_mode + 1):
+                if IS_DEBUG_YDIFF:
+                    print("  kk88, branch 1")
+                block_num += 1
+
+                tmp_strinfos.extend(lxid_strinfos_map[line_num])
+
+                if not start:
+                    start = tmp_start
+                end = tmp_end
+                page_num = lxid_pnum_map[line_num]
+                bxid_lineinfos.append(LineInfo3(start,
+                                                end,
+                                                line_num,
+                                                block_num,
+                                                y_diff_prev_line / page_ydiff_mode,
+                                                tmp_strinfos))
+                if IS_DEBUG_YDIFF:
+                    print("  para_line: [{}]".format(nl_text[start:end]))
+                    print("  para_line2: [{}]".format(strutils.sub_newlines(nl_text[start:end])))
+                # since all the lines in a paragraph should have maximum 1 newline between
+                # the lines, we are replace multple \n's with just 1.  All others become spaces.
+                para_line, is_multi_lines, not_linebreaks = \
+                    pdfutils.para_to_para_list(strutils.sub_newlines(nl_text[start:end]))
+                if IS_DEBUG_YDIFF:
+                    print("  paraline3: [{}]".format(para_line))
+
+                if not is_multi_lines:
+                    for i in not_linebreaks:
+                        para_not_linebreak_offsets.append(start + i)
+
+                block_info = PBlockInfo(start,
+                                        end,
+                                        block_num,
+                                        page_num,
+                                        para_line,
+                                        bxid_lineinfos,
+                                        is_multi_lines)
+                pgid_pblockinfos_map[page_num].append(block_info)
+                # block_info_list.append(block_info)
+                tmp_strinfos = []
+                start = None
+                bxid_lineinfos = []
+            else:
+                if not start:
+                    start = lxid_strinfos_map[line_num][0].start
+                if IS_DEBUG_YDIFF:
+                    print("  kk88, branch 2")
+                tmp_strinfos.extend(lxid_strinfos_map[line_num])
+
+            prev_y = lx_strinfos[0].yStart
+
+
+def init_lxid_strinfos_map(str_offsets: Dict,
+                           nl_text: str) \
+    -> Tuple[Dict[int, List[StrInfo]],
+             Dict[int, int],
+             Dict[int, List[int]],
+             List[float],
+             Dict[int, List[float]]]:
     lxid_strinfos_map = defaultdict(list)  # type: DefaultDict[int, List[StrInfo]]
-    min_diff = float("inf")
+    min_ydiff, unused_max_ydiff = 5, 30
     prev_y = 0
-    all_diffs = []
-    page_nums = {}
+    all_diffs = []  # type: List[float]
+    lxid_pnum_map = {}  # type: Dict[int, int]
+    page_linenum_list_map = defaultdict(list)  # type: Dict[int, List[int]]
+    page_ydiff_list_map = defaultdict(list)  # type: Dict[int, List[float]]
     for str_offset in str_offsets:
         # 'start', 'end', 'lineNum', 'pageNum', 'xStart', 'yStart', 'xEnd'
         start = str_offset['start']
@@ -628,69 +692,103 @@ def parse_document(file_name: str,
         yStart = str_offset['yStart']
         y_diff = yStart - prev_y
 
-        if y_diff < min_diff and y_diff > 2:
-            all_diffs.append(y_diff)
+        # if y_diff > min_diff and y_diff < max_ydiff:
+        if y_diff > min_ydiff:
+            rounded_ydiff = mathutils.half_round(y_diff)
+            all_diffs.append(rounded_ydiff)
+            page_ydiff_list_map[page_num].append(rounded_ydiff)
         prev_y = yStart
         str_text = nl_text[start:end]
         if yStart < 100 and not str_text.strip():
             pass
         else:
-            page_nums[line_num] = page_num
+            lxid_pnum_map[line_num] = page_num
             lxid_strinfos_map[line_num].append(StrInfo(start, end, xStart, xEnd, yStart))
+            page_linenum_list_map[page_num].append(line_num)
+
+    return lxid_strinfos_map, lxid_pnum_map, page_linenum_list_map, all_diffs, page_ydiff_list_map
+
+
+def parse_document(file_name: str,
+                   work_dir: str,
+                   debug_mode: bool = False) \
+                   -> Tuple[PDFTextDoc,
+                            ArrayType,
+                            ArrayType,
+                            TextCpointCunitMapper]:
+    base_fname = os.path.basename(file_name)
+    doc_text = strutils.loads(file_name)
+
+    cpoint_cunit_mapper = TextCpointCunitMapper(doc_text)
+    unused_doc_len, str_offsets, line_breaks, pblock_offsets, page_offsets = \
+        pdfutils.load_pdf_offsets(pdfutils.get_offsets_file_name(file_name), cpoint_cunit_mapper)
+
+    nl_text, linebreak_offset_list = text_offsets_to_nl(base_fname,
+                                                        doc_text,
+                                                        line_breaks,
+                                                        work_dir=work_dir)
+
+    linebreak_arr = array.array('i', linebreak_offset_list)  # type: ArrayType
+
+    lxid_strinfos_map, lxid_pnum_map, page_linenum_list_map, all_diffs, page_ydiff_list_map = \
+        init_lxid_strinfos_map(str_offsets, nl_text)
+
+    # keep tracke of pblock_offsets so that if form-page, we will use
+    # those paragraphs instead of based on page-level y-diff
+    page_blockoffsets_map = defaultdict(list)  # type: Dict[int, List[Dict]]
+    for pblock_offset in pblock_offsets:
+        page_num = pblock_offset['pageNum']
+        page_blockoffsets_map[page_num].append(pblock_offset)
+    page_lineoffsets_map = defaultdict(list)  # type: Dict[int, List[Dict]]
+    for line_offset in line_breaks:
+        page_num = line_offset['pageNum']
+        page_lineoffsets_map[page_num].append(line_offset)
+
+    if PARA_SEG_DEBUG_MODE:
+        doc_ydiff_count_map = defaultdict(int)  # type: Dict[float, int]
+        for yyy in all_diffs:
+            doc_ydiff_count_map[yyy] += 1
+        print()
+        print('At document level:')
+        for val, key in sorted(((val, key) for key, val in doc_ydiff_count_map.items()),
+                               reverse=True):
+            print('   doc_ydiff_count_map[{}] = {}'.format(key, val))
+
+        for tmp_pnum in sorted(page_ydiff_list_map.keys()):
+            page_ydiff_list = page_ydiff_list_map[tmp_pnum]
+            page_mode_ydiff = max(set(page_ydiff_list), key=page_ydiff_list.count)
+            print('\npage[{}] ydiff_mode = {}'.format(tmp_pnum, page_mode_ydiff))
+
+            page_y_diff_count = defaultdict(int)  # type: Dict[float, int]
+            for yyy in page_ydiff_list:
+                page_y_diff_count[yyy] += 1
+            for val, key in sorted(((val, key) for key, val in page_y_diff_count.items()),
+                                   reverse=True):
+                print('   page y_diff_count[{}] = {}'.format(key, val))
 
     pgid_pblockinfos_map = defaultdict(list)  # type: DefaultDict[int, List[PBlockInfo]]
-    bxid_lineinfos_map = defaultdict(list)  # type: DefaultDict[int, List[LineInfo3]]
-    # tmp_prev_end = 0
-    block_num = 0
-    mode_diff = int(max(set(all_diffs), key=all_diffs.count))
-    tmp_end = 0
-    start = None
-    tmp_strinfos = []
-    block_info_list = []
-    max_line_num = max(lxid_strinfos_map.keys())
-    for line_num in range(0, max_line_num+1):
-        if not line_num in lxid_strinfos_map.keys():
-            continue
-        tmp_start = lxid_strinfos_map[line_num][0].start
-        tmp_end = lxid_strinfos_map[line_num][-1].end
-        line_len = len(nl_text[tmp_start:tmp_end].split())
+    # for nl_text, those that are not really line breaks, due to normal text
+    para_not_linebreak_offsets = []  # type: List[int]
+    # updating above two data structure in this call
+    #    - pgid_pblockinfos_map
+    #    - para_not_linebreak_offsets
+    page_paras_ydiff_init(page_linenum_list_map=page_linenum_list_map,
+                          lxid_strinfos_map=lxid_strinfos_map,
+                          nl_text=nl_text,
+                          all_ydiffs=all_diffs,
+                          lxid_pnum_map=lxid_pnum_map,
+                          page_lineoffsets_map=page_lineoffsets_map,
+                          page_blockoffsets_map=page_blockoffsets_map,
+                          pgid_pblockinfos_map=pgid_pblockinfos_map,
+                          para_not_linebreak_offsets=para_not_linebreak_offsets)
 
-        # checks the difference in y val between this line and the next,
-        # if below the mode, join into a block, otherwise add block to block_info
-        if line_num+1 in lxid_strinfos_map.keys() and line_len > 0:
-            y_diff = int(lxid_strinfos_map[line_num+1][0].yStart -
-                         lxid_strinfos_map[line_num][0].yStart)
-        else:
-            y_diff = -1
-        if tmp_start != tmp_end and (y_diff < 0 or y_diff > mode_diff+1):
-            block_num += 1
-            tmp_strinfos.extend(lxid_strinfos_map[line_num])
-            if not start:
-                start = tmp_start
-            end = tmp_end
-            page_num = page_nums[line_num]
-            bxid_lineinfos_map[block_num].append(LineInfo3(start,
-                                                           end,
-                                                           line_num,
-                                                           block_num,
-                                                           tmp_strinfos))
-            para_line, unused_is_multi_lines, unused_not_linebreaks = \
-                pdfutils.para_to_para_list(nl_text[start:end])
-            block_info = PBlockInfo(start,
-                                    end,
-                                    block_num,
-                                    page_num,
-                                    para_line,
-                                    bxid_lineinfos_map[block_num],
-                                    False)
-            pgid_pblockinfos_map[page_num].append(block_info)
-            block_info_list.append(block_info)
-            tmp_strinfos = []
-            start = None
-        else:
-            if not start:
-                start = lxid_strinfos_map[line_num][0].start
-            tmp_strinfos.extend(lxid_strinfos_map[line_num])
+    # prepare paraline.txt
+    paraline_fname = get_paraline_fname(base_fname, work_dir)
+    ch_list = list(nl_text)
+    for offset in para_not_linebreak_offsets:
+        ch_list[offset] = ' '
+    paraline_text = ''.join(ch_list)
+    txtreader.dumps(paraline_text, paraline_fname)
 
     pageinfo_list = []  # type: List[PageInfo3]
     for page_offset in page_offsets:
@@ -701,16 +799,27 @@ def parse_document(file_name: str,
         pblockinfo_list = pgid_pblockinfos_map[page_num]
         pinfo = PageInfo3(doc_text, start, end, page_num, pblockinfo_list)
         pageinfo_list.append(pinfo)
+
+    if DEBUG_MODE:
+        page_blockinfos_fname = os.path.join(work_dir,
+                                             base_fname.replace('.txt',
+                                                                '.pblockinfos.txt'))
+        print_page_blockinfos_map(pgid_pblockinfos_map,
+                                  nl_text,
+                                  page_blockinfos_fname)
+
     pdf_text_doc = PDFTextDoc(file_name, doc_text, pageinfo_list)
 
     if DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.tsv')
 
-    add_doc_structure_to_doc(pdf_text_doc)
+    add_doc_structure_to_doc(pdf_text_doc, work_dir)
     if DEBUG_MODE:
         pdf_text_doc.save_raw_pages(extension='.raw.pages.docstruct.tsv')
 
-    return pdf_text_doc
+    # TODO, set it to empty for now
+    para_not_linebreak_arr = array.array('i', para_not_linebreak_offsets)  # type: ArrayType
+    return pdf_text_doc, linebreak_arr, para_not_linebreak_arr, cpoint_cunit_mapper
 
 
 def merge_if_continue_to_next_page(prev_page, cur_page):
@@ -807,61 +916,14 @@ def merge_adjacent_line_with_special_attr(apage):
                 prev_has_special_attr = has_special_attr
 
 
-# break blocks if they are in the middle of header, english sents
-def adjust_blocks_in_page(apage,
-                          unused_pdftxt_doc: PDFTextDoc):
-    tmp_block_list = docstructutils.line_list_to_block_list(apage.line_list)
-
-    is_adjusted = False
-    for block in tmp_block_list:
-        if block[0].attrs.get('header'):
-            not_header_index = -1
-            for line_seq, linex in enumerate(block[1:], 1):
-                if not linex.attrs.get('header'):
-                    not_header_index = line_seq
-                    break
-
-            # this is for a block with 2 header, but followed by english
-            # sentence.  Basically mixed up because of no space.
-            if not_header_index != -1 and block[not_header_index].is_english:
-                for after_linex in block[not_header_index:]:
-                    after_linex.block_num += 10000  # to separate out line
-                    is_adjusted = True
-            elif docstructutils.is_block_all_not_english(block):
-                # This is in ST-121 Form, NY State Exempt Use Certificate.
-                # https://www.tax.ny.gov/pdf/current_forms/st/st121_fill_in.pdf
-                # Top right header.
-                """
-                (3/10)
-                Pages 1 and 2 must
-                be completed by the
-                purchaser and given
-                to the seller
-                """
-                for linex in block:
-                    linex.attrs['header'] = True
-                    is_adjusted = True
-
-    if not is_adjusted:
-        return
-
-    # now remove potential newly added toc lines
-    tmp_list = []
-    for linex in apage.content_line_list:
-        if not linex.attrs.get('header'):
-            tmp_list.append(linex)
-    apage.content_line_list = tmp_list
-
-
-def add_doc_structure_to_doc(pdftxt_doc):
+def add_doc_structure_to_doc(pdftxt_doc, work_dir: str) -> None:
     # first remove obvious non-content lines, such
     # toc, page-num, header, footer
     # Also add section heads
     # page_attrs_list is to store table information?
+
     for page in pdftxt_doc.page_list:
         add_doc_structure_to_page(page, pdftxt_doc)
-        # break blocks if they are in the middle of header, english sents
-        # adjust_blocks_in_page(page, pdftxt_doc)
     if DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.bef.merge.tsv')
 
@@ -875,6 +937,19 @@ def add_doc_structure_to_doc(pdftxt_doc):
     if DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.after.merge.tsv')
 
+    if IS_DEBUG_PAGE_CLASSIFIER:
+        # print("=== Page Format ===")
+        # for page in pdftxt_doc.page_list:
+        #     print('  page #{} page_format: {}'.format(page.page_num, page.page_format))
+        pformat_fname = os.path.join(work_dir,
+                                     os.path.basename(pdftxt_doc.file_name).replace('.txt',
+                                                                                    '.pformat'))
+        with open(pformat_fname, 'wt') as pf_out:
+            # pnum_pformat_list = []  # type: List[Tuple[int, str]]
+            for page in pdftxt_doc.page_list:
+                print('{}\t{}'.format(page.page_num, page.page_format), file=pf_out)
+        print('wrote {}'.format(pformat_fname), file=sys.stderr)
+
     # now we have basic block_group with correct
     # is_english set.  Useful for merging
     # blocks with only 1 lines as table, or signature section
@@ -884,20 +959,27 @@ def add_doc_structure_to_doc(pdftxt_doc):
 
     # Redo block info because they might be in different
     # pages.
-    block_list_map = defaultdict(list)
+    block_list_map = defaultdict(list)  # type: Dict[int, List[LineWithAttrs]]
     for apage in pdftxt_doc.page_list:
         for linex in apage.content_line_list:
             block_num = linex.block_num
             block_list_map[block_num].append(linex)
 
     # the block list is for the document, not a page
-    paged_grouped_block_list = defaultdict(list)
+    paged_grouped_block_list = defaultdict(list)  # type: Dict[int, List[GroupedBlockInfo]]
     for block_num, line_list in sorted(block_list_map.items()):
         # take the page of the first line in a block as the page_num
         page_num = line_list[0].page_num
         paged_grouped_block_list[page_num].append(GroupedBlockInfo(page_num,
                                                                    block_num,
                                                                    line_list))
+        """
+        print('paged_grouped, block_num = {}'.format(block_num))
+        for linexy in line_list:
+            # print("  linexy: {}, {}".format(type(linexy), linexy))
+            print("  linexy: [{}]".format(linexy.line_text))
+        """
+
     # each page is a list of grouped_block
     pdftxt_doc.paged_grouped_block_list = []
     for page_num in range(1, pdftxt_doc.num_pages + 1):
@@ -1002,6 +1084,7 @@ def extract_tables_from_markups(apage, pdf_txt_doc):
                                                              'chart',
                                                              apage.page_num))
 
+# pylint: disable=too-many-branches
 def add_doc_structure_to_page(apage, pdf_txt_doc):
     num_line_in_page = len(apage.line_list)
     page_num = apage.page_num
@@ -1035,7 +1118,7 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
         elif docstructutils.is_line_page_num(line.line_text,
                                              line_num,
                                              num_line_in_page,
-                                             line.linebreak,
+                                             line.lineinfo.prev_linebreak_ratio,
                                              line.lineinfo.yStart,
                                              line.is_centered):
             line.attrs['page_num'] = True
@@ -1077,12 +1160,11 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
                 sechead_tuple = docstructutils.extract_line_sechead(line.line_text)
                 if sechead_tuple:
                     line.attrs['sechead'] = sechead_tuple
-
         # 2nd stage of rules
         is_footer, unused_score = docstructutils.is_line_footer(line.line_text,
                                                                 line_num,
                                                                 num_line_in_page,
-                                                                line.linebreak,
+                                                                line.lineinfo.prev_linebreak_ratio,
                                                                 # 1-based
                                                                 apage.attrs.get('page_num_index',
                                                                                 -1),
@@ -1108,13 +1190,16 @@ def add_doc_structure_to_page(apage, pdf_txt_doc):
             # in PDF view, it is at the end.
 
         prev_line_text = line.line_text
-        if not is_skip and line.lineinfo.yStart < footer_yStart:
+        if not is_skip and \
+           (line.lineinfo.yStart < footer_yStart or
+            len(line.line_text) >= 80):  # not delete normal para
             content_line_list.append(line)
     # if footer is found, set everything afterward as footer
     # if footer_index != -1:
     if footer_yStart != MAX_FOOTER_YSTART:
         for linex in apage.line_list:
-            if linex.lineinfo.yStart >= footer_yStart:
+            if linex.lineinfo.yStart >= footer_yStart and \
+               len(linex.line_text) < 80:  # not delete normal para
                 linex.attrs['footer'] = True
     apage.content_line_list = content_line_list
     # now decide if this is a toc page, based on
@@ -1700,7 +1785,9 @@ def main():
     txt_fname = args.file
 
     work_dir = 'dir-work'
-    pdf_txt_doc = parse_document(txt_fname, work_dir=work_dir)
+    pdf_txt_doc, unused_linebreak_arr, \
+        unused_para_not_linebreak_arr, unused_cpoint_cunit_mapper = \
+        parse_document(txt_fname, work_dir=work_dir)
     to_paras_with_attrs(pdf_txt_doc, txt_fname, work_dir=work_dir)
 
     pdf_txt_doc.print_debug_blocks()
