@@ -616,6 +616,39 @@ def corenlp_normalize_text(doc_text: str) -> str:
     line = urllib.parse.quote(line)
     return line
 
+
+def init_acronym_regex():
+    """Initialize case-insensitive acornym regex for finding acronyms."""
+
+    acronym_list = []  # type: List[str]
+    with open('dict/acronyms.txt', 'rt') as fin:
+        for line in fin:
+            # the last char is always a period
+            line = line.strip()[:-1]
+            acronym_list.append(line)
+    aregex_st = r'\b({})\.'.format('|'.join(acronym_list))
+    return re.compile(aregex_st, re.I)
+
+
+ACRONYMS_REGEX = init_acronym_regex()
+
+
+def sub_period_space(match: Match) -> str:
+    """Function to replace '.' with a space for acronyms."""
+
+    line = match.group()
+    return '{} '.format(line[:-1])
+
+
+def normalize_acronym_text(text: str) -> str:
+    """Subsitute period after acronym with spaces.
+
+    This is to avoid bad sentence segmentation after acronyms, such
+    as 'per cent.', 'sr.' or 'no.'
+    """
+    return re.sub(ACRONYMS_REGEX, sub_period_space, text)
+
+
 def is_space_or_nl(xch: str) -> bool:
     return (xch == ' ' or
             xch == '\n' or

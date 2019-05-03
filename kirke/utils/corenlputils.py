@@ -6,7 +6,7 @@ from typing import Any, List, Optional
 from stanfordcorenlp import StanfordCoreNLP
 
 from kirke.utils.corenlpsent import EbSentence
-from kirke.utils.strutils import corenlp_normalize_text
+from kirke.utils.strutils import corenlp_normalize_text, normalize_acronym_text
 from kirke.utils.textoffset import TextCpointCunitMapper
 
 # pylint: disable=invalid-name
@@ -48,7 +48,10 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
     if not doc_lang: # no language detected, text is probably too short or empty
         return {'sentences': []}
 
-    no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
+    # remove period after acronyms to avoid bad sentence segmentation
+    # for example, 'per cent.', 'sr.', or 'no.'
+    no_acronym_text = normalize_acronym_text(text_as_string)
+    no_ctrl_chars_text = corenlp_normalize_text(no_acronym_text)
 
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
