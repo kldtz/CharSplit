@@ -204,7 +204,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8285.txt', 'title', 1, 0, 0),
                            ('demo-txt/8285.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8285.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8286(self):
         self.maxDiff = None
@@ -225,6 +225,8 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8286.txt', 'remedy', 4, 0, 0),
                            ('demo-txt/8286.txt', 'renewal', 2, 0, 0),
                            ('demo-txt/8286.txt', 'termination', 1, 0, 0),
+                           # will fix, reviewed.  our fault but reasonable.
+                           # ('demo-txt/8286.txt', 'term', 1, 1, 1),
                            ('demo-txt/8286.txt', 'term', 2, 0, 0),
                            ('demo-txt/8286.txt', 'title', 1, 0, 0),
                            ('demo-txt/8286.txt', 'warranty', 0, 0, 0),

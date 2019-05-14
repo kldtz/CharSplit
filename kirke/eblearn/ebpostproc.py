@@ -125,7 +125,7 @@ def gen_provision_overrides(provision: str,
                             sent_st_list: List[str]) -> List[float]:
     overrides = [0.0 for _ in range(len(sent_st_list))]
 
-    # global_min_length = 6
+    global_min_length = 6
     min_pattern_override_length = 8
     if provision == 'term':
         min_pattern_override_length = 0
@@ -150,13 +150,24 @@ def gen_provision_overrides(provision: str,
            provision_pattern.search(sent_st) and \
            num_words > min_pattern_override_length and not is_toc:
             overrides[sent_idx] = adjust_prob
+
         # This is too relaxed, had a case with
         # just a person name.  Always misses it because
         # of override.
+        # But if relax this, weird random very short line will
+        # get through, such as "4."
+        # Must keep it for now.  Unit tests fail if this
+        # fix is applied.
         # if num_words < global_min_length and \
         #    not provision.startswith('cust_') and \
         #    provision not in SHORT_PROVISIONS:
         #     overrides[sent_idx] = -10.0
+
+        #   not provision.startswith('cust_') and \
+        if num_words < global_min_length and \
+           provision not in SHORT_PROVISIONS:
+            overrides[sent_idx] = -10.0
+
         if is_table_row or contains_dots:
             overrides[sent_idx] = -10.0
     return overrides

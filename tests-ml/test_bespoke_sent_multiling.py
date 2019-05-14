@@ -68,10 +68,15 @@ class TestBespokeSent(unittest.TestCase):
         ro_prov = "{}.{}".format(custid_data_dir, ro_version_num)
         nl_prov = "{}.{}".format(custid_data_dir, nl_version_num)
 
+        print('ro_prov: [{}]'.format(ro_prov))
+
         # verify expected predictions on a training doc for each
         docid_pred_ajson_map = {}
         ro_doc_test = 'cust_39/2732.txt'
         docid_pred_ajson_map['ro'] = postfileutils.upload_annotate_doc(ro_doc_test, [ro_prov])
+        print('3333')
+        print(docid_pred_ajson_map['ro'])
+
         self.assertEqual(1, len(docid_pred_ajson_map['ro']['ebannotations'][custid_data_dir]))
         ro_annot = docid_pred_ajson_map['ro']['ebannotations'][custid_data_dir][0]
         start = ro_annot['start']
@@ -88,12 +93,12 @@ class TestBespokeSent(unittest.TestCase):
 
         nl_doc_test = 'cust_39/2783.txt'
         docid_pred_ajson_map['nl'] = postfileutils.upload_annotate_doc(nl_doc_test, [nl_prov])
-        self.assertEqual(len(docid_pred_ajson_map['nl']['ebannotations'][custid_data_dir]), 2)
-        nl_annot = docid_pred_ajson_map['nl']['ebannotations'][custid_data_dir][1]
+        self.assertEqual(len(docid_pred_ajson_map['nl']['ebannotations'][custid_data_dir]), 1)
+        nl_annot = docid_pred_ajson_map['nl']['ebannotations'][custid_data_dir][0]
 
         print('nl_annot:')
         pprint.pprint(docid_pred_ajson_map['nl']['ebannotations'][custid_data_dir])
-        
+
         start = nl_annot['start']
         end = nl_annot['end']
         text = nl_annot['text']

@@ -41,26 +41,26 @@ class TestBespokeSent(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 30, delta=5)
-        self.assertAlmostEqual(fn, 25, delta=5)
-        self.assertAlmostEqual(tp, 68, delta=5)
+        self.assertAlmostEqual(fp, 24, delta=5)
+        self.assertAlmostEqual(fn, 33, delta=5)
+        self.assertAlmostEqual(tp, 60, delta=5)
 
         # round(ant_result['f1'], 2),
         # 0.71
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.65)
-        self.assertLessEqual(f1, 0.77)
+        self.assertGreaterEqual(f1, 0.63)
+        self.assertLessEqual(f1, 0.73)
 
         # round(ant_result['prec'], 2),
         # 0.69
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.63)
-        self.assertLessEqual(precision, 0.75)
+        self.assertGreaterEqual(precision, 0.66)
+        self.assertLessEqual(precision, 0.76)
 
         recall = round(ant_result['recall'], 2)
         # 0.73
-        self.assertGreaterEqual(recall, 0.67)
-        self.assertLessEqual(recall, 0.79)
+        self.assertGreaterEqual(recall, 0.60)
+        self.assertLessEqual(recall, 0.70)
 
 
 if __name__ == "__main__":

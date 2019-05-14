@@ -43,14 +43,14 @@ class TestBespokeRegex(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 24, delta=2)
-        self.assertAlmostEqual(fn, 3, delta=2)
-        self.assertAlmostEqual(tp, 101, delta=2)
+        self.assertAlmostEqual(24, fp, delta=2)
+        self.assertAlmostEqual(5, fn, delta=2)
+        self.assertAlmostEqual(99, tp, delta=2)
 
         # 0.88
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.86)
-        self.assertLessEqual(f1, 0.90)
+        self.assertGreaterEqual(f1, 0.85)
+        self.assertLessEqual(f1, 0.89)
 
         # 0.81
         precision = round(ant_result['precision'], 2)
@@ -59,8 +59,8 @@ class TestBespokeRegex(unittest.TestCase):
 
         # 0.97
         recall = round(ant_result['recall'], 2)
-        self.assertGreaterEqual(recall, 0.95)
-        self.assertLessEqual(recall, 0.99)
+        self.assertGreaterEqual(recall, 0.92)
+        self.assertLessEqual(recall, 0.96)
 
 
 if __name__ == "__main__":

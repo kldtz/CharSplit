@@ -240,17 +240,18 @@ def main():
                                      args.provisions.split(','),
                                      is_classify_doc=is_classify_doc,
                                      is_detect_lang=is_detect_lang)
-        print(result)
+        print(json.dumps(result))
     elif args.cmd == 'uploaddir':
         if args.url is not None:
             url_prefix = args.url
         else:
             url_prefix = 'http://127.0.0.1:8000/custom-train'
-        upload_train_dir(provision,
-                         args.filename,
-                         args.candidate_types,
-                         nbest=nbest,
-                         url_prefix=url_prefix)
+        result = upload_train_dir(provision,
+                                  args.filename,
+                                  args.candidate_types,
+                                  nbest=nbest,
+                                  url_prefix=url_prefix)
+        print(json.dumps(result))
 
 # pylint: disable=C0103
 if __name__ == '__main__':
