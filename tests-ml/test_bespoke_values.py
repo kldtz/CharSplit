@@ -31,13 +31,13 @@ class TestBespokeValues(unittest.TestCase):
         ajson = json.loads(result_text)
         print(ajson)
         ant_result = ajson['en']
-        
+
         print("ant_result:")
         print(ant_result)
 
         conf_matrix = ant_result['confusion_matrix']
-        # {'fn': 18, 'fp': 11, 'tn': 0, 'tp': 24}
-        # [[0, 11], [18, 24]]
+        # {'fn': 21, 'fp': 11, 'tn': 0, 'tp': 21}
+        # [[0, 11], [21, 21]]
 
         tn = conf_matrix[0][0]
         fp = conf_matrix[0][1]
@@ -45,26 +45,24 @@ class TestBespokeValues(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 11, delta=2)
-        self.assertAlmostEqual(fn, 18, delta=2)
-        self.assertAlmostEqual(tp, 24, delta=2)
+        self.assertAlmostEqual(fp, 14, delta=2)
+        self.assertAlmostEqual(fn, 20, delta=2)
+        self.assertAlmostEqual(tp, 22, delta=2)
 
-        # round(ant_result['f1'], 2)
-        # 0.62
-        f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.60)
-        self.assertLessEqual(f1, 0.64)
-
-        # round(ant_result['prec'], 2)
-        # .69
-        precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.67)
-        self.assertLessEqual(precision, 0.71)
-
-        recall = round(ant_result['recall'], 2)
         # 0.57
-        self.assertGreaterEqual(recall, 0.55)
-        self.assertLessEqual(recall, 0.59)
+        f1 = round(ant_result['fscore'], 2)
+        self.assertGreaterEqual(f1, 0.54)
+        self.assertLessEqual(f1, 0.58)
+
+        # .66
+        precision = round(ant_result['precision'], 2)
+        self.assertGreaterEqual(precision, 0.59)
+        self.assertLessEqual(precision, 0.63)
+
+        # 0.50
+        recall = round(ant_result['recall'], 2)
+        self.assertGreaterEqual(recall, 0.50)
+        self.assertLessEqual(recall, 0.54)
 
 if __name__ == "__main__":
     unittest.main()

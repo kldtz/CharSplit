@@ -78,6 +78,7 @@ Simple question, but it takes a while to get to that point.  We need to first tr
 
 2. Get hold of the files for building each provision.  In this repo, these files can be generated from running the following command on "sample_data2.txt.files":
 ```
+gen_prov_files.py
 run_split_provision_trte.sh
 ```
 3. We want to first train 3 provision annotators, "party", "date", and "change_control".
@@ -145,7 +146,7 @@ run_train_cust_12345.sh
 3. Please make sure Kirke server, "startup.sh", is still running.  The server-client version is
 
 ```
-run_upload_train.sh
+run_upload_train_12345.sh
 ```
 
 ## How to test built models?
@@ -174,7 +175,6 @@ run_train_x_classifier.sh [party|date|change_control]
 Normal training using "run_train_x.sh [party|date|change_control]" takes 1/5 of the data for testing.
 
 
-
 ## NOTE:
 When the app server says:
 ```
@@ -183,12 +183,18 @@ raise ValueError('unable to infer matrix dimensions')
 The likely reason is that the size of the matrix is 0, which is caused by not finding any positive examples in the data.  This is likely caused by mismatch in "provision" name.  Watch out for caching issue, which might use the old file, which can cause the mismatch.
 
 
-## Tests
+## Unit Tests for Kirke
 
-Because of outdated "ebrevia/learn" code, we can only do specific test, not the global one yet.  Use
+Please see https://ebrevia.atlassian.net/wiki/spaces/EX/pages/423526403/Kirke+UnitTests
 
 ```
-nosetests tests/test1.py
+setup_unittest.sh
+nosetests tests
+nosetests tests-dstruct
+startup_unittest.sh
+
+# go to a different terminal
+nosetests tests-ml
 ```
 
 for now.

@@ -116,6 +116,12 @@ class EbTransformerV1_2(EbTransformerBase):
         if fit_mode:  # label_list:  # for testing, there is no label_list
             for attrvec, label in zip(attrvec_list, label_list):
                 sent_st = attrvec.bag_of_words
+
+                # if label:
+                #     print("++++++++++ pos sent_st: {}".format(sent_st))
+                # else:
+                #     print("neg sent_st: {}".format(sent_st))
+
                 sent_st_list.append(sent_st)
                 if label:
                     positive_sent_st_list.append(sent_st)
@@ -127,39 +133,40 @@ class EbTransformerV1_2(EbTransformerBase):
                 sechead_st_list.append(attrvec.sechead)
 
         nostop_sent_st_list = stopwordutils.remove_stopwords(sent_st_list, mode=2)
+        is_debug = False
 
         if fit_mode:
             # we are cheating here because vocab is trained from both training and testing
             # jshaw, TODO, remove
             logger.info("starting computing info_gain")
-            # igain_vocabs = igain.doc_label_list_to_vocab(sent_st_list, label_list, tokenize=igain.eb_doc_to_all_ngrams, debug_mode=True, provision=self.provision)
             # the tokenizer is bigramutils, not igain's
             igain_vocabs = igain.doc_label_list_to_vocab(sent_st_list,
                                                          label_list,
                                                          tokenize=bigramutils.eb_doc_to_all_ngrams,
-                                                         debug_mode=False,
                                                          provision=self.provision)
 
             logger.info("starting computing unigram and bigram")
-            vocabs, positive_vocabs = bigramutils.doc_label_list_to_vocab(sent_st_list,
-                                                                          label_list,
-                                                                          tokenize=bigramutils.eb_doc_to_all_ngrams)
+            unused_vocabs, positive_vocabs = \
+                bigramutils.doc_label_list_to_vocab(sent_st_list,
+                                                    label_list,
+                                                    tokenize=bigramutils.eb_doc_to_all_ngrams)
             # replace vocabs with igain.vocab
-            vocab = igain_vocabs
             vocab_id_map = {}
-            for vid, vocab in enumerate(vocabs):
+            for vid, vocab in enumerate(igain_vocabs):
                 vocab_id_map[vocab] = vid
             self.vocab_id_map = vocab_id_map
             self.positive_vocabs = positive_vocabs
 
-            if DEBUG_MODE:
+            if is_debug:
                 with open("/tmp/{}_vocabs.tsv".format(self.provision), "wt") as fvcabout:
-                    for vocab in vocabs:
+                    for vocab in igain_vocabs:
                         print(vocab, file=fvcabout)
+                print('wrote {}'.format("/tmp/{}_vocabs.tsv".format(self.provision)))
 
                 with open("/tmp/{}_posvocabs.tsv".format(self.provision), "wt") as fvcabout:
-                    for vocab in positive_vocabs:
+                    for vocab in sorted(positive_vocabs):
                         print(vocab, file=fvcabout)
+                print('wrote {}'.format("/tmp/{}_posvocabs.tsv".format(self.provision)))
 
             # handling sechead, with min appearance in sentence = 5
             # now changed to 2 because custom training corpus might have only 6 docs
@@ -182,9 +189,23 @@ class EbTransformerV1_2(EbTransformerBase):
                 for tmp_w in nostop_positive_sent.split():
                     if len(tmp_w) > 3:
                         filtered_list.append(tmp_w)
+
+            # The words in FreqDist at the same frequency is unordered.
+            # To make the classification result consistent, take the wanted
+            # frequency and perform cut-off based on that frequency.
+            MAX_NUM_BI_TOPGRAM_WORDS = EbTransformerV1_2.MAX_NUM_BI_TOPGRAM_WORDS
             fdistribution = FreqDist(filtered_list)
-            self.n_top_positive_words = [item[0] for item in
-                                         fdistribution.most_common(EbTransformerV1_2.MAX_NUM_BI_TOPGRAM_WORDS)]
+            wfreq_list = fdistribution.most_common(MAX_NUM_BI_TOPGRAM_WORDS * 2)
+            if  MAX_NUM_BI_TOPGRAM_WORDS < len(wfreq_list):
+                cut_off = wfreq_list[MAX_NUM_BI_TOPGRAM_WORDS][1]
+            else:
+                cut_off = 1
+            ntop_positive_words = []
+            for wfreq in wfreq_list:
+                word, freq = wfreq
+                if freq >= cut_off:
+                    ntop_positive_words.append(word)
+            self.n_top_positive_words = sorted(ntop_positive_words)
 
             # replace this top positive word with top most informative words
             # self.n_top_positive_words = top_igain_unigrams
@@ -198,8 +219,6 @@ class EbTransformerV1_2(EbTransformerBase):
         bow_matrix, perc_positive_ngrams = self.gen_top_ngram_matrix(sent_st_list,
                                                                      tokenize=bigramutils.eb_doc_to_all_ngrams)
         sechead_matrix = self.sechead_vectorizer.transform(sechead_st_list)
-        # print("shape of bow_matrix: {}".format(bow_matrix.shape))
-        # print("shape of sechead_matrix: {}".format(sechead_matrix.shape))
 
         # print("n_top_positive_words = {}".format(self.n_top_positive_words))
         bi_topgram_matrix = self.gen_bi_topgram_matrix(nostop_sent_st_list, fit_mode=fit_mode)
@@ -212,14 +231,19 @@ class EbTransformerV1_2(EbTransformerBase):
         comb_matrix = sparse.hstack((numeric_matrix, perc_pos_ngram_matrix, categorical_matrix, bow_matrix,
                                      sechead_matrix))
         sparse_comb_matrix = sparse.csr_matrix(comb_matrix)
-
         nozero_sparse_comb_matrix = self.remove_zero_column(sparse_comb_matrix, fit_mode=fit_mode)
-
-        # print("shape of bi_topgram: ", bi_topgram_matrix.shape)
-        # pylint: disable=C0103
         X = sparse.hstack((nozero_sparse_comb_matrix, bi_topgram_matrix), format='csr')
-        # print("combined shape of X = {}".format(X.shape))
-        # print("shape of X: {}", X)
+
+        if is_debug:
+            print("  shape of bow_matrix: {}".format(bow_matrix.shape))
+            print("  shape of sechead_matrix: {}".format(sechead_matrix.shape))
+            print("  shape of bi_topgram_matrix: {}".format(bi_topgram_matrix.shape))
+            print("  shape of numeric_matrix: {}".format(numeric_matrix.shape))
+            print('  shape of perc_pos_ngram_matrix: {}'.format(perc_pos_ngram_matrix.shape))
+            print('  shape of categorical_matrix: {}'.format(categorical_matrix.shape))
+            print('  shape of sparse_comb_matrix: {}'.format(sparse_comb_matrix.shape))
+            print('  shape of nozero_sparse_comb_matrix: {}'.format(nozero_sparse_comb_matrix.shape))
+            print("  shape of X: {}".format(X.shape))
 
         # return sparse_comb_matrix, bi_topgram_matrix, sent_st_list
         return X

@@ -148,7 +148,7 @@ def calc_one_page_format(page_num: int,
     num_lines = len(lxid_strinfos_list)
 
     if IS_DEBUG:
-        print('\n=calc_one_page_format  @page {}, num_lines = {},'
+        print('\n=calc_one_page_format  @page {}, num_lines = {}, '
               'prev_page_num_col = {}'.format(page_num,
                                               num_lines,
                                               prev_page_num_col))
@@ -260,8 +260,8 @@ def calc_one_page_format(page_num: int,
 
     # num of lines with hz_len >= 5;  these are lines for normal
     # sentences
-    num_col_len_ge_5 = hz_len_count_map.get(5, 0) + \
-                       hz_len_count_map.get(6, 0) + \
+    # hz_len_count_map.get(5, 0) + \
+    num_col_len_ge_5 = hz_len_count_map.get(6, 0) + \
                        hz_len_count_map.get(7, 0) + \
                        hz_len_count_map.get(8, 0) + \
                        hz_len_count_map.get(9, 0) + \
@@ -273,6 +273,17 @@ def calc_one_page_format(page_num: int,
                                                                num_col_len_le_3_perc))
         print('\n    num_col_len_ge_5 = {}, perc = {}%'.format(num_col_len_ge_5,
                                                                num_col_len_ge_5_perc))
+
+    # two column text
+    if num_lines >= 60 and \
+       num_col_len_ge_5_perc < 30.0 and \
+       abs(top_col - top_2nd_col) > 2 and \
+       top_col_perc + top_2nd_col_perc > 80.0:
+        out_num_col = 2
+        out_page_ydiff_mode = -1.0
+        out_is_failed = True  # we will use pdfbox's ydiff instead
+        # print('2 columnt text')
+        return out_num_col, out_page_ydiff_mode, out_is_failed
 
     if num_col_len_ge_5_perc < 30.0:
         """
@@ -292,9 +303,11 @@ def calc_one_page_format(page_num: int,
                                                                                    freq, perc))
         print()
         """
+        # print('mostly short lines< col_len_ge_5 < 30%')
         if is_form_page_vt_row(vt_row_count_map,
                                vt_row_hzclen_count_map,
                                num_lines):
+            # print('is_a form..............')
             # out_num_col = 0 means it is a form-page
             out_num_col = 0
             out_page_ydiff_mode = -1.0
@@ -583,11 +596,12 @@ def pick_page_adjacent_ydiff_mode(ydiff_mode_list: List[float],
 
 
 # pylint: disable=too-many-branches, too-many-statements, too-many-locals
-def calc_page_ydiff_modes(page_linenum_list_map: Dict[int, List[int]],
-                          lxid_strinfos_map: Dict[int, List[StrInfo]],
-                          nl_text: str,
-                          all_ydiffs: List[float]) \
-                          -> Dict[int, float]:
+def calc_page_ydiff_modes_num_cols(page_linenum_list_map: Dict[int, List[int]],
+                                   lxid_strinfos_map: Dict[int, List[StrInfo]],
+                                   nl_text: str,
+                                   all_ydiffs: List[float]) \
+                                   -> Tuple[Dict[int, float],
+                                            Dict[int, int]]:
     """Compute the page-level y_diff for all pages in a document.
 
     ARGS:
@@ -597,7 +611,9 @@ def calc_page_ydiff_modes(page_linenum_list_map: Dict[int, List[int]],
         nl_text: the document text, with line breaks
         all_ydifs: all the y_diffs in the documents
     RETURNS:
-        a map with the y_diff_mode for each page
+        Tuple of following:
+          - a map with the y_diff_mode for each page
+          - a map with num_col for each page
 
         NOTE:
           if y_diff_mode for a page is -1, then it is a form page in which
@@ -719,4 +735,9 @@ def calc_page_ydiff_modes(page_linenum_list_map: Dict[int, List[int]],
             else:
                 print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
 
-    return page_ydiff_mode_map
+        print('page_column_list:')
+        for page_num in page_num_list:
+            num_col = page_num_col_map[page_num]
+            print('page {}: num_col = {}'.format(page_num, num_col))
+
+    return page_ydiff_mode_map, page_num_col_map

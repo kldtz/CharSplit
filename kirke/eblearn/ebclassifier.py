@@ -33,12 +33,12 @@ class EbClassifier(ABC):
         # joblib.dump(self, model_file_name)
         osutils.joblib_atomic_dump(self, model_file_name)
 
-    def train(self, txt_fn_list, work_dir) -> None:
+    def train(self, txt_fn_list, work_dir, model_file_name) -> None:
         ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list, work_dir=work_dir)
-        self.train_antdoc_list(ebantdoc_list, work_dir)
+        self.train_antdoc_list(ebantdoc_list, work_dir, model_file_name)
 
     @abstractmethod
-    def train_antdoc_list(self, ebantdoc_list, work_dir) -> None:
+    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name) -> None:
         pass
 
     @abstractmethod

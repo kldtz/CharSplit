@@ -16,7 +16,27 @@ def tuv(adict: Dict) -> Dict:
     return out_dict
 
 
-class TestCurrency(unittest.TestCase):
+def extract_currencies(line: str) -> List[str]:
+    currency_dict_list = regexgen.extract_currencies(line)
+    currency_st_list = [adict['text'] for adict in currency_dict_list]
+    return currency_st_list
+
+
+def extract_numbers(line: str, is_ignore_currency_symbol: bool = False) -> List[str]:
+    dict_list = regexgen.extract_numbers(line, is_ignore_currency_symbol)
+    st_list = [adict['text'] for adict in dict_list]
+    return st_list
+
+
+class TestRegexGen(unittest.TestCase):
+
+    def test_remove_num_words_join_hyphen(self):
+        line = 'I have one-hundred-thirty-five dollars.'
+        got_line = regexgen.remove_hyphen_among_num_words(line)
+        target_line = 'I have one hundred thirty five dollars.'
+        self.assertEqual(target_line,
+                         got_line)
+
 
     def test_currency(self):
         "Test CURRENCY_PAT"
@@ -61,6 +81,8 @@ class TestCurrency(unittest.TestCase):
                                             'value': 33000000000})
         """
 
+        # disallow '33 B', '33.3 M' for now
+        """
         line = "Bob received 33 B dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
         self.assertEqual(len(mat_list), 1)
@@ -93,7 +115,7 @@ class TestCurrency(unittest.TestCase):
                                             'unit': 'USD',
                                             'value': 33444000.000000004})
         # 'value': 33444000}
-
+        """
 
         line = "Bob received 333,333  dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
@@ -285,8 +307,77 @@ class TestCurrency(unittest.TestCase):
                                             'value': 3500000})
 
 
+        line = 'I have $35 (Thirty-Five Dollars).'
+        currency_st_list = extract_currencies(line)
+        self.assertEqual(['$35',
+                          'Thirty-Five Dollars'],
+                         currency_st_list)
+
+
+        line = 'I have 35 dollars.'
+        currency_st_list = extract_currencies(line)
+        self.assertEqual(['35 dollars'],
+                         currency_st_list)
+
+    def test_extract_currency_prefer_prefix(self):
+        line = """AnnualInstallment
+
+1-12
+
+$
+
+28.25
+
+$
+
+114,104.10
+
+$
+
+1,369,249.25
+
+13-24
+
+$
+
+28.75
+
+$
+
+116,123.65
+
+$"""
+        currency_st_list = extract_currencies(line)
+
+        target_list = ['$\n\n28.25',
+                       '$\n\n114,104.10',
+                       '$\n\n1,369,249.25',
+                       '$\n\n28.75',
+                       '$\n\n116,123.65']
+
+        self.assertEqual(target_list,
+                         currency_st_list)
+
+
+
+
     def test_number(self):
         "Test NUMBER_PAT"
+
+        line = 'I have $35 (Thirty-Five Dollars).'
+
+        st_list = extract_numbers(line)
+        self.assertEqual(['Thirty-Five'],
+                         st_list)
+
+        st_list = extract_numbers(line, is_ignore_currency_symbol=True)
+        self.assertEqual(["35", 'Thirty-Five'],
+                         st_list)
+
+        line = 'I have 35 dollars.'
+        st_list = extract_numbers(line)
+        self.assertEqual(['35'],
+                         st_list)
 
         line = "33.3 dollars from Alice"
         mat_list = regexgen.extract_numbers(line)
@@ -351,6 +442,8 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(tuv(mat_list[0]), {'text': '33.3',
                                             'value': 33.3})
 
+        # disable '33.3 M' for now
+        """
         line = "Bob received 33.3 M dollars from Alice"
         mat_list = regexgen.extract_numbers(line)
         self.assertEqual(len(mat_list), 1)
@@ -362,7 +455,7 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(len(mat_list), 1)
         self.assertEqual(tuv(mat_list[0]), {'text': '33.3M',
                                             'value': 33299999.999999996})
-
+        """
 
         line = "Bob received 33.3802 dollars from Alice"
         mat_list = regexgen.extract_numbers(line)
@@ -416,6 +509,39 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(tuv(mat_list[3]), {'text': 'three and half million',
                                             'value': 3500000})
 
+
+    def test_extract_number_paren_numbers(self):
+        line = 'subsection 3.2 in a case in which Optionee dies within three (3) months after Optionee is Terminated'
+        dict_list = regexgen.extract_number_paren_numbers(line)
+        self.assertEquals(1, len(dict_list))
+        self.assertEqual(3,
+                         dict_list[0]['norm']['value'])
+
+
+    def test_extract_ordinal_numbers(self):
+        line = 'subsection 9th months after Optionee is Terminated'
+        dict_list = regexgen.extract_ordinal_numbers(line)
+        self.assertEquals(1, len(dict_list))
+        self.assertEqual(9,
+                         dict_list[0]['norm']['value'])
+
+        line = 'subsection twelveth months after Optionee is Terminated'
+        dict_list = regexgen.extract_ordinal_numbers(line)
+        self.assertEquals(1, len(dict_list))
+        self.assertEqual(12,
+                         dict_list[0]['norm']['value'])
+
+
+    def test_extract_numbers_difficult(self):
+        line = '$\n\n1,369,249.25\n\n13-24'
+        st_list = extract_numbers(line)
+        self.assertEqual(['1,369,249.25'],
+                         st_list)
+
+        line = '$\n\n1,369,249.25\n\n13-24\n$'
+        st_list = extract_numbers(line)
+        self.assertEqual(['1,369,249.25'],
+                         st_list)
 
 
     def test_percent(self):
@@ -536,6 +662,89 @@ class TestCurrency(unittest.TestCase):
                                             'value': 10,
                                             'unit': '%'})
 
+    def test_fractions(self):
+        line = "Bob received 18/60th of the share from Alice"
+        mat_list = regexgen.extract_fractions(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '18/60th',
+                                            'value': 0.3})
+
+
+        line = "Bob received 18/60 th of the share from Alice"
+        mat_list = regexgen.extract_fractions(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '18/60 th',
+                                            'value': 0.3})
+
+        line = 'schedule  one-fourth on April 9, 2015'
+        mat_list = regexgen.extract_fractions(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'one-fourth',
+                                            'value': 0.25})
+
+    def test_fraction_percent(self):
+        line = "Bob received 33 1/3% of the share from Alice"
+        mat_list = regexgen.extract_fraction_percents(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '33 1/3%',
+                                            'value': 33.33,
+                                            'unit': '%'})
+
+        line = "Bob received 33⅝% of the share from Alice"
+        mat_list = regexgen.extract_fraction_percents(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '33⅝%',
+                                            'value': 33.625,
+                                            'unit': '%'})
+
+    def test_percent_hard(self):
+        line = "Bob received 33 1/3% of the share from Alice"
+        mat_list = regexgen.extract_percents(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '33 1/3%',
+                                            'value': 33.33,
+                                            'unit': '%'})
+
+        line = "Bob received 33⅝% of the share from Alice"
+        mat_list = regexgen.extract_percents(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '33⅝%',
+                                            'value': 33.625,
+                                            'unit': '%'})
+
+    def test_time_duration(self):
+        line = 'the expiration of 12 months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': '12 months',
+                                            'value': 12,
+                                            'unit': 'month'})
+
+        line = 'the expiration of three months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'three months',
+                                            'value': 3,
+                                            'unit': 'month'})
+
+        line = 'the expiration of twelve (12) months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'twelve (12) months',
+                                            'value': 12,
+                                            'unit': 'month'})
+
+        line = 'the expiration of three (3) months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 1)
+        self.assertEqual(tuv(mat_list[0]), {'text': 'three (3) months',
+                                            'value': 3,
+                                            'unit': 'month'})
+
+        line = 'the expiration of three (3 plus) months after the date'
+        mat_list = regexgen.extract_time_durations(line)
+        self.assertEqual(len(mat_list), 0)
+
 
     def test_word_currency(self):
         "Test CURRENCY_PAT"
@@ -569,7 +778,6 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(tuv(mat_list[0]), {'text': '33M dollars',
                                             'value': 33000000,
                                             'unit': 'USD'})
-        """
 
         line = "Bob received 33 M dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
@@ -579,14 +787,12 @@ class TestCurrency(unittest.TestCase):
                                             'unit': 'USD'})
 
         # disallow 33B for now
-        """
         line = "Bob received 33B dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
         self.assertEqual(len(mat_list), 1)
         self.assertEqual(tuv(mat_list[0]), {'text': '33B dollars',
                                             'value': 33000000000,
                                             'unit': 'USD'})
-        """
 
         line = "Bob received 33 B dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
@@ -594,4 +800,5 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(tuv(mat_list[0]), {'text': '33 B dollars',
                                             'value': 33000000000,
                                             'unit': 'USD'})
+        """
 

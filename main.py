@@ -4,10 +4,12 @@ import argparse
 import configparser
 import copy
 import glob
+import json
 import logging
 import os
 import pprint
 import sys
+# pylint: disable=unused-import
 from typing import Any, Dict, List, Optional, Set
 
 # pylint: disable=import-error
@@ -95,7 +97,7 @@ def classify_document(file_name: str, model_dir: str) -> None:
 
     preds = eb_runner.classify_document(file_name)
 
-    pprint.pprint(preds)
+    pprint.pprint(preds, width=160)
 
 
 # This separates out training and testing data, trains only on training data.
@@ -104,8 +106,7 @@ def train_annotator(provision: str,
                     work_dir: str,
                     model_dir: str,
                     is_scut: bool,
-                    is_cache_enabled: bool = True,
-                    is_doc_structure: bool = True) -> None:
+                    is_cache_enabled: bool = True) -> None:
     if is_scut:
         eb_classifier = scutclassifier.ShortcutClassifier(provision)  # type: EbClassifier
         model_file_name = '{}/{}_scutclassifier.v{}.pkl'.format(model_dir,
@@ -120,13 +121,19 @@ def train_annotator(provision: str,
         #                                                         PROV_CLF_VERSION)
         pass
 
-    ebtrainer.train_eval_annotator_with_trte(provision,
-                                             work_dir,
-                                             model_dir,
-                                             model_file_name,
-                                             eb_classifier,
-                                             is_cache_enabled=is_cache_enabled,
-                                             is_doc_structure=is_doc_structure)
+    # pylint: disable=unused-variable
+    prov_annotator, ant_status, log_json = \
+        ebtrainer.train_eval_annotator_with_trte(provision,
+                                                 work_dir,
+                                                 model_dir,
+                                                 model_file_name,
+                                                 eb_classifier,
+                                                 is_cache_enabled=is_cache_enabled)
+
+    tmp_log_fname = '{}.xscut.eval.json'.format(provision)
+    strutils.dumps(json.dumps(log_json), tmp_log_fname)
+    print('wrote {}'.format(tmp_log_fname))
+
 
 def train_span_annotator(label: str,
                          nbest: int,
@@ -183,13 +190,11 @@ def eval_rule_annotator(label: str,
 
 def eval_line_annotator_with_trte(provision: str,
                                   txt_fn_list_fn: str,
-                                  work_dir: str,
-                                  is_doc_structure: bool = True):
+                                  work_dir: str):
     """Test line annotators based on txt_fn_list."""
     ebtrainer.eval_line_annotator_with_trte(provision,
                                             txt_fn_list_fn,
-                                            work_dir=work_dir,
-                                            is_doc_structure=is_doc_structure)
+                                            work_dir=work_dir)
 
 
 def eval_mlxline_annotator(provision: str,
@@ -313,7 +318,6 @@ def annotate_document(file_name: str,
                       model_dir: str,
                       custom_model_dir: str,
                       provision_set: Optional[Set[str]] = None,
-                      is_doc_structure: bool = True,
                       is_dev_mode: bool = False) -> Dict[str, Any]:
     eb_runner = ebrunner.EbRunner(model_dir, work_dir, custom_model_dir)
     eb_langdetect_runner = ebrunner.EbLangDetectRunner()
@@ -333,7 +337,6 @@ def annotate_document(file_name: str,
                                                      provision_set=provision_set,
                                                      work_dir=work_dir,
                                                      doc_lang=doc_lang,
-                                                     is_doc_structure=is_doc_structure,
                                                      is_dev_mode=is_dev_mode)
 
     # because special case of 'effectivdate_auto'
@@ -352,16 +355,21 @@ def annotate_document(file_name: str,
     # pprint.pprint(prov_labels_map)
 
     eb_doccat_runner = None
+    doc_catnames = []  # type: List[str]
     if IS_SUPPORT_DOC_CLASSIFICATION and os.path.exists('{}/{}'.format(model_dir,
                                                                        DOCCAT_MODEL_FILE_NAME)):
         eb_doccat_runner = ebrunner.EbDocCatRunner(model_dir)
 
-    print("eb_doccat_runner = {}".format(eb_doccat_runner))
+    logger.info("eb_doccat_runner = %r", eb_doccat_runner)
     if eb_doccat_runner:
         doc_catnames = eb_doccat_runner.classify_document(file_name)
-        pprint.pprint({'tags': doc_catnames})
 
-    return prov_labels_map
+    ebannotations = {}  # type: Dict[str, Any]
+    ebannotations['lang'] = doc_lang
+    ebannotations['tags'] = doc_catnames
+    ebannotations['ebannotations'] = dict(prov_labels_map)
+
+    return ebannotations
 
 
 # pylint: disable=too-many-branches, too-many-statements
@@ -395,6 +403,7 @@ def main():
     args = parser.parse_args()
     cmd = args.cmd
     provision = args.provision
+    # provisions = args.provisions
     txt_fn_list_fn = args.docs
     work_dir = args.work_dir
     model_dir = args.model_dir
@@ -412,8 +421,7 @@ def main():
                         work_dir,
                         model_dir,
                         args.scut,
-                        is_cache_enabled=is_cache_enabled,
-                        is_doc_structure=True)
+                        is_cache_enabled=is_cache_enabled)
     elif cmd == 'train_span_annotator':
         train_span_annotator(provision,
                              args.nbest,
@@ -458,32 +466,54 @@ def main():
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        provision_set = set([])
+        provs = set([])
         if args.provisions:
-            provision_set = set(args.provisions.split(','))
-
+            provs = set(args.provisions.split(','))
         clear_work_cache(args.doc, work_dir)
         print("\nannotate_document() result:")
         prov_ants_map = annotate_document(args.doc,
                                           work_dir,
                                           model_dir,
                                           custom_model_dir,
-                                          provision_set=provision_set,
-                                          is_doc_structure=True,
+                                          provision_set=provs,
                                           is_dev_mode=True)
-        pprint.pprint(dict(prov_ants_map))
-    elif cmd == 'print_doc_parties':
+        pprint.pprint(dict(prov_ants_map), width=160)
+    elif cmd == 'print_table_cand':
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        print("\nannotate_document() result:")
+        provs = set(['TABLE'])
         prov_ants_map = annotate_document(args.doc,
                                           work_dir,
                                           model_dir,
                                           custom_model_dir,
-                                          is_doc_structure=True,
+                                          provision_set=provs,
                                           is_dev_mode=True)
-        pprint.pprint(dict(prov_ants_map))
+        pprint.pprint(dict(prov_ants_map), width=160)
+    elif cmd == 'print_para_cand':
+        if not args.doc:
+            print('please specify --doc', file=sys.stderr)
+            sys.exit(1)
+        provs = set(['PARAGRAPH'])
+        print("\nprint_para_cand() result:")
+        prov_ants_map = annotate_document(args.doc,
+                                          work_dir,
+                                          model_dir,
+                                          custom_model_dir,
+                                          provision_set=provs,
+                                          is_dev_mode=True)
+        pprint.pprint(dict(prov_ants_map), width=160)
+    elif cmd == 'print_doc_parties':
+        if not args.doc:
+            print('please specify --doc', file=sys.stderr)
+            sys.exit(1)
+        prov_ants_map = annotate_document(args.doc,
+                                          work_dir,
+                                          model_dir,
+                                          custom_model_dir,
+                                          provision_set=provs,
+                                          is_dev_mode=True)
+        pprint.pprint(dict(prov_ants_map), width=160)
         party_ant_list = prov_ants_map['party']
         result = []
         for party_ant in party_ant_list:
@@ -491,7 +521,7 @@ def main():
                            party_ant['end'],
                            party_ant['text']))
         print('\nparties:')
-        pprint.pprint(result)
+        pprint.pprint(result, width=160)
     elif cmd == 'eval_line_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
@@ -501,8 +531,7 @@ def main():
             sys.exit(1)
         eval_line_annotator_with_trte(args.provision,
                                       txt_fn_list_fn,
-                                      work_dir,
-                                      is_doc_structure=True)
+                                      work_dir)
     elif cmd == 'eval_mlxline_annotator':
         if not args.provision:
             print('please specify --provision', file=sys.stderr)
@@ -522,12 +551,9 @@ def main():
             print('please specify --model_dirs', file=sys.stderr)
             sys.exit(1)
         model_dir_list = args.model_dirs.split(',')
-        # for HTML document, without doc structure
-        # is_doc_structure has to be false.
         splittrte.split_provision_trte(args.provfiles_dir,
                                        work_dir,
-                                       model_dir_list,
-                                       is_doc_structure=True)
+                                       model_dir_list)
     elif cmd == 'split_doccat_trte':
         doccatsplittrte.split_doccat_trte(txt_fn_list_fn)
     elif cmd == 'train_doc_classifier':

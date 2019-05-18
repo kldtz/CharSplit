@@ -8,12 +8,13 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from sklearn.linear_model import SGDClassifier
-from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.pipeline import FeatureUnion, Pipeline
 
+from kirke.ebrules import dates, dummyannotator
 from kirke.sampleutils import postproc
-from kirke.ebrules import dummyannotator, dates
-from kirke.sampleutils import addrgen, idnumgen, dategen, paragen
-from kirke.sampleutils import regexgen, transformerutils
+from kirke.sampleutils import addrgen, dategen, idnumgen, paragen
+from kirke.sampleutils import regexgen, sentencegen, tablegen
+from kirke.sampleutils import transformerutils
 from kirke.utils import ebantdoc4
 
 # pylint: disable=invalid-name
@@ -28,6 +29,19 @@ logger.setLevel(logging.INFO)
 
 
 ML_ANNOTATOR_CONFIG_LIST = [
+    ('SENTENCE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                         'is_use_corenlp': True,
+                         'text_type': 'nlp_text',
+                         'doc_to_candidates': [sentencegen.SentenceGenerator('SENTENCE')],
+                         'version': "1.0",
+                         'doc_postproc_list': [postproc.SentDefaultPostProcessing(0.24)],
+                         'pipeline': Pipeline([
+                             ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                                   shuffle=True, random_state=42,
+                                                   class_weight={True: 3, False: 1}))]),
+                         'threshold': 0.24,
+                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 8)}}),
+
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                      'is_use_corenlp': False,
                      'doc_to_candidates': [dategen.DateSpanGenerator(30, 30, 'DATE')],
@@ -188,7 +202,28 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                                     False: 1}))]),
                           'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                           'threshold': 0.25,
-                          'kfold': 3})
+                          'kfold': 3}),
+
+    ('TABLE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                      'is_use_corenlp': True,
+                      'is_doc_structure': True,
+                      'doc_to_candidates': [tablegen.TableGenerator('TABLE')],
+                      'version': "1.0",
+                      'doc_postproc_list': [postproc.TablePostProcessing()],
+                      'pipeline': Pipeline([('union', FeatureUnion(
+                          # pylint: disable=line-too-long
+                          transformer_list=[('table_transformer',
+                                             transformerutils.TableTextTransformer())])),
+                                            ('clf', SGDClassifier(loss='log',
+                                                                  penalty='l2',
+                                                                  n_iter=50,
+                                                                  shuffle=True,
+                                                                  random_state=42,
+                                                                  class_weight={True: 3,
+                                                                                False: 1}))]),
+                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                      'threshold': 0.25,
+                      'kfold': 3})
 ]
 
 
@@ -211,6 +246,7 @@ def validate_annotator_config_keys(aconfig: Tuple[str, str, Dict]) -> bool:
     for key, unused_value in adict.items():
         if key not in set(['doclist_to_antdoc_list',
                            'is_use_corenlp',
+                           'is_doc_structure',
                            'doc_to_candidates',
                            'version',
                            'doc_postproc_list',

@@ -632,7 +632,7 @@ def split_chunk_with_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
     -> List[Union[Tree, Tuple[str, str]]]:
     result = []  # type: List[Union[Tree, Tuple[str, str]]]
     for chunk in chunk_list:
-        if is_chunk_label(chunk, 'xORGP'):
+        if isinstance(chunk, Tree) and is_chunk_label(chunk, 'xORGP'):
             postag_list = chunk_to_postag_list(chunk)
 
             # 'the Canada Business Corporation Act'
@@ -1303,14 +1303,15 @@ def mark_org_appositions(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
 def mark_org_prev_xnnp_as_xorgp(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
     -> None:
     i = 0
-    prev_chunk = None
-    prev2_chunk = None
+    prev_chunk = None  # type: Optional[Union[Tree, Tuple[str, str]]]
+    prev2_chunk = None  # type: Optional[Union[Tree, Tuple[str, str]]]
     while i < len(chunk_list):
         chunk = chunk_list[i]
+        # to make mypy happy, do isinstance check here
         # pylint: disable=too-many-boolean-expressions
         if (is_chunk_org(chunk) or is_chunk_xpv_org(chunk)) and \
            (is_chunk_comma(prev_chunk) or is_chunk_and(prev_chunk)) and \
-           is_chunk_xnnp(prev2_chunk) and \
+           isinstance(prev2_chunk, Tree) and is_chunk_xnnp(prev2_chunk) and \
            chunk_num_tokens(prev2_chunk) > 1:
             if is_chunk_all_caps(chunk) and \
                not is_chunk_all_caps(prev2_chunk):
@@ -1320,17 +1321,18 @@ def mark_org_prev_xnnp_as_xorgp(chunk_list: List[Union[Tree, Tuple[str, str]]]) 
                 prev2_chunk.set_label('xORGP')
         # 'XXX Southern, a Delaware corporation,
         # cannot use is_chunk_xnnp(chunk) because it checks for article
+        # to make mypy happy, do isinstance check here
         elif is_chunk_label(chunk, 'xNNP') and \
              is_chunk_a_corporation(chunk) and \
              is_chunk_comma(prev_chunk) and \
-             is_chunk_xnnp(prev2_chunk) and \
-             isinstance(prev2_chunk, Tree):
+             isinstance(prev2_chunk, Tree) and \
+             is_chunk_xnnp(prev2_chunk):
             prev2_chunk.set_label('xORGP')
-
         # Dennis J. XXX ("Executive")
+        # to make mypy happy, do isinstance check here
         elif is_chunk_label(chunk, 'xPAREN') and \
-             is_chunk_likely_person_name(prev_chunk) and \
-             isinstance(prev_chunk, Tree):
+             isinstance(prev_chunk, Tree) and \
+             is_chunk_likely_person_name(prev_chunk):
             prev_chunk.set_label('xORGP')
 
         prev2_chunk = prev_chunk
@@ -1599,6 +1601,7 @@ class SpanChunk:
                                                                self.chunk)
 
 
+# pylint: disable=too-many-instance-attributes
 class PhrasedSent:
 
     # pylint: disable=too-many-instance-attributes
@@ -1798,6 +1801,12 @@ def span_chunk_list_to_words(span_chunk_list: List[SpanChunk]) \
     return all_words
 
 
+def span_chunk_list_to_text(span_chunk_list: List[SpanChunk]) \
+    -> str:
+    words = span_chunk_list_to_words(span_chunk_list)
+    return ' '.join(words)
+
+
 def find_as_span_chunks(span_chunk_list: List[SpanChunk]) \
         -> List[List[SpanChunk]]:
     as_idx_list = []  # type: List[int]
@@ -1918,6 +1927,10 @@ def chop_spanchunk_paren(span_chunk: SpanChunk) -> List[SpanChunk]:
 def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
     result = []
+
+    # TODO, jshaw, ot sure we should be using span_chunks_text instead of
+    # span_chunk.text
+    # span_chunks_text = span_chunk_list_to_text(span_chunk_list)
     for span_chunk in span_chunk_list:
         # this is another potential location to throw away empty parenthesis
         # if span_chunk.text.startswith('(') and \
@@ -1941,8 +1954,9 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
         elif re.search(r'\b(number|loan|rate|amount|principal|warrant|act|registration)\b', span_chunk.text, re.I):
             # (registered number SC183333)
             pass
-        elif re.search(r'\bparty\b.*and.*collectively.*parties.*', span_chunk.text, re.I):
-            # pylint: disable=fixme
+
+        elif re.search(r'\bparty.+and.+(together|collectively).*parties.*', span_chunk.text, re.I) or \
+             re.search(r'\bparties.+and.+individually.+', span_chunk.text, re.I):
             # TODO, not sure why adding following caused failure in
             # export-train/52082.txt failed??
             # or \
@@ -1975,8 +1989,17 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
 
 # a 'term' might have multiple span_chunk because 'as' defined term might have
 # multiple spanchunk instead of parens
+# pylint: disable=too-many-return-statements
 def remove_invalid_defined_terms_as(span_chunk_list: List[SpanChunk]) \
     -> List[SpanChunk]:
+
+    span_chunks_text = span_chunk_list_to_text(span_chunk_list)
+    # "... xxx as Parties and individually as a Party"
+    if re.search(r'\b(parties.+and.+individually)\b', span_chunks_text, re.I):
+        return []
+    if re.search(r'\b(party.+and.+(together|collectively))\b', span_chunks_text, re.I):
+        return []
+
     for span_chunk in span_chunk_list:
         if re.search(r'\b(date|amend(ed)?|follows?)\b', span_chunk.text, re.I):
             return []
@@ -2056,7 +2079,7 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, ends in a number')
             # pass
-        elif re.search(r'\b(agreement|extension|amendment)\b', span_chunk.text, re.I):
+        elif re.search(r'\b(agreement|extension|amendment|whereas)\b', span_chunk.text, re.I):
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid word')
             # pass
@@ -2079,6 +2102,10 @@ def remove_invalid_parties(span_chunk_list: List[SpanChunk]) \
             # got the wrong heading instead.
             if IS_DEBUG_ORGS_TERM:
                 print('removed invalid party, invalid prefix({})'.format(span_chunk.text))
+            # pass
+        elif re.match(r'^\s*(party)\s*$', span_chunk.text, re.I):
+            if IS_DEBUG_ORGS_TERM:
+                print('removed invalid party, invalid term({})'.format(span_chunk.text))
             # pass
         else:
             result.append(span_chunk)
@@ -2139,8 +2166,6 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             else:
                 term = []
         else:  # there are multiple
-
-
             # # if the 2nd paren has 'each a  "Party", and collectively the "Parties"'
             # last_paren = paren_list[-1]
             # if re.search(r'\b(parties)\b', last_paren.text, re.I):
@@ -2153,8 +2178,8 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             term = chop_spanchunk_paren(ordered_paren_list[0])
 
             # in future, might check if term/paren doesn't overlap with org
-            # pylint: disable=line-too-long
-            # if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:  # parent is really at the end of phrase
+            # if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:
+            #     # parent is really at the end of phrase
             #     term = last_paren
             # else:
             #     term = paren_list[0]
@@ -2164,7 +2189,7 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
         if as_in_paren:
             # remove the last paren
             term = as_in_paren
-
+            term = remove_invalid_defined_terms_as(term)
     elif as_list:
         if len(as_list) == 1:
             term = as_list[0]  # List[SpanChunk]
