@@ -249,6 +249,7 @@ def is_line_not_footer_by_content(line: str) -> bool:
     return is_line_not_footer_aux(line)
 
 
+# pylint: disable=too-many-statements
 def is_line_footer(line: str,
                    page_line_num: int,
                    num_line_in_page: int,
@@ -257,8 +258,10 @@ def is_line_footer(line: str,
                    is_english: bool,
                    is_centered: bool,
                    # TODO, remove, not used.  Mentioned in pdftxtparser.py
-                   unused_align: str,
+                   align: str,
                    yStart: float):
+
+    line = line.strip()
 
     # if last line in a page and just a number
     if page_line_num == num_line_in_page and \
@@ -283,6 +286,17 @@ def is_line_footer(line: str,
 
     if is_debug_footer:
         print("is_line_footer({}, {})".format(line, page_line_num))
+        print('align: {}'.format(align))
+        if line:
+            print('is_lower = {}'.format(line[0].islower()))
+            print('num_words = {}'.format(len(line.split())))
+            print('is_end_period = {}'.format(strutils.is_eo_sentence_char(line[-1])))
+
+    if align in set(['LF1', 'LF2']) and \
+       line and \
+       strutils.is_eo_sentence_char(line[-1]):
+        # print('has eoln char, must not be footer')
+        return False, -1.0
 
     score = 0.0
     if yStart >= 725.0:
@@ -329,6 +343,9 @@ def is_line_footer(line: str,
 
 HEADER_PAT = re.compile(r'(execution copy|anx343534anything)', flags=re.I)
 
+# 'Clause Page'
+HEADER_PAT_2 = re.compile(r'^(contents|\S+ Page)$', flags=re.I)
+
 # no re.I
 # TODO, jshaw, these should really be sechead, not headers.
 # OK for now.
@@ -345,10 +362,14 @@ def is_line_header(line: str,
                    # num_line_in_block, int,
                    num_line_in_page: int,
                    header_set=None):
-
+    # if yStart < 150:
+    #     print('is_line_header {}: [{}]'.format(yStart, line))
     is_debug = False
     # if line == 'Execution Copy':
     #     is_debug = True
+
+    if is_debug:
+        print('is_line_header {}: [{}]'.format(line_num, line[:30]))
 
     # for domain specific headers
     if header_set and line.lower().strip() in header_set:
@@ -365,6 +386,22 @@ def is_line_header(line: str,
                 print("is_line_header({}), False, is_en, is_lf_align".format(line))
             return False
 
+    if line_num > 4:
+        # above certain threshold, cannot be a header
+        return False
+
+    if align in set(['LF1', 'LF2']) and \
+       line and \
+       strutils.is_eo_sentence_char(line[-1]):
+        # print('has eoln char, must not be header')
+        return False
+
+    if len(line.split()) > 8:
+        return False
+
+    if line and line[0].islower():
+        return False
+
     score = 0.0
     if HEADER_PAT.match(line) and yStart < 140:
         if is_debug:
@@ -376,6 +413,10 @@ def is_line_header(line: str,
         if is_debug:
             print("header_path_match 2, + 1.0")
         score += 1.0
+    elif HEADER_PAT_2.match(line) and yStart < 140:
+        if is_debug:
+            print("header_path_match 1, + 0.9")
+        score += 0.9
     elif yStart < 80.0:
         if is_debug:
             print("header_path_match 3, yStart < 80.0 + 0.7")
@@ -643,6 +684,14 @@ def text_from_para_with_attrs(doc_text: str,
         for from_lnpos, unused_to_lnpos in lnpos_pair_list:
             from_start, from_end, unused_from_line_num = from_lnpos.to_tuple()
             para_st_list.append(doc_text[from_start:from_end])
+
+            # pylint: disable=line-too-long
+            # print('jj77 from=({}, {}), to=({}, {}) [{}]'.format(from_lnpos.start,
+            #                                                     from_lnpos.end,
+            #                                                     unused_to_lnpos.start,
+            #                                                     unused_to_lnpos.end,
+            #                                                     doc_text[from_start:
+            #                                                        from_end][:30] + '...'))
 
         # para_st_list.append(' '.join(para_st_list))
     nlp_text = '\n'.join(para_st_list)

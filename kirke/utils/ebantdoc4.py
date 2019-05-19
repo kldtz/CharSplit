@@ -132,6 +132,24 @@ class EbAnnotatedDoc4:
         self.nlp_paras_with_attrs = nlp_paras_with_attrs
         # para_indices and para_attrs should be the same length
         self.para_indices = [x[0] for x in nlp_paras_with_attrs]
+
+        """
+        print('para_indices2:')
+        print(self.para_indices)
+        for para_i, alist in enumerate(self.para_indices, 0):
+            first_elt = alist[0]
+            last_elt = alist[-1]
+            para_start = first_elt[0].start
+            para_end = last_elt[0].end
+            print('\npara ({}, {}) #{}:'.format(para_start, para_end, para_i))
+            
+            for elx in alist:
+                from_lnpos, to_lnpos = elx
+                # from_start, from_end, pix = pxx_from.start, px_from.end
+                print('  line: {}, {}'.format(from_lnpos.start, from_lnpos.end))
+                print('  text: [{}]'.format(self.text[from_lnpos.start:from_lnpos.end]))
+        """
+
         self.para_attrs = [x[1] for x in nlp_paras_with_attrs]
         # to map to original offsets
         # Both nlp_lnpos_list and origin_lnpos have start == end

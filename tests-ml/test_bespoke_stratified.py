@@ -54,8 +54,8 @@ class TestBespokeStratifiedGroupKFold(unittest.TestCase):
         # get no positive training documents during GridSearchCV.
         self.assertEqual(tn, 0)
         self.assertAlmostEqual(fp, 0, delta=2)
-        self.assertAlmostEqual(fn, 6, delta=2)
-        self.assertAlmostEqual(tp, 0, delta=2)
+        self.assertAlmostEqual(fn, 0, delta=2)
+        self.assertAlmostEqual(tp, 6, delta=2)
 
     def test_bespoke_myparty_fail(self):
 

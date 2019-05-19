@@ -507,6 +507,7 @@ def main():
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
+        provs = set(['party'])            
         prov_ants_map = annotate_document(args.doc,
                                           work_dir,
                                           model_dir,
@@ -514,7 +515,7 @@ def main():
                                           provision_set=provs,
                                           is_dev_mode=True)
         pprint.pprint(dict(prov_ants_map), width=160)
-        party_ant_list = prov_ants_map['party']
+        party_ant_list = prov_ants_map['ebannotations']['party']
         result = []
         for party_ant in party_ant_list:
             result.append((party_ant['start'],

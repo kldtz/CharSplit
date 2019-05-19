@@ -30,7 +30,7 @@ def main():
     work_dir = 'dir-work'
     osutils.mkpath(work_dir)
     ebantdoc4.clear_cache(fname, work_dir)
-    ebdoc = ebantdoc4.text_to_ebantdoc4(fname, work_dir)
+    ebdoc = ebantdoc4.text_to_ebantdoc(fname, work_dir)
 
     print('loaded %s' % ebdoc.file_id)
 

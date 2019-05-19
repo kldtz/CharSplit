@@ -1291,6 +1291,9 @@ def text_strip(*, start: int, end: int, text: str) -> Tuple[int, int]:
     return start, end
 
 
+def is_eo_sentence_char(achar: str) -> bool:
+    return achar in set(['.', '?', '!', ';'])
+
 
 if __name__ == '__main__':
     print(str(_get_num_prefix_space("   abc")))   # 3
