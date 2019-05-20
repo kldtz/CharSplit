@@ -246,9 +246,9 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8287.txt', 'date', 1, 0, 0),
                            ('demo-txt/8287.txt', 'effectivedate', 0, 0, 0),
                            ('demo-txt/8287.txt', 'force_majeure', 1, 0, 0),
-                           # there is a separate limliability related to passanger instead of
+                           # there is a separate limliability related to passenger instead of
                            # lease?  For now, acceptable.
-                           ('demo-txt/8287.txt', 'limliability', 5, 0, 1),  # has_diff: verified, to fix
+                           ('demo-txt/8287.txt', 'limliability', 5, 0, 0),
                            ('demo-txt/8287.txt', 'noncompete', 0, 0, 0),
                            ('demo-txt/8287.txt', 'party', 3, 0, 0),
                            ('demo-txt/8287.txt', 'remedy', 13, 0, 0),
@@ -258,7 +258,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8287.txt', 'title', 1, 0, 0),
                            ('demo-txt/8287.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8287.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8288(self):
         self.maxDiff = None
@@ -298,7 +298,7 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8289.txt', 'change_control', 1, 0, 0),
+        expected_result = [('demo-txt/8289.txt', 'change_control', 0, 1, 0),  # ??, will verify
                            ('demo-txt/8289.txt', 'choiceoflaw', 0, 0, 0),
                            ('demo-txt/8289.txt', 'date', 1, 0, 0),
                            ('demo-txt/8289.txt', 'effectivedate', 0, 0, 0),
@@ -313,7 +313,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8289.txt', 'title', 1, 0, 0),
                            ('demo-txt/8289.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8289.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8290(self):
         self.maxDiff = None
