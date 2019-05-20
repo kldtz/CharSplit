@@ -187,8 +187,16 @@ The likely reason is that the size of the matrix is 0, which is caused by not fi
 
 Please see https://ebrevia.atlassian.net/wiki/spaces/EX/pages/423526403/Kirke+UnitTests
 
+Because some of the documents used for unit tests are proprietary, we only made them downloadable via AWS S3 access:
+
+s3://repo.ebrevia.com/repository/dir-sent-check.v.0.1.tar.gz
+
+Please download and untar that file right after setup_unittest.sh.
+
 ```
 setup_unittest.sh
+# download private S3 file from above.
+
 nosetests tests
 nosetests tests-dstruct
 startup_unittest.sh
