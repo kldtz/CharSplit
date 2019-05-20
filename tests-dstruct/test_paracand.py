@@ -41,9 +41,9 @@ def ant_json_para_to_st_list(ajson: Dict) -> Tuple[List[Tuple[int, int, int]],
                                             para_dict['start'],
                                             para_dict['end'],
                                             para_dict['text'].replace('\n', '|'))
-        print(para_text)
-        print('len = {}, diff = {}'.format(len(para_dict['text']),
-                                           para_dict['end'] - para_dict['start']))
+        # print(para_text)
+        # print('len = {}, diff = {}'.format(len(para_dict['text']),
+        #                                    para_dict['end'] - para_dict['start']))
                                            
         out_se_list.append((para_i,
                             para_dict['start'],

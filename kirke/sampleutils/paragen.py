@@ -85,7 +85,7 @@ class ParagraphGenerator:
                         para_text = para_text + " " + next_text
                         match_end = next_end
                         raw_end = next_raw_end
-                        print('setting new raw_end: {}'.format(raw_end))
+                        # print('setting new raw_end: {}'.format(raw_end))
                         span_list.extend([x[0] for x in antdoc.para_indices[i+1]])
                     i += 1
                 else:
