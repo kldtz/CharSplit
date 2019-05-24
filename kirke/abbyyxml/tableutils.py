@@ -369,8 +369,10 @@ def table_block_to_json(ab_table_block: AbbyyTableBlock) -> Dict:
         for unused_cell_seq, ab_cell in enumerate(ab_row.ab_cells):
             cell_dict = {}  # type: Dict
             cell_st_list = []  # type: List[str]
-            if ab_cell.attr_dict.get('colSpan'):
-                cell_dict['colSpan'] = ab_cell.attr_dict['colSpan']
+            if ab_cell.attr_dict.get('@colSpan'):
+                cell_dict['colSpan'] = ab_cell.attr_dict['@colSpan']
+            if ab_cell.attr_dict.get('@rowSpan'):
+                cell_dict['rowSpan'] = ab_cell.attr_dict['@rowSpan']
             for ab_par in ab_cell.ab_pars:
                 for unused_lid, ab_line in enumerate(ab_par.ab_lines):
                     cell_st_list.append(ab_line.text)

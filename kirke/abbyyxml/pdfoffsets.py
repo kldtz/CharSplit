@@ -161,6 +161,18 @@ class AbbyyCell:
                 st_list.append(ab_line.text)
         return '\n'.join(st_list)
 
+    def __str__(self) -> str:
+        st_list = []
+        for attr_name, attr_val in self.infer_attr_dict.items():
+            st_list.append('{}: {}'.format(attr_name, attr_val))
+        for attr_name, attr_val in self.attr_dict.items():
+            st_list.append('{}: {}'.format(attr_name, attr_val))
+        st_list.append('text: [{}]'.format(self.get_text()))
+        return '{' + ','.join(st_list) + '}'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 def cells_to_text(cell_list: List[AbbyyCell]) -> str:
     st_list = []  # type: List[str]
@@ -231,7 +243,7 @@ class AbbyyTableBlock:
 
         return '\n'.join(st_list)
 
-    def is_header(self) -> bool :
+    def is_header(self) -> bool:
         return self.infer_attr_dict.get('header', False)
 
     def is_footer(self) -> bool:
@@ -816,7 +828,7 @@ def blocks_to_start_end_list(block_list: AbbyyBlock) -> List[Tuple[int, int]]:
 
 
 def block_to_rect(block: AbbyyBlock) -> Tuple[Tuple[int, int],
-                                             Tuple[int, int]]:
+                                              Tuple[int, int]]:
     lb = block.attr_dict['@l'], block.attr_dict['@b']
     tr = block.attr_dict['@r'], block.attr_dict['@t']
     return lb, tr
