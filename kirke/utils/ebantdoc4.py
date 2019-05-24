@@ -43,8 +43,6 @@ EBANTDOC_VERSION = '1.16'
 
 # IS_USE_ABBYY_FOR_PARAGRAPH_INFO = False
 
-CORENLP_JSON_VERSION = '1.12'
-
 IS_DEBUG = False
 
 def get_nlp_file_name(doc_id: str,

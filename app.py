@@ -231,6 +231,10 @@ def annotate_uploaded_document():
             if "rate_table" in provision_set:
                 provision_set.remove('rate_table')
 
+        # always add TABLE candidate to provision_set so we will
+        # return such candidate for front end to display
+        provision_set.add('TABLE')
+
         lang_provision_set = set([x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
                                   for x in provision_set])
         # provision_set = set(['date', 'effectivedate', 'party', 'sigdate', 'term', 'title'])
