@@ -231,6 +231,8 @@ class EbRunner:
         if provision.startswith('cust_'):
             # self.cust_annotator_map is lrucache.LRUCache.  Must use get().
             return self.custom_annotator_map.get(provision)
+        # this is where we return all the candidate annotations
+        # such as TABLE, DATE, NUMBER, CURRENCY, PERCENT
         if provision in annotatorconfig.get_all_candidate_types():
             config = annotatorconfig.get_ml_annotator_config([provision])
             return spanannotator.SpanAnnotator(provision,
@@ -263,6 +265,7 @@ class EbRunner:
         #    logger.info("user specified lang_provision list: %s", lang_provision_set)
         both_default_custom_provs = set(self.provision_annotator_map.keys())
         both_default_custom_provs.update(self.custom_annotator_map.keys())
+        # this is where we add all candidate types, such as TABLE, DATE, NUMBER, CURRENCY, PERCENT
         both_default_custom_provs.update(annotatorconfig.get_all_candidate_types())
 
         # print('custom_annotator_map.keys() = {}'.format(self.custom_annotator_map.keys()))
@@ -476,7 +479,6 @@ class EbRunner:
         # print("provision_set: {}".format(provision_set))
         self.update_custom_models(lang_provision_set)
 
-
         eb_antdoc = ebantdoc4.text_to_ebantdoc(file_name,
                                                work_dir=work_dir,
                                                doc_lang=doc_lang)
@@ -493,6 +495,7 @@ class EbRunner:
                 empty_result_2[prov] = []
             # we always return eb_antdoc, not eb_antdoc3
             return empty_result_2, eb_antdoc
+
         # this execute the annotators in parallel
         prov_labels_map = self.run_annotators_in_parallel(eb_antdoc,
                                                           lang_provision_set=lang_provision_set)
