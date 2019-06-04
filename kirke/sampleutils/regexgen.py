@@ -329,7 +329,7 @@ def extract_numbers(line: str) -> List[Dict]:
         # norm_st = text2int.normalize_comma_period(mat.group())
         # 2.3.4, or section head
         # 2018-01-01 or date
-        if is_invalid_number_phrase(mat.group()) or \
+        if not mat or is_invalid_number_phrase(mat.group()) or \
            is_invalid_number_word(mat.group()):
             continue
 
