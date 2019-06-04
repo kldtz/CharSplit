@@ -70,11 +70,14 @@ mkdir corenlp
 wget https://s3.amazonaws.com/repo.ebrevia.com/repository/stanford-corenlp-3.7.0-models.jar
 wget https://s3.amazonaws.com/repo.ebrevia.com/repository/stanford-corenlp-3.7.0.jar
 cp ../extractor/docker/service/corenlp/run .
-# remove "> /dev/null 2>&1" from the end of 'run' command file
+# remove "2>&1" from the end of 'run' command file
+# remove "-serverProperties StanfordCoreNLP.properties" from 'run'
+# remove ">> /var/log/ebrevia/corenlp.log" from 'run'
+# remove 
 ./run
 ```
 
-That terminal will be used for corenlp.
+That terminal will be used for corenlp and the log will go only to the terminal.
 
 ## How to annotate a document using Kirke?
 
