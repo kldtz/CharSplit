@@ -18,13 +18,14 @@ cd Kirke
 
 This is for Ubuntu 14.04
 ```
-sudo apt-get install libmysqlclient-dev
-sudo apt-get install python3.5-dev python3-pip libxml2-dev libxslt1-dev python3-numpy python3-scipy 
-sudo apt-get install libblas-dev liblapack-dev libatlas-base-dev gfortran libatlas-dev libatlas3gf-base
+sudo apt-get -y install libmysqlclient-dev
+sudo apt-get -y install python3.5-dev python3-pip libxml2-dev libxslt1-dev python3-numpy python3-scipy 
+sudo apt-get -y install libblas-dev liblapack-dev libatlas-base-dev gfortran libatlas-dev libatlas3gf-base
 
 ```
+The `-y` switch suppresses the question about whether to install dependencies.
 
-On Ubuntu 16.04, libatlas3gf-base can be skipped.  In general, we want the *optimized* libblas and liblapack.  Otherwise, scipy will be mucher slower than expected.
+On versions of Ubuntu before 16.04, `libatlas3gf-base` must be installed after everything else.  In general, we want the *optimized* libblas and liblapack.  Otherwise, scipy will be mucher slower than expected.
 
 In order to verify that the correct Python (3.5) is installed as python3, do 
 ```
