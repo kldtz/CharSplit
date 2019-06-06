@@ -10,14 +10,15 @@ Kirke is a document annotator that annotates documents based on previous annotat
 1. Check out the code from github.com
 
 ```
-git clone git@github.com:eBrevia/kirke.git Kirke
+git clone https://github.com/eBrevia/kirke.git Kirke
 cd Kirke
 ```
 
 2. Install the dependencies
 
-This is for Ubuntu 14.04
+This is for Ubuntu 16.06
 ```
+sudo -v   # sets password
 sudo apt-get -y install libmysqlclient-dev
 sudo apt-get -y install python3.5-dev python3-pip libxml2-dev libxslt1-dev python3-numpy python3-scipy 
 sudo apt-get -y install libblas-dev liblapack-dev libatlas-base-dev gfortran libatlas-dev libatlas3gf-base
@@ -25,7 +26,7 @@ sudo apt-get -y install libblas-dev liblapack-dev libatlas-base-dev gfortran lib
 ```
 The `-y` switch suppresses the question about whether to install dependencies.
 
-On versions of Ubuntu before 16.04, `libatlas3gf-base` must be installed after everything else.  In general, we want the *optimized* libblas and liblapack.  Otherwise, scipy will be mucher slower than expected.
+On versions of Ubuntu before 16.04, `libatlas3gf-base` must be installed after everything else.  In general, we want the *optimized* `libblas` and `liblapack`.  Otherwise, `scipy` will be mucher slower than expected.
 
 In order to verify that the correct Python (3.5) is installed as python3, do 
 ```
@@ -56,25 +57,21 @@ pip install -r requirements.txt
 python3 download_nltk.py
 ```
 
-The need to install numpy and scip earlier than requirements.txt is because we haven't merged https://github.com/eBrevia/kirke/pull/18 .
+The need to install `numpy` and `scipy` earlier than requirements.txt is because we haven't merged https://github.com/eBrevia/kirke/pull/18 .
 
 4. running CoreNLP server
-
-You can follow the instruction on xxx.
-
-Here is another way to get thing up and running faster.
 
 ```
 # go to a directory at the same level as kirke
 cd ..
 mkdir corenlp
+cd corenlp
 wget https://s3.amazonaws.com/repo.ebrevia.com/repository/stanford-corenlp-3.7.0-models.jar
 wget https://s3.amazonaws.com/repo.ebrevia.com/repository/stanford-corenlp-3.7.0.jar
-cp ../extractor/docker/service/corenlp/run .
-# remove "2>&1" from the end of 'run' command file
-# remove "-serverProperties StanfordCoreNLP.properties" from 'run'
-# remove ">> /var/log/ebrevia/corenlp.log" from 'run'
-# remove 
+# Edit "run" as follows:
+# remove both "cd" commands
+# remove "-serverProperties StanfordCoreNLP.properties"
+# remove ">> /var/log/ebrevia/corenlp.log 2>&1"
 ./run
 ```
 
