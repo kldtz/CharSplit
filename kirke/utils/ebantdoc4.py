@@ -140,7 +140,7 @@ class EbAnnotatedDoc4:
             para_start = first_elt[0].start
             para_end = last_elt[0].end
             print('\npara ({}, {}) #{}:'.format(para_start, para_end, para_i))
-            
+
             for elx in alist:
                 from_lnpos, to_lnpos = elx
                 # from_start, from_end, pix = pxx_from.start, px_from.end

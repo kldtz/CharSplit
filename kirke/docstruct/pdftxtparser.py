@@ -234,8 +234,8 @@ def output_linex_list_with_offset(header_linex_list: List[LineWithAttrs],
                 span_se_list = [(linepos.LnPos(linex.lineinfo.end+2, linex.lineinfo.end+2),
                                  linepos.LnPos(offset, offset))]
                 offsets_line_list.append((span_se_list, EMPTY_PLINE_ATTRS))
-                offset += 1                
-                
+                offset += 1
+
         # because we already performed "if_header_linex_list:" check,
         # linex is guaranteed to be initialized with some value
         # pylint: disable=undefined-loop-variable
@@ -263,7 +263,7 @@ def output_linebreak(from_offset: int,
 # Note: The code below should handle if a paragraph that is broken across more than 2 pages.
 # to_use_page_footer_linx_list_queue stores anything that hasn't been outputed yet
 
-# pylint: disable=too-many-locals, too-many-statements
+# pylint: disable=too-many-locals, too-many-statements, too-many-branches
 def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
                             -> List[Tuple[List[Tuple[linepos.LnPos, linepos.LnPos]],
                                           PLineAttrs]]:
@@ -318,7 +318,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
             for ff_linex in apage.footer_linex_list:
                 print('page {}, footer  linex = [{}]'.format(apage.page_num,
                                                              ff_linex.line_text))
-                print('   attrs={}'.format(str(ff_linex.attrs)))                        
+                print('   attrs={}'.format(str(ff_linex.attrs)))
 
             for block_id_x in block_id_list:
                 bb_linex_list = block_linex_list_map[block_id_x]
@@ -366,7 +366,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
                                                                     sechead_context=sechead_context,
                                                                     pdf_text_doc=pdf_text_doc,
                                                                     is_output_line_break_per_line=True)
-                                                                    
+
 
         # output the content blocks
         for seq, block_num in enumerate(block_id_list):
@@ -374,7 +374,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
 
             if to_use_page_footer_linex_list_queue and seq == 1:
                 # output previous page's footer and header, there can be multiple pages
-                for ft_idx, footer_header_linex_list in enumerate(to_use_page_footer_linex_list_queue):
+                for footer_header_linex_list in to_use_page_footer_linex_list_queue:
                     offset, sechead_context = output_linex_list_with_offset(footer_header_linex_list,
                                                                             offsets_line_list=offsets_line_list,
                                                                             offset=offset,
@@ -439,7 +439,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
             # Output it now.
             if to_use_page_footer_linex_list_queue and len(block_id_list) == 1:
                 # output previous page's footer and header, there can be multiple pages
-                for ft_idx, footer_header_linex_list in enumerate(to_use_page_footer_linex_list_queue):
+                for footer_header_linex_list in to_use_page_footer_linex_list_queue:
                     # each line in footer or header must be output separately, otherwise
                     # the whole text between header and footer will be output as a line (start from header,
                     # end from footer).  This will output a whole page, which is wrong.
@@ -449,7 +449,7 @@ def to_nlp_paras_with_attrs(pdf_text_doc: PDFTextDoc) \
                                                                             sechead_context=sechead_context,
                                                                             pdf_text_doc=pdf_text_doc,
                                                                             is_output_line_break_per_line=True)
-                to_use_page_footer_linex_list_queue = []                    
+                to_use_page_footer_linex_list_queue = []
 
             # output this pages header
             offset, sechead_context = output_linex_list_with_offset(apage.footer_linex_list,
@@ -671,7 +671,7 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                 # print('lineinfo3.init_2(({}, {}), line_num={}, block_num={}'.format(tmp_start,
                 #                                                                    tmp_end,
                 #                                                                    line_num,
-                #                                                                    block_num))                
+                #                                                                    block_num))
                 bxid_lineinfos.append(LineInfo3(tmp_start,
                                                 tmp_end,
                                                 line_num,
@@ -698,7 +698,7 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                     # print('bxid_lineinfo.obid = {}'.format(bxid_lineinfo.obid))
                     bxid_lineinfo.obid = block_num
                     bxid_lineinfo.ybid = block_num
-                    
+
                 block_info = PBlockInfo(start,
                                         end,
                                         block_num,
@@ -715,7 +715,7 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                 if IS_DEBUG_YDIFF:
                     print("  kk88, branch 2")
                 if start == -1:
-                    start = tmp_start                    
+                    start = tmp_start
 
                 # print('lineinfo3.init_1(({}, {}), line_num={}, block_num={}'.format(tmp_start,
                 #                                                                     tmp_end,
@@ -1127,7 +1127,7 @@ def add_doc_structure_to_doc(pdftxt_doc: PDFTextDoc) -> None:
 
     if IS_DEBUG_MODE:
         pdftxt_doc.save_debug_lines('.paged.dstruct2.tsv')
-        
+
     # for debugging page_format,
     # set pageformat.IS_TOP_LEVEL_DEBUG to True
     """
@@ -1591,7 +1591,7 @@ def is_page_multi_column(apage: PageInfo3) -> bool:
     #                                                               num_one_col_line,
     #                                                               num_other_col_line,
     #                                                               num_english_line))
-    
+
     if num_lines == 0:
         return False
     if num_split_col_line == 0:

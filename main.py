@@ -507,7 +507,7 @@ def main():
         if not args.doc:
             print('please specify --doc', file=sys.stderr)
             sys.exit(1)
-        provs = set(['party'])            
+        provs = set(['party'])
         prov_ants_map = annotate_document(args.doc,
                                           work_dir,
                                           model_dir,
