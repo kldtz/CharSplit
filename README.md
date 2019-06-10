@@ -5,7 +5,7 @@ eBrevia Document Annotator
 
 Kirke is a document annotator that annotates documents based on previous annotated examples.
 
-## Setting up the development environment
+## Setting up the development environment on Mac and Linux
 
 1. Check out the code from github.com
 
@@ -16,12 +16,12 @@ cd Kirke
 
 2. Install the dependencies
 
-This is for Ubuntu 16.06
+This is for Ubuntu 16.04
 ```
 sudo -v   # sets password
 sudo apt-get -y install libmysqlclient-dev
 sudo apt-get -y install python3.5-dev python3-pip libxml2-dev libxslt1-dev python3-numpy python3-scipy 
-sudo apt-get -y install libblas-dev liblapack-dev libatlas-base-dev gfortran libatlas-dev libatlas3gf-base
+sudo apt-get -y install libblas-dev liblapack-dev libatlas-base-dev gfortran libatlas-dev
 
 ```
 The `-y` switch suppresses the question about whether to install dependencies.
@@ -46,9 +46,16 @@ sudo update-alternatives --set libblas.so.3 /usr/lib/atlas-base/atlas/libblas.so
 sudo update-alternatives --set liblapack.so.3 /usr/lib/atlas-base/atlas/liblapack.so.3
 ```
 
+Add the following lines to `~/.bash_profile` or `~/.profile`, whichever you use:
+```
+export JOBLIB_START_METHOD="forkserver"
+export EB_MODELS="$HOME/eb_models"
+```
+
 3. Setup the virtual environment
 
 ```
+cd Kirke  # if not already there
 virtualenv -p python3 env
 source env/bin/activate
 pip install numpy
@@ -59,7 +66,8 @@ python3 download_nltk.py
 
 The need to install `numpy` and `scipy` earlier than requirements.txt is because we haven't merged https://github.com/eBrevia/kirke/pull/18 .
 
-4. running CoreNLP server
+
+4. Installing CoreNLP server and EB models
 
 ```
 # go to a directory at the same level as kirke
@@ -68,10 +76,34 @@ mkdir corenlp
 cd corenlp
 wget https://s3.amazonaws.com/repo.ebrevia.com/repository/stanford-corenlp-3.7.0-models.jar
 wget https://s3.amazonaws.com/repo.ebrevia.com/repository/stanford-corenlp-3.7.0.jar
-# Edit "run" as follows:
-# remove both "cd" commands
-# remove "-serverProperties StanfordCoreNLP.properties"
-# remove ">> /var/log/ebrevia/corenlp.log 2>&1"
+```
+Now edit "run" as follows:
+1. remove both "cd" commands
+2. remove "-serverProperties StanfordCoreNLP.properties"
+3. remove ">> /var/log/ebrevia/corenlp.log 2>&1" from last line
+```
+cd ..
+wget https://s3.amazonaws.com/repo.ebrevia.com/repository/eb_models_2.0.8.tar.gz
+mkdir eb_models
+cd eb_models
+tar xf ../eb_models_2.0.8.tar.gz
+rm ../eb_models_2.0.8.tar.gz
+cd ..
+```
+
+5. Running Kirke and CoreNLP server
+
+```
+cd Kirke  # if not already there
+source env/bin/activate
+gunicorn --workers 1 --timeout 9600 --preload app:app
+```
+
+That terminal will be used for Kirke and the log will go only to the terminal.
+Start another terminal:
+
+```
+cd corenlp
 ./run
 ```
 
