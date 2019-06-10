@@ -100,6 +100,7 @@ gunicorn --workers 1 --timeout 9600 --preload app:app
 ```
 
 That terminal will be used for Kirke and the log will go only to the terminal.
+
 Start another terminal:
 
 ```
