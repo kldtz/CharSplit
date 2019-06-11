@@ -18,7 +18,7 @@ class ParagraphGenerator:
                  candidate_type: str) -> None:
         self.candidate_type = candidate_type
 
-    # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
+    # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
     def get_candidates_from_ebantdoc(self,
                                      antdoc: ebantdoc4.EbAnnotatedDoc4,
                                      group_id: int = 0,

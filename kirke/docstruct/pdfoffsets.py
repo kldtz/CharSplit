@@ -257,10 +257,10 @@ class PageInfo3:
         # Also out of order blocks due to tables and header.  p76 carousel.txt
         self.pblockinfo_list = sorted(pblockinfo_list, key=lambda x: x.start)
 
-        avg_single_line_break_ydiff = \
-            compute_avg_single_line_break_ydiff(self.pblockinfo_list)
+        # avg_single_line_break_ydiff = \
+        #     compute_avg_single_line_break_ydiff(self.pblockinfo_list)
         self.line_list = init_lines_with_attr(self.pblockinfo_list,
-                                              avg_single_line_break_ydiff,
+                                              # avg_single_line_break_ydiff,
                                               doc_text=doc_text,
                                               page_num=page_num)
 
@@ -589,7 +589,7 @@ class PBlockInfo:
 
 # pylint: disable=too-many-locals
 def init_lines_with_attr(pblockinfo_list: List[PBlockInfo],
-                         avg_single_line_break_ydiff: float,
+                         # avg_single_line_break_ydiff: float,
                          doc_text: str,
                          page_num: int) \
                          -> List[LineWithAttrs]:
@@ -614,9 +614,9 @@ def init_lines_with_attr(pblockinfo_list: List[PBlockInfo],
 
     line_attrs = []  # type: List[LineWithAttrs]
     # pylint: disable=invalid-name
-    prev_yStart = 0
+    # prev_yStart = 0
     for page_line_num, lineinfo in enumerate(lineinfo_list, 1):
-        ydiff = lineinfo.yStart - prev_yStart
+        # ydiff = lineinfo.yStart - prev_yStart
         # it possible for self.avg_single_line_break_ydiff to be 0 when
         # the document has only vertical lines.
         # if avg_single_line_break_ydiff == 0:
@@ -636,7 +636,7 @@ def init_lines_with_attr(pblockinfo_list: List[PBlockInfo],
                                         align,
                                         is_centered,
                                         is_english))
-        prev_yStart = lineinfo.yStart
+        # prev_yStart = lineinfo.yStart
 
     # print('7777 line_attrs: {}'.format(len(line_attrs)))
     return line_attrs
