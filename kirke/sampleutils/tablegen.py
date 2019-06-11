@@ -25,13 +25,28 @@ IS_DEBUG_INVALID_TABLE = False
 def find_prev_sechead(start: int,
                       sechead_list: List[SecHeadTuple]) \
                       -> Optional[SecHeadTuple]:
+    """Find the sechead before 'start' offset.
+
+    We find find a sechead that past the table, then look into the previous sechead.
+
+    The main filter is that the sechead has to be less than 180 char before 'start'.
+    Would have preferred number of words, 3 short sentences, or 8 char per word * 7 ~= 60 chars,
+    but we have not access to the desired text span.
+    """
     # print("find_prev_sechead, table_start = {}".format(start))
     prev_sechead_tuple = None
     for sechead_tuple in sechead_list:
         shead_start, unused_shead_end, unused_shead_prefix, \
             unused_shead_st, unused_shead_page_num = sechead_tuple
+
         if start <= shead_start:
+            unused_prev_shead_start, prev_shead_end, unused_prev_shead_prefix, \
+                prev_shead_st, unused_prev_shead_page_num = prev_sechead_tuple
+            if start - prev_shead_end >= 180:
+                # sechead is too far from the start of the table
+                return None
             return prev_sechead_tuple
+
         prev_sechead_tuple = sechead_tuple
     return prev_sechead_tuple
 
