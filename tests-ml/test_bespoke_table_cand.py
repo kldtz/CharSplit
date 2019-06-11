@@ -56,28 +56,28 @@ class TestBespokeTable(unittest.TestCase):
         fn = conf_matrix[1][0]
         tp = conf_matrix[1][1]
 
-        # {'confusion_matrix': [[0, 1], [5, 4]], 'fscore': 0.5714285714285714, 'model_number': 1119, 'precision': 0.8, 'provision': 'rate_table', 'recall': 0.4444444444444444}
+        # {'confusion_matrix': [[0, 5], [3, 6]], 'fscore': 0.6, 'model_number': 1016, 'precision': 0.5454545454545454, 'provision': 'rate_table', 'recall': 0.6666666666666666}
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 1, delta=2)
-        self.assertAlmostEqual(fn, 5, delta=2)
-        self.assertAlmostEqual(tp, 4, delta=2)
+        self.assertAlmostEqual(fp, 5, delta=2)
+        self.assertAlmostEqual(fn, 3, delta=2)
+        self.assertAlmostEqual(tp, 6, delta=2)
 
         # round(ant_result['f1'], 2)
-        # 0.57, was 0.55
+        # 0.6, was 0.57, was 0.55
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.52)
-        self.assertLessEqual(f1, 0.62)
+        self.assertGreaterEqual(f1, 0.55)
+        self.assertLessEqual(f1, 0.65)
 
         # round(ant_result['prec'], 2)
-        # .80
+        # .55
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.75)
-        self.assertLessEqual(precision, 0.85)
+        self.assertGreaterEqual(precision, 0.50)
+        self.assertLessEqual(precision, 0.60)
 
-        # 0.44
+        # 0.66
         recall = round(ant_result['recall'], 2)
-        self.assertGreaterEqual(recall, 0.40)
-        self.assertLessEqual(recall, 0.50)
+        self.assertGreaterEqual(recall, 0.61)
+        self.assertLessEqual(recall, 0.71)
         txt_fnames = []
         for file in os.listdir(custid_data_dir):
             fname = '{}/{}'.format(custid_data_dir, file)
