@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split
 
 from kirke.eblearn import annotatorconfig, ebannotator, ebattrvec, ebpostproc
 from kirke.eblearn import lineannotator, ruleannotator, spanannotator
+from kirke.eblearn.scutclassifier import ShortcutClassifier
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import  ebantdoc4, evalutils, splittrte, strutils, txtreader
 
@@ -32,6 +33,10 @@ DEFAULT_CV = 3
 
 # MIN_FULL_TRAINING_SIZE = 150
 MIN_FULL_TRAINING_SIZE = 100
+
+# minimum number of positive doc required for
+# bespoke training
+MIN_NUM_POS_DOC_BESPOKE = 6
 
 # training using cross validation of 600 docs took around 38 minutes
 # MAX_DOCS_FOR_TRAIN_CROSS_VALIDATION = 600
@@ -92,8 +97,8 @@ def cv_train_at_annotation_level(provision,
                                  nbest,
                                  eb_classifier_orig,
                                  model_file_name: str,
-                                 model_num: int,
-                                 model_dir: str,
+                                 model_status_fname: str,
+                                 model_result_fname: str,
                                  work_dir: str):
     # we do 3-fold cross validation, as the big set for custom training
     # test_size = 0.33
@@ -141,11 +146,8 @@ def cv_train_at_annotation_level(provision,
                 print("bucknum={}, test_num={}, fn={}".format(bucket_num, te_num, te_doc.file_id))
 
         cv_eb_classifier = eb_classifier_orig.make_bare_copy()
-        timestr = time.strftime("%Y%m%d-%H%M%S")
-        cv_eb_classifier_fn = '/tmp/{}-{}-{}'.format(provision, timestr, bucket_num)
-        cv_eb_classifier.train_antdoc_list(train_buckets,
-                                           work_dir,
-                                           cv_eb_classifier_fn)
+        cv_eb_classifier.train_antdoc_list(train_buckets, work_dir, model_file_name=model_file_name)
+
         cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir, nbest=nbest)
 
         cv_ant_status, cv_log_json = cv_prov_annotator.test_antdoc_list(test_bucket)
@@ -156,10 +158,12 @@ def cv_train_at_annotation_level(provision,
         cv_ant_status_list.append(cv_ant_status)
 
     # now build the annotator using ALL training data
-    eb_classifier = eb_classifier_orig.make_bare_copy()
-    eb_classifier.train_antdoc_list(x_antdoc_list,
-                                    work_dir,
-                                    model_file_name)
+    # eb_classifier is scutclassifier
+    eb_classifier = eb_classifier_orig.make_bare_copy()  # type: ShortcutClassifier
+    eb_classifier.train_antdoc_list(x_antdoc_list, work_dir, model_file_name=model_file_name)
+    eb_classifier.save(model_file_name)
+    logger.info('wrote bespoke model file: %s', model_file_name)
+
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir, nbest=nbest)
     log_json = log_list
     merged_ant_status = \
@@ -172,15 +176,10 @@ def cv_train_at_annotation_level(provision,
     prov_annotator.eval_status = ant_status
     pprint.pprint(ant_status)
 
-    model_status_fn = '{}/{}.{}.status'.format(model_dir,
-                                               provision,
-                                               model_num)
-    strutils.dumps(json.dumps(ant_status), model_status_fn)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    result_fn = model_dir + '/' + provision + "-ant_result-" + \
-                timestr + ".json"
-    logger.info('wrote result file at: %s', result_fn)
-    strutils.dumps(json.dumps(log_json), result_fn)
+    strutils.dumps(json.dumps(ant_status), model_status_fname)
+    # logger.info('wrote status file: %s', model_status_fname)
+    strutils.dumps(json.dumps(log_json), model_result_fname)
+    # logger.info('wrote result file: %s', model_result_fname)
 
     log_custom_model_eval_status({'provision': provision,
                                   'ant_status': merged_ant_status})
@@ -188,9 +187,9 @@ def cv_train_at_annotation_level(provision,
     return prov_annotator, log_list
 
 
-# TODO, because we are using ebantdoc4 instead of ebantdoc4, I am
-# doing code copying right now.  Maybe merge with cv_train_at_annotation_level()
-# in future.
+# TODO
+# I am doing code copying right now.
+# Maybe merge with cv_train_at_annotation_level() in future.
 # pylint: disable=too-many-arguments, too-many-locals, invalid-name, too-many-statements
 def cv_candg_train_at_annotation_level(provision: str,
                                        # pylint: disable=invalid-name
@@ -200,8 +199,12 @@ def cv_candg_train_at_annotation_level(provision: str,
                                                                           List[int]]],
                                        antdoc_bool_list: List[bool],
                                        sp_annotator_orig: spanannotator.SpanAnnotator,
-                                       model_dir: str,
-                                       work_dir: str):
+                                       model_file_name: str,
+                                       model_status_fname: str,
+                                       model_result_fname: str,
+                                       work_dir: str) \
+                                       -> Tuple[Optional[spanannotator.SpanAnnotator],
+                                                Dict[str, Dict]]:
     # we do 4-fold cross validation, as the big set for custom training
     # test_size = 0.25
 
@@ -230,9 +233,19 @@ def cv_candg_train_at_annotation_level(provision: str,
 
     pos_list.extend(neg_list)
     if num_pos_after_candgen < 6:
-        exc = Exception("INSUFFICIENT_EXAMPLES: Too few documents with positive candidates, {} found".format(num_pos_after_candgen))
-        exc.user_message = "INSUFFICIENT_EXAMPLES"  # type: ignore
-        raise exc
+        train_result = {'confusion_matrix': {'tn': 0, 'fp': 0,
+                                             'fn': 0, 'tp': 0},
+                        'f1': -1.0,
+                        'prec': -1.0,
+                        'provision': provision,
+                        'model_number': -1,
+                        'recall': -1.0,
+                        # pylint: disable=line-too-long
+                        'user_message': 'Training failed.  Number of docs is {}.  Only {} (< 6) positive candidates are found.'.format(len(antdoc_candidatex_list), num_pos_after_candgen),
+                        'failure_cause': 'num_positive_candidates',
+                        'failure_value': num_pos_after_candgen}
+        return None, {'ant_status': train_result}
+
     # pylint: disable=line-too-long
     bucket_x_map = defaultdict(list)  # type: DefaultDict[int, List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]]
     for count, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in enumerate(pos_list):
@@ -307,18 +320,21 @@ def cv_candg_train_at_annotation_level(provision: str,
     merged_ant_status = \
         evalutils.aggregate_ant_status_list(cv_ant_status_list)['ant_status']
 
-    ant_status = {'provision': provision}
     prov_annotator.classifier_status['eval_status'] = merged_ant_status
     prov_annotator.ant_status['eval_status'] = merged_ant_status
-    # pprint.pprint(prov_annotator.ant_status)
 
-    model_status_fn = model_dir + '/' +  provision + ".status"
-    strutils.dumps(json.dumps(ant_status), model_status_fn)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    result_fn = model_dir + '/' + provision + "-ant_result-" + \
-                timestr + ".json"
-    logger.info('wrote result file at: %s', result_fn)
-    strutils.dumps(json.dumps(log_json), result_fn)
+    # this log the model result in top level label_model_stat.tsv
+    prov_annotator.print_and_log_label_model_stat_tsv()
+    prov_annotator.save(model_file_name)
+    logger.info('wrote bespoke model file: %s', model_file_name)
+
+    ant_status = {'provision': provision}
+    ant_status['ant_status'] = prov_annotator.ant_status['eval_status']
+    strutils.dumps(json.dumps(ant_status), model_status_fname)
+    # logger.info('wrote status file: %s', model_status_fname)
+
+    strutils.dumps(json.dumps(log_json), model_result_fname)
+    # logger.info('wrote result file: %s', model_result_fname)
 
     log_custom_model_eval_status({'provision': provision,
                                   'ant_status': merged_ant_status})
@@ -332,22 +348,28 @@ def cv_candg_train_at_annotation_level(provision: str,
 # For bespoke, >= 600 docs, cross validate
 # pylint: disable=too-many-branches
 def train_eval_annotator(provision: str,
-                         model_num: int,
                          doc_lang: str,
                          nbest: int,
                          txt_fn_list,
                          work_dir,
                          model_dir,
                          model_file_name,
+                         model_status_fname,
+                         model_result_fname,
                          eb_classifier,
+                         is_doc_structure=False,
                          is_bespoke_mode: bool = False) \
-                         -> Tuple[ebannotator.ProvisionAnnotator, Dict[str, Dict]]:
+                         -> Tuple[Optional[ebannotator.ProvisionAnnotator],
+                                  Dict[str, Dict]]:
     logger.info("training_eval_annotator(%s) called", provision)
     logger.info("    txt_fn_list = %s", txt_fn_list)
     logger.info("    work_dir = %s", work_dir)
-    logger.info("    model_dir = %s", model_dir)
+    # logger.info("    model_dir = %s", model_dir)
     logger.info("    model_file_name = %s", model_file_name)
+    logger.info("    model_status_fname = %s", model_status_fname)
+    logger.info("    model_result_fname = %s", model_result_fname)
     logger.info("    is_bespoke_mode= %r", is_bespoke_mode)
+    logger.info("    is_doc_structure= %s", is_doc_structure)
 
     # group_id is used to ensure all the attrvec for a document are together
     # and not distributed between both training and testing.  A document can
@@ -359,7 +381,7 @@ def train_eval_annotator(provision: str,
         ebantdoc4.doclist_to_ebantdoc_list(txt_fn_list,
                                            work_dir,
                                            doc_lang=doc_lang,
-                                           is_doc_structure=True,
+                                           is_doc_structure=is_doc_structure,
                                            is_bespoke_mode=is_bespoke_mode,
                                            # to keep file order stable to ensure
                                            # consistent numbers
@@ -413,6 +435,20 @@ def train_eval_annotator(provision: str,
                     'found %d in positive sentences',
                     num_pos_ant, num_pos_label)
 
+    if num_doc_pos < MIN_NUM_POS_DOC_BESPOKE:
+        train_result = {'confusion_matrix': {'tn': 0, 'fp': 0,
+                                             'fn': 0, 'tp': 0},
+                        'f1': -1.0,
+                        'prec': -1.0,
+                        'provision': provision,
+                        'model_number': -1,
+                        'recall': -1.0,
+                        # pylint: disable=line-too-long
+                        'user_message': 'Training failed.  Number of docs is {}.  Only {} (< 6) doc with positive candidates are found.'.format(num_docs, num_doc_pos),
+                        'failure_cause': 'num_positive_candidates',
+                        'failure_value': num_doc_pos}
+        return None, {'ant_status': train_result}
+
     # X is sorted by file_id already
     # pylint: disable=invalid-name
     X = eb_antdoc_list
@@ -449,10 +485,11 @@ def train_eval_annotator(provision: str,
                                          y,
                                          nbest,
                                          eb_classifier,
-                                         model_file_name,
-                                         model_num,
-                                         model_dir,
-                                         work_dir)
+                                         model_file_name=model_file_name,
+                                         model_status_fname=model_status_fname,
+                                         model_result_fname=model_result_fname,
+                                         work_dir=work_dir)
+
 
         return prov_annotator2, combined_log_json
 
@@ -465,7 +502,7 @@ def train_eval_annotator(provision: str,
     else:
         test_size = 0.2
 
-    #splits training and testing data, saves to a doclist
+    # splits training and testing data, saves to a doclist
     X_train, X_test, _, _ = train_test_split(X, y, test_size=test_size,
                                              random_state=42, stratify=y)
     train_doclist_fn = "{}/{}_train_doclist.txt".format(model_dir, provision)
@@ -473,28 +510,23 @@ def train_eval_annotator(provision: str,
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
     splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
 
-    #trains on the training data, evaluates the testing data
+    # trains on the training data, evaluates the testing data
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
-    #make the classifier into an annotator
+    # make the classifier into an annotator
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir, nbest=nbest)
-    # X_test is now traindoc, not ebantdoc.  The testing docs are loaded one by one
-    # using generator, instead of all loaded at once.
 
-    # X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
-    # ant_status, log_json = prov_annotator.test_antdoc_list(X_test_antdoc_list)
-    # X_test_antdoc_list = ebantdoc4.traindoc_list_to_antdoc_list(X_test, work_dir)
     ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
 
-    #prints evaluation results and saves status
+    # prints evaluation results and saves status
     ant_status['provision'] = provision
     ant_status['pred_status'] = pred_status
     prov_annotator.eval_status = ant_status
     pprint.pprint(ant_status)
 
-    model_status_fn = model_dir + '/' +  provision + ".status"
-    strutils.dumps(json.dumps(ant_status), model_status_fn)
+    strutils.dumps(json.dumps(ant_status), model_status_fname)
+    logger.info('wrote status file: %s', model_status_fname)
 
     with open('provision_model_stat.tsv', 'a') as pmout:
         pstatus = pred_status['pred_status']
@@ -539,20 +571,20 @@ def train_eval_annotator_with_trte(provision: str,
                                                  is_cache_enabled=is_cache_enabled,
                                                  is_sort_by_file_id=True)
     eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
-    X_train = None  # free that memory
+    X_train = []  # free that memory
 
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
     # pylint: disable=invalid-name
     X_test = ebantdoc4.doclist_to_ebantdoc_list(test_doclist_fn,
                                                 work_dir,
                                                 is_cache_enabled=is_cache_enabled)
-    pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
+    # pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     prov_annotator = ebannotator.ProvisionAnnotator(eb_classifier, work_dir)
     ant_status, log_json = prov_annotator.test_antdoc_list(X_test)
 
     ant_status['provision'] = provision
-    ant_status['pred_status'] = pred_status
+    # ant_status['pred_status'] = pred_status
     prov_annotator.eval_status = ant_status
     pprint.pprint(ant_status)
 
@@ -560,17 +592,17 @@ def train_eval_annotator_with_trte(provision: str,
     strutils.dumps(json.dumps(ant_status), model_status_fn)
 
     with open('provision_model_stat.tsv', 'a') as pmout:
-        pstatus = pred_status['pred_status']
-        pcfmtx = pstatus['confusion_matrix']
+        # pstatus = pred_status['pred_status']
+        # pcfmtx = pstatus['confusion_matrix']
         astatus = ant_status['ant_status']
         acfmtx = astatus['confusion_matrix']
         timestamp = int(time.time())
         aline = [datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
                  str(timestamp),
                  provision,
-                 pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
-                 pred_status['best_params_']['alpha'],
-                 pstatus['prec'], pstatus['recall'], pstatus['f1'],
+                 # pcfmtx['tp'], pcfmtx['fn'], pcfmtx['fp'], pcfmtx['tn'],
+                 # pred_status['best_params_']['alpha'],
+                 # pstatus['prec'], pstatus['recall'], pstatus['f1'],
                  acfmtx['tp'], acfmtx['fn'], acfmtx['fp'], acfmtx['tn'],
                  astatus['threshold'],
                  astatus['prec'], astatus['recall'], astatus['f1']]
@@ -579,29 +611,29 @@ def train_eval_annotator_with_trte(provision: str,
     return prov_annotator, ant_status['ant_status'], log_json
 
 
-# For our default provisions, we take 4/5 for training, 1/5 for testing
-# For bespoke, < 600 docs, train/test split we take 3/4 for training, 1/4 for testing
-# For bespoke, >= 600 docs, cross validate
 # TODO, for both is_doc_structure==True and is_doc_structure==False, the results so far is the
 # same.  But in the future, will try to move toward is_doc_structure==True when we get
 # a better PDF document text.
 def train_eval_span_annotator(provision: str,
-                              model_num: int,
-                              # TODO, why is doc_lang not used?
-                              # For now, there is no lang specific spanannotator?
-                              unused_doc_lang: str,
+                              doc_lang: str,
                               nbest: int,
                               candidate_types: List[str],
                               work_dir: str,
                               model_dir: str,
+                              model_file_name: str,
+                              model_status_fname: str,
+                              model_result_fname: str,
                               txt_fn_list: Optional[str] = None,
-                              model_file_name: Optional[str] = None,
                               is_doc_structure: bool = True,
                               is_bespoke_mode: bool = False) \
-            -> Tuple[spanannotator.SpanAnnotator,
+            -> Tuple[Optional[spanannotator.SpanAnnotator],
                      Dict[str, Dict]]:
+    """If training failed, the first parameter will be None.  This can
+       happen if there is not enough positive candidate.  In such case,
+       the 2nd returned value will contain the rrror message.
+    """
 
-    #get configs based on candidate_type or provision
+    # get configs based on candidate_type or provision
     config = annotatorconfig.get_ml_annotator_config(candidate_types)
     if not model_file_name:
         model_file_name = '{}/{}_{}_annotator.v{}.pkl'.format(model_dir,
@@ -629,9 +661,14 @@ def train_eval_span_annotator(provision: str,
     logger.info("training_eval_span_annotator(%s) called", provision)
     logger.info("    work_dir = %s", work_dir)
     logger.info("    model_file_name = %s", model_file_name)
+    logger.info("    model_status_fname = %s", model_status_fname)
+    logger.info("    model_result_fname = %s", model_result_fname)
 
     # this is mainly for paragraph
-    if span_annotator.text_type == 'nlp_text':
+    is_doc_structure = False
+    if span_annotator.text_type == 'nlp_text' or \
+       config.get('is_doc_structure', False) or \
+       config.get('is_use_corenlp', False):
         is_doc_structure = True
 
     if is_bespoke_mode:
@@ -639,10 +676,11 @@ def train_eval_span_annotator(provision: str,
         # intentially don't specify is_no_corenlp here.  It has to be done
         # using ebantdoc4.doclist_to_antdoc_list_no_corenlp
         eb_antdoc_list = \
-            span_annotator.doclist_to_antdoc_list(txt_fn_list,
-                                                  work_dir,
+            span_annotator.doclist_to_antdoc_list(doclist_file=txt_fn_list,
+                                                  work_dir=work_dir,
                                                   is_bespoke_mode=is_bespoke_mode,
                                                   is_doc_structure=is_doc_structure,
+                                                  doc_lang=doc_lang,
                                                   # pylint: disable=line-too-long
                                                   is_use_corenlp=span_annotator.get_is_use_corenlp(),
                                                   # we need the files to be sorted in order to
@@ -666,17 +704,20 @@ def train_eval_span_annotator(provision: str,
             span_annotator.documents_to_candidates(X, provision)
         # pylint: disable=line-too-long
         logger.info("%s extracted %d candidates across %d documents.",
-                    candidate_types, sum([len(x[1]) for x in X_all_antdoc_candidatex_list]), len(eb_antdoc_list))
-
+                    candidate_types, sum([len(x[1]) for x in X_all_antdoc_candidatex_list]),
+                    len(eb_antdoc_list))
         prov_annotator2, combined_log_json = \
             cv_candg_train_at_annotation_level(provision,
                                                X_all_antdoc_candidatex_list,
                                                y,
                                                span_annotator,
-                                               model_dir,
+                                               model_file_name,
+                                               model_status_fname,
+                                               model_result_fname,
                                                work_dir)
-        prov_annotator2.print_eval_status(model_dir, model_num)
-        prov_annotator2.save(model_file_name)
+
+        # if prov_annotator2 is None, training failed.
+        # error msg in combed_log_json.
 
         return prov_annotator2, combined_log_json
 
@@ -693,14 +734,6 @@ def train_eval_span_annotator(provision: str,
                                               # we need the file order to be stable, even if input
                                               # file order is changed.
                                               is_sort_by_file_id=True)
-    # we don't care about the file order for testing
-    X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
-                                                   work_dir,
-                                                   is_bespoke_mode=is_bespoke_mode,
-                                                   is_doc_structure=is_doc_structure,
-                                                   # pylint: disable=line-too-long
-                                                   is_use_corenlp=span_annotator.get_is_use_corenlp())
-
     # candidate generation on training set
     train_antdoc_candidatex_list = \
         span_annotator.documents_to_candidates(X_train, provision)
@@ -722,6 +755,13 @@ def train_eval_span_annotator(provision: str,
                                     span_annotator.pipeline,
                                     span_annotator.gridsearch_parameters,
                                     work_dir)
+    # we don't care about the file order for testing
+    X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
+                                                   work_dir,
+                                                   is_bespoke_mode=is_bespoke_mode,
+                                                   is_doc_structure=is_doc_structure,
+                                                   # pylint: disable=line-too-long
+                                                   is_use_corenlp=span_annotator.get_is_use_corenlp())
 
     # annotates the test set and runs through evaluation
     # pred_status = \
@@ -732,8 +772,13 @@ def train_eval_span_annotator(provision: str,
     unused_ant_status, log_json = \
         span_annotator.test_antdoc_list(X_test,
                                         span_annotator.threshold)
-    span_annotator.print_eval_status(model_dir, model_num)
+
+    # There are only two location spanannotator saves its model:
+    #   1. Here
+    #   2. in cv_candg_train_at_annotation_level(), when Bespoke trains
+    span_annotator.print_and_log_label_model_stat_tsv()
     span_annotator.save(model_file_name)
+    logger.info('wrote bespoke model file: %s', model_file_name)
 
     return span_annotator, log_json
 

@@ -9,7 +9,8 @@ from typing import Dict, List, Optional, Tuple
 from kirke.eblearn import ebattrvec
 from kirke.ebrules import dates, parties
 from kirke.utils import evalutils, entityutils, mathutils, nlputils, stopwordutils, strutils
-from kirke.utils.ebsentutils import EbEntityType, ProvisionAnnotation
+from kirke.utils.ebsentutils import EbEntityType
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 PROVISION_PAT_MAP = {
     'change_control': (re.compile(r'change\s+(of|in)\s+control', re.IGNORECASE | re.DOTALL), 1.0),
@@ -149,8 +150,24 @@ def gen_provision_overrides(provision: str,
            provision_pattern.search(sent_st) and \
            num_words > min_pattern_override_length and not is_toc:
             overrides[sent_idx] = adjust_prob
-        if num_words < global_min_length and provision not in SHORT_PROVISIONS:
+
+        # This is too relaxed, had a case with
+        # just a person name.  Always misses it because
+        # of override.
+        # But if relax this, weird random very short line will
+        # get through, such as "4."
+        # Must keep it for now.  Unit tests fail if this
+        # fix is applied.
+        # if num_words < global_min_length and \
+        #    not provision.startswith('cust_') and \
+        #    provision not in SHORT_PROVISIONS:
+        #     overrides[sent_idx] = -10.0
+
+        #   not provision.startswith('cust_') and \
+        if num_words < global_min_length and \
+           provision not in SHORT_PROVISIONS:
             overrides[sent_idx] = -10.0
+
         if is_table_row or contains_dots:
             overrides[sent_idx] = -10.0
     return overrides

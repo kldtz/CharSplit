@@ -4,7 +4,7 @@
 # https://github.com/joblib/joblib/blob/master/doc/parallel.rst#bad-interaction-of-multiprocessing-and-third-party-libraries
 
 export EB_FILES=eb_files_test/
-export EB_MODELS=dir-scut-model
+export EB_MODELS=dir-scut-model/
 
 # if ran before in this directory, to remove the cache
 # rm -rf eb_files_test/kirke_tmp/ dir-work dir-scut-model

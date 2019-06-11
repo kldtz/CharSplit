@@ -2,7 +2,8 @@ import logging
 import re
 from typing import Dict, List, Match, Pattern, Tuple
 
-from kirke.utils import ebantdoc4, ebsentutils, strutils
+from kirke.utils import ebsentutils, ebantdoc4, strutils
+from kirke.utils.ebsentutils import ProvisionAnnotation
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -109,7 +110,7 @@ class IdNumContextGenerator:
                                  nl_text: str,
                                  group_id: int,
                                  # pylint: disable=line-too-long
-                                 label_ant_list: List[ebsentutils.ProvisionAnnotation],
+                                 label_ant_list: List[ProvisionAnnotation],
                                  label: str = '') \
                                  -> Tuple[List[Dict],
                                           List[bool],
@@ -184,7 +185,7 @@ class IdNumContextGenerator:
 
             #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
-            label_ant_list = []  # type: List[ebsentutils.ProvisionAnnotation]
+            label_ant_list = []  # type: List[ProvisionAnnotation]
             for ant in ant_list:
                 if ant.label == label:
                     label_ant_list.append(ant)
@@ -198,7 +199,7 @@ class IdNumContextGenerator:
                 nl_text = antdoc.get_nl_text()
 
             if group_id % 10 == 0:
-                logger.debug('RegexContextGenerator.documents_to_candidates(), group_id = %d',
+                logger.debug('IdNumContextGenerator.documents_to_candidates(), group_id = %d',
                              group_id)
 
             candidates, cand_label_list, cand_group_id_list = \

@@ -2,6 +2,7 @@
 
 import configparser
 import json
+import pprint
 import unittest
 
 from kirke.client import postfileutils
@@ -53,8 +54,23 @@ class TestBespokeStratifiedGroupKFold(unittest.TestCase):
         # get no positive training documents during GridSearchCV.
         self.assertEqual(tn, 0)
         self.assertAlmostEqual(fp, 0, delta=2)
-        self.assertAlmostEqual(fn, 3, delta=2)
-        self.assertAlmostEqual(tp, 0, delta=2)
+        self.assertAlmostEqual(fn, 0, delta=2)
+        self.assertAlmostEqual(tp, 6, delta=2)
+
+    def test_bespoke_myparty_fail(self):
+
+        custid = 'my_party'
+        custid_data_dir = 'data-myparty-fail'
+        result_text = \
+            postfileutils.upload_train_dir(custid,
+                                           custid_data_dir,
+                                           candidate_types='SENTENCE',
+                                           nbest=-1)
+        ajson = json.loads(result_text)
+        print('ajson')
+        pprint.pprint(ajson)
+        user_msg = ajson['fr']['user_message']
+        self.assertTrue(user_msg, "< 6")
 
 
 if __name__ == "__main__":

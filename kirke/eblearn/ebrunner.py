@@ -67,6 +67,7 @@ def update_dates_by_domain_rules(ant_result_dict):
 
     # special handling for dates, as in PythonDateOfAgreementClassifier.java
     date_annotations = ant_result_dict.get('date')
+    # print('date_annotations date: {}'.format(date_annotations))
     if not date_annotations:
         effectivedate_annotations = ant_result_dict.get('effectivedate', [])
         # print("effectivedate_annotation = {}".format(effectivedate_annotations))
@@ -78,7 +79,9 @@ def update_dates_by_domain_rules(ant_result_dict):
             ant_result_dict['date'] = effectivedate_annotations
         else:
             # update 'date' with 'sigdate' if 'date' is empty
-            sigdate_annotations = ant_result_dict.get('sigdate')
+            sigdate_annotations = ant_result_dict.get('sigdate', [])
+            # print("sigdate_annotation = {}".format(sigdate_annotations))
+            sigdate_annotations = dates.remove_invalid_dates(sigdate_annotations)
             if not ant_result_dict.get('date') and sigdate_annotations:
                 # make a copy to preserve original list
                 sigdate_annotations = copy.deepcopy(sigdate_annotations)
@@ -93,6 +96,42 @@ def update_dates_by_domain_rules(ant_result_dict):
         for date_ant in l_execution_date_annotations:
             date_ant['label'] = 'l_execution_date'
         ant_result_dict['l_execution_date'] = l_execution_date_annotations
+
+
+# pylint: disable=too-many-arguments
+def assemble_model_base_fnames(provision: str,
+                               candidate_types: List[str],
+                               next_model_num: int,
+                               doc_lang: str,
+                               # pylint: disable=invalid-name
+                               scut_version: str,
+                               # pylint: disable=invalid-name
+                               candg_version: str) \
+                               -> Tuple[str, str, str]:
+    if doc_lang == 'en':
+        base_fname_no_ext = '{}.{}'.format(provision,
+                                           next_model_num)
+    else:
+        base_fname_no_ext = '{}.{}_{}'.format(provision,
+                                              next_model_num,
+                                              doc_lang)
+
+    if len(candidate_types) == 1 and candidate_types[0] == 'SENTENCE':
+        base_model_fname = '{}_scutclassifier.v{}.pkl'.format(base_fname_no_ext,
+                                                              scut_version)
+        base_status_fname = '{}.status'.format(base_fname_no_ext)
+        base_result_fname = '{}-ant_result.json'.format(base_fname_no_ext)
+    else:
+        base_model_fname = \
+            '{}_{}_annotator.v{}.pkl'.format(base_fname_no_ext,
+                                             "-".join(candidate_types),
+                                             candg_version)
+        base_status_fname = '{}_{}.status'.format(base_fname_no_ext,
+                                                  "-".join(candidate_types))
+        base_result_fname = '{}_{}-ant_result.json'.format(base_fname_no_ext,
+                                                           "-".join(candidate_types))
+
+    return base_model_fname, base_status_fname, base_result_fname
 
 
 # pylint: disable=too-many-instance-attributes
@@ -192,6 +231,8 @@ class EbRunner:
         if provision.startswith('cust_'):
             # self.cust_annotator_map is lrucache.LRUCache.  Must use get().
             return self.custom_annotator_map.get(provision)
+        # this is where we return all the candidate annotations
+        # such as TABLE, DATE, NUMBER, CURRENCY, PERCENT
         if provision in annotatorconfig.get_all_candidate_types():
             config = annotatorconfig.get_ml_annotator_config([provision])
             return spanannotator.SpanAnnotator(provision,
@@ -221,9 +262,10 @@ class EbRunner:
         if not lang_provision_set:
             lang_provision_set = self.provisions
         #else:
-        #    logger.info("user specified provision list: %s", provision_set)
+        #    logger.info("user specified lang_provision list: %s", lang_provision_set)
         both_default_custom_provs = set(self.provision_annotator_map.keys())
         both_default_custom_provs.update(self.custom_annotator_map.keys())
+        # this is where we add all candidate types, such as TABLE, DATE, NUMBER, CURRENCY, PERCENT
         both_default_custom_provs.update(annotatorconfig.get_all_candidate_types())
 
         # print('custom_annotator_map.keys() = {}'.format(self.custom_annotator_map.keys()))
@@ -350,8 +392,8 @@ class EbRunner:
                 # print(prov_classifier)
                 logger.info(prov_classifier)
                 prov_classifier.provision = prov_name
-                if hasattr(prov_classifier, 'transformer'):
-                    # only for scut_classifiers
+                if hasattr(prov_classifier, 'transformer') and \
+                   prov_classifier.transformer is not None:
                     prov_classifier.transformer.provision = prov_name
                 # print("prov_classifier, {}".format(fname))
                 # print("type, {}".format(type(prov_classifier)))
@@ -385,8 +427,8 @@ class EbRunner:
             total_mem_usage = EBRUN_PROCESS.memory_info()[0] / 2**20
             avg_model_mem = (total_mem_usage - orig_mem_usage) / num_model
             # pylint: disable=line-too-long
-            logger.info('total mem: %.2f,  model mem: %.2f,  avg: %.2f',
-                        total_mem_usage, total_mem_usage - orig_mem_usage, avg_model_mem)
+            logger.debug('total mem: %.2f,  model mem: %.2f,  avg: %.2f',
+                         total_mem_usage, total_mem_usage - orig_mem_usage, avg_model_mem)
             start_time_2 = time.time()
             logger.info('updating custom models took %.0f msec', (start_time_2 - start_time_1) * 1000)
 
@@ -417,17 +459,17 @@ class EbRunner:
                 lang_provision_set.update(self.provisions)
                 # also get ALL custom provision set, since we are doing testing
                 logger.info("custom_model_dir: %s", self.custom_model_dir)
-                logger.info("provision_set: %r", provision_set)
+                logger.info("lang_provision_set: %r", lang_provision_set)
             else:
                 logger.warning("annotate_document(%s), provision_set is empty", file_name)
-                empty_result = {}  # type: Dict[str, List]
+                empty_result_nx = {}  # type: Dict[str, List]
                 # this is just to keep the API consistent for now
                 # TODO, in the future, maybe change the API to not pass back ebantdoc
-                eb_antdoc = ebantdoc4.text_to_ebantdoc4(file_name,
-                                                        work_dir=work_dir,
-                                                        is_doc_structure=is_doc_structure,
-                                                        doc_lang=doc_lang)
-                return empty_result, eb_antdoc
+                eb_antdoc = ebantdoc4.text_to_ebantdoc(file_name,
+                                                       work_dir=work_dir,
+                                                       is_doc_structure=is_doc_structure,
+                                                       doc_lang=doc_lang)
+                return empty_result_nx, eb_antdoc
         else:
             # logger.info('user specified provision list: %s', provision_set)
             lang_provision_set = provision_set
@@ -437,22 +479,23 @@ class EbRunner:
         # print("provision_set: {}".format(provision_set))
         self.update_custom_models(lang_provision_set)
 
-        eb_antdoc = ebantdoc4.text_to_ebantdoc4(file_name,
-                                                work_dir=work_dir,
-                                                doc_lang=doc_lang)
+        eb_antdoc = ebantdoc4.text_to_ebantdoc(file_name,
+                                               work_dir=work_dir,
+                                               doc_lang=doc_lang)
 
         # if the file contains too few words, don't bother
         # otherwise, might cause classifier error if only have 1 error because of minmax
         if len(eb_antdoc.text) < 100:
-            empty_result = {}  # type: Dict[str, List]
+            empty_result_2 = {}  # type: Dict[str, List]
             for prov in lang_provision_set:
                 # for custom models that has version information
                 if '.' in prov:
                     # remove version, chop off after '.'
                     prov = prov.split('.')[0]
-                empty_result[prov] = []
+                empty_result_2[prov] = []
             # we always return eb_antdoc, not eb_antdoc3
-            return empty_result, eb_antdoc
+            return empty_result_2, eb_antdoc
+
         # this execute the annotators in parallel
         prov_labels_map = self.run_annotators_in_parallel(eb_antdoc,
                                                           lang_provision_set=lang_provision_set)
@@ -494,7 +537,8 @@ class EbRunner:
             paraline_fname = txt_base_fname.replace('.txt', '.paraline.txt')
 
             # nlp_paras_with_attrs, nlp_doc_text, unused_gap_span_list, unused_orig_doc_text = \
-            html_text_doc = htmltxtparser.parse_document('{}/{}'.format(work_dir, paraline_fname),
+            html_text_doc = htmltxtparser.parse_document('{}/{}'.format(work_dir,
+                                                                        paraline_fname),
                                                          work_dir=work_dir,
                                                          is_combine_line=False)
 
@@ -596,9 +640,12 @@ class EbRunner:
             provision = list(provision_set)[0]
             annotator2 = self.provision_annotator_map[provision]
             if isinstance(annotator2, spanannotator.SpanAnnotator):
-                ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
-                                                                   self.work_dir,
-                                                                   is_use_corenlp=False)
+                ebantdoc_list = \
+                    ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
+                                                       self.work_dir,
+                                                       # for TABLE, is_use_corenlp == True
+                                                       # all other are False
+                                                       is_use_corenlp=annotator2.is_use_corenlp)
             else:
                 ebantdoc_list = ebantdoc4.doclist_to_ebantdoc_list(txt_fns_file_name,
                                                                    self.work_dir)
@@ -626,17 +673,22 @@ class EbRunner:
                                             provision,
                                             custom_model_dir,
                                             base_model_fname,
+                                            base_status_fname,
+                                            base_result_fname,
                                             candidate_types: List[str],
                                             nbest: int,
-                                            model_num: int,
                                             work_dir=None,
                                             doc_lang="en") \
                                             -> Tuple[Dict[str, Any], Dict[str, Dict]]:
         logger.info("txt_fn_list_fn: %s", txt_fn_list)
         if not work_dir:
             work_dir = self.work_dir
-        full_model_fname = '{}/{}'.format(custom_model_dir, base_model_fname)
-        logger.info("custom_mode_file: %s", full_model_fname)
+        model_file_name = '{}/{}'.format(custom_model_dir, base_model_fname)
+        model_status_fname = '{}/{}'.format(custom_model_dir, base_status_fname)
+        model_result_fname = '{}/{}'.format(custom_model_dir, base_result_fname)
+        logger.info("custom_model_file: %s", model_file_name)
+        # logger.info("custom_model_status_file: %s", model_status_fname)
+        # logger.info("custom_model_result_file: %s", model_result_fname)
 
         # SENTENCE runs the standard pipeline, if specified candidate type run candidate generation
         if len(candidate_types) == 1 and candidate_types[0] == 'SENTENCE':
@@ -644,39 +696,49 @@ class EbRunner:
             # It is know that 'eb_annotator' is ProvisionAnnotator, mypy.
             # Conflicts with below.
             # Please note, for 'sentence', we use is_doc_structure=True
-            eb_annotator, log_json = \
+            eb_annotator_scut, log_json = \
                 ebtrainer.train_eval_annotator(provision,
-                                               model_num,
                                                doc_lang,
                                                nbest,
                                                txt_fn_list,
                                                work_dir,
                                                custom_model_dir,
-                                               full_model_fname,
-                                               eb_classifier,
+                                               model_file_name=model_file_name,
+                                               model_status_fname=model_status_fname,
+                                               model_result_fname=model_result_fname,
+                                               eb_classifier=eb_classifier,
+                                               is_doc_structure=True,
                                                # pylint: disable=line-too-long
-                                               is_bespoke_mode=True)  # type: Tuple[Union[spanannotator.SpanAnnotator, ebannotator.ProvisionAnnotator], Dict[str, Any]]
+                                               is_bespoke_mode=True)  # type: Tuple[Optional[ebannotator.ProvisionAnnotator], Dict[str, Any]]
+            if eb_annotator_scut:
+                return eb_annotator_scut.get_eval_status(), log_json
 
-        else:
-            # It is know that 'eb_annotator' is SpanAnnotator, mypy.
-            # Conflicts with above.
-            # There is no use of doc_lang in spanannotator.  It's language
-            # independent for now.
-            # Please note, for 'non-sentence', we use is_doc_structure=False
-            eb_annotator, log_json = \
-                ebtrainer.train_eval_span_annotator(provision,
-                                                    model_num,
-                                                    doc_lang,
-                                                    nbest,
-                                                    candidate_types,
-                                                    work_dir,
-                                                    custom_model_dir,
-                                                    txt_fn_list,
-                                                    model_file_name=full_model_fname,
-                                                    is_doc_structure=False,
-                                                    is_bespoke_mode=True)
+            # eb_annotator_span == None, or the training failed
+            # return the error message stored in in log_json_span
+            return log_json, {}
 
-        return eb_annotator.get_eval_status(), log_json
+        # Please note, for 'non-sentence', we use is_doc_structure=False
+        eb_annotator_span, log_json_span = \
+            ebtrainer.train_eval_span_annotator(provision,
+                                                doc_lang,
+                                                nbest,
+                                                candidate_types,
+                                                work_dir,
+                                                custom_model_dir,
+                                                model_file_name=model_file_name,
+                                                model_status_fname=model_status_fname,
+                                                model_result_fname=model_result_fname,
+                                                txt_fn_list=txt_fn_list,
+                                                is_doc_structure=False,
+                                                # pylint: disable=line-too-long
+                                                is_bespoke_mode=True)  # type: Tuple[Optional[spanannotator.SpanAnnotator], Dict[str, Any]]
+
+        if eb_annotator_span:
+            return eb_annotator_span.get_eval_status(), log_json_span
+
+        # eb_annotator_span == None, or the training failed
+        # return the error message stored in in log_json_span
+        return log_json_span, {}
 
 
     # this function is here because it is a combination of both ML and rule-based annotator
@@ -749,10 +811,12 @@ class EbRunner:
         return tmp_eval_status
 
 
-    # this function is here because it is a combination of both ML and rule-based annotator
+    # This function is here because it is a combination of both ML and rule-based annotator
+    # It is only used for debugging, in main.py
     # pylint: disable=invalid-name
     def eval_span_annotator(self,
                             provision: str,
+                            doc_lang: str,
                             candidate_types: List[str],
                             test_doclist_fn: str,
                             work_dir: str = 'dir-work') -> Dict:
@@ -760,11 +824,13 @@ class EbRunner:
         num_test_doc = 0
         tp, fn, fp, tn = 0, 0, 0, 0
 
-        full_model_fn = spanannotator.get_model_file_name(provision,
-                                                          candidate_types,
-                                                          self.custom_model_dir)
+        base_model_fname, unused_base_status_fname, unused_base_result_fname = \
+            spanannotator.get_model_base_fnames(provision,
+                                                doc_lang=doc_lang,
+                                                candidate_types=candidate_types)
+        model_file_name = '{}/{}'.format(self.custom_model_dir, base_model_fname)
 
-        prov_model = joblib.load(full_model_fn)
+        prov_model = joblib.load(model_file_name)
         self.provision_annotator_map[provision] = prov_model
         threshold = prov_model.threshold
 
@@ -870,7 +936,7 @@ class EbLangDetectRunner:
     # pylint: disable=no-self-use
     def detect_lang(self, atext: str) -> Optional[str]:
         try:
-            detect_lang = langdetect.detect(atext)
+            detect_lang = langdetect.detect(atext.lower())
         except LangDetectException:
             detect_lang = None
         # logger.info("detected language '{}'".format(detect_lang))
@@ -879,7 +945,7 @@ class EbLangDetectRunner:
     # pylint: disable=no-self-use
     def detect_langs(self, atext: str) -> str:
         try:
-            lang_probs = langdetect.detect_langs(atext)
+            lang_probs = langdetect.detect_langs(atext.lower())
             if lang_probs is None:
                 return ''
             detect_langs = ','.join(['{}={}'.format(lang.lang, lang.prob) for lang in lang_probs])

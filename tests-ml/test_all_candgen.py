@@ -3,6 +3,7 @@
 import configparser
 import json
 import os
+import pprint
 import unittest
 
 from typing import List
@@ -57,28 +58,34 @@ class TestCandGen(unittest.TestCase):
 
     def test_bespoke_cand_currency(self):
         # ------- CURRENCY -------
+        self.maxDiff = None
         config = annotatorconfig.get_ml_annotator_config(['CURRENCY'])
         currency_gen = config['doc_to_candidates'][0]
-        all_currency_cands = []
         with open('cands_json/currency_cands.json') as infile:
-            serial_currency_cands = json.load(infile)
+            fname_currency_cands = json.load(infile)
 
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
                 currency_cands, _, _ = currency_gen.get_candidates_from_text(doc_text)
-                all_currency_cands.extend([x['chars'] for x in currency_cands])
+                cand_st_list = [x['chars'] for x in currency_cands]
+                print('currency fname: {}'.format(fname))
+                print('  currency_cands: {}'.format(cand_st_list))
 
-        self.assertEqual(serial_currency_cands, all_currency_cands)
+                self.assertEqual({'fname': fname,
+                                  'cand_st_list': fname_currency_cands[fname]},
+                                  {'fname': fname,
+                                   'cand_st_list': cand_st_list})
 
     def test_bespoke_cand_date(self):
         # ------- DATES -------
+        self.maxDiff = None
         config = annotatorconfig.get_ml_annotator_config(['DATE'])
         date_gen = config['doc_to_candidates'][0]
-        all_date_cands = []
         with open('cands_json/date_cands.json') as infile:
             serial_date_cands = json.load(infile)
 
+        all_date_cands = []  # type: List
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
@@ -89,38 +96,74 @@ class TestCandGen(unittest.TestCase):
 
     def test_bespoke_cand_number(self):
         # ------- NUMBER -------
+        self.maxDiff = None
         config = annotatorconfig.get_ml_annotator_config(['NUMBER'])
         number_gen = config['doc_to_candidates'][0]
-        all_number_cands = []
         with open('cands_json/number_cands.json') as infile:
-            serial_number_cands = json.load(infile)
+            fname_number_cands = json.load(infile)
 
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
                 number_cands, _, _ = number_gen.get_candidates_from_text(doc_text)
-                all_number_cands.extend([x['chars'] for x in number_cands])
 
-        self.assertEqual(serial_number_cands, all_number_cands)
+                cand_st_list = [x['chars'] for x in number_cands]
+                print('fname: {}'.format(fname))
+                print('    cands: {}'.format(cand_st_list))
+
+                self.assertEqual({'fname': fname,
+                                  'cand_st_list': fname_number_cands[fname]},
+                                  {'fname': fname,
+                                   'cand_st_list': cand_st_list})
+
+
 
     def test_bespoke_cand_percent(self):
         # ------- PERCENT -------
+        self.maxDiff = None
         config = annotatorconfig.get_ml_annotator_config(['PERCENT'])
         percent_gen = config['doc_to_candidates'][0]
-        all_percent_cands = []
         with open('cands_json/percent_cands.json') as infile:
-            serial_percent_cands = json.load(infile)
+            fname_percent_cands = json.load(infile)
 
+        """
+        all_number_cands = []
+        fn_cand_st_list_map = {}
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
                 percent_cands, _, _ = percent_gen.get_candidates_from_text(doc_text)
                 all_percent_cands.extend([x['chars'] for x in percent_cands])
 
-        self.assertEqual(serial_percent_cands, all_percent_cands)
+                st_list = [x['chars'] for x in percent_cands]
+                fn_cand_st_list_map[fname] = st_list
+
+        print('fn_cand_st_list:')
+        # pprint.pprint(fn_cand_st_list_map)
+        print(json.dumps(fn_cand_st_list_map))
+
+        # intentionally cause failure to print above
+        self.assertEqual(fn_cand_st_list_map, [])
+        """
+
+        for fname in sorted(TEXT_FNAMES)[:25]:
+            with open(fname) as txt_doc:
+                doc_text = txt_doc.read()
+                percent_cands, _, _ = percent_gen.get_candidates_from_text(doc_text)
+
+                cand_st_list = [x['chars'] for x in percent_cands]
+                print('fname: {}'.format(fname))
+                print('    cands: {}'.format(cand_st_list))
+
+                self.assertEqual({'fname': fname,
+                                  'cand_st_list': fname_percent_cands[fname]},
+                                  {'fname': fname,
+                                   'cand_st_list': cand_st_list})
+
 
     def test_bespoke_cand_idnum(self):
         # ------- IDNUM -------
+        self.maxDiff = None
         config = annotatorconfig.get_ml_annotator_config(['IDNUM'])
         idnum_gen = config['doc_to_candidates'][0]
         all_idnum_cands = []

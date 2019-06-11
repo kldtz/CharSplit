@@ -2,9 +2,8 @@
 
 import configparser
 import logging
-import pprint
 from time import time
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 from sklearn.linear_model import SGDClassifier
@@ -56,6 +55,21 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
                            'warranty': 0.36}
 
 IS_DEBUG_TP = False
+
+
+# This is for debugging purpose only.
+# It doesn't handle model_number at all
+def get_model_base_fnames(provision: str,
+                          doc_lang: str) -> Tuple[str, str, str]:
+    if doc_lang == 'en':
+        base_no_ext = '{}'.format(provision)
+    else:
+        base_no_ext = '{}_{}'.format(provision, doc_lang)
+    base_model_fname = '{}_scutclassifier.v{}.pkl'.format(base_no_ext,
+                                                          SCUT_CLF_VERSION)
+    base_status_fname = '{}.status'.format(base_no_ext)
+    base_result_fname = '{}-ant_result.json'.format(base_no_ext)
+    return base_model_fname, base_status_fname, base_result_fname
 
 
 class ShortcutClassifier(EbClassifier):
@@ -157,20 +171,18 @@ class ShortcutClassifier(EbClassifier):
                                    verbose=1,
                                    cv=group_kfold)
 
-        print("Performing grid search...")
-        print("parameters:")
-        pprint.pprint(parameters)
+        logger.info("Performing grid search...")
+        logger.info("parameters:")
+        logger.info(parameters)
         time_0 = time()
         grid_search.fit(X_train, y_train)
-        print("done in %0.3fs" % (time() - time_0))
+        logger.info("done in %0.3fs", (time() - time_0))
 
-        print("Best score: %0.3f" % grid_search.best_score_)
-        print("Best parameters set:")
+        logger.info("Best score: %0.3f", grid_search.best_score_)
+        logger.info("Best parameters set:")
         self.best_parameters = grid_search.best_estimator_.get_params()
-        # pylint: disable=C0201
-        for param_name in sorted(parameters.keys()):
-            print("\t%s: %r" % (param_name, self.best_parameters[param_name]))
-        print()
+        for param_name in sorted(self.best_parameters.keys()):
+            logger.info("\t%s: %r", param_name, self.best_parameters[param_name])
 
         self.eb_grid_search = grid_search.best_estimator_
         self.save(model_file_name)

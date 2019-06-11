@@ -3,6 +3,7 @@
 import unittest
 # import pprint
 import copy
+import os
 import shutil
 # pylint: disable=unused-import
 from typing import Any, Dict, Set
@@ -11,7 +12,7 @@ from kirke.eblearn import ebrunner
 
 from kirke.docstruct import pdftxtparser
 from kirke.utils import docworddiff, ebantdoc4, osutils, txtreader
-from kirke.utils.ebantdoc4 import pdf_to_ebantdoc4
+from kirke.utils.ebantdoc4 import pdf_to_ebantdoc, get_nlp_file_name
 
 
 WORK_DIR = 'dir-work'
@@ -26,16 +27,21 @@ class TestNLPText(unittest.TestCase):
         txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
         offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
         offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
+        pdfxml_base_name = txt_base_name.replace('.txt', '.pdf.xml')        
+        pdfxml_fname = '{}/{}'.format(WORK_DIR, pdfxml_base_name)
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
+        if os.path.exists('dir-test-doc/{}'.format(pdfxml_base_name)):        
+            shutil.copy2('dir-test-doc/{}'.format(pdfxml_base_name), pdfxml_fname)        
 
-        ebantdoc = pdf_to_ebantdoc4(txt_fname,
-                                    offsets_fname,
-                                    WORK_DIR)
+        ebantdoc = pdf_to_ebantdoc(txt_fname,
+                                   offsets_fname,
+                                   pdfxml_fname,
+                                   work_dir=WORK_DIR)
         nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
-        nlptxt_file_name = ebantdoc4.get_nlp_file_name(doc_id,
-                                                       nlptxt_md5=nlptxt_md5,
-                                                       work_dir=WORK_DIR)
+        nlptxt_file_name = get_nlp_file_name(doc_id,
+                                             nlptxt_md5=nlptxt_md5,
+                                             work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
                                                            nlptxt_file_name)
         self.assertEqual(len(same_list), 1974)
@@ -47,16 +53,21 @@ class TestNLPText(unittest.TestCase):
         txt_fname = '{}/{}'.format(WORK_DIR, txt_base_name)
         offsets_base_name = txt_base_name.replace('.txt', '.offsets.json')
         offsets_fname = '{}/{}'.format(WORK_DIR, offsets_base_name)
+        pdfxml_base_name = txt_base_name.replace('.txt', '.pdf.xml')        
+        pdfxml_fname = '{}/{}'.format(WORK_DIR, pdfxml_base_name)        
         shutil.copy2('dir-test-doc/{}'.format(txt_base_name), txt_fname)
         shutil.copy2('dir-test-doc/{}'.format(offsets_base_name), offsets_fname)
-
-        ebantdoc = pdf_to_ebantdoc4(txt_fname,
-                                    offsets_fname,
-                                    WORK_DIR)
+        if os.path.exists('dir-test-doc/{}'.format(pdfxml_base_name)):
+            shutil.copy2('dir-test-doc/{}'.format(pdfxml_base_name), pdfxml_fname)
+        
+        ebantdoc = pdf_to_ebantdoc(txt_fname,
+                                   offsets_fname,
+                                   pdfxml_fname,
+                                   work_dir=WORK_DIR)
         nlptxt_md5 = osutils.get_text_md5(ebantdoc.get_nlp_text())
-        nlptxt_file_name = ebantdoc4.get_nlp_file_name(doc_id,
-                                                       nlptxt_md5=nlptxt_md5,
-                                                       work_dir=WORK_DIR)
+        nlptxt_file_name = get_nlp_file_name(doc_id,
+                                             nlptxt_md5=nlptxt_md5,
+                                             work_dir=WORK_DIR)
         same_list, diff_list = docworddiff.diff_word_lists('{}/{}'.format(WORK_DIR, txt_base_name),
                                                            nlptxt_file_name)
 
@@ -114,16 +125,22 @@ class TestNLPText(unittest.TestCase):
         gold_list = [False, False, False, False, False, False, False,
                      True, False, False, False, True, False, False, False,
                      True, False, True, False, True, False, False, False,
-                     False, False, False, False, True, False, False, True,
+                     False, False, True, False, True, False, False, True,
                      False, True, False, False, True, True, False, False,
                      True, True, True, False, True, True, False, False,
-                     True, False, False, False, True, False, True, False,
+                     True, False, False, False, True, True, True, False,
                      True, False, True, False, True, True, False, False, True,
                      False, False, False, False, True, False, False, True,
+                     True, False, False, False, False, False, False, True,
                      True, False, False, False, False, False, False, False,
-                     False, False, False, False, False, False, False, False,
                      False, False, False, False, False, False, True, False,
                      True, False, False]
+
+        for pnum, (is_continued, gval) in enumerate(zip(is_continued_list, gold_list), 1):
+            if is_continued != gval:
+                print("page {}, is_continued = {}, gold = {}".format(pnum,
+                                                                     is_continued,
+                                                                     gval))
 
         self.assertEqual(is_continued_list, gold_list)
 

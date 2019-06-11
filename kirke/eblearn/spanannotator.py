@@ -2,7 +2,6 @@ import copy
 from collections import defaultdict
 import configparser
 from datetime import datetime
-import json
 import logging
 import pprint
 import time
@@ -15,10 +14,13 @@ from sklearn.model_selection import GridSearchCV
 # pylint: disable=import-error
 from sklearn.pipeline import Pipeline
 
+from kirke.sampleutils import transformerutils
 from kirke.eblearn import baseannotator, ebpostproc
+from kirke.eblearn.ebtransformerbase import EbTransformerBase
 from kirke.utils import ebantdoc4, evalutils, strutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
+
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -42,13 +44,24 @@ def adapt_pipeline_params(best_params):
     return result
 
 
-def get_model_file_name(provision: str,
-                        candidate_types: List[str],
-                        model_dir: str):
-    base_model_fname = '{}_{}_annotator.v{}.pkl'.format(provision,
+# This is for debugging purpose only.
+# It doesn't handle model_number at all
+def get_model_base_fnames(provision: str,
+                          doc_lang: str,
+                          candidate_types: List[str]) -> Tuple[str, str, str]:
+    if doc_lang == 'en':
+        base_no_ext = '{}'.format(provision)
+    else:
+        base_no_ext = '{}_{}'.format(provision, doc_lang)
+
+    base_model_fname = '{}_{}_annotator.v{}.pkl'.format(base_no_ext,
                                                         "-".join(candidate_types),
                                                         CANDG_CLF_VERSION)
-    return "{}/{}".format(model_dir, base_model_fname)
+    base_status_fname = '{}_{}.status'.format(base_no_ext,
+                                              "-".join(candidate_types))
+    base_result_fname = '{}_{}-ant_result.json'.format(base_no_ext,
+                                                       "-".join(candidate_types))
+    return base_model_fname, base_status_fname, base_result_fname
 
 
 def recover_false_negatives(prov_human_ant_list,
@@ -121,6 +134,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.doc_to_candidates = doc_to_candidates
         self.candidate_transformers = candidate_transformers
         self.pipeline = pipeline
+        self.transformer = None  # type: Optional[EbTransformerBase]
         self.gridsearch_parameters = gridsearch_parameters
         self.threshold = threshold
         self.kfold = kfold
@@ -171,7 +185,14 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         for label, count in pos_neg_map.items():
             logger.info("train_candidates(), pos_neg_map[%s] = %d", label, count)
 
-        group_kfold = list(StratifiedGroupKFold(n_splits=self.kfold).split(candidates,
+
+        if 'SENTENCE' in self.candidate_types:
+            self.transformer = transformerutils.SentTransformer('SentTransformer')
+            self.transformer.fit(candidates, label_list)
+            X_train = self.transformer.transform(candidates)
+        else:
+            X_train = candidates
+        group_kfold = list(StratifiedGroupKFold(n_splits=self.kfold).split(X_train,
                                                                            label_list,
                                                                            groups=group_id_list))
         grid_search = GridSearchCV(pipeline,
@@ -183,7 +204,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                                    cv=group_kfold)
 
         time_0 = time.time()
-        grid_search.fit(candidates, label_list)
+        grid_search.fit(X_train, label_list)
         logger.info("done in %0.3fs", (time.time() - time_0))
 
         logger.info("Best score: %0.3f", grid_search.best_score_)
@@ -228,7 +249,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                          specified_threshold: Optional[float] = None,
                          work_dir: str = 'work_dir')  -> Tuple[Dict[str, Any],
                                                                Dict[str, Dict]]:
-        logger.debug('spanannotator.test_antdoc_list(), len= %d', len(ebantdoc_list))
+        logger.debug('spanannotator.test_antdoc_list(), len = %d', len(ebantdoc_list))
         if specified_threshold is None:
             threshold = self.threshold
         else:
@@ -238,8 +259,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         fallout, tp, fn, fp, tn = 0, 0, 0, 0, 0
         log_json = dict()
 
-        for seq, ebantdoc in enumerate(ebantdoc_list):
-            print("\ntest_antdoc_list, #{}, {}".format(seq, ebantdoc.file_id))
+        for ebantdoc in ebantdoc_list:
             prov_human_ant_list = [hant for hant in ebantdoc.prov_annotation_list
                                    if hant.label == self.provision]
 
@@ -278,7 +298,7 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         title = "annotate_status, threshold = {}".format(self.threshold)
         prec, recall, f1 = evalutils.calc_precision_recall_f1(tn, fp, fn, tp, title)
         max_recall = (tp + fn - fallout) / (tp + fn)
-        print("MAX RECALL =", max_recall, "FALLOUT =", fallout)
+        logger.info("MAX RECALL = %d, FALLOUT = %d", max_recall, fallout)
         self.ant_status['eval_status'] = {'confusion_matrix': {'tn': tn, 'fp': fp,
                                                                'fn': fn, 'tp': tp},
                                           'threshold': self.threshold,
@@ -331,11 +351,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
             threshold = self.threshold
         else:
             threshold = specified_threshold
-        start_time = time.time()
+        # start_time = time.time()
         prov_annotations, unused_prob_list = self.predict_antdoc(eb_antdoc, work_dir, nbest=self.nbest)
-        end_time = time.time()
-        logger.debug('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
-                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        # end_time = time.time()
+        # logger.info('annotate_antdoc(%s, %s) took %.0f msec, span_antr',
+        #             self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         # If there is no human annotation, must be normal annotation.
         # Remove anything below threshold
@@ -353,14 +373,11 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         eval_status['ant_status'] = self.ant_status['eval_status']
         return eval_status
 
-    def print_eval_status(self, model_dir: str, model_num: int):
+    def print_and_log_label_model_stat_tsv(self) -> None:
 
         eval_status = {'label': self.provision}
         eval_status['ant_status'] = self.ant_status['eval_status']
         pprint.pprint(eval_status)
-
-        model_status_fn = '{}/{}.{}.status'.format(model_dir, self.provision, model_num)
-        strutils.dumps(json.dumps(eval_status), model_status_fn)
 
         with open('label_model_stat.tsv', 'a') as pmout:
             cls_status = self.ant_status['eval_status']
@@ -395,16 +412,25 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
                 antdoc_candidatex_list_to_candidatex(antdoc_candidatex_list)
         if not candidates:
             return [], []
-
         probs = [1.0] * len(candidates) # type: List[float]
+        # old l_commencement_date might not have self.candidate_types
+        if hasattr(self, 'candidate_types') and 'SENTENCE' in self.candidate_types:
+            # mypy complains:
+            # Item "None" of "Optional[EbTransformerBase]" has no attribute "transform"
+            X_test = self.transformer.transform(candidates)  # type: ignore
+        else:
+            X_test = candidates
         if self.estimator:
-            probs = self.estimator.predict_proba(candidates)[:, 1]
+            probs = self.estimator.predict_proba(X_test)[:, 1]
 
         # to indicate which type of annotation this is
         for candidate, prob in zip(candidates, probs):
             candidate['label'] = self.provision
             candidate['prob'] = prob
             candidate['text'] = text[candidate['start']:candidate['end']]
+            # if self.provision == 'TABLE':
+            #     print('----- Table candidate:')
+            #     pprint.pprint(candidate)
 
         # apply post processing, such as date normalization
         # in case there is any bad apple, with 'reject' == True

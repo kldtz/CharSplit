@@ -2,13 +2,22 @@
 
 import unittest
 
-from kirke.docstruct import secheadutils
+from kirke.docstruct import docstructutils, secheadutils
 
-def parse_sechead(line, prev_line='', prev_line_idx=-1):
-    sechead_type, prefix, sechead, split_idx = secheadutils.extract_sechead_v4(line,
-                                                                               prev_line=prev_line,
-                                                                               prev_line_idx=prev_line_idx)
+
+def parse_sechead(line: str,
+                  *,
+                  prev_line: str = '',
+                  prev_line_idx: int = -1):
+    prefix, sechead = '', ''
+
+    sechead_tuple = secheadutils.extract_sechead(line,
+                                                 prev_line=prev_line,
+                                                 prev_line_idx=prev_line_idx)
+    if sechead_tuple:
+        sechead_type, prefix, sechead, split_idx = sechead_tuple
     return prefix, sechead
+
 
 class TestSecHeadUtils(unittest.TestCase):
 
@@ -60,10 +69,10 @@ class TestSecHeadUtils(unittest.TestCase):
                           ('8.1', 'Indemnification by Tenant. '))
 
 
-
     def test_transform_corp_in_text2(self):
         "Test transform_corp_in_text2()"
-        self.assertEquals(parse_sechead('Commission Schedule', prev_line='Appendix A:'),
+        self.assertEquals(parse_sechead('Commission Schedule',
+                                        prev_line='Appendix A:'),
                           ('Appendix A', 'Commission Schedule'))
         self.assertEquals(parse_sechead('9', prev_line='16. Pari Passu Notes. xxx', prev_line_idx=22),
                           ('', ''))
@@ -94,10 +103,31 @@ class TestSecHeadUtils(unittest.TestCase):
         self.assertEquals(parse_sechead('Operating     Requirements / Performance', prev_line='5.'),
                           ('5.', 'Operating     Requirements / Performance'))
 
+        self.assertEquals(parse_sechead('Execution Version'),
+                          ('', ''))
+        self.assertEquals(parse_sechead('EXECUTION VERSION'),
+                          ('', ''))
+
 
     def test_is_line_sechead_prefix(self):
         "Test is_line_sechead_prefix"
         self.assertTrue(secheadutils.is_line_sechead_prefix('EXHIBITC'))
+
+    def test_is_line_sechead_prefix_only(self):
+        "Test is_line_sechead_prefix_only"
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(a)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(A)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.2'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.2.3'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.22.3'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('1.22.3.'))
+
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(i)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(ii)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('(iii)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('ii)'))
+        self.assertTrue(secheadutils.is_line_sechead_prefix_only('ii.'))
 
 
 if __name__ == "__main__":

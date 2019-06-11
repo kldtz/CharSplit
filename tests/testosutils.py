@@ -17,6 +17,10 @@ class TestOsUtils(unittest.TestCase):
         self.assertEqual(osutils.split_docid_md5(docid_md5_fname),
                          ('8421', 'e6404884e22d247d9b5423fe047b193d', '.txt'))
 
+        md5_docid_fname = '8d916cf1ced234139b862b3ec7fb0920-8456.txt'
+        self.assertEqual(osutils.split_docid_md5(md5_docid_fname),
+                         ('8456', '8d916cf1ced234139b862b3ec7fb0920', '.txt'))
+
 
     def test_get_docid(self):
         md5_docid_fname = 'e6404884e22d247d9b5423fe047b193d-8421.txt'

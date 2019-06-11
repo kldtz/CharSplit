@@ -10,6 +10,7 @@ from kirke.utils import ebsentutils, engutils, strutils, txtreader
 from kirke.docstruct.docutils import PLineAttrs
 
 from kirke.docstruct import linepos
+from kirke.docstruct.secheadutils import SecHeadTuple
 
 IS_DEBUG_MODE = False
 
@@ -39,13 +40,15 @@ class HPLineAttrs:
 #                 (to_start, to_end)),
 #                 text_span,
 #                 attr_list)]
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                     is_combine_line: bool = True) \
                                     -> Tuple[List[Tuple[Tuple[int, int],
                                                         Tuple[int, int],
                                                         str,
                                                         HPLineAttrs]],
+                                             # sechead_list
+                                             List[SecHeadTuple],
                                              str]:
     """Convert a text into lineinfos_with_attrs.
 
@@ -54,7 +57,8 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                 (to_offset, to_offset + len(line)),
                                 line,
                                 hpline_attrs))
-       2. text
+       2. sechead_list
+       3. text
 
     attr_list is usually a 'str', but sometimes (sechead_type, prefix_num, sec_head, split_idx)
     """
@@ -62,6 +66,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
     lineinfo_list = []  # type: List[Tuple[Tuple[int, int], Tuple[int, int], str, HPLineAttrs]]
     split_idx = -1
     to_offset = 0
+    sechead_list = []  # type: List[SecHeadTuple]
 
     prev_output_line = ''
     # These are for handling inconsistent ways html text split section number and heading.
@@ -77,11 +82,11 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
             elif strutils.is_dashed_line(line):
                 prev_nonempty_line = ''
             else:
-                sechead_type, prefix_num, sec_head, split_idx = \
-                    secheadutils.extract_sechead_v4(line,
-                                                    prev_nonempty_line,
-                                                    prev_line_idx,
-                                                    is_combine_line=is_combine_line)
+                sechead_t4 = \
+                    secheadutils.extract_sechead(line,
+                                                 prev_line=prev_nonempty_line,
+                                                 prev_line_idx=prev_line_idx,
+                                                 is_combine_line=is_combine_line)
                 # pylint: disable=pointless-string-statement
                 """
                 print("secheadutils.extract_sechead_v4(ln={}, prv={}, prv_idx={}, iscomb={})".format(line,
@@ -94,8 +99,12 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                                                                                     split_idx))
                 """
 
-                if sechead_type:
-                    hpline_attrs.sechead = (sechead_type, prefix_num, sec_head, split_idx)
+                if sechead_t4:
+                    hpline_attrs.sechead = sechead_t4
+                    unused_sechead_type, prefix_num, sec_head, split_idx = sechead_t4
+                else:
+                    # this is probably unnecessary abecause we check with hpline_attrs.sechead
+                    split_idx = -1
                 prev_nonempty_line, prev_line_idx = line, split_idx
 
             # attr_list is True iff it is a section head
@@ -109,6 +118,19 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                           hpline_attrs))
                     to_offset += len(line) + 1
                     prev_output_line = line
+
+                    if sec_head:
+                        sechead_st = sec_head
+                    else:
+                        sechead_st = prefix_num
+                        prefix_num = ''
+                    out_sechead = SecHeadTuple(start,
+                                               end,
+                                               prefix_num,
+                                               sechead_st,
+                                               -1)
+                    # print("html sechead_tuple: {}".format(out_sechead))
+                    sechead_list.append(out_sechead)
                 else:
                     first_line = line[:split_idx]
                     second_line = line[split_idx:]
@@ -137,6 +159,20 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                                           HPLineAttrs()))
                     to_offset += len(second_line) + 1
                     prev_output_line = second_line
+
+                    if sec_head:
+                        sechead_st = sec_head
+                    else:
+                        sechead_st = prefix_num
+                        prefix_num = ''
+                    out_sechead = SecHeadTuple(start,
+                                               start + split_idx,
+                                               prefix_num,
+                                               sechead_st,
+                                               # first_line,
+                                               -1)
+                    # print("html sechead_tuple2: {}".format(out_sechead))
+                    sechead_list.append(out_sechead)
             else:  # no attr_list, but maybe a page number
                 # print("{}\t{}\t[{}]".format(start, end, line))
                 if is_pagenum_line:
@@ -161,7 +197,7 @@ def htmltxt_to_lineinfos_with_attrs(file_name: str,
                  in lineinfo_list]
     doc_text = '\n'.join(doc_lines)
 
-    return lineinfo_list, doc_text
+    return lineinfo_list, sechead_list, doc_text
 
 
 EMPTY_PLINE_ATTRS = PLineAttrs()
@@ -183,12 +219,11 @@ def lineinfos_to_paras(lineinfos: List[Tuple[Tuple[int, int],
     # will be easier to remove pagenum
     tmp_list = list(lineinfos)
 
-    # The 4th field is sechead.  This is intentional
-    tmp2_list = []  # type: List[Tuple[int, int, str, Optional[Tuple[str, str, str, int]]]]
-
     len_tmp_list = len(tmp_list)
     omit_line_set = set([])
     cur_attr = None  # type: Optional[Tuple[str, str, str, int]]
+    # The 4th field is sechead.  This is intentional
+    tmp2_list = []  # type: List[Tuple[int, int, str, Optional[Tuple[str, str, str, int]]]]
     prev_line = ''
     prev_notempty_line = 'Not Empty Line.'
     prev_hpline_attrs = HPLineAttrs()  # type: HPLineAttrs
@@ -327,12 +362,14 @@ class HTMLTextDoc:
                  nlp_paras_with_attrs: List[Tuple[List[Tuple[linepos.LnPos,
                                                              linepos.LnPos]],
                                                   PLineAttrs]],
-                 exclude_offsets: List[Tuple[int, int]]) \
+                 exclude_offsets: List[Tuple[int, int]],
+                 sechead_list: List[SecHeadTuple]) \
                  -> None:
         self.file_name = file_name
         self.doc_text = doc_text
         self.nlp_paras_with_attrs = nlp_paras_with_attrs
         self.exclude_offsets = exclude_offsets
+        self.sechead_list = sechead_list
 
     def get_nlp_text(self) -> str:
         return docstructutils.text_from_para_with_attrs(self.doc_text, self.nlp_paras_with_attrs)
@@ -349,7 +386,7 @@ def parse_document(file_name: str,
     base_fname = os.path.basename(file_name)
     orig_doc_text = txtreader.loads(file_name)
 
-    lineinfos_with_attrs, unused_lineinfo_doc_text = \
+    lineinfos_with_attrs, sechead_list, unused_lineinfo_doc_text = \
         htmltxt_to_lineinfos_with_attrs(file_name, is_combine_line=is_combine_line)
     if debug_mode:
         lineinfo_fname = '{}/{}.lineinfo.v1'.format(work_dir, base_fname).replace('.txt', '')
@@ -410,7 +447,8 @@ def parse_document(file_name: str,
     html_text_doc = HTMLTextDoc(file_name,
                                 doc_text=orig_doc_text,
                                 nlp_paras_with_attrs=lineinfos_paras,
-                                exclude_offsets=exclude_offsets)
+                                exclude_offsets=exclude_offsets,
+                                sechead_list=sechead_list)
 
     # nlp_paras_with_attrs, nlp_doc_text, unused_gap_span_list, unused_
     # return lineinfos_paras, paras_doc_text, exclude_offsets, orig_doc_text

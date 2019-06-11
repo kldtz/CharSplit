@@ -100,5 +100,32 @@ class TestBespokeDate(unittest.TestCase):
             return_lens.append(len(date_list))
         self.assertEqual(return_lens, [1, 1, 1, 0, 1, 1, 0, 1, 1, 1])
 
+
+    # The following data set will cause div by zero error
+    # in 7.0-maintenance branch.
+    # Resolved in 8.0-maintenance branch.
+    def test_bespoke_date_div_zero_7m(self):
+
+        custid = '10'
+        custid_data_dir = 'cust_10-1best-div-zero'
+        result_text = \
+            postfileutils.upload_train_dir(custid,
+                                           custid_data_dir,
+                                           candidate_types='DATE',
+                                           nbest=1)
+        ajson = json.loads(result_text)
+        ant_result = ajson['en']
+
+        print("ant_result:")
+        print(ant_result)
+
+        # We don't care about numerical performance.
+        # We just need it to not fail or div-by-zero
+
+        # round(ant_result['f1'], 2)
+        # 0.22
+        f1 = round(ant_result['fscore'], 2)
+        self.assertGreaterEqual(f1, 0.1)
+
 if __name__ == "__main__":
     unittest.main()

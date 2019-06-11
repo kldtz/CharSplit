@@ -632,7 +632,7 @@ def split_chunk_with_org(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
     -> List[Union[Tree, Tuple[str, str]]]:
     result = []  # type: List[Union[Tree, Tuple[str, str]]]
     for chunk in chunk_list:
-        if is_chunk_label(chunk, 'xORGP'):
+        if isinstance(chunk, Tree) and is_chunk_label(chunk, 'xORGP'):
             postag_list = chunk_to_postag_list(chunk)
 
             # 'the Canada Business Corporation Act'
@@ -1303,14 +1303,15 @@ def mark_org_appositions(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
 def mark_org_prev_xnnp_as_xorgp(chunk_list: List[Union[Tree, Tuple[str, str]]]) \
     -> None:
     i = 0
-    prev_chunk = None
-    prev2_chunk = None
+    prev_chunk = None  # type: Optional[Union[Tree, Tuple[str, str]]]
+    prev2_chunk = None  # type: Optional[Union[Tree, Tuple[str, str]]]
     while i < len(chunk_list):
         chunk = chunk_list[i]
+        # to make mypy happy, do isinstance check here
         # pylint: disable=too-many-boolean-expressions
         if (is_chunk_org(chunk) or is_chunk_xpv_org(chunk)) and \
            (is_chunk_comma(prev_chunk) or is_chunk_and(prev_chunk)) and \
-           is_chunk_xnnp(prev2_chunk) and \
+           isinstance(prev2_chunk, Tree) and is_chunk_xnnp(prev2_chunk) and \
            chunk_num_tokens(prev2_chunk) > 1:
             if is_chunk_all_caps(chunk) and \
                not is_chunk_all_caps(prev2_chunk):
@@ -1320,17 +1321,18 @@ def mark_org_prev_xnnp_as_xorgp(chunk_list: List[Union[Tree, Tuple[str, str]]]) 
                 prev2_chunk.set_label('xORGP')
         # 'XXX Southern, a Delaware corporation,
         # cannot use is_chunk_xnnp(chunk) because it checks for article
+        # to make mypy happy, do isinstance check here
         elif is_chunk_label(chunk, 'xNNP') and \
              is_chunk_a_corporation(chunk) and \
              is_chunk_comma(prev_chunk) and \
-             is_chunk_xnnp(prev2_chunk) and \
-             isinstance(prev2_chunk, Tree):
+             isinstance(prev2_chunk, Tree) and \
+             is_chunk_xnnp(prev2_chunk):
             prev2_chunk.set_label('xORGP')
-
         # Dennis J. XXX ("Executive")
+        # to make mypy happy, do isinstance check here
         elif is_chunk_label(chunk, 'xPAREN') and \
-             is_chunk_likely_person_name(prev_chunk) and \
-             isinstance(prev_chunk, Tree):
+             isinstance(prev_chunk, Tree) and \
+             is_chunk_likely_person_name(prev_chunk):
             prev_chunk.set_label('xORGP')
 
         prev2_chunk = prev_chunk
@@ -1599,6 +1601,7 @@ class SpanChunk:
                                                                self.chunk)
 
 
+# pylint: disable=too-many-instance-attributes
 class PhrasedSent:
 
     # pylint: disable=too-many-instance-attributes
@@ -1849,7 +1852,9 @@ def find_as_in_paren(span_chunk_list: List[SpanChunk]) \
         postags_out = postag_list[cur_tok_idx:last_tok_idx]
         cur_span_chunk = span_chunk_list[0]
         se_tok_list_out = cur_span_chunk.se_tok_list[cur_tok_idx:last_tok_idx]
-
+        # if there is nothing after the word "as"
+        if not se_tok_list_out:
+            return []
         sc_start = cur_span_chunk.se_tok_list[0][0]
         nstart, nend = se_tok_list_out[0][0], se_tok_list_out[-1][1]
         shorten_text = cur_span_chunk.text[nstart - sc_start:nend - sc_start]
@@ -1896,13 +1901,14 @@ def make_span_chunk_from_span_chunk_list(span_chunk_list: List[SpanChunk]) -> Sp
     return merged_span_chunk
 
 
-def chop_spanchunk_paren(span_chunk: SpanChunk) -> SpanChunk:
-
+def chop_spanchunk_paren(span_chunk: SpanChunk) -> List[SpanChunk]:
     cur_tok_idx = 1
     last_tok_idx = -1
     postag_list = span_chunk.to_postag_list()
     postags_out = postag_list[cur_tok_idx:last_tok_idx]
     se_tok_list_out = span_chunk.se_tok_list[cur_tok_idx:last_tok_idx]
+    if not se_tok_list_out:
+        return []
     nstart = se_tok_list_out[0][0]
     nend = se_tok_list_out[-1][1]
     sc_start = span_chunk.se_tok_list[0][0]
@@ -1915,7 +1921,7 @@ def chop_spanchunk_paren(span_chunk: SpanChunk) -> SpanChunk:
                                    Tree('xPAREN', postags_out),
                                    shorten_text,
                                    se_tok_list_out)
-    return shorten_span_chunk
+    return [shorten_span_chunk]
 
 
 def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
@@ -1926,6 +1932,11 @@ def remove_invalid_defined_terms_parens(span_chunk_list: List[SpanChunk]) \
     # span_chunk.text
     # span_chunks_text = span_chunk_list_to_text(span_chunk_list)
     for span_chunk in span_chunk_list:
+        # this is another potential location to throw away empty parenthesis
+        # if span_chunk.text.startswith('(') and \
+        #    span_chunk.text.endswith(')') and \
+        #    not span_chunk.text[1:-1].strip():
+        #     pass
         if len(span_chunk.text) < 30 and \
            re.search(r'.*\btogether.*the.*parties', span_chunk.text, re.I):
             # '(together, the "Parties")', not precise enough
@@ -2150,10 +2161,11 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             print("filtered paren: {}".format(pprn))
     if paren_list:
         if len(paren_list) == 1:
-            term = [chop_spanchunk_paren(paren_list[0])]
+            if len(paren_list[0].se_tok_list) > 2:  # must have more than just '(' and ')'
+                term = chop_spanchunk_paren(paren_list[0])
+            else:
+                term = []
         else:  # there are multiple
-
-
             # # if the 2nd paren has 'each a  "Party", and collectively the "Parties"'
             # last_paren = paren_list[-1]
             # if re.search(r'\b(parties)\b', last_paren.text, re.I):
@@ -2163,11 +2175,11 @@ def extract_orgs_term_in_span_chunk_list(span_chunk_list: List[SpanChunk]) \
             #     term = [chop_spanchunk_paren(last_paren)]
 
             ordered_paren_list = rerank_defined_term_parens(paren_list, org_list)
-            term = [chop_spanchunk_paren(ordered_paren_list[0])]
+            term = chop_spanchunk_paren(ordered_paren_list[0])
 
             # in future, might check if term/paren doesn't overlap with org
-            # pylint: disable=line-too-long
-            # if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:  # parent is really at the end of phrase
+            # if last_paren.nempty_tok_idx >= span_chunk_list[-1] - 3:
+            #     # parent is really at the end of phrase
             #     term = last_paren
             # else:
             #     term = paren_list[0]

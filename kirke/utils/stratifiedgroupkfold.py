@@ -24,6 +24,7 @@ class StratifiedGroupKFold:
 
     # pylint: disable=too-many-locals, invalid-name
     def split(self,
+              # pylint: disable=invalid-name
               X: List,
               y: List[bool],
               groups: List[int]) \

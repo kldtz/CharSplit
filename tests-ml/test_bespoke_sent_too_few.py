@@ -2,6 +2,7 @@
 
 import configparser
 import json
+import re
 import unittest
 
 from kirke.client import postfileutils
@@ -32,9 +33,15 @@ class TestBespokeSent(unittest.TestCase):
                                                 custid_data_dir,
                                                 candidate_types='SENTENCE',
                                                 nbest=-1)
-        self.assertEqual(result_resp.status_code, 500)
-        self.assertTrue('INSUFFICIENT_EXAMPLES' in result_resp.text)
-            
+        print('result_resp.text')
+        print(result_resp.text)
+        print('result_resp')
+        print(result_resp)
+
+        self.assertEqual(result_resp.status_code, 200)
+        self.assertTrue(re.search(r'only.*positive training documents',
+                                  result_resp.text, re.I))
+
 
 if __name__ == "__main__":
     unittest.main()

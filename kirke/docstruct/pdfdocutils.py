@@ -4,7 +4,8 @@ import os
 import sys
 from typing import Dict, List, Tuple
 
-from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, LineWithAttrs
+# pylint: disable=unused-import
+from kirke.docstruct.pdfoffsets import PageInfo3, PBlockInfo, PDFTextDoc, LineWithAttrs, LineInfo3
 from kirke.utils import txtreader
 
 
@@ -211,3 +212,99 @@ def save_nlp_paras_with_attrs(pdftxt_doc: PDFTextDoc,
                       file=fout)
             para_seq += 1
     print('wrote {}'.format(out_fname), file=sys.stderr)
+
+
+def is_title_page(apage: PageInfo3) -> bool:
+    """Determine is a page is a title page, only based on apage.content_linex_list."""
+    content_lines = apage.content_linex_list
+    if not content_lines:
+        return False
+    num_lines_in_page = len(content_lines)
+    num_centered_line = 0
+    num_short_line = 0
+    num_not_english = 0
+
+    if apage.page_num > 3:
+        return False
+    if num_lines_in_page >= 20:
+        return False
+
+    for linex in content_lines:
+        if linex.is_centered:
+            num_centered_line += 1
+        if linex.num_word <= 6:
+            num_short_line += 1
+        if not linex.is_english:
+            num_not_english += 1
+
+    # print("num_lines_in_page: %d" % num_lines_in_page)
+    # print("num_centered_line: %d" % num_centered_line)
+    # print("num_short_line: %d" % num_short_line)
+    # print("num_not_english: %d" % num_not_english)
+
+    if num_centered_line / num_lines_in_page >= 0.8:
+        return True
+    if num_short_line / num_lines_in_page >= 0.8 or \
+       num_not_english / num_lines_in_page >= 0.8:
+        return True
+    return False
+
+
+def linex_list_to_multi_line_pblock_info(linex_list: List[LineWithAttrs],
+                                         block_id: int,
+                                         page_num: int,
+                                         doc_text: str) -> PBlockInfo:
+    block_start = linex_list[0].lineinfo.start
+    block_end = linex_list[-1].lineinfo.end
+    is_multi_lines = True
+
+    # assume the line breaks are correctly done here
+    paraline_chunk_text = doc_text[block_start:block_end]
+
+    # print('page: {}, block {}'.format(page_num, doc_block_id))
+    # print(paraline_chunk_text)
+    # print()
+
+    lineinfo_list = []  # type: List[LineInfo3]
+    for linex in linex_list:
+        lineinfo_list.append(linex.lineinfo)
+
+    # print("is_multi_lines = {}, paraline: [{}]\n".format(is_multi_lines, para_line))
+    block_info = PBlockInfo(block_start,
+                            block_end,
+                            block_id,
+                            page_num,
+                            paraline_chunk_text,
+                            # bxid_lineinfos_map[pblock_id],
+                            lineinfo_list,
+                            is_multi_lines)
+    return block_info
+
+
+def adjust_title_page_blocks(apage: PageInfo3) -> None:
+    """After found that this page is a title page, use original PDFBOx's
+       block id instead of Kirke's version based on ydiff.
+
+    This applies to all the lines in a page, not just the content_line_list.
+    """
+
+    for linex in apage.line_list:
+        linex.block_num = linex.lineinfo.obid
+
+    # first set all block_num of the lines in this page to pdfbox's obid
+    # obid_lines_map = defaultdict(list)  # type: DefaultDict[int, List[LineWithAttrs]]
+    # obid_list = []  # type: List[int]
+    # for linex in apage.line_list:
+    #     linex.block_num = linex.lineinfo.obid
+    #     obid_list.append(linex.lineinfo.obid)
+    #     obid_lines_map[linex.lineinfo.obid].append(linex)
+    #
+    # There is no point adjusting apage's pblock_list
+    # because it is NO LONGER used by the rest of the system.
+    # pblock_list = []
+    # for obid in obid_list:
+    #     pblock = linex_list_to_multi_line_pblock_info(obid_lines_map[obid],
+    #                                                   obid,
+    #                                                   apage.page_num,
+    #                                                   doc_text)
+    #     pblock_list.append(pblock)

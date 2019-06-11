@@ -8,12 +8,13 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from sklearn.linear_model import SGDClassifier
-from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.pipeline import FeatureUnion, Pipeline
 
+from kirke.ebrules import dates, dummyannotator
 from kirke.sampleutils import postproc
-from kirke.ebrules import dummyannotator, dates
-from kirke.sampleutils import addrgen, idnumgen, dategen, paragen
-from kirke.sampleutils import regexgen, transformerutils
+from kirke.sampleutils import addrgen, dategen, idnumgen, paragen
+from kirke.sampleutils import regexgen, sentencegen, tablegen
+from kirke.sampleutils import transformerutils
 from kirke.utils import ebantdoc4
 
 # pylint: disable=invalid-name
@@ -26,18 +27,21 @@ logger.setLevel(logging.INFO)
 # There are "frozen" lists of those config so that developer are aware not to touch
 # any of the classes mentioned in the frozen config lists.
 
-# pylint: disable=line-too-long
-CURRENCY_PAT = re.compile(r'(((USD|GBP|JPY|[\$€₹£¥円]) *(\d{1,3}[,\.]?)+([,\.]\d{,2})?( *[tTbBmM]illion| *[tT]housand| *[TMB])?)|'
-                          r'((\d{1,3},?)+([,\.]\d{,2})? *([tTbBmM]illion|[tT]housand|[TMB])? *(USD|EUR|INR|GBP|CNY|JPY|[dD]ollars?|[eE]uros?|[rR]upees?|[pP]ounds?|[yY]en|[\$€₹£¥円])))')
-
-# must pick gruop 2 instead of group 1
-# pylint: disable=line-too-long
-NUMBER_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))\)?[,\.:;]?(\s|$)')
-# pylint: disable=line-too-long
-PERCENT_PAT = re.compile(r'(^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|\.[0-9]+)\s*(%|percent))\)?[,\.:;]?(\s|$)', re.I)
-
 
 ML_ANNOTATOR_CONFIG_LIST = [
+    ('SENTENCE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                         'is_use_corenlp': True,
+                         'text_type': 'nlp_text',
+                         'doc_to_candidates': [sentencegen.SentenceGenerator('SENTENCE')],
+                         'version': "1.0",
+                         'doc_postproc_list': [postproc.SentDefaultPostProcessing(0.24)],
+                         'pipeline': Pipeline([
+                             ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                                   shuffle=True, random_state=42,
+                                                   class_weight={True: 3, False: 1}))]),
+                         'threshold': 0.24,
+                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(3, 8)}}),
+
     ('DATE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                      'is_use_corenlp': False,
                      'doc_to_candidates': [dategen.DateSpanGenerator(30, 30, 'DATE')],
@@ -72,18 +76,22 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'threshold': 0.35,
                         'kfold': 3}),
 
+    # the regex here is correct, but due to we normalize result, we are using
+    # regexgen.extract_currencies() when generating candidates, not just this regex
     ('CURRENCY', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                          'is_use_corenlp': False,
                          'doc_to_candidates':
                          [regexgen.RegexContextGenerator(20,
                                                          5,
-                                                         CURRENCY_PAT,
-                                                         'CURRENCY')],
+                                                         regexgen.CURRENCY_PAT,
+                                                         'CURRENCY',
+                                                         1)],
                          'version': "1.0",
                          'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                          'pipeline': Pipeline([
                              ('union', FeatureUnion(
-                                 transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
+                                 transformer_list=[('surround_transformer',
+                                                    transformerutils.SimpleTextTransformer()),
                                                   ])),
                              ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                                    shuffle=True, random_state=42,
@@ -91,14 +99,19 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                          'threshold': 0.25,
                          'kfold': 3}),
-
+    # the regex here is correct, but due to
+    #   1. the number expression is very permissive, such as accepting 1.2.3 due to
+    #      in some countries, we can have 123.234.000,00, extra filtering is performed
+    #   2. normalize the result also,
+    # we use regexgen.extract_numbers() inside regexgen when generating candidates, not just
+    # this regex
     ('NUMBER', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                        'is_use_corenlp': False,
                        'doc_to_candidates': [regexgen.RegexContextGenerator(10,
                                                                             10,
-                                                                            NUMBER_PAT,
+                                                                            regexgen.NUMBER_PAT,
                                                                             'NUMBER',
-                                                                            group_num=2)],
+                                                                            group_num=1)],
                        'version': "1.0",
                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                        'pipeline': Pipeline([('union', FeatureUnion(
@@ -116,12 +129,14 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'threshold': 0.25,
                        'kfold': 3}),
 
+    # the regex here is correct, but due to we normalize result, we are using
+    # regexgen.extract_percents() when generating candidates, not just this regex
     ('PERCENT', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
                         'doc_to_candidates': \
                         [regexgen.RegexContextGenerator(15,
                                                         5,
-                                                        PERCENT_PAT,
+                                                        regexgen.PERCENT_PAT,
                                                         'PERCENT',
                                                         group_num=2)],
                         'version': "1.0",
@@ -187,7 +202,28 @@ ML_ANNOTATOR_CONFIG_LIST = [
                                                                                     False: 1}))]),
                           'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                           'threshold': 0.25,
-                          'kfold': 3})
+                          'kfold': 3}),
+
+    ('TABLE', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                      'is_use_corenlp': True,
+                      'is_doc_structure': True,
+                      'doc_to_candidates': [tablegen.TableGenerator('TABLE')],
+                      'version': "1.0",
+                      'doc_postproc_list': [postproc.TablePostProcessing()],
+                      'pipeline': Pipeline([('union', FeatureUnion(
+                          # pylint: disable=line-too-long
+                          transformer_list=[('table_transformer',
+                                             transformerutils.TableTextTransformer())])),
+                                            ('clf', SGDClassifier(loss='log',
+                                                                  penalty='l2',
+                                                                  n_iter=50,
+                                                                  shuffle=True,
+                                                                  random_state=42,
+                                                                  class_weight={True: 3,
+                                                                                False: 1}))]),
+                      'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                      'threshold': 0.25,
+                      'kfold': 3})
 ]
 
 
@@ -210,6 +246,7 @@ def validate_annotator_config_keys(aconfig: Tuple[str, str, Dict]) -> bool:
     for key, unused_value in adict.items():
         if key not in set(['doclist_to_antdoc_list',
                            'is_use_corenlp',
+                           'is_doc_structure',
                            'doc_to_candidates',
                            'version',
                            'doc_postproc_list',
@@ -255,8 +292,10 @@ def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None
                     'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                     'pipeline': Pipeline([
                         ('union', FeatureUnion(
-                            transformer_list=[('surround_transformer', transformerutils.SimpleTextTransformer()),
-                                              ('char_transformer', transformerutils.CharacterTransformer())
+                            transformer_list=[('surround_transformer',
+                                               transformerutils.SimpleTextTransformer()),
+                                              ('char_transformer',
+                                               transformerutils.CharacterTransformer())
                                              ])),
                         ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
                                               shuffle=True, random_state=42,

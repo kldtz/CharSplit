@@ -1,11 +1,10 @@
 import copy
 import logging
-import time
 from typing import Any, Dict, List, Optional, Tuple
 import traceback
 
 from kirke.docstruct import fromtomapper
-from kirke.eblearn import ebpostproc
+from kirke.eblearn import ebpostproc, scutclassifier
 from kirke.utils import ebantdoc4, evalutils, strutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
@@ -19,7 +18,7 @@ PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 class ProvisionAnnotator:
 
     def __init__(self,
-                 prov_classifier,
+                 prov_classifier: scutclassifier.ShortcutClassifier,
                  work_dir: str,
                  threshold: Optional[float] = None,
                  nbest: int = -1) -> None:
@@ -72,7 +71,7 @@ class ProvisionAnnotator:
                          specified_threshold: Optional[float] = None) \
                          -> Tuple[Dict[str, Any],
                                   Dict[str, Dict]]:
-        logger.debug('test_document_list')
+        logger.debug('ebannotator.testantdoc_list(), len = %d', len(ebantdoc_list))
         if specified_threshold is None:
             threshold = self.threshold
         else:
@@ -104,10 +103,11 @@ class ProvisionAnnotator:
                                                                          ebantdoc,
                                                                          threshold)
             if self.get_nbest() > 0:
+                best_annotations = pred_list[:self.get_nbest()]
                 ant_list = self.recover_false_negatives(prov_human_ant_list,
                                                         ebantdoc.get_text(),
                                                         self.provision,
-                                                        pred_list)
+                                                        best_annotations)
                 xtp, xfn, xfp, xtn, _ = self.call_confusion_matrix(prov_human_ant_list,
                                                                    ant_list,
                                                                    ebantdoc,
@@ -179,11 +179,11 @@ class ProvisionAnnotator:
         else:
             threshold = specified_threshold
 
-        start_time = time.time()
+        # start_time = time.time()
         prob_list = self.provision_classifier.predict_antdoc(eb_antdoc, self.work_dir)
-        end_time = time.time()
-        logger.debug('annotate_antdoc(%s, %s) took %.0f msec, eb_antr',
-                     self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
+        # end_time = time.time()
+        # logger.info('annotate_antdoc(%s, %s) took %.0f msec, eb_antr',
+        #             self.provision, eb_antdoc.file_id, (end_time - start_time) * 1000)
 
         try:
             # mapping the offsets in prov_human_ant_list from raw_text to nlp_text
@@ -200,6 +200,7 @@ class ProvisionAnnotator:
             adj_prov_human_ant_list = prov_human_ant_list
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
+
         prov_annotations, unused_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,

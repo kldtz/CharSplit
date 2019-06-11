@@ -69,7 +69,7 @@ class EbProvisionAnnotation:
 def load_prov_ant(filename: str, provision_name: Optional[str] = None) \
     -> List[EbProvisionAnnotation]:
 
-    # logger.info('load provision %s annotation: [%s]', provision_name, filename)
+    # logging.info('load provision %s annotation: [%s]', provision_name, filename)
     with open(filename, 'rt') as handle:
         parsed = json.load(handle)
 
@@ -278,29 +278,3 @@ def ebdata_to_ant_file(ebdata_fname: str, ant_fname: str) -> None:
     ant_list = [prov_ant.to_dict() for prov_ant in prov_ant_list]
     with open(ant_fname, 'wt') as fout:
         print(json.dumps(ant_list), file=fout)
-
-
-def remove_corenlp_features_dict(ant: Dict) -> Dict:
-    if ant.get('corenlp_end') is not None:
-        del ant['corenlp_end']
-    if ant.get('corenlp_start') is not None:
-        del ant['corenlp_start']
-    if ant.get('cpoint_end')is not None:
-        del ant['cpoint_end']
-    if ant.get('cpoint_start')is not None:
-        del ant['cpoint_start']
-
-    for span in ant.get('span_list', []):
-        del span['cpoint_end']
-        del span['cpoint_start']
-    return ant
-
-
-# pylint: disable=invalid-name
-def remove_corenlp_features_dict_list(ant_list: List[Dict]) -> List[Dict]:
-    """Remove attributes related to CoreNLP and CodePoints.
-
-    This operation is destructive."""
-    for ant in ant_list:
-        remove_corenlp_features_dict(ant)
-    return ant_list

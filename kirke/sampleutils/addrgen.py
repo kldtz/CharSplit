@@ -94,16 +94,15 @@ class AddrContextGenerator:
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                                label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                                 List[Dict],
-                                                                 List[bool],
-                                                                 List[int]]]:
-
+                                label: Optional[str] = None) \
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                              List[Dict],
+                                              List[bool],
+                                              List[int]]]:
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         for group_id, antdoc in enumerate(antdoc_list):  # these are ebantdoc4
-            label_list = []   # type: List[bool]
-
+            label_list = []  # type: List[bool]
             #creates list of ants for a specific provision
             ant_list = antdoc.prov_annotation_list
             label_ant_list = []

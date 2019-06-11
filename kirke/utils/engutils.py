@@ -483,3 +483,14 @@ def is_skip_template_line(line):
     if SKIP_TEMPLATE_PAT.search(line) and not has_date(line):
         return True
     return False
+
+# both ',' and "." are used
+SENT_DETECT_PERIOD_REGEX = r'[a-z0-9][\.,\)]\s+[A-Z]'
+SENT_DETECT_PERIOD_PAT = re.compile(SENT_DETECT_PERIOD_REGEX)
+
+def num_letter_period_cap(line: str) -> int:
+    """ return the number of pseudo sentence."""
+    mat_list = re.findall(SENT_DETECT_PERIOD_PAT, line)
+    if re.search(r'\.\s*$', line):
+        return len(mat_list) + 1
+    return len(mat_list)

@@ -45,24 +45,24 @@ class TestBespokeValues(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 11, delta=2)
-        self.assertAlmostEqual(fn, 21, delta=2)
-        self.assertAlmostEqual(tp, 21, delta=2)
+        self.assertAlmostEqual(fp, 14, delta=2)
+        self.assertAlmostEqual(fn, 20, delta=2)
+        self.assertAlmostEqual(tp, 22, delta=2)
 
         # 0.57
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.55)
-        self.assertLessEqual(f1, 0.59)
+        self.assertGreaterEqual(f1, 0.54)
+        self.assertLessEqual(f1, 0.58)
 
         # .66
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.64)
-        self.assertLessEqual(precision, 0.68)
+        self.assertGreaterEqual(precision, 0.59)
+        self.assertLessEqual(precision, 0.63)
 
         # 0.50
         recall = round(ant_result['recall'], 2)
-        self.assertGreaterEqual(recall, 0.48)
-        self.assertLessEqual(recall, 0.52)
+        self.assertGreaterEqual(recall, 0.50)
+        self.assertLessEqual(recall, 0.54)
 
 if __name__ == "__main__":
     unittest.main()

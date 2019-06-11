@@ -59,26 +59,26 @@ class TestBespokeRegex(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 13, delta=2)
-        self.assertAlmostEqual(fn, 3, delta=2)
-        self.assertAlmostEqual(tp, 100, delta=2)
+        self.assertAlmostEqual(fp, 15, delta=2)
+        self.assertAlmostEqual(fn, 6, delta=2)
+        self.assertAlmostEqual(tp, 97, delta=2)
 
         # round(ant_result['f1'], 2)
         # 0.92
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.90)
-        self.assertLessEqual(f1, 0.94)
+        self.assertGreaterEqual(f1, 0.88)
+        self.assertLessEqual(f1, 0.92)
 
         # round(ant_result['prec'], 2)
         # .88
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.86)
-        self.assertLessEqual(precision, 0.90)
+        self.assertGreaterEqual(precision, 0.85)
+        self.assertLessEqual(precision, 0.89)
 
         recall = round(ant_result['recall'], 2)
         # 0.97
-        self.assertGreaterEqual(recall, 0.95)
-        self.assertLessEqual(recall, 0.99)
+        self.assertGreaterEqual(recall, 0.93)
+        self.assertLessEqual(recall, 0.97)
 
         txt_fnames = []
         for file in os.listdir(custid_data_dir):
