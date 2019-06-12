@@ -34,14 +34,17 @@ def find_prev_sechead(start: int,
     but we have not access to the desired text span.
     """
     # print("find_prev_sechead, table_start = {}".format(start))
-    prev_sechead_tuple = None
+    prev_sechead_tuple = None  # type: Optional[SecHeadTuple]
     for sechead_tuple in sechead_list:
         shead_start, unused_shead_end, unused_shead_prefix, \
             unused_shead_st, unused_shead_page_num = sechead_tuple
 
         if start <= shead_start:
+            if prev_sechead_tuple is None:
+                return None
+            # pylint: disable=unpacking-non-sequence
             unused_prev_shead_start, prev_shead_end, unused_prev_shead_prefix, \
-                prev_shead_st, unused_prev_shead_page_num = prev_sechead_tuple
+                unused_prev_shead_st, unused_prev_shead_page_num = prev_sechead_tuple
             if start - prev_shead_end >= 180:
                 # sechead is too far from the start of the table
                 return None

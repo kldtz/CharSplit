@@ -5,7 +5,6 @@ import sys
 # pylint: disable=unused-import
 from typing import Dict, List, Optional, TextIO, Tuple, Union
 
-from kirke.utils.alignedstr import AlignedStrMapper
 
 class TableType(Enum):
     UNKNOWN = 1
@@ -62,9 +61,6 @@ class AbbyyLine:
 
         self.infer_attr_dict = add_infer_line_attrs(attr_dict)
 
-        # To map from any abby doc to pbox offset.
-        # Will be set by synchronizer later
-        self.abbyy_pbox_offset_mapper = None  # type: Optional[AlignedStrMapper]
 
     def __str__(self):
         return '{} [{}]'.format(self.infer_attr_dict, self.text)
@@ -254,75 +250,6 @@ class AbbyyTableBlock:
 AbbyyBlock = Union[AbbyyTableBlock, AbbyyTextBlock]
 
 
-"""
-class UnmatchedAbbyLine:
-
-    def __init__(self,
-                 ab_line: AbbyLine,
-                 page_num: int) -> None:
-        self.ab_line = ab_line
-        self.page_num = page_num
-
-    def __str__(self):
-        return str((self.page_num, str(self.ab_line)))
-"""
-
-class UnsyncedPBoxLine:
-
-    def __init__(self,
-                 xy_pair: Tuple[int, int],
-                 se_pair: Tuple[int, int],
-                 text: str) -> None:
-        self.xy_pair = xy_pair
-        self.se_pair = se_pair
-        self.text = text
-
-    def __str__(self) -> str:
-        return 'xy={}, se={}, text=[{}]'.format(self.xy_pair,
-                                                self.se_pair,
-                                                self.text)
-
-    def to_tuple(self) -> Tuple[Tuple[int, int],
-                                Tuple[int, int],
-                                str]:
-        return self.xy_pair, self.se_pair, self.text
-
-
-class UnsyncedStrWithY:
-
-    def __init__(self,
-                 y_val: int,
-                 se_pair: Tuple[int, int],
-                 text: str,
-                 as_mapper: AlignedStrMapper) -> None:
-        self.y_val = y_val
-        # because sometimes text starts with space or underline, we
-        # auto increment start index to avoid such junk
-        """
-        if len(text) > 2 and is_hyphen_underline(text[0]) and \
-           not is_hyphen_underline(text[1]):
-            self.se_pair = (se_pair[0]+1, se_pair[1])
-            self.text = text[1:]
-        else:
-            self.se_pair = se_pair
-            self.text = text
-        """
-        self.se_pair = se_pair
-        self.text = text
-        self.as_mapper = as_mapper
-
-    def __str__(self) -> str:
-        return 'UmStrWithY(y={}, se={}, text=[{}])'.format(self.y_val,
-                                                           self.se_pair,
-                                                           self.text)
-
-    def to_tuple(self) -> Tuple[int,
-                                Tuple[int, int],
-                                str,
-                                AlignedStrMapper]:
-        return self.y_val, self.se_pair, self.text, self.as_mapper
-
-
 class AbbyyPage:
 
     def __init__(self,
@@ -359,18 +286,6 @@ class AbbyyPage:
 
         self.attr_dict = attr_dict
         self.infer_attr_dict = {}
-
-        # for recording down unmatched info with pdfbox
-        self.unsync_abbyy_lines = []  # type: List[AbbyyLine]
-        self.unsync_abbyy_frags = [] # type: List[UnsyncedStrWithY]
-        self.unsync_pbox_lines = []  # type: Tuple[UnsyncedPBoxLine]
-        self.unsync_pbox_frags = []  # type: List[UnsyncedStrWithY]
-
-    def has_unsynced_strs(self):
-        return self.unsync_abbyy_lines or \
-            self.unsync_abbyy_frags or \
-            self.unsync_pbox_lines or \
-            self.unsync_pbox_frags
 
 
 def _is_par_centered(attr_dict: Dict) -> bool:
@@ -694,128 +609,6 @@ class AbbyyXmlDoc:
                                           file=file)
                 else:
                     raise ValueError
-
-
-        for abbyy_page in self.ab_pages:
-
-            if abbyy_page.has_unsynced_strs():
-                print("\n\n========= Unsynced strs in page {}========".format(abbyy_page.num),
-                      file=file)
-                print_abbyy_page_unsynced(abbyy_page, file=file)
-
-
-    # pylint: disable=too-many-locals
-    def print_text_with_meta_with_sync(self, file: TextIO = sys.stdout):
-        for abbyy_page in self.ab_pages:
-            if abbyy_page.num != 0:
-                print('\n', file=file)
-            print("========= page  #{:3d} ========".format(abbyy_page.num), file=file)
-
-            # for ab_text_block in abbyy_page.ab_text_blocks:
-            for ab_block in abbyy_page.ab_blocks:
-                if isinstance(ab_block, AbbyyTextBlock):
-                    ab_text_block = ab_block
-                    print("\n  ----- block #{:3d} ----------".format(ab_text_block.num),
-                          file=file)
-
-                    is_header_footer = ab_text_block.infer_attr_dict.get('header', False) or \
-                                       ab_text_block.infer_attr_dict.get('footer', False)
-
-                    for unused_par_id, ab_par in enumerate(ab_text_block.ab_pars):
-                        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
-                        print(file=file)
-                        is_par_centered = _is_par_centered(ab_par.infer_attr_dict)
-                        indent_level = _get_indent_level(ab_par.infer_attr_dict)
-
-                        for unused_lid, ab_line in enumerate(ab_par.ab_lines):
-                            to_se_list = []
-                            if ab_line.abbyy_pbox_offset_mapper and \
-                               ab_line.abbyy_pbox_offset_mapper.to_se_list:
-                                to_se_list = ab_line.abbyy_pbox_offset_mapper.to_se_list
-                            _print_left_right_panes_with_sync(ab_line.text,
-                                                              ab_line.infer_attr_dict,
-                                                              to_se_list,
-                                                              par_id=ab_par.num,
-                                                              line_id=ab_line.num,
-                                                              is_header_footer=is_header_footer,
-                                                              indent_level=indent_level,
-                                                              is_par_centered=is_par_centered,
-                                                              file=file)
-                elif isinstance(ab_block, AbbyyTableBlock):
-                    ab_table_block = ab_block
-                    # pylint: disable=line-too-long
-                    print("\n  ----- block #{:3d}, page_num={} --Table--".format(ab_table_block.num,
-                                                                                 ab_table_block.page_num), file=file)
-                    print("  {}".format(_pprint_table_attrs(ab_table_block.attr_dict)),
-                          file=file)
-
-                    for row_id, ab_row in enumerate(ab_table_block.ab_rows):
-                        # print("\n    par #{} {}".format(par_id, ab_par.infer_attr_dict))
-                        print(file=file)
-                        print("    {:26}--- row #{}".format('', row_id), file=file)
-                        for cell_seq, ab_cell in enumerate(ab_row.ab_cells):
-                            print("    {:26}  -- cell #{}:".format('', cell_seq), file=file)
-                            for ab_par in ab_cell.ab_pars:
-                                for unused_lid, ab_line in enumerate(ab_par.ab_lines):
-
-                                    tmp_x = ab_line.infer_attr_dict.get('x', -1)
-                                    tmp_y = ab_line.infer_attr_dict.get('y', -1)
-                                    left_line = ' xy=({}, {})'.format(tmp_x, tmp_y)
-
-                                    to_se_list = []
-                                    if ab_line.abbyy_pbox_offset_mapper and \
-                                       ab_line.abbyy_pbox_offset_mapper.to_se_list:
-                                        to_se_list = ab_line.abbyy_pbox_offset_mapper.to_se_list
-                                    left_line += ' {}'.format(str(to_se_list))
-                                    print("    {:26}        [{}]".format(left_line, ab_line.text), file=file)
-                else:
-                    raise ValueError
-
-
-def print_abbyy_page_unsynced(abbyy_page: AbbyyPage, file: TextIO = sys.stdout) -> int:
-    return print_abbyy_page_unsynced_aux(abbyy_page.unsync_abbyy_lines,
-                                         abbyy_page.unsync_abbyy_frags,
-                                         abbyy_page.unsync_pbox_lines,
-                                         abbyy_page.unsync_pbox_frags,
-                                         file=file)
-
-
-# pylint: disable=too-many-locals
-def print_abbyy_page_unsynced_aux(unsync_abbyy_lines: List[AbbyyLine],
-                                  unsync_abbyy_frags: List[UnsyncedStrWithY],
-                                  unsync_pbox_lines: List[UnsyncedPBoxLine],
-                                  unsync_pbox_frags: List[UnsyncedStrWithY],
-                                  file: TextIO = sys.stdout) \
-                                  -> int:
-    count = 0
-    for count_i, ua_line in enumerate(unsync_abbyy_lines):
-        xval, yval = ua_line.infer_attr_dict['x'], ua_line.infer_attr_dict['y']
-        print("  unsync abbyy_line #{}: xy={} [{}]".format(count_i, (xval, yval), ua_line.text),
-              file=file)
-        print(file=file)
-        count += 1
-    for count_i, ab_extra_se in enumerate(unsync_abbyy_frags):
-        abbyy_y, ab_se, ab_text, unused_asm = ab_extra_se.to_tuple()
-        print("  unsync_abbyy_frag #{}: y={} se={} [{}]".format(count_i, abbyy_y, ab_se, ab_text),
-              file=file)
-        print(file=file)
-        count += 1
-    for count_i, um_pbox_line in enumerate(unsync_pbox_lines):
-        pbox_xypair, pbox_se, ptext = um_pbox_line.to_tuple()
-        print("  unsync pbox_line #{}: xy={} se={} [{}]".format(count_i,
-                                                                pbox_xypair,
-                                                                pbox_se,
-                                                                ptext),
-              file=file)
-        print(file=file)
-        count += 1
-    for count_i, pb_extra_se in enumerate(unsync_pbox_frags):
-        pbox_y, pbox_se, pb_text, unused_asm = pb_extra_se.to_tuple()
-        print("  unsync pbox_frag #{}: y={} se={} [{}]".format(count_i, pbox_y, pbox_se, pb_text),
-              file=file)
-        print(file=file)
-        count += 1
-    return count
 
 
 def blocks_to_start_end_list(block_list: AbbyyBlock) -> List[Tuple[int, int]]:
