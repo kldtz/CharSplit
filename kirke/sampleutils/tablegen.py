@@ -1,10 +1,11 @@
+from collections import defaultdict
 import logging
 import re
 # pylint: disable=unused-import
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from kirke.docstruct.secheadutils import SecHeadTuple
-from kirke.utils import ebsentutils, ebantdoc4, engutils, strutils
+from kirke.utils import ebsentutils, ebantdoc4, engutils, strutils, mathutils
 from kirke.abbyyxml import tableutils
 from kirke.abbyyxml.pdfoffsets import AbbyyTableBlock
 
@@ -23,7 +24,8 @@ IS_DEBUG_TABLE = False
 IS_DEBUG_INVALID_TABLE = False
 
 def find_prev_sechead(start: int,
-                      sechead_list: List[SecHeadTuple]) \
+                      sechead_list: List[SecHeadTuple],
+                      max_pre_table_header_limit=-1) \
                       -> Optional[SecHeadTuple]:
     """Find the sechead before 'start' offset.
 
@@ -45,7 +47,8 @@ def find_prev_sechead(start: int,
             # pylint: disable=unpacking-non-sequence
             unused_prev_shead_start, prev_shead_end, unused_prev_shead_prefix, \
                 unused_prev_shead_st, unused_prev_shead_page_num = prev_sechead_tuple
-            if start - prev_shead_end >= 180:
+            if max_pre_table_header_limit != -1 and \
+               start - prev_shead_end >= max_pre_table_header_limit:
                 # sechead is too far from the start of the table
                 return None
             return prev_sechead_tuple
@@ -86,7 +89,8 @@ def is_in_exhibit_section(start: int,
 
     # no previous 'exhibit' sechead found
     sechead_tuple = find_prev_sechead(start,
-                                      sechead_list)
+                                      sechead_list,
+                                      max_pre_table_header_limit=180)
     if sechead_tuple:
         unused_shead_start, unused_shead_end, shead_prefix, \
             shead_st, unused_shead_page_num = sechead_tuple
@@ -185,9 +189,9 @@ class TableGenerator:
             doc_text = antdoc.get_text()
             doc_len = len(doc_text)
 
-            if group_id % 10 == 0:
-                logger.info('TableGenerator.documents_to_candidates(), group_id = %d',
-                            group_id)
+            # if group_id % 10 == 0:
+            #     logger.info('TableGenerator.documents_to_candidates(), group_id = %d',
+            #                 group_id)
 
             sechead_list = antdoc.sechead_list
             if IS_DEBUG_TABLE:
@@ -263,7 +267,8 @@ class TableGenerator:
 
                     print("  is_abbyy_original: {}".format(abbyy_table.is_abbyy_original))
 
-                table_sechead = find_prev_sechead(table_start, sechead_list)
+                table_sechead = find_prev_sechead(table_start, sechead_list,
+                                                  max_pre_table_header_limit=180)
                 sechead_text = ''
                 out_sechead_dict = {}
                 if table_sechead:
@@ -481,7 +486,155 @@ class TableGenerator:
                                                     extension='.addr.html')
 
             result.append((antdoc, candidates, label_list, group_id_list))
+
+        result = remove_overlap_tables(result)
         return result
+
+
+# pylint: disable=too-many-locals
+def find_overlap_yyxx(tbid: int,
+                      yyxx: Tuple[int, int, int, int],
+                      yyxx_table_lb_gid_list: List[Tuple[int, int, int, int,
+                                                         Dict, bool, int]]) \
+                                                         -> List[int]:
+
+    rect1_bot_left, rect1_top_right = mathutils.rect_tblr_to_rect_points(yyxx)
+    overlap_set = set([])
+    for tb_i, (y_top, y_bot, x_left, x_right, unused_table, unused_label, unused_gpid) \
+        in enumerate(yyxx_table_lb_gid_list):
+
+        if tb_i == tbid:
+            continue
+
+        rect2_bot_left, rect2_top_right = \
+            mathutils.rect_tblr_to_rect_points((y_top, y_bot, x_left, x_right))
+        if mathutils.is_rect_overlap(rect1_bot_left,
+                                     rect1_top_right,
+                                     rect2_bot_left,
+                                     rect2_top_right):
+            overlap_set.add(tb_i)
+            overlap_set.add(tbid)
+
+    overlap_list = sorted(overlap_set)
+    return overlap_list
+
+def pick_best_overlap_table(table_lb_gid_list: List[Tuple[Dict, bool, int]]) \
+    -> Tuple[Dict, bool, int]:
+    # take the first table that is from ABBYY, otherwise
+    # just take the first one
+    for table_dict, label, gid in  table_lb_gid_list:
+        is_abbyy_original = table_dict.get('is_abbyy_original', False)
+        if is_abbyy_original:
+            return (table_dict, label, gid)
+
+    # no abbyy found, just take the first one
+    return table_lb_gid_list[0]
+
+
+def sort_table_lb_gid_by_start(table_lb_gid_list: List[Tuple[Dict, bool, int]]) \
+    -> List[Tuple[Dict, bool, int]]:
+    start_table_lb_gid_list = []
+    for table, label, gid in  table_lb_gid_list:
+        start = table['start']
+        start_table_lb_gid_list.append((start, (table, label, gid)))
+    start_table_lb_gid_list.sort()
+    return [table_lb_gid for start, table_lb_gid in start_table_lb_gid_list]
+
+
+# pylint: disable=too-many-locals
+def remove_overlap_tables_in_page(yyxx_table_lb_gid_list:
+                                  List[Tuple[int, int, int, int,
+                                             Dict, bool, int]]) \
+                                             -> List[Tuple[Dict, bool, int]]:
+    if len(yyxx_table_lb_gid_list) == 1:
+        y_top, y_bot, x_left, x_right, table, label, gpid = yyxx_table_lb_gid_list[0]
+        return [(table, label, gpid)]
+
+    out_list = []  # type: List[Tuple[Dict, bool, int]]
+    # multiple tables in a page, check if any of them overlapped
+    # tables that are overlaped with some other tables in the page
+    overlap_table_id_list = []  # type: List[int]
+    # group of tables that are overlapped
+    overlap_table_group_list = []  # type: List[Set[int]]
+    for tb_i, (y_top, y_bot, x_left, x_right, table, label, gpid) \
+        in enumerate(yyxx_table_lb_gid_list):
+
+        # this table already is overlapped with other table
+        if tb_i in overlap_table_id_list:
+            continue
+
+        overlap_table_ids = find_overlap_yyxx(tb_i,
+                                              (y_top, y_bot, x_left, x_right),
+                                              yyxx_table_lb_gid_list)
+        if overlap_table_ids:
+            overlap_table_group = set([])  # type: Set[int]
+            for tbid in overlap_table_ids:
+                overlap_table_group.add(tbid)
+                overlap_table_id_list.append(tbid)
+            overlap_table_group.add(tb_i)  # add current table
+            overlap_table_group_list.append(overlap_table_group)
+            # add to page overlap list
+            overlap_table_id_list.append(tb_i)
+        else:
+            out_list.append((table, label, gpid))
+
+    for table_id_group in overlap_table_group_list:
+        # print('------------- overlapped table id: {}'.format(table_id_group))
+        table_lb_gid_group = []
+        for table_id in table_id_group:
+            y_top, y_bot, x_left, x_right, table, label, gpid = yyxx_table_lb_gid_list[table_id]
+            # print('\noverlap table:')
+            # pprint.pprint(table)
+            table_lb_gid_group.append((table, label, gpid))
+
+        best_table_lb_gid = pick_best_overlap_table(table_lb_gid_group)
+        # print('best_table_lb_gid: {}'.format(best_table_lb_gid[0]))
+        out_list.append(best_table_lb_gid)
+
+    out_list = sort_table_lb_gid_by_start(out_list)
+    return out_list
+
+
+# pylint: disable=too-many-locals
+def remove_overlap_tables(ebdoc_cand_lb_gid_list: List[Tuple[Any,
+                                                             List[Dict],
+                                                             List[bool],
+                                                             List[int]]]) \
+                          -> List[Tuple[Any,
+                                        List[Dict],
+                                        List[bool],
+                                        List[int]]]:
+    result = []  # type: List[Tuple[Any, List[Dict], List[bool], List[int]]]
+    for eb_antdoc, table_cands, label_list, group_id_list in ebdoc_cand_lb_gid_list:
+        # first collect all tables belongs to a page
+        # pylint: disable=line-too-long
+        page_tables_map = defaultdict(list)  # type: Dict[int, List[Tuple[int, int, int, int, Dict, bool, int]]]
+        for table_dict, label, gpid in zip(table_cands, label_list, group_id_list):
+
+            # take only 1st region in list
+            rect_region_info = table_dict['json']['rect_region_list'][0]
+            page_num = rect_region_info['page']
+            x_left, x_right = rect_region_info['x_left'], rect_region_info['x_right']
+            y_bottom, y_top = rect_region_info['y_bottom'], rect_region_info['y_top']
+            table_info = (y_top, y_bottom, x_left, x_right, table_dict, label, gpid)
+
+            # print('\ntable page {}:'.format(page_num))
+            # pprint.pprint(table_dict)
+            page_tables_map[page_num].append(table_info)
+
+        out_table_list = []  # type: List[Dict]
+        out_lb_list = []  # type: List[bool]
+        out_gid_list = []  # type: List[int]
+        page_nums = sorted(page_tables_map.keys())
+        for page_num in page_nums:
+            ptable_info_list = page_tables_map[page_num]
+            for tablecand, label, group_id in remove_overlap_tables_in_page(ptable_info_list):
+
+                out_table_list.append(tablecand)
+                out_lb_list.append(label)
+                out_gid_list.append(group_id)
+        result.append((eb_antdoc, out_table_list, out_lb_list, out_gid_list))
+    return result
 
 
 def fix_rate_table_text(text: str) -> str:
