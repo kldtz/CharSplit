@@ -1,5 +1,6 @@
 from collections import defaultdict
 import logging
+import pprint
 import re
 # pylint: disable=unused-import
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -138,15 +139,160 @@ def get_before_table_text(table_start: int,
     return '', (-1, -1)
 
 
+# pylint: disable=too-many-locals, too-many-return-statements, too-many-statements
 def is_invalid_table(table_candidate: Dict,
                      # pylint: disable=unused-argument
-                     ab_table_block: AbbyyTableBlock) -> bool:
+                     ab_table_block: AbbyyTableBlock,
+                     # for debugging purpose
+                     page_num: int) -> bool:
     """Return False if a table is not valid.
 
     This is another check on tables, similar to abbyyxml.tableutils.is_invalid_table().
     Here we use more content-based information from the table, such as
     the words.
     """
+    if IS_DEBUG_INVALID_TABLE:
+        print('\ncheck table on page {}'.format(page_num))
+        pprint.pprint(table_candidate)
+
+    rows = table_candidate['json']['row_list']
+    # check if the number of column is inconsistent
+    if not table_candidate.get('is_abbyy_original', False):
+        num_col_count_map = defaultdict(int)  # type: Dict[int, int]
+        num_upper_start, num_digit_start, num_lower_start = 0, 0, 0
+        num_upper_word, num_digit_word, num_lower_word = 0, 0, 0
+        for row in rows:
+            cols = row['cell_list']
+            num_col = len(row['cell_list'])
+            # check if the last column is empty
+            if not cols[-1]['text'].strip():
+                num_col -= 1
+                # try the 2nd to last column, if there is one
+                if num_col > 1 and \
+                   not cols[-2]['text'].strip():
+                    num_col -= 1
+            num_col_count_map[num_col] += 1
+
+            # to check if a table is just sentences accidentlly being
+            # recognized as a table
+            for cell in cols:
+                words = cell['text'].split()
+                if len(words) >= 3:
+                    if words[0][0].isupper():
+                        num_upper_start += 1
+                    elif words[0][0].isdigit():
+                        num_digit_start += 1
+                    elif words[0][0].islower():
+                        num_lower_start += 1
+                for word in words:
+                    if word[0].isupper():
+                        num_upper_word += 1
+                    elif word[0].isdigit():
+                        num_digit_word += 1
+                    elif word[0].islower():
+                        num_lower_word += 1
+
+        num_row = len(rows)
+        if IS_DEBUG_INVALID_TABLE:
+            print('num_row = {}'.format(num_row))
+            # to check if a table s just sentences accidentlly being
+            # recognized as a table
+            print('num_upper_start = {}, num_digit_start = {}, num_lower_start= {}'.format(
+                num_upper_start, num_digit_start, num_lower_start))
+            print('num_upper_word = {}, num_digit_word = {}, num_lower_word= {}'.format(
+                num_upper_word, num_digit_word, num_lower_word))
+        num_col_start = num_upper_start + num_lower_start + num_digit_start
+        num_alphanum_word = num_upper_word + num_lower_word + num_digit_word
+        if num_row <= 6 and \
+           num_upper_word >= 5 and \
+           num_alphanum_word >= 30 and \
+           num_alphanum_word <= 80 and \
+           1.0 * ((num_upper_start + num_digit_start) / num_col_start) < 0.4:
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 0.5, not capped start col, wordy')
+            return True
+
+        if IS_DEBUG_INVALID_TABLE:
+            for num_col, count in num_col_count_map.items():
+                perc = count / num_row * 100.0
+                print('num_col_count_map[{}] = {}, {}%'.format(num_col, count, perc))
+        # if there are limited number of rows, and we have all 3 columns
+        if num_row <= 8 and \
+           num_col_count_map.get(1, 0) >= 2 and \
+           (num_col_count_map.get(2, 0) >= 1 or \
+            num_col_count_map.get(3, 0) >= 1):
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 1, unbeven col num')
+            return True
+        if num_row <= 15 and \
+           num_col_count_map.get(1, 0) >= 5 and \
+           (num_col_count_map.get(2, 0) >= 2 or \
+            num_col_count_map.get(3, 0) >= 2):
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 1.2, unbeven col num, a list of items')
+            return True
+        if num_row <= 3 and \
+           num_col_count_map.get(1, 0) >= 1 and \
+           (num_col_count_map.get(2, 0) >= 1 or \
+            num_col_count_map.get(3, 0) >= 1 or
+            num_col_count_map.get(4, 0) >= 1 or \
+            num_col_count_map.get(5, 0) >= 1):
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 1.3, has 1-column in 3 rows, too few rows')
+            return True
+
+
+
+        if num_alphanum_word <= 15 and \
+           num_col_count_map.get(1, 0) >= 1:
+            # too short a table and a row that has only 1 column
+            # something is wrong
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 1.5, too few word plus has 1-col row')
+            return True
+
+        sign_pat = re.compile(r'(signing|signed|signatory|autho|name|signature|' \
+                              r'date|president|officer|chief|manager)', re.I)
+        yes_no_pat = re.compile(r'\b(yes|no)\b|□', re.I)
+        num_yes_no = 0
+        num_signed = 0
+        num_word = table_candidate['num_word']
+        for row in rows:
+            for cell in row['cell_list']:
+                cell_text = cell['text']
+                num_signed += len(list(sign_pat.finditer(cell_text)))
+                num_yes_no += len(list(yes_no_pat.finditer(cell_text)))
+        if IS_DEBUG_INVALID_TABLE:
+            print('num_signed = {}, num_word = {}'.format(num_signed, num_word))
+        # reject signature tables
+        if num_signed >= 3 and num_word <= 75:
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 2, num_signed = {}'.format(num_signed))
+            return True
+        if num_word <= 40 and num_yes_no >= 6:
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 2.5, num_yes_no = {}'.format(num_yes_no))
+            return True
+
+        # is header
+        # print('bottom_y= {}'.format(table_candidate['bottom_y']))
+        if table_candidate['bottom_y'] <= 180:
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 3, is_header, bottom_y=%d' %
+                      table_candidate['bottom_y'])
+            return True
+
+    # invalide table containing addresses
+    address_pat = re.compile(r'(to:|from:|address|state|' \
+                             r'zip|zip\s*code|post|post\s*code)', re.I)
+    num_addr = 0
+    for row in rows:
+        for cell in row['cell_list']:
+            cell_text = cell['text']
+            num_addr += len(list(address_pat.finditer(cell_text)))
+    if num_addr >= 4:
+        return True
+
     # reject really bad table here
     if table_candidate['num_word'] >= 10 and \
        table_candidate['perc_bad_word'] >= 0.75:
@@ -397,9 +543,9 @@ class TableGenerator:
                                'start': table_start,
                                'end': table_end,
                                # 'left_x': left_x,
-                               # 'bottom_y': bot_y,
+                               'bottom_y': round(bot_y * multiplier),
                                # 'right_x': right_x,
-                               # 'top_y': top_y,
+                               'top_y': round(top_y * multiplier),
                                'span_list': span_dict_list,
                                'pre_table_text': pre_table_text,
                                'len_pre_table_text': len_pre_table_text,
@@ -450,7 +596,9 @@ class TableGenerator:
                 # Verify that thee table is valid
                 # "not is_label" make sure that is a table is annotated
                 # for a provision, it is kept regardless of is_valid or not.
-                if not is_label and is_invalid_table(a_candidate, abbyy_table):
+                if not is_label and is_invalid_table(a_candidate,
+                                                     abbyy_table,
+                                                     table_page_num):
                     invalid_tables.append(abbyy_table)
                     continue
 
