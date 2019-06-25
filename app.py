@@ -19,7 +19,7 @@ from typing import DefaultDict, Dict, List, Optional, Tuple
 from flask import Flask, jsonify, request, send_file
 import yaml
 
-from kirke.eblearn import ebrunner, ebtrainer
+from kirke.eblearn import annotatorconfig, ebrunner, ebtrainer
 from kirke.utils import corenlputils, modelfileutils, osutils, strutils
 
 # pylint: disable=invalid-name
@@ -452,13 +452,19 @@ def custom_train(cust_id: str):
                 fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
                 strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
 
+                # each candidate bespoke has its own version
+                candg_version = CANDG_CLF_VERSION
+                if candidate_types != ['SENTENCE']:
+                    tmp_config = annotatorconfig.get_ml_annotator_config(candidate_types)
+                    candg_version = tmp_config['version']
+
                 base_model_fname, base_status_fname, base_result_fname = \
                     ebrunner.assemble_model_base_fnames(provision,
                                                         candidate_types=candidate_types,
                                                         next_model_num=next_model_num,
                                                         doc_lang=doc_lang,
                                                         scut_version=SCUT_CLF_VERSION,
-                                                        candg_version=CANDG_CLF_VERSION)
+                                                        candg_version=candg_version)
 
                 # Intentionally not passing is_doc_structure=True
                 # For spanannotator, currently we use is_doc_structure=False to not missing
