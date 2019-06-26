@@ -226,16 +226,6 @@ def annotate_uploaded_document():
                 provision_set.remove('lic_licensee')
             if "lic_licensor" in provision_set:
                 provision_set.remove('lic_licensor')
-            # remove all candidate types except for tables
-            # because we don't want to display them for table release
-            if 'CAND_DATE' in provision_set:
-                provision_set.remove('CAND_DATE')
-            if 'NUMBER' in provision_set:
-                provision_set.remove('NUMBER')
-            if 'CURRENCY' in provision_set:
-                provision_set.remove('CURRENCY')
-            if 'PERCENT' in provision_set:
-                provision_set.remove('PERCENT')
 
         lang_provision_set = set([x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
                                   for x in provision_set])

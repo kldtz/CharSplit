@@ -600,24 +600,26 @@ def parse_document(file_name: str,
     # pprint.pprint(ajson, width=140)
     ajson = abbyyutils.abbyyxml_to_json(xml_fname)
 
-    ajson_fname = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.pdf.json'))
-    with open(ajson_fname, 'wt') as fout:
-        pprint.pprint(ajson, stream=fout)
-        if IS_DEBUG_MODE:
-            print('wrote {}'.format(ajson_fname))
+    if IS_DEBUG_MODE:
+        ajson_fname = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.pdf.json'))
+        with open(ajson_fname, 'wt') as fout:
+            pprint.pprint(ajson, stream=fout)
+        print('wrote {}'.format(ajson_fname))
 
     abbyy_page_list = docjson_to_abbyy_page_list(ajson)
 
     ab_xml_doc = AbbyyXmlDoc(xml_fname, abbyy_page_list)
 
-    tmp_fname = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.abbyy.debug_txt'))
-    with open(tmp_fname, 'wt') as fout:
-        ab_xml_doc.print_debug_text(fout)
-        if IS_DEBUG_MODE:
-            print('wrote {}'.format(tmp_fname))
+    if IS_DEBUG_MODE:
+        tmp_fname = '{}/{}'.format(work_dir, base_fname.replace('.pdf.xml', '.abbyy.debug_txt'))
+        with open(tmp_fname, 'wt') as fout:
+            ab_xml_doc.print_debug_text(fout)
+        print('wrote {}'.format(tmp_fname))
 
-    # adjust the blocks of document according to our interpretation
+    # Adjust the blocks of document according to our interpretation
     # based what we have seen in contracts
+    # This doesn't impact table at all.  The tables are kept as is in
+    # the page structure.
     remake_abbyy_xml_doc(ab_xml_doc)
 
     # jshaw, work
@@ -823,9 +825,9 @@ def remake_abbyy_xml_doc(ab_doc: AbbyyXmlDoc) -> None:
             # first one is probably OK for now
             out_block_list.append(tmp_text_block)
 
-
         if is_merge_occurred:
             abbyy_page.ab_blocks = out_block_list
+
 
 # merges paragraphs within a block if the ydiff is roughly the block's minimum ydiff
 def merge_block_paras(ab_pars: List[AbbyyPar],
