@@ -655,17 +655,18 @@ def calc_page_ydiff_modes_num_cols(page_linenum_list_map: Dict[int, List[int]],
         print('page_ydiff_mode_map:')
     page_num_set = set(page_num_list)
     page_ydiff_mode_list = []  # type: List[float]
-    for page_num in range(max(page_num_list) + 1):
-        if page_num not in page_num_set:
-            page_ydiff_mode_list.append(0)
-        else:
-            page_ydiff_mode_list.append(page_ydiff_mode_map[page_num])
-            if IS_DEBUG:
-                if page_num in failed_page_ydiff_mode_pages:
-                    print('     page {}: {}, failed'.format(page_num,
-                                                            page_ydiff_mode_map[page_num]))
-                else:
-                    print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
+    if page_num_list:
+        for page_num in range(max(page_num_list) + 1):
+            if page_num not in page_num_set:
+                page_ydiff_mode_list.append(0)
+            else:
+                page_ydiff_mode_list.append(page_ydiff_mode_map[page_num])
+                if IS_DEBUG:
+                    if page_num in failed_page_ydiff_mode_pages:
+                        print('     page {}: {}, failed'.format(page_num,
+                                                                page_ydiff_mode_map[page_num]))
+                    else:
+                        print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
 
     if IS_PAGE_NUM_COL_DEBUG:
         for page_num in page_num_list:
@@ -684,7 +685,10 @@ def calc_page_ydiff_modes_num_cols(page_linenum_list_map: Dict[int, List[int]],
             print('   page {} num_col = {}'.format(tmp_page_num, tmp_page_col_num))
         print()
 
-    doc_ydiff_mode = mathutils.get_mode_in_list(all_ydiffs)
+    if all_ydiffs:
+        doc_ydiff_mode = mathutils.get_mode_in_list(all_ydiffs)
+    else:
+        doc_ydiff_mode = -1
 
     if IS_TOP_LEVEL_DEBUG:
         print('failed_page_ydiff_mode_pages: {}'.format(failed_page_ydiff_mode_pages))

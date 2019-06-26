@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # pylint: disable=too-many-lines
 
-import argparse
 from collections import namedtuple
 import logging
 import re
@@ -1220,25 +1219,3 @@ def trime_non_capital_words(sechead: str) -> Optional[Tuple[int, int, str]]:
             re.search(r'^(and|or)\b', mat.group(3), flags=re.I)):
         return mat.start(1), mat.end(1), mat.group(1)
     return None
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Parse a document into a document structure.')
-    parser.add_argument("-v", "--verbosity", help="increase output verbosity")
-    parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
-    # parser.add_argument('doc', help='a file to be annotated', default='sechead.list.txt.sorted')
-
-    # args = parser.parse_args()
-    doc_fn = 'sechead.list.txt.sorted'
-
-    # page_num_list = adoc.get_page_numbers()
-    # atext = adoc.get_text()
-    # for i, page_num in enumerate(page_num_list):
-    #    print("page num #{}: {}".format(i, page_num))
-
-    # docreader.format_document(adoc, sentV2_list)
-    logger.info('Done.')
-
-
-if __name__ == '__main__':
-    main()
