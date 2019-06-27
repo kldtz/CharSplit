@@ -74,14 +74,15 @@ class TestLangs(unittest.TestCase):
 
         corenlp_result = corenlputils.check_pipeline_lang('zh', zh_file)
         sents = corenlp_result['sentences']
-        ner_string = " ".join([tok['ner'] for tok in sents[8]['tokens']])
-        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[8]['tokens']]))
+        ner_string = " ".join([tok['ner'] for tok in sents[20]['tokens']])
+        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[20]['tokens']]))
         self.assertEqual(ner_string, 'O O O O O O O O O O O O O O MISC O')
-        ner_string = " ".join([tok['ner'] for tok in sents[13]['tokens']])
-        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[13]['tokens']]))
+        ner_string = " ".join([tok['ner'] for tok in sents[25]['tokens']])
+        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[25]['tokens']]))
         self.assertEqual(ner_string, 'O O O O MISC MISC MISC O O O O O O O O O O O O O MISC O')
-        ner_string = " ".join([tok['ner'] for tok in sents[16]['tokens']])
-        self.assertEqual(ner_string, 'O O O O O O O O O O O O O O O O GPE O O O O O O O O MISC O')
+        ner_string = " ".join([tok['ner'] for tok in sents[28]['tokens']])
+        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[28]['tokens']]))
+        self.assertEqual(ner_string, 'O O O O O O O O O O O O O O O O GPE O O O O O O O O')
 
         result_text = \
                 postfileutils.post_annotate_document(zh_file,
