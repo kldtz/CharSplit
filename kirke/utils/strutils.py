@@ -33,11 +33,16 @@ CAP_SPACE_PAT = re.compile(r'^[A-Z\s\(\).,\[\]\-/\\{\}`\'"]+$')  # type: Pattern
 
 def sub_nltab_with_space(line: str) -> str:
     # return re.sub(r'[\s\t\r\n]+', ' ', line)
-    return re.sub(r'[\s\t\r\n]', ' ', line)
+    return re.sub(r'[\s\t\r\n\xa0]', ' ', line)
 
 
 def remove_space_nl(line: str) -> str:
-    return re.sub(r'[\s\n]', '', line)
+    return re.sub(r'[\s\n\xa0]', '', line)
+
+
+def normalize_spaces(line: str) -> str:
+    """Replace non-breaking spaces with regular spaces."""
+    return line.replace('\xa0', ' ')
 
 
 def loads(file_name: str) -> str:
@@ -143,71 +148,6 @@ def _get_num_prefix_space(line: str) -> int:
             break
     return i
 
-# http://stackoverflow.com/questions/354038/how-do-i-check-if-a-string-is-a-number-float-in-python
-def is_number(line: str) -> bool:
-    try:
-        float(line)
-        return True
-    except ValueError:
-        return False
-
-
-# SECHEAD_NUMBER_PAT = re.compile('^\d[\d\.]+$')
-
-NUM_ROMAN_PAT = re.compile(r'(([\(\“\”]?([\.\d]+|[ivx\d\.]+\b)[\)\“\”]?|'
-                           r'[\(\“\”\.]?[a-z][\s\.\)\“\”])+)')
-
-def is_header_number(line: str) -> bool:
-    return bool(NUM_ROMAN_PAT.match(line))
-# return SECHEAD_NUMBER_PAT.match(line)
-
-
-ROMAN_NUM_PAT = re.compile(r'^[ixv]+$', re.IGNORECASE)
-
-def is_roman_number(line: str) -> bool:
-    return bool(ROMAN_NUM_PAT.match(line))
-
-
-def is_int(line: str) -> bool:
-    try:
-        int(line)
-        return True
-    except ValueError:
-        return False
-
-
-def to_int(line: str) -> int:
-    try:
-        result = int(line)
-        return result
-    except ValueError:
-        raise ValueError("Error in to_int({})".format(line))
-
-ALL_DIGITS_PAT = re.compile(r'^\d+$')
-ALL_ALPHAS_PAT = re.compile(r'^[a-zA-Z]+$')
-ALL_ALPHAS_DOT_PAT = re.compile(r'^[a-zA-Z]+\.?$')
-
-# at least 2 char, starts with alpha
-ALL_ALPHA_NUM_PAT = re.compile(r'^[a-zA-Z][a-zA-Z\d]+$')
-ANY_DIGIT_PAT = re.compile(r'\d')
-ANY_ALPHA_PAT = re.compile(r'[a-zA-Z]')
-
-
-PARENS_ALL_DIGITS_PAT = re.compile(r'^\(\d+\)$')
-
-def is_all_digits(line: str) -> bool:
-    return bool(ALL_DIGITS_PAT.match(line))
-
-def is_parens_all_digits(line: str) -> bool:
-    return bool(PARENS_ALL_DIGITS_PAT.match(line))
-
-def is_all_digit_dot(line: str) -> bool:
-    if not line:
-        return False
-    for xch in line:
-        if not ((xch == '.') or (xch == '-') or xch.isdigit()):
-            return False
-    return True
 
 def is_all_length_1_words(words: List[str]) -> bool:
     if not words:
@@ -219,9 +159,15 @@ def is_all_length_1_words(words: List[str]) -> bool:
 
 WORD_LC_PAT = re.compile('^[a-z]+$')
 
+# at least 2 char, starts with alpha
+ALL_ALPHA_NUM_PAT = re.compile(r'^[a-zA-Z][a-zA-Z\d]+$')
+ALL_ALPHAS_PAT = re.compile(r'^[a-zA-Z]+$')
+ALL_ALPHAS_DOT_PAT = re.compile(r'^[a-zA-Z]+\.?$')
+ANY_ALPHA_PAT = re.compile(r'[a-zA-Z]')
+
+
 def is_word_all_lc(word: str) -> bool:
     return bool(WORD_LC_PAT.match(word))
-
 
 # has more than 2 digits that's more than 3 width
 TWO_GT_3_NUM_SEQ_PAT = re.compile(r'\d{3}.*\d{3}')
@@ -236,9 +182,6 @@ def is_all_alphas_dot(line: str) -> bool:
 
 def is_alpha_word(line: str) -> bool:
     return bool(ALL_ALPHAS_PAT.match(line))
-
-def has_digit(line: str) -> bool:
-    return bool(ANY_DIGIT_PAT.search(line))
 
 def is_both_alpha_and_num(line: str) -> bool:
     mat = ALL_ALPHA_NUM_PAT.match(line)
@@ -339,6 +282,8 @@ ALPHA_WORD_PAT = re.compile(r'[a-zA-Z]+')
 
 ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
 
+EXACT_ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
+
 ALPHA_OR_NUM_WORD_PAT = re.compile(r'[a-zA-Z0-9]+')
 
 ALL_PUNCT_PAT = re.compile(r"^[\(\)\.,\[\]\-/\\\{\}`'\"]+$")
@@ -382,16 +327,24 @@ def get_alphanum_words_gt_len1(line: str, is_lower: bool = True) -> List[str]:
         line = line.lower()
     return [word for word in ALPHANUM_WORD_PAT.findall(line) if len(word) > 1]
 
+# this is no really symmetic to the above function, but probably
+# ok for purpose of trying to find signature tables
+def get_non_alphanum_words_gt_len1(line: str) -> List[str]:
+    return [word for word in line.split()
+            if len(word) > 1 and not EXACT_ALPHANUM_WORD_PAT.search(word)]
+
 
 def get_alphanum_words(line: str, is_lower=True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHANUM_WORD_PAT.findall(line)]
 
+
 def get_alpha_or_num_words(line: str, is_lower=True) -> List[str]:
     if is_lower:
         line = line.lower()
     return [word for word in ALPHA_OR_NUM_WORD_PAT.findall(line)]
+
 
 def tokens_to_all_ngrams(word_list: List[str], max_n: int = 1) -> Set[str]:
     # unigram
@@ -520,15 +473,241 @@ def has_alpha(line: str) -> bool:
     return bool(ANY_ALPHA_PAT.search(line))
 
 
+#
+# ========== digits and numbers ==========
+#
+# 'digit' is an initeger
+# 'number' is a floating point number, includint int
+
 DIGIT_PAT = re.compile(r'^\s*\d+\s*$')
+ALL_DIGITS_PAT = re.compile(r'^\d+$')
+ANY_DIGIT_PAT = re.compile(r'\d')
+PARENS_ALL_DIGITS_PAT = re.compile(r'^\(\d+\)$')
+
+
+def is_all_digits(line: str) -> bool:
+    return bool(ALL_DIGITS_PAT.match(line))
+
+
+def is_parens_all_digits(line: str) -> bool:
+    return bool(PARENS_ALL_DIGITS_PAT.match(line))
+
+
+def is_all_digit_dot(line: str) -> bool:
+    if not line:
+        return False
+    for xch in line:
+        if not ((xch == '.') or (xch == '-') or xch.isdigit()):
+            return False
+    return True
+
+
 def is_digit_st(line: str) -> bool:
     return bool(DIGIT_PAT.match(line))
 
-# alias
+
+def has_digit(line: str) -> bool:
+    return bool(ANY_DIGIT_PAT.search(line))
+
+
+def is_digit_core(line: str) -> bool:
+    return unicodedata.category(line) == 'Nd'
+
+
+def is_int(line: str) -> bool:
+    try:
+        int(line)
+        return True
+    except ValueError:
+        return False
+
+
+def to_int(line: str) -> int:
+    try:
+        result = int(line)
+        return result
+    except ValueError:
+        raise ValueError("Error in to_int({})".format(line))
+
 is_digits = is_digit_st
 
+FLOAT_REGEX_ST = r'[-+]?\b[0-9]*\.?[0-9]+\b'
+FLOAT_PAT = re.compile(FLOAT_REGEX_ST)
 
-# to detect telephone or SSN
+NUMBER_REGEX_ST = r'[-+]?\b[0-9,]*\.?[0-9]+'
+NUMBER_PAT = re.compile(NUMBER_REGEX_ST + r'\b')
+
+ALL_NUMBER_PAT = re.compile(r'^' + NUMBER_REGEX_ST + r'$')
+CURRENCY_PAT = re.compile(r'^\$\s*' + NUMBER_REGEX_ST + r'$')
+PERCENT_PAT = re.compile(r'^' + NUMBER_REGEX_ST + r'\s*%$')
+# allowing '(201) 345-'
+PHONE_NUMBER_PAT = re.compile(r'^(\(\d+\)|\d+\-\d*|\(\d+\)\s*\d+\-\d*)')
+# allowing '(02/03/23]', but not for digit only prefix
+NAIVE_DATE_PAT = re.compile(r'^(\d+$[\/\-]\d+[\/\-]\d+|\d+[\/\-]\d+)')
+
+
+def find_numbers(line: str) -> List[str]:
+    # return re.findall(r'(\d*\.\d+|\d+\.\d*|\d+)', line)
+    return NUMBER_PAT.findall(line)
+
+extract_numbers = find_numbers
+
+def count_numbers(line: str) -> int:
+    return len(find_numbers(line))
+
+def find_number(line: str) -> Optional[Match[str]]:
+    return NUMBER_PAT.search(line)
+
+def has_number(line: str) -> bool:
+    return bool(find_number(line))
+
+def is_number(line: str) -> bool:
+    return bool(ALL_NUMBER_PAT.search(line))
+
+def is_currency(line: str) -> bool:
+    return bool(CURRENCY_PAT.search(line))
+
+def is_percent(line: str) -> bool:
+    return bool(PERCENT_PAT.search(line))
+
+def is_phone_number(line: str) -> bool:
+    return bool(PHONE_NUMBER_PAT.search(line))
+
+def is_naive_date(line: str) -> bool:
+    return bool(NAIVE_DATE_PAT.search(line))
+
+# http://stackoverflow.com/questions/354038/how-do-i-check-if-a-string-is-a-number-float-in-python
+def is_number_v2(line: str) -> bool:
+    try:
+        float(line)
+        return True
+    except ValueError:
+        return False
+
+
+# number, currency, percent,
+# phone_ date, num_alpha,
+# num_alphanum, num_bad_word,
+# num_word,
+# alphanum_words: str
+# pylint: disable=too-many-locals
+def remove_number_types(text: str) -> Tuple[int, int, int,
+                                            int, int, int,
+                                            int, int, int,
+                                            str]:
+    """This function is designed for tokenizing the text for table for
+    classification purpose.
+
+    A table contains a lot of condensed information which are not
+    sentences.  We want to know if the content is of various numeric
+    types.  One critical aspect we ant to capture is the number of
+    words that are not even English words or numbers due to OCR errors.
+    This is a reason why we are not using nltk's tokenizer.
+    Not capturing them will make the tokenized result looks similar
+    other sparse tables.
+    """
+
+    # words = re.split(r'[\s\,\'\"\-]+', text)
+    # replace all parens
+    text = re.sub(r'[\(\)\[\]]', ' ', text)
+    # put together $ 23.33
+    text = re.sub(r'\$\s+([\d.,]+)', r'$\1', text)
+    words = text.split()
+    alpha_words = []  # type: List[str]
+    alphanum_words = []  # type: List[str]
+    num_number, num_currency, num_percent = 0, 0, 0
+    num_phone_number, num_date = 0, 0
+    num_alpha_word, num_alphanum_word = 0, 0
+    num_bad_word = 0
+
+    # this will double count "$180,000,000" has 1 currency, 2 numbers
+    for word in words:
+
+        if not word.endswith('%'):
+            # replace any punctuations at the end of a word
+            word = re.sub(r'(\w)\W+$', r'\1', word)
+
+        # skip words with acronyms, such A.
+        if len(word) <= 1 and not is_number(word):
+            continue
+
+        # tried to handle "$", in $/Mwh
+        # but doing so usually causes drop in recall
+
+        # dates might have "/"
+        if is_naive_date(word):
+            num_date += 1
+        else:
+            tmp_word = word
+            # pylint: disable=redefined-outer-name
+            for word in tmp_word.split('/'):
+
+                #if word == '$':
+                    # adding this cause drop in recall
+                    # alpha_words.append('SYMBOL_DOLLAR')
+                    # num_alpha_word += 1
+                #    pass
+
+                # if ALL_MONTH_REGEX.match(word):
+                #     word = 'SM_MONTH'
+
+                if is_currency(word):
+                    num_currency += 1
+                elif is_percent(word):
+                    num_percent += 1
+                elif is_number(word):
+                    num_number += 1
+                elif is_phone_number(word):
+                    num_phone_number += 1
+                else:
+                    # avoid all dashes and other stuff
+                    if re.search(r'^[a-zA-Z_]+$', word):
+                        alpha_words.append(word)
+                        num_alpha_word += 1
+                    elif re.search(r'^\w+$', word):
+                        alphanum_words.append(word)
+                        num_alphanum_word += 1
+                    else:
+                        num_bad_word += 1
+
+    # once higher than 40, not meaningful
+    num_number = min(num_number, 40)
+    num_currency = min(num_currency, 40)
+    num_percent = min(num_percent, 40)
+    num_date = min(num_date, 40)
+    num_phone_number = min(num_phone_number, 40)
+
+    out_alphanum_words = list(alpha_words)
+    out_alphanum_words.extend(alphanum_words)
+    num_words = num_number + num_currency + \
+                num_percent + num_phone_number + \
+                num_date + num_alpha_word + \
+                num_alphanum_word + num_bad_word
+
+    return (num_number, num_currency,
+            num_percent, num_phone_number,
+            num_date, num_alpha_word,
+            num_alphanum_word, num_bad_word,
+            num_words,
+            ' '.join(out_alphanum_words))
+
+
+ROMAN_NUM_PAT = re.compile(r'^[ixv]+$', re.IGNORECASE)
+
+def is_roman_number(line: str) -> bool:
+    return bool(ROMAN_NUM_PAT.match(line))
+
+
+NUM_ROMAN_PAT = re.compile(r'(([\(\“\”]?([\.\d]+|[ivx\d\.]+\b)[\)\“\”]?|'
+                           r'[\(\“\”\.]?[a-z][\s\.\)\“\”])+)')
+
+def is_header_number(line: str) -> bool:
+    return bool(NUM_ROMAN_PAT.match(line))
+# SECHEAD_NUMBER_PAT = re.compile('^\d[\d\.]+$')
+# return SECHEAD_NUMBER_PAT.match(line)
+
+
+# ========== telephone or SSN ==========
 BIG_DASHED_DIGIT_PAT = re.compile(r'^(\d+)\-[\d\-]+$')
 def is_dashed_big_number_st(line: str) -> bool:
     mat = BIG_DASHED_DIGIT_PAT.match(line)
@@ -537,19 +716,6 @@ def is_dashed_big_number_st(line: str) -> bool:
             return True
     return False
 
-def extract_numbers(line: str) -> List[str]:
-    return re.findall(r'(\d*\.\d+|\d+\.\d*|\d+)', line)
-
-def count_numbers(line: str) -> int:
-    return len(extract_numbers(line))
-
-NUM_10_PAT = re.compile(r'(\d*\.\d+|\d+\.\d*|\d+)')
-def find_number(line: str) -> bool:
-    return bool(NUM_10_PAT.search(line))
-
-
-def is_digit_core(line: str) -> bool:
-    return unicodedata.category(line) == 'Nd'
 
 DASH_ONLY_LINE = re.compile(r'^\s*-+\s*$')
 
@@ -561,6 +727,7 @@ def is_dashed_line(line: str) -> bool:
 def are_all_substrs_in_st(substr_list: List[str], line: str) -> bool:
     lc_text = line.lower()
     return all(substr in lc_text for substr in substr_list)
+
 
 def is_english_vowel(unich: str) -> bool:
     return unich in 'aeiouAEIOU'
@@ -576,11 +743,6 @@ def find_all_indices(sub_strx: str, text: str) -> List[int]:
 
 def count_date(line: str) -> int:
     return len(find_substr_indices(r'(\d{1,2}/\d{1,2}/(20|19)\d\d)', line))
-
-def count_number(line: str) -> int:
-    return len(find_substr_indices(r'(\d+)', line))
-    # return len(find_substr_indices(r'(\d*\.\d+|\d+\.\d*|\d+)', line))
-
 
 # We encountered characters, 1, 2, 16, 31 in input to corenlp before.
 # These characters passed through the processing and appeared as they are
@@ -616,6 +778,39 @@ def corenlp_normalize_text(doc_text: str) -> str:
     line = urllib.parse.quote(line)
     return line
 
+
+def init_acronym_regex():
+    """Initialize case-insensitive acornym regex for finding acronyms."""
+
+    acronym_list = []  # type: List[str]
+    with open('dict/acronyms.txt', 'rt') as fin:
+        for line in fin:
+            # the last char is always a period
+            line = line.strip()[:-1]
+            acronym_list.append(line)
+    aregex_st = r'\b({})\.'.format('|'.join(acronym_list))
+    return re.compile(aregex_st, re.I)
+
+
+ACRONYMS_REGEX = init_acronym_regex()
+
+
+def sub_period_space(match: Match) -> str:
+    """Function to replace '.' with a space for acronyms."""
+
+    line = match.group()
+    return '{} '.format(line[:-1])
+
+
+def normalize_acronym_text(text: str) -> str:
+    """Subsitute period after acronym with spaces.
+
+    This is to avoid bad sentence segmentation after acronyms, such
+    as 'per cent.', 'sr.' or 'no.'
+    """
+    return re.sub(ACRONYMS_REGEX, sub_period_space, text)
+
+
 def is_space_or_nl(xch: str) -> bool:
     return (xch == ' ' or
             xch == '\n' or
@@ -631,6 +826,22 @@ def is_double_quote(xch: str) -> bool:
 
 def dict_to_sorted_list(adict: Dict[Any, Any]) -> List[str]:
     return ['{}={}'.format(attr, value) for attr, value in sorted(adict.items())]
+
+
+def dict_to_sorted_dict_st(adict: Dict[Any, Any]) -> str:
+    st_list = dict_to_sorted_list(adict)
+    return '{' + ', '.join(st_list) + '}'
+
+
+def set_to_sorted_set_st(aset: Set) -> str:
+    """Convert a set to a string, but in sorted order."""
+    st_list = []  # type: List[str]
+    for aval in sorted(aset):
+        if isinstance(aval, str):
+            st_list.append("'{}'".format(aval))
+        else:
+            st_list.append(str(aval))
+    return '{' + ', '.join(st_list) + '}'
 
 
 def space_repl_same_length(mat: Match[str]) -> str:
@@ -1035,6 +1246,53 @@ def find_non_space_index(line: str) -> int:
         if idx >= line_len:
             return -1
     return idx
+
+
+MULTI_NEWLINES_PAT = re.compile(r'\n\n+')
+
+def sub_newlines(st: str) -> str:
+    """Replace multple adjacent new lines with
+       spaces followed by just one new line.  This perserves
+       the original string length.
+
+       The purpose of this function is to make all lines
+       in a paragraph to have maximum 1 new line, not
+       multiple.  This happens sometimes from pdfbox.
+    """
+    if not st:
+        return st
+
+    # to avoid unnecessary transformation if
+    # no double new_line chars are found.
+    if not MULTI_NEWLINES_PAT.search(st):
+        return st
+
+    chars = list(st)
+    prev_char = chars[0]
+    for i, achar in enumerate(chars[1:], 1):
+        if prev_char == '\n' and \
+           achar == '\n':
+            chars[i-1] = ' '
+        prev_char = achar
+    return ''.join(chars)
+
+
+def text_strip(*, start: int, end: int, text: str) -> Tuple[int, int]:
+    while start < end:
+        if text[start].isspace():
+            start += 1
+        else:
+            break
+    while start < end:
+        if text[end-1].isspace():
+            end -= 1
+        else:
+            break
+    return start, end
+
+
+def is_eo_sentence_char(achar: str) -> bool:
+    return achar in set(['.', '?', '!', ';'])
 
 
 if __name__ == '__main__':

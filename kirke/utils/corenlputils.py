@@ -6,7 +6,7 @@ from typing import Any, List, Optional
 from stanfordcorenlp import StanfordCoreNLP
 
 from kirke.utils.corenlpsent import EbSentence
-from kirke.utils.strutils import corenlp_normalize_text
+from kirke.utils.strutils import corenlp_normalize_text, normalize_acronym_text
 from kirke.utils.textoffset import TextCpointCunitMapper
 # from kirke.nlputil import jpnagisa, zhutil
 from kirke.nlputil import jpkytea, zhutil
@@ -21,7 +21,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 # loading it here causes nosetests to be stuck
 # NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
 NLP_SERVER = None
-jp_word_segmenter = None
+jp_word_segmenter = None  # type: Optional[jpkytea.KyteaWordSegmenter]
 
 def init_corenlp_server():
     # pylint: disable=global-statement
@@ -55,7 +55,10 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
         # jp_word_segmenter = jpnagisa.NagisaWordSegmenter()
         jp_word_segmenter = jpkytea.KyteaWordSegmenter()
 
-    no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
+    # remove period after acronyms to avoid bad sentence segmentation
+    # for example, 'per cent.', 'sr.', or 'no.'
+    no_acronym_text = normalize_acronym_text(text_as_string)
+    no_ctrl_chars_text = corenlp_normalize_text(no_acronym_text)
 
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
@@ -82,7 +85,8 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
     elif doc_lang == 'ja':
         logger.debug("jp segmenter running on %s, len=%d",
                      doc_lang, len(no_ctrl_chars_text))
-        output = jp_word_segmenter.to_corenlp_json(text_as_string)
+        # jp_word_segmenter must not be NULL
+        output = jp_word_segmenter.to_corenlp_json(text_as_string)  # type: ignore
     else:
         logger.debug("corenlp running on en, len=%d", len(no_ctrl_chars_text))
         output = NLP_SERVER.annotate(no_ctrl_chars_text,
@@ -178,40 +182,6 @@ def filter_out_empty_lines(ebsent_list, atext):
     return result
 
 
-def _pre_merge_broken_ebsents(ebsent_list, atext):
-    result = []
-
-    sent_idx = 0
-    num_sent = len(ebsent_list)
-    while sent_idx < num_sent:
-        ebsent = ebsent_list[sent_idx]
-        # print("ebsent #{}: {}".format(sent_idx, ebsent))
-        # sent_st = ebsent.get_text()
-        sent_st = atext[ebsent.start:ebsent.end]
-        # pylint: disable=fixme
-        if sent_st:  # TODO: jshaw, a bug, not sure how this is possible
-                     # 36973.clean.txt
-            last_char = sent_st[-1]
-            if last_char not in ['.', '!', '?']:
-                # if next sent starts with a lowercase letter
-                if is_sent_starts_with_lower(ebsent_list, sent_idx+1):
-                    # add all the tokens
-                    ebsent.extend_tokens(ebsent_list[sent_idx+1].get_tokens(),
-                                         atext)
-                    sent_idx += 1
-                elif is_sent_page_number(ebsent_list, sent_idx+1, atext) and \
-                     sent_idx + 2 < num_sent:
-                #elif (is_sent_page_number(ebsent_list, sent_idx+1, atext) and
-                #      is_sent_starts_with_lower(ebsent_list, sent_idx+1)):
-                    # throw away the page number tokens
-                    ebsent.extend_tokens(ebsent_list[sent_idx+2].get_tokens(),
-                                         atext)
-                    sent_idx += 2
-            result.append(ebsent)
-        sent_idx += 1
-    return result
-
-
 # CoreNLP removes spaces at the beginning of a doc using trim(),
 # so the offsets for docs with prefix spaces have wrong offsets.
 def align_first_word_offset(json_sent_list, atext):
@@ -231,7 +201,7 @@ def align_first_word_offset(json_sent_list, atext):
 
 # ajson is result from corenlp
 # returns a list of EbSentence
-def corenlp_json_to_ebsent_list(file_id, ajson, atext, is_doc_structure=False) -> List[EbSentence]:
+def corenlp_json_to_ebsent_list(file_id, ajson, atext) -> List[EbSentence]:
     result = []  # type: List[EbSentence]
 
     if isinstance(ajson, str):
@@ -245,46 +215,5 @@ def corenlp_json_to_ebsent_list(file_id, ajson, atext, is_doc_structure=False) -
         ebsent = EbSentence(file_id, json_sent, atext, num_prefix_space)
         result.append(ebsent)
 
-    # if is_doc_structure, merge has already being done
-    if not is_doc_structure:
-        result = _pre_merge_broken_ebsents(result, atext)
-    else:
-        result = filter_out_empty_lines(result, atext)
+    result = filter_out_empty_lines(result, atext)
     return result
-
-# pylint: disable=pointless-string-statement
-"""
-# ajson is result from corenlp
-# paras_with_attrs has the the corenlp offsets
-# returns a list of EbSentence
-def corenlp_json_to_ebsent_list_v2(file_id, ajson, atext, paras_with_attrs):
-    result = []
-
-    if isinstance(ajson, str):
-        logger.error('failed to corenlp file_id_xxx: [{}]'.format(file_id))
-        logger.error('ajson= {}...'.format(str(ajson)[:200]))
-
-    # num_prefix_space = _strutils.get_num_prefix_space(atext)
-    num_prefix_space = align_first_word_offset(ajson['sentences'], atext)
-
-    para_i = 0
-    (stage1_start, stage1_end), (para_start, para_end), para_line, attr_list = paras_with_attrs[para_i]
-    for json_sent in ajson['sentences']:
-        ebsent = EbSentence(file_id, json_sent, atext, num_prefix_space)
-        stage2_start = ebsent.start - num_prefix_space
-        stage2_end = ebsent.end - num_prefix_space
-
-        # xxx
-        xxxx
-        when there is a page number deletion, how do you keep of the offsets correct, especially
-        the end of the sentence is in the middle of the para?
-        The offsets in token is of course even more messed up.
-
-        if mathutils.is_overlap((para_start, para_end), (stage1_start, stage1_eng)):
-            ebsent.set_sechead(secheadutils.attrs2sechead)
-
-        result.append(ebsent)
-
-    # result = _pre_merge_broken_ebsents(result, atext)
-    return result
-"""

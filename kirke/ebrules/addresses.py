@@ -1,4 +1,4 @@
-
+import logging
 import pickle
 import re
 import string
@@ -9,6 +9,10 @@ import pandas as pd
 from kirke.utils import strutils
 
 """Config. RETRAIN retrains the classifier."""
+
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 DATA_DIR = './dict/addresses/'
@@ -181,14 +185,13 @@ def find_features(line: str, num_chunks, keywords):
 """Load and prepare the classifier"""
 
 
-with open(DATA_DIR + 'address_classifier.pickle', 'rb') as f:
-    ADDR_CLASSIFIER = pickle.load(f)
-
 KEYWORDS = load_keywords()
-
+ADDR_CLASSIFIER = None
 
 # it takes around 7 ms per call
 def classify(line: str) -> float:
+    # pylint: disable=global-statement
+    global ADDR_CLASSIFIER
     """Returns probability (range 0-1) s is an addresses (accept if >= 0.5)."""
 
     # if (len(s) not in range(MIN_ADDRESS_LEN, MAX_ADDRESS_LEN + 1)
@@ -200,6 +203,11 @@ def classify(line: str) -> float:
         return 0
     # s = unidecode(s)
     features = find_features(line, NUM_DIGIT_CHUNKS, KEYWORDS)
+    if ADDR_CLASSIFIER is None:
+        with open(DATA_DIR + 'address_classifier.pickle', 'rb') as f:
+            logger.info('loading ADDR_CLASSIFIER(%s)', DATA_DIR + 'address_classifier.pickle')
+            ADDR_CLASSIFIER = pickle.load(f)
+
     result = ADDR_CLASSIFIER.prob_classify(features).prob(1)
 
     return result

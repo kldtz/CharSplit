@@ -1,3 +1,14 @@
+# DO NOT REMOVE THIS FILE
+# because old model pickled files contain reference to this file.
+# It was 'import'ed in spanannotator.py because of mypy type checking.
+# This file is NO LONGER CALLED BY EXISTING CODE.
+#
+# In the future, probably can shrink this file into just 1 empty class,
+# with 'pass' as sole statement.
+#
+# The file, as is, is causing pylint to be unhappy because some utility
+# functions in other files are missing.  Please ignore.
+
 # pylint: disable=too-many-lines
 import concurrent.futures
 from enum import Enum
@@ -225,6 +236,8 @@ def nlptxt_to_attrvec_list(para_doc_text,
     # let's adjust the offsets in prov_annotation to keep things simple and
     # maximize reuse of existing code.
 
+    # ebantdoc2.py is no longer used
+    # pylint: disable=unexpected-keyword-arg
     ebsent_list = corenlputils.corenlp_json_to_ebsent_list(txt_file_name,
                                                            corenlp_json,
                                                            para_doc_text,
@@ -390,13 +403,15 @@ def html_to_ebantdoc2(txt_file_name,
     # print("html_to_ebantdoc2({}, {}, is_cache_eanbled={}".format(txt_file_name,
     #                                                              work_dir, is_cache_enabled))
 
+    # ebantdoc2.py is no longer used
+    # pylint: disable=unpacking-non-sequence
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
-    paras_with_attrs, para_doc_text, gap_span_list, _ = \
-            htmltxtparser.parse_document(txt_file_name,
-                                         work_dir=work_dir,
-                                         is_combine_line=True)
+    # pylint: disable=line-too-long
+    paras_with_attrs, para_doc_text, gap_span_list, _ = htmltxtparser.parse_document(txt_file_name,  # type: ignore
+                                                                                     work_dir=work_dir,
+                                                                                     is_combine_line=True)
     txt4nlp_fname = get_nlp_fname(txt_base_fname, work_dir)
     txtreader.dumps(para_doc_text, txt4nlp_fname)
     if debug_mode:
@@ -484,9 +499,11 @@ def pdf_to_ebantdoc2(txt_file_name,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
+    # ebantdoc2.py is no longer used
+    # pylint: disable=no-member, line-too-long
     doc_text, nl_text, unused_linebreak_arr, \
         paraline_text, unused_para_not_linebreak_arr, cpoint_cunit_mapper = \
-            pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
+            pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)  # type: ignore
 
     prov_annotation_list, is_test = ebsentutils.load_prov_annotation_list(txt_file_name,
                                                                           cpoint_cunit_mapper)
@@ -503,8 +520,11 @@ def pdf_to_ebantdoc2(txt_file_name,
     # Section header for *.praline.txt is much better than trying to identify section for
     # pages with only 1 block.  Cannot really switch to *.paraline.txt now because double-lined text
     # might cause more trouble.
+
+    # ebantdoc2.py is no longer used
+    # pylint: disable=no-member
     paras2_with_attrs, para2_doc_text, gap2_span_list = \
-        pdftxtparser.to_paras_with_attrs(pdf_text_doc,
+        pdftxtparser.to_paras_with_attrs(pdf_text_doc,  # type: ignore
                                          txt_file_name,
                                          work_dir=work_dir,
                                          debug_mode=False)

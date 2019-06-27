@@ -1,22 +1,43 @@
 #!/usr/bin/env python3
 # pylint: disable=too-many-lines
 
-import argparse
+from collections import namedtuple
 import logging
 import re
-from typing import Optional, Tuple
+# pylint: disable=unused-import
+from typing import List, Optional, Tuple
 
 from nltk.tokenize import wordpunct_tokenize
 
-from kirke.docstruct import lxlineinfo, footerutils, addrutils
+from kirke.docstruct import lxlineinfo, footerutils
 from kirke.utils import strutils, stopwordutils
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-
+IS_DEBUG_SECHEAD = False
 DEBUG_MODE = False
+
+
+SecHeadTuple = namedtuple('SecHeadTuple', ['start', 'end', 'head_prefix', 'head_st', 'page_num'])
+"""
+# pylint: disable=too-few-public-methods
+class SecHeadTuple:
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, start: int, end: int, head_prefix: str, head_st: str, page_num: int) \
+        -> None:
+        self.start = start
+        self.end = end
+        self.head_prefix = head_prefix
+        self.head_st = head_st
+        self.page_num = page_num
+
+    def to_tuple(self) -> Tuple[int, int, str, str, int]:
+        return self.start, self.end, self.head_prefix, self.head_st, self.page_num
+"""
+
 
 SUBHEAD_PREFIX_PAT = re.compile(r'^[\s§]*((Section\s*)?\d+(\s*\.\d+)+\.?\b|'
                                 r'\(?[a-zA-Z0-9]+\)|[a-zA-Z0-9]+\.|\(\d+)\s*(.*)$',
@@ -44,16 +65,16 @@ SECHEAD_DIGIT_PAT = re.compile(r'\b(\d+|[A-Z]|[VIXM]+)\.$')
 # pylint: disable=too-many-instance-attributes, too-few-public-methods
 class SectionHead:
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-instance-attributes, too-few-public-methods
     def __init__(self,
-                 sec_cat,
-                 start,
-                 end,
-                 pagenum,
-                 sec_prefix,
-                 sec_title,
-                 sec_text,
-                 head_lineinfos):
+                 sec_cat: str,
+                 start: int,
+                 end: int,
+                 pagenum: int,
+                 sec_prefix: str,
+                 sec_title: str,
+                 sec_text: str,
+                 head_lineinfos) -> None:
         self.category = sec_cat   # "sechead", "subsec"
         self.start = start
         self.end = end
@@ -62,7 +83,7 @@ class SectionHead:
         self.title = sec_title
         self.text = sec_text
         self.head_lineinfo_list = head_lineinfos
-        self.lineinfo_list = []
+        self.lineinfo_list = []  # type: List
 
     def append_lineinfo(self, lineinfo):
         self.lineinfo_list.append(lineinfo)
@@ -186,27 +207,6 @@ def are_the_same_word(word1: str, word2: str) -> bool:
             word1 == word2[-1])
 
 
-def is_invalid_heading(line: str) -> bool:
-    words = line.split()
-    if len(words) >= 2:  # may contain the prefix 6.2
-        result = ' '.join(words[1:]).lower() in sechead_invalid_heading_set
-        return result
-    result = line.lower() in sechead_invalid_heading_set
-    return result
-
-def is_maybe_sechead_title(line):
-    norm_line_words = norm_lcword(line)  # to catch "523 East Weddel" as an address
-    # avoid 'patent license agreement', which is in sechead.xxx.xxx
-    # When such line is treated as a sechead, it cannot be
-    # considered as a 'title' anymore.  So must avoid this.
-    if norm_line_words[-1] in set(['agreement', 'contract']):
-        return False
-    if is_word_overlap(norm_line_words, sechead_xxx_word_set) and \
-       not is_invalid_heading(line) and \
-       not contains_invalid_sechead_word(norm_line_words):
-        return True
-    return False
-
 
 WORD_WITH_PERIOD_PAT = re.compile(r'(\S+[\.\:]\S*|\S+\s\s\s+(\S))')
 
@@ -236,145 +236,145 @@ def split_subsection_head3(line) -> int:
                period_index < 70:
                 if period_index < linelen:
                     space_idx = period_index
-                    while space_idx < linelen and strutils.is_space(line[space_idx]):
+                    while space_idx < linelen and \
+                          strutils.is_space(line[space_idx]):
                         space_idx += 1
                     return space_idx
     return -1
 
-"""
-def extract_sechead(line: str, debug_mode=False):
-    split_idx = split_subsection_head2(line)
-    if split_idx != -1:
-        # print("split: [{}]".format(line[:split_idx]))
-        line = line[:split_idx]
 
-    category, prefix, sechead = parse_sec_head(line, debug_mode)
-    return category, prefix, sechead, split_idx, line.strip()
-"""
-
-last_extract_sechead23_line = ''
-def extract_sechead23(line: str,
-                      is_skip_repeat=False,
-                      # pylint: disable=unused-argument
-                      debug_mode=False):
-    # pylint: disable=global-statement
-    global last_extract_sechead23_line
-    # print("\nextract_sechead2({})".format(line))
-    split_idx = split_subsection_head3(line)
-    if split_idx != -1:
-        # print("split2: [{}]".format(line[:split_idx]))
-        line = line[:split_idx]
-
-    if is_skip_repeat and line.strip() == last_extract_sechead23_line:
-        return '', '', '', ''
-    last_extract_sechead23_line = line.strip()
-
-    category, prefix, sechead = parse_sec_head(line)
-    prefix2, num2, sechead2, unused_end_idx = parse_sechead_remove_lastnum(line)
-
-    combined_prefix2 = prefix2 + " " + num2
-
-    if category or (prefix2 or num2 or sechead2) and prefix != combined_prefix2:
-        print()
-        print('line = [{}]'.format(line))
-        print("category = {}, prefix = {}, sechead = {}".format(category, prefix, sechead))
-        print("prefix2 = {}, sechead2 = {}".format(combined_prefix2, sechead2))
-        print('=========================')
-
-    return category, prefix, sechead, split_idx
+def is_invalid_heading(line: str) -> bool:
+    words = line.split()
+    # may contain the prefix 6.2
+    if len(words) >= 2 and \
+       ' '.join(words[1:]).lower() in sechead_invalid_heading_set:
+        return True
+    return line.lower() in sechead_invalid_heading_set
 
 
-# is_skip_repeat is set to true if we don't want to repeat because
-# the comebined line effect from top level.
-last_extract_sechead2_line = ''
-def extract_sechead2(line: str,
-                     is_skip_repeat=False,
-                     # pylint: disable=unused-argument
-                     debug_mode=False):
-    # pylint: disable=global-statement
-    global last_extract_sechead2_line
-    # print("\nextract_sechead2({})".format(line))
-    split_idx = split_subsection_head3(line)
-    if split_idx != -1:
-        # print("split2: [{}]".format(line[:split_idx]))
-        line = line[:split_idx]
-
-    if is_skip_repeat and line.strip() == last_extract_sechead2_line:
-        return '', '', '', ''
-    last_extract_sechead2_line = line.strip()
-
-    category, prefix, sechead = parse_sec_head(line)
-
-    """
-    if category:
-        print()
-        print('line = [{}]'.format(line))
-        print("category = {}, prefix = {}, sechead = {}".format(category, prefix, sechead))
-        print("prefix2 = {}, sechead2 = {}".format(combined_prefix2, sechead2))
-        print('=========================')
-        """
-
-    return category, prefix, sechead, split_idx
+def is_maybe_sechead_title(line):
+    norm_line_words = norm_lcword(line)  # to catch "523 East Weddel" as an address
+    # avoid 'patent license agreement', which is in sechead.xxx.xxx
+    # When such line is treated as a sechead, it cannot be
+    # considered as a 'title' anymore.  So must avoid this.
+    if norm_line_words[-1] in set(['agreement', 'contract']):
+        return False
+    if is_word_overlap(norm_line_words, sechead_xxx_word_set) and \
+       not is_invalid_heading(line) and \
+       not contains_invalid_sechead_word(norm_line_words):
+        return True
+    return False
 
 
-last_extract_sechead3_line = ''
-def extract_sechead3(line: str,
-                     is_skip_repeat=False,
-                     # pylint: disable=unused-argument
-                     debug_mode=False):
-    # pylint: disable=global-statement
-    global last_extract_sechead3_line
-    # print("\nextract_sechead2({})".format(line))
-    split_idx = split_subsection_head3(line)
-    if split_idx != -1:
-        # print("split2: [{}]".format(line[:split_idx]))
-        line = line[:split_idx]
-    if is_skip_repeat and line.strip() == last_extract_sechead3_line:
-        return '', '', '', ''
-    last_extract_sechead3_line = line.strip()
+# pylint: disable=too-many-return-statements
+def is_invalid_sechead(unused_sechead_type: str,
+                       prefix: str,
+                       head: str,
+                       unused_split_idx: int):
+    # toc
+    if '...' in head:
+        return True
 
-    prefix2, num2, sechead2, unused_end_idx = parse_sechead_remove_lastnum(line)
+    lc_head = head.lower()
+    if lc_head in sechead_invalid_heading_set:
+        return True
 
-    combined_prefix2 = prefix2 + " " + num2
+    # should have a parenthesis in sechead that's long
+    paren_mat = re.search(r'\(.*\)', lc_head)
+    if paren_mat:
+        # print("paren_mat len = {}".format(len(paren_mat.group())))
+        if len(paren_mat.group()) >= 43:
+            return True
 
-    if prefix2 or num2 or sechead2:
-        return '', combined_prefix2, sechead2, split_idx
+    # in TOC, or a table column
+    if lc_head.count('exhibit') >= 2:
+        return True
 
-    return '', '', '', ''
+    if prefix == 'a':   # 'a', 'Force Majeure Event.'
+        return True
+
+    if 'by year' in lc_head:  # 'S/MWh by Year' in carousel.txt
+        return True
+
+    words = head.split()
+    # 'At the termination of the Transmission Force Majeure Event, the '
+    if len(words) >= 8:
+        if strutils.is_word_all_lc(words[-1]):
+            return True
+        # 'xxx shall:'
+        if words[-1][-1] == ':' and strutils.is_word_all_lc(words[-1][:-1]):
+            return True
+    # 'Agreement'
+    if (not prefix) and head in set(['Agreement', 'Agreement.']):
+        return True
+    return False
 
 
+def extract_sechead(line: str,
+                    *,
+                    prev_line: str = '',
+                    prev_line_idx: int = -1,
+                    is_combine_line: bool = True,
+                    is_centered: bool = False) \
+                    -> Optional[Tuple[str, str, str, int]]:
+    if IS_DEBUG_SECHEAD:
+        print("~12~ extract_sechead({})".format(line))
+        print('         prev_line = [{}]'.format(prev_line))
+        print('         prev_line_idx = {}'.format(prev_line_idx))
+        print('         is_combine_line = {}'.format(is_combine_line))
+        print('         is_centered = {}'.format(is_centered))
+    shead_tuple = extract_sechead_aux(line,
+                                      prev_line=prev_line,
+                                      prev_line_idx=prev_line_idx,
+                                      is_combine_line=is_combine_line,
+                                      is_centered=is_centered)
+    # handling if all sechead prefix are capitalized, but the rest is not
+    # example: CONTRACT ENERGY RATE  By Commercial Operation Year
+    # return: CONTRACT ENERGY RATE
+    if shead_tuple:
+        shead_type, shead_prefix, shead_st, prefix = shead_tuple
+        if prefix == -1:
+            capital_words_prefix = trime_non_capital_words(shead_st)
+            if capital_words_prefix:
+                unused_out_start, unused_out_end, out_st = capital_words_prefix
+                # prefix_idx = line.find(out_st)
+                # shead_tuple = shead_type, shead_prefix, out_st, prefix_idx + len(out_st)
+                shead_tuple = shead_type, shead_prefix, out_st, -1
 
-"""
-# this is to wrap and track waht extract_sechead_v4() returns
-def extract_sechead_v4(line: str,
-                       prev_line=None,
-                       prev_line_idx=-1,
-                       debug_mode=False,
-                       is_combine_line=True):
-    xxx = extract_sechead_v4xxx(line, prev_line, prev_line_idx, debug_mode, is_combine_line)
+    if shead_tuple and not is_invalid_sechead(*shead_tuple):
+        if IS_DEBUG_SECHEAD:
+            print('       result ex_sechead => {}'.format(shead_tuple))
+        return shead_tuple
+    if IS_DEBUG_SECHEAD:
+        print('       not sechead')
+    return None
 
-    print('extract_sechead_v4, line = [{}], result = {}'.format(line, xxx))
-    return xxx
-"""
 
 # assuming prev_line, if set, is the sec
 # returns tuple-4, (sechead|sechead-comb, prefix+num, head, split_idx)
-# pylint: disable=too-many-return-statements, too-many-branches, too-many-statements, too-many-locals
-def extract_sechead_v4(line: str,
-                       prev_line=None,
-                       prev_line_idx=-1,
-                       # pylint: disable=unused-argument
-                       debug_mode=False,
-                       is_combine_line=True) \
-                       -> Tuple[str, str, str, int]:
+# pylint: disable=too-many-locals, too-many-return-statements, too-many-branches, too-many-statements
+def extract_sechead_aux(line: str,
+                        prev_line: str = '',
+                        prev_line_idx: int = -1,
+                        is_combine_line: bool = True,
+                        is_centered: bool = False) \
+                        -> Optional[Tuple[str, str, str, int]]:
     if not line:
-        return '', '', '', -1
+        return None
 
-    if not is_combine_line:
+    if not is_combine_line or not prev_line:
 
         # 3 Months
         if is_invalid_heading(line):
-            return '', '', '', -1
+            return None
+
+        # if all capitalized, short, and centered, it is
+        # a section head.
+        if is_centered and strutils.is_all_caps_space(line):
+            words = line.split()
+            words_len_gt4 = [word for word in words if len(word) > 4]
+            if len(words) < 6 and len(words_len_gt4) >= 1:
+                return ('sechead', '', line, -1)
 
         split_idx = split_subsection_head3(line)
         if split_idx != -1:
@@ -387,10 +387,9 @@ def extract_sechead_v4(line: str,
         prefix, num, head, end_idx = parse_sechead_remove_lastnum(line)
 
         if not (prefix or head):
-            return '', '', '', -1
+            return None
         prefix = ' '.join([prefix, num]).strip()
         return ('sechead', prefix, head, split_idx)
-
 
     if not prev_line:
         last_extract_sechead_v4_line = ''
@@ -410,7 +409,6 @@ def extract_sechead_v4(line: str,
         # for the following 2 cases, not include the prev_line
         # Articles Article 1
         # 3 2.3.2 Section Head.
-        # words = line.split()
         lc_words = lc_line[:50].split()
         # we only want the first word
         lc_prev_words = last_extract_sechead_v4_line[:50].lower().split()
@@ -468,8 +466,9 @@ def extract_sechead_v4(line: str,
         print("\t\tline: [{}]".format(line[:60]))
 
 
+    # pylint: disable=too-many-boolean-expressions
     if not (comb_prefix or comb_head or prefix or head):
-        return '', '', '', -1
+        return None
     # 'Artilce II\nServices',  'Service' didn't match head
     elif comb_prefix and comb_head and not (prefix or head):
         if comb_split_idx >= 0 and comb_split_idx > len(last_extract_sechead_v4_line):
@@ -547,103 +546,7 @@ def extract_sechead_v4(line: str,
         # logger.warning('\tcomb_prefix, comb_head = [{}]\t[{}]'.format(comb_prefix, comb_head))
         # logger.warning('\tprefix, head = [{}]\t[{}]'.format(prefix, head))
 
-    return '', '', '', -1
-
-
-# sck, maybe this is not used anymore
-def parse_sec_head(line, debug_mode=False) -> Tuple[Optional[str], str, str]:
-    """
-    return (sechead|subsechead|None, prefix, rest)
-    In future, we might want to return prefix_num, the exact section number.
-    """
-
-    lc_line = line.lower()
-    if reject_sechead(lc_line) or \
-       not is_header_cap(line) or \
-       addrutils.is_address_line(line):
-        return None, '', line
-
-    mat = TOC_PREFIX_PAT.search(line)
-    if mat:
-        return ('toc', '', mat.group(1))
-
-    mat = TOC_PREFIX_2_PAT.search(line)
-    if mat:
-        return ('toc', '', mat.group(1))
-
-    # handle the case
-    # ARTICLES ARTICLE 1 -- BASIC TERMS
-    line = remove_duplicated_first_words(line)
-    # print("line = {}".format(line))
-
-    mat = SUBHEAD_PREFIX_PAT.match(line)
-    mat2 = SUBHEAD_PREFIX_PAT2.match(line)
-    # pylint: disable=too-many-nested-blocks
-    if mat2:
-        if debug_mode:
-            print("matching mat2, subhead_prefix_pat2")
-        return ('subsection', mat2.group(1), mat2.group(2))
-    elif mat:
-        # check for just sechead
-        secmat = SECHEAD_DIGIT_PAT.match(mat.group(1))
-        if secmat:
-            if debug_mode:
-                print("matching mat, subhead_prefix_pat, sechead_digit_pat")
-            return ("sechead", mat.group(1), mat.group(4))
-        else:
-            if debug_mode:
-                print("matching mat, subhead_prefix_pat, NOT sechead_digit_pat")
-            return ('subsection', mat.group(1), mat.group(4))
-    else:
-        # try subhead suffix
-        mat = SUBHEAD_SUFFIX_PAT.match(line)
-
-        if mat:
-            if debug_mode:
-                print("matching mat, subhead_suffix_pat")
-            return ('subsection', mat.group(2), mat.group(1))
-        else:
-
-            # try sechead prefix
-            mat = SECHEAD_PREFIX_PAT.match(line)
-            if mat:
-                if debug_mode:
-                    print("matching mat, NOT subhead_suffix_pat, subhead_prefix_pat")
-                norm_words = norm_lcword(mat.group(7))
-                norm_line_words = norm_lcword(line)  # to catch "523 East Weddel" as an address
-
-                if is_word_overlap(norm_words, sechead_xxx_word_set) and \
-                   ' '.join(norm_words).lower() not in sechead_invalid_heading_set and \
-                   not contains_invalid_sechead_word(norm_line_words):
-                    return ("sechead", mat.group(1), mat.group(7))
-                # 12000 Westheimer Rd, address
-                return None, '', line
-            else:
-                if debug_mode:
-                    print("NOT matching mat, no prefix")
-
-                # OK, now no prefix
-                # if len(line) < 60:
-                if is_header_cap(line):  # this is now redundant
-                    norm_words = norm_lcword(line)
-                    if is_word_overlap(norm_words, sechead_xxx_word_set):
-                        return ("sechead", "", line)
-                    elif is_word_overlap(norm_words, subsec_xxx_word_set):
-                        return ("subsection", "", line)
-
-                    # handling "W  I  T  N  E  S  S  E  T  H:"
-                    if is_all_single_chars(line):
-                        comp_line = compact_line(line)
-                        # print("cline = {}".format(comp_line))
-
-                        norm_words = norm_lcword(comp_line)
-                        if is_word_overlap(norm_words, sechead_xxx_word_set):
-                            return ("sechead", "", line)
-                        elif is_word_overlap(norm_words, subsec_xxx_word_set):
-                            return ("subsection", "", line)
-
-
-    return None, "", line
+    return None
 
 
 def parse_sechead_remove_lastnum(line: str,
@@ -663,32 +566,6 @@ def parse_sechead_remove_lastnum(line: str,
         return prefix_st, num_st, head_st, end_idx
 
     return '', '', '', -1
-
-
-
-def classify_sec_head(filename):
-    with open(filename, 'rt') as fin:
-        for line in fin:
-            line = line.strip().replace('/N', ' ')
-            print("line: [{}]".format(line))
-
-            cat, head_line = line.split("\t")
-
-            if 'textsub' in cat:
-                gold_label = 'subsection'
-            else:
-                gold_label = 'sechead'
-
-            (guess_label, prefix, head_text) = parse_sec_head(head_line)
-
-            if gold_label == guess_label:
-                print("good\t{}\t[{}]\t[{}]\t[{}]".format(guess_label, prefix, head_text, line))
-            elif guess_label == 'subsection':
-                print("bad1\t{}\t[{}]\t[{}]\t[{}]".format(guess_label, prefix, head_text, line))
-            elif guess_label == 'sechead':
-                print("bad2\t{}\t[{}]\t[{}]\t[{}]".format(guess_label, prefix, head_text, line))
-            else:   # guess_label == None
-                print("bad3\t{}\t[{}]\t[{}]\t[{}]".format(guess_label, prefix, head_text, line))
 
 
 TOP_SEC_PREFIX_PAT = re.compile(r'^(\d+)\.\d+$')
@@ -766,153 +643,8 @@ def verify_sechead_prefix(line):
     return False, prev_top_sechead_num
 
 
-
-
 HEADER_NUM_PAT = re.compile(r'(\d+)(\.\d+)+')
 
-"""
-
-def find_section_header(lineinfo_list, skip_lineinfo_set):
-    sechead_results = []
-    prevYStart = -1
-    prevPageNum = -1
-    for lineinfo in lineinfo_list:
-        if not lineinfo in skip_lineinfo_set:
-            is_header_num = HEADER_NUM_PAT.match(lineinfo.words[0])
-            if is_header_num:
-                if prevPageNum != lineinfo.page:
-                    prevYStart = -1
-                # print("yes sec header: {}".format(lineinfo.text))
-                ydiff = lineinfo.yStart - prevYStart
-                #print("pageNum= {}, prevYStart = {}, yStart= {}, ydiff={}".format(lineinfo.page,
-                #                                                                  prevYStart,
-                #                                                                  lineinfo.yStart,
-                #                                                                  ydiff))
-                if ydiff > 18.0:
-                    lineinfo.category = 'sechead'
-                    sechead_results.append(lineinfo)
-            else:
-                #print("maybe sec header: {}".format(lineinfo.text))
-                pass
-        else:
-            # print("skip as sec header: {}".format(lineinfo.text))
-            pass
-        prevYStart = lineinfo.yStart
-        prevPageNum = lineinfo.page
-    return sechead_results
-
-
-def find_section_header2(lineinfo_list, skip_lineinfo_set):
-    sechead_results = []
-    prevYStart = -1
-    prevPageNum = -1
-    for lineinfo in lineinfo_list:
-        if not lineinfo in skip_lineinfo_set:
-            guess_label, prefix, head_text = secheadutils.parse_sec_head(lineinfo.text)
-            if guess_label:
-                if prevPageNum != lineinfo.page:
-                    prevYStart = -1
-                # print("yes sec header: {}".format(lineinfo.text))
-                ydiff = lineinfo.yStart - prevYStart
-                #print("pageNum= {}, prevYStart = {}, yStart= {}, ydiff={}".format(lineinfo.page,
-                #                                                                  prevYStart,
-                #                                                                  lineinfo.yStart,
-                #                                                                  ydiff))
-                if ydiff > 18.0:
-                    lineinfo.category = guess_label
-                    sechead_results.append(lineinfo)
-            else:
-                #print("maybe sec header: {}".format(lineinfo.text))
-                pass
-        else:
-            # print("skip as sec header: {}".format(lineinfo.text))
-            pass
-        prevYStart = lineinfo.yStart
-        prevPageNum = lineinfo.page
-    return sechead_results
-"""
-
-"""
-# this take "WHEREAS" from beginning of a line, chop it off
-# and also merge "ARTICLE 1", "Definitons and Rules of Interpretation"
-# into sechead
-def xxxfind_section_header(lineinfo_list, skip_lineinfo_set):
-    sechead_results = []
-    sechead_lineinfo_results = []
-    prevYStart = -1
-    prevPageNum = -1
-
-    linfo_index = 0
-    max_linfo_index = len(lineinfo_list)
-    while linfo_index < max_linfo_index:
-        lineinfo = lineinfo_list[linfo_index]
-
-        if not lineinfo in skip_lineinfo_set:
-
-            # if lineinfo.text.lower().startswith('article 17'):
-            #    print("helllo234")
-
-            #if lineinfo.text == 'EXHIBIT J ':
-            #    print("helllo234")
-            #if lineinfo.start >= 187595:
-            #    print("helllo234")
-
-            if prevPageNum != lineinfo.page:
-                prevYStart = -1
-            # print("yes sec header: {}".format(lineinfo.text))
-            ydiff = lineinfo.yStart - prevYStart
-
-            # it's possible that paragraphs might be out of order "Article 17\nIndemnity",
-            # versus "Section 17.01 xxx"
-            if lineinfo.is_close_prev_line:
-                linfo_index += 1
-                prevYStart = lineinfo.yStart
-                prevPageNum = lineinfo.page
-                continue
-
-            if linfo_index+1 < max_linfo_index:
-                next_lineinfo =  lineinfo_list[linfo_index+1]
-
-            if (lineinfo.is_center() and linfo_index+1 < max_linfo_index and
-                lineinfo_list[linfo_index+1].is_center()):
-                if lineinfo_list[linfo_index+1] not in skip_lineinfo_set:
-                    maybe_text = lineinfo.text + '  ' + lineinfo_list[linfo_index+1].text
-                    guess_label, prefix, head_text = parse_sec_head(maybe_text)
-                    # we don't want '(a)'
-                    if guess_label and '(' not in prefix:
-                        sechead = SectionHead("sechead",
-                                              lineinfo.start,
-                                              lineinfo_list[linfo_index + 1].end,
-                                              prefix,
-                                              head_text,
-                                              maybe_text,
-                                              [lineinfo, lineinfo_list[linfo_index + 1]])
-                        # print("helllo2222 {}".format(sechead))
-                        sechead_results.append(sechead)
-                        sechead_lineinfo_results.append(lineinfo)
-                        sechead_lineinfo_results.append(lineinfo_list[linfo_index + 1])
-                        linfo_index += 1  # we already used up one extra
-                #else:
-                #    print("skipping hhhello: %s" %
-                #          lineinfo.text + lineinfo_list[linfo_index+1].text)
-            else:   # at this point, we know it is not close to previous line
-                guess_label, prefix, head_text = parse_sec_head(lineinfo.text)
-                if guess_label and '(' not in prefix:
-                    lineinfo.category = guess_label
-                    sechead = SectionHead(guess_label,
-                                          lineinfo.start,
-                                          lineinfo.end,
-                                          prefix,
-                                          head_text,
-                                          lineinfo.text,
-                                          [lineinfo])
-                    sechead_results.append(sechead)
-                    sechead_lineinfo_results.append(lineinfo)
-        linfo_index += 1
-        prevYStart = lineinfo.yStart
-        prevPageNum = lineinfo.page
-    return sechead_results, sechead_lineinfo_results
-"""
 
 def getLinfoYXstart(lineinfo):
     return lineinfo.yStart, lineinfo.xStart
@@ -925,7 +657,7 @@ def is_startswith_exhibit(line):
 def mycmp2(x, y):
     if x < y:
         return -1
-    elif y < x:
+    if y < x:
         return 1
     return 0
 
@@ -936,9 +668,12 @@ def y_comparator(linfo1, linfo2):
         return mycmp2(linfo1.xStart, linfo2.xStart)
     return mycmp2((linfo1.yStart, linfo1.xStart), (linfo2.yStart, linfo2.xStart))
 
+
 def cmp_to_key(mycmp):
     'Convert a cmp= function into a key= function'
+    # pylint: disable=too-few-public-methods
     class K:
+        # pylint: disable=unused-argument
         def __init__(self, obj, *unused_args):
             self.obj = obj
         def __lt__(self, other):
@@ -954,157 +689,6 @@ def cmp_to_key(mycmp):
         def __ne__(self, other):
             return mycmp(self.obj, other.obj) != 0
     return K
-
-
-def find_paged_section_header(paged_lineinfo_list, skip_lineinfo_set):
-    sechead_results = []
-    sechead_lineinfo_results = []
-
-    cur_sechead = None
-    # pylint: disable=too-many-nested-blocks
-    for page_num, paged_lineinfos in enumerate(paged_lineinfo_list, 1):
-        # if page_num == 44:
-        #   print("hellolllll")
-        paged_lineinfo_list = list(paged_lineinfos)
-
-        # ybased_lineinfo_list = sorted(paged_lineinfo_list, key=getLinfoYXstart)
-        ybased_lineinfo_list = sorted(paged_lineinfo_list, key=cmp_to_key(y_comparator))
-        linfo_index = 0
-        max_linfo_index = len(ybased_lineinfo_list)
-        # prev_y_start = -1
-        while linfo_index < max_linfo_index:
-            lineinfo = ybased_lineinfo_list[linfo_index]
-
-            if lineinfo not in skip_lineinfo_set:
-
-                # if lineinfo.text.lower().startswith('article 17'):
-                #    print("helllo234")
-
-                # if lineinfo.text == 'CONTRACT RATE':
-                #    print("helllo234")
-                #if lineinfo.start >= 237477:
-                #    print("helllo234")
-
-                # it's possible that paragraphs might be out of order "Article 17\nIndemnity",
-                # versus "Section 17.01 xxx"
-                if lineinfo.is_close_prev_line:
-                    linfo_index += 1
-                    # prev_y_start = lineinfo.yStart
-                    if cur_sechead:
-                        cur_sechead.append_lineinfo(lineinfo)
-                    continue
-
-                # mainly for debugging purpose
-                # if linfo_index+1 < max_linfo_index:
-                #     next_lineinfo = ybased_lineinfo_list[linfo_index+1]
-
-                if is_startswith_exhibit(lineinfo.text) and \
-                   linfo_index+1 < max_linfo_index and \
-                   ybased_lineinfo_list[linfo_index + 1] not in skip_lineinfo_set:
-
-                    maybe_text = lineinfo.text + '  ' + ybased_lineinfo_list[linfo_index + 1].text
-                    guess_label, prefix, head_text = parse_sec_head(maybe_text)
-                    is_top_sechead, unused_top_sechead_num = verify_sechead_prefix(prefix)
-                    # we don't want '(a)'
-                    if guess_label and '(' not in prefix and is_top_sechead:
-                        if is_startswith_exhibit(prefix):
-                            guess_label = 'exhibit'
-                        else:
-                            guess_label = 'sechead'
-                        lineinfo.category = guess_label
-                        ybased_lineinfo_list[linfo_index + 1].category = guess_label
-                        cur_sechead = SectionHead(guess_label,
-                                                  lineinfo.start,
-                                                  ybased_lineinfo_list[linfo_index + 1].end,
-                                                  page_num,
-                                                  prefix,
-                                                  head_text,
-                                                  maybe_text,
-                                                  [lineinfo, ybased_lineinfo_list[linfo_index + 1]])
-                        # print("helllo2222 {}".format(sechead))
-                        sechead_results.append(cur_sechead)
-                        sechead_lineinfo_results.append(lineinfo)
-                        sechead_lineinfo_results.append(ybased_lineinfo_list[linfo_index + 1])
-                        linfo_index += 1  # we already used up one extra
-                    else:
-                        if cur_sechead:
-                            cur_sechead.append_lineinfo(lineinfo)
-                elif lineinfo.is_center() and \
-                     linfo_index+1 < max_linfo_index and \
-                     ybased_lineinfo_list[linfo_index+1].is_center() and \
-                     ybased_lineinfo_list[linfo_index + 1] not in skip_lineinfo_set:
-
-                    maybe_text = lineinfo.text + '  ' + ybased_lineinfo_list[linfo_index + 1].text
-                    guess_label, prefix, head_text = parse_sec_head(maybe_text)
-                    is_top_sechead, unused_top_sechead_num = verify_sechead_prefix(prefix)
-                    # we don't want '(a)'
-                    if guess_label and '(' not in prefix and  is_top_sechead:
-                        if is_startswith_exhibit(prefix):
-                            guess_label = 'exhibit'
-                        else:
-                            guess_label = 'sechead'
-                        lineinfo.category = guess_label
-                        ybased_lineinfo_list[linfo_index + 1].category = guess_label
-                        cur_sechead = SectionHead(guess_label,
-                                                  lineinfo.start,
-                                                  ybased_lineinfo_list[linfo_index + 1].end,
-                                                  page_num,
-                                                  prefix,
-                                                  head_text,
-                                                  maybe_text,
-                                                  [lineinfo, ybased_lineinfo_list[linfo_index + 1]])
-                        # print("helllo2222 {}".format(sechead))
-                        sechead_results.append(cur_sechead)
-                        sechead_lineinfo_results.append(lineinfo)
-                        sechead_lineinfo_results.append(ybased_lineinfo_list[linfo_index + 1])
-                        linfo_index += 1  # we already used up one extra
-                    else:
-                        if cur_sechead:
-                            cur_sechead.append_lineinfo(lineinfo)
-
-                            #else:
-                    #    print("skipping hhhello: %s" %
-                    #          lineinfo.text + ybased_lineinfo_list[linfo_index+1].text)
-
-                else:   # at this point, we know it is not close to previous line
-
-                    guess_label, prefix, head_text = parse_sec_head(lineinfo.text)
-                    # for "toc", verify_sechead_prefix will fail
-                    is_top_sechead, unused_top_sechead_num = verify_sechead_prefix(prefix)
-                    if guess_label == 'toc':
-                        cur_sechead = SectionHead(guess_label,
-                                                  lineinfo.start,
-                                                  lineinfo.end,
-                                                  page_num,
-                                                  prefix,
-                                                  head_text,
-                                                  lineinfo.text,
-                                                  [lineinfo])
-                        sechead_results.append(cur_sechead)
-                        sechead_lineinfo_results.append(lineinfo)
-                    elif guess_label and '(' not in prefix and is_top_sechead:
-                        if is_startswith_exhibit(prefix):
-                            guess_label = 'exhibit'
-                        else:
-                            guess_label = 'sechead'
-                        lineinfo.category = guess_label
-                        cur_sechead = SectionHead(guess_label,
-                                                  lineinfo.start,
-                                                  lineinfo.end,
-                                                  page_num,
-                                                  prefix,
-                                                  head_text,
-                                                  lineinfo.text,
-                                                  [lineinfo])
-                        sechead_results.append(cur_sechead)
-                        sechead_lineinfo_results.append(lineinfo)
-                    else:
-                        if cur_sechead:
-                            cur_sechead.append_lineinfo(lineinfo)
-            linfo_index += 1
-            # prev_y_start = lineinfo.yStart
-            # prevPageNum = lineinfo.page
-    return sechead_results, sechead_lineinfo_results
 
 
 ### rewrite of above code
@@ -1229,9 +813,15 @@ if DEBUG_MODE:
     print("sec_head_pat: {}".format(NUM_ROMAN_PAT))
 
 
-def is_valid_sechead_number(word):
+def is_valid_sechead_number(word: str) -> bool:
     mat = sec_head_pat.match(word)
-    return mat
+    if mat:
+        return bool(mat)
+    # run into Cyrillic Capitals
+    # http://www.codetable.net/decimal/1057
+    if len(word) < 2:
+        return True
+    return False
 
 invalid_sechead_words = set(['follow', 'follows', 'by:', 'page', 'pages',
                              'gals.', 'gal', 'gallons', 'lbs.', 'lbs', 'lb', 'pounds', 'pound',
@@ -1569,7 +1159,7 @@ def st_sechead_str(xst):
     return ' '.join(words)
 
 
-line_sechead_prefix_pat_only = re.compile(r'^\s*\(?([\d\.]+|[a-zA-Z])\)?\s*$')
+line_sechead_prefix_pat_only = re.compile(r'^\s*\(?([\d\.]+|[a-zA-Z])|([ivxm\d]+)\)?\s*$')
 
 
 def is_line_sechead_prefix_only(line: str):
@@ -1612,32 +1202,20 @@ def is_line_sechead_strict_prefix(line: str):
     return line_sechead_strict_prefix_pat.match(line)
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Parse a document into a document structure.')
-    parser.add_argument("-v", "--verbosity", help="increase output verbosity")
-    parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
-    # parser.add_argument('doc', help='a file to be annotated', default='sechead.list.txt.sorted')
+def trime_non_capital_words(sechead: str) -> Optional[Tuple[int, int, str]]:
+    """if first few words are all capitalized, return only
+    the caplitalized section.
 
-    # args = parser.parse_args()
-    doc_fn = 'sechead.list.txt.sorted'
-
-    classify_sec_head(doc_fn)
-    # x = parse_sec_head("W  I  T  N  E  S  S  E  T  H:")
-    # x = parse_sec_head("License of Patent Pending Applications")
-    # x = parse_sec_head("THIS AGREEMENT WITNESSES THAT")
-    # x = parse_sec_head("R E C I T A L S")
-    # x = parse_sec_head("No Obligation to Prosecute or Maintain the Patents and Trademarks.")
-    # x = parse_sec_head("10. (a)  Special Agreement.")
-    # print("x = {}".format(x))
-
-    # page_num_list = adoc.get_page_numbers()
-    # atext = adoc.get_text()
-    # for i, page_num in enumerate(page_num_list):
-    #    print("page num #{}: {}".format(i, page_num))
-
-    # docreader.format_document(adoc, sentV2_list)
-
-    logger.info('Done.')
-
-if __name__ == '__main__':
-    main()
+    example: CONTRACT ENERGY RATE  By Commercial Operation Year
+    return: CONTRACT ENERGY RATE
+    """
+    mat = re.search(r'^(([A-Z]+\s+)+)(.*)', sechead)
+    # print("mat: {}".format(mat))
+    # print("mat.group(1): {}".format(mat.group(1)))
+    # print("mat.group(3): {}".format(mat.group(3)))
+    if mat and len(mat.group(1)) > 10 and \
+       len(mat.group(3)) > 10 and \
+       not (mat.group(3).startswith("&") or
+            re.search(r'^(and|or)\b', mat.group(3), flags=re.I)):
+        return mat.start(1), mat.end(1), mat.group(1)
+    return None

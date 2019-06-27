@@ -71,7 +71,7 @@ class ProvisionAnnotator:
                          specified_threshold: Optional[float] = None) \
                          -> Tuple[Dict[str, Any],
                                   Dict[str, Dict]]:
-        logger.debug('test_document_list')
+        logger.debug('ebannotator.testantdoc_list(), len = %d', len(ebantdoc_list))
         if specified_threshold is None:
             threshold = self.threshold
         else:
@@ -103,10 +103,11 @@ class ProvisionAnnotator:
                                                                          ebantdoc,
                                                                          threshold)
             if self.get_nbest() > 0:
+                best_annotations = pred_list[:self.get_nbest()]
                 ant_list = self.recover_false_negatives(prov_human_ant_list,
                                                         ebantdoc.get_text(),
                                                         self.provision,
-                                                        pred_list)
+                                                        best_annotations)
                 xtp, xfn, xfp, xtn, _ = self.call_confusion_matrix(prov_human_ant_list,
                                                                    ant_list,
                                                                    ebantdoc,
@@ -199,6 +200,7 @@ class ProvisionAnnotator:
             adj_prov_human_ant_list = prov_human_ant_list
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
+
         prov_annotations, unused_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),
                                                           prob_attrvec_list,
@@ -225,6 +227,7 @@ class ProvisionAnnotator:
                                                       eb_antdoc.get_nlp_sx_lnpos_list(),
                                                       eb_antdoc.get_origin_sx_lnpos_list())
             # this is an in-place modification
+            # This add span list.  If there is a gap, one will be inserted into span list.
             fromto_mapper.adjust_fromto_offsets(prov_annotations)
             fromto_mapper.adjust_fromto_offsets(full_annotations)
         except IndexError:

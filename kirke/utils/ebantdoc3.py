@@ -1,3 +1,14 @@
+# DO NOT REMOVE THIS FILE
+# because old model pickled files contain reference to this file.
+# It was 'import'ed in spanannotator.py because of mypy type checking.
+# This file is NO LONGER CALLED BY EXISTING CODE.
+#
+# In the future, probably can shrink this file into just 1 empty class,
+# with 'pass' as sole statement.
+#
+# The file, as is, is causing pylint to be unhappy because some utility
+# functions in other files are missing.  Please ignore.
+
 import array
 from array import ArrayType
 import concurrent.futures
@@ -339,6 +350,8 @@ def html_to_ebantdoc3(txt_file_name,
     txt_file_name, doc_text, prov_annotation_list, is_test, cpoint_cunit_mapper = \
         chop_at_exhibit_complete(txt_file_name, txt_base_fname, work_dir, debug_mode)
 
+    # ebantdoc3.py is no longer used
+    # pylint: disable=unpacking-non-sequence
     paras_with_attrs, para_doc_text, gap_span_list, _ = \
             htmltxtparser.parse_document(txt_file_name,
                                          work_dir=work_dir,
@@ -430,6 +443,8 @@ def pdf_to_ebantdoc3(txt_file_name,
         shutil.copy2(txt_file_name, '{}/{}'.format(work_dir, txt_base_fname))
         shutil.copy2(offsets_file_name, '{}/{}'.format(work_dir, offsets_base_fname))
 
+    # ebantdoc3.py is no longer used
+    # pylint: disable=no-member
     doc_text, unused_nl_text, linebreak_arr, \
         unused_paraline_text, para_not_linebreak_arr, cpoint_cunit_mapper = \
             pdftxtparser.to_nl_paraline_texts(txt_file_name, offsets_file_name, work_dir=work_dir)
@@ -449,6 +464,9 @@ def pdf_to_ebantdoc3(txt_file_name,
     # Section header for *.praline.txt is much better than trying to identify section for
     # pages with only 1 block.  Cannot really switch to *.paraline.txt now because double-lined text
     # might cause more trouble.
+
+    # ebantdoc3.py is no longer used
+    # pylint: disable=no-member
     paras2_with_attrs, para2_doc_text, gap2_span_list = \
         pdftxtparser.to_paras_with_attrs(pdf_text_doc,
                                          txt_file_name,

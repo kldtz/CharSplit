@@ -2,22 +2,21 @@
 
 import configparser
 import logging
-import pprint
 from time import time
 from typing import List, Tuple
 
 import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import GroupKFold
 
 # pylint: disable=unused-import
 from kirke.eblearn import ebattrvec, ebpostproc
 from kirke.eblearn.ebclassifier import EbClassifier
 from kirke.eblearn.ebtransformer import EbTransformer
-from kirke.utils import evalutils
-
 from kirke.eblearn.ebtransformerv1_2 import EbTransformerV1_2
+from kirke.utils import evalutils
+from kirke.utils.stratifiedgroupkfold import StratifiedGroupKFold
+
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -108,7 +107,7 @@ class ShortcutClassifier(EbClassifier):
         return result
 
     # pylint: disable=too-many-statements, too-many-locals
-    def train_antdoc_list(self, ebantdoc_list, work_dir) -> None:
+    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name) -> None:
         logger.info('train_antdoc_list()...')
 
         sent_list = []
@@ -147,7 +146,9 @@ class ShortcutClassifier(EbClassifier):
 
         #    parameters = {'C': [.01, .1, 1, 10, 100]}
         #    sgd_clf = LogisticRegression()
-        group_kfold = list(GroupKFold().split(X_train, y_train, groups=group_id_list))
+        group_kfold = list(StratifiedGroupKFold().split(X_train,
+                                                        y_train,
+                                                        groups=group_id_list))
 
         sgd_clf = SGDClassifier(loss='log', penalty='l2', n_iter=iterations, shuffle=True,
                                 random_state=42, class_weight={True: 3, False: 1})
@@ -170,22 +171,21 @@ class ShortcutClassifier(EbClassifier):
                                    verbose=1,
                                    cv=group_kfold)
 
-        print("Performing grid search...")
-        print("parameters:")
-        pprint.pprint(parameters)
+        logger.info("Performing grid search...")
+        logger.info("parameters:")
+        logger.info(parameters)
         time_0 = time()
         grid_search.fit(X_train, y_train)
-        print("done in %0.3fs" % (time() - time_0))
+        logger.info("done in %0.3fs", (time() - time_0))
 
-        print("Best score: %0.3f" % grid_search.best_score_)
-        print("Best parameters set:")
+        logger.info("Best score: %0.3f", grid_search.best_score_)
+        logger.info("Best parameters set:")
         self.best_parameters = grid_search.best_estimator_.get_params()
-        # pylint: disable=C0201
-        for param_name in sorted(parameters.keys()):
-            print("\t%s: %r" % (param_name, self.best_parameters[param_name]))
-        print()
+        for param_name in sorted(self.best_parameters.keys()):
+            logger.info("\t%s: %r", param_name, self.best_parameters[param_name])
 
         self.eb_grid_search = grid_search.best_estimator_
+        self.save(model_file_name)
 
     def predict_antdoc(self, eb_antdoc, work_dir) -> List[float]:
         # logger.info('predict_antdoc()...')

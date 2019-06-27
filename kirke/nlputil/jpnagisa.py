@@ -2,6 +2,8 @@ import json
 # pylint: disable=unused-import
 from typing import Dict, List, Tuple
 
+# kytea is installed, not nagisa
+# pylint: disable=import-error
 import nagisa
 
 JP_POS_MAP = {

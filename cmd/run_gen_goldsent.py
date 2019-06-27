@@ -35,7 +35,7 @@ def main():
 
     atext = strutils.loads(fname)
     doc_lang = langdetect.detect(atext)
-    ebdoc = ebantdoc4.text_to_ebantdoc4(fname, work_dir, doc_lang=doc_lang)
+    ebdoc = ebantdoc4.text_to_ebantdoc(fname, work_dir, doc_lang=doc_lang)
 
     print('loaded %s' % ebdoc.file_id)
 

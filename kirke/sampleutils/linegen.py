@@ -1,7 +1,8 @@
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from kirke.utils import ebantdoc4, ebsentutils, strutils
+from kirke.utils import ebsentutils, ebantdoc4, strutils
+
 
 
 # pylint: disable=too-few-public-methods
@@ -14,11 +15,11 @@ class LineSpanGenerator:
     # pylint: disable=too-many-locals
     def documents_to_candidates(self,
                                 antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
-                                label: str = None) -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
-                                                                 List[Dict],
-                                                                 List[bool],
-                                                                 List[int]]]:
-
+                                label: Optional[str] = None) \
+                                -> List[Tuple[ebantdoc4.EbAnnotatedDoc4,
+                                              List[Dict],
+                                              List[bool],
+                                              List[int]]]:
         # pylint: disable=line-too-long
         result = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
         # each candidate is the date regex +

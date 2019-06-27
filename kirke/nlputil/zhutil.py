@@ -1,5 +1,7 @@
 import json
 import pprint
+# pylint: disable=unused-import
+from typing import Dict, List
 
 def print_sent(tok_list):
     print('tok send: ', end='')
@@ -23,7 +25,7 @@ def fix_zh_corenlp_sent_seg(json_st: str) -> str:
     ajson = json.loads(json_st)
     sents_attr = ajson['sentences']
 
-    sent_toks_list = []  # type: List[Dict]
+    sent_toks_list = []  # type: List[List[Dict]]
     for sentx in sents_attr:
         tokens = sentx['tokens']
         sent_toks = []  # type: List[Dict]

@@ -178,3 +178,19 @@ class TestDateUtils(unittest.TestCase):
 
         self.assertEqual(dnorm.parse_date('05.06.2014'),
                          {'norm': {'date': '2014-05-06'}})
+
+
+    def test_parse_date_to_fail(self):
+        "Test parse_date which should fail."
+
+        dnorm = dates.DateNormalizer()
+
+        self.assertEqual(dnorm.parse_date('101020'),
+                         None)
+
+        # this returned 2010-10-12
+        self.assertEqual(dnorm.parse_date('101012'),
+                         None)
+
+        self.assertEqual(dnorm.parse_date('1315'),
+                         None)
