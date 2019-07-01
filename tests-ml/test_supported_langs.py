@@ -3,6 +3,7 @@
 import configparser
 import json
 import unittest
+from typing import Dict, List
 
 from kirke.client import postfileutils
 from kirke.utils import corenlputils
@@ -16,6 +17,11 @@ SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 MODEL_DIR = 'dir-scut-model'
 WORK_DIR = 'dir-work'
 CUSTOM_MODEL_DIR = 'dir-custom-model'
+
+def ja_sent_to_tokens(asent: Dict) -> List[str]:
+    tokens = [adict['word'] for adict in asent['tokens']]
+    return tokens
+
 
 class TestLangs(unittest.TestCase):
 
@@ -135,3 +141,42 @@ class TestLangs(unittest.TestCase):
                                                      is_detect_lang=True)
         out_lang = json.loads(result_text)['lang']
         self.assertEqual(out_lang, 'en')
+
+
+    def test_lang_japanese(self):
+        # ------- JAPANESE -------
+        ja_file = 'data/japanese/txt/1010.txt'
+
+        corenlp_result = corenlputils.check_pipeline_lang('ja', ja_file)
+        sents = corenlp_result['sentences']
+
+        # maintly to test tokenized words
+        # if the tokens are reasonable, then bespoke training can work
+        # ok.  No NER.  All 'O' in kytea
+        gold_sent_3 = ['３', '乙', 'は', '、', '本件', '業務', 'の', '実施', 'に', '当た', 'り',
+                       '、', '以下', 'の', '(', '1', ')', '及び', '(', '2', ')', 'を', '遵守',
+                       'する', 'もの', 'と', 'する', '。']
+        gold_sent_8 = ['２', '前項', 'の', '規定', 'に', 'かかわ', 'ら', 'ず', '、', '仕様', '書',
+                       'に', 'お', 'い', 'て', '本', '契約', 'の', '内容', 'と', '矛盾',
+                       '・', '抵触', 'する', '内容', 'が', '定め', 'られ', 'た', '場合', '、',
+                       '仕様', '書', 'に', 'お', 'け', 'る', '当該', '定め', 'は', 'その', '効力',
+                       'を', '有', 'し', 'な', 'い', 'もの', 'と', 'する', '。']
+
+        gold_sent_15 = ['当該', '確定', '数量', 'に', '前項', 'に', '定め', 'る', '単価',
+                        'を', '乗じ', 'る', 'こと', 'を', 'も', 'っ', 'て', '、', '本件',
+                        '業務', 'の', '実施', 'の', '対価', 'の', '全部', '又',
+                        'は', '一部', 'は', '確定', 'する', '。']
+
+        self.assertEqual(gold_sent_3,
+                         ja_sent_to_tokens(sents[3]))
+        self.assertEqual(gold_sent_8,
+                         ja_sent_to_tokens(sents[8]))
+        self.assertEqual(gold_sent_15,
+                         ja_sent_to_tokens(sents[15]))
+
+        result_text = \
+                postfileutils.post_annotate_document(ja_file,
+                                                     ['choiceoflaw'],
+                                                     is_detect_lang=True)
+        out_lang = json.loads(result_text)['lang']
+        self.assertEqual(out_lang, 'ja')
