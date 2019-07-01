@@ -33,7 +33,9 @@ class TestBespokeSent(unittest.TestCase):
         print("ant_result:")
         print(ant_result)
 
-        # {'confusion_matrix': [[0, 19], [30, 63]], 'fscore': 0.7199999999999999, 'model_number': 1020,
+        # {'confusion_matrix': [[0, 24], [33, 60]], 'fscore': 0.6779661016949152, 'model_number': 1001, 'precision': 0.7142857142857143, 'provision': 'cust_555', 'recall': 0.6451612903225806}
+
+        # old: {'confusion_matrix': [[0, 19], [30, 63]], 'fscore': 0.7199999999999999, 'model_number': 1020,
         #  'precision': 0.7682926829268293, 'provision': 'cust_555', 'recall': 0.6774193548387096}
 
         conf_matrix = ant_result['confusion_matrix']
@@ -44,26 +46,26 @@ class TestBespokeSent(unittest.TestCase):
         tp = conf_matrix[1][1]
 
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 19, delta=5)
-        self.assertAlmostEqual(fn, 30, delta=5)
-        self.assertAlmostEqual(tp, 63, delta=5)
+        self.assertAlmostEqual(fp, 24, delta=5)
+        self.assertAlmostEqual(fn, 33, delta=5)
+        self.assertAlmostEqual(tp, 60, delta=5)
 
         # round(ant_result['f1'], 2),
-        # 0.72
+        # 0.68
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.67)
-        self.assertLessEqual(f1, 0.75)
+        self.assertGreaterEqual(f1, 0.63)
+        self.assertLessEqual(f1, 0.73)
 
         # round(ant_result['prec'], 2),
-        # 0.77
+        # 0.71
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.72)
-        self.assertLessEqual(precision, 0.82)
+        self.assertGreaterEqual(precision, 0.66)
+        self.assertLessEqual(precision, 0.76)
 
         recall = round(ant_result['recall'], 2)
-        # 0.68
-        self.assertGreaterEqual(recall, 0.63)
-        self.assertLessEqual(recall, 0.73)
+        # 0.65
+        self.assertGreaterEqual(recall, 0.60)
+        self.assertLessEqual(recall, 0.70)
 
 
 if __name__ == "__main__":
