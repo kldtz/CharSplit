@@ -1,5 +1,6 @@
 import json
 import pprint
+import re
 # pylint: disable=unused-import
 from typing import Dict, List
 
@@ -20,6 +21,15 @@ def print_sent_toks_verbatim(json_st: str) -> None:
         print('\nsent #{}'.format(sent_i))
         pprint.pprint(sentx)
 
+# Googled on 'chinese sentence segmentation', but
+# pretty much no good results.  That implies that the topic
+# is too trivial to write a paper on.
+
+# https://en.wikipedia.org/wiki/Sentence_boundary_disambiguation
+# Languages like Japanese and Chinese have unambiguous sentence-ending markers.
+
+# https://stanfordnlp.github.io/CoreNLP/ssplit.html
+ZH_EOS_PAT = re.compile(r'^([.。]|[!?！？]+)$')
 
 def fix_zh_corenlp_sent_seg(json_st: str) -> str:
     ajson = json.loads(json_st)
@@ -28,13 +38,22 @@ def fix_zh_corenlp_sent_seg(json_st: str) -> str:
     sent_toks_list = []  # type: List[List[Dict]]
     for sentx in sents_attr:
         tokens = sentx['tokens']
+        num_tokens = len(tokens)
         sent_toks = []  # type: List[Dict]
-        for token_dict in tokens:
+        for token_i, token_dict in enumerate(tokens):
             sent_toks.append(token_dict)
             if token_dict['word'] == '\u3002' or \
-               token_dict['word'] == '。':
-                sent_toks_list.append(sent_toks)
-                sent_toks = []
+               bool(ZH_EOS_PAT.search(token_dict['word'])):
+                next_word = ''
+                if token_i + 1 < num_tokens:
+                    next_word = tokens[token_i + 1]['word']
+                # '。）' is not end of a sentence in Japanese
+                if next_word == ')' or \
+                   next_word == '）':
+                    pass
+                else:
+                    sent_toks_list.append(sent_toks)
+                    sent_toks = []
         # for the last sent in sentx
         if sent_toks:
             sent_toks_list.append(sent_toks)

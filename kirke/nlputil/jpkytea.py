@@ -1,4 +1,5 @@
 import json
+import re
 # pylint: disable=unused-import
 from typing import Dict, List, Tuple
 
@@ -31,6 +32,19 @@ JP_POS_MAP = {
     'ローマ字文' : 'ENG', # Roman Writing
     # '' : '',
 }
+
+
+# Googled on 'japanese sentence segmentation', but
+# pretty much no good results.  That implies that the topic
+# is too trivial to write a paper on.
+
+# https://en.wikipedia.org/wiki/Sentence_boundary_disambiguation
+# Languages like Japanese and Chinese have unambiguous sentence-ending markers.
+
+# https://stanfordnlp.github.io/CoreNLP/ssplit.html
+# though we are dealing with Japanese, we will use those
+# end-of-sentence characters from Chinese
+JA_EOS_PAT = re.compile(r'^([.。]|[!?！？]+)$')
 
 
 class KyteaWordSegmenter:
@@ -95,7 +109,7 @@ class KyteaWordSegmenter:
             #     print('wooooooow: [{}] ({}) in [{}]'.format(word, end, text[end:]))
             end = start + len(word)
             words.append((word, pos, start, end))
-            if word == '。':
+            if bool(JA_EOS_PAT.search(word)):
                 next_word = ''
                 if word_i + 1 < num_word_tag:
                     next_word = word_tags[word_i + 1].surface
