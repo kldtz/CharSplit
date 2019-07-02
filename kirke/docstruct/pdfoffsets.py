@@ -251,6 +251,8 @@ class PageInfo3:
         self.start = start
         self.end = end
         self.page_num = page_num
+        # TODO, to remove, this is not accessed.
+        # jshaw, note: pageformat
         self.num_column = 1  # type default
 
         # Fixes header and footer issues due to out of order lines.
@@ -295,6 +297,8 @@ class PageInfo3:
             prev_block_num = linex.lineinfo.obid
         return block_list
 
+    # TODO, to remove, this is not accessed.
+    # jshaw, note: pageformat
     def is_multi_column_pformat(self) -> bool:
         # 0 means a form page
         return self.num_column != 1

@@ -585,6 +585,8 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
                           page_blockoffsets_map: Dict[int, List[Dict]],
                           pgid_pblockinfos_map: Dict[int, List[PBlockInfo]],
                           para_not_linebreak_offsets: List[int],
+                          # TODO, to remove, this is not accessed.
+                          # jshaw, note: pageformat
                           page_numcol_map: Dict[int, int]) \
                           -> None:
 
@@ -592,11 +594,16 @@ def page_paras_ydiff_init(page_linenum_list_map: Dict[int, List[int]],
 
     # compute the page_ydiff_mode for all pages
     # Please note that if a page is a form-page, page_ydiff_mode is -1.
+    # TODO, to update, pf_page_numcol_map -> unused_pf_page_numcol_map
+    # jshaw, note: pageformat
     page_ydiff_mode_map, pf_page_numcol_map = \
         pageformat.calc_page_ydiff_modes_num_cols(page_linenum_list_map,
                                                   lxid_strinfos_map,
                                                   nl_text,
                                                   all_ydiffs)
+
+    # TODO, to remove, this is not accessed.
+    # jshaw, note: pageformat
     # pass number of column in a page to outside
     page_numcol_map.update(pf_page_numcol_map)
 
@@ -849,6 +856,8 @@ def parse_document(file_name: str,
     # updating above two data structure in this call
     #    - pgid_pblockinfos_map
     #    - para_not_linebreak_offsets
+    # TODO, to remove, this is not accessed.
+    # jshaw, note: pageformat
     page_numcol_map = {}  # type: Dict[int, int]
     page_paras_ydiff_init(page_linenum_list_map=page_linenum_list_map,
                           lxid_strinfos_map=lxid_strinfos_map,
@@ -859,6 +868,8 @@ def parse_document(file_name: str,
                           page_blockoffsets_map=page_blockoffsets_map,
                           pgid_pblockinfos_map=pgid_pblockinfos_map,
                           para_not_linebreak_offsets=para_not_linebreak_offsets,
+                          # TODO, to remove, this is not accessed.
+                          # jshaw, note: pageformat
                           page_numcol_map=page_numcol_map)
 
     # TODO, set it to empty for now
@@ -880,6 +891,8 @@ def parse_document(file_name: str,
         page_num = page_offset['id']
         pblockinfo_list = pgid_pblockinfos_map[page_num]
         pinfo = PageInfo3(doc_text, start, end, page_num, pblockinfo_list)
+        # TODO, to remove, this is not accessed.
+        # jshaw, note: pageformat
         pinfo.num_column = page_numcol_map.get(page_num, 1)  # the default is 1 column page
         pageinfo_list.append(pinfo)
 
