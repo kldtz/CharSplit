@@ -1233,3 +1233,14 @@ def save_sent_se_text(eb_antdoc: EbAnnotatedDoc4,
             out_st = sent_text.replace('\n', '|')
             print(out_st, file=fout)
             print(file=fout)
+
+def save_sent_tokens(eb_antdoc: EbAnnotatedDoc4,
+                     file_name: str) -> None:
+
+    with open(file_name, 'wt') as fout:
+        for attrvec in eb_antdoc.attrvec_list:
+            out_st = attrvec.bag_of_words
+            out_st = out_st.replace('\n', ' ')
+            out_st = re.sub(r'\s+', ' | ', out_st)
+            print(out_st, file=fout)
+            print(file=fout)

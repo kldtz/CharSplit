@@ -44,7 +44,9 @@ JP_POS_MAP = {
 # https://stanfordnlp.github.io/CoreNLP/ssplit.html
 # though we are dealing with Japanese, we will use those
 # end-of-sentence characters from Chinese
-JA_EOS_PAT = re.compile(r'^([.。]|[!?！？]+)$')
+# We specifically remove '.' character in this regex because
+# sometime a float is spelled with '.' separated by spaces.
+JA_EOS_PAT = re.compile(r'^([。]|[!?！？]+)$')
 
 
 class KyteaWordSegmenter:
@@ -94,6 +96,7 @@ class KyteaWordSegmenter:
         words = []  # type: List[Tuple[str, str, int, int]]
         start, end = 0, 0
         num_word_tag = len(word_tags)
+        prev_word = ''
         for word_i, word_tag in enumerate(word_tags):
             for txx1 in word_tag.tag:
                 for txx2 in txx1:
@@ -101,7 +104,17 @@ class KyteaWordSegmenter:
                     tag = txx2[0]
                 break
             word = word_tag.surface.replace('　', ' ')
+
+            if (word.startswith('\n') and prev_word.startswith('\n')) or \
+               word.startswith('\n\n'):
+                if words:
+                    # ignore the eoln char
+                    sent_list.append(words)
+                    words = []
+                # this is a space, it will be continues
+
             if word.isspace():
+                prev_word = word
                 continue
             pos = JP_POS_MAP[tag]
             start = text.find(word, end)
@@ -120,6 +133,8 @@ class KyteaWordSegmenter:
                 else:
                     sent_list.append(words)
                     words = []
+
+            prev_word = word
 
         # add last sentence
         if words:

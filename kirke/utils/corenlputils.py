@@ -5,6 +5,7 @@ from typing import Any, List, Optional
 
 from stanfordcorenlp import StanfordCoreNLP
 
+from kirke.utils import strutils
 from kirke.utils.corenlpsent import EbSentence
 from kirke.utils.strutils import corenlp_normalize_text, normalize_acronym_text
 from kirke.utils.textoffset import TextCpointCunitMapper
@@ -106,9 +107,8 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
 
 
 def check_pipeline_lang(doc_lang: str, filename: str) -> str:
-    with open(filename, 'r') as doc:
-        doc_text = doc.read()
-        return annotate(doc_text, doc_lang)
+    doc_text = strutils.loads(filename)
+    return annotate(doc_text, doc_lang)
 
 def annotate_for_enhanced_ner(text_as_string: str, doc_lang: str = 'en'):
     acopy_text = transform_corp_in_text(text_as_string)

@@ -29,7 +29,9 @@ def print_sent_toks_verbatim(json_st: str) -> None:
 # Languages like Japanese and Chinese have unambiguous sentence-ending markers.
 
 # https://stanfordnlp.github.io/CoreNLP/ssplit.html
-ZH_EOS_PAT = re.compile(r'^([.。]|[!?！？]+)$')
+# We specifically remove '.' character in this regex because
+# sometime a float is spelled with '.' separated by spaces.
+ZH_EOS_PAT = re.compile(r'^([。]|[!?！？]+)$')
 
 def fix_zh_corenlp_sent_seg(json_st: str) -> str:
     ajson = json.loads(json_st)
