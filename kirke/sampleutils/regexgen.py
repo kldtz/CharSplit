@@ -2,13 +2,13 @@
 import copy
 import logging
 import re
-from typing import Dict, List, Match, Optional, Pattern, Tuple
+from typing import Dict, List, Optional, Pattern, Tuple
 
-from kirke.utils import ebantdoc4, ebsentutils, strutils
+from kirke.nlputil import regexcand_en, regexcand_jp, text2int_jp
+from kirke.utils import ebantdoc4, ebsentutils, mathutils, strutils, text2int
 
-from kirke.utils import text2int, mathutils
-
-from kirke.utils.text2int import remove_hyphen_among_num_words
+from kirke.utils.text2int import remove_num_words_join_hyphen
+# remove_hyphen_among_num_words
 
 
 # pylint: disable=invalid-name
@@ -16,160 +16,32 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-# pylint: disable=line-too-long
-# (?:^| |\()
-# want to avoid "rst", which is "rs" + "t" where "t" is just trillion
-# CURRENCY_PAT_ST and CURRENCY_PAT ARE NOT USED due to backtracking issues
-# the other currency prefix and suffix patterns are used instead.
-CURRENCY_PAT_ST = r'((\bUSD\b|\bEUR\b|\bGBP\b|\bCNY\b|\bJPY\b|\bINR\b|\bRupees?\b|\bRs\b\.?)|[\$€£円¥₹]) *({})'.format(text2int.numeric_regex_st)
-CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
+def extract_currencies(line: str, doc_lang='en') -> List[Dict]:
+    if doc_lang == 'ja':
+        return regexcand_jp.extract_currencies(line)
+    # by default, do en
+    return regexcand_en.extract_currencies(line)
 
 
-CURRENCY_SYMBOL_PREFIX_ST = r'((\bUSD\b|\bEUR\b|\bGBP\b|\bCNY\b|\bJPY\b|\bINR\b|\bRupees?\b|\bRs\b\.?)|[\$€£円¥₹])'
-CURRENCY_SYMBOL_PREFIX_PAT = re.compile(CURRENCY_SYMBOL_PREFIX_ST, re.I)
-CURRENCY_SYMBOL_EXACT_PAT = re.compile(r'([\$€£円¥₹]|\bR[Ss]\.)')
-CURRENCY_SYMBOL_SUFFIX_PAT_ST = r'((USD|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|' \
-                         r'[eE]uros?|[pP]ounds?|[yY]uans?|[yY]ens?|[rR]upees?)\b|[\$€£円¥₹])'
-CURRENCY_SYMBOL_SUFFIX_PAT = re.compile(CURRENCY_SYMBOL_SUFFIX_PAT_ST)
-
-# pylint: disable=line-too-long
-# NUMBER_PAT = re.compile(r'(^|\s)\(?(-?({}))\)?[,\.:;]?(\s|$)'.format(text2int.numeric_regex_st), re.I)
-# NUMBER_PAT = re.compile(r'((^|\s)\(?(-?([0-9]+([,\.][0-9]{3})*[,\.]?[0-9]*|[,\.][0-9]+))\)?[,\.:;]?(\s|$))' +
-#                         r'|({})'.format(text2int.numeric_words_regex_st))
-
-# standard floating point number
-# https://www.regular-expressions.info/floatingpoint.html
-# NUM_PAT_ST = '[-+]?[0-9]*\.?[0-9]+'
-# (?:^| |\()
-# NUM_PAT_ST = r'(([-+]?\b[0-9,\.]*[0-9]+)|' + \
-#              r'\b({}))\b'.format(text2int.numeric_words_regex_st)
-
-NUM_PAT_ST = r'(((?<=\s)|(?<=^)|(?<=\()|(?<=\[)|(?<=\<))({}))\b'.format(text2int.numeric_regex_st)
-NUMBER_PAT = re.compile(NUM_PAT_ST, re.I)
-
-# print('\nNUM_PAT_ST')
-# print(NUM_PAT_ST)
-
-# TODO
-# WARNING, this is no longer used due to backtracking take took long
-# a new version of extract_percents() is used.  Not this regex.
-# TO_FIX
-# pylint: disable=line-too-long
-PERCENT_PAT_ST = r'({})\s*(%|percent)'.format(text2int.numeric_regex_st_with_b)
-PERCENT_PAT = re.compile(PERCENT_PAT_ST, re.I)
-
-# print('\nPERCENT_PAT_ST:')
-# print(PERCENT_PAT_ST)
+def extract_percents(line: str, doc_lang='en') -> List[Dict]:
+    if doc_lang == 'ja':
+        return regexcand_jp.extract_percents(line)
+    # by default, do 'en'
+    return regexcand_en.extract_percents(line)
 
 
-# pylint: disable=too-many-return-statements
-def normalize_currency_unit(line: str) -> str:
-    lc_line = line.lower()
-    if lc_line in set(['$', 'usd', 'dollar', 'dollars']) or \
-       re.search(r'u\.\s*s\.\s*dollars?', lc_line):
-        return 'USD'
-    elif lc_line in set(['€', 'eur', 'euro', 'euros']):
-        return 'EUR'
-    elif lc_line in set(['£', 'gbp', 'pound', 'pounds']):
-        return 'GBP'
-    elif lc_line in set(['円', 'cny', 'yuan', 'yuans']):
-        return 'CNY'
-    elif lc_line in set(['¥', 'jpy', 'yen', 'yens']):
-        return 'JPY'
-    elif lc_line in set(['₹', 'inr', 'rupee', 'rupees', 'rs', 'rs.']):
-        return 'INR'
+def extract_numbers(line: str, doc_lang='en', is_ignore_currency_symbol: bool = False) \
+    -> List[Dict]:
+    if doc_lang == 'ja':
+        # for Japanese, we extract both numbers and fractions
+        return text2int_jp.extract_numbers_fractions_romans(line)
 
-    return 'UNKNOWN_CURRENCY'
+    # by default, do 'en'
+    # return text2int.extract_numbers(line)
+    # TODO: add fractions (from atticus project) and romans
+    return regexcand_en.extract_numbers(line,
+                                        is_ignore_currency_symbol=is_ignore_currency_symbol)
 
-
-def currency_to_norm_dict(cx_mat: Match, line: str) -> Dict:
-    # print('  currency cx_mat group: {} {} [{}]'.format(cx_mat.start(), cx_mat.end(), cx_mat.group()))
-    # for gi, group in enumerate(cx_mat.groups(), 1):
-    #    print("    cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
-    norm_unit = normalize_currency_unit(cx_mat.group(1))
-    norm_value = text2int.extract_number(cx_mat.group(3)).get('value', -1)
-    norm_dict = {'norm': {'unit': norm_unit,
-                          'value': norm_value},
-                 'text': line[cx_mat.start():cx_mat.end()],
-                 'start': cx_mat.start(),
-                 'end': cx_mat.end()}
-    return norm_dict
-
-
-def currency_to_norm_dict_symbol(num_start: int,
-                                 num_end: int,
-                                 currency_start: int,
-                                 currency_end: int,
-                                 line: str) -> Dict:
-    num_st = line[num_start:num_end]
-    norm_value = text2int.extract_number(num_st).get('value', -1)
-    norm_unit = normalize_currency_unit(line[currency_start:currency_end].strip())
-    if num_start < currency_end:
-        norm_dict = {'norm': {'unit': norm_unit,
-                              'value': norm_value},
-                     'text': line[num_start:currency_end],
-                     'start': num_start,
-                     'end': currency_end}
-    else:
-        norm_dict = {'norm': {'unit': norm_unit,
-                              'value': norm_value},
-                     'text': line[currency_start:num_end],
-                     'start': currency_start,
-                     'end': num_end}
-
-    return norm_dict
-
-def space_same_len(matchobj: Match) -> str:
-    return ' ' * len(matchobj.group())
-
-def extract_currencies(line: str) -> List[Dict]:
-    norm_line = remove_hyphen_among_num_words(line)
-    result = []
-    # Handle 'XXX dollars' using simplified regex to avoid nasty backtracking.
-    # Removing currency symbols before extract_numbers() because numbers
-    # requires a non-word before it.  All other operations are kept the same
-    # using the original text, norm_line (without hyphens).
-    norm_line_no_currency_symbol = re.sub(CURRENCY_SYMBOL_EXACT_PAT, space_same_len, norm_line)
-    number_dict_list = extract_numbers(norm_line_no_currency_symbol)
-
-    mat_list = CURRENCY_SYMBOL_PREFIX_PAT.finditer(norm_line)
-    number_idx = 0
-    for mat in mat_list:
-        post_num_start, post_num_end, number_idx = find_post_start_end_in_dict_list(number_dict_list,
-                                                                                    number_idx,
-                                                                                    mat.end(),
-                                                                                    line)
-        if post_num_start != -1:
-            norm_dict = currency_to_norm_dict_symbol(post_num_start, post_num_end,
-                                                     mat.start(), mat.end(),
-                                                     line)
-            result.append(norm_dict)
-
-    prefix_se_list = [(adict['start'], adict['end']) for adict in result]
-
-    mat_list = CURRENCY_SYMBOL_SUFFIX_PAT.finditer(norm_line)
-    number_idx = 0
-    for mat in mat_list:
-        prev_num_start, prev_num_end, number_idx = find_prev_start_end_in_dict_list(number_dict_list,
-                                                                                    number_idx,
-                                                                                    mat.start(),
-                                                                                    line)
-        if prev_num_start != -1:
-            if not mathutils.is_overlap_with_se_list((prev_num_start, mat.end()),
-                                                     prefix_se_list):
-                # add it only if doesn't overlap with $33,000 before.
-                # $33,000 has precedence over 33,000$.  The problematic case is '33,000 $ 22,000'
-                # inside a table
-                norm_dict = currency_to_norm_dict_symbol(prev_num_start, prev_num_end,
-                                                         mat.start(), mat.end(),
-                                                         line)
-                result.append(norm_dict)
-
-    return result
-
-
-PERCENT_SYMBOL_PAT_ST = r'(%|\bpercent\b)'
-PERCENT_SYMBOL_PAT = re.compile(PERCENT_SYMBOL_PAT_ST, re.I)
 
 def find_prev_start_end_in_dict_list(number_dict_list: List[Dict],
                                      number_idx: int,
@@ -352,6 +224,7 @@ def extract_fractions(line: str) -> List[Dict]:
 
 FRACTION_PERCENT_PAT_1 = re.compile(r'\b(\d+) *(\d{1,2})/(\d{1,3})\s*(%|percent\b)',
                                     re.I)
+# pylint: disable=line-too-long
 FRACTION_PERCENT_PAT_2 = re.compile(r'\b(\d+) *({})\s*(%|percent\b)'.format('|'.join(vulgar_fractions)),
                                     re.I)
 
@@ -387,52 +260,6 @@ def extract_fraction_percents(line: str) -> List[Dict]:
 
     return result
 
-def percent_to_norm_dict(prev_num_start: int,
-                         prev_num_end: int,
-                         percent_end: int,
-                         line: str) -> Dict:
-    norm_value = -1
-    num_st = line[prev_num_start:prev_num_end]
-    norm_value = text2int.extract_number(num_st).get('value', -1)
-    norm_dict = {'norm': {'unit': '%',
-                          'value': norm_value},
-                 'text': line[prev_num_start:percent_end],
-                 'start': prev_num_start,
-                 'end': percent_end}
-    return norm_dict
-
-
-def extract_percents(line: str) -> List[Dict]:
-    norm_line = remove_hyphen_among_num_words(line)
-    result = []
-    # try detect '33 1/3%' first
-    fraction_dict_list = extract_fraction_percents(line)
-    for fraction_dict in fraction_dict_list:
-        result.append(fraction_dict)
-
-    prefix_se_list = [(adict['start'], adict['end']) for adict in result]
-
-    number_dict_list = extract_numbers(line)
-    mat_list = PERCENT_SYMBOL_PAT.finditer(norm_line)
-    number_idx = 0
-    for mat in mat_list:
-        prev_num_start, prev_num_end, number_idx = \
-            find_prev_start_end_in_dict_list(number_dict_list,
-                                             number_idx,
-                                             mat.start(),
-                                             line)
-        if prev_num_start != -1 and \
-           not mathutils.is_overlap_with_se_list((prev_num_start, mat.end()),
-                                                 prefix_se_list):
-
-            norm_dict = percent_to_norm_dict(prev_num_start,
-                                             prev_num_end,
-                                             mat.end(),
-                                             line)
-            result.append(norm_dict)
-
-    return result
-
 
 TIME_DURATION_PAT_ST = r'\b(days?|weeks?|months?|years?|decades?)\b'
 TIME_DURATION_PAT = re.compile(TIME_DURATION_PAT_ST, re.I)
@@ -457,7 +284,7 @@ def time_duration_to_norm_dict(prev_num_start: int,
 
 
 def extract_time_durations(line: str) -> List[Dict]:
-    # norm_line = remove_hyphen_among_num_words(line)
+    # norm_line = remove_num_words_join_hyphen(line)
     # handling '18-month anniversary'
     norm_line = line.replace('-', ' ')
     result = []
@@ -526,7 +353,7 @@ def nth_time_duration_to_norm_dict(prev_num_start: int,
 
 
 def extract_nth_time_durations(line: str) -> List[Dict]:
-    norm_line = remove_hyphen_among_num_words(line)
+    norm_line = remove_num_words_join_hyphen(line)
     result = []
 
     mat_list = list(TIME_DURATION_PAT.finditer(norm_line))
@@ -555,7 +382,8 @@ def number_to_norm_dict(num_st: str,
                         start: int,
                         end: int,
                         line: str) -> Dict:
-    # print('  number cx_mat group: {} {} [{}]'.format(cx_mat.start(), cx_mat.end(), cx_mat.group()))
+    # print('  number cx_mat group: {} {} [{}]'.format(cx_mat.start(),
+    #                                                  cx_mat.end(), cx_mat.group()))
     # for gi, group in enumerate(cx_mat.groups(), 1):
     #     print("    numb cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
     norm_value = -1
@@ -586,6 +414,7 @@ def num_num_split(line: str, offset: int = 0) -> List[Tuple[int, int, str]]:
 
 # following numbers are not valid
 # 'm'  'b', 't'
+# pylint: disable=line-too-long
 INVALID_NUM_REGEX = re.compile(r'(\s*\b[mbt]\-\S+\s*|^and\s*|(?<=\d)\s+and\s+(?=\d)|,(?=\d{4})|(?<=\d)\s*\-\s*(?=\d))')
 
 MATCH_ALL_REGEX = re.compile(r'^.*$')
@@ -629,76 +458,6 @@ def is_invalid_number_phrase(line: str) -> bool:
 
     return False
 
-FLOAT_WITH_WORD_REGEX = re.compile(r'\b(\d+\.\d+)\s+(\S+)')
-
-def invalid_num_split(mat: Match) -> List[Tuple[int, int, str]]:
-    """Find an adjusted match for valid number, and offsets from mat.group() in arg.
-
-    Args:
-      mat: the Match of the number, might have invalid prefix such as 'and'. Want
-           to adjust the offset accordingly.
-
-    Return:
-      a list of
-        mat: the mat for the new number
-        mat_start: the index of the adjustment from begin of the mat, index 0
-
-      This list can be empty if the number is not valid
-    """
-    mat_start = mat.start()
-    mat_line = mat.group()
-    # cannot be \d [mbt] or just [mbt]
-    if is_invalid_number_phrase(mat_line):
-        return []
-
-    # only take the number portion of '23.3 M'
-    num_mbt_mat = NUM_SP_MBT_REGEX.search(mat_line)
-    if num_mbt_mat:
-        return [(mat_start + num_mbt_mat.start(1),
-                 mat_start + num_mbt_mat.end(1),
-                 num_mbt_mat.group(1))]
-
-    # should not start with 'and' and all 'mbt-*' are not valid numbers
-    # so they are removed
-
-    # take all invalid mat and remove them from the
-    # potential list of numbers
-    split_chunks = list(INVALID_NUM_REGEX.finditer(mat_line))
-    if split_chunks:
-        result = []  # type: List[Tuple[int, int, str]]
-        prev = 0
-        for split_chunk in split_chunks:
-            chunk_st = mat_line[prev:split_chunk.start()]
-            tmp_mat = NUMBER_PAT.search(chunk_st)
-            if tmp_mat and chunk_st and not is_invalid_number_word(chunk_st):
-                result.append((mat_start + prev + tmp_mat.start(),
-                               mat_start + prev + tmp_mat.end(),
-                               tmp_mat.group()))
-            prev = split_chunk.end()
-        tmp_mat = NUMBER_PAT.search(mat_line[prev:])
-        if tmp_mat and mat_line[prev:] and not is_invalid_number_word(mat_line[prev:]):
-            result.append((mat_start + prev + tmp_mat.start(),
-                           mat_start + prev + tmp_mat.end(),
-                           tmp_mat.group()))
-
-        return result
-
-    # skip '1-12'
-    # TODO, might still accept '-3 M'
-    if mat_line.count('-') > 1 or \
-        (mat_line.count('-') == 1 and not mat_line.startswith('-')):
-        return []
-
-    # split '10.03 Fifty'
-    first_float_mat = FLOAT_WITH_WORD_REGEX.search(mat_line)
-    if first_float_mat:
-        word_after = first_float_mat.group(2).lower()
-        if word_after not in ['million', 'billion', 'trillion']:
-            return [(mat_start, mat_start + first_float_mat.end(1), mat_line[:first_float_mat.end(1)]),
-                    (mat_start + first_float_mat.start(2), mat.end(), mat_line[first_float_mat.start(2):])]
-
-    return [(mat.start(), mat.end(), mat.group())]
-
 
 DIGIT_ORDINAL_PAT_ST = r'\b(\d+)(st|nd|rd|th)\b'
 DIGIT_ORDINAL_PAT = re.compile(DIGIT_ORDINAL_PAT_ST, re.I)
@@ -726,67 +485,6 @@ def extract_ordinal_numbers(line: str) -> List[Dict]:
                  'end': mat.end()}
         result.append(adict)
 
-    return result
-
-
-# pylint: disable=too-many-locals
-def extract_numbers(line: str, is_ignore_currency_symbol: bool = False) -> List[Dict]:
-    """Extract numbers.
-
-    Args:
-        line: the string to extract the numbers from.
-        is_ignore_currency: if True, will capture the '3' in $3.
-
-    """
-    norm_line = remove_hyphen_among_num_words(line)
-    if is_ignore_currency_symbol:
-        norm_line = re.sub(CURRENCY_SYMBOL_EXACT_PAT, space_same_len, norm_line)
-
-    result = []
-    mat_list = NUMBER_PAT.finditer(norm_line)
-    # some mat in list might have mutliple intergers, such as '2 3'
-    # 'better_mat_list' will store the real numeric mat
-    num_se_list = []  # type: List[Tuple[int, int, str]]
-    for mat in mat_list:
-        # Due ot our preference to parse English expressions mixed
-        # with numbers, '2 4' might be captured in the match part.
-        # We separate those numbers here.
-
-        num_num_span_list = num_num_split(mat.group(), mat.start())
-
-        if len(num_num_span_list) > 1:
-            for offset_start, unused_offset_end, span_st in num_num_span_list:
-                # string is 'm-3'
-                # re.search(r'^[mtb]\-', span_st):
-                if re.search(r'^[mtb]\-', span_st):
-                    continue
-
-                # skip '1-12'
-                if span_st.count('-') > 1 or \
-                   (span_st.count('-') == 1 and not span_st.startswith('-')):
-                    continue
-
-                mat2 = NUMBER_PAT.search(span_st)
-                if mat2:
-                    num_se_list.append((offset_start + mat2.start(),
-                                        offset_start + mat2.end(),
-                                        mat2.group()))
-        else:
-            # get rid of 'm-2'
-            # remove_invalid_num_spans = invalid_num_split(mat)
-            num_se_list.extend(invalid_num_split(mat))
-
-    for num_start, num_end, num_st in num_se_list:
-        # norm_st = text2int.normalize_comma_period(mat.group())
-        # 2.3.4, or section head
-        # 2018-01-01 or date
-        if is_invalid_number_phrase(num_st) or \
-           is_invalid_number_word(num_st):
-            continue
-
-        norm_dict = number_to_norm_dict(num_st, num_start, num_end, line)
-
-        result.append(norm_dict)
     return result
 
 
@@ -868,6 +566,7 @@ class RegexContextGenerator:
     # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
     def get_candidates_from_text(self,
                                  nl_text: str,
+                                 doc_lang: str,
                                  group_id: int = 0,
                                  # pylint: disable=line-too-long
                                  label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
@@ -887,11 +586,13 @@ class RegexContextGenerator:
         if self.candidate_type == 'NUMBER':
             # is_ignore_currency_symbol = True in order to
             # capture the number '3' in '$3'
-            match_dict_list = extract_numbers(nl_text, is_ignore_currency_symbol=True)
+            match_dict_list = extract_numbers(nl_text,
+                                              is_ignore_currency_symbol=True,
+                                              doc_lang=doc_lang)
         elif self.candidate_type == 'CURRENCY':
-            match_dict_list = extract_currencies(nl_text)
+            match_dict_list = extract_currencies(nl_text, doc_lang=doc_lang)
         elif self.candidate_type == 'PERCENT':
-            match_dict_list = extract_percents(nl_text)
+            match_dict_list = extract_percents(nl_text, doc_lang=doc_lang)
         else:
             matches = self.center_regex.finditer(nl_text)
             for match in matches:
@@ -1021,6 +722,7 @@ class RegexContextGenerator:
                              group_id)
 
             candidates, group_id_list, label_list = self.get_candidates_from_text(nl_text,
+                                                                                  doc_lang=antdoc.doc_lang,
                                                                                   group_id=group_id,
                                                                                   label_ant_list_param=label_ant_list,
                                                                                   label_list_param=label_list,

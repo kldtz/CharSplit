@@ -16,6 +16,9 @@ import urllib.parse
 from nltk.tokenize import TreebankWordTokenizer
 from nltk.tokenize.regexp import RegexpTokenizer
 
+from kirke.utils import unicodeutils
+
+
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -50,6 +53,7 @@ def loads(file_name: str) -> str:
     try:
         with open(file_name, 'rt', newline='') as myfile:
             xst = myfile.read()
+            xst = unicodeutils.normalize_dbcs_sbcs(xst)
     except IOError as exc:
         logger.error("I/O error: %s in strutils.loads(%s)",
                      exc, file_name)
@@ -67,6 +71,7 @@ def load_lines_with_offsets(file_name: str) -> Generator[Tuple[int, int, str], N
             orig_length = len(line)
             # replace non-breaking space with space for regex benefit
             new_line = line.replace('\xa0', ' ').strip()
+            new_line = unicodeutils.normalize_dbcs_sbcs(new_line)
             new_length = len(new_line)
             # remove the eoln char
             end = offset + new_length
@@ -740,6 +745,10 @@ def find_substr_indices(sub_strx: str, text: str) -> List[Tuple[int, int]]:
 def find_all_indices(sub_strx: str, text: str) -> List[int]:
     return [mat.start() for mat in re.finditer(sub_strx, text)]
 
+
+def find_all_char_indices(line: str, achar: str):
+    """Find all the index of a char in line."""
+    return [i for i, ltr in enumerate(line) if ltr == achar]
 
 def count_date(line: str) -> int:
     return len(find_substr_indices(r'(\d{1,2}/\d{1,2}/(20|19)\d\d)', line))

@@ -22,6 +22,10 @@ class EbToken:
                  -> None:
         self.start = start
         self.end = end
+        # in case there is space between characters, such as
+        # in Japanese, for whatever reason
+        # self.word = word.replace(' ', '')
+        # self.lemma = lemma.replace(' ', '')
         self.word = word
         self.lemma = lemma
         self.pos = pos
@@ -51,7 +55,7 @@ class EbToken:
 # Digits might have commas in tokens, "23,000"
 # In addition, for "December 17, 2012", there is a comma token also.
 # These are removed now.
-def eb_tokens_to_st(eb_token_list: List[EbToken]) -> str:
+def eb_tokens_to_st_list(eb_token_list: List[EbToken]) -> List[str]:
     st_list = []
     for eb_token in eb_token_list:
         word = eb_token.word
@@ -63,6 +67,11 @@ def eb_tokens_to_st(eb_token_list: List[EbToken]) -> str:
                 st_list.append(replace_word)
         else:
             st_list.append(word)
+    return st_list
+
+
+def eb_tokens_to_st(eb_token_list: List[EbToken]) -> str:
+    st_list = eb_tokens_to_st_list(eb_token_list)
     return ' '.join(st_list)
 
 
@@ -199,12 +208,15 @@ class EbSentence:
     def get_number_tokens(self) -> int:
         return len(self.tokens)
 
+    def get_token_st_list(self) -> List[str]:
+        return eb_tokens_to_st_list(self.tokens)
+
     # this will translate all () -> -lrb- -rrb-, ' -> `` or \'\'
     # no page number
-    def get_tokens_text(self):
+    def get_tokens_text(self) -> str:
         return eb_tokens_to_st(self.tokens)
 
-    def get_lemma_text(self):
+    def get_lemma_text(self) -> str:
         return eb_tokens_to_lemma_st(self.tokens)
 
     def get_number_chars(self):

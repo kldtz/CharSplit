@@ -377,6 +377,9 @@ def is_line_header(line: str,
             print("is_line_header({}), True, domain specific".format(line))
         return True
 
+    if len(line) > 100:
+        return False
+
     # this is a normal sentences
     if is_english:
         if is_line_title(line):
@@ -687,11 +690,11 @@ def text_from_para_with_attrs(doc_text: str,
 
             # pylint: disable=line-too-long
             # print('jj77 from=({}, {}), to=({}, {}) [{}]'.format(from_lnpos.start,
-            #                                                     from_lnpos.end,
-            #                                                     unused_to_lnpos.start,
-            #                                                     unused_to_lnpos.end,
-            #                                                     doc_text[from_start:
-            #                                                        from_end][:30] + '...'))
+            #                                                    from_lnpos.end,
+            #                                                    unused_to_lnpos.start,
+            #                                                    unused_to_lnpos.end,
+            #                                                    doc_text[from_start:
+            #                                                             from_end]))
 
         # para_st_list.append(' '.join(para_st_list))
     nlp_text = '\n'.join(para_st_list)

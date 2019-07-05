@@ -1,14 +1,18 @@
 import re
 # pylint: disable=unused-import
-from typing import Any, Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union
+
+from kirke.utils import strutils
+
+from kirke.utils import unicodeutils
+
+IS_DEBUG = False
 
 # pylint: disable=invalid-name
-# the Any below should be float
-numwords = {}  # type: Dict[str, Tuple[Any, int]]
+numwords = {}
 numeric_regex_st = ''
 numeric_regex_st_with_b = ''
 numeric_words_regex_st = ''
-numeric_words_no_acronym = []  # type: List[str]
 
 ordinal_words = {'first':1, 'second':2, 'third':3, 'fifth':5,
                  'eighth':8, 'ninth':9, 'twelfth':12}
@@ -22,7 +26,6 @@ def setup_numwords():
     global numeric_regex_st
     global numeric_regex_st_with_b
     global numeric_words_regex_st
-    global numeric_words_no_acronym
     units = ["zero", "one", "two", "three", "four", "five", "six",
              "seven", "eight", "nine", "ten", "eleven", "twelve",
              "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
@@ -116,27 +119,18 @@ NUM_REGEX = re.compile(numeric_regex_st_with_b, re.I)
 
 NUM_IN_WORDS_REGEX = re.compile(numeric_words_regex_st, re.I)
 
-# NUM_WORD_HYPHEN_NUM_WORD_REGEX_ST = r'({})\-({})'.format(numeric_words_regex_st,
-#                                                          numeric_words_regex_st)
-NUM_WORD_HYPHEN_NUM_WORD_REGEX_ST = r'({})\-({})'.format('|'.join(numeric_words_no_acronym),
-                                                         '|'.join(numeric_words_no_acronym))
-NUM_WORD_HYPHEN_NUM_WORD = re.compile(NUM_WORD_HYPHEN_NUM_WORD_REGEX_ST, re.I)
 
-def remove_hyphen_among_num_words(line: str) -> str:
-    orig_line = line
-    line = NUM_WORD_HYPHEN_NUM_WORD.sub(r'\1 \2', line)
+NUM_WORD_HYPHEN_NUM_WORD = re.compile(r'({})\-({})'.format(numeric_words_regex_st,
+                                                           numeric_words_regex_st))
 
-    if orig_line != line:
-        # need to do this twice to ensure
-        # "one-hundred-thirty-five" is processed correctly because
-        # the pattern overlap each other
-        line = NUM_WORD_HYPHEN_NUM_WORD.sub(r'\1 \2', line)
+def remove_num_words_join_hyphen(line: str) -> str:
+    line = NUM_WORD_HYPHEN_NUM_WORD.sub(r'\1 \5', line)
     return line
 
 
 def extract_numbers(line: str) -> List[Dict]:
     # don't want '-' to confuse words
-    line = remove_hyphen_among_num_words(line)
+    line = remove_num_words_join_hyphen(line)
     mat_list = list(NUM_REGEX.finditer(line))
     #for cx_mat in mat_list:
     #    print('\nnumber cx_mat group: {} {} [{}]'.format(cx_mat.start(),
@@ -155,14 +149,15 @@ def extract_numbers(line: str) -> List[Dict]:
         adict = {'start': mat.start(),
                  'end': mat.end(),
                  'text': mat.group(),
-                 'value': val}
+                 'concept': 'number',
+                 'norm': {'value': val}}
         result.append(adict)
     return result
 
 
 def extract_numbers_in_words(line: str) -> List[Dict]:
     # don't want '-' to confuse words
-    line = remove_hyphen_among_num_words(line)
+    line = remove_num_words_join_hyphen(line)
     mat_list = list(NUM_IN_WORDS_REGEX.finditer(line))
     # print('mat_listxxxx: {}'.format(mat_list))
     # for cx_mat in mat_list:
@@ -182,13 +177,15 @@ def extract_numbers_in_words(line: str) -> List[Dict]:
         adict = {'start': mat.start(),
                  'end': mat.end(),
                  'text': mat.group(),
-                 'value': val}
+                 'concept': 'number',
+                 'norm': {'value': val}}
         result.append(adict)
     return result
 
 
 def extract_number(line: str) -> Dict:
-    line = remove_hyphen_among_num_words(line)
+    line = remove_num_words_join_hyphen(line)
+    line = normalize_comma_period(line)
     mat = NUM_REGEX.search(line)
     if mat:
         # numeric_span = (mat.start(), mat.end(), mat.group())
@@ -197,7 +194,8 @@ def extract_number(line: str) -> Dict:
         adict = {'start': mat.start(),
                  'end': mat.end(),
                  'text': mat.group(),
-                 'value': val}
+                 'concept': 'number',
+                 'norm': {'value': val}}
         return adict
     return {}
 
@@ -209,6 +207,93 @@ def is_float(line: str) -> bool:
     except ValueError:
         return False
 
+
+# handle both 1,000,000 and incorrect 10,000,00
+def is_interval_3(idx_list: List[int]) -> bool:
+    prev_num = idx_list[0]
+    for num in idx_list[1:]:
+        if not prev_num - num == 3:
+            return False
+        prev_num = num
+    return True
+
+
+# pylint: disable=too-many-return-statements
+def normalize_comma_period(line: str) -> str:
+
+    if line[-1] == ',' or \
+       line[-1] == '.':
+        line = line[:-1]
+
+    comma_offset = line.find(',')
+    period_offset = line.find('.')
+
+    # print('line: [{}]'.format(line))
+    # print('comma_offset: {}'.format(comma_offset))
+    # print('period_offset: {}'.format(period_offset))
+
+    # has both comma and period are in the line
+    if comma_offset != -1 and \
+       period_offset != -1:
+        # '100,000.00
+        if comma_offset < period_offset:
+            return line.replace(',', '')
+        # '100.000,00
+        return line.replace('.', '').replace(',', '.')
+
+    # if the last 2 characters are ',' or '.'
+    # "2,23 or 22.3'
+    if comma_offset != -1:
+        num_comma = line.count(',')
+        # check if the comma are used as period marker
+        if num_comma == 1:
+            if line[-2] == ',' or line[-3] == ',':
+                return line.replace(',', '.')
+            # handle 100,000
+            comma_idx_list = strutils.find_all_char_indices(line[::-1], ',')
+            if all(n % 3 == 0 for n in comma_idx_list):
+                return line.replace(',', '')
+            # comma not in the last 2 or 3rd position
+            # the comma is in error, just remove it
+            # 33,12345
+            return line.replace(',', '.')
+
+        # we must have 2 or more commas
+        comma_idx_list = strutils.find_all_char_indices(line[::-1], ',')
+        # if all(n % 3 == 0 for n in comma_idx_list):
+        if is_interval_3(comma_idx_list):
+            return line.replace(',', '')
+        # otherwise, the commas are not number separators
+        if len(comma_idx_list) > 1:
+            # something is not right, but ok, just return
+            # the string without ','
+            return line.replace(',', '')
+        # assume there is only 1 comma and not in the 3-char interval,
+        # use 'comma' as a floating point indicator
+        return line.replace(',', '.')
+
+    # only has periods
+    # if num_period == 1:
+    #     return line
+    # check if the comma are used as period marker
+
+    comma_idx_list = strutils.find_all_char_indices(line[::-1], ',')
+    if line.endswith('.000'):
+        # 100.000 or 100.000.000 are not floating points
+        line = line.replace('.', '')
+    elif len(comma_idx_list) > 1 and is_interval_3(comma_idx_list):
+        # 100.000.000
+        line = line.replace('.', '')
+
+    # if just 100.123, we treated as a floating point
+
+    # if there are multiple period, it's probably section heading
+    # section 2.3.4
+
+    return line
+
+
+r"""
 COMMA_1OR2_DIGIT_REGEX = re.compile(r'(,\d\d|,\d)$')
 
 # pylint: disable=too-many-return-statements
@@ -252,6 +337,7 @@ def normalize_comma_period(line: str) -> str:
         return line
 
     return line
+"""
 
 NUM_ALPHA_REGEX = re.compile(r'^(\d[\d\,\.]*)([a-zA-Z]+)$')
 
@@ -342,3 +428,80 @@ def text2number(textnum: str) -> Union[int, float]:
     if is_negative:
         return -(result + current)
     return result + current
+
+
+ROMAN_NUM_UNICODE_UC = 'ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ'
+ROMAN_NUM_UNICODE_LC = 'ⅰⅱⅲⅳⅴⅵⅶⅷⅸⅹⅺⅻ'
+
+ROMAN_NUM_UNICODE = r'{}{}'.format(ROMAN_NUM_UNICODE_UC,
+                                   ROMAN_NUM_UNICODE_LC)
+
+ROMAN_NUM_UNICODE_OR = '|'.join(list(r'{}{}'.format(ROMAN_NUM_UNICODE_UC,
+                                                    ROMAN_NUM_UNICODE_LC)))
+
+# https://www.oreilly.com/library/view/regular-expressions-cookbook/9780596802837/ch06s09.html
+ROMAN_NUM_CORE = r'(?=[MDCLXVI])M*(C[MD]|D?C*)(X[CL]|L?X*)(I[XV]|V?I*)'
+# Following regex from John is easier to understand, but returns
+# many empty matches that can be externally ignored.  Prefer above simpler results.
+# ROMAN_NUM_CORE = r"(?i)M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})"
+ROMAN_NUM_REGEX_ST = r'(\(?{}\)|{}\b\.?|[{}])'.format(ROMAN_NUM_CORE,
+                                                      ROMAN_NUM_CORE,
+                                                      ROMAN_NUM_UNICODE)
+
+# ROMAN_NUM_REGEX_ST = r'(\(?{}\)|{}\b\.?|({}))'.format(ROMAN_NUM_CORE,
+#                                                    ROMAN_NUM_CORE,
+#                                                   ROMAN_NUM_UNICODE_OR)
+
+# print('ROMAN_NUM_REGEX_ST')
+# print(ROMAN_NUM_REGEX_ST)
+
+
+def roman_num_char_to_int(achar: str) -> int:
+    uc_achar = achar.upper()
+    idx = ROMAN_NUM_UNICODE_UC.index(uc_achar)
+    return idx + 1
+
+
+ROMAN_NUM_PAT = re.compile(ROMAN_NUM_REGEX_ST, re.I)  # re.UNICODE)
+
+def extract_roman_numbers(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
+    if is_norm_dbcs_sbcs:
+        line = unicodeutils.normalize_dbcs_sbcs(line)
+    mat_list = list(ROMAN_NUM_PAT.finditer(line))
+    if IS_DEBUG:
+        for cx_mat in mat_list:
+            print('\nnumber cx_mat group: {} {} [{}]'.format(cx_mat.start(),
+                                                             cx_mat.end(),
+                                                             cx_mat.group()))
+            for gidx, unused_group in enumerate(cx_mat.groups(), 1):
+                print("  cx_mat.group #{}: [{}]".format(gidx, cx_mat.group(gidx)))
+
+    num_span_list = []  # type: List[Tuple[int, int, str]]
+    result = []  # type: List[Dict]
+    for mat in mat_list:
+        numeric_span = (mat.start(), mat.end(), mat.group())
+        # print('numeric_span: {}'.format(numeric_span))
+        num_span_list.append(numeric_span)
+        val = roman_number_to_dict(mat.group())
+        adict = {'start': mat.start(),
+                 'end': mat.end(),
+                 'text': mat.group(),
+                 'concept': 'number',
+                 'norm': {'value': val}}
+        result.append(adict)
+    return result
+
+
+# https://stackoverflow.com/questions/19308177/converting-roman-numerals-to-integers-in-python
+def roman_number_to_dict(num):
+    num = num.upper()
+    roman_numerals = {'I':1, 'V':5, 'X':10, 'L':50, 'C':100, 'D':500, 'M':1000}
+    result = 0
+    for i, c in enumerate(num):
+        if c in ROMAN_NUM_UNICODE:
+            return roman_num_char_to_int(c)
+        if (i+1) == len(num) or roman_numerals[c] >= roman_numerals[num[i+1]]:
+            result += roman_numerals[c]
+        else:
+            result -= roman_numerals[c]
+    return result

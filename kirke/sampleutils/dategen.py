@@ -2,6 +2,7 @@ import logging
 from typing import Optional, Dict, List, Tuple
 
 from kirke.ebrules import dates
+from kirke.nlputil import dates_jp
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 # pylint: disable=invalid-name
@@ -20,6 +21,7 @@ class DateSpanGenerator:
     # pylint: disable=too-many-arguments, too-many-locals
     def get_candidates_from_text(self,
                                  nl_text: str,
+                                 doc_lang: str,
                                  group_id: int = 0,
                                  # pylint: disable=line-too-long
                                  label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
@@ -35,16 +37,21 @@ class DateSpanGenerator:
 
         candidates = [] # type: List[Dict]
         group_id_list = [] # type: List[int]
-        matches = []  # List[Tuple[int, int]]
+        matches = []  # List[Tuple[int, int, str]]
         offset = 0
-        for line in nl_text.split('\n'):
-            if line:
-                tmp_matches = dates.extract_std_dates(line)
-                for tmp_start, tmp_end in tmp_matches:
-                    matches.append((offset + tmp_start, offset + tmp_end))
-            offset += len(line) + 1
+        for para_line in nl_text.split('\n\n'):
+            if para_line:
+                if doc_lang == 'ja':
+                    datedict_list = dates_jp.extract_dates(para_line)
+                else:
+                    datedict_list = dates.extract_std_dates(para_line)
+
+                for datedict in datedict_list:
+                    tmp_start, tmp_end = datedict['start'], datedict['end']
+                    matches.append((offset + tmp_start, offset + tmp_end, datedict['norm']))
+            offset += len(para_line) + 2
         doc_len = len(nl_text)
-        for mat_i, (match_start, match_end) in enumerate(matches):
+        for mat_i, (match_start, match_end, norm_date_st) in enumerate(matches):
             match_str = nl_text[match_start:match_end]
             is_label = ebsentutils.check_start_end_overlap(match_start,
                                                            match_end,
@@ -93,7 +100,8 @@ class DateSpanGenerator:
                            'prev_n_words': ' '.join(prev_n_words_plus),
                            'post_n_words': ' '.join(post_n_words_plus),
                            'candidate_percent10': candidate_percentage10,
-                           'doc_percent': match_start / doc_len}
+                           'doc_percent': match_start / doc_len,
+                           'norm': norm_date_st}
             candidates.append(a_candidate)
             group_id_list.append(group_id)
             if is_label:
@@ -135,6 +143,7 @@ class DateSpanGenerator:
                 logger.debug('DateSpanGenerator.documents_to_candidates(), group_id = %d', group_id)
 
             candidates, group_id_list, label_list = self.get_candidates_from_text(nl_text,
+                                                                                  doc_lang=antdoc.doc_lang,
                                                                                   group_id=group_id,
                                                                                   label_ant_list_param=label_ant_list,
                                                                                   label_list_param=label_list,

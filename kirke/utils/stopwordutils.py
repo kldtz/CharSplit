@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import re
 from typing import List
 
 from kirke.utils import strutils
@@ -57,6 +58,10 @@ def count_stopword(word_list):
             count += 1
     return count
 
+ATOZ_REGEX = re.compile(r'[a-zA-Z]')
+
+def has_atoz(word: str) -> bool:
+    return bool(ATOZ_REGEX.search(word))
 
 # pylint: disable=R0911
 def is_eb_stopword(word, is_lower=False):
@@ -68,8 +73,16 @@ def is_eb_stopword(word, is_lower=False):
 
     if word in PUNCT_STOPWORDS:
         return True
-    if len(word) < 2:  # one char words are ambiguous
-        return True
+    # For 1 character words, we remove them except for Japanese
+    # and Chinese characters.
+    if len(word) < 2: # one char words are ambiguous
+        if word.isalpha():
+            if has_atoz(word):  # Make sure not Japanese or Chinese chars,
+                return True
+            # else return False for Chinese and Japanese chars
+        else:
+            # all punctuations, which take 1 character or 1 digit
+            return True
     if len(word) == 2 and word[1] == '.':
         return True
     if strutils.is_all_digit_dot(word):

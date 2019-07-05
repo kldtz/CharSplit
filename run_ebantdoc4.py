@@ -23,6 +23,7 @@ if __name__ == '__main__':
     nlp_text = antdoc.get_nlp_text()
     print('nlp_text:')
     print(nlp_text)
+
     # print("antdoc len = {}".format(len(antdoc.text)))
     # print("antdoc[:100] = {}".format(antdoc.text[:100]))
 

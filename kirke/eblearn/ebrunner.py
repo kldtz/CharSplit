@@ -80,8 +80,6 @@ def update_dates_by_domain_rules(ant_result_dict):
         else:
             # update 'date' with 'sigdate' if 'date' is empty
             sigdate_annotations = ant_result_dict.get('sigdate', [])
-            # print("sigdate_annotation = {}".format(sigdate_annotations))
-            sigdate_annotations = dates.remove_invalid_dates(sigdate_annotations)
             if not ant_result_dict.get('date') and sigdate_annotations:
                 # make a copy to preserve original list
                 sigdate_annotations = copy.deepcopy(sigdate_annotations)
@@ -316,6 +314,12 @@ class EbRunner:
                 if 'cust_' in lang_provision and ant_list:
                     provision_name = ant_list[0]['label']
 
+                # modify 'DATE' to 'CAND_DATE'
+                # before passing the result back to extractor
+                if lang_provision == 'DATE':
+                    lang_provision = 'CAND_DATE'
+                    ant_list = update_ant_list_with_provision(ant_list, 'CAND_DATE')
+
                 if '.' in provision_name:  # in case there is no ant_list
                     # remove version, chop off after '.'
                     provision_name = provision_name.split('.')[0]
@@ -473,6 +477,11 @@ class EbRunner:
         else:
             # logger.info('user specified provision list: %s', provision_set)
             lang_provision_set = provision_set
+
+        # replace 'CAND_DATE' with 'DATE'
+        # extractor cannot use 'DATE' as provision name
+        # because of MySQL conflicts with 'date'
+        lang_provision_set = normalize_provision_set(lang_provision_set)
 
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
@@ -953,3 +962,19 @@ class EbLangDetectRunner:
             detect_langs = ''
         # logger.info("detected languages '{}'".format(detect_langs))
         return detect_langs
+
+
+def normalize_provision_set(cands: Set[str]):
+    if 'CAND_DATE' in cands:
+        cands.remove('CAND_DATE')
+        cands.add('DATE')
+    return cands
+
+
+# this is in-place update
+def update_ant_list_with_provision(alist: List[Dict],
+                                   provision: str) \
+                                   -> List[Dict]:
+    for adict in alist:
+        adict['label'] = provision
+    return alist

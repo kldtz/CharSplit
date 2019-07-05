@@ -3,10 +3,16 @@ import os
 import re
 from typing import Iterator, List, Tuple
 
+from kirke.utils import unicodeutils
+
 # change all nbsp to regular spaces
 def loads(file_name: str) -> str:
     with open(file_name, 'rt', newline='') as fin:
         doc = fin.read().replace('\xa0', ' ')
+        # replace double-byte and single-byte chars with
+        # their normal representations.
+        # A common occurence in Japanese text.
+        doc = unicodeutils.normalize_dbcs_sbcs(doc)
     return doc
 
 
@@ -23,6 +29,7 @@ def load_lines_with_offsets(file_name: str) -> Iterator[Tuple[int, int, str]]:
             # remove the eoln char
             # replace non-breaking space with space for regex benefit
             new_line = line[:-1].replace('\xa0', ' ')
+            new_line = unicodeutils.normalize_dbcs_sbcs(new_line)
             end = offset + orig_length - 1   # remove eoln
 
             yield offset, end, new_line
@@ -83,6 +90,7 @@ def load_normalized_lines_with_offsets(file_name: str) -> Iterator[Tuple[int, in
             # remove the eoln char
             # replace non-breaking space with space for regex benefit
             new_line = line[:-1].replace('\xa0', ' ')
+            new_line = unicodeutils.normalize_dbcs_sbcs(new_line)
 
             if new_line.strip():
                 mat = BE_SPACE_PAT.match(new_line)
@@ -112,6 +120,7 @@ def load_lines_with_fromto_offsets(file_name: str) -> Iterator[Tuple[Tuple[int, 
             # remove the eoln char
             # replace non-breaking space with space for regex benefit
             new_line = line[:-1].replace('\xa0', ' ')
+            new_line = unicodeutils.normalize_dbcs_sbcs(new_line)
 
             if new_line.strip():
                 mat = BE_SPACE_PAT.match(new_line)

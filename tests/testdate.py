@@ -8,7 +8,9 @@ from kirke.ebrules import dates
 class TestDateUtils(unittest.TestCase):
 
     def test_extract_dates(self):
-        "Test extract_dates()"
+        """Test extract_dates(),
+
+        This is for our rule-bsaed date annotator"""
 
         line = 'Amy is born on January 14, 2011 when it rained'
         alist = dates.extract_dates_v2(line, 0)
@@ -57,6 +59,98 @@ class TestDateUtils(unittest.TestCase):
                          '2014-04-13')
         self.assertEqual(date_st,
                          '13Apr2014')
+
+    def test_extract_dates_empty(self):
+        # line = 'Amy is born on 101020 when it rained'
+        # alist = dates.extract_dates_v2(line, 0)
+        # self.assertEqual([], alist)
+
+        line = 'Amy is born on 101012 when it rained'
+        alist = dates.extract_dates_v2(line, 0)
+        self.assertEqual([], alist)
+
+        line = 'Amy is born on 1315 when it rained'
+        alist = dates.extract_dates_v2(line, 0)
+        self.assertEqual([], alist)
+
+
+    def test_extract_cand_dates(self):
+        """Test extract_cand_dates().
+
+        This is for date candidate generator"""
+
+        line = 'Amy is born on January 14, 2011 when it rained'
+        alist = dates.extract_std_dates(line)
+        norm = alist[0]['norm']
+        date_st = alist[0]['text']
+        self.assertEqual(1, len(alist))
+        self.assertEqual(norm,
+                         '2011-01-14')
+        self.assertEqual(date_st,
+                         'January 14, 2011')
+
+        line = 'Amy is born on 13.04.14 when it rained'
+        alist = dates.extract_std_dates(line)
+        norm = alist[0]['norm']
+        date_st = alist[0]['text']
+        self.assertEqual(1, len(alist))
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13.04.14')
+
+        line = 'Amy is born on 13/04/14 when it rained'
+        alist = dates.extract_std_dates(line)
+        norm = alist[0]['norm']
+        date_st = alist[0]['text']
+        self.assertEqual(1, len(alist))
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13/04/14')
+
+        line = 'Amy is born on 13-04-14 when it rained'
+        alist = dates.extract_std_dates(line)
+        norm = alist[0]['norm']
+        date_st = alist[0]['text']
+        self.assertEqual(1, len(alist))
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13-04-14')
+
+        line = 'Amy is born on 13-Apr-14 when it rained'
+        alist = dates.extract_std_dates(line)
+        norm = alist[0]['norm']
+        date_st = alist[0]['text']
+        self.assertEqual(1, len(alist))
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13-Apr-14')
+
+        line = 'Amy is born on 13Apr2014 when it rained'
+        alist = dates.extract_std_dates(line)
+        norm = alist[0]['norm']
+        date_st = alist[0]['text']
+        self.assertEqual(1, len(alist))
+        self.assertEqual(norm,
+                         '2014-04-13')
+        self.assertEqual(date_st,
+                         '13Apr2014')
+
+    def test_extract_cand_dates_empty(self):
+        line = 'Amy is born on 101020 when it rained'
+        alist = dates.extract_std_dates(line)
+        self.assertEqual([], alist)
+
+        line = 'Amy is born on 101012 when it rained'
+        alist = dates.extract_std_dates(line)
+        self.assertEqual([], alist)
+
+        line = 'Amy is born on 1315 when it rained'
+        alist = dates.extract_std_dates(line)
+        self.assertEqual([], alist)
 
 
     def test_parse_date(self):
@@ -185,12 +279,11 @@ class TestDateUtils(unittest.TestCase):
 
         dnorm = dates.DateNormalizer()
 
-        self.assertEqual(dnorm.parse_date('101020'),
-                         None)
+        self.assertEqual({'norm': {'date': '2010-10-20'}},
+                         dnorm.parse_date('101020'))
 
-        # this returned 2010-10-12
-        self.assertEqual(dnorm.parse_date('101012'),
-                         None)
+        self.assertEqual({'norm': {'date': '2010-10-12'}},
+                         dnorm.parse_date('101012'))
 
-        self.assertEqual(dnorm.parse_date('1315'),
-                         None)
+        self.assertEqual({'norm': {'date': '1315-XX-XX'}},
+                         dnorm.parse_date('1315'))
