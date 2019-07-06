@@ -20,6 +20,8 @@ CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
 
 CURRENCY_SYMBOL_EXACT_PAT = re.compile(r'([\$€£円¥₹]|\bR[Ss]\.)')
 
+FLOAT_WITH_WORD_REGEX = re.compile(r'\b(\d+\.\d+)\s+(\S+)')
+
 
 # print('\nCURRENCY_PAT_ST')
 # print(CURRENCY_PAT_ST)
@@ -134,6 +136,7 @@ def extract_percents(line: str) -> List[Dict]:
     return result
 
 
+"""
 def number_to_norm_dict(cx_mat: Match, line: str, offset: int = -1) -> Dict:
     # print('  number cx_mat group: {} {} [{}]'.format(cx_mat.start(), cx_mat.end(), cx_mat.group()))
     # for gi, group in enumerate(cx_mat.groups(), 1):
@@ -151,6 +154,25 @@ def number_to_norm_dict(cx_mat: Match, line: str, offset: int = -1) -> Dict:
                  'concept': 'number',
                  'end': adjusted_offset + cx_mat.end()}
     return norm_dict
+"""
+
+
+def number_to_norm_dict(num_st: str,
+                        start: int,
+                        end: int,
+                        line: str) -> Dict:
+    norm_value = -1
+    if num_st:
+        norm_dict = text2int.extract_number(num_st).get('norm')
+        if norm_dict:
+            norm_value = norm_dict['value']
+
+    norm_dict = {'norm': {'value': norm_value},
+                 'text': line[start:end],
+                 'start': start,
+                 'end': end}
+    return norm_dict
+
 
 
 D_D_SPLIT_REGEX = re.compile(r'(?<=\d)\s+(?=\d)')
@@ -176,6 +198,8 @@ MATCH_ALL_REGEX = re.compile(r'^.*$')
 
 D_DASH_D_REGEX = re.compile(r'\d+\-\d+')
 
+D_DASH_D_WORD_REGEX = re.compile(r'^\d+(\-\d+)+$')
+
 # is line always just one word, or can be multiple words?
 # it seems to be possible to be multiple words
 def is_invalid_number_word(word: str) -> bool:
@@ -191,6 +215,8 @@ def is_invalid_number_word(word: str) -> bool:
 
 NUM_MBT_REGEX = re.compile(r'^\d+[mbt]$', re.I)
 
+NUM_SP_MBT_REGEX = re.compile(r'^([\d\.]+)\s+[mbt]$', re.I)
+
 def is_invalid_number_phrase(line: str) -> bool:
     if line.lower() in set(['b', 'm', 't']):
         return True
@@ -198,9 +224,14 @@ def is_invalid_number_phrase(line: str) -> bool:
     if NUM_MBT_REGEX.search(line):
         return True
 
+    # a date, 02-03, or phone number
+    if D_DASH_D_WORD_REGEX.search(line):
+        return True
+
     return False
 
 
+"""
 def invalid_num_split(mat: Match) -> List[Tuple[Match, int]]:
     line = mat.group()
     if is_invalid_number_phrase(line):
@@ -225,13 +256,83 @@ def invalid_num_split(mat: Match) -> List[Tuple[Match, int]]:
         return result
 
     return [(mat, -1)]
+"""
+
+def invalid_num_split(mat: Match) -> List[Tuple[int, int, str]]:
+    """Find an adjusted match for valid number, and offsets from mat.group() in arg.
+
+    Args:
+      mat: the Match of the number, might have invalid prefix such as 'and'. Want
+           to adjust the offset accordingly.
+
+    Return:
+      a list of
+        mat: the mat for the new number
+        mat_start: the index of the adjustment from begin of the mat, index 0
+
+      This list can be empty if the number is not valid
+    """
+    mat_start = mat.start()
+    mat_line = mat.group()
+    # cannot be \d [mbt] or just [mbt]
+    if is_invalid_number_phrase(mat_line):
+        return []
+
+    # only take the number portion of '23.3 M'
+    num_mbt_mat = NUM_SP_MBT_REGEX.search(mat_line)
+    if num_mbt_mat:
+        return [(mat_start + num_mbt_mat.start(1),
+                 mat_start + num_mbt_mat.end(1),
+                 num_mbt_mat.group(1))]
+
+    # should not start with 'and' and all 'mbt-*' are not valid numbers
+    # so they are removed
+
+    # take all invalid mat and remove them from the
+    # potential list of numbers
+    split_chunks = list(INVALID_NUM_REGEX.finditer(mat_line))
+    if split_chunks:
+        result = []  # type: List[Tuple[int, int, str]]
+        prev = 0
+        for split_chunk in split_chunks:
+            chunk_st = mat_line[prev:split_chunk.start()]
+            tmp_mat = NUMBER_PAT.search(chunk_st)
+            if tmp_mat and chunk_st and not is_invalid_number_word(chunk_st):
+                result.append((mat_start + prev + tmp_mat.start(),
+                               mat_start + prev + tmp_mat.end(),
+                               tmp_mat.group()))
+            prev = split_chunk.end()
+        tmp_mat = NUMBER_PAT.search(mat_line[prev:])
+        if tmp_mat and mat_line[prev:] and not is_invalid_number_word(mat_line[prev:]):
+            result.append((mat_start + prev + tmp_mat.start(),
+                           mat_start + prev + tmp_mat.end(),
+                           tmp_mat.group()))
+
+        return result
+
+    # skip '1-12'
+    # TODO, might still accept '-3 M'
+    if mat_line.count('-') > 1 or \
+        (mat_line.count('-') == 1 and not mat_line.startswith('-')):
+        return []
+
+    # split '10.03 Fifty'
+    first_float_mat = FLOAT_WITH_WORD_REGEX.search(mat_line)
+    if first_float_mat:
+        word_after = first_float_mat.group(2).lower()
+        if word_after not in ['million', 'billion', 'trillion']:
+            return [(mat_start, mat_start + first_float_mat.end(1), mat_line[:first_float_mat.end(1)]),
+                    (mat_start + first_float_mat.start(2), mat.end(), mat_line[first_float_mat.start(2):])]
+
+    return [(mat.start(), mat.end(), mat.group())]
 
 
 def space_same_len(matchobj: Match) -> str:
     return ' ' * len(matchobj.group())
 
 
-def extract_numbers(line: str, is_ignore_currency_symbol: bool = False) -> List[Dict]:
+"""
+def extract_numbers_0705(line: str, is_ignore_currency_symbol: bool = False) -> List[Dict]:
     norm_line = remove_num_words_join_hyphen(line)
     if is_ignore_currency_symbol:
         norm_line = re.sub(CURRENCY_SYMBOL_EXACT_PAT, space_same_len, norm_line)
@@ -272,5 +373,67 @@ def extract_numbers(line: str, is_ignore_currency_symbol: bool = False) -> List[
             continue
 
         norm_dict = number_to_norm_dict(mat, line, mat_start)
+        result.append(norm_dict)
+    return result
+"""
+
+
+# pylint: disable=too-many-locals
+def extract_numbers(line: str, is_ignore_currency_symbol: bool = False) -> List[Dict]:
+    """Extract numbers.
+
+    Args:
+        line: the string to extract the numbers from.
+        is_ignore_currency: if True, will capture the '3' in $3.
+
+    """
+    norm_line = remove_num_words_join_hyphen(line)
+    if is_ignore_currency_symbol:
+        norm_line = re.sub(CURRENCY_SYMBOL_EXACT_PAT, space_same_len, norm_line)
+        norm_line = re.sub(CURRENCY_SYMBOL_EXACT_PAT, space_same_len, norm_line)
+
+    result = []
+    mat_list = NUMBER_PAT.finditer(norm_line)
+    # some mat in list might have mutliple intergers, such as '2 3'
+    # 'better_mat_list' will store the real numeric mat
+    num_se_list = []  # type: List[Tuple[int, int, str]]
+    for mat in mat_list:
+        # Due ot our preference to parse English expressions mixed
+        # with numbers, '2 4' might be captured in the match part.
+        # We separate those numbers here.
+
+        num_num_span_list = num_num_split(mat.group(), mat.start())
+
+        if len(num_num_span_list) > 1:
+            for offset_start, unused_offset_end, span_st in num_num_span_list:
+                # string is 'm-3'
+                # re.search(r'^[mtb]\-', span_st):
+                if re.search(r'^[mtb]\-', span_st):
+                    continue
+
+                # skip '1-12'
+                if span_st.count('-') > 1 or \
+                   (span_st.count('-') == 1 and not span_st.startswith('-')):
+                    continue
+
+                mat2 = NUMBER_PAT.search(span_st)
+                if mat2:
+                    num_se_list.append((offset_start + mat2.start(),
+                                        offset_start + mat2.end(),
+                                        mat2.group()))
+        else:
+            # get rid of 'm-2'
+            # remove_invalid_num_spans = invalid_num_split(mat)
+            num_se_list.extend(invalid_num_split(mat))
+
+    for num_start, num_end, num_st in num_se_list:
+        # norm_st = text2int.normalize_comma_period(mat.group())
+        # 2.3.4, or section head
+        # 2018-01-01 or date
+        if is_invalid_number_phrase(num_st) or \
+           is_invalid_number_word(num_st):
+            continue
+
+        norm_dict = number_to_norm_dict(num_st, num_start, num_end, line)
         result.append(norm_dict)
     return result

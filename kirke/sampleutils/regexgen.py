@@ -30,7 +30,9 @@ def extract_percents(line: str, doc_lang='en') -> List[Dict]:
     return regexcand_en.extract_percents(line)
 
 
-def extract_numbers(line: str, doc_lang='en', is_ignore_currency_symbol: bool = False) \
+def extract_numbers(line: str,
+                    doc_lang='en',
+                    is_ignore_currency_symbol: bool = False) \
     -> List[Dict]:
     if doc_lang == 'ja':
         # for Japanese, we extract both numbers and fractions

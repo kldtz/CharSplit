@@ -124,7 +124,14 @@ NUM_WORD_HYPHEN_NUM_WORD = re.compile(r'({})\-({})'.format(numeric_words_regex_s
                                                            numeric_words_regex_st))
 
 def remove_num_words_join_hyphen(line: str) -> str:
+    orig_line = line
     line = NUM_WORD_HYPHEN_NUM_WORD.sub(r'\1 \5', line)
+
+    if orig_line != line:
+        # need to do this twice to ensure
+        # "one-hundred-thirty-five" is processed correctly because
+        # the pattern overlap each other
+        line = NUM_WORD_HYPHEN_NUM_WORD.sub(r'\1 \5', line)
     return line
 
 
@@ -188,8 +195,8 @@ def extract_number(line: str) -> Dict:
     line = normalize_comma_period(line)
     mat = NUM_REGEX.search(line)
     if mat:
-        # numeric_span = (mat.start(), mat.end(), mat.group())
-        # print('numeric_span: {}'.format(numeric_span))
+        # print('numeric_span: {}'.format((mat.start(), mat.end(), mat.group())))
+
         val = text2number(mat.group())
         adict = {'start': mat.start(),
                  'end': mat.end(),
