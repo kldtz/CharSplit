@@ -1,13 +1,9 @@
 import json
-import logging
+import re
 # pylint: disable=unused-import
 from typing import Dict, List, Tuple
 
 import Mykytea
-
-# pylint: disable=invalid-name
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 JP_POS_MAP = {
@@ -33,9 +29,24 @@ JP_POS_MAP = {
     '感動詞' : 'INT', # Interjection
     '新規未知語' : 'UNK', # Unclassified unknown word
     '空白' : 'SPC',  # Space
-    'ローマ字文': 'ROMAN', # Roman Writing, not in original POS
+    'ローマ字文' : 'ENG', # Roman Writing
     # '' : '',
 }
+
+
+# Googled on 'japanese sentence segmentation', but
+# pretty much no good results.  That implies that the topic
+# is too trivial to write a paper on.
+
+# https://en.wikipedia.org/wiki/Sentence_boundary_disambiguation
+# Languages like Japanese and Chinese have unambiguous sentence-ending markers.
+
+# https://stanfordnlp.github.io/CoreNLP/ssplit.html
+# though we are dealing with Japanese, we will use those
+# end-of-sentence characters from Chinese
+# We specifically remove '.' character in this regex because
+# sometime a float is spelled with '.' separated by spaces.
+JA_EOS_PAT = re.compile(r'^([。]|[!?！？]+)$')
 
 
 class KyteaWordSegmenter:
@@ -46,7 +57,6 @@ class KyteaWordSegmenter:
         # You can also set your own model
         # opt = '-model /usr/local/share/kytea/model.bin'
         self.mykytea = Mykytea.Mykytea(opt)
-
 
     def to_word_pos_list(self, text: str) -> List[Tuple[str, str]]:
         text = text.replace('　', ' ')
@@ -66,29 +76,18 @@ class KyteaWordSegmenter:
 
     def to_sent_word_pos_list(self, text: str) \
         -> List[List[Tuple[str, str]]]:
-        text = text.replace('　', ' ')
-        word_tags = self.mykytea.getTags(text)  # Mykytea.TagsVector
-        sent_list = []  # type: List[List[Tuple[str, str]]]
-        words = []  # type: List[Tuple[str, str]]
-        for word_tag in word_tags:
-            for txx1 in word_tag.tag:
-                for txx2 in txx1:
-                    tag = txx2[0]
-                break
-            word = word_tag.surface.replace('　', ' ')
-            if word.isspace():
-                continue
-            pos = JP_POS_MAP[tag]
-            words.append((word, pos))
-            if word == '。':
-                sent_list.append(words)
-                words = []
-        # add last sentence
-        if words:
-            sent_list.append(words)
-        return sent_list
+        # pylint: disable=line-too-long
+        wordpos_se_list_list = self.to_sent_list(text)  # type: List[List[Tuple[str, str, int, int]]]
+        out_list = []  # type: List[List[Tuple[str, str]]]
+        for wordpos_se_list in wordpos_se_list_list:
+            cur_list = []  # type: List[Tuple[str, str]]
+            for word, pos, unused_start, unused_end in wordpos_se_list:
+                cur_list.append((word, pos))
+            out_list.append(cur_list)
+        return out_list
 
 
+    # pylint: disable=too-many-locals
     def to_sent_list(self, text: str) \
         -> List[List[Tuple[str, str, int, int]]]:
         text = text.replace('　', ' ')
@@ -96,28 +95,46 @@ class KyteaWordSegmenter:
         sent_list = []  # type: List[List[Tuple[str, str, int, int]]]
         words = []  # type: List[Tuple[str, str, int, int]]
         start, end = 0, 0
-        for word_tag in word_tags:
+        num_word_tag = len(word_tags)
+        prev_word = ''
+        for word_i, word_tag in enumerate(word_tags):
             for txx1 in word_tag.tag:
                 for txx2 in txx1:
                     # print('  tag=[{}]'.format(t2))
                     tag = txx2[0]
                 break
             word = word_tag.surface.replace('　', ' ')
-            if word.isspace():
-                continue
-            pos = JP_POS_MAP.get(tag)
-            if pos:
-                start = text.find(word, end)
-                # if start != tmp_start:
-                #     print('wooooooow: [{}] ({}) in [{}]'.format(word, end, text[end:]))
-                end = start + len(word)
-                words.append((word, pos, start, end))
-                if word == '。':
+
+            if (word.startswith('\n') and prev_word.startswith('\n')) or \
+               word.startswith('\n\n'):
+                if words:
+                    # ignore the eoln char
                     sent_list.append(words)
                     words = []
-            else:
-                logger.warning('skipping unknown tag [%s]', tag)
+                # this is a space, it will be continues
 
+            if word.isspace():
+                prev_word = word
+                continue
+            pos = JP_POS_MAP[tag]
+            start = text.find(word, end)
+            # if start != tmp_start:
+            #     print('wooooooow: [{}] ({}) in [{}]'.format(word, end, text[end:]))
+            end = start + len(word)
+            words.append((word, pos, start, end))
+            if bool(JA_EOS_PAT.search(word)):
+                next_word = ''
+                if word_i + 1 < num_word_tag:
+                    next_word = word_tags[word_i + 1].surface
+                # '。）' is not end of a sentence in Japanese
+                if next_word == ')' or \
+                   next_word == '）':
+                    pass
+                else:
+                    sent_list.append(words)
+                    words = []
+
+            prev_word = word
 
         # add last sentence
         if words:

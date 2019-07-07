@@ -1,4 +1,5 @@
 import json
+import re
 # pylint: disable=unused-import
 from typing import Dict, List, Tuple
 
@@ -32,6 +33,20 @@ JP_POS_MAP = {
     # '' : '',
 }
 
+# Googled on 'japanese sentence segmentation', but
+# pretty much no good results.  That implies that the topic
+# is too trivial to write a paper on.
+
+# https://en.wikipedia.org/wiki/Sentence_boundary_disambiguation
+# Languages like Japanese and Chinese have unambiguous sentence-ending markers.
+
+# https://stanfordnlp.github.io/CoreNLP/ssplit.html
+# though we are dealing with Japanese, we will use those
+# end-of-sentence characters from Chinese
+# We specifically remove '.' character in this regex because
+# sometime a float is spelled with '.' separated by spaces.
+JA_EOS_PAT = re.compile(r'^([。]|[!?！？]+)$')
+
 
 class NagisaWordSegmenter:
 
@@ -51,26 +66,18 @@ class NagisaWordSegmenter:
             words.append((word, pos))
         return words
 
-    # pylint: disable=no-self-use
     def to_sent_word_pos_list(self, text: str) \
         -> List[List[Tuple[str, str]]]:
-        text = text.replace('　', ' ')
-        nagisa_tokens = nagisa.tagging(text)
-        sent_list = []  # type: List[List[Tuple[str, str]]]
-        words = []  # type: List[Tuple[str, str]]
-        for word, pos in zip(nagisa_tokens.words, nagisa_tokens.postags):
-            if word.isspace():
-                continue
-            word = word.replace('　', ' ')
-            pos = JP_POS_MAP[pos]
-            words.append((word, pos))
-            if word == '。':
-                sent_list.append(words)
-                words = []
-        # add last sentence
-        if words:
-            sent_list.append(words)
-        return sent_list
+        # pylint: disable=line-too-long
+        wordpos_se_list_list = self.to_sent_list(text)  # type: List[List[Tuple[str, str, int, int]]]
+        out_list = []  # type: List[List[Tuple[str, str]]]
+        for wordpos_se_list in wordpos_se_list_list:
+            cur_list = []  # type: List[Tuple[str, str]]
+            for word, pos, unused_start, unused_end in wordpos_se_list:
+                cur_list.append((word, pos))
+            out_list.append(cur_list)
+        return out_list
+
 
     # pylint: disable=no-self-use
     def to_sent_list(self, text: str) \
@@ -80,19 +87,47 @@ class NagisaWordSegmenter:
         sent_list = []  # type: List[List[Tuple[str, str, int, int]]]
         words = []  # type: List[Tuple[str, str, int, int]]
         start, end = 0, 0
-        for word, pos in zip(nagisa_tokens.words, nagisa_tokens.postags):
-            if word.isspace():
-                continue
+        num_word_tag = len(nagisa_tokens)
+        prev_word = ''
+        for word_i, (word, pos) in enumerate(zip(nagisa_tokens.words, nagisa_tokens.postags)):
+
+            # TODO, this part is not tested for nagisa.
+            # testing 2 linebreaks in nlp.txt will cause a
+            # paragraph break.
+            # For now, we follow the logic in jpkytea.py
+            # We don't know if nagisa respects \n in its tokens.
+            if (word.startswith('\n') and prev_word.startswith('\n')) or \
+               word.startswith('\n\n'):
+                if words:
+                    # ignore the eoln char
+                    sent_list.append(words)
+                    words = []
+                # this is a space, it will be continues
+
             word = word.replace('　', ' ')
+            if word.isspace():
+                prev_word = word
+                continue
             pos = JP_POS_MAP[pos]
             start = text.find(word, end)
             # if start != tmp_start:
             #     print('wooooooow: [{}] ({}) in [{}]'.format(word, end, text[end:]))
             end = start + len(word)
             words.append((word, pos, start, end))
-            if word == '。':
-                sent_list.append(words)
-                words = []
+            if bool(JA_EOS_PAT.search(word)):
+                next_word = ''
+                if word_i + 1 < num_word_tag:
+                    next_word = nagisa_tokens.words[word_i + 1]
+                # '。）' is not end of a sentence in Japanese
+                if next_word == ')' or \
+                   next_word == '）':
+                    pass
+                else:
+                    sent_list.append(words)
+                    words = []
+
+            prev_word = word
+
         # add last sentence
         if words:
             sent_list.append(words)
