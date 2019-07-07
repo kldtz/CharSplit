@@ -25,9 +25,10 @@ class TestCurrency(unittest.TestCase):
         line = "Bob received 33 dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
         self.assertEqual(len(mat_list), 1)
-        self.assertEqual(tuv(mat_list[0]), {'text': '33 dollars',
-                                            'unit': 'USD',
-                                            'value': 33})
+        self.assertEqual({'text': '33 dollars',
+                          'unit': 'USD',
+                          'value': 33},
+                         tuv(mat_list[0]))
 
         """
         line = "Bob received 33. dollars from Alice"
@@ -48,17 +49,23 @@ class TestCurrency(unittest.TestCase):
         line = "Bob received 33.55 dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
         self.assertEqual(len(mat_list), 1)
-        self.assertEqual(tuv(mat_list[0]), {'text': '33.55 dollars',
-                                            'unit': 'USD',
-                                            'value': 33.55})
+        self.assertEqual({'text': '33.55 dollars',
+                          'unit': 'USD',
+                          'value': 33.55},
+                         tuv(mat_list[0]))
 
+        # disallow 33B for now
+        """
         line = "Bob received 33B dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
         self.assertEqual(len(mat_list), 1)
         self.assertEqual(tuv(mat_list[0]), {'text': '33B dollars',
                                             'unit': 'USD',
                                             'value': 33000000000})
+        """
 
+        # disallow '33 B', '33.3 M' for now
+        """
         line = "Bob received 33 B dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
         self.assertEqual(len(mat_list), 1)
@@ -91,7 +98,7 @@ class TestCurrency(unittest.TestCase):
                                             'unit': 'USD',
                                             'value': 33444000.000000004})
         # 'value': 33444000}
-
+        """
 
         line = "Bob received 333,333  dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
@@ -272,8 +279,7 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(tuv(mat_list[0]), {'text': 'one and half pound',
                                             'unit': 'GBP',
                                             'value': 1.5})
-        # the prefix 'and' is not ideal
-        self.assertEqual(tuv(mat_list[1]), {'text': 'and three and half pound',
+        self.assertEqual(tuv(mat_list[1]), {'text': 'three and half pound',
                                             'unit': 'GBP',
                                             'value': 3.5})
         self.assertEqual(tuv(mat_list[2]), {'text': 'eight and half dollars',
@@ -424,7 +430,6 @@ class TestCurrency(unittest.TestCase):
     def test_percent(self):
         "Test PERCENT_PAT"
 
-
         line = "33.3 percent from Alice"
         mat_list = regexgen.extract_percents(line)
         self.assertEqual(len(mat_list), 1)
@@ -564,6 +569,8 @@ class TestCurrency(unittest.TestCase):
                                             'value': 33,
                                             'unit': 'USD'})
 
+        # disallowed 33M for now
+        """
         line = "Bob received 33M dollars from Alice"
         mat_list = regexgen.extract_currencies(line)
         self.assertEqual(len(mat_list), 1)
@@ -591,4 +598,4 @@ class TestCurrency(unittest.TestCase):
         self.assertEqual(tuv(mat_list[0]), {'text': '33 B dollars',
                                             'value': 33000000000,
                                             'unit': 'USD'})
-
+        """

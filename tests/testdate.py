@@ -287,3 +287,32 @@ class TestDateUtils(unittest.TestCase):
 
         self.assertEqual({'norm': {'date': '1315-XX-XX'}},
                          dnorm.parse_date('1315'))
+
+    def test_date_use_doc(self):
+        """Use real document to test."""
+
+        line = """THIS EMPLOYMENT, NON-COMPETITION AND NON-SOLICITATION AGREEMENT  (“Agreement”) is made and entered into as of July 19, 2012, by and between Apollo Global Management,  LLC, a Delaware limited liability company (the “Company”), and Marc J. Rowan (“Executive”). Where  the context permits, references to “the Company” shall include the Company and any successor of the  Company. Capitalized terms used herein that are not defined in the paragraph in which they first appear are  defined in Section 5(b) or in the Agreement Among Principals.   """
+
+        alist = dates.extract_dates_v2(line, 0)
+        start, end, date_st, dtype, norm = alist[0]
+        self.assertEqual(norm,
+                         '2012-07-19')
+        self.assertEqual(date_st,
+                         'July 19, 2012')
+
+        alist = dates.extract_std_dates(line)
+        norm = alist[0]['norm']
+        date_st = alist[0]['text']
+        self.assertEqual(1, len(alist))
+        self.assertEqual(norm,
+                         '2012-07-19')
+        self.assertEqual(date_st,
+                         'July 19, 2012')
+
+        alist = dates.extract_dates_from_party_line(line)
+        start, end, date_st, date_type, norm = alist[0]
+        self.assertEqual(1, len(alist))
+        self.assertEqual(norm,
+                         '2012-07-19')
+        self.assertEqual(date_st,
+                         'July 19, 2012')

@@ -3,9 +3,10 @@
 import configparser
 import json
 import unittest
+from typing import Dict, List
 
 from kirke.client import postfileutils
-from kirke.utils import corenlputils
+from kirke.utils import corenlputils, ebantdoc4
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -16,6 +17,11 @@ SCUT_CLF_VERSION = config['ebrevia.com']['SCUT_CLF_VERSION']
 MODEL_DIR = 'dir-scut-model'
 WORK_DIR = 'dir-work'
 CUSTOM_MODEL_DIR = 'dir-custom-model'
+
+def ja_sent_to_tokens(asent: Dict) -> List[str]:
+    tokens = [adict['word'] for adict in asent['tokens']]
+    return tokens
+
 
 class TestLangs(unittest.TestCase):
 
@@ -74,14 +80,15 @@ class TestLangs(unittest.TestCase):
 
         corenlp_result = corenlputils.check_pipeline_lang('zh', zh_file)
         sents = corenlp_result['sentences']
-        ner_string = " ".join([tok['ner'] for tok in sents[8]['tokens']])
-        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[8]['tokens']]))
+        ner_string = " ".join([tok['ner'] for tok in sents[20]['tokens']])
+        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[20]['tokens']]))
         self.assertEqual(ner_string, 'O O O O O O O O O O O O O O MISC O')
-        ner_string = " ".join([tok['ner'] for tok in sents[13]['tokens']])
-        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[13]['tokens']]))
+        ner_string = " ".join([tok['ner'] for tok in sents[25]['tokens']])
+        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[25]['tokens']]))
         self.assertEqual(ner_string, 'O O O O MISC MISC MISC O O O O O O O O O O O O O MISC O')
-        ner_string = " ".join([tok['ner'] for tok in sents[16]['tokens']])
-        self.assertEqual(ner_string, 'O O O O O O O O O O O O O O O O GPE O O O O O O O O MISC O')
+        ner_string = " ".join([tok['ner'] for tok in sents[28]['tokens']])
+        print(" ".join([tok['word'] + '/' + tok['ner'] for tok in sents[28]['tokens']]))
+        self.assertEqual(ner_string, 'O O O O O O O O O O O O O O O O GPE O O O O O O O O')
 
         result_text = \
                 postfileutils.post_annotate_document(zh_file,

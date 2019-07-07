@@ -342,7 +342,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8290.txt', 'title', 1, 0, 0),
                            ('demo-txt/8290.txt', 'warranty', 1, 0, 0),
                            ('demo-txt/8290.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8291(self):
         self.maxDiff = None
@@ -354,10 +354,7 @@ class TestAntProvs(unittest.TestCase):
 
         expected_result = [('demo-txt/8291.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8291.txt', 'choiceoflaw', 1, 0, 0),
-                           # the real date is 'July 1, 1999', not "December 31, 2004"
-                           # the gold annotation is wrong
-                           # ('demo-txt/8291.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8291.txt', 'date', 0, 1, 0),  # has_diff: verfied, ok
+                           ('demo-txt/8291.txt', 'date', 0, 0, 0),
                            ('demo-txt/8291.txt', 'effectivedate', 0, 0, 0),
                            ('demo-txt/8291.txt', 'force_majeure', 1, 0, 0),
                            ('demo-txt/8291.txt', 'limliability', 1, 0, 0),
@@ -371,7 +368,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8291.txt', 'title', 1, 0, 0),
                            ('demo-txt/8291.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8291.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
 
     def test_antdoc_8292(self):
@@ -621,7 +618,8 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8300.txt', 'title', 1, 0, 0),
                            ('demo-txt/8300.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8300.txt', 'cust_9', 1, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result,
+                         prov_result_list)
 
 
 if __name__ == "__main__":

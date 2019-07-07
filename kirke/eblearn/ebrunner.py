@@ -61,6 +61,16 @@ def test_provision(eb_annotator,
     return eb_annotator.test_antdoc_list(eb_antdoc_list, threshold)
 
 
+def remove_invalid_date_ant_list(date_ant_list: List[Dict]) -> List[Dict]:
+    out_list = []  # type: List[Dict]
+    for date_dict in date_ant_list:
+        ant_text = date_dict['text']
+        if ant_text.isdigit() and \
+           not dates.is_valid_year(ant_text):
+            continue
+        out_list.append(date_dict)
+    return out_list
+
 # now adjust the date using domain specific logic
 # this operation is destructive
 def update_dates_by_domain_rules(ant_result_dict):
@@ -515,6 +525,7 @@ class EbRunner:
                                    eb_antdoc,
                                    work_dir=work_dir)
 
+        prov_labels_map['sigdate'] = remove_invalid_date_ant_list(prov_labels_map.get('sigdate', []))
         # apply composite date logic
         update_dates_by_domain_rules(prov_labels_map)
 

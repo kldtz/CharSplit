@@ -121,7 +121,7 @@ NUM_IN_WORDS_REGEX = re.compile(numeric_words_regex_st, re.I)
 
 
 NUM_WORD_HYPHEN_NUM_WORD = re.compile(r'({})\-({})'.format(numeric_words_regex_st,
-                                                           numeric_words_regex_st))
+                                                           numeric_words_regex_st), re.I)
 
 def remove_num_words_join_hyphen(line: str) -> str:
     orig_line = line

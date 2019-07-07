@@ -219,6 +219,10 @@ def extract_dates_from_party_line(line: str) \
         #        date_start = mat.start(1)
         #        date_end = mat.start(1)+by_mat.start()
         if date_start != -1:
+            tmp_comma_mat = re.search(r',\s*$', line[date_start:date_end])
+            if tmp_comma_mat:
+                date_end -= len(tmp_comma_mat.group())
+                maybe_date_st = line[mat.start(1):date_end]
             char40_before = line[max(mat.start()-40, 0):mat.start()]
             char40_after = line[mat.end():mat.end()+40]
             if EFFECTIVE_PAT.search(char40_before) or \
@@ -241,7 +245,7 @@ def extract_dates_from_party_line(line: str) \
     # print("as_if result date: {}".format(result))
 
     for mat in DATE_PAT1.finditer(line):
-        # print("date_pat1: {}".format(mat.group()))
+        # print("date_pat1: [{}]".format(mat.group()))
         char40_before = line[max(mat.start()-40, 0):mat.start()]
         char40_after = line[mat.end():mat.end()+40]
         if EFFECTIVE_PAT.search(char40_before) or \
@@ -605,6 +609,22 @@ def get_last_day_of_month(year: int, month: int) -> int:
     """Returns the number of days in a month."""
     _, num_day = calendar.monthrange(year, month)
     return num_day
+
+
+def is_valid_year(st_or_int: Any) -> bool:
+    if isinstance(st_or_int, int):
+        year_val = st_or_int
+    else:
+        try:
+            year_val = int(st_or_int)
+        except ValueError:
+            return False
+
+    # must be smaller 100 for 1950 to 2099
+    if year_val >= MIN_VALID_YEAR and \
+       year_val <= MAX_VALID_YEAR:
+        return True
+    return False
 
 
 # pylint: disable=too-many-return-statements
