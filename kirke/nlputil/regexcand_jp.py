@@ -8,6 +8,17 @@ from kirke.utils import unicodeutils
 
 IS_DEBUG = False
 
+# NUMERIC_REGEX_ST
+# pylint: disable=line-too-long
+# ((零|一|二|三|四|五|六|七|八|九|〇|壱|弐|参|元|拾|佰|陌|仟|阡|萬|两|亿|十|百|千|万|億|兆)+・(零|一|二|三|四|五|六|七|八|九|〇|壱|弐|参|元|拾|佰|陌|仟|阡|萬|两|亿|十|百|千|万|億|兆)+|([-+]?[0-9,\.]*[0-9]+)|(零|一|二|三|四|五|六|七|八|九|〇|壱|弐|参|元|拾|佰|陌|仟|阡|萬|两|亿|十|百|千|万|億|兆)+|ゼロ)
+
+# Looking at the above regex, there is some, but not significant backtracking issues
+# which happened with English Currencies and Percentages.
+# The sub-expression, '([-+]?[0-9,\.]*[0-9]+)%' for percentage runs in sub-seconds
+# for a 120 digit string (without percentage at the end) is less than 0.3 seconds.
+# for 240 digits string, it is less than 2 seconds.  It's unlikely there are such
+# astronomical numbers in contract these days.
+
 # pylint: disable=line-too-long
 CURRENCY_PAT_ST = r'((((\bUSD|\bEUR|\bGBP|\bCNY|\bJPY|\bINR|\bRupees?|\bRs\.?)|[\$€£円¥₹]) *{})|' \
                   r'({} *(USD|[dD]ollars?|u\.\s*s\.\s*dollars?|ドル|米ドル|㌦|アメリカドル|弗)( *{} *(セント|cents?)))|' \

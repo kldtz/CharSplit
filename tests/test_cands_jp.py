@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import time
 from typing import Dict, Tuple
 
 import unittest
@@ -368,6 +369,58 @@ class TestCurrencyJPUtils(unittest.TestCase):
         self.assertEqual('USD', adict['norm']['unit'])
 
 
+    def test_extract_currency_backtrack(self):
+        line = '一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零ドル'
+        alist = regexcand_jp.extract_currencies(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(1, len(alist))
+        adict = alist[0]
+        self.assertEqual(12345678901234567890123456789012345678901234567890,
+                         adict['norm']['value'])
+        self.assertEqual('USD', adict['norm']['unit'])
+
+        # pylint: disable=line-too-long
+        line = '一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零'
+        start_time = time.time()
+        alist = regexcand_jp.extract_currencies(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(0, len(alist))
+        end_time = time.time()
+        took_time = end_time - start_time
+        print('took_time = {}'.format(took_time))
+        self.assertLess(took_time, 0.1)
+
+        line = '一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零'
+        start_time = time.time()
+        alist = regexcand_jp.extract_currencies(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(0, len(alist))
+        end_time = time.time()
+        took_time = end_time - start_time
+        print('took_time = {}'.format(took_time))
+        self.assertLess(took_time, 0.1)
+
+        # There are still potential for backtracking issue, but given
+        # we need very long string to cause this slow down, going to ignore for now.
+        # pylint: disable=line-too-long
+        line = '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890'
+        start_time = time.time()
+        alist = regexcand_jp.extract_currencies(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(0, len(alist))
+        end_time = time.time()
+        took_time = end_time - start_time
+        print('took_time 2= {}'.format(took_time))
+        self.assertLess(took_time, 0.3)
+
+        # There are still potential for backtracking issue, but given
+        # we need very long string to cause this, going to ignore for now.
+        line = '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890'
+        start_time = time.time()
+        alist = regexcand_jp.extract_currencies(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(0, len(alist))
+        end_time = time.time()
+        took_time = end_time - start_time
+        # 1.7 second on a desktop
+        print('took_time 3= {}'.format(took_time))
+        self.assertLess(took_time, 2.0)
+
 
 class TestPercentJPUtils(unittest.TestCase):
 
@@ -509,4 +562,57 @@ class TestPercentJPUtils(unittest.TestCase):
         adict = alist[0]
         self.assertEqual(50.04, adict['norm']['value'])
         self.assertEqual('%', adict['norm']['unit'])
+
+
+    def test_extract_currency_backtrack(self):
+        line = '一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零%'
+        alist = regexcand_jp.extract_percents(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(1, len(alist))
+        adict = alist[0]
+        self.assertEqual(12345678901234567890123456789012345678901234567890,
+                         adict['norm']['value'])
+        self.assertEqual('%', adict['norm']['unit'])
+
+        # pylint: disable=line-too-long
+        line = '一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零'
+        start_time = time.time()
+        alist = regexcand_jp.extract_percents(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(0, len(alist))
+        end_time = time.time()
+        took_time = end_time - start_time
+        print('took_time = {}'.format(took_time))
+        self.assertLess(took_time, 0.1)
+
+        line = '一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零一二三四五六七八九零'
+        start_time = time.time()
+        alist = regexcand_jp.extract_percents(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(0, len(alist))
+        end_time = time.time()
+        took_time = end_time - start_time
+        print('took_time = {}'.format(took_time))
+        self.assertLess(took_time, 0.1)
+
+        # There are still potential for backtracking issue, but given
+        # we need very long string to cause this slow down, going to ignore for now.
+        # pylint: disable=line-too-long
+        line = '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890'
+        start_time = time.time()
+        alist = regexcand_jp.extract_percents(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(0, len(alist))
+        end_time = time.time()
+        took_time = end_time - start_time
+        print('took_time 2= {}'.format(took_time))
+        self.assertLess(took_time, 0.3)
+
+        # There are still potential for backtracking issue, but given
+        # we need very long string to cause this, going to ignore for now.
+        line = '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890'
+        start_time = time.time()
+        alist = regexcand_jp.extract_percents(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(0, len(alist))
+        end_time = time.time()
+        took_time = end_time - start_time
+        # 1.7 second on a desktop
+        print('took_time 3= {}'.format(took_time))
+        self.assertLess(took_time, 2.0)
 

@@ -188,7 +188,7 @@ def _text2number(num_st: str) -> Union[int, float]:
         return int(num_st)
 
     tokens = list(num_st)
-    print('tokens: {}'.format(tokens))
+    # print('tokens: {}'.format(tokens))
 
     # handle '二零零四'
     # handle '一九五'
