@@ -525,7 +525,8 @@ class EbRunner:
                                    eb_antdoc,
                                    work_dir=work_dir)
 
-        prov_labels_map['sigdate'] = remove_invalid_date_ant_list(prov_labels_map.get('sigdate', []))
+        prov_labels_map['sigdate'] = remove_invalid_date_ant_list(prov_labels_map.get('sigdate',
+                                                                                      []))
         # apply composite date logic
         update_dates_by_domain_rules(prov_labels_map)
 

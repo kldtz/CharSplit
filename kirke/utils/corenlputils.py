@@ -231,7 +231,7 @@ def align_first_word_offset(json_sent_list, atext):
 
 # ajson is result from corenlp
 # returns a list of EbSentence
-def corenlp_json_to_ebsent_list(file_id, ajson, atext, is_doc_structure=False) -> List[EbSentence]:
+def corenlp_json_to_ebsent_list(file_id, ajson, atext) -> List[EbSentence]:
     result = []  # type: List[EbSentence]
 
     if isinstance(ajson, str):
@@ -249,7 +249,7 @@ def corenlp_json_to_ebsent_list(file_id, ajson, atext, is_doc_structure=False) -
     # if not is_doc_structure:
     #     result = _pre_merge_broken_ebsents(result, atext)
     # else:
-    #     result = filter_out_empty_lines(result, atext)        
+    #     result = filter_out_empty_lines(result, atext)
     result = filter_out_empty_lines(result, atext)
     return result
 
