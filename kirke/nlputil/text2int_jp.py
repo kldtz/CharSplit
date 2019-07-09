@@ -65,7 +65,10 @@ NUMERIC_WORDS = list(UNITS_KANJI + ['〇', '壱', '弐', '参',
 NUMERIC_WORDS.extend(SCALES_KANJI.keys())
 NUMERIC_WORDS.sort(key=len, reverse=True)
 
-NUM_DIGIT_REGEX_ST = r'[-+]?[0-9,\.]*[0-9]+'
+# added a space to numeric expression
+# because japanese OCR sometimes messed up with
+# spaces
+NUM_DIGIT_REGEX_ST = r'[-+]?[0-9,\.]*[0-9]|[-+]?[0-9 ]*[0-9]'
 
 # '\d[\d\,\.]*' is very permissive
 # works on 1,000,000.03
@@ -99,21 +102,42 @@ def extract_numbers(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
     # to simplify numeric normalization logic.
     if is_norm_dbcs_sbcs:
         line = normalize_dbcs_sbcs(line)
-        print('de-dbcs: [{}]'.format(line))
+        # print('de-dbcs: [{}]'.format(line))
 
     mat_list = list(NUM_REGEX.finditer(line))
 
     num_span_list = []  # type: List[Tuple[int, int, str]]
     result = []  # type: List[Dict]
     for mat in mat_list:
-        numeric_span = (mat.start(), mat.end(), mat.group())
+        if mat.group().startswith(' '):
+            num_prefix_spaces = len(re.search(r'^\s+', mat.group()).group())
+            mat_start = mat.start() + num_prefix_spaces
+            mat_end = mat.end()
+            mat_stx = mat.group()[num_prefix_spaces:]
+        else:
+            mat_start = mat.start()
+            mat_end = mat.end()
+            mat_stx = mat.group()
+        # '百' in '百分の二' should not be invalided
+        # if mat_stx in set(['参', '仟', '阡', '千',
+        #                    '万', '萬', '億', '兆', '万一']):
+        if mat_stx in set(['参', '万一']):
+            # part of a name or address
+            # those scales shouldn't be by themself, should be
+            # with another number specificier.
+            # '参' is not a scale, but it goes with too many other
+            # characters since it is a polysemy character.
+            # can still remove in the future.
+            # '万一' is word, meaning "just in case'
+            continue
+        numeric_span = (mat_start, mat_end, mat_stx)
         if IS_DEBUG:
             print('numeric_span: {}'.format(numeric_span))
         num_span_list.append(numeric_span)
-        val = _text2number(mat.group())
-        adict = {'start': mat.start(),
-                 'end': mat.end(),
-                 'text': mat.group(),
+        val = _text2number(mat_stx)
+        adict = {'start': mat_start,
+                 'end': mat_end,
+                 'text': mat_stx,
                  'concept': 'number',
                  # the normalized value is in 'norm' field
                  'norm': {'value': val}}
@@ -128,12 +152,31 @@ def extract_number(line: str, is_norm_dbcs_sbcs=False) -> Dict:
 
     mat = NUM_REGEX.search(line)
     if mat:
-        # numeric_span = (mat.start(), mat.end(), mat.group())
-        # print('numeric_span: {}'.format(numeric_span))
-        val = _text2number(mat.group())
-        adict = {'start': mat.start(),
-                 'end': mat.end(),
-                 'text': mat.group(),
+        if mat.group().startswith(' '):
+            num_prefix_spaces = len(re.search(r'^\s+', mat.group()).group())
+            mat_start = mat.start() + num_prefix_spaces
+            mat_end = mat.end()
+            mat_stx = mat.group()[num_prefix_spaces:]
+        else:
+            mat_start = mat.start()
+            mat_end = mat.end()
+            mat_stx = mat.group()
+        # '百' in '百分の二' should not be invalided
+        # if mat_stx in set(['参', '仟', '阡', '千',
+        #                    '万', '萬', '億', '兆', '万一']):
+        if mat_stx in set(['参', '万一']):
+            # part of a name or address
+            # those scales shouldn't be by themself, should be
+            # with another number specificier.
+            # '参' is not a scale, but it goes with too many other
+            # characters since it is a polysemy character.
+            # can still remove in the future.
+            # '万一' is word, meaning "just in case'
+            return {}
+        val = _text2number(mat_stx)
+        adict = {'start': mat_start,
+                 'end': mat_end,
+                 'text': mat_stx,
                  'concept': 'number',
                  # the normalized value is in 'norm' field
                  'norm': {'value': val}}
@@ -154,8 +197,14 @@ def digit_char_read_out(tok_list: List[str]) -> int:
         if tok == '〇':
             num_tok_list.append('0')
         else:
-            num_tok = UNITS_KANJI.index(tok)
-            num_tok_list.append(str(num_tok))
+            try:
+                num_tok = UNITS_KANJI.index(tok)
+                num_tok_list.append(str(num_tok))
+            except ValueError:  # such as '元' is not in list
+                # this error happens because we didn't remove
+                # all currency symbol when trying to extract
+                # numbers. is_ignore_currency_symbol=True
+                pass
     return int(''.join(num_tok_list))
 
 
@@ -164,7 +213,9 @@ def digit_char_read_out(tok_list: List[str]) -> int:
 def _text2number(num_st: str) -> Union[int, float]:
     # assume num_st is normalize_dbcs_sbcs()
     # assuming the string is already single-byte, not double-byte
-    num_st = num_st.strip()
+    # Because Japanese OCR has issues with spaces, we
+    # assume the spaces between the nubmers doesn't matter.
+    num_st = num_st.strip().replace(' ', '')
     if not num_st:
         return -1
 
@@ -299,9 +350,9 @@ FRACTION_PAT = re.compile(FRACTION_PAT_ST, re.I)
 
 def fraction_to_norm_dict(cx_mat: Match, line: str) -> Dict:
     if IS_DEBUG:
-        print('  percent cx_mat group: {} {} [{}]'.format(cx_mat.start(),
-                                                          cx_mat.end(),
-                                                          cx_mat.group()))
+        print('  fraction cx_mat group: {} {} [{}]'.format(cx_mat.start(),
+                                                           cx_mat.end(),
+                                                           cx_mat.group()))
         for gi, unused_group in enumerate(cx_mat.groups(), 1):
             print("    perc cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
     norm_value = -1.0
@@ -316,7 +367,9 @@ def fraction_to_norm_dict(cx_mat: Match, line: str) -> Dict:
         elif cx_mat.group(4):
             numerator = extract_number(cx_mat.group(9))['norm']['value']
             denominator = extract_number(cx_mat.group(4))['norm']['value']
-            norm_value = numerator / denominator
+            norm_value = 0
+            if denominator != 0:
+                norm_value = numerator / denominator
     # pylint: disable=unused-variable
     except KeyError as e:
         # norm_value = -1

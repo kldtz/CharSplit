@@ -486,13 +486,40 @@ def extract_roman_numbers(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
     num_span_list = []  # type: List[Tuple[int, int, str]]
     result = []  # type: List[Dict]
     for mat in mat_list:
-        numeric_span = (mat.start(), mat.end(), mat.group())
+        if mat.start() == mat.end():
+            continue
+
+        mat_start, mat_end, mat_stx = (mat.start(),
+                                       mat.end(),
+                                       mat.group())
+        if mat.group().startswith('(') and \
+           mat.group().endswith(')'):
+            mat_start, mat_end, mat_stx = (mat.start() + 1,
+                                           mat.end() - 1,
+                                           mat.group()[1:-1])
+        elif mat.group().endswith(')'):
+            mat_start, mat_end, mat_stx = (mat.start(),
+                                           mat.end() - 1,
+                                           mat.group()[:-1])
+
+        # just a roman numeric number by itself is too ambiguous
+        if mat_stx.lower() in set(['l', 'm', 'd', 'c']):
+            # print('skipped')
+            continue
+        # print('fixed numeric_span: {}'.format(numeric_span))
+
+        try:
+            val = roman_number_to_dict(mat_stx)
+        except KeyError:
+            # due to certain unknown character, such as '(' or ')'
+            continue
+
+        numeric_span = (mat_start, mat_end, mat_stx)
         # print('numeric_span: {}'.format(numeric_span))
         num_span_list.append(numeric_span)
-        val = roman_number_to_dict(mat.group())
-        adict = {'start': mat.start(),
-                 'end': mat.end(),
-                 'text': mat.group(),
+        adict = {'start': mat_start,
+                 'end': mat_end,
+                 'text': mat_stx,
                  'concept': 'number',
                  'norm': {'value': val}}
         result.append(adict)

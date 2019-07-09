@@ -18,7 +18,7 @@ IS_DEBUG = False
 CURRENCY_PAT_ST = r'((((\bUSD|\bEUR|\bGBP|\bCNY|\bJPY|\bINR|\bRupees?|\bRs\b\.?)|[\$€£円¥₹]) *({})|({}) *((USD|euros?|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|ドル|米ドル|㌦|アメリカドル|弗|[eE]uros?|ユーロ|[pP]ounds?|ポンド|[yY]uans?|人民元|元|[yY]ens?|[rR]upees?|インド・ルピー|インドルピー|ルピー)|[\$€£円¥₹])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st_with_b)
 CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
 
-CURRENCY_SYMBOL_EXACT_PAT = re.compile(r'([\$€£円¥₹]|\bR[Ss]\.)')
+CURRENCY_SYMBOL_EXACT_PAT = re.compile(r'([\$€£円¥₹元弗]|\bR[Ss]\.)')
 
 
 CURRENCY_SYMBOL_PREFIX_ST = r'((\bUSD\b|\bEUR\b|\bGBP\b|\bCNY\b|\bJPY\b|\bINR\b|\bRupees?\b|\bRs\b\.?)|[\$€£円¥₹])'

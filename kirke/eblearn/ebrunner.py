@@ -326,8 +326,8 @@ class EbRunner:
 
                 # modify 'DATE' to 'CAND_DATE'
                 # before passing the result back to extractor
-                if lang_provision == 'DATE':
-                    lang_provision = 'CAND_DATE'
+                if provision_name == 'DATE':
+                    provision_name = 'CAND_DATE'
                     ant_list = update_ant_list_with_provision(ant_list, 'CAND_DATE')
 
                 if '.' in provision_name:  # in case there is no ant_list

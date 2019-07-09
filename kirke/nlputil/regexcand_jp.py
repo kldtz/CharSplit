@@ -90,8 +90,9 @@ def extract_currencies(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
     return result
 
 
+# the '\s*' is just in case there are spaces between the digits
 PERCENT_PAT_ST = r'{} *(percent|パーセント|%)|' \
-                 r'([0-9]+)/100|100分の{}|' \
+                 r'([0-9]+)/1\s*0\s*0|1\s*0\s*0分の{}|' \
                  r'{}割({}分)?({}厘)?|{}分({}厘)?|{}厘|(半分)'.format(text2int_jp.NUMERIC_REGEX_ST,
                                                               text2int_jp.NUMERIC_REGEX_ST,
                                                               text2int_jp.NUMERIC_REGEX_ST,
@@ -157,11 +158,11 @@ def percent_to_norm_dict(cx_mat: Match, line: str) -> Dict:
 def extract_percents(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
     if is_norm_dbcs_sbcs:
         line = unicodeutils.normalize_dbcs_sbcs(line)
-    print('extract_percents({})'.format(line))
+    # print('extract_percents({})'.format(line))
     result = []
     mat_list = PERCENT_PAT.finditer(line)
     for mat in mat_list:
-        print('mat: [{}]'.format(mat.group()))
+        # print('mat: [{}]'.format(mat.group()))
         norm_dict = percent_to_norm_dict(mat, line)
         result.append(norm_dict)
     return result

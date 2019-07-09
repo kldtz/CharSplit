@@ -66,10 +66,10 @@ def extract_dates(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
         month = mat.group(5)
         day = mat.group(8)
 
-        print('era = {}'.format(era))
-        print('year = {}'.format(date_num_to_int(year)))
-        print('month = {}'.format(date_num_to_int(month)))
-        print('day = {}'.format(date_num_to_int(day)))
+        # print('era = {}'.format(era))
+        # print('year = {}'.format(date_num_to_int(year)))
+        # print('month = {}'.format(date_num_to_int(month)))
+        # print('day = {}'.format(date_num_to_int(day)))
 
         if era:
             gregorian_year = era_to_gregorian_year(era, date_num_to_int(year))
@@ -80,7 +80,7 @@ def extract_dates(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
         day_val = date_num_to_int(day)
 
 
-        print('gregorian year: {}'.format(gregorian_year))
+        # print('gregorian year: {}'.format(gregorian_year))
 
         adict = {'norm': {'date': '{:04d}-{:02d}-{:02d}'.format(gregorian_year,
                                                                 month_val,

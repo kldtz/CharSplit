@@ -518,6 +518,30 @@ class TestPercentJPUtils(unittest.TestCase):
         print(adict)
         self.assertEqual(5, adict['norm']['value'])
 
+        line = '10 0分の5'
+        adict_list = regexcand_jp.extract_percents(line)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        print('adict')
+        print(adict)
+        self.assertEqual(5, adict['norm']['value'])
+
+        line = '1 00分の5'
+        adict_list = regexcand_jp.extract_percents(line)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        print('adict')
+        print(adict)
+        self.assertEqual(5, adict['norm']['value'])
+
+        line = '1 0 0分の5'
+        adict_list = regexcand_jp.extract_percents(line)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        print('adict')
+        print(adict)
+        self.assertEqual(5, adict['norm']['value'])
+
         line = '5/100'
         adict_list = regexcand_jp.extract_percents(line)
         self.assertEqual(len(adict_list), 1)

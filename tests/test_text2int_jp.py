@@ -503,6 +503,32 @@ class TestText2IntJP(unittest.TestCase):
         adict = adict_list[0]
         self.assertEqual(42.195, adict['norm']['value'])
 
+
+    def test_extract_numbers_with_spaces(self):
+        # OCR for Japanese docs sometimes has extra spaces
+
+        line = 'He has 10 0 dollars'
+        adict_list = extract_numbers(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        self.assertEqual(100, adict['norm']['value'])
+
+
+    def test_parse_numbers_in_fractions(self):
+        """We must preserve the '百' in '百分の二', otherwise
+           if we invalidate that, then there is no value for
+           the fraction.
+        """
+
+        line = 'interest reate is 百分の二'
+        adict_list = extract_numbers(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(len(adict_list), 2)
+        adict = adict_list[0]
+        self.assertEqual(100, adict['norm']['value'])
+        adict = adict_list[1]
+        self.assertEqual(2, adict['norm']['value'])
+
+
     def test_extract_numbers_spell_out(self):
 
         line = '二零零四'
