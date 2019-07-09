@@ -110,7 +110,7 @@ def extract_numbers(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
     result = []  # type: List[Dict]
     for mat in mat_list:
         if mat.group().startswith(' '):
-            num_prefix_spaces = len(re.search(r'^\s+', mat.group()).group())
+            num_prefix_spaces = len(re.search(r'^\s+', mat.group()).group())  # type: ignore
             mat_start = mat.start() + num_prefix_spaces
             mat_end = mat.end()
             mat_stx = mat.group()[num_prefix_spaces:]
@@ -153,7 +153,7 @@ def extract_number(line: str, is_norm_dbcs_sbcs=False) -> Dict:
     mat = NUM_REGEX.search(line)
     if mat:
         if mat.group().startswith(' '):
-            num_prefix_spaces = len(re.search(r'^\s+', mat.group()).group())
+            num_prefix_spaces = len(re.search(r'^\s+', mat.group()).group())  # type: ignore
             mat_start = mat.start() + num_prefix_spaces
             mat_end = mat.end()
             mat_stx = mat.group()[num_prefix_spaces:]
