@@ -254,39 +254,22 @@ class TestSentSeg(unittest.TestCase):
         pred_sent_list = gen_sent_list(doc_id)
         prec, recall, f1 = calc_prec_recall_f1(gold_sent_list, pred_sent_list)
 
+        # there were some double-byte character issues, but resolved it by
+        # always use the original text intead of the normalized single-byte
+        # characters.
+
         # doing ok
+        # 0.95 in double-bytes
+        self.assertGreater(prec, 0.93)
+        self.assertLess(prec, 0.97)
 
-        # updating the threshold hold due to the 
-        # normalization of double-byte characters, in txtreader.py and
-        # strutils.py.  All double-bytes are converted into their
-        # "natural" representations in kirke/utils/unicodeutils.py
-        # normalize_dbcs_sbcs()
-        """
-The difference in lines are
-FN: [Name ヤ(2U ïJ ノY서 Title Title ñz，に С 2 Gì히 ]
-FP: [Name ヤ(2U ïJ ノY서 Title Title ñz,に С 2 Gì히 ]
+        # 0.95
+        self.assertGreater(recall, 0.93)
+        self.assertLess(recall, 0.97)
 
-FN: [ザ）、▼入、 Make all checks payable to EverFi ]
-FP: [ザ)、▼入、 Make all checks payable to EverFi ]
-
-FN: ["Confidential Information" means any written information and data that is treated as or should be reasonably  understood to be confidential and that is disclosed by one party f Discloser”）to the other party (“Recipient”) pursuant to this Agreement. ]
-FP: ["Confidential Information" means any written information and data that is treated as or should be reasonably  understood to be confidential and that is disclosed by one party f Discloser”)to the other party (“Recipient”) pursuant to this Agreement. ]
-
-All 3 differences are related to double-byte representation was converted to
-single-bytes.
-        """
-
-        # .90, was 0.95 in double-bytes
-        self.assertGreater(prec, 0.88)
-        self.assertLess(prec, 0.92)
-
-        # 0.90
-        self.assertGreater(recall, 0.88)
-        self.assertLess(recall, 0.92)
-
-        # 0.90
-        self.assertGreater(f1, 0.88)
-        self.assertLess(f1, 0.92)
+        # 0.95
+        self.assertGreater(f1, 0.93)
+        self.assertLess(f1, 0.97)
 
 
     def test_doc_8955(self):

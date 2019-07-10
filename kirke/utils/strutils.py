@@ -48,12 +48,13 @@ def normalize_spaces(line: str) -> str:
     return line.replace('\xa0', ' ')
 
 
-def loads(file_name: str) -> str:
+def loads(file_name: str, is_dbcs_sbcs: bool = True) -> str:
     xst = ''
     try:
         with open(file_name, 'rt', newline='') as myfile:
             xst = myfile.read()
-            xst = unicodeutils.normalize_dbcs_sbcs(xst)
+            if is_dbcs_sbcs:
+                xst = unicodeutils.normalize_dbcs_sbcs(xst)
     except IOError as exc:
         logger.error("I/O error: %s in strutils.loads(%s)",
                      exc, file_name)

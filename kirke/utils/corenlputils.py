@@ -5,8 +5,8 @@ from typing import Any, List, Optional
 
 from stanfordcorenlp import StanfordCoreNLP
 
+from kirke.utils import strutils
 from kirke.utils.corenlpsent import EbSentence
-from kirke.utils.strutils import corenlp_normalize_text
 from kirke.utils.textoffset import TextCpointCunitMapper
 # from kirke.nlputil import jpnagisa, zhutil
 from kirke.nlputil import jpkytea, zhutil
@@ -21,7 +21,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 # loading it here causes nosetests to be stuck
 # NLP_SERVER = StanfordCoreNLP('http://localhost', port=9500)
 NLP_SERVER = None
-jp_word_segmenter = None
+jp_word_segmenter = None  # type: Optional[jpkytea.KyteaWordSegmenter]
 
 def init_corenlp_server():
     # pylint: disable=global-statement
@@ -55,7 +55,10 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
         # jp_word_segmenter = jpnagisa.NagisaWordSegmenter()
         jp_word_segmenter = jpkytea.KyteaWordSegmenter()
 
-    no_ctrl_chars_text = corenlp_normalize_text(text_as_string)
+    # remove period after acronyms to avoid bad sentence segmentation
+    # for example, 'per cent.', 'sr.', or 'no.'
+    no_acronym_text = strutils.normalize_acronym_text(text_as_string)
+    no_ctrl_chars_text = strutils.corenlp_normalize_text(no_acronym_text)
 
     # "ssplit.isOneSentence": "true"
     # 'ner.model': 'edu/stanford/nlp/models/ner/english.muc.7class.distsim.crf.ser.gz',
@@ -82,6 +85,7 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
     elif doc_lang == 'ja':
         logger.debug("jp segmenter running on %s, len=%d",
                      doc_lang, len(no_ctrl_chars_text))
+        # jp_word_segmenter must not be NULL
         output = jp_word_segmenter.to_corenlp_json(text_as_string)  # type: ignore
     else:
         logger.debug("corenlp running on en, len=%d", len(no_ctrl_chars_text))
@@ -102,9 +106,8 @@ def annotate(text_as_string: str, doc_lang: Optional[str]) -> Any:
 
 
 def check_pipeline_lang(doc_lang: str, filename: str) -> str:
-    with open(filename, 'r') as doc:
-        doc_text = doc.read()
-        return annotate(doc_text, doc_lang)
+    doc_text = strutils.loads(filename)
+    return annotate(doc_text, doc_lang)
 
 def annotate_for_enhanced_ner(text_as_string: str, doc_lang: str = 'en'):
     acopy_text = transform_corp_in_text(text_as_string)

@@ -6,13 +6,14 @@ from typing import Iterator, List, Tuple
 from kirke.utils import unicodeutils
 
 # change all nbsp to regular spaces
-def loads(file_name: str) -> str:
+def loads(file_name: str, is_dbcs_sbcs: bool = True) -> str:
     with open(file_name, 'rt', newline='') as fin:
         doc = fin.read().replace('\xa0', ' ')
         # replace double-byte and single-byte chars with
         # their normal representations.
         # A common occurence in Japanese text.
-        doc = unicodeutils.normalize_dbcs_sbcs(doc)
+        if is_dbcs_sbcs:
+            doc = unicodeutils.normalize_dbcs_sbcs(doc)
     return doc
 
 

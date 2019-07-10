@@ -5,6 +5,8 @@ from collections import defaultdict
 import logging
 import os
 
+import langdetect
+
 from kirke.utils import ebantdoc4, osutils, strutils
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -30,7 +32,11 @@ def main():
     work_dir = 'dir-work'
     osutils.mkpath(work_dir)
     ebantdoc4.clear_cache(fname, work_dir)
-    ebdoc = ebantdoc4.text_to_ebantdoc(fname, work_dir)
+
+    atext = strutils.loads(fname)
+    doc_lang = langdetect.detect(atext)
+    print('doc_lang = {}'.format(doc_lang))
+    ebdoc = ebantdoc4.text_to_ebantdoc(fname, work_dir, doc_lang=doc_lang)
 
     print('loaded %s' % ebdoc.file_id)
 

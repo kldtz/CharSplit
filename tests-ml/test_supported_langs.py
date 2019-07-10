@@ -141,3 +141,85 @@ class TestLangs(unittest.TestCase):
                                                      is_detect_lang=True)
         out_lang = json.loads(result_text)['lang']
         self.assertEqual(out_lang, 'en')
+
+
+    def test_lang_japanese(self):
+        # ------- JAPANESE -------
+        ja_file = 'data/japanese/txt/1010.txt'
+
+        corenlp_result = corenlputils.check_pipeline_lang('ja', ja_file)
+        sents = corenlp_result['sentences']
+        # for sent_i, sent in enumerate(sents):
+        #     print('sent_i [{}] {}'.format(sent_i, ja_sent_to_tokens(sents[sent_i])))
+
+        # maintly to test tokenized words
+        # if the tokens are reasonable, then bespoke training can work
+        # ok.  No NER.  All 'O' in kytea
+        gold_sent_0 = ['請負', '型', '／', '予定', '契約', '業務', '委託', '契約', '書']
+
+        gold_sent_12 = ['２', '前項', 'の', '規定', 'に', 'かかわ', 'ら', 'ず', '、', '仕様', '書',
+                       'に', 'お', 'い', 'て', '本', '契約', 'の', '内容', 'と', '矛盾',
+                       '・', '抵触', 'する', '内容', 'が', '定め', 'られ', 'た', '場合', '、',
+                       '仕様', '書', 'に', 'お', 'け', 'る', '当該', '定め', 'は', 'その', '効力',
+                       'を', '有', 'し', 'な', 'い', 'もの', 'と', 'する', '。']
+
+        gold_sent_19 = ['当該', '確定', '数量', 'に', '前項', 'に', '定め', 'る', '単価',
+                        'を', '乗じ', 'る', 'こと', 'を', 'も', 'っ', 'て', '、', '本件',
+                        '業務', 'の', '実施', 'の', '対価', 'の', '全部', '又',
+                        'は', '一部', 'は', '確定', 'する', '。']
+
+        self.assertEqual(gold_sent_0,
+                         ja_sent_to_tokens(sents[0]))
+        self.assertEqual(gold_sent_12,
+                         ja_sent_to_tokens(sents[12]))
+        self.assertEqual(gold_sent_19,
+                         ja_sent_to_tokens(sents[19]))
+
+        result_text = \
+                postfileutils.post_annotate_document(ja_file,
+                                                     ['choiceoflaw'],
+                                                     is_detect_lang=True)
+        out_lang = json.loads(result_text)['lang']
+        self.assertEqual(out_lang, 'ja')
+
+
+    def test_lang_japanese_nlptxt(self):
+        """This test is based on .nlp.txt, which has better line break
+        information than the above text.  As a result, the line numbers differ.
+        """
+
+        ja_file = 'data/japanese/txt/1010.txt'
+
+        eb_antdoc = ebantdoc4.text_to_ebantdoc(ja_file,
+                                               work_dir=WORK_DIR,
+                                               doc_lang='ja')
+        sent_words_list = []
+        for attrvec_i, attrvec in enumerate(eb_antdoc.attrvec_list):
+            out_st = attrvec.bag_of_words
+            out_st = out_st.replace('\n', ' ')
+            sent_words_list.append(out_st.split())
+            # print('attrvec_i = {}, {}'.format(attrvec_i, out_st.split()))
+
+        # maintly to test tokenized words
+        # if the tokens are reasonable, then bespoke training can work
+        # ok.  No NER.  All 'O' in kytea
+        gold_sent_6 = ['３', '乙', 'は', '、', '本件', '業務', 'の', '実施', 'に', '当た', 'り',
+                       '、', '以下', 'の', '(', '1', ')', '及び', '(', '2', ')', 'を', '遵守',
+                       'する', 'もの', 'と', 'する', '。']
+        gold_sent_15 = ['２', '前項', 'の', '規定', 'に', 'かかわ', 'ら', 'ず', '、', '仕様', '書',
+                       'に', 'お', 'い', 'て', '本', '契約', 'の', '内容', 'と', '矛盾',
+                       '・', '抵触', 'する', '内容', 'が', '定め', 'られ', 'た', '場合', '、',
+                       '仕様', '書', 'に', 'お', 'け', 'る', '当該', '定め', 'は', 'その', '効力',
+                       'を', '有', 'し', 'な', 'い', 'もの', 'と', 'する', '。']
+
+        gold_sent_22 = ['当該', '確定', '数量', 'に', '前項', 'に', '定め', 'る', '単価',
+                        'を', '乗じ', 'る', 'こと', 'を', 'も', 'っ', 'て', '、', '本件',
+                        '業務', 'の', '実施', 'の', '対価', 'の', '全部', '又',
+                        'は', '一部', 'は', '確定', 'する', '。']
+
+        self.assertEqual(gold_sent_6,
+                         sent_words_list[6])
+        self.assertEqual(gold_sent_15,
+                         sent_words_list[15])
+        self.assertEqual(gold_sent_22,
+                         sent_words_list[22])

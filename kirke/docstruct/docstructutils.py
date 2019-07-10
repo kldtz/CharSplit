@@ -1,3 +1,4 @@
+import logging
 import re
 # pylint: disable=unused-import
 from typing import Dict, List, Match, Optional, Tuple
@@ -18,6 +19,10 @@ from kirke.utils import corenlpsent, engutils, mathutils, stopwordutils, strutil
 # and
 # other normal section headings, such as "Article" and more obvious centered
 # title.  Even a page title.
+
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def is_line_title(line: str) -> bool:
@@ -260,7 +265,6 @@ def is_line_footer(line: str,
                    # TODO, remove, not used.  Mentioned in pdftxtparser.py
                    align: str,
                    yStart: float):
-
     line = line.strip()
 
     # if last line in a page and just a number
@@ -301,6 +305,7 @@ def is_line_footer(line: str,
     score = 0.0
     if yStart >= 725.0:
         score += 0.4
+
     if is_debug_footer:
         print("score = {}, after yStart".format(score))
     if num_line_in_page - page_line_num <= 2:
