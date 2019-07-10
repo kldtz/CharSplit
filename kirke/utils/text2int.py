@@ -207,6 +207,22 @@ def extract_number(line: str) -> Dict:
     return {}
 
 
+def extract_number_value(line: str) -> int:
+    line = remove_num_words_join_hyphen(line)
+    line = normalize_comma_period(line)
+    mat = NUM_REGEX.search(line)
+    if mat:
+        # print('numeric_span: {}'.format((mat.start(), mat.end(), mat.group())))
+
+        try:
+            val = text2number(mat.group())
+            return val
+        # pylint: disable=bare-except
+        except:
+            pass
+    return -1
+
+
 def is_float(line: str) -> bool:
     try:
         float(line)

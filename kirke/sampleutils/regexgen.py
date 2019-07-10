@@ -270,9 +270,8 @@ def time_duration_to_norm_dict(prev_num_start: int,
                                prev_num_end: int,
                                duration_end: int,
                                line: str) -> Dict:
-    norm_value = -1
     num_st = line[prev_num_start:prev_num_end]
-    norm_value = text2int.extract_number(num_st).get('value', -1)
+    norm_value = text2int.extract_number_value(num_st)
 
     duration_st = line[prev_num_end:duration_end].strip()
     if duration_st.endswith('s'):
@@ -340,8 +339,8 @@ def nth_time_duration_to_norm_dict(prev_num_start: int,
                                    line: str) -> Dict:
     norm_value = -1
     # num_st = line[prev_num_start:prev_num_end]
-    # norm_value = text2int.extract_number(num_st).get('value', -1)
-    norm_value = num_dict['norm']['value']
+    if num_dict and num_dict.get('norm'):
+        norm_value = num_dict['norm'].get('value', -1)
 
     duration_st = line[prev_num_end:duration_end].strip()
     if duration_st.endswith('s'):
@@ -390,7 +389,7 @@ def number_to_norm_dict(num_st: str,
     #     print("    numb cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
     norm_value = -1
     if num_st:
-        norm_value = text2int.extract_number(num_st).get('value', -1)
+        norm_value = text2int.extract_number_value(num_st)
 
     norm_dict = {'norm': {'value': norm_value},
                  'text': line[start:end],

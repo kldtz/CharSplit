@@ -226,10 +226,10 @@ def currency_to_norm_dict(cx_mat: Match, line: str) -> Dict:
     norm_value = -1
     if cx_mat.group(3):
         norm_unit = normalize_currency_unit(cx_mat.group(3))
-        norm_value = text2int.extract_number(cx_mat.group(5))['norm']['value']
+        norm_value = text2int.extract_number_value(cx_mat.group(5))
     elif cx_mat.group(11):
         norm_unit = normalize_currency_unit(cx_mat.group(19))
-        norm_value = text2int.extract_number(cx_mat.group(11))['norm']['value']
+        norm_value = text2int.extract_number_value(cx_mat.group(11))
     norm_dict = {'norm': {'unit': norm_unit,
                           'value': norm_value},
                  'text': line[cx_mat.start():cx_mat.end()],
@@ -243,7 +243,7 @@ def currency_to_norm_dict_too_new(cx_mat: Match, line: str) -> Dict:
     # for gi, group in enumerate(cx_mat.groups(), 1):
     #    print("    cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
     norm_unit = normalize_currency_unit(cx_mat.group(1))
-    norm_value = text2int.extract_number(cx_mat.group(3)).get('value', -1)
+    norm_value = text2int.extract_number_value(cx_mat.group(3))
     norm_dict = {'norm': {'unit': norm_unit,
                           'value': norm_value},
                  'text': line[cx_mat.start():cx_mat.end()],
@@ -258,11 +258,7 @@ def currency_to_norm_dict_symbol(num_start: int,
                                  currency_end: int,
                                  line: str) -> Dict:
     num_st = line[num_start:num_end]
-    norm_value = -1
-    if num_st:
-        tmp_dict = text2int.extract_number(num_st).get('norm')
-        if tmp_dict:
-            norm_value = tmp_dict['value']
+    norm_value = text2int.extract_number_value(num_st)
     norm_unit = normalize_currency_unit(line[currency_start:currency_end].strip())
     if num_start < currency_end:
         norm_dict = {'norm': {'unit': norm_unit,
@@ -405,11 +401,7 @@ def percent_to_norm_dict(prev_num_start: int,
                          percent_end: int,
                          line: str) -> Dict:
     num_st = line[prev_num_start:prev_num_end]
-    norm_value = -1
-    if num_st:
-        tmp_dict = text2int.extract_number(num_st).get('norm')
-        if tmp_dict:
-            norm_value = tmp_dict['value']
+    norm_value = text2int.extract_number_value(num_st)
     norm_dict = {'norm': {'unit': '%',
                           'value': norm_value},
                  'text': line[prev_num_start:percent_end],
@@ -456,7 +448,7 @@ def number_to_norm_dict(cx_mat: Match, line: str, offset: int = -1) -> Dict:
     #     print("    numb cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
     norm_value = -1
     if cx_mat.group():
-        norm_value = text2int.extract_number(cx_mat.group())['norm']['value']
+        norm_value = text2int.extract_number_value(cx_mat.group())
 
     adjusted_offset = 0
     if offset != -1:
@@ -474,12 +466,7 @@ def number_to_norm_dict(num_st: str,
                         start: int,
                         end: int,
                         line: str) -> Dict:
-    norm_value = -1
-    if num_st:
-        tmp_dict = text2int.extract_number(num_st).get('norm')
-        if tmp_dict:
-            norm_value = tmp_dict['value']
-
+    norm_value = text2int.extract_number_value(num_st)
     norm_dict = {'norm': {'value': norm_value},
                  'text': line[start:end],
                  'start': start,
