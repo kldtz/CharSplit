@@ -7,12 +7,10 @@ import logging
 from typing import Dict, List, Match, Optional, TextIO, Tuple
 
 from kirke.abbyyxml import abbyyutils, abbyyxmlparser
-from kirke.abbyyxml.pdfoffsets import AbbyyLine, AbbyyPage, UnsyncedPBoxLine, UnsyncedStrWithY
+from kirke.abbyyxml.pdfoffsets import AbbyyLine, AbbyyPage
 from kirke.abbyyxml.pdfoffsets import AbbyyTableBlock, AbbyyTextBlock, AbbyyXmlDoc
-from kirke.abbyyxml.pdfoffsets import print_abbyy_page_unsynced, print_abbyy_page_unsynced_aux
 from kirke.docstruct.pdfoffsets import PDFTextDoc, PageInfo3, LineWithAttrs
 from kirke.utils import mathutils
-from kirke.utils.alignedstr import AlignedStrMapper, MatchedStrMapper
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)

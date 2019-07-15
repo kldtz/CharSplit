@@ -19,7 +19,7 @@ from typing import DefaultDict, Dict, List, Optional, Tuple
 from flask import Flask, jsonify, request, send_file
 import yaml
 
-from kirke.eblearn import ebrunner, ebtrainer
+from kirke.eblearn import annotatorconfig, ebrunner, ebtrainer
 from kirke.utils import corenlputils, modelfileutils, osutils, strutils
 
 # pylint: disable=invalid-name
@@ -226,16 +226,6 @@ def annotate_uploaded_document():
                 provision_set.remove('lic_licensee')
             if "lic_licensor" in provision_set:
                 provision_set.remove('lic_licensor')
-            # remove all candidate types except for tables
-            # because we don't want to display them for table release
-            if 'CAND_DATE' in provision_set:
-                provision_set.remove('CAND_DATE')
-            if 'NUMBER' in provision_set:
-                provision_set.remove('NUMBER')
-            if 'CURRENCY' in provision_set:
-                provision_set.remove('CURRENCY')
-            if 'PERCENT' in provision_set:
-                provision_set.remove('PERCENT')
 
         lang_provision_set = set([x + "_" + doc_lang if ("cust_" in x and doc_lang != "en") else x
                                   for x in provision_set])
@@ -452,13 +442,19 @@ def custom_train(cust_id: str):
                 fnames_paths = ['{}/{}.txt'.format(tmp_dir, x) for x in names_per_lang]
                 strutils.dumps('\n'.join(fnames_paths), txt_fn_list_fn)
 
+                # each candidate bespoke has its own version
+                candg_version = CANDG_CLF_VERSION
+                if candidate_types != ['SENTENCE']:
+                    tmp_config = annotatorconfig.get_ml_annotator_config(candidate_types)
+                    candg_version = tmp_config['version']
+
                 base_model_fname, base_status_fname, base_result_fname = \
                     ebrunner.assemble_model_base_fnames(provision,
                                                         candidate_types=candidate_types,
                                                         next_model_num=next_model_num,
                                                         doc_lang=doc_lang,
                                                         scut_version=SCUT_CLF_VERSION,
-                                                        candg_version=CANDG_CLF_VERSION)
+                                                        candg_version=candg_version)
 
                 # Intentionally not passing is_doc_structure=True
                 # For spanannotator, currently we use is_doc_structure=False to not missing

@@ -3,6 +3,7 @@
 import re
 import pandas as pd
 import numpy as np
+
 from nltk.tokenize import TreebankWordTokenizer
 
 from sklearn import preprocessing
@@ -10,6 +11,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import CountVectorizer
 
 from kirke.utils import osutils
+
+IS_DEBUG_ADDRESS = False
 
 DATA_DIR = './dict/addresses/'
 
@@ -47,13 +50,35 @@ def load_keywords():
 
     # Save title case and uppercase versions, padded, for each keyword
     for category in keywords:
-        title_case_keywords = [kwd.title().strip() for kwd in keywords[category]]
-        uppercase_keywords = [kwd.upper().strip() for kwd in keywords[category]]
-        keywords[category] = list(set(title_case_keywords + uppercase_keywords))
+        tmp_kwd_list = []  # type: List[str]
+        for kwd in keywords[category]:
+            kwd = kwd.strip()
+            # don't title 'IN' or 'OH'
+            if not (kwd.isupper() and len(kwd) == 2):
+                tmp_kwd_list.append(kwd.title())
+            tmp_kwd_list.append(kwd.upper())
+            # in case there is lower, such as 'rue' in French
+            tmp_kwd_list.append(kwd)
+        keywords[category] = list(set(tmp_kwd_list))
 
+    if IS_DEBUG_ADDRESS:
+        for akey in sorted(keywords.keys()):
+            aval = keywords[akey]
+            print('addr keywords [{}], len = {}]'.format(akey, len(aval)))
+            print('addr keywords [{}] = {}'.format(akey, sorted(aval)))
     return keywords
 
 KEYWORDS = load_keywords()
+
+ADDR_ZIP_PAT = re.compile(r'\b({}|{}|{})\b'.format(US_ZIP, UK_STD, CAN_STD))
+ADDR_NUM_PAT = re.compile(r'\b(\d+|one|two)\b', re.I)
+ADDR_COUNTRY_PAT = re.compile(r'\b({})\b'.format('|'.join(KEYWORDS['country_names'])))
+ADDR_US_PAT = re.compile(r'\b({})\b'.format('|'.join(KEYWORDS['us'])))
+ADDR_UK_PAT = re.compile(r'\b({})\b'.format('|'.join(KEYWORDS['uk'])))
+ADDR_CAN_PAT = re.compile(r'\b({})\b'.format('|'.join(KEYWORDS['can'])))
+ADDR_APT_PAT = re.compile(r'\b({})\b'.format('|'.join(KEYWORDS['apt_abbrs'])))
+ADDR_ROAD_PAT = re.compile(r'\b({})\b'.format('|'.join(KEYWORDS['road_abbrs'])))
+
 
 class LogRegModel:
     def __init__(self) -> None:
@@ -71,16 +96,20 @@ class LogRegModel:
         ngram_features = []
         num_features = np.zeros(shape=(len(addrs), 6))
         for i, addr in enumerate(addrs):
-            addr = " ".join(TREEBANK_WORD_TOKENIZER.tokenize(addr))
-            addr = re.sub(r'\b({}|{}|{})\b'.format(US_ZIP, UK_STD, CAN_STD), '[ZIP]', addr)
-            addr = re.sub(r'\b(\d+|one|two)\b', '[NUM]', addr, re.I)
-            addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['country_names'])),
-                          '[COUNTRY]', addr)
-            addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['us'])), '[US]', addr)
-            addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['uk'])), '[UK]', addr)
-            addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['can'])), '[CAN]', addr)
-            addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['apt_abbrs'])), '[APT]', addr)
-            addr = re.sub(r'\b({})\b'.format('|'.join(KEYWORDS['road_abbrs'])), '[ROAD]', addr)
+            orig_addr = addrs
+            addr = ' '.join(TREEBANK_WORD_TOKENIZER.tokenize(addr))
+            addr = re.sub(ADDR_ZIP_PAT, '[ZIP]', addr)
+            addr = re.sub(ADDR_NUM_PAT, '[NUM]', addr)
+            addr = re.sub(ADDR_COUNTRY_PAT, '[COUNTRY]', addr)
+            addr = re.sub(ADDR_US_PAT, '[US]', addr)
+            addr = re.sub(ADDR_UK_PAT, '[UK]', addr)
+            addr = re.sub(ADDR_CAN_PAT, '[CAN]', addr)
+            addr = re.sub(ADDR_APT_PAT, '[APT]', addr)
+            addr = re.sub(ADDR_ROAD_PAT, '[ROAD]', addr)
+
+            if IS_DEBUG_ADDRESS:
+                print('orig_addr: [{}]'.format(orig_addr))
+                print('     addr: [{}]'.format(addr))
             ngram_features.append(addr)
 
             addr_split = addr.split()
@@ -117,4 +146,6 @@ class LogRegModel:
         #x = self.featSelect.transform(x)
         probs = self.model.predict_proba(x)[0]
         pred_label = int(self.model.predict(x)[0])
+        if IS_DEBUG_ADDRESS:
+            print('addr.predict() = {}'.format(probs[1]))
         return probs, pred_label

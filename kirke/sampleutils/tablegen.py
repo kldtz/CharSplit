@@ -1,10 +1,12 @@
+from collections import defaultdict
 import logging
+import pprint
 import re
 # pylint: disable=unused-import
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from kirke.docstruct.secheadutils import SecHeadTuple
-from kirke.utils import ebsentutils, ebantdoc4, engutils, strutils
+from kirke.utils import ebsentutils, ebantdoc4, engutils, strutils, mathutils
 from kirke.abbyyxml import tableutils
 from kirke.abbyyxml.pdfoffsets import AbbyyTableBlock
 
@@ -23,7 +25,8 @@ IS_DEBUG_TABLE = False
 IS_DEBUG_INVALID_TABLE = False
 
 def find_prev_sechead(start: int,
-                      sechead_list: List[SecHeadTuple]) \
+                      sechead_list: List[SecHeadTuple],
+                      max_pre_table_header_limit=-1) \
                       -> Optional[SecHeadTuple]:
     """Find the sechead before 'start' offset.
 
@@ -34,15 +37,19 @@ def find_prev_sechead(start: int,
     but we have not access to the desired text span.
     """
     # print("find_prev_sechead, table_start = {}".format(start))
-    prev_sechead_tuple = None
+    prev_sechead_tuple = None  # type: Optional[SecHeadTuple]
     for sechead_tuple in sechead_list:
         shead_start, unused_shead_end, unused_shead_prefix, \
             unused_shead_st, unused_shead_page_num = sechead_tuple
 
         if start <= shead_start:
+            if prev_sechead_tuple is None:
+                return None
+            # pylint: disable=unpacking-non-sequence
             unused_prev_shead_start, prev_shead_end, unused_prev_shead_prefix, \
-                prev_shead_st, unused_prev_shead_page_num = prev_sechead_tuple
-            if start - prev_shead_end >= 180:
+                unused_prev_shead_st, unused_prev_shead_page_num = prev_sechead_tuple
+            if max_pre_table_header_limit != -1 and \
+               start - prev_shead_end >= max_pre_table_header_limit:
                 # sechead is too far from the start of the table
                 return None
             return prev_sechead_tuple
@@ -83,7 +90,8 @@ def is_in_exhibit_section(start: int,
 
     # no previous 'exhibit' sechead found
     sechead_tuple = find_prev_sechead(start,
-                                      sechead_list)
+                                      sechead_list,
+                                      max_pre_table_header_limit=180)
     if sechead_tuple:
         unused_shead_start, unused_shead_end, shead_prefix, \
             shead_st, unused_shead_page_num = sechead_tuple
@@ -131,15 +139,160 @@ def get_before_table_text(table_start: int,
     return '', (-1, -1)
 
 
+# pylint: disable=too-many-locals, too-many-return-statements, too-many-statements
 def is_invalid_table(table_candidate: Dict,
                      # pylint: disable=unused-argument
-                     ab_table_block: AbbyyTableBlock) -> bool:
+                     ab_table_block: AbbyyTableBlock,
+                     # for debugging purpose
+                     page_num: int) -> bool:
     """Return False if a table is not valid.
 
     This is another check on tables, similar to abbyyxml.tableutils.is_invalid_table().
     Here we use more content-based information from the table, such as
     the words.
     """
+    if IS_DEBUG_INVALID_TABLE:
+        print('\ncheck table on page {}'.format(page_num))
+        pprint.pprint(table_candidate)
+
+    rows = table_candidate['json']['row_list']
+    # check if the number of column is inconsistent
+    if not table_candidate.get('is_abbyy_original', False):
+        num_col_count_map = defaultdict(int)  # type: Dict[int, int]
+        num_upper_start, num_digit_start, num_lower_start = 0, 0, 0
+        num_upper_word, num_digit_word, num_lower_word = 0, 0, 0
+        for row in rows:
+            cols = row['cell_list']
+            num_col = len(row['cell_list'])
+            # check if the last column is empty
+            if not cols[-1]['text'].strip():
+                num_col -= 1
+                # try the 2nd to last column, if there is one
+                if num_col > 1 and \
+                   not cols[-2]['text'].strip():
+                    num_col -= 1
+            num_col_count_map[num_col] += 1
+
+            # to check if a table is just sentences accidentlly being
+            # recognized as a table
+            for cell in cols:
+                words = cell['text'].split()
+                if len(words) >= 3:
+                    if words[0][0].isupper():
+                        num_upper_start += 1
+                    elif words[0][0].isdigit():
+                        num_digit_start += 1
+                    elif words[0][0].islower():
+                        num_lower_start += 1
+                for word in words:
+                    if word[0].isupper():
+                        num_upper_word += 1
+                    elif word[0].isdigit():
+                        num_digit_word += 1
+                    elif word[0].islower():
+                        num_lower_word += 1
+
+        num_row = len(rows)
+        if IS_DEBUG_INVALID_TABLE:
+            print('num_row = {}'.format(num_row))
+            # to check if a table s just sentences accidentlly being
+            # recognized as a table
+            print('num_upper_start = {}, num_digit_start = {}, num_lower_start= {}'.format(
+                num_upper_start, num_digit_start, num_lower_start))
+            print('num_upper_word = {}, num_digit_word = {}, num_lower_word= {}'.format(
+                num_upper_word, num_digit_word, num_lower_word))
+        num_col_start = num_upper_start + num_lower_start + num_digit_start
+        num_alphanum_word = num_upper_word + num_lower_word + num_digit_word
+        if num_row <= 6 and \
+           num_upper_word >= 5 and \
+           num_alphanum_word >= 30 and \
+           num_alphanum_word <= 80 and \
+           1.0 * ((num_upper_start + num_digit_start) / num_col_start) < 0.4:
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 0.5, not capped start col, wordy')
+            return True
+
+        if IS_DEBUG_INVALID_TABLE:
+            for num_col, count in num_col_count_map.items():
+                perc = count / num_row * 100.0
+                print('num_col_count_map[{}] = {}, {}%'.format(num_col, count, perc))
+        # if there are limited number of rows, and we have all 3 columns
+        if num_row <= 8 and \
+           num_col_count_map.get(1, 0) >= 2 and \
+           (num_col_count_map.get(2, 0) >= 1 or \
+            num_col_count_map.get(3, 0) >= 1):
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 1, unbeven col num')
+            return True
+        if num_row <= 15 and \
+           num_col_count_map.get(1, 0) >= 5 and \
+           (num_col_count_map.get(2, 0) >= 2 or \
+            num_col_count_map.get(3, 0) >= 2):
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 1.2, unbeven col num, a list of items')
+            return True
+        if num_row <= 3 and \
+           num_col_count_map.get(1, 0) >= 1 and \
+           (num_col_count_map.get(2, 0) >= 1 or \
+            num_col_count_map.get(3, 0) >= 1 or
+            num_col_count_map.get(4, 0) >= 1 or \
+            num_col_count_map.get(5, 0) >= 1):
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 1.3, has 1-column in 3 rows, too few rows')
+            return True
+
+
+
+        if num_alphanum_word <= 15 and \
+           num_col_count_map.get(1, 0) >= 1:
+            # too short a table and a row that has only 1 column
+            # something is wrong
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 1.5, too few word plus has 1-col row')
+            return True
+
+        sign_pat = re.compile(r'(signing|signed|signatory|autho|name|signature|' \
+                              r'date|president|officer|chief|manager)', re.I)
+        yes_no_pat = re.compile(r'\b(yes|no)\b|□', re.I)
+        num_yes_no = 0
+        num_signed = 0
+        num_word = table_candidate['num_word']
+        for row in rows:
+            for cell in row['cell_list']:
+                cell_text = cell['text']
+                num_signed += len(list(sign_pat.finditer(cell_text)))
+                num_yes_no += len(list(yes_no_pat.finditer(cell_text)))
+        if IS_DEBUG_INVALID_TABLE:
+            print('num_signed = {}, num_word = {}'.format(num_signed, num_word))
+        # reject signature tables
+        if num_signed >= 3 and num_word <= 75:
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 2, num_signed = {}'.format(num_signed))
+            return True
+        if num_word <= 40 and num_yes_no >= 6:
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 2.5, num_yes_no = {}'.format(num_yes_no))
+            return True
+
+        # is header
+        # print('bottom_y= {}'.format(table_candidate['bottom_y']))
+        if table_candidate['bottom_y'] <= 180:
+            if IS_DEBUG_INVALID_TABLE:
+                print('is invalid, branch 3, is_header, bottom_y=%d' %
+                      table_candidate['bottom_y'])
+            return True
+
+    # invalide table containing addresses
+    address_pat = re.compile(r'(to:|from:|address|state|' \
+                             r'zip|zip\s*code|post|post\s*code)', re.I)
+    num_addr = 0
+    for row in rows:
+        for cell in row['cell_list']:
+            cell_text = cell['text']
+            num_addr += len(list(address_pat.finditer(cell_text)))
+    if num_addr >= 4:
+        return True
+
     # reject really bad table here
     if table_candidate['num_word'] >= 10 and \
        table_candidate['perc_bad_word'] >= 0.75:
@@ -182,9 +335,9 @@ class TableGenerator:
             doc_text = antdoc.get_text()
             doc_len = len(doc_text)
 
-            if group_id % 10 == 0:
-                logger.info('TableGenerator.documents_to_candidates(), group_id = %d',
-                            group_id)
+            # if group_id % 10 == 0:
+            #     logger.info('TableGenerator.documents_to_candidates(), group_id = %d',
+            #                 group_id)
 
             sechead_list = antdoc.sechead_list
             if IS_DEBUG_TABLE:
@@ -260,7 +413,8 @@ class TableGenerator:
 
                     print("  is_abbyy_original: {}".format(abbyy_table.is_abbyy_original))
 
-                table_sechead = find_prev_sechead(table_start, sechead_list)
+                table_sechead = find_prev_sechead(table_start, sechead_list,
+                                                  max_pre_table_header_limit=180)
                 sechead_text = ''
                 out_sechead_dict = {}
                 if table_sechead:
@@ -389,9 +543,9 @@ class TableGenerator:
                                'start': table_start,
                                'end': table_end,
                                # 'left_x': left_x,
-                               # 'bottom_y': bot_y,
+                               'bottom_y': round(bot_y * multiplier),
                                # 'right_x': right_x,
-                               # 'top_y': top_y,
+                               'top_y': round(top_y * multiplier),
                                'span_list': span_dict_list,
                                'pre_table_text': pre_table_text,
                                'len_pre_table_text': len_pre_table_text,
@@ -442,7 +596,9 @@ class TableGenerator:
                 # Verify that thee table is valid
                 # "not is_label" make sure that is a table is annotated
                 # for a provision, it is kept regardless of is_valid or not.
-                if not is_label and is_invalid_table(a_candidate, abbyy_table):
+                if not is_label and is_invalid_table(a_candidate,
+                                                     abbyy_table,
+                                                     table_page_num):
                     invalid_tables.append(abbyy_table)
                     continue
 
@@ -478,7 +634,155 @@ class TableGenerator:
                                                     extension='.addr.html')
 
             result.append((antdoc, candidates, label_list, group_id_list))
+
+        result = remove_overlap_tables(result)
         return result
+
+
+# pylint: disable=too-many-locals
+def find_overlap_yyxx(tbid: int,
+                      yyxx: Tuple[int, int, int, int],
+                      yyxx_table_lb_gid_list: List[Tuple[int, int, int, int,
+                                                         Dict, bool, int]]) \
+                                                         -> List[int]:
+
+    rect1_bot_left, rect1_top_right = mathutils.rect_tblr_to_rect_points(yyxx)
+    overlap_set = set([])
+    for tb_i, (y_top, y_bot, x_left, x_right, unused_table, unused_label, unused_gpid) \
+        in enumerate(yyxx_table_lb_gid_list):
+
+        if tb_i == tbid:
+            continue
+
+        rect2_bot_left, rect2_top_right = \
+            mathutils.rect_tblr_to_rect_points((y_top, y_bot, x_left, x_right))
+        if mathutils.is_rect_overlap(rect1_bot_left,
+                                     rect1_top_right,
+                                     rect2_bot_left,
+                                     rect2_top_right):
+            overlap_set.add(tb_i)
+            overlap_set.add(tbid)
+
+    overlap_list = sorted(overlap_set)
+    return overlap_list
+
+def pick_best_overlap_table(table_lb_gid_list: List[Tuple[Dict, bool, int]]) \
+    -> Tuple[Dict, bool, int]:
+    # take the first table that is from ABBYY, otherwise
+    # just take the first one
+    for table_dict, label, gid in  table_lb_gid_list:
+        is_abbyy_original = table_dict.get('is_abbyy_original', False)
+        if is_abbyy_original:
+            return (table_dict, label, gid)
+
+    # no abbyy found, just take the first one
+    return table_lb_gid_list[0]
+
+
+def sort_table_lb_gid_by_start(table_lb_gid_list: List[Tuple[Dict, bool, int]]) \
+    -> List[Tuple[Dict, bool, int]]:
+    start_table_lb_gid_list = []
+    for table, label, gid in  table_lb_gid_list:
+        start = table['start']
+        start_table_lb_gid_list.append((start, (table, label, gid)))
+    start_table_lb_gid_list.sort()
+    return [table_lb_gid for start, table_lb_gid in start_table_lb_gid_list]
+
+
+# pylint: disable=too-many-locals
+def remove_overlap_tables_in_page(yyxx_table_lb_gid_list:
+                                  List[Tuple[int, int, int, int,
+                                             Dict, bool, int]]) \
+                                             -> List[Tuple[Dict, bool, int]]:
+    if len(yyxx_table_lb_gid_list) == 1:
+        y_top, y_bot, x_left, x_right, table, label, gpid = yyxx_table_lb_gid_list[0]
+        return [(table, label, gpid)]
+
+    out_list = []  # type: List[Tuple[Dict, bool, int]]
+    # multiple tables in a page, check if any of them overlapped
+    # tables that are overlaped with some other tables in the page
+    overlap_table_id_list = []  # type: List[int]
+    # group of tables that are overlapped
+    overlap_table_group_list = []  # type: List[Set[int]]
+    for tb_i, (y_top, y_bot, x_left, x_right, table, label, gpid) \
+        in enumerate(yyxx_table_lb_gid_list):
+
+        # this table already is overlapped with other table
+        if tb_i in overlap_table_id_list:
+            continue
+
+        overlap_table_ids = find_overlap_yyxx(tb_i,
+                                              (y_top, y_bot, x_left, x_right),
+                                              yyxx_table_lb_gid_list)
+        if overlap_table_ids:
+            overlap_table_group = set([])  # type: Set[int]
+            for tbid in overlap_table_ids:
+                overlap_table_group.add(tbid)
+                overlap_table_id_list.append(tbid)
+            overlap_table_group.add(tb_i)  # add current table
+            overlap_table_group_list.append(overlap_table_group)
+            # add to page overlap list
+            overlap_table_id_list.append(tb_i)
+        else:
+            out_list.append((table, label, gpid))
+
+    for table_id_group in overlap_table_group_list:
+        # print('------------- overlapped table id: {}'.format(table_id_group))
+        table_lb_gid_group = []
+        for table_id in table_id_group:
+            y_top, y_bot, x_left, x_right, table, label, gpid = yyxx_table_lb_gid_list[table_id]
+            # print('\noverlap table:')
+            # pprint.pprint(table)
+            table_lb_gid_group.append((table, label, gpid))
+
+        best_table_lb_gid = pick_best_overlap_table(table_lb_gid_group)
+        # print('best_table_lb_gid: {}'.format(best_table_lb_gid[0]))
+        out_list.append(best_table_lb_gid)
+
+    out_list = sort_table_lb_gid_by_start(out_list)
+    return out_list
+
+
+# pylint: disable=too-many-locals
+def remove_overlap_tables(ebdoc_cand_lb_gid_list: List[Tuple[Any,
+                                                             List[Dict],
+                                                             List[bool],
+                                                             List[int]]]) \
+                          -> List[Tuple[Any,
+                                        List[Dict],
+                                        List[bool],
+                                        List[int]]]:
+    result = []  # type: List[Tuple[Any, List[Dict], List[bool], List[int]]]
+    for eb_antdoc, table_cands, label_list, group_id_list in ebdoc_cand_lb_gid_list:
+        # first collect all tables belongs to a page
+        # pylint: disable=line-too-long
+        page_tables_map = defaultdict(list)  # type: Dict[int, List[Tuple[int, int, int, int, Dict, bool, int]]]
+        for table_dict, label, gpid in zip(table_cands, label_list, group_id_list):
+
+            # take only 1st region in list
+            rect_region_info = table_dict['json']['rect_region_list'][0]
+            page_num = rect_region_info['page']
+            x_left, x_right = rect_region_info['x_left'], rect_region_info['x_right']
+            y_bottom, y_top = rect_region_info['y_bottom'], rect_region_info['y_top']
+            table_info = (y_top, y_bottom, x_left, x_right, table_dict, label, gpid)
+
+            # print('\ntable page {}:'.format(page_num))
+            # pprint.pprint(table_dict)
+            page_tables_map[page_num].append(table_info)
+
+        out_table_list = []  # type: List[Dict]
+        out_lb_list = []  # type: List[bool]
+        out_gid_list = []  # type: List[int]
+        page_nums = sorted(page_tables_map.keys())
+        for page_num in page_nums:
+            ptable_info_list = page_tables_map[page_num]
+            for tablecand, label, group_id in remove_overlap_tables_in_page(ptable_info_list):
+
+                out_table_list.append(tablecand)
+                out_lb_list.append(label)
+                out_gid_list.append(group_id)
+        result.append((eb_antdoc, out_table_list, out_lb_list, out_gid_list))
+    return result
 
 
 def fix_rate_table_text(text: str) -> str:

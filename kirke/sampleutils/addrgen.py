@@ -1,19 +1,31 @@
 import logging
 from typing import Dict, List, Optional, Tuple
-from kirke.ebrules import addresses
+from kirke.ebrules import addresses, addresses_v2
 from kirke.utils import ebantdoc4, ebsentutils, strutils
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# loads address keywords
+ALL_KEYWORDS = addresses.addr_keywords()
+
+
 # pylint: disable=too-few-public-methods
 class AddrContextGenerator:
 
-    def __init__(self, num_prev_words: int, num_post_words: int, candidate_type: str) -> None:
+    def __init__(self,
+                 num_prev_words: int,
+                 num_post_words: int,
+                 candidate_type: str,
+                 version: str = None) -> None:
         self.num_prev_words = num_prev_words
         self.num_post_words = num_post_words
         self.candidate_type = candidate_type
+        if version is None:
+            self.version = '1.0'
+        else:
+            self.version = version
 
     # pylint: disable=too-many-arguments, too-many-locals
     def get_candidates_from_text(self,
@@ -33,8 +45,17 @@ class AddrContextGenerator:
         candidates = [] # type: List[Dict]
         group_id_list = [] # type: List[int]
 
+        if not hasattr(self, 'version') or \
+           self.version == '1.0':
+            addr_se_cand_list = addresses.find_addresses(nl_text, ALL_KEYWORDS)
+        elif self.version == '2.0':
+            addr_se_cand_list = addresses_v2.find_addresses(nl_text)
+        else:
+            # default is use v2
+            addr_se_cand_list = addresses_v2.find_addresses(nl_text)
+
         #finds all addresses in the text and adds window around each as a candidate
-        for addr in addresses.find_addresses(nl_text):
+        for addr in addr_se_cand_list:
             addr_start, addr_end, addr_st = addr
             is_label = ebsentutils.check_start_end_overlap(addr_start,
                                                            addr_end,

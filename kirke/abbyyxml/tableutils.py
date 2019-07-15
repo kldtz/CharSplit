@@ -33,10 +33,6 @@ IS_DEBUG_INVALID_TABLE = False
 # text in order to synch with pdfbox.
 IS_PRESERVE_INVALID_TABLE_AS_TEXT = True
 
-# is is specific for KPMG's K1 form
-IS_K1_FORM = True
-IS_OTHER_FORM = True
-
 IS_ENABLE_FIELD_VALUE_TABLE = True
 
 
@@ -235,7 +231,7 @@ def abbyy_text_block_to_html(ab_text_block: AbbyyTextBlock,
 
     if block_id != -1:
         st_list.append('<h2>Text Block {} on Page {}</h2>'.format(block_id,
-                                                             ab_text_block.page_num))
+                                                                  ab_text_block.page_num))
     else:
         st_list.append('<h2>Text Block on Page {}</h2>'.format(ab_text_block.page_num))
 
@@ -503,20 +499,18 @@ def get_abbyy_table_list(abbyy_doc: AbbyyXmlDoc,
 
 
 def get_abbyy_signature_list(abbyy_doc: AbbyyXmlDoc) \
-                             -> List[AbbyyTableBlock]:
-    out_block_list = []  # type: List[AbbyyBlock]
-    for ab_page in abbyy_doc.ab_pages:
-        page_signature_list = ab_page.ab_signature_blocks
-        out_block_list.extend(page_signature_list)
+    -> List[AbbyyTableBlock]:
+    out_block_list = [block
+                      for ab_page in abbyy_doc.ab_pages
+                      for block in ab_page.ab_signature_blocks]
     return out_block_list
 
 
 def get_abbyy_address_list(abbyy_doc: AbbyyXmlDoc) \
     -> List[AbbyyTableBlock]:
-    out_block_list = []  # type: List[AbbyyBlock]
-    for ab_page in abbyy_doc.ab_pages:
-        page_address_list = ab_page.ab_address_blocks
-        out_block_list.extend(page_address_list)
+    out_block_list = [block
+                      for ab_page in abbyy_doc.ab_pages
+                      for block in ab_page.ab_address_blocks]
     return out_block_list
 
 
@@ -788,6 +782,12 @@ def block_get_attr_left(block: AbbyyBlock) -> int:
 
 
 def get_row_seq_by_top(row_top_list: List[float], row_top: float) -> int:
+    """Take the row_seq of the line that in row_top_list (first column)
+       that is greater than row_top.
+
+    So whenever a new line has top_y > head_row_top + 10, it use
+    the row_seq BEYOND that line.
+    """
     for row_seq, head_row_top in enumerate(row_top_list):
         if row_top <= head_row_top + 10.0:
             return row_seq
@@ -813,6 +813,12 @@ def text_blocks_to_table_block(haligned_blocks: List[AbbyyTextBlock]) -> AbbyyTa
     # print("\ntext_blocks_to_table_block()")
     # for row_top in row_top_list:
     #     print("row_top = {}".format(row_top))
+    # store the lines into correct cells by checking the top of line.
+    # The col_seq part is based on text block, so it is obvious.
+    # The row_seq is more complex.
+    #    row_top_list has all the top y of each line
+    #    if the top_y of a new line is <= 10 of the top_y of a row, then
+    #    it is using that row's sequence
     tab_xy_cell = defaultdict(list)  # type: Dict[Tuple[int, int], List[AbbyyLine]]
     for col_seq, tblock in enumerate(haligned_blocks):
         for unused_par_id, ab_par in enumerate(tblock.ab_pars):
@@ -820,6 +826,9 @@ def text_blocks_to_table_block(haligned_blocks: List[AbbyyTextBlock]) -> AbbyyTa
                 row_seq = get_row_seq_by_top(row_top_list, ab_line.attr_dict['@t'])
 
                 tab_xy_cell[(row_seq, col_seq)].append(ab_line)
+
+    # so we have all the (x, y) of each line in the haligned_blocks
+    # now, create the new AbbyyTable
 
     row_list = []  # type; List[AbbyyRow]
     for row_seq in range(len(row_top_list)):
@@ -1152,7 +1161,7 @@ def merge_field_value_as_table(ab_doc: AbbyyXmlDoc) -> None:
     if not IS_ENABLE_FIELD_VALUE_TABLE:
         return
 
-    for pnum, abbyy_page in enumerate(ab_doc.ab_pages, 1):
+    for unused_pnum, abbyy_page in enumerate(ab_doc.ab_pages, 1):
 
         # if the page is a multi-column page, skip it
         if abbyy_page.is_multi_column:
@@ -1201,15 +1210,16 @@ def merge_haligned_blocks_as_table(ab_doc: AbbyyXmlDoc) -> None:
             print("merge_haligned_blocks_as_table, page #{}".format(abbyy_page.num))
             print("        len(abbyy_page.ab_blocks = %d" % len(abbyy_page.ab_blocks))
 
-        # if pnum == 79:
-        #     print('ehre253243234')
-
         # find all the blocks with similar @b and @t
         # and store them in haligned_blocks_list, only for this page
         ab_text_block_list = abbyyutils.get_only_text_blocks(abbyy_page.ab_blocks)
         # We cannot simply exit if ab_text_block_list is empty here
         # because we still check for 'invalid_table()'
 
+        # haligned_blocks_list has a list of the blocks that's horizontally
+        # aligned (y_span overlaps 40% with another table in the page).
+        # TODO: What happens if the same block overlap with 2 different blocks and
+        # those 2 different blocks doesn't overlap with each other?  Unanswered.
         haligned_blocks_list = []  # type: List[List[AbbyyTextBlock]]
         # skip_blocks are the blocks that have already been found to be haligned
         skip_blocks = []  # type: List[AbbyyTextBlock]
@@ -1254,6 +1264,10 @@ def merge_haligned_blocks_as_table(ab_doc: AbbyyXmlDoc) -> None:
         # because we still check for 'invalid_table()'
         # Rest of the code still does the right things.
 
+        # haligned_block_list_map has
+        #   1. the first element of the haligned block list
+        #   2. the haligned block list
+        #   3. the additional table_row_blocks, if there is any for the haligned_block_list
         # pylint: disable=line-too-long
         haligned_block_list_map = {}  # type: Dict[AbbyyTextBlock, Tuple[List[AbbyyTextBlock], List[AbbyyTextBlock]]]
         for hseq, blocks in enumerate(haligned_blocks_list):
@@ -1266,10 +1280,16 @@ def merge_haligned_blocks_as_table(ab_doc: AbbyyXmlDoc) -> None:
             first_block_left = first_block.attr_dict['@l']
             last_block = blocks[-1]
 
+            # the stop block is either the last block in this page or
+            # the block before then next haligned_blocks_list list
             stop_block_seq = len(abbyy_page.ab_blocks)
             if hseq + 1 < len(haligned_blocks_list):
                 stop_block_seq = haligned_blocks_list[hseq+1][0].page_block_seq
 
+            # find additional block to add to the current block, if certain
+            # constraint is satisfied.  This is to fix some ABBYY paragraph
+            # issue only related to tables.  This heuristics is developed after
+            # finding some row of a table was broken into two blocks.
             additional_table_row_blocks = \
                 collect_justified_lines_after(abbyy_page.ab_blocks,
                                               last_block.page_block_seq,
@@ -1281,8 +1301,16 @@ def merge_haligned_blocks_as_table(ab_doc: AbbyyXmlDoc) -> None:
 
         # Now we have a list of haligned blocks.  First try to form all the tables, with
         # original blocks associated with table kept.  Later, we might want to undo.
+        # This is why we keep original blocks, for potential undo operation.
 
-        # maybe_block_origblocks_list has blocks + original_blocks
+        # page_block_origblocks_list has blocks + original_blocks
+        # both non-haligned text block and abbyy table blocks are added to this
+        # list.
+        # if a block is the first element of a list in the haligned_block_ist_map, then
+        # a table is formed using merge_aligned_blocks() and stored as the first element
+        # of the new entry in page_block_orig_blocks_list.
+        # This particular structure allows us to perform 'undo' if needed if we vound out
+        # that the "merged-table" is invalid later.
         page_block_origblocks_list = []  # type: List[Tuple[AbbyyBlock, List[AbbyyBlock]]]
         for ab_block in abbyy_page.ab_blocks:
             if ab_block in skip_blocks:
@@ -1316,9 +1344,9 @@ def merge_haligned_blocks_as_table(ab_doc: AbbyyXmlDoc) -> None:
 
         # The spaces between some rows might be too big so that
         # each row becomes a paragraph.
-        # Now merge haligned-tables that are adjacent
+        # Now merge haligned-tables that are vertically adjacent
         # out_block_origblocks_list = []  # type: List[Tuple[AbbyyBlock, List[AbbyyBlock]]]
-        out_block_origblocks_list = merge_adjacent_haligned_tables(page_block_origblocks_list)
+        out_block_origblocks_list = merge_vertically_adjacent_haligned_tables(page_block_origblocks_list)
 
         # now remove invalid tables, or put back invalid tables
         out_block_list = []  # type: List[AbbyyBlock]
@@ -1368,10 +1396,17 @@ def merge_haligned_blocks_as_table(ab_doc: AbbyyXmlDoc) -> None:
 
 
 # pylint: disable=too-many-return-statements
-def is_a_mergeable_row(ab_text_block: AbbyyTextBlock, prev_attrs: Dict) -> bool:
-    """A mergeable table row is basically has less than 5 words."""
+def is_a_vertically_mergeable_row(ab_text_block: AbbyyTextBlock, prev_attrs: Dict) -> bool:
+    """A mergeable table row is basically has following properties
+         1. has to be less than 50 points apart vertically from the last
+            row of previous table
+         2. not centered
+         3. block has less than 3 paras
+         3. each para in block has less than 3 lines
+         4. each para in block has less than 5 words.
+    """
 
-    # print("is_a_mergeable_row:")
+    # print("is_a_vertically_mergeable_row:")
     prev_attr_b = prev_attrs['@b']
     cur_attr_t = ab_text_block.attr_dict['@t']
 
@@ -1392,7 +1427,7 @@ def is_a_mergeable_row(ab_text_block: AbbyyTextBlock, prev_attrs: Dict) -> bool:
         return False
 
     if IS_DEBUG_TABLE:
-        print("is_a_mergeable_row():")
+        print("is_a_vertically_mergeable_row():")
         pdfoffsets.print_text_block_meta(ab_text_block)
 
     block_ab_pars = ab_text_block.ab_pars
@@ -1413,10 +1448,11 @@ def is_a_mergeable_row(ab_text_block: AbbyyTextBlock, prev_attrs: Dict) -> bool:
     return True
 
 
-def merge_adjacent_haligned_tables(ab_block_origblocks_list: List[Tuple[AbbyyBlock,
-                                                                        List[AbbyyBlock]]]) \
-                                   -> List[Tuple[AbbyyBlock,
-                                                 List[AbbyyBlock]]]:
+def merge_vertically_adjacent_haligned_tables(ab_block_origblocks_list:
+                                              List[Tuple[AbbyyBlock,
+                                                         List[AbbyyBlock]]]) \
+                                                         -> List[Tuple[AbbyyBlock,
+                                                                       List[AbbyyBlock]]]:
 
     # pylint: disable=line-too-long
     out_block_origblocks_list = []  # type: List[Tuple[AbbyyBlock, List[AbbyyBlock]]]
@@ -1434,7 +1470,7 @@ def merge_adjacent_haligned_tables(ab_block_origblocks_list: List[Tuple[AbbyyBlo
             adjacent_origblocks_list.extend(origblocks)
         elif adjacent_table_list and \
              isinstance(ab_block, AbbyyTextBlock) and \
-             is_a_mergeable_row(ab_block, prev_block_attrs):
+             is_a_vertically_mergeable_row(ab_block, prev_block_attrs):
             # first need to convert the text block to table
             atable_block = text_blocks_to_table_block([ab_block])
             if IS_DEBUG_TABLE:
@@ -1464,6 +1500,10 @@ def merge_adjacent_haligned_tables(ab_block_origblocks_list: List[Tuple[AbbyyBlo
 
 
 def merge_multiple_adjacent_tables(ab_table_list: List[AbbyyTableBlock]) -> AbbyyTableBlock:
+    """merge all the TABLEs in ab_table_list by collecting all the rows
+       inside those tables.  Also expand the coordinates.
+    """
+
     if len(ab_table_list) == 1:
         return ab_table_list[0]
 
@@ -1536,254 +1576,23 @@ def count_number_yes_no_choices(table_text: str) -> int:
 
 
 # this is too aggressive, elimiated valid table
-"""
-YES_NO_START_PAT = re.compile(r'.{0,3}\s*\b(yes|no)\b', re.I)
-
-def count_yes_no_startswith(table_text: str) -> int:
-    st_list = table_text.split('\n')
-    num_yes_no_starts = 0
-    for line in st_list:
-        if YES_NO_START_PAT.match(line):
-            num_yes_no_starts += 1
-    return num_yes_no_starts
-"""
-
+#
+# YES_NO_START_PAT = re.compile(r'.{0,3}\s*\b(yes|no)\b', re.I)
+#
+# def count_yes_no_startswith(table_text: str) -> int:
+#    st_list = table_text.split('\n')
+#    num_yes_no_starts = 0
+#    for line in st_list:
+#        if YES_NO_START_PAT.match(line):
+#            num_yes_no_starts += 1
+#    return num_yes_no_starts
 
 def is_invalid_table(ab_table: AbbyyTableBlock) -> bool:
     is_invalid = is_invalid_table_aux(ab_table)
     if IS_DEBUG_INVALID_TABLE:
         print("***** is_invalid_table = {}".format(is_invalid))
 
-    if is_invalid:
-        return is_invalid
-
-    if IS_K1_FORM:
-        is_invalid = is_invalid_k1_table(ab_table)
-        if IS_DEBUG_INVALID_TABLE:
-            print("***** is_invalid_k1_table = {}".format(is_invalid))
-
-    if IS_OTHER_FORM:
-        is_invalid = is_invalid_other_form_table(ab_table)
-        if IS_DEBUG_INVALID_TABLE:
-            print("***** is_invalid_other_form_table = {}".format(is_invalid))
-
     return is_invalid
-
-
-def is_invalid_other_form_table(ab_table: AbbyyTableBlock) -> bool:
-    table_text = abbyyutils.table_block_to_text(ab_table)
-    num_lines = count_number_lines(ab_table)
-    # words = table_text.split()
-    if IS_DEBUG_INVALID_TABLE:
-        print('\n***** is_invalid_other_form_table[[{}]]'.format(table_text.replace('\n', '|')))
-
-    if 'SOLICITATION' in table_text and \
-       'CONTRACT' in table_text and \
-       'ORDER FOR COMMERCIAL ITEMS' in table_text:
-        return True
-
-    if '13a' in table_text and \
-       '13b' in table_text:
-        return True
-
-    if '9A.' in table_text and \
-       '9B.' in table_text:
-        return True
-
-    if '30a.' in table_text and \
-       '31c.' in table_text:
-        return True
-
-    if '28.' in table_text and \
-       '29.' in table_text:
-        return True
-
-    if '17a' in table_text and \
-       ('17b' in table_text or
-        '18a' in table_text):
-        return True
-
-    if 'See Schedule' in table_text and \
-       'TOTAL AWARD AMOUNT ' in table_text:
-        return True
-
-    if 'Change Order' in table_text and \
-       ('Dispatch via' in table_text or
-        'Bill To' in table_text or
-        'Contract ID' in table_text):
-        return True
-
-    if 'Attn:' in table_text and \
-       'Bill To' in table_text:
-        return True
-
-    if 'ISSUED BY' in table_text and \
-       'ADMINISTERED BY' in table_text:
-        return True
-
-    if 'Control Number:' in table_text and \
-       'See Summary' in table_text:
-        return True
-
-    if 'OFFICIAL' in table_text and \
-       'SIGNATURE' in table_text:
-        return True
-
-    if 'ADDRESS' in table_text and \
-       'CONTRACTOR' in table_text:
-        return True
-
-    if 'DISCOUNT FOR PROMPT PAYMENT' in table_text and \
-       'FOB ORIGIN' in table_text:
-        return True
-
-    if 'Destination' in table_text and \
-       ('See Herein' in table_text or
-        'Duty' in table_text):
-        return True
-
-    # this is only in header
-    if 'Contract No.' in table_text and \
-       'Client Ref. No.' in table_text and \
-       num_lines <= 5:
-        return True
-
-    if 'CONTRACT' in table_text and \
-       ('DATE' in table_text or
-        'SEE SCHEDULE' in table_text):
-        return True
-
-    # signature footer on the form
-    if re.search(r'authorized', table_text, re.I) and \
-       'STANDARD FORM' in table_text:
-        return True
-
-    return False
-
-def is_invalid_k1_table(ab_table: AbbyyTableBlock) -> bool:
-    table_text = abbyyutils.table_block_to_text(ab_table)
-    words = table_text.split()
-    if IS_DEBUG_INVALID_TABLE:
-        print('\n***** is_invalid_k1_table[[{}]]'.format(table_text.replace('\n', '|')))
-
-    if 'See Statement' in table_text and \
-       'Self-employment earnings' in table_text and \
-       'Qualified nonrecourse financing' in table_text and \
-       'share of liabilities' in table_text:
-        return True
-
-    if 'capital account analysis' in table_text and \
-       'Beginning capital account' in table_text and \
-       'Current year increase' in table_text and \
-       'Ending capital account' in table_text:
-        return True
-
-    if 'Profit' in table_text and \
-       'Loss' in table_text and \
-       'Capital' in table_text and \
-       len(words) < 20:
-        return True
-
-    if 'Other Form 1116' in table_text and \
-       'Other portfolio income' in table_text and \
-       'Cancellation of debt' in table_text and \
-       'Involuntary conversions' in table_text:
-        return True
-
-    if 'Cash contributions' in table_text and \
-       'Noncash contributions' in table_text and \
-       'Investment interest expense' in table_text and \
-       'Section 59(e)(2) expenditures' in table_text:
-        return True
-
-    if 'Section 453(l)(3) information' in table_text and \
-       'Low-income housing credit' in table_text and \
-       'Disabled access credit' in table_text and \
-       'Recapture of section 179 deduction' in table_text:
-        return True
-
-    if 'Total foreign taxes paid' in table_text and \
-       'Form 8873' in table_text and \
-       'Form 1116, Part II' in table_text and \
-       'Extraterritorial income exclusion' in table_text:
-        return True
-
-    if 'Post-1986 depreciation adjustment' in table_text and \
-       'Oil, gas, & geothermal' in table_text and \
-       'gross income' in table_text and \
-       'deduction' in table_text and \
-       'Form 6251' in table_text and \
-       'Other AMT items' in table_text:
-        return True
-
-    if 'Form 4952, line 4a' in table_text and \
-       'Form 4136' in table_text and \
-       'Form 8611, line 8' in table_text and \
-       'Form 8697' in table_text:
-        return True
-
-    if 'identifying number' in table_text and \
-       '9a Net long-term capital gain' in table_text and \
-       '9b Collectibles' in table_text:
-        return True
-
-    if 'General category' in table_text and \
-       'Form 1116' in table_text and \
-       'Mining exploration costs' in table_text and \
-       'Sec. 1256 contracts & straddles' in table_text:
-        return True
-
-    if 'Schedule K-1' in table_text and \
-       '6b' in table_text and \
-       '9a' in table_text and \
-       '9b' in table_text:
-        return True
-
-    if 'Schedule K-1' in table_text and \
-       'Form 1065' in table_text and \
-       'Department of the Treasury' in table_text:
-        return True
-
-    if 'Guaranteed payments' in table_text and \
-       'Interest income' in table_text and \
-       'Ordinary dividends' in table_text and \
-       '6a' in table_text:
-        return True
-
-    if 'See Statement' in table_text and \
-       'Information About the Partner' in table_text:
-        return True
-
-    if 'See Statement' in table_text and \
-       ('Foreign partner' in table_text or
-        'Domestic partner' in table_text):
-        return True
-
-    if 'See Statement' in table_text and \
-       'Profit' in table_text and \
-       'Nonrecourse' in table_text:
-        return True
-
-    if 'Current year increase' in table_text and \
-       'Withdrawals & distributions' in table_text and \
-       'Tax basis' in table_text:
-        return True
-
-    if 'Passive loss' in table_text and \
-       'Passive income' in table_text and \
-       'Nonpassive loss' in table_text:
-        return True
-
-    if 'back of form' in table_text and \
-       'separate instructions' in table_text and \
-       'See Statement' in table_text:
-        return True
-
-    if '8 Net short-term capital gain' in table_text or \
-       '9a Net long-term capital gain' in table_text:
-        return True
-
-    return False
 
 
 # pylint: disable=too-many-return-statements
@@ -1956,6 +1765,3 @@ def print_page_tables(ab_doc: AbbyyXmlDoc, page_num: int) -> None:
 
 def count_number_lines(ab_table: AbbyyTableBlock) -> int:
     return len(ab_table.ab_rows)
-
-
-

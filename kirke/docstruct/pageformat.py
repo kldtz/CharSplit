@@ -1,3 +1,43 @@
+"""The goal of pageformat.py is to decide if the page level y-diff
+should be used to segment paragraphs in a page.  To achieve this goal,
+the system currently uses a somewhat complex algorithm based on
+PDFBox's line information.  Because we expecte the block-level
+information (in PDFBox or ABBYY) to be more effective than line-based
+information, in the future, we might try to implement a different
+algorithm based on block-level information instead.
+
+This code is not used in the ebrevia's heuristics for recognizing
+horizontally aligned text blocks as tables.
+
+In PDFBOx's world, the object's location in a page is described using
+points, with 72 points per inch.  In ABBYY's world, in contrast, uses
+300 dots per inch to represent its object's coordinates.  To figure
+out how many lines are in 1-column 2-column, 3-column mode, we convert
+those PDFBOx lines into objects with more standard lengths and
+locations, such as where that line belongs in a virtual page grid:
+
+  - A page is divided into 10 vertical columns, with each column has
+    61.2 points (8.5 inches * 72 points / 10 columns = 61.2 points per
+    column).
+
+  - A page is divided into 4 horizontal rows, with each row has 198
+    points (11 inches * 72 points / 4 rows = 198 points per row).
+
+We convert lines into an object with one of the 10 possible length
+(how many horizontal columns), which nth column the line started, and
+in which nth rows in the page that the line belongs to.  By counting
+those line-based information, we apply a set of rules to determine if
+a page is 1-column (default), 2-, 3-column or a form-template.  If a
+page is determined to be a form-template, then page level y-diff
+cannot be used to make paragraph segmentation decisions.  If a page is
+NOT a form-template, the page-level ydiff would be applicable for
+paragraph segmentation decisions.  The key here is that we mainly care
+about if a page is a form-template or not, not really concerned with a
+page is 1-, 2-, or 3-column, because in those pages, page y-diff is
+still valid.
+
+"""
+
 from collections import defaultdict
 import logging
 # pylint: disable=unused-import
@@ -10,7 +50,6 @@ from kirke.utils import mathutils
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
 
 IS_DEBUG = False
 IS_PAGE_NUM_COL_DEBUG = False
@@ -28,6 +67,9 @@ def xval_to_hz_nth(aval: float) -> int:
 def yval_to_vt_nth(aval: float) -> int:
     return round((aval / VT_4TH_DIV) - 0.5)
 
+#####
+# ustility function
+#####
 def _merge_adjacent_hz_cols(freq_col_list: List[Tuple[int, int]]) \
     -> List[Tuple[int, int]]:
     """Merge the 3rd col with 1st or 2nd frequent column if their
@@ -46,6 +88,7 @@ def _merge_adjacent_hz_cols(freq_col_list: List[Tuple[int, int]]) \
         a list of (freq, col), which might be shorter if the first 2
         elements are adjacent.
     """
+    # there is too few lines in this block, kept of it is
     if len(freq_col_list) < 3:
         return freq_col_list
     col_1_freq, col_1 = freq_col_list[0]
@@ -71,7 +114,8 @@ def is_form_page_vt_row(vt_row_count_map: Dict[int, int],
                         num_lines: int) -> bool:
     """Rerturn true is the page is a form-page based on vt_row info.
 
-    A page is now divided into 4 rows.  If 3/4 of the rows has > 39% short lines.
+    A page is now divided into 4 rows.  If 3/4 of the rows has > 39% short lines,
+    then it is a form-template.
 
     Question, how to distinguish this from a table page?  In that case, don't want
     apply page-level ydiff to such a page anyway, so this is not an issue.
@@ -140,6 +184,78 @@ def calc_one_page_format(page_num: int,
     in that row), then it is a form-page.  This will detect false-positive
     form-pages.  But it doesn't have a significant negative impact.  In those
     scenario, the PDFBox's paragraph will be used instead of page-level y-diff.
+
+    If a form page, then y-diff will not be set, so we will use pdfbox's
+    paragraphs instead.
+
+    Below is the psudo algorithm:
+
+      - find the most frequent hz_col, and the 2nd most frequent hz_col in
+        this page.  hz_col = hz_start_nth
+
+      - find the most common hz_col_len, and the 2nd most common
+        hz_col_len
+
+      - compute num_col_len_le_3_perc
+      - compute num_col_len_ge_5_perc
+
+      if num_col_len_ge_5 is less than 30% and \
+         is_form_page_vt_row():
+         return is_form_template = True, page_ydiff_mode = -1,
+         is_ydiff_failed = True
+
+      if num_line > 50 and num_col_len_le_3_perc >= 50;
+         is_form_template = True
+
+      if num_lines >= 200:
+        # When there are that many lines, must be 3 column.
+        # Ignore all other logic in this branch, at the end,
+        # it is a 3-column page.
+        num_col_in_page = 3
+
+      if top_hz_col_len == 3 or 4:
+        if both top column or 2nd top column has > 37% and
+           they starts in col_nth[1, 2] and col_nth[4, 5, 6]:
+           return num_col_in_page = 2
+        if both top column or 2nd top column has > 35% and
+           they starts in col_nth[1, 2] and col_nth[4, 5, 6] and
+           top_col_perc + top_2nd_col_perc > 80:
+           return num_col_in_page = 2
+        if num_cl_len_le_3_perc > 80% and top_col in col_nth[1, 2]:
+          if prev_page_num_col == 3:
+            num_col_in_page = 3
+          else:
+            num_col_in_page = 2
+
+      if num_col_in_page is not set yet, num_col_in_page = 1
+
+      #
+      # now trying to figure out is page y-dff is valid
+      #
+      - first figure out valid_line_nth_len, which is
+        defaulted to 5, but can change.
+      - if the number of full line is < 3 (MIN_FULL_YDIFF):
+        return the top page ydiff, but is_ydiff_failed = True
+
+      #
+      # if there is enough full-length lines, page-ydiff is
+      # valid.
+      #
+      is_ydiff_failed = False
+      if there are full-lines in this page:
+        if the freq of this y-diff < 3 (MIN_FULL_YDIFF):
+          page-ydiff-mode = top y-diff (not full y-diff)
+          is_ydiff_failed = True
+        elif the ydiff is too big (>= 28 points):
+          page-ydiff-mode = top full y-diff
+          is_ydiff_failed = True
+        else:
+          page-ydiff-mode = top full y-diff
+      else:
+        page-ydiff = top y-diff (not full y-diff)
+        is_ydiff_failed = True
+
+      return page_num_col, page-ydiff-mode, is_ydiff_failed
 
     """
 
@@ -286,23 +402,6 @@ def calc_one_page_format(page_num: int,
         return out_num_col, out_page_ydiff_mode, out_is_failed
 
     if num_col_len_ge_5_perc < 30.0:
-        """
-        for freq, nth_row, perc in sorted(((freq, nth_row, round(freq / num_lines * 100.0))
-                                           for nth_row, freq in vt_row_count_map.items()),
-                                          reverse=True):
-            print("    >>>> vt_row= {}, freq={}, perc={}%".format(nth_row, freq, perc))
-        print()
-
-        for nth_row in sorted(vt_row_hzclen_count_map.keys()):
-            hzclen_count_map = vt_row_hzclen_count_map[nth_row]
-            for freq, hzclen, perc in sorted(((freq, hzclen, round(freq / num_lines * 100.0))
-                                              for hzclen, freq in hzclen_count_map.items()),
-                                             reverse=True):
-                print("    >>>> vt_row= {}, hzc_len= {}, freq={}, perc={}%".format(nth_row,
-                                                                                   hzclen,
-                                                                                   freq, perc))
-        print()
-        """
         # print('mostly short lines< col_len_ge_5 < 30%')
         if is_form_page_vt_row(vt_row_count_map,
                                vt_row_hzclen_count_map,
@@ -397,6 +496,9 @@ def calc_one_page_format(page_num: int,
             print("\n  ===>>> page {}, page_format: 1 column, br default".format(page_num))
         num_col_in_page = 1
 
+    #
+    # now trying to figure out is page y-dff is valid
+    #
     valid_line_nth_len = 5
     # we don't really care about number of column in a page, just
     # if top_col_len < 5:
@@ -417,11 +519,13 @@ def calc_one_page_format(page_num: int,
                                                                      valid_line_nth_len))
         print()
 
+    #
+    # if there is enough full-length lines, page-ydiff is
+    # valid.
+    #
     full_hz_col_count_map = defaultdict(int)  # type: Dict[int, int]
-
     full_ydiff_count_map = defaultdict(int)  # type: Dict[float, int]
     ydiff_count_map = defaultdict(int)  # type: Dict[float, int]
-
     prev_y = 1000
     prev_hz_nth_len = 0
     nth_len_ge_5 = 0
@@ -528,7 +632,7 @@ def calc_one_page_format(page_num: int,
             if IS_DEBUG:
                 print('failed page {}, branch 1'.format(page_num))
         # elif sorted_count_full_ydiff_list[0][1] >= 22:
-        elif sorted_count_full_ydiff_list[0][1] >= 28:  # have seen 27,5, doc 9325, page 64
+        elif sorted_count_full_ydiff_list[0][1] >= 28:  # have seen 27.5, doc 9325, page 64
             # too big
             out_page_ydiff_mode = sorted_count_full_ydiff_list[0][1]
             # failed_page_ydiff_mode_pages.append(page_num)
@@ -566,6 +670,8 @@ def pick_page_adjacent_ydiff_mode(ydiff_mode_list: List[float],
                                   is_after_page: bool = False) -> float:
     """This specifically handle the case where the 3 ydiff in
        previous 3 page before or after doesn't agree.
+
+       ydiff_mode_list is always of length 3 or less.
 
        Previous approach of taking the most frequent failed when
        all 3 page ydiff are distinct.  Now this is deterministic.
@@ -619,7 +725,31 @@ def calc_page_ydiff_modes_num_cols(page_linenum_list_map: Dict[int, List[int]],
           if y_diff_mode for a page is -1, then it is a form page in which
           y_diff_mode doesn't apply.
 
+    Psuedo code:
+      - go through every page and call calc_one_page_format()
+        - compute page_num_col_map
+        - compute page_ydiff_mode_map
+        - collect failed_page_ydiff_mode_pages, from is_ydiff_failed in calc_one_page_format()
+
+      - initialize page_ydiff_mode_list, using page_ydiff_mode_map
+      - initialize doc_ydiff_mode, by taking mode of all ydiff in the doc
+
+      for all failed_page_yidff_mode_list
+        - compute a replacement page-ydiff from the page-ydiff of 3 adjacent pages
+        - normally, those page should be before the failed page
+        - if the failed page is page 1 or page 2, then take the 3 pages
+          after to adjust the page-ydiff of the failed page.
+
+      go through the page list
+        - if a page is form-template (page_num_col_map[page_num] == 0)
+             page_ydiff_mode_map[page_num] = -1
+          else if the page-ydiff is not computable for other reason
+            # use the document y-diff instead
+            page_ydiff_mode_map[page_num] = doc_ydiff_mode
+
+      return page_ydiff_mode_map, page_num_col_map
     """
+
     if IS_TOP_LEVEL_DEBUG:
         print('\n========= calc_page_ydiff_modes()')
 
@@ -655,17 +785,18 @@ def calc_page_ydiff_modes_num_cols(page_linenum_list_map: Dict[int, List[int]],
         print('page_ydiff_mode_map:')
     page_num_set = set(page_num_list)
     page_ydiff_mode_list = []  # type: List[float]
-    for page_num in range(max(page_num_list) + 1):
-        if page_num not in page_num_set:
-            page_ydiff_mode_list.append(0)
-        else:
-            page_ydiff_mode_list.append(page_ydiff_mode_map[page_num])
-            if IS_DEBUG:
-                if page_num in failed_page_ydiff_mode_pages:
-                    print('     page {}: {}, failed'.format(page_num,
-                                                            page_ydiff_mode_map[page_num]))
-                else:
-                    print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
+    if page_num_list:
+        for page_num in range(max(page_num_list) + 1):
+            if page_num not in page_num_set:
+                page_ydiff_mode_list.append(0)
+            else:
+                page_ydiff_mode_list.append(page_ydiff_mode_map[page_num])
+                if IS_DEBUG:
+                    if page_num in failed_page_ydiff_mode_pages:
+                        print('     page {}: {}, failed'.format(page_num,
+                                                                page_ydiff_mode_map[page_num]))
+                    else:
+                        print('     page {}: {}'.format(page_num, page_ydiff_mode_map[page_num]))
 
     if IS_PAGE_NUM_COL_DEBUG:
         for page_num in page_num_list:
@@ -684,7 +815,10 @@ def calc_page_ydiff_modes_num_cols(page_linenum_list_map: Dict[int, List[int]],
             print('   page {} num_col = {}'.format(tmp_page_num, tmp_page_col_num))
         print()
 
-    doc_ydiff_mode = mathutils.get_mode_in_list(all_ydiffs)
+    if all_ydiffs:
+        doc_ydiff_mode = mathutils.get_mode_in_list(all_ydiffs)
+    else:
+        doc_ydiff_mode = -1
 
     if IS_TOP_LEVEL_DEBUG:
         print('failed_page_ydiff_mode_pages: {}'.format(failed_page_ydiff_mode_pages))

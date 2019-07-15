@@ -59,7 +59,9 @@ ML_ANNOTATOR_CONFIG_LIST = [
 
     ('ADDRESS', '1.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
                         'is_use_corenlp': False,
-                        'doc_to_candidates': [addrgen.AddrContextGenerator(30, 30, 'ADDRESS')],
+                        'doc_to_candidates': [addrgen.AddrContextGenerator(30, 30,
+                                                                           'ADDRESS',
+                                                                           version='1.0')],
                         'version': "1.0",
                         'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                         'pipeline': Pipeline([
@@ -75,6 +77,27 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
                         'threshold': 0.35,
                         'kfold': 3}),
+    ('ADDRESS', '2.0', {'doclist_to_antdoc_list': ebantdoc4.doclist_to_ebantdoc_list,
+                        'is_use_corenlp': False,
+                        'doc_to_candidates': [addrgen.AddrContextGenerator(30, 30,
+                                                                           'ADDRESS',
+                                                                           version='2.0')],
+                        'version': "2.0",  # must be the same as 2nd position parameter
+                        'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
+                        'pipeline': Pipeline([
+                            ('union', FeatureUnion(
+                                transformer_list=[
+                                    # pylint: disable=line-too-long
+                                    ('surround_transformer', transformerutils.SurroundWordTransformer()),
+                                    ('is_addr_line_transformer', transformerutils.AddrLineTransformer())
+                                ])),
+                            ('clf', SGDClassifier(loss='log', penalty='l2', n_iter=50,
+                                                  shuffle=True, random_state=42,
+                                                  class_weight={True: 3, False: 1}))]),
+                        'gridsearch_parameters': {'clf__alpha': 10.0 ** -np.arange(4, 6)},
+                        'threshold': 0.35,
+                        'kfold': 3}),
+
 
     # the regex here is correct, but due to we normalize result, we are using
     # regexgen.extract_currencies() when generating candidates, not just this regex
@@ -274,6 +297,8 @@ validate_annotators_config_keys(ML_ANNOTATOR_CONFIG_FROZEN_LIST)
 validate_annotators_config_keys(RULE_ANNOTATOR_CONFIG_FROZEN_LIST)
 
 def get_ml_annotator_config(label_list: List[str], version: Optional[str] = None) -> Dict:
+    # print('get_ml_annotator_config(label_list={},  version={})'.format(label_list,
+    #                                                                    version))
     if len(label_list) == 1:
         label = label_list[0]
         configx = get_annotator_config(label,
@@ -333,22 +358,35 @@ def get_annotator_config(label: str,
                          config_list: List[Tuple[str, str, Dict]],
                          config_frozen_list: List[Tuple[str, str, Dict]]) \
                          -> Optional[Tuple[str, str, Dict]]:
+    """Get the annotator configuration for label + version in
+    config_list and config_frozen_list.
+
+    If version is None, it means that we want to use the highest version
+    of that label in the config.
+    """
+
+    # print('get_annotator_config(label={},  version={})'.format(label,
+    #                             version))
     best_annotator_config = None  # type: Optional[Tuple[str, str, Dict]]
-    ver = StrictVersion(version)
+    if version is None:
+        strict_version = StrictVersion('0.0')  # this never matches any defined config
+    else:
+        strict_version = StrictVersion(version)
+    strict_best_version = strict_version
+
     for candg_type, candg_ver, candg_property in itertools.chain(config_list,
                                                                  config_frozen_list):
         if candg_type == label:
-            if version:
-                if version == candg_ver:  # found the desired config
-                    return (candg_type, candg_ver, candg_property)
+            strict_candg_ver = StrictVersion(candg_ver)
+            if strict_version == strict_candg_ver:  # found the desired config
+                return (candg_type, candg_ver, candg_property)
             elif best_annotator_config:
-                # pylint: disable=unpacking-non-sequence
-                unused_label_, best_candg_ver, unused_prop = best_annotator_config
-                best_ver = StrictVersion(best_candg_ver)
-                if ver > best_ver:
+                if strict_candg_ver > strict_best_version:
                     best_annotator_config = (candg_type, candg_ver, candg_property)
+                    strict_best_version = StrictVersion(candg_ver)
             else:
                 best_annotator_config = (candg_type, candg_ver, candg_property)
+                strict_best_version = StrictVersion(candg_ver)
 
     return best_annotator_config
 
