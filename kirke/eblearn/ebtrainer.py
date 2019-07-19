@@ -217,6 +217,7 @@ def cv_candg_train_at_annotation_level(provision: str,
     pos_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
     neg_list = []  # type: List[Tuple[ebantdoc4.EbAnnotatedDoc4, List[Dict], List[bool], List[int]]]
     num_pos_after_candgen = 0
+    num_neg_after_candgen = 0
     # pylint: disable=line-too-long
     for label, (x_antdoc, x_candidates, x_candidate_label_list, x_group_ids) in zip(antdoc_bool_list,
                                                                                     antdoc_candidatex_list):
@@ -230,9 +231,19 @@ def cv_candg_train_at_annotation_level(provision: str,
         all_group_ids.extend(x_group_ids)
         if True in x_candidate_label_list:
             num_pos_after_candgen += 1
+        if False in x_candidate_label_list:
+            num_neg_after_candgen += 1
 
     pos_list.extend(neg_list)
-    if num_pos_after_candgen < 6:
+    if num_pos_after_candgen < 6 or \
+       num_neg_after_candgen < 6:
+        if num_pos_after_candgen < 6:
+            failed_pos_or_neg = 'positive'
+            num_pos_or_neg_instance = num_pos_after_candgen
+        else:
+            failed_pos_or_neg = 'negative'
+            num_pos_or_neg_instance = num_neg_after_candgen
+
         train_result = {'confusion_matrix': {'tn': 0, 'fp': 0,
                                              'fn': 0, 'tp': 0},
                         'f1': -1.0,
@@ -241,9 +252,10 @@ def cv_candg_train_at_annotation_level(provision: str,
                         'model_number': -1,
                         'recall': -1.0,
                         # pylint: disable=line-too-long
-                        'user_message': 'Training failed.  Number of docs is {}.  Only {} (< 6) positive candidates are found.'.format(len(antdoc_candidatex_list), num_pos_after_candgen),
-                        'failure_cause': 'num_positive_candidates',
-                        'failure_value': num_pos_after_candgen}
+                        'user_message': 'Training failed.  Number of docs is %d.  Only %d (< 6) %s candidates are found.' %
+                        (len(antdoc_candidatex_list), num_pos_or_neg_instance, failed_pos_or_neg),
+                        'failure_cause': 'num_%s_candidates' % (failed_pos_or_neg, ),
+                        'failure_value': num_pos_or_neg_instance}
         return None, {'ant_status': train_result}
 
     # pylint: disable=line-too-long

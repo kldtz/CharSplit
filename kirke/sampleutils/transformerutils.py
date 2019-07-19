@@ -730,6 +730,20 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
             pos_word_list = [word for word in table_word_list if word in self.pos_word_set]
             numeric_matrix[i, 35] = len(pos_word_list) / len(table_word_list)
 
+        # in case these have no words in pre_table_word_list or sechead_word_list
+        num_pre_table_word = 0
+        for words in pre_table_words_list:
+            if words:
+                num_pre_table_words += len(words.split())
+        num_sechead_word = 0
+        for words in sechead_words_list:
+            if words:
+                num_sechead_words += len(words.split())
+        if num_pre_table_word < 4:
+            pre_table_words_list = list(words_list)  # make a shallow copy
+        if num_sechead_word < 4:
+            sechead_words_list = list(words_list)  # make a shallow copy
+
         if fit_mode:
             self.words_vectorizer.fit(words_list)
             self.pre_table_vectorizer.fit(pre_table_words_list)
