@@ -178,8 +178,7 @@ class SentTransformer(EbTransformerBase):
             ##### not used???
             igain_vocab = igain.doc_label_list_to_vocab(sent_st_list,
                                                         y,
-                                                        tokenize=bigramutils.eb_doc_to_all_ngrams,
-                                                        debug_mode=False)
+                                                        tokenize=bigramutils.eb_doc_to_all_ngrams)
 
             logger.info("starting computing unigram and bigram")
             unused_vocab, positive_vocab = bigramutils.doc_label_list_to_vocab(sent_st_list,
@@ -734,11 +733,11 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
         num_pre_table_word = 0
         for words in pre_table_words_list:
             if words:
-                num_pre_table_words += len(words.split())
+                num_pre_table_word += len(words.split())
         num_sechead_word = 0
         for words in sechead_words_list:
             if words:
-                num_sechead_words += len(words.split())
+                num_sechead_word += len(words.split())
         if num_pre_table_word < 4:
             pre_table_words_list = list(words_list)  # make a shallow copy
         if num_sechead_word < 4:
