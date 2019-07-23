@@ -734,11 +734,11 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
         num_pre_table_word = 0
         for words in pre_table_words_list:
             if words:
-                num_pre_table_words += len(words.split())
+                num_pre_table_word += len(words.split())
         num_sechead_word = 0
         for words in sechead_words_list:
             if words:
-                num_sechead_words += len(words.split())
+                num_sechead_word += len(words.split())
         if num_pre_table_word < 4:
             pre_table_words_list = list(words_list)  # make a shallow copy
         if num_sechead_word < 4:
