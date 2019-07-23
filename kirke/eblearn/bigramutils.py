@@ -13,8 +13,6 @@ logger.setLevel(logging.INFO)
 NUMBER_OF_TOP_WORDS = 25000
 # NUMBER_OF_TOP_WORDS = 50000
 
-IS_DEBUG_BIGRAM_VOCAB = False
-
 def eb_doc_to_all_ngrams(sent_st):
     ngram_size = 2
 
@@ -35,16 +33,17 @@ def eb_doc_to_all_ngrams(sent_st):
     return sent_wordset
 
 
-def doc_label_list_to_vocab(doc_list, label_list, tokenize):
+def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False):
     word_freq_map = defaultdict(int)
     # TODO, remove, for debug only
     positive_st_count = 0
+    debug_mode = False
     pos_word_freq_map = defaultdict(int)
     for doc_st, label_tf in zip(doc_list, label_list):
         doc_tokens = tokenize(doc_st)
         if label_tf:
             positive_st_count += 1
-        if IS_DEBUG_BIGRAM_VOCAB and label_tf:
+        if debug_mode and label_tf:
             print("\npos doc_st #{}: [[{}]]".format(positive_st_count, doc_st))
             print("  ngrams: {}".format(doc_tokens))
         for word in doc_tokens:

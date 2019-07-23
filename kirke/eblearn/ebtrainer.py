@@ -253,7 +253,7 @@ def cv_candg_train_at_annotation_level(provision: str,
                         'recall': -1.0,
                         # pylint: disable=line-too-long
                         'user_message': 'Training failed.  Number of docs is %d.  Only %d (< 6) %s candidates are found.' %
-                                        (len(antdoc_candidatex_list), num_pos_or_neg_instance, failed_pos_or_neg),
+                        (len(antdoc_candidatex_list), num_pos_or_neg_instance, failed_pos_or_neg),
                         'failure_cause': 'num_%s_candidates' % (failed_pos_or_neg, ),
                         'failure_value': num_pos_or_neg_instance}
         return None, {'ant_status': train_result}

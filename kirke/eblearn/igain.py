@@ -14,8 +14,6 @@ from kirke.utils import stopwordutils, strutils
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-IS_DEBUG_IGAIN_VOCAB = False
-
 
 # we tried 10%, but this seems to be safer to avoid
 # sudden increase in vocab size when corpus size
@@ -208,7 +206,7 @@ def eb_doc_to_all_ngrams(sent_st):
 # pylint: disable=R0914
 # pylint: disable=too-many-branches
 # pylint: disable=too-many-statements
-def doc_label_list_to_vocab(doc_list, label_list, tokenize, provision='default'):
+def doc_label_list_to_vocab(doc_list, label_list, tokenize, debug_mode=False, provision='default'):
 
     word_freq_map = defaultdict(int)
     for doc_st, label_val in zip(doc_list, label_list):
@@ -307,8 +305,7 @@ def doc_label_list_to_vocab(doc_list, label_list, tokenize, provision='default')
         wanted_vocab_size = len(vocabs)
     top_ig_ngram_list = []
     # i = 0
-
-    if IS_DEBUG_IGAIN_VOCAB:
+    if debug_mode:
         with open("/tmp/{}.igain.vocab.tsv".format(provision), 'wt') as fout:
             for igain, word in sorted(result, reverse=True):
                 cond_count_map = word_cond_freq_dist_map[word]

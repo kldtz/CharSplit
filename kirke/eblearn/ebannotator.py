@@ -15,8 +15,6 @@ logger.setLevel(logging.INFO)
 
 PROVISION_EVAL_ANYMATCH_SET = set(['title'])
 
-IS_DEBUG_CLASSIFIER_SCORE = False
-
 class ProvisionAnnotator:
 
     def __init__(self,
@@ -202,13 +200,6 @@ class ProvisionAnnotator:
             adj_prov_human_ant_list = prov_human_ant_list
         prov = self.provision
         prob_attrvec_list = list(zip(prob_list, attrvec_list))
-
-        if IS_DEBUG_CLASSIFIER_SCORE:
-            for sent_i, prob_attrvec in enumerate(prob_attrvec_list):
-                prob, attrvec = prob_attrvec
-                print('ebant sent #{}, prob= {}\t{}\n'.format(sent_i,
-                                                              prob,
-                                                              attrvec.bag_of_words))
 
         prov_annotations, unused_threshold = \
             ebpostproc.obtain_postproc(prov).post_process(eb_antdoc.get_nlp_text(),

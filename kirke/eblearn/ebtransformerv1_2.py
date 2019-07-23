@@ -22,11 +22,6 @@ logger.setLevel(logging.INFO)
 
 DEBUG_MODE = False
 
-IS_DEBUG_POS_NEG_SENT = False
-IS_DEBUG_FEATURE = False
-IS_DEBUG_VOCAB = False
-IS_DEBUG_CLASSIFIER_MATRIX = False
-
 PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
                                      ebattrvec.PARTY_NUMERIC_ATTR_LIST,
                                      ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
@@ -103,19 +98,10 @@ class EbTransformerV1_2(EbTransformerBase):
         for instance_i, attrvec in enumerate(attrvec_list):
             for ibin, binary_attr in enumerate(self.binary_attr_list):
                 numeric_matrix[instance_i, ibin] = strutils.bool_to_int(attrvec.get_val(binary_attr))
-                if IS_DEBUG_FEATURE:
-                    print('attrvec[{}] = {}, val = {}'.format(instance_i, binary_attr,
-                                                              attrvec.get_val(binary_attr)))
             for inum, numeric_attr in enumerate(self.numeric_attr_list):
                 numeric_matrix[instance_i, len(self.binary_attr_list) + inum] = attrvec.get_val(numeric_attr)
-                if IS_DEBUG_FEATURE:
-                    print('attrvec[{}] = {}, val = {}'.format(instance_i, numeric_attr,
-                                                              attrvec.get_val(numeric_attr)))
             for icat, cat_attr in enumerate(self.categorical_attr_list):
                 categorical_matrix[instance_i, icat] = attrvec.get_val(cat_attr)
-                if IS_DEBUG_FEATURE:
-                    print('attrvec[{}] = {}, val = {}'.format(instance_i, cat_attr,
-                                                              attrvec.get_val(cat_attr)))
         if fit_mode:
             numeric_matrix = self.min_max_scaler.fit_transform(numeric_matrix)
             categorical_matrix = self.one_hot_encoder.fit_transform(categorical_matrix)
@@ -131,11 +117,10 @@ class EbTransformerV1_2(EbTransformerBase):
             for attrvec, label in zip(attrvec_list, label_list):
                 sent_st = attrvec.bag_of_words
 
-                if IS_DEBUG_POS_NEG_SENT:
-                    if label:
-                        print("++++++++++ pos sent_st: {}".format(sent_st))
-                    else:
-                        print("neg sent_st: {}".format(sent_st))
+                # if label:
+                #     print("++++++++++ pos sent_st: {}".format(sent_st))
+                # else:
+                #     print("neg sent_st: {}".format(sent_st))
 
                 sent_st_list.append(sent_st)
                 if label:
@@ -148,6 +133,7 @@ class EbTransformerV1_2(EbTransformerBase):
                 sechead_st_list.append(attrvec.sechead)
 
         nostop_sent_st_list = stopwordutils.remove_stopwords(sent_st_list, mode=2)
+        is_debug = False
 
         if fit_mode:
             # we are cheating here because vocab is trained from both training and testing
@@ -164,7 +150,6 @@ class EbTransformerV1_2(EbTransformerBase):
                 bigramutils.doc_label_list_to_vocab(sent_st_list,
                                                     label_list,
                                                     tokenize=bigramutils.eb_doc_to_all_ngrams)
-
             # replace vocabs with igain.vocab
             vocab_id_map = {}
             for vid, vocab in enumerate(igain_vocabs):
@@ -172,7 +157,7 @@ class EbTransformerV1_2(EbTransformerBase):
             self.vocab_id_map = vocab_id_map
             self.positive_vocabs = positive_vocabs
 
-            if IS_DEBUG_VOCAB:
+            if is_debug:
                 with open("/tmp/{}_vocabs.tsv".format(self.provision), "wt") as fvcabout:
                     for vocab in igain_vocabs:
                         print(vocab, file=fvcabout)
@@ -249,7 +234,7 @@ class EbTransformerV1_2(EbTransformerBase):
         nozero_sparse_comb_matrix = self.remove_zero_column(sparse_comb_matrix, fit_mode=fit_mode)
         X = sparse.hstack((nozero_sparse_comb_matrix, bi_topgram_matrix), format='csr')
 
-        if IS_DEBUG_CLASSIFIER_MATRIX:
+        if is_debug:
             print("  shape of bow_matrix: {}".format(bow_matrix.shape))
             print("  shape of sechead_matrix: {}".format(sechead_matrix.shape))
             print("  shape of bi_topgram_matrix: {}".format(bi_topgram_matrix.shape))
@@ -347,11 +332,6 @@ class EbTransformerV1_2(EbTransformerBase):
                 if index:
                     indices.append(index)
                     data.append(1)
-                # This is very verbose.
-                # Verified multiple times that this is correct.
-                #    print('gen_top_ngram: {} ngram [{}]'.format(index, ngram))
-                # else:
-                #    print('gen_top_ngram: NOT FOUND [{}]'.format(ngram))
             indptr.append(len(indices))
 
         top_ig_ngram_matrix = sparse.csr_matrix((data, indices, indptr),
