@@ -741,7 +741,7 @@ class TestParaCandGen(unittest.TestCase):
 
         save_para_file(fname, test_se_list, test_str_list)
 
-        # for unknown reason, now these are two paragraphs instead of one:
+        # Now, there are two paragraphs instead of one:
         #
         # 31      10470   10734   2.5 Manufacturer guarantees to the Buyer that the Factory is having a produc
         # tion capacity of   3.5 lakhs Cartons per annum. Manufacture further guarantees that this production
@@ -750,8 +750,18 @@ class TestParaCandGen(unittest.TestCase):
         # (6) months prior written notice for    increased capacity with an uptake volume commitment.
         #
         # My comment:
-        # This is right in the middle of a watermark or footer.  Don't think this discrepancy
-        # is important.  Going to ignore because this seems to be the only issue.
+        # This is right in the middle of a watermark or footer at a page boundary.
+        # This discrepancy is due to footer detection code:
+        # is_line_not_footer_aux(ЦШ тл штш mm-m For JYOTHY laboratories limited) = ['ЦШ', 'тл', 'штш', 'mm', 'JYOTHY', 'laboratories', 'limited']
+        # instead of in the previous version:
+        # is_line_not_footer_aux(ЦШ тл штш mm-m For JYOTHY laboratories limited) = ['mm', 'JYOTHY', 'laboratories', 'limited']
+        #
+        # the source of this discrepancy is from docstructutils.py, is_line_not_footer_aux()
+        # words = stopwordutils.get_nonstopwords_nolc_gt_len1(line)
+        # which is related to our update to handle unicode letters
+        # ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+' -> r'[^\W_\d][^\W_]+'
+        #
+        # I am ok with change this unit test to accomodate the unicode letter handling.
 
         # update the test se_list to fix this one issue
         updated_test_se_list = []
