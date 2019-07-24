@@ -749,19 +749,21 @@ class TestParaCandGen(unittest.TestCase):
         # 32      10737   10904   ANANTH МОТ. Page 4 of 24  |capacity may be increased if the Buyer gives six
         # (6) months prior written notice for    increased capacity with an uptake volume commitment.
         #
-        # My comment:
-        # This is right in the middle of a watermark or footer at a page boundary.
-        # This discrepancy is due to footer detection code:
+        # These lines contain a watermark or footer at a page boundary.
+        #
+        # The source of this discrepancy is from docstructutils.py, is_line_not_footer_aux()
+        #     words = stopwordutils.get_nonstopwords_nolc_gt_len1(line)
+        #
         # is_line_not_footer_aux(ЦШ тл штш mm-m For JYOTHY laboratories limited) = ['ЦШ', 'тл', 'штш', 'mm', 'JYOTHY', 'laboratories', 'limited']
+        #
         # instead of in the previous version:
+        #
         # is_line_not_footer_aux(ЦШ тл штш mm-m For JYOTHY laboratories limited) = ['mm', 'JYOTHY', 'laboratories', 'limited']
         #
-        # the source of this discrepancy is from docstructutils.py, is_line_not_footer_aux()
-        # words = stopwordutils.get_nonstopwords_nolc_gt_len1(line)
         # which is related to our update to handle unicode letters
-        # ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+' -> r'[^\W_\d][^\W_]+'
+        #     ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+' -> r'[^\W_\d][^\W_]+'
         #
-        # I am ok with change this unit test to accomodate the unicode letter handling.
+        # I am ok with changing this unit test to accomodate the unicode letter handling.
 
         # update the test se_list to fix this one issue
         updated_test_se_list = []
