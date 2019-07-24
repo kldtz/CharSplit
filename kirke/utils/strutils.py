@@ -277,14 +277,18 @@ def gen_ngram(word_list: List[str], max_n: int = 2) -> List[str]:
     return result
 
 
+# to handle unicode letters as alphas
+# https://dzone.com/articles/python-regex-matching-foreign-charactersunicode-le
 
-ALPHA_WORD_PAT = re.compile(r'[a-zA-Z]+')
+# ALPHA_WORD_PAT = re.compile(r'[a-zA-Z]+')
+ALPHA_WORD_PAT = re.compile(r'[^\W_\d]+')
 
-ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
+# the first one doesn't take foreign letters
+# ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
+ALPHANUM_WORD_PAT = re.compile(r'[^\W_\d][^\W_]+')
 
-EXACT_ALPHANUM_WORD_PAT = re.compile(r'[a-zA-Z][a-zA-Z\d]+')
-
-ALPHA_OR_NUM_WORD_PAT = re.compile(r'[a-zA-Z0-9]+')
+# ALPHA_OR_NUM_WORD_PAT = re.compile(r'[a-zA-Z0-9]+')
+ALPHA_OR_NUM_WORD_PAT = re.compile(r'[^\W_]+')
 
 ALL_PUNCT_PAT = re.compile(r"^[\(\)\.,\[\]\-/\\\{\}`'\"]+$")
 
@@ -331,7 +335,7 @@ def get_alphanum_words_gt_len1(line: str, is_lower: bool = True) -> List[str]:
 # ok for purpose of trying to find signature tables
 def get_non_alphanum_words_gt_len1(line: str) -> List[str]:
     return [word for word in line.split()
-            if len(word) > 1 and not EXACT_ALPHANUM_WORD_PAT.search(word)]
+            if len(word) > 1 and not ALPHANUM_WORD_PAT.search(word)]
 
 
 def get_alphanum_words(line: str, is_lower=True) -> List[str]:
