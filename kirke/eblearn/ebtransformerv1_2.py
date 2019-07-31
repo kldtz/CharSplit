@@ -22,6 +22,8 @@ logger.setLevel(logging.INFO)
 
 DEBUG_MODE = False
 
+CJK_SET = set(['zh', 'ja', 'ko'])
+
 PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
                                      ebattrvec.PARTY_NUMERIC_ATTR_LIST,
                                      ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
@@ -78,12 +80,19 @@ class EbTransformerV1_2(EbTransformerBase):
         # now changed to 2 because custom training corpus might have only 6 docs
         self.sechead_vectorizer = CountVectorizer(min_df=2, ngram_range=(1, 2))
 
+        # This is an attribute that is added later, so some .pkl files
+        # might not have this attribute.  Please make sure to check this
+        # variable using hasattr() first before accessing it.
+        self.lang = ''
+
     # label_list is a list of booleans
     # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     def ebantdoc_list_to_csr_matrix(self,
                                     attrvec_list,
+                                    *,
                                     label_list,
-                                    fit_mode=False):
+                                    fit_mode: bool = False):
+
         # prov = self.provision
         # print("attrvec_list.size = ", len(attrvec_list))
         # print("label_list.size = ", len(label_list))
@@ -184,11 +193,21 @@ class EbTransformerV1_2(EbTransformerBase):
             # only lower case, mode=0, label_list must not be empty
             logger.info("starting computing bi_topgram")
             nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
+
             filtered_list = []
-            for nostop_positive_sent in nostop_positive_sent_st_list:
-                for tmp_w in nostop_positive_sent.split():
-                    if len(tmp_w) > 3:
+            # This should not be triggered.
+            # if self.lang == '':
+            #     raise Exception('ebtransformerv1.2 {} has no lang specified.'.format(self.provision))
+            if self.lang in CJK_SET:
+                for nostop_positive_sent in nostop_positive_sent_st_list:
+                    for tmp_w in nostop_positive_sent.split():
+                        # if len(tmp_w) > 3:
                         filtered_list.append(tmp_w)
+            else:
+                for nostop_positive_sent in nostop_positive_sent_st_list:
+                    for tmp_w in nostop_positive_sent.split():
+                        if len(tmp_w) > 3:
+                            filtered_list.append(tmp_w)
 
             # The words in FreqDist at the same frequency is unordered.
             # To make the classification result consistent, take the wanted
@@ -220,7 +239,6 @@ class EbTransformerV1_2(EbTransformerBase):
                                                                      tokenize=bigramutils.eb_doc_to_all_ngrams)
         sechead_matrix = self.sechead_vectorizer.transform(sechead_st_list)
 
-        # print("n_top_positive_words = {}".format(self.n_top_positive_words))
         bi_topgram_matrix = self.gen_bi_topgram_matrix(nostop_sent_st_list, fit_mode=fit_mode)
 
         # put together my perc_positive_matrix
@@ -260,7 +278,6 @@ class EbTransformerV1_2(EbTransformerBase):
             sent_words = set(sent_st.split())   # TODO, a little repetitive, split again
             found_words = [common_word for common_word
                            in self.n_top_positive_words if common_word in sent_words]
-
             for index_w1, tmp_w1 in enumerate(found_words):
                 for index_w2 in range(index_w1 + 1, len(found_words)):
                     tmp_w2 = found_words[index_w2]

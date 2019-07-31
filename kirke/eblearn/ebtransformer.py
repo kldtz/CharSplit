@@ -20,6 +20,8 @@ logger.setLevel(logging.INFO)
 
 DEBUG_MODE = False
 
+CJK_SET = set(['zh', 'ja', 'ko'])
+
 PROVISION_ATTRLISTS_MAP = {'party': (ebattrvec.PARTY_BINARY_ATTR_LIST,
                                      ebattrvec.PARTY_NUMERIC_ATTR_LIST,
                                      ebattrvec.PARTY_CATEGORICAL_ATTR_LIST),
@@ -74,11 +76,17 @@ class EbTransformer(EbTransformerBase):
         # used for bi_topgram_matrix generation
         self.vocabulary = {}  # type: Dict
 
+        # This is an attribute that is added later, so some .pkl files
+        # might not have this attribute.  Please make sure to check this
+        # variable using hasattr() first before accessing it.
+        self.lang = ''
+
 
     # label_list is a list of booleans
-    # pylint: disable=too-many-statements, too-many-locals
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     def ebantdoc_list_to_csr_matrix(self,
                                     attrvec_list,
+                                    *,
                                     label_list,
                                     fit_mode=False):
         # prov = self.provision
@@ -160,10 +168,19 @@ class EbTransformer(EbTransformerBase):
             logger.info("starting computing bi_topgram")
             nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
             filtered_list = []
-            for nostop_positive_sent in nostop_positive_sent_st_list:
-                for tmp_w in nostop_positive_sent.split():
-                    if len(tmp_w) > 3:
+            # This should not be triggered.
+            # if self.lang == '':
+            #     raise Exception('ebtransformerv1.2 {} has no lang specified.'.format(self.provision))
+            if self.lang in CJK_SET:
+                for nostop_positive_sent in nostop_positive_sent_st_list:
+                    for tmp_w in nostop_positive_sent.split():
+                        # if len(tmp_w) > 3:
                         filtered_list.append(tmp_w)
+            else:
+                for nostop_positive_sent in nostop_positive_sent_st_list:
+                    for tmp_w in nostop_positive_sent.split():
+                        if len(tmp_w) > 3:
+                            filtered_list.append(tmp_w)
             fdistribution = FreqDist(filtered_list)
             self.n_top_positive_words = [item[0] for item in
                                          fdistribution.most_common(EbTransformer.MAX_NUM_BI_TOPGRAM_WORDS)]

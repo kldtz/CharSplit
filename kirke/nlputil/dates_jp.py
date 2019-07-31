@@ -14,8 +14,10 @@ logger.setLevel(logging.DEBUG)
 IS_DEBUG = False
 
 DATE_NUMERIC_WORDS = NUMERIC_WORDS + ['元']
+BLANK_CHARS = ['●', '○', r'\s']
 DATE_NUM = r'(({})|({})+)'.format(NUM_DIGIT_REGEX_ST,
-                                  '|'.join(DATE_NUMERIC_WORDS))
+                                  '|'.join(DATE_NUMERIC_WORDS + BLANK_CHARS))
+
 
 # http://www.jlit.net/reference/history/era-names.html
 ERA_NAMES = ['大正', '昭和', '平成', '令和']
@@ -24,7 +26,7 @@ ERA_YEARS_MAP = {'大正': (1912, 1926), # 1912.7  - 1926.12
                  '平成': (1989, 2019), # 1989.1  - 2019.4,
                  '令和': (2019, 2200)} # 2019.5  -   -
 ERA_NAMES_REGEX_ST = '|'.join(ERA_NAMES)
-JP_DATE_REGEX_ST = r'({})?{}年{}月{}日'.format(ERA_NAMES_REGEX_ST, DATE_NUM, DATE_NUM, DATE_NUM)
+JP_DATE_REGEX_ST = r'({})?{}年{}月({}日)?'.format(ERA_NAMES_REGEX_ST, DATE_NUM, DATE_NUM, DATE_NUM)
 JP_DATE_REGEX = re.compile(JP_DATE_REGEX_ST)
 
 ARABIC_DATE_REGEX_ST = r'([0-9]{2,4})[\-/／]([0-9]{1,2})[\-/／]([0-9]{1,2})'
@@ -33,14 +35,36 @@ ARABIC_DATE_REGEX = re.compile(ARABIC_DATE_REGEX_ST)
 def date_num_to_int(line: str) -> int:
     if line == '元':
         return 1
+    # check for blank chars
+    if not line.strip() or \
+       re.search(r'^[●○\s]+$', line):
+        return -1
     adict = text2int_jp.extract_number(line)
     if adict:
         return adict['norm']['value']
     return -1
 
+
 def era_to_gregorian_year(era_name: str, year: int) -> int:
     start_year, unused_end_year = ERA_YEARS_MAP[era_name]
     return start_year + year - 1
+
+
+def year_month_day_to_str(year: int, month: int, day: int) -> str:
+    st_list = []  # type: List[str]
+    if year > 0:
+        st_list.append('{:04d}'.format(year))
+    else:
+        st_list.append('XXXX')
+    if month > 0:
+        st_list.append('{:02d}'.format(month))
+    else:
+        st_list.append('XX')
+    if day > 0:
+        st_list.append('{:02d}'.format(day))
+    else:
+        st_list.append('XX')
+    return '-'.join(st_list)
 
 
 # pylint: disable=too-many-locals
@@ -64,7 +88,9 @@ def extract_dates(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
         era = mat.group(1)
         year = mat.group(2)
         month = mat.group(5)
-        day = mat.group(8)
+        day = ''
+        if mat.group(8):
+            day = mat.group(9)
 
         # print('era = {}'.format(era))
         # print('year = {}'.format(date_num_to_int(year)))
@@ -79,12 +105,11 @@ def extract_dates(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
         month_val = date_num_to_int(month)
         day_val = date_num_to_int(day)
 
-
         # print('gregorian year: {}'.format(gregorian_year))
 
-        adict = {'norm': {'date': '{:04d}-{:02d}-{:02d}'.format(gregorian_year,
-                                                                month_val,
-                                                                day_val)},
+        adict = {'norm': {'date': year_month_day_to_str(gregorian_year,
+                                                        month_val,
+                                                        day_val)},
                  'start': mat.start(),
                  'end': mat.end(),
                  'concept': 'date',

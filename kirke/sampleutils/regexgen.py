@@ -2,7 +2,8 @@
 import copy
 import logging
 import re
-from typing import Dict, List, Optional, Pattern, Tuple
+# pylint: disable=unused-import
+from typing import Dict, List, Optional, Pattern, Tuple, Union
 
 from kirke.nlputil import regexcand_en, regexcand_jp, text2int_jp
 from kirke.utils import ebantdoc4, ebsentutils, mathutils, strutils, text2int
@@ -387,7 +388,7 @@ def number_to_norm_dict(num_st: str,
     #                                                  cx_mat.end(), cx_mat.group()))
     # for gi, group in enumerate(cx_mat.groups(), 1):
     #     print("    numb cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
-    norm_value = -1
+    norm_value = -1  # type: Union[int, float]
     if num_st:
         norm_value = text2int.extract_number_value(num_st)
 
@@ -619,12 +620,23 @@ class RegexContextGenerator:
             is_label = ebsentutils.check_start_end_overlap(match_start,
                                                            match_end,
                                                            label_ant_list)
-            prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
-                                                                      match_start,
-                                                                      self.num_prev_words)
-            post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
-                                                                      match_end,
-                                                                      self.num_post_words)
+
+            if doc_lang in set(['zh', 'ja']):
+                prev_n_words, prev_spans = \
+                    strutils.get_prev_n_chars_as_tokens(nl_text,
+                                                        match_start,
+                                                        self.num_prev_words)
+                post_n_words, post_spans = \
+                    strutils.get_post_n_chars_as_tokens(nl_text,
+                                                        match_end,
+                                                        self.num_post_words)
+            else:
+                prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
+                                                                          match_start,
+                                                                          self.num_prev_words)
+                post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
+                                                                          match_end,
+                                                                          self.num_post_words)
             new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                         match_str,
                                         ' '.join(post_n_words))

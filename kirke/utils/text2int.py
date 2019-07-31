@@ -2,8 +2,7 @@ import re
 # pylint: disable=unused-import
 from typing import Dict, List, Tuple, Union
 
-from kirke.utils import strutils
-
+from kirke.utils import mathutils, strutils
 from kirke.utils import unicodeutils
 
 IS_DEBUG = False
@@ -17,6 +16,9 @@ numeric_words_regex_st = ''
 ordinal_words = {'first':1, 'second':2, 'third':3, 'fifth':5,
                  'eighth':8, 'ninth':9, 'twelfth':12}
 ordinal_endings = [('ieth', 'y'), ('th', '')]
+
+num_digit3_chunks_st = r'\b(\d{1,3}, *(\d{3}, ?)*\d{3}(\.\d*)?)\b'
+num_digit3_chunks_pat = re.compile(num_digit3_chunks_st)
 
 # (\d{1,3}[,\.]?)+([,\.]\d{,2})?( *[tTbBmM]illion| *[tT]housand| *[TMB])?
 
@@ -159,6 +161,33 @@ def extract_numbers(line: str) -> List[Dict]:
                  'concept': 'number',
                  'norm': {'value': val}}
         result.append(adict)
+
+    # to handle split '260, 000'
+    result_3 = []  # type: List[Dict]
+    mat_list_3 = list(num_digit3_chunks_pat.finditer(line))
+    for mat in mat_list_3:
+        numeric_span = (mat.start(), mat.end(), mat.group())
+        # print('numeric_span: {}'.format(numeric_span))
+        num_span_list.append(numeric_span)
+        val = text2number(mat.group().replace(' ', ''))
+        adict = {'start': mat.start(),
+                 'end': mat.end(),
+                 'text': mat.group(),
+                 'concept': 'number',
+                 'norm': {'value': val}}
+        result_3.append(adict)
+
+    if result_3:
+        # remove overlaped ones
+        comb_se_result = []  # type: List[Tuple[int, int, Dict]]
+        for elt in result:
+            comb_se_result.append((elt['start'], elt['end'], elt))
+        for elt in result_3:
+            comb_se_result.append((elt['start'], elt['end'], elt))
+        comb_se_result = mathutils.remove_subsumed(comb_se_result)
+
+        result = [elt for start, end, elt in comb_se_result]
+
     return result
 
 
@@ -207,7 +236,7 @@ def extract_number(line: str) -> Dict:
     return {}
 
 
-def extract_number_value(line: str) -> int:
+def extract_number_value(line: str) -> Union[int, float]:
     line = remove_num_words_join_hyphen(line)
     line = normalize_comma_period(line)
     mat = NUM_REGEX.search(line)

@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 from collections import defaultdict
 import copy
 import concurrent.futures
@@ -182,6 +183,16 @@ class EbRunner:
         for model_fn in model_files:
             full_model_fn = '{}/{}'.format(model_dir, model_fn)
             prov_classifier = joblib.load(full_model_fn)
+
+            # before 2019-07-30, models do not have language info
+            model_rec = modelfileutils.parse_default_model_file_name(model_fn)
+            if model_rec:
+                if not hasattr(prov_classifier, 'lang'):
+                    prov_classifier.lang = model_rec.lang
+                    prov_classifier.transformer.lang = model_rec.lang
+            else:
+                logger.warning('failed to parse model fname: [%s]', model_fn)
+
             clf_provision = prov_classifier.provision
             if hasattr(prov_classifier, 'version'):
                 prov_classifier_version = prov_classifier.version
@@ -396,6 +407,19 @@ class EbRunner:
             if is_update_model:
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
+
+                # before 2019-07-30, models do not have language info
+                model_rec = modelfileutils.parse_custom_model_file_name(fname)
+                if model_rec:
+                    if not hasattr(prov_classifier, 'lang'):
+                        prov_classifier.lang = model_rec.lang
+
+                        # only sentence candidate type has transformer
+                        if hasattr(prov_classifier, 'transformer') and \
+                           prov_classifier.transformer is not None:
+                            prov_classifier.transformer.lang = model_rec.lang
+                else:
+                    logger.warning('failed to parse custom model fname: [%s]', fname)
 
                 # if we loaded this for a particular custom field type ("cust_52")
                 # it must produce annotations with that label, not with whatever is "embedded"
@@ -958,6 +982,14 @@ class EbLangDetectRunner:
     def detect_lang(self, atext: str) -> Optional[str]:
         try:
             detect_lang = langdetect.detect(atext.lower())
+            # Normalize Chinese lang names because
+            # our existing model name convention expects
+            # 2 letters for a language, except for English.
+            #
+            # CoreNLP only uses 'zh'.
+            if detect_lang == 'zh-cn' or \
+               detect_lang == 'zh-tw':
+                detect_lang = 'zh'
         except LangDetectException:
             detect_lang = None
         # logger.info("detected language '{}'".format(detect_lang))

@@ -49,7 +49,8 @@ class TestCandGen(unittest.TestCase):
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
-                address_cands, _, _ = address_gen.get_candidates_from_text(doc_text)
+                address_cands, _, _ = address_gen.get_candidates_from_text(doc_text,
+                                                                           doc_lang='en')
                 # for acand in [x['chars'] for x in address_cands]:
                 #     print("acand: [{}]".format(acand))
                 all_address_cands.extend([x['chars'] for x in address_cands])

@@ -56,6 +56,8 @@ PROVISION_THRESHOLD_MAP = {'assign': 0.24,
 
 IS_DEBUG_TP = False
 
+IS_DEBUG_SCORE = False
+
 
 # This is for debugging purpose only.
 # It doesn't handle model_number at all
@@ -72,6 +74,7 @@ def get_model_base_fnames(provision: str,
     return base_model_fname, base_status_fname, base_result_fname
 
 
+# pylint: disable=too-many-instance-attributes
 class ShortcutClassifier(EbClassifier):
 
     def __init__(self, provision):
@@ -88,14 +91,16 @@ class ShortcutClassifier(EbClassifier):
 
         self.pos_threshold = 0.5   # default threshold for sklearn classifier
         self.threshold = PROVISION_THRESHOLD_MAP.get(provision, GLOBAL_THRESHOLD)
-        # Note: Some old pickled versions might not have this attribute.
-        # 'nbest' is a newly added attribute.
-        self.nbest = -1
 
         # This is an attribute that is added later, so some .pkl files
         # might not have this attribute.  Please make sure to check this
         # variable using hasattr() first before accessing it.
         self.nbest = -1
+
+        # This is an attribute that is added later, so some .pkl files
+        # might not have this attribute.  Please make sure to check this
+        # variable using hasattr() first before accessing it.
+        self.lang = ''
 
     def make_bare_copy(self):
         result = ShortcutClassifier(self.provision)
@@ -104,11 +109,24 @@ class ShortcutClassifier(EbClassifier):
             result.nbest = self.nbest
         else:
             result.nbest = -1
+
+        # this is for backward compatibility
+        if hasattr(self, 'lang'):
+            result.lang = self.lang
+        else:
+            result.lang = ''
         return result
 
     # pylint: disable=too-many-statements, too-many-locals
-    def train_antdoc_list(self, ebantdoc_list, work_dir, model_file_name) -> None:
+    def train_antdoc_list(self,
+                          ebantdoc_list,
+                          *,
+                          lang: str,
+                          model_file_name: str) -> None:
         logger.info('train_antdoc_list()...')
+
+        self.lang = lang
+        self.transformer.lang = lang
 
         sent_list = []
         attrvec_list, group_id_list = [], []  # type: List[ebattrvec.EbAttrVec], List[int]
@@ -123,7 +141,7 @@ class ShortcutClassifier(EbClassifier):
         # NOTE: jshaw
         # this is where there is leakable of information from test set
         # infogain might get some information from test set
-        self.transformer.fit(attrvec_list, label_list)
+        self.transformer.fit(attrvec_list, label_list=label_list)
 
         # pylint: disable=C0103
         X_train = self.transformer.transform(attrvec_list)
@@ -198,11 +216,19 @@ class ShortcutClassifier(EbClassifier):
         doc_text = eb_antdoc.get_nlp_text()
         sent_st_list = [doc_text[attrvec.start:attrvec.end]
                         for attrvec in attrvec_list]
-        overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
+        overrides = ebpostproc.gen_provision_overrides(self.provision,
+                                                       sent_st_list,
+                                                       lang=self.lang)
 
         # pylint: disable=C0103
         X_test = self.transformer.transform(attrvec_list)
         probs = self.eb_grid_search.predict_proba(X_test)[:, 1]
+
+        if IS_DEBUG_SCORE:
+            score_sent_list = [(prob, sent_st) for prob, sent_st in zip(probs, sent_st_list)]
+            score_sent_list.sort(reverse=True)
+            for score, sent in score_sent_list:
+                print('score prob\t{:.5f}\t{}'.format(score, sent))
 
         # do the override
         for i, override in enumerate(overrides):
@@ -250,7 +276,9 @@ class ShortcutClassifier(EbClassifier):
         # num_positive = np.count_nonzero(y_te)
         # logger.debug('num true positives in testing = {}'.format(num_positive))
         sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
-        overrides = ebpostproc.gen_provision_overrides(self.provision, sent_st_list)
+        overrides = ebpostproc.gen_provision_overrides(self.provision,
+                                                       sent_st_list,
+                                                       lang=self.lang)
 
         # pylint: disable=fixme
         # TODO, jshaw

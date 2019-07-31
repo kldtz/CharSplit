@@ -27,6 +27,9 @@ logger.setLevel(logging.INFO)
 
 MAX_NUM_BI_TOPGRAM_WORDS = 175
 
+CJK_SET = set(['zh', 'ja', 'ko'])
+
+
 #pylint: disable=too-many-instance-attributes
 class SentTransformer(EbTransformerBase):
 
@@ -122,6 +125,7 @@ class SentTransformer(EbTransformerBase):
     # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     def candidates_to_matrix(self,
                              span_candidate_list: List[Dict],
+                             *,
                              y: Optional[List[bool]],
                              fit_mode: bool = False):
 
@@ -214,10 +218,19 @@ class SentTransformer(EbTransformerBase):
             #pylint: disable=line-too-long
             nostop_positive_sent_st_list = stopwordutils.remove_stopwords(positive_sent_st_list, mode=0)
             filtered_list = []
-            for nostop_positive_sent in nostop_positive_sent_st_list:
-                for tmp_w in nostop_positive_sent.split():
-                    if len(tmp_w) > 3:
+            # This should not be triggered.
+            # if self.lang == '':
+            #     raise Exception('SentTransformer {} has no lang specified.'.format(self.provision))
+            if self.lang in CJK_SET:
+                for nostop_positive_sent in nostop_positive_sent_st_list:
+                    for tmp_w in nostop_positive_sent.split():
+                        # if len(tmp_w) > 3:
                         filtered_list.append(tmp_w)
+            else:
+                for nostop_positive_sent in nostop_positive_sent_st_list:
+                    for tmp_w in nostop_positive_sent.split():
+                        if len(tmp_w) > 3:
+                            filtered_list.append(tmp_w)
 
             # The words in FreqDist at the same frequency is unordered.
             # To make the classification result consistent, take the wanted
@@ -281,7 +294,7 @@ class SentTransformer(EbTransformerBase):
             # pylint: disable=invalid-name
             y: Optional[List[bool]] = None):
         start_time = time.time()
-        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
+        self.candidates_to_matrix(span_candidate_list, y=y, fit_mode=True)
         end_time = time.time()
         SentTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -293,7 +306,9 @@ class SentTransformer(EbTransformerBase):
     def transform(self,
                   span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
-        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
+        X_out = self.candidates_to_matrix(span_candidate_list,
+                                          y=[],
+                                          fit_mode=False)
         end_time = time.time()
         SentTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -316,6 +331,7 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
     # pylint: disable=unused-argument, invalid-name
     def candidates_to_matrix(self,
                              span_candidate_list: List[Dict],
+                             *,
                              y: Optional[List[bool]],
                              fit_mode: bool = False):
         numeric_matrix = np.zeros(shape=(len(span_candidate_list),
@@ -336,7 +352,7 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
             # pylint: disable=invalid-name
             y: Optional[List[bool]] = None):
         start_time = time.time()
-        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
+        self.candidates_to_matrix(span_candidate_list, y=y, fit_mode=True)
         end_time = time.time()
         AddrLineTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -350,7 +366,7 @@ class AddrLineTransformer(BaseEstimator, TransformerMixin):
                   span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
         # pylint: disable=invalid-name
-        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
+        X_out = self.candidates_to_matrix(span_candidate_list, y=[], fit_mode=False)
         end_time = time.time()
         AddrLineTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -381,6 +397,7 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
     # pylint: disable=unused-argument, invalid-name
     def candidates_to_matrix(self,
                              span_candidate_list: List[Dict],
+                             *,
                              y: Optional[List[bool]],
                              fit_mode: bool = False):
         prev_words_list = []
@@ -417,7 +434,7 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
             # pylint: disable=invalid-name
             y: Optional[List[bool]] = None):
         start_time = time.time()
-        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
+        self.candidates_to_matrix(span_candidate_list, y=y, fit_mode=True)
         end_time = time.time()
         SurroundWordTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -431,7 +448,7 @@ class SurroundWordTransformer(BaseEstimator, TransformerMixin):
                   span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
         # pylint: disable=invalid-name
-        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
+        X_out = self.candidates_to_matrix(span_candidate_list, y=[], fit_mode=False)
         end_time = time.time()
         SurroundWordTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -453,6 +470,7 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
     # pylint: disable=unused-argument, invalid-name
     def candidates_to_matrix(self,
                              span_candidate_list: List[Dict],
+                             *,
                              y: Optional[List[bool]],
                              fit_mode: bool = False):
         words_list = []
@@ -473,7 +491,7 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
             # pylint: disable=invalid-name
             y: Optional[List[bool]] = None):
         start_time = time.time()
-        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
+        self.candidates_to_matrix(span_candidate_list, y=y, fit_mode=True)
         end_time = time.time()
         SimpleTextTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -486,7 +504,7 @@ class SimpleTextTransformer(BaseEstimator, TransformerMixin):
     def transform(self,
                   span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
-        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
+        X_out = self.candidates_to_matrix(span_candidate_list, y=[], fit_mode=False)
         end_time = time.time()
         SimpleTextTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -519,6 +537,7 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
     # pylint: disable=unused-argument, invalid-name, too-many-locals
     def candidates_to_matrix(self,
                              span_candidate_list: List[Dict],
+                             *,
                              y: Optional[List[bool]],
                              fit_mode: bool = False):
         all_cands = []
@@ -601,7 +620,7 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
             # pylint: disable=invalid-name
             y: Optional[List[bool]] = None):
         start_time = time.time()
-        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
+        self.candidates_to_matrix(span_candidate_list, y=y, fit_mode=True)
         end_time = time.time()
         CharacterTransformer.fit_count += 1
         logger.debug("%s fit called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -614,7 +633,7 @@ class CharacterTransformer(BaseEstimator, TransformerMixin):
     def transform(self,
                   span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
-        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
+        X_out = self.candidates_to_matrix(span_candidate_list, y=[], fit_mode=False)
         end_time = time.time()
         CharacterTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",
@@ -648,6 +667,7 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
     # pylint: disable=unused-argument, invalid-name, too-many-locals, too-many-statements
     def candidates_to_matrix(self,
                              span_candidate_list: List[Dict],
+                             *,
                              y: Optional[List[bool]],
                              fit_mode: bool = False):
 
@@ -777,7 +797,7 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
             # pylint: disable=invalid-name
             y: Optional[List[bool]] = None):
         start_time = time.time()
-        self.candidates_to_matrix(span_candidate_list, y, fit_mode=True)
+        self.candidates_to_matrix(span_candidate_list, y=y, fit_mode=True)
         end_time = time.time()
         TableTextTransformer.fit_count += 1
 
@@ -791,7 +811,7 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
     def transform(self,
                   span_candidate_list: List[Dict]) -> List:
         start_time = time.time()
-        X_out = self.candidates_to_matrix(span_candidate_list, [], fit_mode=False)
+        X_out = self.candidates_to_matrix(span_candidate_list, y=[], fit_mode=False)
         end_time = time.time()
         TableTextTransformer.transform_count += 1
         logger.debug("%s transform called #%d, len(span_candidate_list) = %d, took %.0f msec",

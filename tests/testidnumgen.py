@@ -23,6 +23,7 @@ def extract_cand_str_list(idnum_gen: idnumgen.IdNumContextGenerator,
                           line: str) -> List[str]:
     candidates, unused_label_list, unused_group_id_list = \
         idnum_gen.get_candidates_from_text(line,
+                                           doc_lang='en',
                                            group_id=-1,
                                            label_ant_list=[])
     str_list = [cand['chars'] for cand in candidates]
@@ -361,6 +362,7 @@ class TestIdNumGen(unittest.TestCase):
                                                     end=47)]
         candidates, unused_group_id_list, label_list = \
             idnum_gen.get_candidates_from_text(line,
+                                               doc_lang='en',
                                                group_id=-1,
                                                label_ant_list=ant_list,
                                                label='purchase_order_number')
@@ -377,6 +379,7 @@ class TestIdNumGen(unittest.TestCase):
                                                     end=43)]
         candidates, unused_group_id_list, label_list = \
             idnum_gen.get_candidates_from_text(line,
+                                               doc_lang='en',
                                                group_id=-1,
                                                label_ant_list=ant_list,
                                                label='purchase_order_number')

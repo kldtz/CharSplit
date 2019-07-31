@@ -18,7 +18,7 @@ class DateSpanGenerator:
         self.num_post_words = num_post_words
         self.candidate_type = candidate_type
 
-    # pylint: disable=too-many-arguments, too-many-locals
+    # pylint: disable=too-many-arguments, too-many-locals, too-many-statements
     def get_candidates_from_text(self,
                                  nl_text: str,
                                  doc_lang: str,
@@ -57,14 +57,24 @@ class DateSpanGenerator:
                                                            match_end,
                                                            label_ant_list)
 
-            prev_n_words, prev_spans = \
-                strutils.get_prev_n_clx_tokens(nl_text,
-                                               match_start,
-                                               self.num_prev_words)
-            post_n_words, post_spans = \
-                strutils.get_post_n_clx_tokens(nl_text,
-                                               match_end,
-                                               self.num_post_words)
+            if doc_lang in set(['zh', 'ja']):
+                prev_n_words, prev_spans = \
+                    strutils.get_prev_n_chars_as_tokens(nl_text,
+                                                        match_start,
+                                                        self.num_prev_words)
+                post_n_words, post_spans = \
+                    strutils.get_post_n_chars_as_tokens(nl_text,
+                                                        match_end,
+                                                        self.num_post_words)
+            else:
+                prev_n_words, prev_spans = \
+                    strutils.get_prev_n_clx_tokens(nl_text,
+                                                   match_start,
+                                                   self.num_prev_words)
+                post_n_words, post_spans = \
+                    strutils.get_post_n_clx_tokens(nl_text,
+                                                   match_end,
+                                                   self.num_post_words)
 
             prev_15_words = ['PV15_' + wd for wd in prev_n_words[-15:]]
             post_15_words = ['PS15_' + wd for wd in post_n_words[:15]]

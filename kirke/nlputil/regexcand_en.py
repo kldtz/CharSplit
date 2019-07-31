@@ -1,6 +1,7 @@
 import logging
 import re
-from typing import Dict, List, Match, Tuple
+# pylint: disable=unused-import
+from typing import Dict, List, Match, Tuple, Union
 
 from kirke.utils import mathutils, text2int
 from kirke.utils.text2int import remove_num_words_join_hyphen
@@ -15,7 +16,7 @@ IS_DEBUG = False
 # pylint: disable=line-too-long
 # (?:^| |\()
 # want to avoid "rst", which is "rs" + "t" where "t" is just trillion
-CURRENCY_PAT_ST = r'((((\bUSD|\bEUR|\bGBP|\bCNY|\bJPY|\bINR|\bRupees?|\bRs\b\.?)|[\$€£円¥₹]) *({})|({}) *((USD|euros?|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|ドル|米ドル|㌦|アメリカドル|弗|[eE]uros?|ユーロ|[pP]ounds?|ポンド|[yY]uans?|人民元|元|[yY]ens?|[rR]upees?|インド・ルピー|インドルピー|ルピー)|[\$€£円¥₹])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st_with_b)
+CURRENCY_PAT_ST = r'((((\bUSD|\bUS\$|\bEUR|\bGBP|\bCNY|\bJPY|\bINR|\bRupees?|\bRs\b\.?)|[\$€£円¥₹]) *({})|({}) *((USD|euros?|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|ドル|米ドル|㌦|アメリカドル|弗|[eE]uros?|ユーロ|[pP]ounds?|ポンド|[yY]uans?|人民元|元|[yY]ens?|[rR]upees?|インド・ルピー|インドルピー|ルピー)|[\$€£円¥₹])))'.format(text2int.numeric_regex_st, text2int.numeric_regex_st_with_b)
 CURRENCY_PAT = re.compile(CURRENCY_PAT_ST, re.I)
 
 CURRENCY_SYMBOL_EXACT_PAT = re.compile(r'([\$€£円¥₹元弗]|\bR[Ss]\.)')
@@ -194,7 +195,7 @@ def find_post_start_end_in_dict_list(number_dict_list: List[Dict],
 # pylint: disable=too-many-return-statements
 def normalize_currency_unit(line: str) -> str:
     lc_line = line.lower()
-    if lc_line in set(['$', 'usd', 'dollar', 'dollars',
+    if lc_line in set(['$', 'usd', 'dollar', 'dollars', 'us$',
                        'ドル', '米ドル', '㌦', 'アメリカドル', '弗', 'セント']) or \
        re.search(r'u\.\s*s\.\s*dollars?', lc_line):
         return 'USD'
@@ -223,7 +224,7 @@ def currency_to_norm_dict(cx_mat: Match, line: str) -> Dict:
         for gi, unused_group in enumerate(cx_mat.groups(), 1):
             print("    cx_mat.group #{}: [{}]".format(gi, cx_mat.group(gi)))
     norm_unit = 'USD'
-    norm_value = -1
+    norm_value = -1  # type: Union[int, float]
     if cx_mat.group(3):
         norm_unit = normalize_currency_unit(cx_mat.group(3))
         norm_value = text2int.extract_number_value(cx_mat.group(5))

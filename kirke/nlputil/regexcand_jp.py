@@ -20,7 +20,7 @@ IS_DEBUG = False
 # astronomical numbers in contract these days.
 
 # pylint: disable=line-too-long
-CURRENCY_PAT_ST = r'((((\bUSD|\bEUR|\bGBP|\bCNY|\bJPY|\bINR|\bRupees?|\bRs\.?)|[\$€£円¥₹]) *{})|' \
+CURRENCY_PAT_ST = r'((((\bUSD|\bUS\$|\bEUR|\bGBP|\bCNY|\bJPY|\bINR|\bRupees?|\bRs\.?)|[\$€£円¥₹]) *{})|' \
                   r'({} *(USD|[dD]ollars?|u\.\s*s\.\s*dollars?|ドル|米ドル|㌦|アメリカドル|弗)( *{} *(セント|cents?)))|' \
                   r'({} *((USD|euros?|EUR|GBP|CNY|JPY|INR|Rs|[dD]ollars?|u\.\s*s\.\s*dollars?|ドル|米ドル|㌦|アメリカドル|弗|[eE]uros?|ユーロ|' \
                   r'[pP]ounds?|ポンド|[yY]uans?|人民元|元|[yY]ens?|[rR]upees?|インド・ルピー|インドルピー|ルピー)|' \
@@ -86,6 +86,14 @@ def extract_currencies(line: str, is_norm_dbcs_sbcs=False) -> List[Dict]:
     for mat in mat_list:
         # print('mat: [{}]'.format(mat.group()))
         norm_dict = currency_to_norm_dict(mat, line)
+
+        # just for '金100,000円', adjust prefix to include '金'
+        if line[norm_dict['end']-1] == '円' and \
+           norm_dict['start'] - 1 >= 0 and \
+           line[norm_dict['start']-1] == '金':
+            norm_dict['start'] = norm_dict['start']-1
+            norm_dict['text'] = line[norm_dict['start']:norm_dict['end']]
+
         result.append(norm_dict)
     return result
 

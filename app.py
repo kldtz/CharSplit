@@ -20,7 +20,7 @@ from flask import Flask, jsonify, request, send_file
 import yaml
 
 from kirke.eblearn import annotatorconfig, ebrunner, ebtrainer
-from kirke.utils import corenlputils, modelfileutils, osutils, strutils
+from kirke.utils import antutils, corenlputils, modelfileutils, osutils, strutils
 
 # pylint: disable=invalid-name
 config = configparser.ConfigParser()
@@ -403,6 +403,10 @@ def custom_train(cust_id: str):
             full_path = '{}/{}'.format(tmp_dir, name)
             if name.endswith('.ant'):
                 ants_map = json.loads(strutils.loads(full_path))
+                ants = [x['type'] for x in ants_map]
+                fname_provtypes_map[file_id] = ants
+            elif name.endswith('.ebdata'):
+                ants_map = antutils.ebdata_to_ant_json(full_path)
                 ants = [x['type'] for x in ants_map]
                 fname_provtypes_map[file_id] = ants
             elif name.endswith('.txt'):

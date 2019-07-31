@@ -42,9 +42,9 @@ class TestBespokeDate(unittest.TestCase):
         custid_data_dir = 'cust_' + custid
         result_text = \
             postfileutils.upload_train_dir(custid,
-                                           custid_data_dir,
+                                           upload_dir=custid_data_dir,
                                            candidate_types='DATE',
-                                           nbest=1)
+                                           nbest=1).text
         ajson = json.loads(result_text)
         ant_result = ajson['en']
 
@@ -112,9 +112,9 @@ class TestBespokeDate(unittest.TestCase):
         custid_data_dir = 'cust_10-1best-div-zero'
         result_text = \
             postfileutils.upload_train_dir(custid,
-                                           custid_data_dir,
+                                           upload_dir=custid_data_dir,
                                            candidate_types='DATE',
-                                           nbest=1)
+                                           nbest=1).text
         ajson = json.loads(result_text)
         ant_result = ajson['en']
 

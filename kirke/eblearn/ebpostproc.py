@@ -122,7 +122,8 @@ SHORT_PROVISIONS = set(['title', 'date', 'effectivedate', 'sigdate', 'choiceofla
 # override some provisions during testing
 # pylint: disable=too-many-locals
 def gen_provision_overrides(provision: str,
-                            sent_st_list: List[str]) -> List[float]:
+                            sent_st_list: List[str],
+                            lang: str) -> List[float]:
     overrides = [0.0 for _ in range(len(sent_st_list))]
 
     global_min_length = 6
@@ -138,9 +139,19 @@ def gen_provision_overrides(provision: str,
         adjust_prob = pat_adjscore[1]
 
     for sent_idx, sent_st in enumerate(sent_st_list):
+
+        # korean is tokenized correctly
+        if lang in set(['zh', 'ja']):
+            # skip very short sentences even if they
+            # have the right words
+            if len(sent_st) < 10:
+                overrides[sent_idx] = -10.0
+            continue
+
         # pylint: disable=fixme
         # toks = sent_st.split()   # TODO, a little repetitive, split again
         toks = stopwordutils.get_nonstopwords_gt_len1(sent_st)
+
         num_words = len(toks)
         num_numeric = sum(1 for tok in toks if strutils.is_number(tok))
         is_toc = num_words > 60 and num_numeric / num_words > 0.2

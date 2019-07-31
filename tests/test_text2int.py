@@ -178,6 +178,11 @@ class TestText2Int(unittest.TestCase):
         line = "33,32 m"
         self.assertEqual(text2number(line), 33320000)
 
+        line = '260, 600'
+        adict_list = extract_numbers(line)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        self.assertEqual(adict['norm']['value'], 260600)
 
     def test_float(self):
         "Test text2number(), floating point parsing"
@@ -245,16 +250,14 @@ class TestText2Int(unittest.TestCase):
         # a typo in the input document
         line = '$11,000,000  of General Liability Insurance ($1,000,000 base + $10,000,00 umbrella)  covering:'
         adict_list = extract_numbers(line)
-        # self.assertEqual(len(adict_list), 3)
-        self.assertEqual(len(adict_list), 0)
-        """
+
+        self.assertEqual(3, len(adict_list))
         adict = adict_list[0]
-        self.assertEqual(adict['norm']['value'], 11000000)
+        self.assertEqual(11000000, adict['norm']['value'])
         adict = adict_list[1]
-        self.assertEqual(adict['norm']['value'], 1000000)
+        self.assertEqual(1000000, adict['norm']['value'])
         adict = adict_list[2]
-        self.assertEqual(adict['norm']['value'], 1000000)
-        """
+        self.assertEqual(10000, adict['norm']['value'])
 
         line = "one and half pound and three and half pound, eight and half dollars three and half million dollars"
         adict_list = extract_numbers(line)

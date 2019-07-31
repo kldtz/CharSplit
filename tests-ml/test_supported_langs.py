@@ -95,7 +95,7 @@ class TestLangs(unittest.TestCase):
                                                      ['choiceoflaw'],
                                                      is_detect_lang=True)
         out_lang = json.loads(result_text)['lang']
-        self.assertEqual(out_lang, 'zh-cn')
+        self.assertEqual(out_lang, 'zh')  # zh-cn, but normalized to 'zh'
 
     def test_lang_spanish(self):
         # ------- SPANISH -------

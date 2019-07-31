@@ -52,6 +52,65 @@ class TestDateJPUtils(unittest.TestCase):
         self.assertEqual(date_st,
                          '令和元年５月２２日')
 
+        line = '2015年○○月○○日'
+        alist = dates_jp.extract_dates(line, is_norm_dbcs_sbcs=True)
+        start, end, date_st, norm = date_flatten(alist[0], line)
+        self.assertEqual(norm,
+                         '2015-XX-XX')
+        self.assertEqual(date_st,
+                         '2015年○○月○○日')
+
+        # We need at least a year value to work.
+        """
+        line = '年　　　　 月　　　　 日'
+        alist = dates_jp.extract_dates(line, is_norm_dbcs_sbcs=True)
+        start, end, date_st, norm = date_flatten(alist[0], line)
+        self.assertEqual('XXXX-XX-XX',
+                         norm)
+        self.assertEqual('年　　　　 月　　　　 日',
+                         date_st)
+        """
+
+        line = '平成 29年　　月　　　日'
+        alist = dates_jp.extract_dates(line, is_norm_dbcs_sbcs=True)
+        start, end, date_st, norm = date_flatten(alist[0], line)
+        self.assertEqual('2017-XX-XX',
+                         norm)
+        self.assertEqual('平成 29年　　月　　　日',
+                         date_st)
+
+        line = '平成２５年●●月●●日'
+        alist = dates_jp.extract_dates(line, is_norm_dbcs_sbcs=True)
+        start, end, date_st, norm = date_flatten(alist[0], line)
+        self.assertEqual('2013-XX-XX',
+                         norm)
+        self.assertEqual('平成２５年●●月●●日',
+                         date_st)
+
+        line = '2018年4月'
+        alist = dates_jp.extract_dates(line, is_norm_dbcs_sbcs=True)
+        start, end, date_st, norm = date_flatten(alist[0], line)
+        self.assertEqual('2018-04-XX',
+                         norm)
+        self.assertEqual('2018年4月',
+                         date_st)
+
+        line = '２０１５年１１月１３日'
+        alist = dates_jp.extract_dates(line, is_norm_dbcs_sbcs=True)
+        start, end, date_st, norm = date_flatten(alist[0], line)
+        self.assertEqual('2015-11-13',
+                         norm)
+        self.assertEqual('２０１５年１１月１３日',
+                         date_st)
+
+        line = '２０１５年　　月　　日'
+        alist = dates_jp.extract_dates(line, is_norm_dbcs_sbcs=True)
+        start, end, date_st, norm = date_flatten(alist[0], line)
+        self.assertEqual('2015-XX-XX',
+                         norm)
+        self.assertEqual('２０１５年　　月　　日',
+                         date_st)
+
 
     def test_extract_dates_arabic(self):
 
@@ -342,6 +401,22 @@ class TestCurrencyJPUtils(unittest.TestCase):
         adict = alist[0]
         self.assertEqual(3.40, adict['norm']['value'])
         self.assertEqual('INR', adict['norm']['unit'])
+
+        line = '金100,000円'
+        alist = regexcand_jp.extract_currencies(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(1, len(alist))
+        adict = alist[0]
+        self.assertEqual(100000, adict['norm']['value'])
+        self.assertEqual('JPY', adict['norm']['unit'])
+        self.assertEqual('金100,000円', adict['text'])
+
+        line = 'US$100,000'
+        alist = regexcand_jp.extract_currencies(line, is_norm_dbcs_sbcs=True)
+        self.assertEqual(1, len(alist))
+        adict = alist[0]
+        self.assertEqual(100000, adict['norm']['value'])
+        self.assertEqual('USD', adict['norm']['unit'])
+        self.assertEqual('US$100,000', adict['text'])
 
 
     def test_extract_currency_with_cents_jp(self):

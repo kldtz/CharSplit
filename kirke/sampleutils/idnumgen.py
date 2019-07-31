@@ -108,6 +108,7 @@ class IdNumContextGenerator:
     # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
     def get_candidates_from_text(self,
                                  nl_text: str,
+                                 doc_lang: str,
                                  group_id: int,
                                  # pylint: disable=line-too-long
                                  label_ant_list: List[ProvisionAnnotation],
@@ -129,12 +130,22 @@ class IdNumContextGenerator:
             is_label = ebsentutils.check_start_end_overlap(match_start,
                                                            match_end,
                                                            label_ant_list)
-            prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
-                                                                      match_start,
-                                                                      self.num_prev_words)
-            post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
-                                                                      match_end,
-                                                                      self.num_post_words)
+            if doc_lang in set(['zh', 'ja']):
+                prev_n_words, prev_spans = \
+                    strutils.get_prev_n_chars_as_tokens(nl_text,
+                                                        match_start,
+                                                        self.num_prev_words)
+                post_n_words, post_spans = \
+                    strutils.get_post_n_chars_as_tokens(nl_text,
+                                                        match_end,
+                                                        self.num_post_words)
+            else:
+                prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
+                                                                          match_start,
+                                                                          self.num_prev_words)
+                post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
+                                                                          match_end,
+                                                                          self.num_post_words)
             new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                         match_str,
                                         ' '.join(post_n_words))
@@ -204,6 +215,7 @@ class IdNumContextGenerator:
 
             candidates, cand_label_list, cand_group_id_list = \
                 self.get_candidates_from_text(nl_text,
+                                              doc_lang=antdoc.doc_lang,
                                               group_id=group_id,
                                               label_ant_list=label_ant_list,
                                               label=label)
