@@ -2,10 +2,9 @@
 
 import math
 import unittest
-from typing import Dict, List, Optional, Pattern, Tuple
 
-from kirke.utils.text2int import text2number, extract_numbers, extract_number, extract_numbers_in_words
-from kirke.utils.text2int import normalize_comma_period
+from kirke.utils.text2int import extract_numbers, extract_number, extract_numbers_in_words
+from kirke.utils.text2int import normalize_comma_period, text2number
 
 class TestText2Int(unittest.TestCase):
 
@@ -184,6 +183,20 @@ class TestText2Int(unittest.TestCase):
         adict = adict_list[0]
         self.assertEqual(adict['norm']['value'], 260600)
 
+        line = '260, 000, 000'
+        adict_list = extract_numbers(line)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        self.assertEqual(adict['norm']['value'], 260000000)
+
+        line = '260, 000, 000'
+        adict_list = extract_numbers(line)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        self.assertEqual(adict['norm']['value'], 260000000)
+
+
+
     def test_float(self):
         "Test text2number(), floating point parsing"
 
@@ -248,7 +261,8 @@ class TestText2Int(unittest.TestCase):
 
 
         # a typo in the input document
-        line = '$11,000,000  of General Liability Insurance ($1,000,000 base + $10,000,00 umbrella)  covering:'
+        line = '$11,000,000  of General Liability Insurance ($1,000,000 base ' \
+               '+ $10,000,00 umbrella)  covering:'
         adict_list = extract_numbers(line)
 
         self.assertEqual(3, len(adict_list))
@@ -259,7 +273,8 @@ class TestText2Int(unittest.TestCase):
         adict = adict_list[2]
         self.assertEqual(10000, adict['norm']['value'])
 
-        line = "one and half pound and three and half pound, eight and half dollars three and half million dollars"
+        line = 'one and half pound and three and half pound, eight and half ' \
+               'dollars three and half million dollars'
         adict_list = extract_numbers(line)
         self.assertEqual(len(adict_list), 4)
         adict = adict_list[0]
