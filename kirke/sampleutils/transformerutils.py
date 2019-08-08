@@ -728,7 +728,10 @@ class TableTextTransformer(BaseEstimator, TransformerMixin):
             # how compute the % words found in positive examples
             table_word_list = pos_word_tokenizer(table_text_alphanum)
             pos_word_list = [word for word in table_word_list if word in self.pos_word_set]
-            numeric_matrix[i, 35] = len(pos_word_list) / len(table_word_list)
+            if table_word_list:
+                numeric_matrix[i, 35] = len(pos_word_list) / len(table_word_list)
+            else:
+                numeric_matrix[i, 35] = 0.0
 
         # in case these have no words in pre_table_word_list or sechead_word_list
         num_pre_table_word = 0
