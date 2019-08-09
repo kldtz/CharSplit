@@ -336,6 +336,13 @@ def extract_std_dates(line: str) -> List[Dict]:
     return out_datedict_list
 
 
+def extract_std_dates_start_end(line: str) -> List[Tuple[int, int]]:
+    date_dict_list = extract_std_dates(line)
+    out_list = [(date_dict['start'], date_dict['end'])
+                for date_dict in date_dict_list]
+    return out_list
+
+
 MONTH_LIST = ['January', 'February', 'March', 'April', 'May',
               'June', 'July', 'August', 'September', 'October',
               'November', 'December',

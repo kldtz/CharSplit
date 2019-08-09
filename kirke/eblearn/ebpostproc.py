@@ -1494,7 +1494,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                 continue
 
             # Get date start, end offsets relative to current line
-            date_list = sorted(dates.extract_std_dates(line))
+            date_list = sorted(dates.extract_std_dates_start_end(line))
             date_found = False
 
             # If an l_commencement verb is in the line, take next date
@@ -1547,7 +1547,7 @@ class PostPredLeaseDateProc(EbPostPredictProcessing):
                 # Don't want to repeat a date, but does not matter if stopping
                 if next_attrvec.prob < threshold or self.stop_at_one_date:
                     next_line = doc_text[next_attrvec.start:next_attrvec.end]
-                    next_date_list = dates.extract_std_dates(next_line)
+                    next_date_list = dates.extract_std_dates_start_end(next_line)
                     if next_date_list:
                         # Ensure no alphanumeric chars left or right (lr)
                         next_date = sorted(next_date_list)[0]
