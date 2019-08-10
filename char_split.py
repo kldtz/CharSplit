@@ -20,51 +20,28 @@ def split_compound(word: str):
 
     # If there is a hyphen in the word, return part of the word behind the last hyphen
     if '-' in word:
-        return [[1., word.title(), re.sub('.*-', '', word.title())]]
-    
+        hyphen_index = word.rfind('-')
+        return [[1., word[:hyphen_index].title(), word[hyphen_index + 1:].title()]]
+
     scores = [] # Score for each possible split position
     # Iterate through characters, start at forth character, go to 3rd last
     for n in range(3, len(word)-2):
 
-        pre_slice = word[:n]
-        
-        # Cut of Fugen-S
-        if pre_slice.endswith('ts') or pre_slice.endswith('gs') or pre_slice.endswith('ks') \
-                or pre_slice.endswith('hls') or pre_slice.endswith('ns'):
-            if len(word[:n-1]) > 2: pre_slice = word[:n-1]
+        pre_slice = cut_off_fugen_s(word[:n])
 
         # Start, in, and end probabilities
-        pre_slice_prob = []
+        pre_slice_prob = ngram_probs.suffix.get(pre_slice, -1)
         in_slice_prob = []
-        start_slice_prob = []
-        
+        ngram = cut_off_fugen_s(word[n:])
+        start_slice_prob = ngram_probs.prefix.get(ngram, -1)
+
         # Extract all ngrams
-        for k in range(len(word)+1, 2, -1):
-        
-            # Probability of first compound, given by its ending prob
-            if pre_slice_prob == [] and k <= len(pre_slice):
-                end_ngram = pre_slice[-k:]  # Look backwards
-                pre_slice_prob.append(ngram_probs.suffix.get(end_ngram, -1))    # Punish unlikely pre_slice end_ngram
-                    
+        for k in range(len(word)-n, 2, -1):
             # Probability of ngram in word, if high, split unlikely
             in_ngram = word[n:n+k]
             in_slice_prob.append(ngram_probs.infix.get(in_ngram, 1)) # Favor ngrams not occurring within words
-                                  
-            # Probability of word starting
-            if start_slice_prob == []:
-                ngram = word[n:n+k]
-                # Cut Fugen-S
-                if ngram.endswith('ts') or ngram.endswith('gs') or ngram.endswith('ks') \
-                        or ngram.endswith('hls') or ngram.endswith('ns'):
-                    if len(ngram[:-1]) > 2:
-                        ngram = ngram[:-1] 
-                start_slice_prob.append(ngram_probs.prefix.get(ngram, -1))
 
-        if pre_slice_prob == [] or start_slice_prob == []: continue
-        
-        start_slice_prob = max(start_slice_prob)
-        pre_slice_prob = max(pre_slice_prob)    # Highest, best preslice
-        in_slice_prob = min(in_slice_prob)      # Lowest, punish splitting of good ingrams                               
+        in_slice_prob = min(in_slice_prob)      # Lowest, punish splitting of good ingrams
         score = start_slice_prob - in_slice_prob + pre_slice_prob
         scores.append([score, word[:n].title(), word[n:].title()])
 
@@ -72,6 +49,14 @@ def split_compound(word: str):
     if scores == []:
         scores=[ [0, word.title(), word.title()] ]
     return sorted(scores, reverse = True)
+
+
+def cut_off_fugen_s(word):
+    if word.endswith('ts') or word.endswith('gs') or word.endswith('ks') \
+            or word.endswith('hls') or word.endswith('ns'):
+        if len(word[:- 1]) > 2:
+            return word[:-1]
+    return word
 
 
 def germanet_evaluation(print_errors: bool=False):
