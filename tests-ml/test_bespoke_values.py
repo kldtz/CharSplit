@@ -25,9 +25,9 @@ class TestBespokeValues(unittest.TestCase):
         custid_data_dir = 'cust_' + custid
         result_text = \
             postfileutils.upload_train_dir(custid,
-                                           custid_data_dir,
+                                           upload_dir=custid_data_dir,
                                            candidate_types='NUMBER,PERCENT,CURRENCY',
-                                           nbest=-1)
+                                           nbest=-1).text
         ajson = json.loads(result_text)
         print(ajson)
         ant_result = ajson['en']

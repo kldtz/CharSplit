@@ -30,6 +30,7 @@ class AddrContextGenerator:
     # pylint: disable=too-many-arguments, too-many-locals
     def get_candidates_from_text(self,
                                  nl_text: str,
+                                 doc_lang: str,
                                  group_id: int = 0,
                                  # pylint: disable=line-too-long
                                  label_ant_list_param: Optional[List[ebsentutils.ProvisionAnnotation]] = None,
@@ -60,12 +61,22 @@ class AddrContextGenerator:
             is_label = ebsentutils.check_start_end_overlap(addr_start,
                                                            addr_end,
                                                            label_ant_list)
-            prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
-                                                                      addr_start,
-                                                                      self.num_prev_words)
-            post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
-                                                                      addr_end,
-                                                                      self.num_post_words)
+            if doc_lang in set(['zh', 'ja']):
+                prev_n_words, prev_spans = \
+                    strutils.get_prev_n_chars_as_tokens(nl_text,
+                                                        addr_start,
+                                                        self.num_prev_words)
+                post_n_words, post_spans = \
+                    strutils.get_post_n_chars_as_tokens(nl_text,
+                                                        addr_end,
+                                                        self.num_post_words)
+            else:
+                prev_n_words, prev_spans = strutils.get_prev_n_clx_tokens(nl_text,
+                                                                          addr_start,
+                                                                          self.num_prev_words)
+                post_n_words, post_spans = strutils.get_post_n_clx_tokens(nl_text,
+                                                                          addr_end,
+                                                                          self.num_post_words)
             new_bow = '{} {} {}'.format(' '.join(prev_n_words),
                                         addr_st,
                                         ' '.join(post_n_words))
@@ -143,6 +154,7 @@ class AddrContextGenerator:
                 logger.debug('AddrContextGenerator.documents_to_candidates(), group_id = %d', group_id)
 
             candidates, group_id_list, label_list = self.get_candidates_from_text(nl_text,
+                                                                                  doc_lang=antdoc.doc_lang,
                                                                                   group_id=group_id,
                                                                                   label_ant_list_param=label_ant_list,
                                                                                   label_list_param=label_list,

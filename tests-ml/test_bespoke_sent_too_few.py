@@ -28,19 +28,19 @@ class TestBespokeSent(unittest.TestCase):
         custid = 'cust_555'
         custid_data_dir = 'cust_555-too-few'
 
-        result_resp = \
-            postfileutils.upload_train_dir_resp(custid,
-                                                custid_data_dir,
-                                                candidate_types='SENTENCE',
-                                                nbest=-1)
-        print('result_resp.text')
-        print(result_resp.text)
-        print('result_resp')
-        print(result_resp)
+        response = \
+            postfileutils.upload_train_dir(custid,
+                                           upload_dir=custid_data_dir,
+                                           candidate_types='SENTENCE',
+                                           nbest=-1)
+        print('response.text')
+        print(response.text)
+        print('response')
+        print(response)
 
-        self.assertEqual(result_resp.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTrue(re.search(r'only.*positive training documents',
-                                  result_resp.text, re.I))
+                                  response.text, re.I))
 
 
 if __name__ == "__main__":

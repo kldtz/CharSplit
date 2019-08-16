@@ -1,3 +1,4 @@
+import logging
 import re
 # pylint: disable=unused-import
 from typing import Dict, List, Match, Optional, Tuple
@@ -18,6 +19,10 @@ from kirke.utils import corenlpsent, engutils, mathutils, stopwordutils, strutil
 # and
 # other normal section headings, such as "Article" and more obvious centered
 # title.  Even a page title.
+
+# pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def is_line_title(line: str) -> bool:
@@ -260,7 +265,6 @@ def is_line_footer(line: str,
                    # TODO, remove, not used.  Mentioned in pdftxtparser.py
                    align: str,
                    yStart: float):
-
     line = line.strip()
 
     # if last line in a page and just a number
@@ -301,6 +305,7 @@ def is_line_footer(line: str,
     score = 0.0
     if yStart >= 725.0:
         score += 0.4
+
     if is_debug_footer:
         print("score = {}, after yStart".format(score))
     if num_line_in_page - page_line_num <= 2:
@@ -376,6 +381,9 @@ def is_line_header(line: str,
         if is_debug:
             print("is_line_header({}), True, domain specific".format(line))
         return True
+
+    if len(line) > 100:
+        return False
 
     # this is a normal sentences
     if is_english:
@@ -687,11 +695,11 @@ def text_from_para_with_attrs(doc_text: str,
 
             # pylint: disable=line-too-long
             # print('jj77 from=({}, {}), to=({}, {}) [{}]'.format(from_lnpos.start,
-            #                                                     from_lnpos.end,
-            #                                                     unused_to_lnpos.start,
-            #                                                     unused_to_lnpos.end,
-            #                                                     doc_text[from_start:
-            #                                                        from_end][:30] + '...'))
+            #                                                    from_lnpos.end,
+            #                                                    unused_to_lnpos.start,
+            #                                                    unused_to_lnpos.end,
+            #                                                    doc_text[from_start:
+            #                                                             from_end]))
 
         # para_st_list.append(' '.join(para_st_list))
     nlp_text = '\n'.join(para_st_list)

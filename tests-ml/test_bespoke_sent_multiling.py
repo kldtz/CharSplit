@@ -57,9 +57,9 @@ class TestBespokeSent(unittest.TestCase):
         custid_data_dir = 'cust_' + custid
         result_text = \
             postfileutils.upload_train_dir(custid,
-                                           custid_data_dir,
+                                           upload_dir=custid_data_dir,
                                            candidate_types='SENTENCE',
-                                           nbest=-1)
+                                           nbest=-1).text
 
         result_json = json.loads(result_text)
         ro_version_num = result_json['ro']['model_number']

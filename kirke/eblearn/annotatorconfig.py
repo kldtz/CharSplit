@@ -10,7 +10,8 @@ import numpy as np
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import FeatureUnion, Pipeline
 
-from kirke.ebrules import dates, dummyannotator
+from kirke.ebrules import dummyannotator
+from kirke.nlputil import regexcand_en
 from kirke.sampleutils import postproc
 from kirke.sampleutils import addrgen, dategen, idnumgen, paragen
 from kirke.sampleutils import regexgen, sentencegen, tablegen
@@ -46,8 +47,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                      'is_use_corenlp': False,
                      'doc_to_candidates': [dategen.DateSpanGenerator(30, 30, 'DATE')],
                      'version': "1.0",
-                     'doc_postproc_list': [dates.DateNormalizer(),
-                                           postproc.SpanDefaultPostProcessing()],
+                     'doc_postproc_list': [postproc.SpanDefaultPostProcessing()],
                      'pipeline': Pipeline([
                          # pylint: disable=line-too-long
                          ('surround_transformer', transformerutils.SurroundWordTransformer()),
@@ -106,7 +106,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                          'doc_to_candidates':
                          [regexgen.RegexContextGenerator(20,
                                                          5,
-                                                         regexgen.CURRENCY_PAT,
+                                                         regexcand_en.CURRENCY_PAT,
                                                          'CURRENCY',
                                                          1)],
                          'version': "1.0",
@@ -132,7 +132,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                        'is_use_corenlp': False,
                        'doc_to_candidates': [regexgen.RegexContextGenerator(10,
                                                                             10,
-                                                                            regexgen.NUMBER_PAT,
+                                                                            regexcand_en.NUMBER_PAT,
                                                                             'NUMBER',
                                                                             group_num=1)],
                        'version': "1.0",
@@ -159,7 +159,7 @@ ML_ANNOTATOR_CONFIG_LIST = [
                         'doc_to_candidates': \
                         [regexgen.RegexContextGenerator(15,
                                                         5,
-                                                        regexgen.PERCENT_PAT,
+                                                        regexcand_en.PERCENT_PAT,
                                                         'PERCENT',
                                                         group_num=2)],
                         'version': "1.0",

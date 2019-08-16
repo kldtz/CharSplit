@@ -44,7 +44,7 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
         start_time = time.time()
         # ignore the result X.  The goal here is to set up the vars.
         self.ebantdoc_list_to_csr_matrix(attrvec_list,
-                                         label_list,
+                                         label_list=label_list,
                                          fit_mode=True)
         end_time = time.time()
         logger.debug("%s fit called #%d, len(attrvec_list) = %d, took %.0f msec",
@@ -60,7 +60,7 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
         # pylint: disable=C0103
         start_time = time.time()
         X = self.ebantdoc_list_to_csr_matrix(attrvec_list,
-                                             [],
+                                             label_list=[],
                                              fit_mode=False)
         end_time = time.time()
         EbTransformerBase.transform_count += 1
@@ -76,8 +76,9 @@ class EbTransformerBase(BaseEstimator, TransformerMixin):
     # pylint: disable=R0912, R0914
     def ebantdoc_list_to_csr_matrix(self,
                                     attrvec_list,
+                                    *,
                                     label_list,
-                                    fit_mode=False):
+                                    fit_mode: bool):
         pass
 
 

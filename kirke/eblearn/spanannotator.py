@@ -147,6 +147,12 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
         self.classifier_status = {'label': provision}  # type: Dict[str, Any]
         self.ant_status = {'label': provision}  # type: Dict[str, Any]
 
+        # This is an attribute that is added later, so some .pkl files
+        # might not have this attribute.  Please make sure to check this
+        # variable using hasattr() first before accessing it.
+        self.lang = ''
+
+
     def make_bare_copy(self):
         return SpanAnnotator(self.provision,
                              self.candidate_types,
@@ -171,14 +177,19 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
     # pylint: disable=too-many-arguments
     def train_candidates(self,
                          candidates: List[Dict],
+                         *,
+                         lang: str,
                          label_list: List[bool],
                          group_id_list: List[int],
                          pipeline: Pipeline,
                          parameters: Dict,
+                         # pylint: disable=unused-argument
                          work_dir: str) -> None:
         logger.info('spanannotator.train_candidates()...')
         logger.info("Performing grid search...")
         logger.info("parameters: %r", parameters)
+
+        self.lang = lang
         pos_neg_map = defaultdict(int)  # type: DefaultDict[bool, int]
         for label in label_list:
             pos_neg_map[label] += 1
@@ -188,7 +199,8 @@ class SpanAnnotator(baseannotator.BaseAnnotator):
 
         if 'SENTENCE' in self.candidate_types:
             self.transformer = transformerutils.SentTransformer('SentTransformer')
-            self.transformer.fit(candidates, label_list)
+            self.transformer.lang = lang
+            self.transformer.fit(candidates, y=label_list)
             X_train = self.transformer.transform(candidates)
         else:
             X_train = candidates

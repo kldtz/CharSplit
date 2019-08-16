@@ -2,9 +2,9 @@
 
 import math
 import unittest
-from typing import Dict, List, Optional, Pattern, Tuple
 
-from kirke.utils.text2int import text2number, extract_numbers, extract_number, extract_numbers_in_words
+from kirke.utils.text2int import extract_numbers, extract_number, extract_numbers_in_words
+from kirke.utils.text2int import normalize_comma_period, text2number
 
 class TestText2Int(unittest.TestCase):
 
@@ -43,6 +43,43 @@ class TestText2Int(unittest.TestCase):
 
         line = '12 million and 44 thousand and 66'
         self.assertEqual(text2number(line), 12044066)
+
+
+    def test_normalize_comma_period(self):
+        "Test normalize_comma_period() with comma"
+
+        line = "33,000,000"
+        self.assertEqual('33000000', normalize_comma_period(line))
+
+        line = "33,0"
+        self.assertEqual('33.0', normalize_comma_period(line))
+
+        line = "33,12345"
+        self.assertEqual('33.12345', normalize_comma_period(line))
+
+        line = "33.12345"
+        self.assertEqual('33.12345', normalize_comma_period(line))
+
+        line = "33,123"
+        self.assertEqual('33123', normalize_comma_period(line))
+
+        line = "33,123.45"
+        self.assertEqual('33123.45', normalize_comma_period(line))
+
+        line = "33.123,45"
+        self.assertEqual('33123.45', normalize_comma_period(line))
+
+        line = '10.000.000'
+        self.assertEqual('10000000', normalize_comma_period(line))
+
+        line = '1.000'
+        self.assertEqual('1000', normalize_comma_period(line))
+
+        line = '1.000.000'
+        self.assertEqual('1000000', normalize_comma_period(line))
+
+        line = '100.123'
+        self.assertEqual('100.123', normalize_comma_period(line))
 
 
     def test_text2number_comma(self):
@@ -140,6 +177,25 @@ class TestText2Int(unittest.TestCase):
         line = "33,32 m"
         self.assertEqual(text2number(line), 33320000)
 
+        line = '260, 600'
+        adict_list = extract_numbers(line)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        self.assertEqual(adict['norm']['value'], 260600)
+
+        line = '260, 000, 000'
+        adict_list = extract_numbers(line)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        self.assertEqual(adict['norm']['value'], 260000000)
+
+        line = '260, 000, 000'
+        adict_list = extract_numbers(line)
+        self.assertEqual(len(adict_list), 1)
+        adict = adict_list[0]
+        self.assertEqual(adict['norm']['value'], 260000000)
+
+
 
     def test_float(self):
         "Test text2number(), floating point parsing"
@@ -201,34 +257,34 @@ class TestText2Int(unittest.TestCase):
         adict_list = extract_numbers(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 3000000035)
+        self.assertEqual(adict['norm']['value'], 3000000035)
 
 
         # a typo in the input document
-        line = '$11,000,000  of General Liability Insurance ($1,000,000 base + $10,000,00 umbrella)  covering:'
+        line = '$11,000,000  of General Liability Insurance ($1,000,000 base ' \
+               '+ $10,000,00 umbrella)  covering:'
         adict_list = extract_numbers(line)
-        # self.assertEqual(len(adict_list), 3)
-        self.assertEqual(len(adict_list), 0)
-        """
-        adict = adict_list[0]
-        self.assertEqual(adict['value'], 11000000)
-        adict = adict_list[1]
-        self.assertEqual(adict['value'], 1000000)
-        adict = adict_list[2]
-        self.assertEqual(adict['value'], 1000000)
-        """
 
-        line = "one and half pound and three and half pound, eight and half dollars three and half million dollars"
+        self.assertEqual(3, len(adict_list))
+        adict = adict_list[0]
+        self.assertEqual(11000000, adict['norm']['value'])
+        adict = adict_list[1]
+        self.assertEqual(1000000, adict['norm']['value'])
+        adict = adict_list[2]
+        self.assertEqual(10000, adict['norm']['value'])
+
+        line = 'one and half pound and three and half pound, eight and half ' \
+               'dollars three and half million dollars'
         adict_list = extract_numbers(line)
         self.assertEqual(len(adict_list), 4)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 1.5)
+        self.assertEqual(adict['norm']['value'], 1.5)
         adict = adict_list[1]
-        self.assertEqual(adict['value'], 3.5)
+        self.assertEqual(adict['norm']['value'], 3.5)
         adict = adict_list[2]
-        self.assertEqual(adict['value'], 8.5)
+        self.assertEqual(adict['norm']['value'], 8.5)
         adict = adict_list[3]
-        self.assertEqual(adict['value'], 3500000)
+        self.assertEqual(adict['norm']['value'], 3500000)
 
 
     def test_extract_number(self):
@@ -236,7 +292,7 @@ class TestText2Int(unittest.TestCase):
 
         line = 'three billion and thirty five'
         adict = extract_number(line)
-        self.assertEqual(adict['value'], 3000000035)
+        self.assertEqual(adict['norm']['value'], 3000000035)
 
 
     def test_extract_nunmber_in_words(self):
@@ -252,19 +308,19 @@ class TestText2Int(unittest.TestCase):
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 135)
+        self.assertEqual(adict['norm']['value'], 135)
 
         line = 'ten apples'
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 10)
+        self.assertEqual(adict['norm']['value'], 10)
 
         line = 'three billion and thirty five'
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 3000000035)
+        self.assertEqual(adict['norm']['value'], 3000000035)
 
 
         line = 'twelve million one hundred forty four thousand and sixty-six'
@@ -273,13 +329,13 @@ class TestText2Int(unittest.TestCase):
         print(adict_list)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 12144066)
+        self.assertEqual(adict['norm']['value'], 12144066)
 
         line = 'twelve million one hundred forty four thousand and'
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 12144000)
+        self.assertEqual(adict['norm']['value'], 12144000)
 
 
     """
@@ -291,58 +347,58 @@ class TestText2Int(unittest.TestCase):
         adict_list = extract_numbers_in_words(line)
         print('adict_list: {}'.format(adict_list))
         self.assertEqual(len(adict_list), 1)
-        self.assertEqual(adict['value'], 1010)
+        self.assertEqual(adict['norm']['value'], 1010)
 
         line = 'twenty fourteen'
         adict_list = extract_numbers_in_words(line)
         print('adict_list: {}'.format(adict_list))
         self.assertEqual(len(adict_list), 1)
-        self.assertEqual(adict['value'], 2014)
+        self.assertEqual(adict['norm']['value'], 2014)
 
         line = 'twenty o three'
         adict_list = extract_numbers_in_words(line)
         print('adict_list: {}'.format(adict_list))
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 2003)
+        self.assertEqual(adict['norm']['value'], 2003)
 
         line = 'nineteen eighty four'
         adict_list = extract_numbers_in_words(line)
         print('adict_list: {}'.format(adict_list))
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 1984)
+        self.assertEqual(adict['norm']['value'], 1984)
 
         line = 'one two three'
         adict_list = extract_numbers_in_words(line)
         print('adict_list: {}'.format(adict_list))
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 123)
+        self.assertEqual(adict['norm']['value'], 123)
 
         line = 'one hundred thirty five'
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 135)
+        self.assertEqual(adict['norm']['value'], 135)
 
 
         line = 'ten apples'
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 10)
+        self.assertEqual(adict['norm']['value'], 10)
 
         line = 'three billion and thirty five'
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 3000000035)
+        self.assertEqual(adict['norm']['value'], 3000000035)
 
 
         line = 'twelve million one hundred forty four thousand and sixty-six'
         adict_list = extract_numbers_in_words(line)
         self.assertEqual(len(adict_list), 1)
         adict = adict_list[0]
-        self.assertEqual(adict['value'], 12144066)
+        self.assertEqual(adict['norm']['value'], 12144066)
     """

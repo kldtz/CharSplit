@@ -1,5 +1,5 @@
 # pylint: disable=unused-import
-from typing import Dict, FrozenSet, List, Set, Tuple
+from typing import Any, Dict, FrozenSet, List, Set, Tuple
 
 
 def start_end_overlap(stend1: Tuple[int, int],
@@ -39,19 +39,22 @@ def is_subsumed(alist, elt):
             return True
     return False
 
-
+# cannot type this (mypy)
+# becuase alist can be
+#    List[Tuple[int, int, Any]] or
+#    List[Tuple[int, int, str, str]]
 def remove_subsumed(alist):
     if not alist:
         return []
-    sorted_by_len = []
+    sorted_by_len = []  # type: List[Tuple[int, Any]]
     for elt in alist:
         elt_len = elt[1] - elt[0]
         sorted_by_len.append((elt_len, elt))
     sorted_by_len.sort(reverse=True)
 
-    sorted_by_len = [elt for alen, elt in sorted_by_len]
-    result = [sorted_by_len[0]]
-    for elt in sorted_by_len[1:]:
+    sorted_by_len_2 = [elt for alen, elt in sorted_by_len]
+    result = [sorted_by_len_2[0]]
+    for elt in sorted_by_len_2[1:]:
         if not is_subsumed(result, elt):
             result.append(elt)
     return result

@@ -41,9 +41,9 @@ class TestBespokeRegex(unittest.TestCase):
         custid_data_dir = 'cust_' + custid
         result_text = \
             postfileutils.upload_train_dir(custid,
-                                           custid_data_dir,
+                                           upload_dir=custid_data_dir,
                                            candidate_types='CURRENCY',
-                                           nbest=2)
+                                           nbest=2).text
         ajson = json.loads(result_text)
         ant_result = ajson['en']
         print("ant_result:")

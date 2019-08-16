@@ -40,6 +40,8 @@ class BaseAnnotator(ABC):
     @abstractmethod
     def train_candidates(self,
                          candidates: List[Dict],
+                         *,
+                         lang: str,
                          label_list: List[bool],
                          group_id_list: List[int],
                          pipeline: Pipeline,

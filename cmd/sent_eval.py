@@ -12,6 +12,7 @@ def read_sent_file(file_name: str) -> List[str]:
     out_list = []  # type: List[str]
     with open(file_name, 'rt') as fin:
         for line in fin:
+            line = line.replace('　', ' ')
             # skip empty line and lines that are too short
             if not line.strip():
                 continue

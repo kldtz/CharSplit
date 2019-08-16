@@ -49,7 +49,8 @@ class TestCandGen(unittest.TestCase):
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
-                address_cands, _, _ = address_gen.get_candidates_from_text(doc_text)
+                address_cands, _, _ = address_gen.get_candidates_from_text(doc_text,
+                                                                           doc_lang='en')
                 # for acand in [x['chars'] for x in address_cands]:
                 #     print("acand: [{}]".format(acand))
                 all_address_cands.extend([x['chars'] for x in address_cands])
@@ -67,7 +68,7 @@ class TestCandGen(unittest.TestCase):
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
-                currency_cands, _, _ = currency_gen.get_candidates_from_text(doc_text)
+                currency_cands, _, _ = currency_gen.get_candidates_from_text(doc_text, doc_lang='en')
                 cand_st_list = [x['chars'] for x in currency_cands]
                 print('currency fname: {}'.format(fname))
                 print('  currency_cands: {}'.format(cand_st_list))
@@ -89,7 +90,7 @@ class TestCandGen(unittest.TestCase):
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
-                date_cands, _, _ = date_gen.get_candidates_from_text(doc_text)
+                date_cands, _, _ = date_gen.get_candidates_from_text(doc_text, doc_lang='en')
                 all_date_cands.extend([x['chars'] for x in date_cands])
 
         self.assertEqual(serial_date_cands, all_date_cands)
@@ -105,7 +106,7 @@ class TestCandGen(unittest.TestCase):
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
-                number_cands, _, _ = number_gen.get_candidates_from_text(doc_text)
+                number_cands, _, _ = number_gen.get_candidates_from_text(doc_text, doc_lang='en')
 
                 cand_st_list = [x['chars'] for x in number_cands]
                 print('fname: {}'.format(fname))
@@ -132,7 +133,7 @@ class TestCandGen(unittest.TestCase):
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
-                percent_cands, _, _ = percent_gen.get_candidates_from_text(doc_text)
+                percent_cands, _, _ = percent_gen.get_candidates_from_text(doc_text, doc_lang='en')
                 all_percent_cands.extend([x['chars'] for x in percent_cands])
 
                 st_list = [x['chars'] for x in percent_cands]
@@ -149,7 +150,7 @@ class TestCandGen(unittest.TestCase):
         for fname in sorted(TEXT_FNAMES)[:25]:
             with open(fname) as txt_doc:
                 doc_text = txt_doc.read()
-                percent_cands, _, _ = percent_gen.get_candidates_from_text(doc_text)
+                percent_cands, _, _ = percent_gen.get_candidates_from_text(doc_text, doc_lang='en')
 
                 cand_st_list = [x['chars'] for x in percent_cands]
                 print('fname: {}'.format(fname))

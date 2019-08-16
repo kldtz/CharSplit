@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 from collections import defaultdict
 import copy
 import concurrent.futures
@@ -61,6 +62,16 @@ def test_provision(eb_annotator,
     return eb_annotator.test_antdoc_list(eb_antdoc_list, threshold)
 
 
+def remove_invalid_date_ant_list(date_ant_list: List[Dict]) -> List[Dict]:
+    out_list = []  # type: List[Dict]
+    for date_dict in date_ant_list:
+        ant_text = date_dict['text']
+        if ant_text.isdigit() and \
+           not dates.is_valid_year(ant_text):
+            continue
+        out_list.append(date_dict)
+    return out_list
+
 # now adjust the date using domain specific logic
 # this operation is destructive
 def update_dates_by_domain_rules(ant_result_dict):
@@ -80,8 +91,6 @@ def update_dates_by_domain_rules(ant_result_dict):
         else:
             # update 'date' with 'sigdate' if 'date' is empty
             sigdate_annotations = ant_result_dict.get('sigdate', [])
-            # print("sigdate_annotation = {}".format(sigdate_annotations))
-            sigdate_annotations = dates.remove_invalid_dates(sigdate_annotations)
             if not ant_result_dict.get('date') and sigdate_annotations:
                 # make a copy to preserve original list
                 sigdate_annotations = copy.deepcopy(sigdate_annotations)
@@ -174,6 +183,16 @@ class EbRunner:
         for model_fn in model_files:
             full_model_fn = '{}/{}'.format(model_dir, model_fn)
             prov_classifier = joblib.load(full_model_fn)
+
+            # before 2019-07-30, models do not have language info
+            model_rec = modelfileutils.parse_default_model_file_name(model_fn)
+            if model_rec:
+                if not hasattr(prov_classifier, 'lang'):
+                    prov_classifier.lang = model_rec.lang
+                    prov_classifier.transformer.lang = model_rec.lang
+            else:
+                logger.warning('failed to parse model fname: [%s]', model_fn)
+
             clf_provision = prov_classifier.provision
             if hasattr(prov_classifier, 'version'):
                 prov_classifier_version = prov_classifier.version
@@ -316,6 +335,12 @@ class EbRunner:
                 if 'cust_' in lang_provision and ant_list:
                     provision_name = ant_list[0]['label']
 
+                # modify 'DATE' to 'CAND_DATE'
+                # before passing the result back to extractor
+                if provision_name == 'DATE':
+                    provision_name = 'CAND_DATE'
+                    ant_list = update_ant_list_with_provision(ant_list, 'CAND_DATE')
+
                 if '.' in provision_name:  # in case there is no ant_list
                     # remove version, chop off after '.'
                     provision_name = provision_name.split('.')[0]
@@ -382,6 +407,19 @@ class EbRunner:
             if is_update_model:
                 full_custom_model_fn = '{}/{}'.format(self.custom_model_dir, fname)
                 prov_classifier = joblib.load(full_custom_model_fn)
+
+                # before 2019-07-30, models do not have language info
+                model_rec = modelfileutils.parse_custom_model_file_name(fname)
+                if model_rec:
+                    if not hasattr(prov_classifier, 'lang'):
+                        prov_classifier.lang = model_rec.lang
+
+                        # only sentence candidate type has transformer
+                        if hasattr(prov_classifier, 'transformer') and \
+                           prov_classifier.transformer is not None:
+                            prov_classifier.transformer.lang = model_rec.lang
+                else:
+                    logger.warning('failed to parse custom model fname: [%s]', fname)
 
                 # if we loaded this for a particular custom field type ("cust_52")
                 # it must produce annotations with that label, not with whatever is "embedded"
@@ -474,6 +512,11 @@ class EbRunner:
             # logger.info('user specified provision list: %s', provision_set)
             lang_provision_set = provision_set
 
+        # replace 'CAND_DATE' with 'DATE'
+        # extractor cannot use 'DATE' as provision name
+        # because of MySQL conflicts with 'date'
+        lang_provision_set = normalize_provision_set(lang_provision_set)
+
         # update custom models if necessary by checking dir.
         # custom models can be update by other workers
         # print("provision_set: {}".format(provision_set))
@@ -506,6 +549,8 @@ class EbRunner:
                                    eb_antdoc,
                                    work_dir=work_dir)
 
+        prov_labels_map['sigdate'] = remove_invalid_date_ant_list(prov_labels_map.get('sigdate',
+                                                                                      []))
         # apply composite date logic
         update_dates_by_domain_rules(prov_labels_map)
 
@@ -937,6 +982,14 @@ class EbLangDetectRunner:
     def detect_lang(self, atext: str) -> Optional[str]:
         try:
             detect_lang = langdetect.detect(atext.lower())
+            # Normalize Chinese lang names because
+            # our existing model name convention expects
+            # 2 letters for a language, except for English.
+            #
+            # CoreNLP only uses 'zh'.
+            if detect_lang == 'zh-cn' or \
+               detect_lang == 'zh-tw':
+                detect_lang = 'zh'
         except LangDetectException:
             detect_lang = None
         # logger.info("detected language '{}'".format(detect_lang))
@@ -953,3 +1006,19 @@ class EbLangDetectRunner:
             detect_langs = ''
         # logger.info("detected languages '{}'".format(detect_langs))
         return detect_langs
+
+
+def normalize_provision_set(cands: Set[str]):
+    if 'CAND_DATE' in cands:
+        cands.remove('CAND_DATE')
+        cands.add('DATE')
+    return cands
+
+
+# this is in-place update
+def update_ant_list_with_provision(alist: List[Dict],
+                                   provision: str) \
+                                   -> List[Dict]:
+    for adict in alist:
+        adict['label'] = provision
+    return alist

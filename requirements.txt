@@ -2,6 +2,7 @@ Flask==0.10.1
 gunicorn==19.7.1
 itsdangerous==0.24
 Jinja2==2.7.3
+kytea==0.1.4
 langdetect==1.0.7
 lxml==3.4.4
 MarkupSafe==1.0

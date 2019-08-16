@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datetime import datetime
 import json
 import logging
@@ -93,6 +93,8 @@ def log_custom_model_eval_status(ant_status: Dict[str, Any]) -> None:
 # pylint: disable=too-many-arguments, too-many-locals
 def cv_train_at_annotation_level(provision,
                                  x_antdoc_list: List[ebantdoc4.EbAnnotatedDoc4],
+                                 *,
+                                 lang: str,
                                  bool_list,
                                  nbest,
                                  eb_classifier_orig,
@@ -146,7 +148,9 @@ def cv_train_at_annotation_level(provision,
                 print("bucknum={}, test_num={}, fn={}".format(bucket_num, te_num, te_doc.file_id))
 
         cv_eb_classifier = eb_classifier_orig.make_bare_copy()
-        cv_eb_classifier.train_antdoc_list(train_buckets, work_dir, model_file_name=model_file_name)
+        cv_eb_classifier.train_antdoc_list(train_buckets,
+                                           lang=lang,
+                                           model_file_name=model_file_name)
 
         cv_prov_annotator = ebannotator.ProvisionAnnotator(cv_eb_classifier, work_dir, nbest=nbest)
 
@@ -160,7 +164,9 @@ def cv_train_at_annotation_level(provision,
     # now build the annotator using ALL training data
     # eb_classifier is scutclassifier
     eb_classifier = eb_classifier_orig.make_bare_copy()  # type: ShortcutClassifier
-    eb_classifier.train_antdoc_list(x_antdoc_list, work_dir, model_file_name=model_file_name)
+    eb_classifier.train_antdoc_list(x_antdoc_list,
+                                    lang=lang,
+                                    model_file_name=model_file_name)
     eb_classifier.save(model_file_name)
     logger.info('wrote bespoke model file: %s', model_file_name)
 
@@ -197,6 +203,8 @@ def cv_candg_train_at_annotation_level(provision: str,
                                                                           List[Dict],
                                                                           List[bool],
                                                                           List[int]]],
+                                       *,
+                                       lang: str,
                                        antdoc_bool_list: List[bool],
                                        sp_annotator_orig: spanannotator.SpanAnnotator,
                                        model_file_name: str,
@@ -253,7 +261,7 @@ def cv_candg_train_at_annotation_level(provision: str,
                         'recall': -1.0,
                         # pylint: disable=line-too-long
                         'user_message': 'Training failed.  Number of docs is %d.  Only %d (< 6) %s candidates are found.' %
-                        (len(antdoc_candidatex_list), num_pos_or_neg_instance, failed_pos_or_neg),
+                                        (len(antdoc_candidatex_list), num_pos_or_neg_instance, failed_pos_or_neg),
                         'failure_cause': 'num_%s_candidates' % (failed_pos_or_neg, ),
                         'failure_value': num_pos_or_neg_instance}
         return None, {'ant_status': train_result}
@@ -295,11 +303,12 @@ def cv_candg_train_at_annotation_level(provision: str,
 
         cv_sp_annotator = sp_annotator_orig.make_bare_copy()
         cv_sp_annotator.train_candidates(train_bucket_candidates,
-                                         train_bucket_candidate_labels,
-                                         train_bucket_group_ids,
-                                         cv_sp_annotator.pipeline,
-                                         cv_sp_annotator.gridsearch_parameters,
-                                         work_dir)
+                                         lang=lang,
+                                         label_list=train_bucket_candidate_labels,
+                                         group_id_list=train_bucket_group_ids,
+                                         pipeline=cv_sp_annotator.pipeline,
+                                         parameters=cv_sp_annotator.gridsearch_parameters,
+                                         work_dir=work_dir)
 
         # annotates the test set and runs through evaluation
         # pred_status = cv_sp_annotator.predict_and_evaluate(test_bucket_candidates,
@@ -321,11 +330,12 @@ def cv_candg_train_at_annotation_level(provision: str,
     # now build the annotator using ALL training data
     sp_annotator = sp_annotator_orig.make_bare_copy()
     sp_annotator.train_candidates(all_candidates,
-                                  all_candidate_labels,
-                                  all_group_ids,
-                                  sp_annotator.pipeline,
-                                  sp_annotator.gridsearch_parameters,
-                                  work_dir)
+                                  lang=lang,
+                                  label_list=all_candidate_labels,
+                                  group_id_list=all_group_ids,
+                                  pipeline=sp_annotator.pipeline,
+                                  parameters=sp_annotator.gridsearch_parameters,
+                                  work_dir=work_dir)
 
     prov_annotator = sp_annotator
     log_json = log_list
@@ -398,6 +408,7 @@ def train_eval_annotator(provision: str,
                                            # to keep file order stable to ensure
                                            # consistent numbers
                                            is_sort_by_file_id=True)
+
     num_docs = len(eb_antdoc_list)
     attrvec_list = []  # type: List[ebattrvec.EbAttrVec]
     group_id_list = []  # type: List[int]
@@ -494,14 +505,14 @@ def train_eval_annotator(provision: str,
         prov_annotator2, combined_log_json = \
             cv_train_at_annotation_level(provision,
                                          X_train,
-                                         y,
-                                         nbest,
-                                         eb_classifier,
+                                         lang=doc_lang,
+                                         bool_list=y,
+                                         nbest=nbest,
+                                         eb_classifier_orig=eb_classifier,
                                          model_file_name=model_file_name,
                                          model_status_fname=model_status_fname,
                                          model_result_fname=model_result_fname,
                                          work_dir=work_dir)
-
 
         return prov_annotator2, combined_log_json
 
@@ -523,7 +534,9 @@ def train_eval_annotator(provision: str,
     splittrte.save_antdoc_fn_list(X_test, test_doclist_fn)
 
     # trains on the training data, evaluates the testing data
-    eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
+    eb_classifier.train_antdoc_list(X_train,
+                                    lang=doc_lang,
+                                    model_file_name=model_file_name)
     pred_status = eb_classifier.predict_and_evaluate(X_test, work_dir)
 
     # make the classifier into an annotator
@@ -582,7 +595,16 @@ def train_eval_annotator_with_trte(provision: str,
                                                  work_dir,
                                                  is_cache_enabled=is_cache_enabled,
                                                  is_sort_by_file_id=True)
-    eb_classifier.train_antdoc_list(X_train, work_dir, model_file_name)
+
+    # figure out the language of those docs
+    lang_counter = Counter()  # type: Counter
+    for eb_antdoc in X_train:
+        lang_counter[eb_antdoc.doc_lang] += 1
+    top_lang, unused_freq = lang_counter.most_common(1)[0]
+
+    eb_classifier.train_antdoc_list(X_train,
+                                    lang=top_lang,
+                                    model_file_name=model_file_name)
     X_train = []  # free that memory
 
     test_doclist_fn = "{}/{}_test_doclist.txt".format(model_dir, provision)
@@ -721,12 +743,13 @@ def train_eval_span_annotator(provision: str,
         prov_annotator2, combined_log_json = \
             cv_candg_train_at_annotation_level(provision,
                                                X_all_antdoc_candidatex_list,
-                                               y,
-                                               span_annotator,
-                                               model_file_name,
-                                               model_status_fname,
-                                               model_result_fname,
-                                               work_dir)
+                                               lang=doc_lang,
+                                               antdoc_bool_list=y,
+                                               sp_annotator_orig=span_annotator,
+                                               model_file_name=model_file_name,
+                                               model_status_fname=model_status_fname,
+                                               model_result_fname=model_result_fname,
+                                               work_dir=work_dir)
 
         # if prov_annotator2 is None, training failed.
         # error msg in combed_log_json.
@@ -762,11 +785,12 @@ def train_eval_span_annotator(provision: str,
 
     # trains an annotator
     span_annotator.train_candidates(train_candidates,
-                                    train_label_list,
-                                    train_group_ids,
-                                    span_annotator.pipeline,
-                                    span_annotator.gridsearch_parameters,
-                                    work_dir)
+                                    lang=doc_lang,
+                                    label_list=train_label_list,
+                                    group_id_list=train_group_ids,
+                                    pipeline=span_annotator.pipeline,
+                                    parameters=span_annotator.gridsearch_parameters,
+                                    work_dir=work_dir)
     # we don't care about the file order for testing
     X_test = span_annotator.doclist_to_antdoc_list(test_doclist_fn,
                                                    work_dir,
@@ -944,7 +968,9 @@ def calc_scut_predict_evaluate(scut_classifier, attrvec_list, y_pred, y_te):
     logger.info('calc_scut_predict_evaluate()...')
 
     sent_st_list = [attrvec.bag_of_words for attrvec in attrvec_list]
-    overrides = ebpostproc.gen_provision_overrides(scut_classifier.provision, sent_st_list)
+    overrides = ebpostproc.gen_provision_overrides(scut_classifier.provision,
+                                                   sent_st_list,
+                                                   lang=scut_classifier.lang)
 
     threshold = scut_classifier.threshold
 

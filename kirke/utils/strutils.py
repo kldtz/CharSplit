@@ -16,6 +16,9 @@ import urllib.parse
 from nltk.tokenize import TreebankWordTokenizer
 from nltk.tokenize.regexp import RegexpTokenizer
 
+from kirke.utils import unicodeutils
+
+
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -45,11 +48,13 @@ def normalize_spaces(line: str) -> str:
     return line.replace('\xa0', ' ')
 
 
-def loads(file_name: str) -> str:
+def loads(file_name: str, is_dbcs_sbcs: bool = True) -> str:
     xst = ''
     try:
         with open(file_name, 'rt', newline='') as myfile:
             xst = myfile.read()
+            if is_dbcs_sbcs:
+                xst = unicodeutils.normalize_dbcs_sbcs(xst)
     except IOError as exc:
         logger.error("I/O error: %s in strutils.loads(%s)",
                      exc, file_name)
@@ -67,6 +72,7 @@ def load_lines_with_offsets(file_name: str) -> Generator[Tuple[int, int, str], N
             orig_length = len(line)
             # replace non-breaking space with space for regex benefit
             new_line = line.replace('\xa0', ' ').strip()
+            new_line = unicodeutils.normalize_dbcs_sbcs(new_line)
             new_length = len(new_line)
             # remove the eoln char
             end = offset + new_length
@@ -368,7 +374,9 @@ def tokens_to_all_ngrams(word_list: List[str], max_n: int = 1) -> Set[str]:
 
 def is_punct(line: str) -> bool:
     if line:
-        return line[0] in r"().,[]-/\\{}`'\":;\?<>!"
+        # return line[0] in r"().,[]-/\\{}`'\":;\?<>!"
+        # added Chinese/Japanese punctuations
+        return line[0] in r"().,[]-/\\{}`'\":;\?<>!「」。、．・"
     return False
 
 
@@ -744,6 +752,10 @@ def find_substr_indices(sub_strx: str, text: str) -> List[Tuple[int, int]]:
 def find_all_indices(sub_strx: str, text: str) -> List[int]:
     return [mat.start() for mat in re.finditer(sub_strx, text)]
 
+
+def find_all_char_indices(line: str, achar: str):
+    """Find all the index of a char in line."""
+    return [i for i, ltr in enumerate(line) if ltr == achar]
 
 def count_date(line: str) -> int:
     return len(find_substr_indices(r'(\d{1,2}/\d{1,2}/(20|19)\d\d)', line))
@@ -1132,6 +1144,54 @@ def get_clx_tokens(text: str) -> List[Tuple[int, int, str]]:
         spans.append((start, end, word))
     spans = [x for x in spans if not (len(x[2]) < 2 or x[2] == 'the' or x[2] == 'an')]
     return spans
+
+def get_char_as_token(line: str) -> List[Tuple[int, int, str]]:
+    out_list = []  # type: List[Tuple[int, int, str]]
+    for start, achar in enumerate(line):
+        # skip spaces or punctuations
+        if achar.isspace() or \
+           is_punct(achar):
+            continue
+        out_list.append((start, start + 1, achar))
+    return out_list
+
+
+def get_prev_n_chars_as_tokens(text: str,
+                               start: int,
+                               num_chars_in: int) \
+                              -> Tuple[List[str], List[Tuple[int, int]]]:
+    """Get n cahracter as tokens for classification purpose.
+
+    Mainly for Chinese and Japanese, which has no spaces between tokens.
+    """
+
+    num_chars = num_chars_in * 2  # avg word len is
+    first_offset = max(0, start - num_chars)
+    prev_text = text[first_offset:start]
+
+    words_and_spans = get_char_as_token(prev_text)[-num_chars_in:]
+    words = [x[-1] for x in words_and_spans]
+    spans = [(x+first_offset, y+first_offset) for [x, y, z] in words_and_spans]
+    return words, spans
+
+
+def get_post_n_chars_as_tokens(text: str,
+                               end: int,
+                               num_chars_in: int) \
+                               -> Tuple[List[str], List[Tuple[int, int]]]:
+    """Get n cahracter as tokens for classification purpose.
+
+    Mainly for Chinese and Japanese, which has no spaces between tokens.
+    """
+
+    num_chars = num_chars_in * 2  # avg word len is
+    last_offset = min(len(text), end + num_chars)
+    post_text = text[end:last_offset]
+
+    words_and_spans = get_char_as_token(post_text)[:num_chars_in]
+    words = [x[-1] for x in words_and_spans]
+    spans = [(x+end, y+end) for [x, y, z] in words_and_spans]
+    return words, spans
 
 
 def get_prev_n_clx_tokens(text: str,

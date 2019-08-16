@@ -254,9 +254,12 @@ class TestSentSeg(unittest.TestCase):
         pred_sent_list = gen_sent_list(doc_id)
         prec, recall, f1 = calc_prec_recall_f1(gold_sent_list, pred_sent_list)
 
-        # doing ok
+        # there were some double-byte character issues, but resolved it by
+        # always use the original text intead of the normalized single-byte
+        # characters.
 
-        # 0.95
+        # doing ok
+        # 0.95 in double-bytes
         self.assertGreater(prec, 0.93)
         self.assertLess(prec, 0.97)
 

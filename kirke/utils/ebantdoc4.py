@@ -1225,11 +1225,30 @@ def gen_sent_candidates(eb_antdoc: EbAnnotatedDoc4) \
 def save_sent_se_text(eb_antdoc: EbAnnotatedDoc4,
                       file_name: str) -> None:
     se_str_list = gen_sent_candidates(eb_antdoc)
+    # The sentences in ebantdoc are in single-byte characters, which don't
+    # match with external expectation.  Since everything outputs from
+    # kirke are offset-based, we will simply put back the original text.
+    # This particular issue is mainly applicable for Japanese and Chinese
+    # documents, but sometimes other language documents might have double-byte
+    # characters due to OCR weirdness.
+    # No double byte character transformation
+    orig_doc_text = txtreader.loads(eb_antdoc.file_id, is_dbcs_sbcs=False)
     with open(file_name, 'wt') as fout:
-        for unused_start, unused_end, sent_text in se_str_list:
+        for start, end, unused_sent_text in se_str_list:
             # out_st = '{}\t{}\t{}'.format(start,
             #                              end,
             #                              sent_text.replace('\n', '|'))
-            out_st = sent_text.replace('\n', '|')
+            out_st = orig_doc_text[start:end].replace('\n', '|')
+            print(out_st, file=fout)
+            print(file=fout)
+
+def save_sent_tokens(eb_antdoc: EbAnnotatedDoc4,
+                     file_name: str) -> None:
+
+    with open(file_name, 'wt') as fout:
+        for attrvec in eb_antdoc.attrvec_list:
+            out_st = attrvec.bag_of_words
+            out_st = out_st.replace('\n', ' ')
+            out_st = re.sub(r'\s+', ' | ', out_st)
             print(out_st, file=fout)
             print(file=fout)

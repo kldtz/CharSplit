@@ -40,9 +40,9 @@ class TestBespokeDate(unittest.TestCase):
         custid_data_dir = 'cust_' + custid
         result_text = \
             postfileutils.upload_train_dir(custid,
-                                           custid_data_dir,
+                                           upload_dir=custid_data_dir,
                                            candidate_types='DATE',
-                                           nbest=2)
+                                           nbest=2).text
         ajson = json.loads(result_text)
         ant_result = ajson['en']
 
@@ -57,22 +57,24 @@ class TestBespokeDate(unittest.TestCase):
         fn = conf_matrix[1][0]
         tp = conf_matrix[1][1]
 
+        # {'confusion_matrix': [[0, 5], [14, 42]], 'fscore': 0.8155339805825244, 'model_number': 1031, 'precision': 0.8936170212765957, 'provision': 'cust_10', 'recall': 0.75}
+
         self.assertEqual(tn, 0)
-        self.assertAlmostEqual(fp, 3, delta=2)
+        self.assertAlmostEqual(fp, 5, delta=2)
         self.assertAlmostEqual(fn, 14, delta=2)
         self.assertAlmostEqual(tp, 42, delta=2)
 
         # round(ant_result['f1'], 2)
-        # 0.83
+        # 0.82, was 0.83
         f1 = round(ant_result['fscore'], 2)
-        self.assertGreaterEqual(f1, 0.81)
-        self.assertLessEqual(f1, 0.85)
+        self.assertGreaterEqual(f1, 0.80)
+        self.assertLessEqual(f1, 0.84)
 
         # round(ant_result['prec'], 2)
-        # 0.93
+        # 0.90, was 0.93
         precision = round(ant_result['precision'], 2)
-        self.assertGreaterEqual(precision, 0.91)
-        self.assertLessEqual(precision, 0.95)
+        self.assertGreaterEqual(precision, 0.88)
+        self.assertLessEqual(precision, 0.92)
 
         # 0.75
         recall = round(ant_result['recall'], 2)
