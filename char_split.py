@@ -36,7 +36,7 @@ def split_compound(word: str):
         start_slice_prob = ngram_probs.prefix.get(ngram, -1)
 
         # Extract all ngrams
-        for k in range(len(word), 2, -1):
+        for k in range(len(word), n+2, -1):
             # Probability of ngram in word, if high, split unlikely
             in_ngram = word[n:k]
             in_slice_prob.append(ngram_probs.infix.get(in_ngram, 1))  # Favor ngrams not occurring within words
