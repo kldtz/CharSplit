@@ -32,6 +32,10 @@ class ProvisionAnnotator:
         self.work_dir = work_dir
         # this is set after training
         self.eval_status = {}  # type: Dict
+        self.lang = ''
+        if hasattr(prov_classifier, 'lang'):
+            self.lang = prov_classifier.lang
+
 
     def get_eval_status(self):
         return self.eval_status
