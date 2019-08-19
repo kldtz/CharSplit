@@ -40,6 +40,7 @@ class ModelFileRecord:
 DEFAULT_MODEL_PREFIX_PAT = re.compile(r'^(.*)_(scut)')
 # default provision names have no version information
 MODEL_VERSION_PAT = re.compile(r'\.(\d+)')
+SUFFIX_LANG = re.compile('^(.*)_([a-z][a-z])$')
 
 def parse_default_model_file_name(file_name: str) -> Optional[ModelFileRecord]:
     mat = DEFAULT_MODEL_PREFIX_PAT.search(file_name)
@@ -50,11 +51,17 @@ def parse_default_model_file_name(file_name: str) -> Optional[ModelFileRecord]:
             return None
         model_suffix = file_name[mat.start(2):]
 
+        lang_mat = SUFFIX_LANG.search(prov_name)
+        found_lang = 'en'  # default
+        # specific case for ea_reasonableness_rc
+        if lang_mat and lang_mat.group(2) != 'rc':
+            prov_name = lang_mat.group(1)
+            found_lang = lang_mat.group(2)
         return ModelFileRecord(file_name,
                                prov_name,
                                prov_name,
                                -1,
-                               'en',
+                               found_lang,
                                model_suffix)
     return None
 
