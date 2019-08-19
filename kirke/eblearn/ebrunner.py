@@ -192,6 +192,9 @@ class EbRunner:
                     prov_classifier.transformer.lang = model_rec.lang
             else:
                 logger.warning('failed to parse model fname: [%s]', model_fn)
+                # a spanannotator in default models.  All default models are in 'en'
+                # by default
+                prov_classifier.lang = 'en'
 
             clf_provision = prov_classifier.provision
             if hasattr(prov_classifier, 'version'):
@@ -320,6 +323,15 @@ class EbRunner:
             lang_provision_set.remove(to_rm_prov)
 
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
+            # 08-19, these lines are for debugging purpose only >>>>>
+            tmp_prov_annotator = prov_annotator_map[lang_provision]
+            logger.info('lang_provision = {}, typ(tmp_prov_annotator)={}'.format(lang_provision,
+                                                                                 type(tmp_prov_annotator)))
+            if hasattr(tmp_prov_annotator, 'lang'):
+                logger.info('tmp_prov_annotator.lang= {}'.format(tmp_prov_annotator.lang))
+            else:
+                logger.info('tmp_prov_annotator.lang2 = None')
+            # 08-19, please remove above lines <<<<<
             future_to_provision = {executor.submit(annotate_provision,
                                                    prov_annotator_map[lang_provision],
                                                    eb_antdoc):
