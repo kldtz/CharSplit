@@ -207,14 +207,18 @@ def is_invalid_table(table_candidate: Dict,
            num_upper_word >= 5 and \
            num_alphanum_word >= 30 and \
            num_alphanum_word <= 80 and \
-           1.0 * ((num_upper_start + num_digit_start) / num_col_start) < 0.4:
+           (num_col_start == 0 or
+            1.0 * ((num_upper_start + num_digit_start) / num_col_start) < 0.4):
             if IS_DEBUG_INVALID_TABLE:
                 print('is invalid, branch 0.5, not capped start col, wordy')
             return True
 
         if IS_DEBUG_INVALID_TABLE:
             for num_col, count in num_col_count_map.items():
-                perc = count / num_row * 100.0
+                if num_row != 0:
+                    perc = count / num_row * 100.0
+                else:
+                    perc = 0.0
                 print('num_col_count_map[{}] = {}, {}%'.format(num_col, count, perc))
         # if there are limited number of rows, and we have all 3 columns
         if num_row <= 8 and \
@@ -389,14 +393,24 @@ class TableGenerator:
                 num_word_div_100 = num_word / 100.0
                 num_alpha_word_div_100 = num_alpha_word / 100
 
-                perc_number_word = num_number / num_word
-                perc_currency_word = num_currency / num_word
-                perc_percent_word = num_percent / num_word
-                perc_phone_word = num_phone_number / num_word
-                perc_date_word = num_date / num_word
-                perc_alpha_word = num_alpha_word / num_word
-                perc_alphanum_word = num_alphanum_word / num_word
-                perc_bad_word = (num_bad_word + num_alphanum_word) / num_word
+                if num_word != 0:
+                    perc_number_word = num_number / num_word
+                    perc_currency_word = num_currency / num_word
+                    perc_percent_word = num_percent / num_word
+                    perc_phone_word = num_phone_number / num_word
+                    perc_date_word = num_date / num_word
+                    perc_alpha_word = num_alpha_word / num_word
+                    perc_alphanum_word = num_alphanum_word / num_word
+                    perc_bad_word = (num_bad_word + num_alphanum_word) / num_word
+                else:
+                    perc_number_word = 0.0
+                    perc_currency_word = 0.0
+                    perc_percent_word = 0.0
+                    perc_phone_word = 0.0
+                    perc_date_word = 0.0
+                    perc_alpha_word = 0.0
+                    perc_alphanum_word = 0.0
+                    perc_bad_word = 0.0
 
                 infer_attr_dict = abbyy_table.infer_attr_dict
                 is_header, is_footer = False, False
@@ -438,7 +452,10 @@ class TableGenerator:
                 is_table_in_exhibit = is_in_exhibit_section(table_start,
                                                             table_page_num,
                                                             sechead_list)
-                doc_percent = table_start / doc_len
+                if doc_len != 0:
+                    doc_percent = table_start / doc_len
+                else:
+                    doc_percent = 0.0
                 pre_table_text, pre_table_se_tuple = get_before_table_text(table_start,
                                                                            table_sechead,
                                                                            is_table_in_exhibit,
