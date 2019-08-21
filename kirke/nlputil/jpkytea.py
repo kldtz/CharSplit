@@ -48,6 +48,15 @@ JP_POS_MAP = {
 # sometime a float is spelled with '.' separated by spaces.
 JA_EOS_PAT = re.compile(r'^([。]|[!?！？]+)$')
 
+SUFFIX_SPACE_PAT = re.compile(r'\s+$')
+
+def calc_num_suffix_spaces(word: str) -> int:
+    if word[-1].isspace():
+        mat = SUFFIX_SPACE_PAT.search(word)
+        if mat:
+            return len(mat.group())
+    return 0
+
 
 class KyteaWordSegmenter:
 
@@ -147,6 +156,10 @@ class KyteaWordSegmenter:
         for senti, sentx in enumerate(sentx_list):
             token_list = []  # type: List[Dict]
             for wordi, (word, pos, start, end) in enumerate(sentx, 1):
+                num_suffix_space = calc_num_suffix_spaces(word)
+                if num_suffix_space != 0:
+                    word = word[:-num_suffix_space]
+                    end -= num_suffix_space
                 token_list.append({'characterOffsetBegin': start,
                                    'characterOffsetEnd': end,
                                    'index': wordi,
