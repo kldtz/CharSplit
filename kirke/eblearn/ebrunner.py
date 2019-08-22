@@ -281,6 +281,7 @@ class EbRunner:
                                    eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                                    lang_provision_set: Optional[Set[str]] = None) \
                                    -> Dict[str, List]:
+        doc_lang = eb_antdoc.doc_lang
         if not lang_provision_set:
             lang_provision_set = self.provisions
         #else:
@@ -323,19 +324,20 @@ class EbRunner:
             lang_provision_set.remove(to_rm_prov)
 
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
-            # 08-19, these lines are for debugging purpose only >>>>>
             tmp_prov_annotator = prov_annotator_map[lang_provision]
-            logger.info('lang_provision = {}, typ(tmp_prov_annotator)={}'.format(lang_provision,
+            logger.info('lang_provision = {}, type(tmp_prov_annotator)={}'.format(lang_provision,
                                                                                  type(tmp_prov_annotator)))
             if hasattr(tmp_prov_annotator, 'lang'):
-                logger.info('tmp_prov_annotator.lang= {}'.format(tmp_prov_annotator.lang))
+                logger.info('tmp_prov_annotator.lang = {}'.format(tmp_prov_annotator.lang))
             else:
-                logger.info('tmp_prov_annotator.lang2 = None')
-            # 08-19, please remove above lines <<<<<
+                tmp_prov_annotator.lang = None
+                logger.info('tmp_prov_annotator.lang = None')
+
+            # Remove wrong-language provisions at the last moment
+            annotator = prov_annotator_map[lang_provision]
             future_to_provision = {executor.submit(annotate_provision,
-                                                   prov_annotator_map[lang_provision],
+                                                   annotator,
                                                    eb_antdoc):
-                                   lang_provision for lang_provision in lang_provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 lang_provision = future_to_provision[future]
                 ant_list = future.result()
