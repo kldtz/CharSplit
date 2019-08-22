@@ -114,6 +114,9 @@ class ParagraphGenerator:
                     label_list.append(False)
             i += 1
 
+        # This fix is skipping some text spans and is not ideal.
+        # Will figure out root cause later.
+        """
         # TODO, 2018-05-18, jshaw
         # there are some issue with some paragraph candidates
         # might overlap.  dir-paracand/gold-target/9326.para.tsv
@@ -147,6 +150,7 @@ class ParagraphGenerator:
             candidates = out_candidates
             group_id_list = out_gid_list
             label_list = out_labels
+        """
 
         return candidates, group_id_list, label_list
 
