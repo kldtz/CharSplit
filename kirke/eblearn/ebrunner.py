@@ -9,7 +9,7 @@ import os
 import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple, Union
-from kirke.nlputil.languagematch import language_lookup_match
+from kirke.nlputil.languagematch import language_basic_filter_match
 
 import langdetect
 from langdetect.lang_detect_exception import LangDetectException
@@ -340,8 +340,8 @@ class EbRunner:
                                                    annotator,
                                                    eb_antdoc): lang_provision
                                    for lang_provision in lang_provision_set
-                                   if language_lookup_match(needed=doc_lang,
-                                                            available=annotator.lang)}
+                                   if language_basic_filtering_match(doc_lang,
+                                                            annotator.lang)}
             for future in concurrent.futures.as_completed(future_to_provision):
                 lang_provision = future_to_provision[future]
                 ant_list = future.result()
