@@ -340,7 +340,7 @@ class EbRunner:
                                                    annotator,
                                                    eb_antdoc): lang_provision
                                    for lang_provision in lang_provision_set
-                                   if language_basic_filtering_match(doc_lang,
+                                   if language_basic_filter_match(doc_lang,
                                                             annotator.lang)}
             for future in concurrent.futures.as_completed(future_to_provision):
                 lang_provision = future_to_provision[future]
