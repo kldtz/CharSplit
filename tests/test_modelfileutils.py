@@ -93,7 +93,8 @@ class TestModelFileUtils(unittest.TestCase):
                         'noncompete_scutclassifier.v1.2.1.pkl',
                         'remedy_scutclassifier.v1.2.pkl',
                         'warranty_scutclassifier.v1.2.pkl',
-                        'change_control_scutclassifier.v1.2.1.pkl'])
+                        'change_control_scutclassifier.v1.2.1.pkl',
+                        'korean_ko_scutclassifier.v1.2.pkl'])
         print('fnames: {}'.format(fnames))
         self.assertEquals(set(fnames), expected)
 
@@ -106,7 +107,8 @@ class TestModelFileUtils(unittest.TestCase):
                     'party', 'term', 'limliability',
                     'renewal', 'choiceoflaw', 'remedy',
                     'warranty', 'sigdate', 'force_majeure',
-                    'change_control', 'date', 'title'}
+                    'change_control', 'date', 'title',
+                    'korean'}   # test-only model for Korean
         self.assertEquals(provs, expected)
 
 if __name__ == "__main__":
