@@ -650,20 +650,7 @@ class EbRunner:
                     xx_effective_date_list.append(antx)
                 else:
                     xx_date_list.append(antx)
-            if xx_effective_date_list:
-                prov_labels_map['effectivedate'] = xx_effective_date_list
-                ## replace date IFF classification date is very large
-                ## replace the case wehre "1001" is matched as a date, with prob 0.4
-                ## This modification is anecdotal, not firmly verified.
-                ## this is hacking on the date threshold.
-                # ml_date = prov_labels_map.get('date')
-                # print("ml_date = {}".format(ml_date))
-                # if ml_date and ml_date[0]['prob'] <= 0.5:
-
-                #    # let override later in update_dates_by_domain_rules()
-                #    prov_labels_map['date'] = []
-
-                # prov_labels_map['effectivedate'] = xx_effective_date_list
+            # effective date is no done by rules now, so ignore it for now
             if xx_date_list:
                 prov_labels_map['date'] = xx_date_list
 

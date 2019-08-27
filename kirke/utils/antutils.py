@@ -1,3 +1,4 @@
+from collections import defaultdict
 import json
 import os
 from pathlib import Path
@@ -12,15 +13,24 @@ from kirke.utils import osutils, strutils, textoffset
 # ProvisionAnnotation = namedtuple('ProvisionAnnotation', ['start', 'end', 'label'])
 # pylint: disable=R0903
 class ProvisionAnnotation:
-    __slots__ = ['start', 'end', 'label']
+    __slots__ = ['start', 'end', 'label', 'score']
 
-    def __init__(self, start, end, label):
-        self.start = start  # type: int
-        self.end = end  # type: int
-        self.label = label  # type: str
+    def __init__(self, start: int, end: int, label: str, score: float = -1.0):
+        self.start = start
+        self.end = end
+        self.label = label
+        self.score = score
 
     def __repr__(self) -> str:
-        return "ProvisionAnnotation({}, {}, '{}')".format(self.start, self.end, self.label)
+        if self.score != -1.0:
+            return "ProvisionAnnotation({}, {}, '{}', score = {})".format(self.start,
+                                                                          self.end,
+                                                                          self.label,
+                                                                          self.score)
+        return "ProvisionAnnotation({}, {}, '{}')".format(self.start,
+                                                          self.end,
+                                                          self.label)
+
 
     def __lt__(self, other) -> Any:
         return (self.start, self.end) < (other.start, other.end)
@@ -28,8 +38,8 @@ class ProvisionAnnotation:
     def __eq__(self, other) -> bool:
         return self.to_tuple() == other.to_tuple()
 
-    def to_tuple(self) -> Tuple[int, int, str]:
-        return (self.start, self.end, self.label)
+    def to_tuple(self) -> Tuple[int, int, str, float]:
+        return (self.start, self.end, self.label, self.score)
 
     # def to_tuple(self):
     #     return (self.lable, self.start, self.end)
@@ -40,7 +50,7 @@ class EbProvisionAnnotation:
                  'label', 'text', 'pid', 'custom_text']
 
     def __init__(self, ajson) -> None:
-        self.confidence = ajson['confidence']
+        self.confidence = ajson.get('confidence')
         self.correctness = ajson.get('correctness')
         self.start = ajson.get('start')
         self.end = ajson.get('end')
@@ -59,11 +69,60 @@ class EbProvisionAnnotation:
                 'text': self.text,
                 'type': self.label}
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return str(self.to_dict())
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def to_tuple(self) -> ProvisionAnnotation:
         return ProvisionAnnotation(self.start, self.end, self.label)
+
+
+class PredProvisionAnnotation:
+
+    def __init__(self, ajson) -> None:
+        self.label = ajson['label']
+        self.start = ajson['start']
+        self.end = ajson['end']
+        self.text = ajson['text']
+        self.prob = ajson.get('prob', -1.0)
+
+    def __repr__(self) -> str:
+        out_st = []
+        out_st.append('label= "{}"'.format(self.label))
+        out_st.append('start= {}'.format(self.start))
+        out_st.append('end= {}'.format(self.end))
+        out_st.append('prob={:.4f}'.format(self.prob))
+        out_st.append('text= "{}"'.format(self.text.replace('\n', ' ')))
+        return "{" + ', '.join(out_st) + "}"
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+
+def load_pred_prov_ant(filename: str, provision_name: str) \
+    -> List[PredProvisionAnnotation]:
+
+    # logging.info('load provision %s annotation: [%s]', provision_name, filename)
+    with open(filename, 'rt') as handle:
+        parsed = json.load(handle)
+
+    # had a coding error, sometimes the result might be stored inside
+    # 'ebannotations', which the 'Extractor' will receive.
+    # normalize that, make 'parsed' just have the prov_antlist_dict.
+    parsed = parsed.get('ebannotations', parsed)
+
+    # print('filenname: [{}]'.format(filename))
+    # print('parsed:')
+    # pprint.pprint(parsed)
+
+    label_ant_list_map = defaultdict(list)  # type: Dict[str, List]
+    for label, alist in parsed.items():
+        for an_ant in alist:
+            label_ant_list_map[label].append(PredProvisionAnnotation(an_ant))
+
+    return label_ant_list_map[provision_name]
 
 
 def load_prov_ant(filename: str, provision_name: Optional[str] = None) \
@@ -277,7 +336,6 @@ def ebdata_to_ant_json(ebdata_fname: str) -> List[Dict]:
 
     ant_list = [prov_ant.to_dict() for prov_ant in prov_ant_list]
     return ant_list
-
 
 def ebdata_to_ant_file(ebdata_fname: str, ant_fname: str) -> None:
     ant_list = ebdata_to_ant_json(ebdata_fname)

@@ -1,7 +1,6 @@
 
 from collections import defaultdict
 import configparser
-import copy
 from datetime import datetime
 import json
 import logging
@@ -234,14 +233,6 @@ def annotate_uploaded_document():
                                                          provision_set=lang_provision_set,
                                                          work_dir=work_dir,
                                                          doc_lang=doc_lang)
-
-        # because special case of 'effectivdate_auto'
-        if prov_labels_map.get('effectivedate'):
-            effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
-            for eff_ant in effectivedate_annotations:
-                eff_ant['label'] = 'effectivedate_auto'
-            prov_labels_map['effectivedate_auto'] = effectivedate_annotations
-            del prov_labels_map['effectivedate']
         ebannotations['ebannotations'] = prov_labels_map
         return json.dumps(ebannotations)
     except Exception as e:  # pylint: disable=broad-except
