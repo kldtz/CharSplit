@@ -324,12 +324,29 @@ class EbRunner:
         for to_rm_prov in to_remove_lang_provisions:
             lang_provision_set.remove(to_rm_prov)
 
+
+        out_lang_provision_list = set()
+        for lang_provision in sorted(list(lang_provision_set)):
+            annotator = prov_annotator_map[lang_provision]            
+            print('annotator.provision = {}, lang = {}'.format(annotator.provision,
+                                                               annotator.lang))
+            if language_basic_filter_match(doc_lang,
+                                           annotator.lang):
+                print('matched..... doc_lang= {}, ant.prov= {}, annotator.lang= {}'.format(
+                    doc_lang,
+                    annotator.provision,
+                    annotator.lang))
+                out_lang_provision_list.add(lang_provision)
+
+        lang_provision_set = out_lang_provision_list
+
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             tmp_prov_annotator = prov_annotator_map[lang_provision]
             logger.info('lang_provision = {}, type(tmp_prov_annotator)={}'.format(lang_provision,
                                                                                  type(tmp_prov_annotator)))
             if hasattr(tmp_prov_annotator, 'lang'):
-                logger.info('tmp_prov_annotator.lang = {}'.format(tmp_prov_annotator.lang))
+                logger.info('tmp_prov_annotator.lang = {}, prov= {}'.format(tmp_prov_annotator.lang,
+                                                                            tmp_prov_annotator.provision))
             else:
                 tmp_prov_annotator.lang = None
                 logger.info('tmp_prov_annotator.lang = None')
@@ -339,9 +356,7 @@ class EbRunner:
             future_to_provision = {executor.submit(annotate_provision,
                                                    annotator,
                                                    eb_antdoc): lang_provision
-                                   for lang_provision in lang_provision_set
-                                   if language_basic_filter_match(doc_lang,
-                                                            annotator.lang)}
+                                   for lang_provision in lang_provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 lang_provision = future_to_provision[future]
                 ant_list = future.result()
@@ -352,6 +367,9 @@ class EbRunner:
                 provision_name = lang_provision
                 if 'cust_' in lang_provision and ant_list:
                     provision_name = ant_list[0]['label']
+
+                print('------------got result for {}'.format(lang_provision))
+                print('ant_list = {}'.format(ant_list))
 
                 # modify 'DATE' to 'CAND_DATE'
                 # before passing the result back to extractor
