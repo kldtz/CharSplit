@@ -218,6 +218,7 @@ def annotate_uploaded_document():
             provision_set.add('date')
             provision_set.add('sigdate')
             provision_set.add('effectivedate')
+            provision_set.add('effectivedate_cand')
             if "effectivedate_auto" in provision_set:
                 provision_set.remove('effectivedate_auto')
             # make sure these are removed due to low accuracy

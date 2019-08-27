@@ -72,6 +72,32 @@ def remove_invalid_date_ant_list(date_ant_list: List[Dict]) -> List[Dict]:
         out_list.append(date_dict)
     return out_list
 
+
+def update_effectivedate_and_cand(prov_labels_map: Dict[str, Any]) -> None:
+    """Combine 'effectivedate_cand' and 'effectivedate' ML model
+       results.
+
+    The logic is if there is 'effectivedate_cand' result, which has
+    a high precision, take that.  otherwise, take 'effectivedate'.
+    Original 'effectivedate' has abstract effective date results.
+    """
+    # remove 'effectivedate_cand' even if the list is empty
+    if prov_labels_map.get('effectivedate_cand') is None:
+        # nothing to update
+        return
+    effdate_cand_list = prov_labels_map.get('effectivedate_cand', [])
+    if effdate_cand_list:
+        for effdate_cand in effdate_cand_list:
+            effdate_cand['label'] = 'effectivedate'
+        # replace sentence-based result by more precise ones
+        prov_labels_map['effectivedate'] = effdate_cand_list
+        del prov_labels_map['effectivedate_cand']
+    else:  # it is an empty list, because we checked for None before
+        del prov_labels_map['effectivedate_cand']
+
+    return
+
+
 # now adjust the date using domain specific logic
 # this operation is destructive
 def update_dates_by_domain_rules(ant_result_dict):
@@ -551,6 +577,8 @@ class EbRunner:
 
         prov_labels_map['sigdate'] = remove_invalid_date_ant_list(prov_labels_map.get('sigdate',
                                                                                       []))
+
+        update_effectivedate_and_cand(prov_labels_map)
         # apply composite date logic
         update_dates_by_domain_rules(prov_labels_map)
 

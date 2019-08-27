@@ -30,7 +30,10 @@ def test_antdoc_list(provision: str,
     fallout, tp, fn, fp, tn = 0, 0, 0, 0, 0
     log_json = {}
 
-    gold_provision = 'effectivedate'
+    if provision == 'effectivedate_cand':
+        gold_provision = 'effectivedate'
+    else:
+        gold_provision = provision
 
     for fcount, fname in enumerate(fname_list, 1):
         base_fname = os.path.basename(fname)
