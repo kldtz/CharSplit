@@ -220,6 +220,7 @@ def _pre_merge_broken_ebsents(ebsent_list, atext):
 def align_first_word_offset(json_sent_list, atext):
     if not json_sent_list:
         return 0
+
     # ' &nbsp a' corenlp matches to start=2, end=3
     # we want start = 3, end =4
     # verified nbsp.isspace() == True, so cannot use that.
@@ -229,6 +230,19 @@ def align_first_word_offset(json_sent_list, atext):
             adjust += 1
         else:
             break
+
+    # For Japanese doc, going through corenlp, the prefix spaces
+    # are not impacting offsets at all.  So we check if there is
+    # any adjustment is made.
+    # We already checked if json_sent_list was empty before
+    sent_0 = json_sent_list[0]
+    tokens = sent_0.get('tokens', [])
+    if tokens:
+        token_0_start = tokens[0]['characterOffsetBegin']
+        if token_0_start == adjust:
+            # no adjustment needed
+            return 0
+
     return adjust
 
 

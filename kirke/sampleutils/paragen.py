@@ -114,6 +114,9 @@ class ParagraphGenerator:
                     label_list.append(False)
             i += 1
 
+        # This fix is skipping some text spans and is not ideal.
+        # Will figure out root cause later.
+        """
         # TODO, 2018-05-18, jshaw
         # there are some issue with some paragraph candidates
         # might overlap.  dir-paracand/gold-target/9326.para.tsv
@@ -127,10 +130,16 @@ class ParagraphGenerator:
         if candidates:
             prev_candx = candidates[0]
             out_candidates = [prev_candx]
+            out_gid_list = [group_id_list[0]]
+            out_labels = [label_list[0]]
             # fcount_skip_candx = 0
-            for candx in candidates[1:]:
+            for candx, gidx, labelx in zip(candidates[1:],
+                                           group_id_list[1:],
+                                           label_list[1:]):
                 if candx['start'] > prev_candx['end']:
                     out_candidates.append(candx)
+                    out_gid_list.append(gidx)
+                    out_labels.append(labelx)
                 else:
                     # print('skipping ({}, {}) because prev ({}, {})'.format(candx['start'],
                     #                                                        candx['end'],
@@ -139,6 +148,9 @@ class ParagraphGenerator:
                     pass
                 prev_candx = candx
             candidates = out_candidates
+            group_id_list = out_gid_list
+            label_list = out_labels
+        """
 
         return candidates, group_id_list, label_list
 
