@@ -324,7 +324,6 @@ class EbRunner:
         for to_rm_prov in to_remove_lang_provisions:
             lang_provision_set.remove(to_rm_prov)
 
-
         out_lang_provision_list = set()
         for lang_provision in sorted(list(lang_provision_set)):
             annotator = prov_annotator_map[lang_provision]            
@@ -337,24 +336,11 @@ class EbRunner:
                     annotator.provision,
                     annotator.lang))
                 out_lang_provision_list.add(lang_provision)
-
         lang_provision_set = out_lang_provision_list
 
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
-            tmp_prov_annotator = prov_annotator_map[lang_provision]
-            logger.info('lang_provision = {}, type(tmp_prov_annotator)={}'.format(lang_provision,
-                                                                                 type(tmp_prov_annotator)))
-            if hasattr(tmp_prov_annotator, 'lang'):
-                logger.info('tmp_prov_annotator.lang = {}, prov= {}'.format(tmp_prov_annotator.lang,
-                                                                            tmp_prov_annotator.provision))
-            else:
-                tmp_prov_annotator.lang = None
-                logger.info('tmp_prov_annotator.lang = None')
-
-            # Remove wrong-language provisions at the last moment
-            annotator = prov_annotator_map[lang_provision]
             future_to_provision = {executor.submit(annotate_provision,
-                                                   annotator,
+                                                   prov_annotator_map[lang_provision],
                                                    eb_antdoc): lang_provision
                                    for lang_provision in lang_provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
