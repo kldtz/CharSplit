@@ -234,6 +234,10 @@ def annotate_uploaded_document():
                                                          provision_set=lang_provision_set,
                                                          work_dir=work_dir,
                                                          doc_lang=doc_lang)
+        # add back effectivedate_auto for backward compatibility
+        if prov_labels_map.get('effectivedate') is not None:
+            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate')
+
         ebannotations['ebannotations'] = prov_labels_map
         return json.dumps(ebannotations)
     except Exception as e:  # pylint: disable=broad-except
