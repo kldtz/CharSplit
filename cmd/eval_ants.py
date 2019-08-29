@@ -117,7 +117,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate the annotations against gold data')
     parser.add_argument("-v", "--verbosity", help="increase output verbosity")
     parser.add_argument("-d", "--debug", action="store_true", help="print debug information")
-    parser.add_argument('--prov', default='effectivedate_cand', help='provision')
+    parser.add_argument('--prov', default='effectivedate', help='provision')
     parser.add_argument('--pred_dir')
     parser.add_argument('file',  nargs='?',
                         help='input file')
