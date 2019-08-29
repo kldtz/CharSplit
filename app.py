@@ -241,7 +241,7 @@ def annotate_uploaded_document():
             for antx2 in prov_labels_map['effectivedate_auto']:  # not an empty list
                 # replace with correct label
                 antx2['label'] = 'effectivedate_auto'
-
+            del prov_labels_map['effectivedate']
         ebannotations['ebannotations'] = prov_labels_map
         return json.dumps(ebannotations)
     except Exception as e:  # pylint: disable=broad-except
