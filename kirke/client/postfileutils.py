@@ -3,7 +3,6 @@
 import argparse
 import json
 from pathlib import Path
-import pprint
 import os
 import sys
 # pylint: disable=unused-import
@@ -11,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from kirke.utils import modelfileutils
+from kirke.utils import antutils, modelfileutils
 
 
 MODEL_DIR = 'dir-scut-model'
@@ -90,10 +89,10 @@ def post_annotate_document(file_name: str,
     if txt_file.is_file() and file_name.endswith('.txt'):
         offset_filename = file_name.replace('.txt', '.offsets.json')
         if os.path.exists(offset_filename):
-            files = [('file', open(file_name, 'rt', encoding='utf-8')),
+            files = [('file', open(file_name, 'rb')),
                      ('file', open(offset_filename, 'rt', encoding='utf-8'))]
         else:
-            files = {'file': open(file_name, 'rt', encoding='utf-8')}  # type: ignore
+            files = {'file': open(file_name, 'rb')}  # type: ignore
 
         resp = requests.post(url, files=files, data=payload)
 
@@ -108,96 +107,89 @@ def post_annotate_document(file_name: str,
 
 # pylint: disable=too-many-locals
 def upload_train_dir(custid: str,
-                     *,
                      upload_dir: str,
                      candidate_types: str,
                      nbest: int = -1,
                      url_prefix: str = 'http://127.0.0.1:8000/custom-train') \
-                     -> requests.Response:
-    txt_fnames = []  # type: List[str]
-    for fname in os.listdir(upload_dir):
-        fname = '{}/{}'.format(upload_dir, fname)
-        if fname.endswith(".txt"):
-            txt_fnames.append(fname)
+                     -> str:
+    resp = upload_train_dir_aux(custid,
+                                upload_dir,
+                                candidate_types=candidate_types,
+                                nbest=nbest,
+                                url_prefix=url_prefix)
+    return resp.text
 
-    if not txt_fnames:
-        print("cannot find any .txt files", file=sys.stderr)
-        raise ValueError
-
-    return upload_train_fname_list(custid,
-                                   text_fname_list=txt_fnames,
-                                   candidate_types=candidate_types,
-                                   nbest=nbest,
-                                   url_prefix=url_prefix)
+# pylint: disable=too-many-locals
+def upload_train_file_list(prov_name: str,
+                           file_list_fname: str,
+                           candidate_types: str,
+                           nbest: int = -1,
+                           url_prefix: str = 'http://127.0.0.1:8000/custom-train') \
+                           -> str:
+    resp = upload_train_file_list_aux(prov_name,
+                                      file_list_fname,
+                                      candidate_types=candidate_types,
+                                      nbest=nbest,
+                                      url_prefix=url_prefix)
+    return resp.text
 
 
 # pylint: disable=too-many-locals
-def upload_train_files(custid: str,
-                       *,
-                       fname_list_fname: str,
-                       candidate_types: str,
-                       nbest: int = -1,
-                       url_prefix: str = 'http://127.0.0.1:8000/custom-train') \
-                       -> requests.Response:
-    txt_fnames = []  # type: List[str]
-    with open(fname_list_fname, 'rt') as fin:
-        for line in fin:
-            fname = line.strip()
+def upload_train_dir_aux(custid: str,
+                         upload_dir: str,
+                         candidate_types: str,
+                         nbest: int = -1,
+                         url_prefix: str = 'http://127.0.0.1:8000/custom-train'):
+    txt_fnames, ant_fnames = [], []
+    offsets_fnames = []
+    pdfxml_fnames = []
+    for file in os.listdir(upload_dir):
+        fname = '{}/{}'.format(upload_dir, file)
+        if file.endswith(".txt"):
             txt_fnames.append(fname)
+        elif file.endswith(".ant"):
+            ant_fnames.append(fname)
+        elif file.endswith(".offsets.json"):
+            offsets_fnames.append(fname)
+        elif file.endswith(".pdf.xml"):
+            pdfxml_fnames.append(fname)
 
     if not txt_fnames:
         print("cannot find any .txt files", file=sys.stderr)
         raise ValueError
 
-    return upload_train_fname_list(custid,
-                                   text_fname_list=txt_fnames,
-                                   candidate_types=candidate_types,
-                                   nbest=nbest,
-                                   url_prefix=url_prefix)
-
-
-def upload_train_fname_list(custid: str,
-                            *,
-                            text_fname_list: List[str],
-                            candidate_types: str,
-                            nbest: int = -1,
-                            url_prefix: str = 'http://127.0.0.1:8000/custom-train') \
-                            -> requests.Response:
-    file_tuple_list = []  # type: List
-    for txt_fname in text_fname_list:
+    file_tuple_list = []
+    ant_fname_set = set(ant_fnames)
+    offsets_fname_set = set(offsets_fnames)
+    pdfxml_fname_set = set(pdfxml_fnames)
+    for txt_fname in txt_fnames:
         ant_fname = txt_fname.replace('.txt', '.ant')
-        ebdata_fname = txt_fname.replace('.txt', '.ebdata')
         offsets_fname = txt_fname.replace('.txt', '.offsets.json')
         pdfxml_fname = txt_fname.replace('.txt', '.pdf.xml')
-
-        found_txt, found_ant = False, False
-        if os.path.exists(txt_fname):
+        if ant_fname in ant_fname_set:
             file_tuple_list.append(('file', open(txt_fname, 'rt', encoding='utf-8', newline='')))
             print("uploading [{}]".format(txt_fname))
-            found_txt = True
-        if os.path.exists(ant_fname):
             file_tuple_list.append(('file', open(ant_fname, 'rt', encoding='utf-8')))
             print("uploading [{}]".format(ant_fname))
-            found_ant = True
-        elif os.path.exists(ebdata_fname):
-            file_tuple_list.append(('file', open(ebdata_fname, 'rt', encoding='utf-8')))
-            print("uploading [{}]".format(ebdata_fname))
-            found_ant = True
-        # these later two are optional
-        if os.path.exists(offsets_fname):
-            print("uploading [{}]".format(offsets_fname))
-            file_tuple_list.append(('file', open(offsets_fname, 'rt', encoding='utf-8')))
-        if os.path.exists(pdfxml_fname):
-            print("uploading [{}]".format(pdfxml_fname))
-            file_tuple_list.append(('file', open(pdfxml_fname, 'rt', encoding='utf-8')))
-
-        if not (found_txt and found_ant):
+            if offsets_fname in offsets_fname_set:
+                print("uploading [{}]".format(offsets_fname))
+                file_tuple_list.append(('file', open(offsets_fname, 'rt', encoding='utf-8')))
+            if pdfxml_fname in pdfxml_fname_set:
+                print("uploading [{}]".format(pdfxml_fname))
+                file_tuple_list.append(('file', open(pdfxml_fname, 'rt', encoding='utf-8')))
+        else:
             print("cannot find matching ant file for {}".format(txt_fname), file=sys.stderr)
-            raise ValueError
 
     # print('candidate_types: %s' % (candidate_types, ))
     payload = {'candidate_types': candidate_types,
                'nbest': nbest}  # type: Dict[str, Any]
+
+    txt_fname_set = set(txt_fnames)
+    for ant_fname in ant_fnames:
+        txt_fname = ant_fname.replace('.ant', '.txt')
+        if not txt_fname in txt_fname_set:
+            print("cannot find matching ant file for {}".format(txt_fname), file=sys.stderr)
+            raise ValueError
 
     print("Number of file uploaded: {}".format(len(file_tuple_list)))
 
@@ -208,7 +200,75 @@ def upload_train_fname_list(custid: str,
                          timeout=6000)
     return resp
 
+# pylint: disable=too-many-locals
+def upload_train_file_list_aux(provision: str,
+                               file_list_fname: str,
+                               candidate_types: str,
+                               nbest: int = -1,
+                               url_prefix: str = 'http://127.0.0.1:8000/custom-train') \
+                               -> requests.Response:
+    txt_fnames, ant_fnames = [], []
+    offsets_fnames = []
+    pdfxml_fnames = []
+    with open(file_list_fname, 'rt') as fin:
+        for txt_fname in fin:
+            txt_fname = txt_fname.strip()
+            if txt_fname.endswith('.txt'):
+                txt_fnames.append(txt_fname)
+                ant_fnames.append(txt_fname.replace('.txt', '.ant'))
+                offsets_fnames.append(txt_fname.replace('.txt', '.offsets.json'))
+                pdfxml_fnames.append(txt_fname.replace('.txt', '.pdf.xml'))
+            else:
+                print("encountered a non-text file in txt files: {}".format(txt_fname),
+                      file=sys.stderr)
+                raise ValueError
 
+    for ant_fname in ant_fnames:
+        if not os.path.exists(ant_fname):
+            ebdata_fname = ant_fname.replace('.ant', '.ebdata')
+            print('create {} from {}'.format(ant_fname, ebdata_fname))
+            antutils.ebdata_to_ant_file(ebdata_fname,
+                                        ant_fname)
+
+    file_tuple_list = []
+    for txt_fname, ant_fname, offsets_fname, pdfxml_fname in \
+        zip(txt_fnames, ant_fnames, offsets_fnames, pdfxml_fnames):
+
+        if os.path.exists(ant_fname):
+            file_tuple_list.append(('file', open(txt_fname, 'rt', encoding='utf-8', newline='')))
+            print("uploading [{}]".format(txt_fname))
+
+            file_tuple_list.append(('file', open(ant_fname, 'rt', encoding='utf-8')))
+            print("uploading [{}]".format(ant_fname))
+
+            if os.path.exists(offsets_fname):
+                print("uploading [{}]".format(offsets_fname))
+                file_tuple_list.append(('file', open(offsets_fname, 'rt', encoding='utf-8')))
+            if os.path.exists(pdfxml_fname):
+                print("uploading [{}]".format(pdfxml_fname))
+                file_tuple_list.append(('file', open(pdfxml_fname, 'rt', encoding='utf-8')))
+        else:
+            print("cannot find matching ant file for {}".format(txt_fname), file=sys.stderr)
+
+    # print('candidate_types: %s' % (candidate_types, ))
+    payload = {'candidate_types': candidate_types,
+               'nbest': nbest}  # type: Dict[str, Any]
+
+    print("Number of file uploaded: {}".format(len(file_tuple_list)))
+
+    url = '{}/{}'.format(url_prefix, provision)
+    print('calling {}'.format(url))
+    resp = requests.post(url,
+                         files=file_tuple_list,
+                         data=payload,
+                         timeout=6000)
+
+    ajson = json.loads(resp.text)
+    print('xxxresp: {}'.format(ajson))
+
+    return resp
+
+# pylint: disable=too-many-statements
 def main():
     parser = argparse.ArgumentParser(description='identify the language')
     parser.add_argument('-v', '--verbosity', help='increase output verbosity')
@@ -246,7 +306,6 @@ def main():
     if args.lang:
         is_detect_lang = True
 
-
     if not args.cmd:
         print('usage: postfileutils.py --cmd uploaddir|annotate_doc|annotate_unittest_doc xxx.txt')
         sys.exit(1)
@@ -269,22 +328,25 @@ def main():
         else:
             url_prefix = 'http://127.0.0.1:8000/custom-train'
         result = upload_train_dir(provision,
-                                  upload_dir=args.filename,
-                                  candidate_types=args.candidate_types,
+                                  args.filename,
+                                  args.candidate_types,
                                   nbest=nbest,
                                   url_prefix=url_prefix)
-        pprint.pprint(json.loads(result.text))
-    elif args.cmd == 'upload_train_files':
+        print(json.dumps(result))
+    elif args.cmd == 'upload_files':
         if args.url is not None:
             url_prefix = args.url
         else:
             url_prefix = 'http://127.0.0.1:8000/custom-train'
-        result = upload_train_files(provision,
-                                    fname_list_fname=args.filename,
-                                    candidate_types=args.candidate_types,
-                                    nbest=nbest,
-                                    url_prefix=url_prefix)
-        pprint.pprint(json.loads(result.text))
+        result = upload_train_file_list(provision,
+                                        args.filename,
+                                        args.candidate_types,
+                                        nbest=nbest,
+                                        url_prefix=url_prefix)
+        print(json.dumps(result))
+    else:
+        print('unknown command: "{}"'.format(args.cmd))
+
 
 # pylint: disable=C0103
 if __name__ == '__main__':

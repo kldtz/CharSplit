@@ -219,6 +219,7 @@ def annotate_uploaded_document():
             provision_set.add('date')
             provision_set.add('sigdate')
             provision_set.add('effectivedate')
+            provision_set.add('effectivedate_cand')
             if "effectivedate_auto" in provision_set:
                 provision_set.remove('effectivedate_auto')
             # make sure these are removed due to low accuracy
@@ -234,13 +235,12 @@ def annotate_uploaded_document():
                                                          provision_set=lang_provision_set,
                                                          work_dir=work_dir,
                                                          doc_lang=doc_lang)
-
-        # because special case of 'effectivdate_auto'
-        if prov_labels_map.get('effectivedate'):
-            effectivedate_annotations = copy.deepcopy(prov_labels_map.get('effectivedate', []))
-            for eff_ant in effectivedate_annotations:
-                eff_ant['label'] = 'effectivedate_auto'
-            prov_labels_map['effectivedate_auto'] = effectivedate_annotations
+        # add back effectivedate_auto for backward compatibility
+        if prov_labels_map.get('effectivedate') is not None:
+            prov_labels_map['effectivedate_auto'] = copy.deepcopy(prov_labels_map.get('effectivedate'))
+            for antx2 in prov_labels_map['effectivedate_auto']:  # not an empty list
+                # replace with correct label
+                antx2['label'] = 'effectivedate_auto'
             del prov_labels_map['effectivedate']
         ebannotations['ebannotations'] = prov_labels_map
         return json.dumps(ebannotations)
