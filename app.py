@@ -1,6 +1,7 @@
 
 from collections import defaultdict
 import configparser
+import copy
 from datetime import datetime
 import json
 import logging
@@ -236,7 +237,10 @@ def annotate_uploaded_document():
                                                          doc_lang=doc_lang)
         # add back effectivedate_auto for backward compatibility
         if prov_labels_map.get('effectivedate') is not None:
-            prov_labels_map['effectivedate_auto'] = prov_labels_map.get('effectivedate')
+            prov_labels_map['effectivedate_auto'] = copy.deepcopy(prov_labels_map.get('effectivedate'))
+            for antx2 in prov_labels_map['effectivedate_auto']:  # not an empty list
+                # replace with correct label
+                antx2['label'] = 'effectivedate_auto'
 
         ebannotations['ebannotations'] = prov_labels_map
         return json.dumps(ebannotations)
