@@ -89,7 +89,7 @@ class TestModelFileUtils(unittest.TestCase):
                         'party_scutclassifier.v1.2.pkl',
                         'renewal_scutclassifier.v1.2.pkl',
                         'choiceoflaw_scutclassifier.v1.2.1.pkl',
-                        'effectivedate_scutclassifier.v1.2.1.pkl',
+                        'effectivedate_scutclassifier.v1.2.pkl',
                         'noncompete_scutclassifier.v1.2.1.pkl',
                         'remedy_scutclassifier.v1.2.pkl',
                         'warranty_scutclassifier.v1.2.pkl',
