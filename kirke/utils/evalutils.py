@@ -7,6 +7,8 @@ from typing import DefaultDict, Dict, List, Optional, Set, Tuple
 from kirke.utils import mathutils, wordutils
 from kirke.utils.ebsentutils import ProvisionAnnotation
 
+from kirke.utils import antutils
+
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -16,6 +18,7 @@ logger.setLevel(logging.INFO)
 IS_DIAGNOSE_MODE = True
 IS_DEBUG = False
 
+LINEBREAK_PAT = re.compile("[\n\r]")
 
 AnnotationWithProb = namedtuple('AnnotationWithProb', ['label', 'start', 'end', 'prob'])
 
@@ -151,7 +154,6 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                                                 adict['start'],
                                                 adict['end'],
                                                 adict['prob']))
-    linebreaks = re.compile("[\n\r]")
     # pylint: disable=line-too-long
     tp_inst_map = defaultdict(list)  # type: DefaultDict[Tuple[str, int, int, str], List[AnnotationWithProb]]
     fp_inst_list = []
@@ -213,12 +215,12 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
             max_end = max([x.end for x in tp_inst_list])  # type: int
             max_prob = max([x.prob for x in tp_inst_list])  # type: float
             if IS_DEBUG:
-                print("tp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", tp_txt), str(max_prob)))
+                print("tp\t{}\t{}\t{}".format(file_id, LINEBREAK_PAT.sub(" ", tp_txt), str(max_prob)))
             json_return['tp'].append((min_start,
                                       max_end,
                                       label,
                                       max_prob,
-                                      linebreaks.sub(" ", tp_txt)))
+                                      LINEBREAK_PAT.sub(" ", tp_txt)))
 
         for xhant in sorted(fn_inst_map.keys()):
             _, hstart, hend, label = xhant
@@ -226,12 +228,12 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                 fn_txt = txt[hstart:hend]
                 max_prob = -1.0
                 if IS_DEBUG:
-                    print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(max_prob)))
+                    print("fn\t{}\t{}\t{}".format(file_id, LINEBREAK_PAT.sub(" ", fn_txt), str(max_prob)))
                 json_return['fn'].append((hstart,
                                           hend,
                                           label,
                                           max_prob,
-                                          linebreaks.sub(" ", fn_txt)))
+                                          LINEBREAK_PAT.sub(" ", fn_txt)))
             else:
                 fn_inst_list = fn_inst_map[xhant]
                 fn_txt = " ".join([txt[x.start:x.end] for x in fn_inst_list])
@@ -239,21 +241,21 @@ def calc_doc_ant_confusion_matrix(prov_human_ant_list: List[ProvisionAnnotation]
                 max_end = max([x.end for x in fn_inst_list])
                 max_prob = max([x.prob for x in fn_inst_list])
                 if IS_DEBUG:
-                    print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(max_prob)))
+                    print("fn\t{}\t{}\t{}".format(file_id, LINEBREAK_PAT.sub(" ", fn_txt), str(max_prob)))
                 json_return['fn'].append((min_start,
                                           max_end,
                                           label,
                                           max_prob,
-                                          linebreaks.sub(" ", fn_txt)))
+                                          LINEBREAK_PAT.sub(" ", fn_txt)))
 
         for pred_ant in fp_inst_list:
             if IS_DEBUG:
-                print("fp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
+                print("fp\t{}\t{}\t{}".format(file_id, LINEBREAK_PAT.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
             json_return['fp'].append((pred_ant.start,
                                       pred_ant.end,
                                       pred_ant.label,
                                       pred_ant.prob,
-                                      linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])))
+                                      LINEBREAK_PAT.sub(" ", txt[pred_ant.start:pred_ant.end])))
     return tp, fn, fp, tn, fallout, json_return
 
 
@@ -282,7 +284,6 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
     Returns:
         tp, fn, fp, tn, Dictionary of List of tp, fn, fp, tn
     """
-    linebreaks = re.compile("[\n\r]")
     # pylint: disable=line-too-long
     json_return = {'tp': [], 'fn': [], 'fp': []}  # type: Dict[str, List[Tuple[int, int, str, float, str]]]
     tp, fp, tn, fn = 0, 0, 0, 0
@@ -372,34 +373,34 @@ def calc_doc_ant_confusion_matrix_anymatch(prov_human_ant_list: List[ProvisionAn
             max_end = max([x.end for x in tp_inst_list])
             prob = max([x.prob for x in tp_inst_list])
             if IS_DEBUG:
-                print("tp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", tp_txt), str(prob)))
+                print("tp\t{}\t{}\t{}".format(file_id, LINEBREAK_PAT.sub(" ", tp_txt), str(prob)))
             json_return['tp'].append((min_start,
                                       max_end,
                                       label,
                                       prob,
-                                      linebreaks.sub(" ", tp_txt)))
+                                      LINEBREAK_PAT.sub(" ", tp_txt)))
 
         for prov_ant in fn_inst_list:
             hstart, hend, label = prov_ant.start, prov_ant.end, prov_ant.label
             fn_txt = txt[hstart:hend]
             prob = -1.0
             if IS_DEBUG:
-                print("fn\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", fn_txt), str(prob)))
+                print("fn\t{}\t{}\t{}".format(file_id, LINEBREAK_PAT.sub(" ", fn_txt), str(prob)))
             json_return['fn'].append((hstart,
                                       hend,
                                       label,
                                       prob,
-                                      linebreaks.sub(" ", fn_txt)))
+                                      LINEBREAK_PAT.sub(" ", fn_txt)))
 
 
         for pred_ant in fp_inst_list:
             if IS_DEBUG:
-                print("fp\t{}\t{}\t{}".format(file_id, linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
+                print("fp\t{}\t{}\t{}".format(file_id, LINEBREAK_PAT.sub(" ", txt[pred_ant.start:pred_ant.end]), str(pred_ant.prob)))
             json_return['fp'].append((pred_ant.start,
                                       pred_ant.end,
                                       pred_ant.label,
                                       pred_ant.prob,
-                                      linebreaks.sub(" ", txt[pred_ant.start:pred_ant.end])))
+                                      LINEBREAK_PAT.sub(" ", txt[pred_ant.start:pred_ant.end])))
 
     return tp, fn, fp, tn, json_return
 
@@ -509,3 +510,104 @@ def calc_prob_override_status(probs: List[float],
               'threshold': threshold,
               'prec': prec, 'recall': recall, 'f1': f1}
     return status
+
+
+# pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+def calc_doc_ant_confusion_matrix_offline(gold_ant_list: List[antutils.EbProvisionAnnotation],
+                                          pred_ant_list: List[antutils.PredProvisionAnnotation],
+                                          file_id: str) \
+                                          -> Tuple[int, int, int, int,
+                                                   # pylint: disable=line-too-long
+                                                   Dict[str, List[Tuple[int, int, str, float, str]]]]:
+    """Calculate the confusion matrix for one document only, based only on offsets using
+       off-line .ant and .ebdata files.
+
+    Args:
+        prov_human_ant_list: human annotation list, only for 1 provision
+        ant_list: annotation predicted by machine
+        file_id: document id
+        txt: text of the document
+
+    Returns:
+        tp, fn, fp, tn, fallout, Dictionary of tp, fn, fp, tn
+    """
+
+    tp, fp, tn, fn = 0, 0, 0, 0
+
+    # pylint: disable=line-too-long
+    tp_inst_map = defaultdict(list)  # type: DefaultDict[Tuple[str, int, int, str, str], List[antutils.PredProvisionAnnotation]]
+    fp_inst_list = []
+    # pylint: disable=line-too-long
+    fn_inst_map = defaultdict(list)  # type: DefaultDict[Tuple[str, int, int, str, str], List[antutils.PredProvisionAnnotation]]
+    tp_fn_set = set([])  # type: Set[antutils.PredProvisionAnnotation]
+
+    # checks predicted annotations against human annotations
+    for gold_ant in gold_ant_list:
+        pred_overlap_list = find_annotation_overlap(gold_ant.start, gold_ant.end, pred_ant_list)
+
+        # Any naive user would be using this, just all human annotation and predict annotation.
+        # We don't assume there are FN annotation with prob in here.
+        if pred_overlap_list:
+            # prob = max([x.prob for x in pred_overlap_list])
+            tp_inst_map[(file_id, gold_ant.start, gold_ant.end, gold_ant.label, gold_ant.text)] = pred_overlap_list
+            tp += 1
+        else:
+            fn_inst_map[(file_id, gold_ant.start, gold_ant.end, gold_ant.label, gold_ant.text)] = pred_overlap_list
+            fn += 1
+        tp_fn_set |= set(pred_overlap_list)
+
+    # any remaining predicted annotations are false positives or true negatives
+    for pred_ant in pred_ant_list:
+        if pred_ant in tp_fn_set:
+            continue
+        fp_inst_list.append(pred_ant)
+        fp += 1
+
+    # prepare json_return
+    # pylint: disable=line-too-long
+    json_return = {'tp': [],
+                   'fn': [],
+                   'fp': []}  # type: Dict[str, List[Tuple[int, int, str, float, str]]]
+    # we don't care about reporting true negatives
+    for gold_ant_xx in sorted(tp_inst_map.keys()):
+        _, gold_start, gold_end, label, gold_text = gold_ant_xx
+        tp_inst_list = tp_inst_map[gold_ant_xx]
+        # tp_txt = " ".join([txt[x.start:x.end] for x in tp_inst_list])  # type: str
+        tp_txt = " ".join([tp_inst.text for tp_inst in tp_inst_list])  # type: str
+        min_start = min([x.start for x in tp_inst_list])  # type: int
+        max_end = max([x.end for x in tp_inst_list])  # type: int
+        max_prob = max([x.prob for x in tp_inst_list])  # type: float
+        if IS_DEBUG:
+            print("tp\t{}\t{}\t{}".format(file_id, LINEBREAK_PAT.sub(" ", tp_txt), str(max_prob)))
+        json_return['tp'].append((min_start,
+                                  max_end,
+                                  label,
+                                  max_prob,
+                                  LINEBREAK_PAT.sub(" ", tp_txt)))
+
+    for gold_ant_xx in sorted(fn_inst_map.keys()):
+        _, gold_start, gold_end, label, gold_text = gold_ant_xx
+        fn_txt = gold_text
+        max_prob = -1.0
+        if IS_DEBUG:
+            print("fn\t{}\t{}\t{}".format(file_id, LINEBREAK_PAT.sub(" ", fn_txt), str(max_prob)))
+        json_return['fn'].append((gold_start,
+                                  gold_end,
+                                  label,
+                                  max_prob,
+                                  LINEBREAK_PAT.sub(" ", fn_txt)))
+
+
+    for pred_ant in fp_inst_list:
+        if IS_DEBUG:
+            print("fp\t{}\t{}\t{}".format(file_id,
+                                          LINEBREAK_PAT.sub(" ",
+                                                            pred_ant.text),
+                                          str(pred_ant.prob)))
+        json_return['fp'].append((pred_ant.start,
+                                  pred_ant.end,
+                                  pred_ant.label,
+                                  pred_ant.prob,
+                                  LINEBREAK_PAT.sub(" ", pred_ant.text)))
+
+    return tp, fn, fp, tn, json_return

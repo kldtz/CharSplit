@@ -1322,9 +1322,9 @@ class PostPredTitleProc(EbPostPredictProcessing):
 
 
 # used by both PostPredDateProc, PostPredEffectiveDate
-def get_best_date(prob_attrvec_list: List[ConciseProbAttrvec], threshold) -> Optional[ConciseProbAttrvec]:
-    best_prob = 0
-    best = None
+def get_best_prob_attrvec(prob_attrvec_list: List[ConciseProbAttrvec], threshold) -> Optional[ConciseProbAttrvec]:
+    best_prob = 0.0
+    best = None  # type: Optional[ConciseProbAttrvec]
     for cx_prob_attrvec in prob_attrvec_list:
         if cx_prob_attrvec.prob >= threshold:   # this is not threshold from top
             if cx_prob_attrvec.prob > best_prob:
@@ -1354,7 +1354,7 @@ class PostPredBestDateProc(EbPostPredictProcessing):
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
-        best_date_sent = get_best_date(merged_prob_attrvec_list, threshold)
+        best_date_sent = get_best_prob_attrvec(merged_prob_attrvec_list, threshold)
         ant_result = []
         if best_date_sent:
             for entity in best_date_sent.entities:
@@ -1373,46 +1373,159 @@ class PostPredEffectiveDateProc(EbPostPredictProcessing):
 
     def __init__(self, prov_name):
         self.provision = prov_name
-        self.threshold = 0.5
+
+    # pylint: disable=too-many-arguments
+    def post_process_by_date_entity(self,
+                                    doc_text: str,
+                                    prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
+                                    threshold: float,
+                                    nbest=-1,
+                                    # pylint: disable=unused-argument
+                                    provision=None,
+                                    prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
+                                    -> Tuple[List[Dict], float]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+
+        ant_result = []  # type: List[Dict]
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start,
+                                                             cx_prob_attrvec.end,
+                                                             prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
+                ant_result.append(self.to_date_entity_or_sent_span(cx_prob_attrvec,
+                                                                   doc_text))
+
+        if nbest > 0:
+            nbest_candidates = sorted(ant_result, key=itemgetter('prob'), reverse=True)[:nbest]
+            return nbest_candidates, threshold
+        return ant_result, threshold
+
+
+    # pylint: disable=too-many-arguments
+    def post_process_default(self,
+                             # pylint: disable=unused-argument
+                             doc_text: str,
+                             prob_attrvec_list: List[Tuple[float, ebattrvec.EbAttrVec]],
+                             threshold: float,
+                             nbest=-1,
+                             provision=None,
+                             prov_human_ant_list: Optional[List[ProvisionAnnotation]] = None) \
+                             -> Tuple[List[Dict], float]:
+        cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
+        merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
+                                                          threshold)
+        ant_result = []
+        for cx_prob_attrvec in merged_prob_attrvec_list:
+            sent_overlap = evalutils.find_annotation_overlap(cx_prob_attrvec.start,
+                                                             cx_prob_attrvec.end,
+                                                             prov_human_ant_list)
+            if cx_prob_attrvec.prob >= threshold or sent_overlap:
+                tmp_provision = provision if provision else self.provision
+                ant_result.append(to_ant_result_dict(label=tmp_provision,
+                                                     prob=cx_prob_attrvec.prob,
+                                                     start=cx_prob_attrvec.start,
+                                                     end=cx_prob_attrvec.end,
+                                                     # pylint: disable=line-too-long
+                                                     text=strutils.sub_nltab_with_space(cx_prob_attrvec.text)))
+        if nbest > 0:
+            nbest_candidates = sorted(ant_result, key=itemgetter('prob'), reverse=True)[:nbest]
+            return nbest_candidates, threshold
+        return ant_result, threshold
 
     # pylint: disable=too-many-arguments
     def post_process(self,
                      doc_text,
                      prob_attrvec_list,
                      threshold: float,
+                     # pylint: disable=unused-argument
                      nbest=-1,
+                     # pylint: disable=unused-argument
                      provision=None,
+                     # pylint: disable=unused-argument
                      prov_human_ant_list=None) -> Tuple[List[Dict], float]:
         cx_prob_attrvec_list = to_cx_prob_attrvecs(prob_attrvec_list)
         merged_prob_attrvec_list = merge_cx_prob_attrvecs(cx_prob_attrvec_list,
                                                           threshold)
 
-        best_effectivedate_sent = get_best_date(merged_prob_attrvec_list, threshold)
+        best_effectivedate_cx_prob_attrvec = get_best_prob_attrvec(merged_prob_attrvec_list, threshold)
 
         ant_result = []
-        if best_effectivedate_sent:
+        if best_effectivedate_cx_prob_attrvec:
             first = None
             first_after_effective = None
-            for entity in best_effectivedate_sent.entities:
+            for entity in best_effectivedate_cx_prob_attrvec.entities:
                 if entity.ner == EbEntityType.DATE.name:
-                    prior_text = doc_text[best_effectivedate_sent.start:entity.start]
+                    prior_text = doc_text[best_effectivedate_cx_prob_attrvec.start:entity.start]
                     has_prior_text_effective = 'effective' in prior_text.lower()
                     ant_rx = to_ant_result_dict(label=self.provision,
-                                                prob=best_effectivedate_sent.prob,
+                                                prob=best_effectivedate_cx_prob_attrvec.prob,
                                                 start=entity.start,
                                                 end=entity.end,
                                                 # pylint: disable=line-too-long
                                                 text=strutils.sub_nltab_with_space(doc_text[entity.start:entity.end]))
-                    if not first:
+                    if not first:  # if we just have date entity, but no 'effective' word
                         first = ant_rx
                     if has_prior_text_effective and not first_after_effective:
                         first_after_effective = ant_rx
+                        break
 
             if first_after_effective:
                 ant_result.append(first_after_effective)
             elif first:
                 ant_result.append(first)
+            else:  # there is no entity
+                sent_start = best_effectivedate_cx_prob_attrvec.start
+                sent_end = best_effectivedate_cx_prob_attrvec.end
+                sent_text = doc_text[sent_start:sent_end]
+                ant_result.append(to_ant_result_dict(label=self.provision,
+                                                     prob=best_effectivedate_cx_prob_attrvec.prob,
+                                                     start=sent_start,
+                                                     end=sent_end,
+                                                     # pylint: disable=line-too-long
+                                                     text=strutils.sub_nltab_with_space(sent_text)))
         return ant_result, threshold
+
+
+    def to_date_entity_or_sent_span(self,
+                                    best_effectivedate_cx_prob_attrvec: ConciseProbAttrvec,
+                                    doc_text: str) -> Dict:
+        first = None
+        first_after_effective = None
+        for entity in best_effectivedate_cx_prob_attrvec.entities:
+            if entity.ner == EbEntityType.DATE.name:
+                prior_text = doc_text[best_effectivedate_cx_prob_attrvec.start:entity.start]
+                has_prior_text_effective = 'effective' in prior_text.lower()
+                ant_rx = to_ant_result_dict(label=self.provision,
+                                            prob=best_effectivedate_cx_prob_attrvec.prob,
+                                            start=entity.start,
+                                            end=entity.end,
+                                            # pylint: disable=line-too-long
+                                            text=strutils.sub_nltab_with_space(doc_text[entity.start:entity.end]))
+                if not first:  # if we just have date entity, but no 'effective' word
+                    first = ant_rx
+                if has_prior_text_effective and not first_after_effective:
+                    first_after_effective = ant_rx
+                    break
+
+        if first_after_effective:
+            return first_after_effective
+
+        if first:
+            return first
+
+        # there is no entity, take the whole sentence
+        sent_start = best_effectivedate_cx_prob_attrvec.start
+        sent_end = best_effectivedate_cx_prob_attrvec.end
+        sent_text = doc_text[sent_start:sent_end]
+        return to_ant_result_dict(label=self.provision,
+                                  prob=best_effectivedate_cx_prob_attrvec.prob,
+                                  start=sent_start,
+                                  end=sent_end,
+                                  # pylint: disable=line-too-long
+                                  text=strutils.sub_nltab_with_space(sent_text))
+
 
 class PostPredLeaseDateProc(EbPostPredictProcessing):
 

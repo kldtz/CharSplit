@@ -52,6 +52,7 @@ if __name__ == '__main__':
     payload = {'types': ','.join(prov_list),
                'dev-mode': True}  # type: Dict[str, Any]
 
+
     """
     payload = {'types': 'term,cust_1089,cust_1102,cust_1115,cust_1116,cust_1117'
                'cust_1118,cust_1141,cust_1148,cust_1157,cust_1158,cust_1159'
@@ -72,10 +73,10 @@ if __name__ == '__main__':
     if txt_file.is_file() and args.filename.endswith('.txt'):
         offset_filename = args.filename.replace('.txt', '.offsets.json')
         if os.path.exists(offset_filename):
-            files = [('file', open(args.filename, 'rt', encoding='utf-8')),
+            files = [('file', open(args.filename, 'rb')),
                      ('file', open(offset_filename, 'rt', encoding='utf-8'))]
         else:
-            files = {'file': open(args.filename, 'rt', encoding='utf-8')}  # type: ignore
+            files = {'file': open(args.filename, 'rb')}  # type: ignore
 
         resp = requests.post(url, files=files, data=payload)
 
