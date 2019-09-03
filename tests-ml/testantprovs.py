@@ -2,6 +2,7 @@
 
 import copy
 import json
+import os
 import pprint
 import unittest
 from typing import Any, Dict, List, Tuple
@@ -14,6 +15,8 @@ from kirke.utils import modelfileutils
 MODEL_DIR = 'dir-scut-model'
 WORK_DIR = 'dir-work'
 CUSTOM_MODEL_DIR = 'eb_files_test/pymodel'
+# Places where text files might be
+TXT_DIR_PATH = ['demo-txt', 'dir-korean/text']
 
 UNIT_TEST_PROVS = ['change_control',
                    'choiceoflaw',
@@ -132,8 +135,14 @@ def convert_to_same_diff(file_name: str,
 
 def validate_annotated_doc(docid: str) \
     -> List[Tuple[str, str, int, int, int]]:
-    txt_doc_fn = 'demo-txt/{}.txt'.format(docid)
+    for dir in TXT_DIR_PATH:
+        txt_doc_fn = '{}/{}.txt'.format(dir, docid)
+        if os.path.exists(txt_doc_fn):
+            break
+    else:
+        raise FileNotFoundError("{}.txt".format(docid))
     pred_ajson = upload_annotate_doc(txt_doc_fn)
+#    print(pred_ajson)
 
     valid_doc_fn = 'demo-validate/{}.log'.format(docid)
     valid_ajson = antdocutils.get_ant_out_json(valid_doc_fn)
@@ -618,6 +627,19 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8300.txt', 'title', 1, 0, 0),
                            ('demo-txt/8300.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8300.txt', 'cust_9', 1, 0, 0)]
+        self.assertEqual(expected_result,
+                         prov_result_list)
+
+    def test_antdoc_1057_ko(self):
+        self.maxDiff = None
+        docid = '1057'
+        prov_result_list = validate_annotated_doc(docid)
+
+        print("prov_result_list:")
+        pprint.pprint(prov_result_list)
+
+        expected_result = [('dir-korean/text/1057.txt', 'korean', 1, 0, 0)]
+        self.fail("bomb") # FIXME
         self.assertEqual(expected_result,
                          prov_result_list)
 
