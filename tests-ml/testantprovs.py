@@ -639,7 +639,6 @@ class TestAntProvs(unittest.TestCase):
         pprint.pprint(prov_result_list)
 
         expected_result = [('dir-korean/text/1057.txt', 'korean', 1, 0, 0)]
-        self.fail("bomb") # FIXME
         self.assertEqual(expected_result,
                          prov_result_list)
 
