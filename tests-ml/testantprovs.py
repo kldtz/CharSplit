@@ -35,9 +35,9 @@ UNIT_TEST_PROVS = ['change_control',
                    'cust_9.1005']
 
 
-def upload_annotate_doc(file_name: str) -> Dict[str, Any]:
+def upload_annotate_doc(file_name: str, prov_list: List[str]) -> Dict[str, Any]:
     text = postfileutils.upload_unittest_annotate_doc(file_name,
-                                                      prov_list=UNIT_TEST_PROVS)
+                                                      prov_list=prov_list)
     ajson = json.loads(text)
     return ajson
 
@@ -133,7 +133,7 @@ def convert_to_same_diff(file_name: str,
     return file_name, provision, num_same, valid_has_pred_missing, pred_has_valid_missing
 
 
-def validate_annotated_doc(docid: str) \
+def validate_annotated_doc(docid: str, prov_list : List[str] = UNIT_TEST_PROVS) \
     -> List[Tuple[str, str, int, int, int]]:
     for dir in TXT_DIR_PATH:
         txt_doc_fn = '{}/{}.txt'.format(dir, docid)
@@ -141,8 +141,9 @@ def validate_annotated_doc(docid: str) \
             break
     else:
         raise FileNotFoundError("{}.txt".format(docid))
-    pred_ajson = upload_annotate_doc(txt_doc_fn)
-#    print(pred_ajson)
+    pred_ajson = upload_annotate_doc(txt_doc_fn, prov_list)
+    if '1057' in docid:
+      pprint.pprint(pred_ajson)
 
     valid_doc_fn = 'demo-validate/{}.log'.format(docid)
     valid_ajson = antdocutils.get_ant_out_json(valid_doc_fn)
@@ -152,7 +153,7 @@ def validate_annotated_doc(docid: str) \
     valid_has_pred_missing = 0
     pred_has_valid_missing = 0
 
-    for provision in UNIT_TEST_PROVS:
+    for provision in prov_list:
         provision = modelfileutils.remove_custom_provision_version(provision)
 
         print("checking provision '{}' in {}".format(provision, txt_doc_fn))
@@ -633,7 +634,8 @@ class TestAntProvs(unittest.TestCase):
     def test_antdoc_1057_ko(self):
         self.maxDiff = None
         docid = '1057'
-        prov_result_list = validate_annotated_doc(docid)
+        prov_result_list = validate_annotated_doc(docid,
+                                                  UNIT_TEST_PROVS + ["korean"])
 
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
