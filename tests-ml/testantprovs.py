@@ -21,7 +21,7 @@ TXT_DIR_PATH = ['demo-txt', 'dir-korean/text']
 UNIT_TEST_PROVS = ['change_control',
                    'choiceoflaw',
                    'date',
-                   'effectivedate',
+                   'effectivedate_auto',
                    'force_majeure',
                    'limliability',
                    'noncompete',
@@ -195,7 +195,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8285.txt', 'change_control', 3, 1, 2),  # has_diff: verfied ok
                            ('demo-txt/8285.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8285.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8285.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8285.txt', 'effectivedate_auto', 1, 0, 0),
                            ('demo-txt/8285.txt', 'force_majeure', 0, 0, 0),
                            # ('demo-txt/8285.txt', 'limliability', 6, 0, 0),
                            # Mostly partial overlap issue, so the performance looks
@@ -227,7 +227,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8286.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8286.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8286.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8286.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8286.txt', 'effectivedate_auto', 0, 0, 0),
                            ('demo-txt/8286.txt', 'force_majeure', 1, 0, 0),
                            ('demo-txt/8286.txt', 'limliability', 2, 0, 0),
                            ('demo-txt/8286.txt', 'noncompete', 0, 0, 0),
@@ -241,7 +241,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8286.txt', 'title', 1, 0, 0),
                            ('demo-txt/8286.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8286.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8287(self):
         self.maxDiff = None
@@ -254,7 +254,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8287.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8287.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8287.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8287.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8287.txt', 'effectivedate_auto', 0, 0, 0),
                            ('demo-txt/8287.txt', 'force_majeure', 1, 0, 0),
                            # there is a separate limliability related to passenger instead of
                            # lease?  For now, acceptable.
@@ -284,7 +284,7 @@ class TestAntProvs(unittest.TestCase):
                            # get termination date.
                            # ('demo-txt/8288.txt', 'date', 1, 0, 0),
                            ('demo-txt/8288.txt', 'date', 0, 1, 1),  # has_diff: verified. to fix
-                           ('demo-txt/8288.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8288.txt', 'effectivedate_auto', 1, 0, 0),
                            ('demo-txt/8288.txt', 'force_majeure', 1, 0, 0),
                            ('demo-txt/8288.txt', 'limliability', 4, 0, 0),
                            ('demo-txt/8288.txt', 'noncompete', 0, 0, 0),
@@ -298,7 +298,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8288.txt', 'title', 1, 0, 0),
                            ('demo-txt/8288.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8288.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8289(self):
         self.maxDiff = None
@@ -311,7 +311,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8289.txt', 'change_control', 0, 1, 0),  # ??, will verify
                            ('demo-txt/8289.txt', 'choiceoflaw', 0, 0, 0),
                            ('demo-txt/8289.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8289.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8289.txt', 'effectivedate_auto', 0, 0, 0),
                            ('demo-txt/8289.txt', 'force_majeure', 0, 0, 0),
                            ('demo-txt/8289.txt', 'limliability', 3, 0, 0),
                            ('demo-txt/8289.txt', 'noncompete', 0, 0, 0),
@@ -336,7 +336,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8290.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8290.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8290.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8290.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8290.txt', 'effectivedate_auto', 1, 0, 0),
                            ('demo-txt/8290.txt', 'force_majeure', 0, 0, 0),
                            # There is some issue with handling all cap paragraphs that are
                            # broken across pages.  Activating that might cause a lot of other
@@ -365,7 +365,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8291.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8291.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8291.txt', 'date', 0, 0, 0),
-                           ('demo-txt/8291.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8291.txt', 'effectivedate_auto', 0, 0, 0),
                            ('demo-txt/8291.txt', 'force_majeure', 1, 0, 0),
                            ('demo-txt/8291.txt', 'limliability', 1, 0, 0),
                            ('demo-txt/8291.txt', 'noncompete', 0, 0, 0),
@@ -391,8 +391,8 @@ class TestAntProvs(unittest.TestCase):
 
         expected_result = [('demo-txt/8292.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8292.txt', 'choiceoflaw', 1, 0, 0),
-                           ('demo-txt/8292.txt', 'date', 0, 0, 0),
-                           ('demo-txt/8292.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8292.txt', 'date', 0, 0, 1),
+                           ('demo-txt/8292.txt', 'effectivedate_auto', 0, 0, 1),
                            ('demo-txt/8292.txt', 'force_majeure', 0, 0, 0),
                            ('demo-txt/8292.txt', 'limliability', 0, 0, 0),
                            ('demo-txt/8292.txt', 'noncompete', 1, 0, 0),
@@ -409,7 +409,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8292.txt', 'title', 1, 0, 0),
                            ('demo-txt/8292.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8292.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
 
     def test_antdoc_8293(self):
@@ -423,7 +423,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8293.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8293.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8293.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8293.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8293.txt', 'effectivedate_auto', 0, 0, 0),
                            ('demo-txt/8293.txt', 'force_majeure', 0, 0, 0),
                            ('demo-txt/8293.txt', 'limliability', 5, 0, 0),
                            ('demo-txt/8293.txt', 'noncompete', 0, 0, 0),
@@ -435,7 +435,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8293.txt', 'title', 1, 0, 0),
                            ('demo-txt/8293.txt', 'warranty', 1, 0, 0),
                            ('demo-txt/8293.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8294(self):
         self.maxDiff = None
@@ -448,7 +448,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8294.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8294.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8294.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8294.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8294.txt', 'effectivedate_auto', 1, 0, 0),
                            ('demo-txt/8294.txt', 'force_majeure', 0, 0, 0),
                            ('demo-txt/8294.txt', 'limliability', 0, 0, 0),
                            ('demo-txt/8294.txt', 'noncompete', 3, 0, 0),
@@ -463,7 +463,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8294.txt', 'title', 1, 0, 0),
                            ('demo-txt/8294.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8294.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8295(self):
         self.maxDiff = None
@@ -476,7 +476,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8295.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8295.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8295.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8295.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8295.txt', 'effectivedate_auto', 1, 0, 0),
                            ('demo-txt/8295.txt', 'force_majeure', 0, 0, 0),
                            ('demo-txt/8295.txt', 'limliability', 0, 0, 0),
                            ('demo-txt/8295.txt', 'noncompete', 1, 0, 0),
@@ -488,7 +488,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8295.txt', 'title', 1, 0, 0),
                            ('demo-txt/8295.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8295.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8296(self):
         self.maxDiff = None
@@ -501,7 +501,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8296.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8296.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8296.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8296.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8296.txt', 'effectivedate_auto', 0, 0, 0),
                            ('demo-txt/8296.txt', 'force_majeure', 0, 0, 0),
                            ('demo-txt/8296.txt', 'limliability', 0, 0, 0),
                            ('demo-txt/8296.txt', 'noncompete', 0, 0, 0),
@@ -513,7 +513,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8296.txt', 'title', 1, 0, 0),
                            ('demo-txt/8296.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8296.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8297(self):
         self.maxDiff = None
@@ -526,7 +526,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8297.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8297.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8297.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8297.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8297.txt', 'effectivedate_auto', 1, 0, 0),
                            ('demo-txt/8297.txt', 'force_majeure', 0, 0, 0),
                            ('demo-txt/8297.txt', 'limliability', 0, 0, 0),
                            ('demo-txt/8297.txt', 'noncompete', 2, 0, 0),
@@ -538,7 +538,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8297.txt', 'title', 1, 0, 0),
                            ('demo-txt/8297.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8297.txt', 'cust_9', 0, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_8298(self):
         self.maxDiff = None
@@ -552,7 +552,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8298.txt', 'change_control', 3, 0, 0),
                            ('demo-txt/8298.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8298.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8298.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8298.txt', 'effectivedate_auto', 0, 0, 0),
                            ('demo-txt/8298.txt', 'force_majeure', 0, 0, 0),
                            ('demo-txt/8298.txt', 'limliability', 0, 0, 0),
                            ('demo-txt/8298.txt', 'noncompete', 2, 0, 0),
@@ -568,7 +568,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8298.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8298.txt', 'cust_9', 1, 0, 0)]
 
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
 
 
     # 2018-10-26, jshaw, this document is removed for now because it constantly
@@ -585,7 +585,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8299.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8299.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8299.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8299.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8299.txt', 'effectivedate_auto', 0, 0, 0),
                            ('demo-txt/8299.txt', 'force_majeure', 0, 0, 0),
                            # ('demo-txt/8299.txt', 'limliability', 2, 1, 2),  # has_diff: verified, to-fix
                            ('demo-txt/8299.txt', 'limliability', 2, 1, 0),  # has_diff: verified, to-fix
@@ -601,7 +601,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8299.txt', 'title', 1, 0, 0),
                            ('demo-txt/8299.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8299.txt', 'cust_9', 1, 0, 0)]
-        self.assertEqual(prov_result_list, expected_result)
+        self.assertEqual(expected_result, prov_result_list)
     """
 
 
@@ -616,7 +616,7 @@ class TestAntProvs(unittest.TestCase):
         expected_result = [('demo-txt/8300.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8300.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8300.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8300.txt', 'effectivedate', 0, 0, 0),
+                           ('demo-txt/8300.txt', 'effectivedate_auto', 0, 0, 0),
                            ('demo-txt/8300.txt', 'force_majeure', 0, 0, 0),
                            ('demo-txt/8300.txt', 'limliability', 4, 0, 0),
                            ('demo-txt/8300.txt', 'noncompete', 2, 0, 0),
