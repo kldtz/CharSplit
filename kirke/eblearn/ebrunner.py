@@ -9,7 +9,6 @@ import os
 import time
 # pylint: disable=unused-import
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple, Union
-from kirke.nlputil.languagematch import language_basic_filter_match
 
 import langdetect
 from langdetect.lang_detect_exception import LangDetectException
@@ -23,6 +22,8 @@ from kirke.eblearn import annotatorconfig, ebannotator, ebpostproc, ebtrainer, l
 from kirke.eblearn import provclassifier, scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import ebantdoc4, evalutils, lrucache, modelfileutils, osutils, strutils
+
+from kirke.nlputil.languagematch import language_basic_filter_match
 
 from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
@@ -352,7 +353,7 @@ class EbRunner:
 
         out_lang_provision_list = set()
         for lang_provision in sorted(list(lang_provision_set)):
-            annotator = prov_annotator_map[lang_provision]            
+            annotator = prov_annotator_map[lang_provision]
             print('annotator.provision = {}, lang = {}'.format(annotator.provision,
                                                                annotator.lang))
             if language_basic_filter_match(doc_lang,

@@ -33,7 +33,7 @@ class TestModelFileUtils(unittest.TestCase):
         updated_provs = modelfileutils.update_custom_prov_with_version(provs,
                                                                        CUSTOM_MODEL_DIR)
         print('update_provs: {}'.format(updated_provs))
-        self.assertEquals(len(updated_provs), 3)
+        self.assertEqual(len(updated_provs), 3)
         self.assertTrue('abc' in updated_provs)
         self.assertTrue('cust_101' in updated_provs)
         self.assertFalse('cust_9' in updated_provs)
@@ -71,7 +71,7 @@ class TestModelFileUtils(unittest.TestCase):
 
         prov_ver_lang_fname_list = \
             modelfileutils.get_provision_custom_model_files(CUSTOM_MODEL_DIR,
-                                                                   'cust_38.1010')
+                                                            'cust_38.1010')
         self.assertTrue(('cust_38.1010_ro', 'cust_38.1010_ro_scutclassifier.v1.2.pkl')
                         in prov_ver_lang_fname_list)
 
@@ -96,7 +96,7 @@ class TestModelFileUtils(unittest.TestCase):
                         'change_control_scutclassifier.v1.2.1.pkl',
                         'korean_ko_scutclassifier.v1.2.pkl'])
         print('fnames: {}'.format(fnames))
-        self.assertEquals(set(fnames), expected)
+        self.assertEqual(set(fnames), expected)
 
 
     def test_get_default_provisions(self):
@@ -109,7 +109,7 @@ class TestModelFileUtils(unittest.TestCase):
                     'warranty', 'sigdate', 'force_majeure',
                     'change_control', 'date', 'title',
                     'korean'}   # test-only model for Korean
-        self.assertEquals(provs, expected)
+        self.assertEqual(provs, expected)
 
 if __name__ == "__main__":
     unittest.main()

@@ -113,7 +113,6 @@ def convert_to_same_diff(file_name: str,
     valid_hashable_list = [hashabledict(adict) for adict in valid_ant_list]
     pred_set = set(pred_hashable_list)
     valid_set = set(valid_hashable_list)
-
     num_same = 0
     valid_has_pred_missing = 0
     pred_has_valid_missing = 0
@@ -134,10 +133,13 @@ def convert_to_same_diff(file_name: str,
     return file_name, provision, num_same, valid_has_pred_missing, pred_has_valid_missing
 
 
-def validate_annotated_doc(docid: str, prov_list : List[str] = UNIT_TEST_PROVS) \
-    -> List[Tuple[str, str, int, int, int]]:
-    for dir in TXT_DIR_PATH:
-        txt_doc_fn = '{}/{}.txt'.format(dir, docid)
+def validate_annotated_doc(docid: str,
+                           prov_list: List[str] = None) \
+        -> List[Tuple[str, str, int, int, int]]:
+    if prov_list is None:
+        prov_list = UNIT_TEST_PROVS
+    for dirname in TXT_DIR_PATH:
+        txt_doc_fn = '{}/{}.txt'.format(dirname, docid)
         if os.path.exists(txt_doc_fn):
             break
     else:
@@ -187,11 +189,10 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
+        # change_control was split into two because of imperfect paragraph
+        # merging algo across pages
         expected_result = [('demo-txt/8285.txt', 'korean', 0, 0, 0),
-        # ('demo-txt/8285.txt', 'change_control', 4, 0, 0),
-        # chagne_control was split into two because of imperfect paragraph
-        # merging algo across pages.
-                           ('demo-txt/8285.txt', 'change_control', 3, 1, 2),  # has_diff: verfied ok
+                           ('demo-txt/8285.txt', 'change_control', 3, 1, 2),  # has_diff: verified ok
                            ('demo-txt/8285.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8285.txt', 'date', 1, 0, 0),
                            ('demo-txt/8285.txt', 'effectivedate_auto', 1, 0, 0),
@@ -585,37 +586,35 @@ class TestAntProvs(unittest.TestCase):
 
     # 2018-10-26, jshaw, this document is removed for now because it constantly
     # failed randomly.
-    """
-    def test_antdoc_8299(self):
-        self.maxDiff = None
-        docid = '8299'
-        prov_result_list = validate_annotated_doc(docid)
-
-        print("prov_result_list:")
-        pprint.pprint(prov_result_list)
-
-        expected_result = [('demo-txt/8299.txt', 'korean', 0, 0, 0),
-                           ('demo-txt/8299.txt', 'change_control', 1, 0, 0),
-                           ('demo-txt/8299.txt', 'choiceoflaw', 1, 0, 0),
-                           ('demo-txt/8299.txt', 'date', 1, 0, 0),
-                           ('demo-txt/8299.txt', 'effectivedate_auto', 0, 0, 0),
-                           ('demo-txt/8299.txt', 'force_majeure', 0, 0, 0),
-                           # ('demo-txt/8299.txt', 'limliability', 2, 1, 2),  # has_diff: verified, to-fix
-                           ('demo-txt/8299.txt', 'limliability', 2, 1, 0),  # has_diff: verified, to-fix
-                           # ('demo-txt/8299.txt', 'limliability', 3, 0, 0),
-                           ('demo-txt/8299.txt', 'noncompete', 2, 0, 0),
-                           ('demo-txt/8299.txt', 'party', 4, 0, 0),
-                           ('demo-txt/8299.txt', 'remedy', 2, 0, 0),
-                           ('demo-txt/8299.txt', 'renewal', 1, 0, 0),
-                           # ('demo-txt/8299.txt', 'termination', 2, 0, 0),  # has_diff: verified, to-fix
-                           ('demo-txt/8299.txt', 'termination', 2, 0, 2),  # has_diff: verified, to-fix
-                           # ('demo-txt/8299.txt', 'termination', 2, 0, 0),
-                           ('demo-txt/8299.txt', 'term', 1, 0, 0),
-                           ('demo-txt/8299.txt', 'title', 1, 0, 0),
-                           ('demo-txt/8299.txt', 'warranty', 0, 0, 0),
-                           ('demo-txt/8299.txt', 'cust_9', 1, 0, 0)]
-        self.assertEqual(expected_result, prov_result_list)
-    """
+#    def test_antdoc_8299(self):
+#        self.maxDiff = None
+#        docid = '8299'
+#        prov_result_list = validate_annotated_doc(docid)
+#
+#        print("prov_result_list:")
+#        pprint.pprint(prov_result_list)
+#
+#        expected_result = [('demo-txt/8299.txt', 'korean', 0, 0, 0),
+#                           ('demo-txt/8299.txt', 'change_control', 1, 0, 0),
+#                           ('demo-txt/8299.txt', 'choiceoflaw', 1, 0, 0),
+#                           ('demo-txt/8299.txt', 'date', 1, 0, 0),
+#                           ('demo-txt/8299.txt', 'effectivedate_auto', 0, 0, 0),
+#                           ('demo-txt/8299.txt', 'force_majeure', 0, 0, 0),
+#                           # ('demo-txt/8299.txt', 'limliability', 2, 1, 2),  # has_diff: verified, to-fix
+#                           ('demo-txt/8299.txt', 'limliability', 2, 1, 0),  # has_diff: verified, to-fix
+#                           # ('demo-txt/8299.txt', 'limliability', 3, 0, 0),
+#                           ('demo-txt/8299.txt', 'noncompete', 2, 0, 0),
+#                           ('demo-txt/8299.txt', 'party', 4, 0, 0),
+#                           ('demo-txt/8299.txt', 'remedy', 2, 0, 0),
+#                           ('demo-txt/8299.txt', 'renewal', 1, 0, 0),
+#                           # ('demo-txt/8299.txt', 'termination', 2, 0, 0),  # has_diff: verified, to-fix
+#                           ('demo-txt/8299.txt', 'termination', 2, 0, 2),  # has_diff: verified, to-fix
+#                           # ('demo-txt/8299.txt', 'termination', 2, 0, 0),
+#                           ('demo-txt/8299.txt', 'term', 1, 0, 0),
+#                           ('demo-txt/8299.txt', 'title', 1, 0, 0),
+#                           ('demo-txt/8299.txt', 'warranty', 0, 0, 0),
+#                           ('demo-txt/8299.txt', 'cust_9', 1, 0, 0)]
+#        self.assertEqual(expected_result, prov_result_list)
 
 
     def test_antdoc_8300(self):
@@ -642,8 +641,7 @@ class TestAntProvs(unittest.TestCase):
                            ('demo-txt/8300.txt', 'title', 1, 0, 0),
                            ('demo-txt/8300.txt', 'warranty', 0, 0, 0),
                            ('demo-txt/8300.txt', 'cust_9', 1, 0, 0)]
-        self.assertEqual(expected_result,
-                         prov_result_list)
+        self.assertEqual(expected_result, prov_result_list)
 
     def test_antdoc_1057_ko(self):
         self.maxDiff = None
@@ -670,8 +668,7 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        self.assertEqual(expected_result,
-                         prov_result_list)
+        self.assertEqual(expected_result, prov_result_list)
 
 
 if __name__ == "__main__":

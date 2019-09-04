@@ -23,14 +23,11 @@ def language_basic_filter_match(needed: str, available: str, default: str = 'en'
     if needed == '*':
         # any available tag will do
         return True
-    elif needed == available:
+    if needed == available:
         # exact match
         return True
-    elif available.startswith(needed + '-'):
-        # accept a narrower (longer) available tag
-        return True
-    else:
-        return False
+    # accept a narrower (longer) available tag
+    return available.startswith(needed + '-')
 
 def language_lookup_match(needed: str, available: str, default: str = 'en') -> bool:
     """Performs a lookup match according to RFC 4647.
