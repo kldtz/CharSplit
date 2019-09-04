@@ -18,7 +18,8 @@ CUSTOM_MODEL_DIR = 'eb_files_test/pymodel'
 # Places where text files might be
 TXT_DIR_PATH = ['demo-txt', 'dir-korean/text']
 
-UNIT_TEST_PROVS = ['change_control',
+UNIT_TEST_PROVS = ['korean',
+                   'change_control',
                    'choiceoflaw',
                    'date',
                    'effectivedate_auto',
@@ -186,10 +187,11 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
+        expected_result = [('demo-txt/8285.txt', 'korean', 0, 0, 0),
         # ('demo-txt/8285.txt', 'change_control', 4, 0, 0),
         # chagne_control was split into two because of imperfect paragraph
         # merging algo across pages.
-        expected_result = [('demo-txt/8285.txt', 'change_control', 3, 1, 2),  # has_diff: verfied ok
+                           ('demo-txt/8285.txt', 'change_control', 3, 1, 2),  # has_diff: verfied ok
                            ('demo-txt/8285.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8285.txt', 'date', 1, 0, 0),
                            ('demo-txt/8285.txt', 'effectivedate_auto', 1, 0, 0),
@@ -221,7 +223,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8286.txt', 'change_control', 0, 0, 0),
+        expected_result = [('demo-txt/8286.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8286.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8286.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8286.txt', 'date', 1, 0, 0),
                            ('demo-txt/8286.txt', 'effectivedate_auto', 0, 0, 0),
@@ -248,7 +251,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8287.txt', 'change_control', 1, 0, 0),
+        expected_result = [('demo-txt/8287.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8287.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8287.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8287.txt', 'date', 1, 0, 0),
                            ('demo-txt/8287.txt', 'effectivedate_auto', 0, 0, 0),
@@ -275,7 +279,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8288.txt', 'change_control', 0, 0, 0),
+        expected_result = [('demo-txt/8288.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8288.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8288.txt', 'choiceoflaw', 1, 0, 0),
                            # we are failing on 'commencement dates'  We usually
                            # get termination date.
@@ -305,7 +310,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8289.txt', 'change_control', 0, 1, 0),  # ??, will verify
+        expected_result = [('demo-txt/8289.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8289.txt', 'change_control', 0, 1, 0),  # ??, will verify
                            ('demo-txt/8289.txt', 'choiceoflaw', 0, 0, 0),
                            ('demo-txt/8289.txt', 'date', 1, 0, 0),
                            ('demo-txt/8289.txt', 'effectivedate_auto', 0, 0, 0),
@@ -330,7 +336,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8290.txt', 'change_control', 1, 0, 0),
+        expected_result = [('demo-txt/8290.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8290.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8290.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8290.txt', 'date', 1, 0, 0),
                            ('demo-txt/8290.txt', 'effectivedate_auto', 1, 0, 0),
@@ -359,7 +366,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8291.txt', 'change_control', 1, 0, 0),
+        expected_result = [('demo-txt/8291.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8291.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8291.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8291.txt', 'date', 0, 0, 0),
                            ('demo-txt/8291.txt', 'effectivedate_auto', 0, 0, 0),
@@ -386,7 +394,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8292.txt', 'change_control', 0, 0, 0),
+        expected_result = [('demo-txt/8292.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8292.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8292.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8292.txt', 'date', 0, 0, 1),
                            ('demo-txt/8292.txt', 'effectivedate_auto', 0, 0, 1),
@@ -417,7 +426,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8293.txt', 'change_control', 0, 0, 0),
+        expected_result = [('demo-txt/8293.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8293.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8293.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8293.txt', 'date', 1, 0, 0),
                            ('demo-txt/8293.txt', 'effectivedate_auto', 0, 0, 0),
@@ -442,7 +452,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8294.txt', 'change_control', 0, 0, 0),
+        expected_result = [('demo-txt/8294.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8294.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8294.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8294.txt', 'date', 1, 0, 0),
                            ('demo-txt/8294.txt', 'effectivedate_auto', 1, 0, 0),
@@ -470,7 +481,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8295.txt', 'change_control', 0, 0, 0),
+        expected_result = [('demo-txt/8295.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8295.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8295.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8295.txt', 'date', 1, 0, 0),
                            ('demo-txt/8295.txt', 'effectivedate_auto', 1, 0, 0),
@@ -495,7 +507,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8296.txt', 'change_control', 0, 0, 0),
+        expected_result = [('demo-txt/8296.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8296.txt', 'change_control', 0, 0, 0),
                            ('demo-txt/8296.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8296.txt', 'date', 1, 0, 0),
                            ('demo-txt/8296.txt', 'effectivedate_auto', 0, 0, 0),
@@ -520,7 +533,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8297.txt', 'change_control', 1, 0, 0),
+        expected_result = [('demo-txt/8297.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8297.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8297.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8297.txt', 'date', 1, 0, 0),
                            ('demo-txt/8297.txt', 'effectivedate_auto', 1, 0, 0),
@@ -546,7 +560,8 @@ class TestAntProvs(unittest.TestCase):
             print("prov_result: {}".format(prov_result))
         print("prov_result_list: {}".format(prov_result_list))
 
-        expected_result = [('demo-txt/8298.txt', 'change_control', 3, 0, 0),
+        expected_result = [('demo-txt/8298.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8298.txt', 'change_control', 3, 0, 0),
                            ('demo-txt/8298.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8298.txt', 'date', 1, 0, 0),
                            ('demo-txt/8298.txt', 'effectivedate_auto', 0, 0, 0),
@@ -579,7 +594,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8299.txt', 'change_control', 1, 0, 0),
+        expected_result = [('demo-txt/8299.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8299.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8299.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8299.txt', 'date', 1, 0, 0),
                            ('demo-txt/8299.txt', 'effectivedate_auto', 0, 0, 0),
@@ -610,7 +626,8 @@ class TestAntProvs(unittest.TestCase):
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('demo-txt/8300.txt', 'change_control', 1, 0, 0),
+        expected_result = [('demo-txt/8300.txt', 'korean', 0, 0, 0),
+                           ('demo-txt/8300.txt', 'change_control', 1, 0, 0),
                            ('demo-txt/8300.txt', 'choiceoflaw', 1, 0, 0),
                            ('demo-txt/8300.txt', 'date', 1, 0, 0),
                            ('demo-txt/8300.txt', 'effectivedate_auto', 0, 0, 0),
@@ -632,7 +649,7 @@ class TestAntProvs(unittest.TestCase):
         self.maxDiff = None
         docid = '1057'
         prov_result_list = validate_annotated_doc(docid,
-                                                  ['korean'] + UNIT_TEST_PROVS)
+                                                  UNIT_TEST_PROVS)
 
         expected_result = [('dir-korean/text/1057.txt', 'korean', 1, 0, 0),
                            ('dir-korean/text/1057.txt', 'change_control', 0, 0, 0),
