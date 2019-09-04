@@ -381,9 +381,6 @@ class EbRunner:
                 if 'cust_' in lang_provision and ant_list:
                     provision_name = ant_list[0]['label']
 
-                print('------------got result for {}'.format(lang_provision))
-                print('ant_list = {}'.format(ant_list))
-
                 # modify 'DATE' to 'CAND_DATE'
                 # before passing the result back to extractor
                 if provision_name == 'DATE':
