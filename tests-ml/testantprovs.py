@@ -142,9 +142,6 @@ def validate_annotated_doc(docid: str, prov_list : List[str] = UNIT_TEST_PROVS) 
     else:
         raise FileNotFoundError("{}.txt".format(docid))
     pred_ajson = upload_annotate_doc(txt_doc_fn, prov_list)
-    if '1057' in docid:
-      pprint.pprint(pred_ajson)
-
     valid_doc_fn = 'demo-validate/{}.log'.format(docid)
     valid_ajson = antdocutils.get_ant_out_json(valid_doc_fn)
 
@@ -635,12 +632,27 @@ class TestAntProvs(unittest.TestCase):
         self.maxDiff = None
         docid = '1057'
         prov_result_list = validate_annotated_doc(docid,
-                                                  UNIT_TEST_PROVS + ["korean"])
+                                                  ['korean'] + UNIT_TEST_PROVS)
 
+        expected_result = [('dir-korean/text/1057.txt', 'korean', 1, 0, 0),
+                           ('dir-korean/text/1057.txt', 'change_control', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'choiceoflaw', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'date', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'effectivedate_auto', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'force_majeure', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'limliability', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'noncompete', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'party', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'remedy', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'renewal', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'termination', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'term', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'title', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'warranty', 0, 0, 0),
+                           ('dir-korean/text/1057.txt', 'cust_9', 0, 0, 0)]
         print("prov_result_list:")
         pprint.pprint(prov_result_list)
 
-        expected_result = [('dir-korean/text/1057.txt', 'korean', 1, 0, 0)]
         self.assertEqual(expected_result,
                          prov_result_list)
 
