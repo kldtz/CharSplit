@@ -295,6 +295,7 @@ def prefer_effectivedate_over_date(alist: List[Tuple[int, int, str, str]]) \
     -> List[Tuple[int, int, str, str]]:
     start_end_tuple_map = {}  # type: Dict[Tuple[int, int], Tuple[int, int, str, str]]
     for elt in alist:
+        # pylint: disable=line-too-long
         old_elt = start_end_tuple_map.get((elt[0], elt[1]), None)   # type: Optional[Tuple[int, int, str, str]]
         if old_elt is None:
             start_end_tuple_map[(elt[0], elt[1])] = elt

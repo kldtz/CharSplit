@@ -45,6 +45,8 @@ MAX_CUSTOM_MODEL_CACHE_SIZE = 100
 # to ensure that langdetect is stable
 DetectorFactory.seed = 0
 
+ALL_CANDIDATE_TYPES = set(annotatorconfig.get_all_candidate_types())
+
 
 def annotate_provision(eb_annotator,
                        eb_antdoc: ebantdoc4.EbAnnotatedDoc4) -> List[Dict]:
@@ -283,7 +285,7 @@ class EbRunner:
             return self.custom_annotator_map.get(provision)
         # this is where we return all the candidate annotations
         # such as TABLE, DATE, NUMBER, CURRENCY, PERCENT
-        if provision in annotatorconfig.get_all_candidate_types():
+        if provision in ALL_CANDIDATE_TYPES:
             config = annotatorconfig.get_ml_annotator_config([provision])
             return spanannotator.SpanAnnotator(provision,
                                                [provision],
@@ -317,7 +319,7 @@ class EbRunner:
         both_default_custom_provs = set(self.provision_annotator_map.keys())
         both_default_custom_provs.update(self.custom_annotator_map.keys())
         # this is where we add all candidate types, such as TABLE, DATE, NUMBER, CURRENCY, PERCENT
-        both_default_custom_provs.update(annotatorconfig.get_all_candidate_types())
+        both_default_custom_provs.update(ALL_CANDIDATE_TYPES)
 
         # print('custom_annotator_map.keys() = {}'.format(self.custom_annotator_map.keys()))
 
@@ -354,14 +356,16 @@ class EbRunner:
         out_lang_provision_list = set()
         for lang_provision in sorted(list(lang_provision_set)):
             annotator = prov_annotator_map[lang_provision]
-            print('annotator.provision = {}, lang = {}'.format(annotator.provision,
-                                                               annotator.lang))
-            if language_basic_filter_match(doc_lang,
-                                           annotator.lang):
-                print('matched..... doc_lang= {}, ant.prov= {}, annotator.lang= {}'.format(
-                    doc_lang,
-                    annotator.provision,
-                    annotator.lang))
+            # print('annotator.provision = %s, lang = %s' %
+            #       (annotator.provision, annotator.lang))
+            # Non-sentence candidate types are language agnostic and
+            # they are applied if specified, regardless of document language.
+            if annotator.provision in ALL_CANDIDATE_TYPES:
+                out_lang_provision_list.add(lang_provision)
+            elif language_basic_filter_match(doc_lang,
+                                             annotator.lang):
+                # print('matched..... doc_lang= %s, ant.prov= %s, annotator.lang= %s' %
+                #       (doc_lang, annotator.provision, annotator.lang))
                 out_lang_provision_list.add(lang_provision)
         lang_provision_set = out_lang_provision_list
 

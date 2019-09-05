@@ -108,7 +108,7 @@ demo-pdf/
 demo-txt/
 eb_files_test/
 export-train/
-kirke_unit_test.v.0.8.10.tar.gz
+kirke_unit_test.v.*.tar.gz
 make.tar.gz.sh
 paragraph-tests/
 paragraphs/
