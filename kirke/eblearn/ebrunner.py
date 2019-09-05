@@ -606,6 +606,15 @@ class EbRunner:
         # apply composite date logic
         update_dates_by_domain_rules(prov_labels_map)
 
+        # Add back provisions requested, even if they are not applicable,
+        # such as because of unmatched language.
+        # TODO
+        # There are some provisions that were not requested, but are added in.
+        # Should remove them.  [sigdate, TABLE, title]
+        for prov in lang_provision_set:
+            if not prov_labels_map.get(prov):
+                prov_labels_map[prov] = []
+
         # Up to this point, all annotation's offsets are based on codepoints.
         # Map all offsets to Java's UTF-16 code units.
         # This is a in-place update
