@@ -618,7 +618,7 @@ class EbRunner:
                 pass
             elif not prov_labels_map.get(prov):
                 prov_labels_map[prov] = []
-                
+
         # Up to this point, all annotation's offsets are based on codepoints.
         # Map all offsets to Java's UTF-16 code units.
         # This is a in-place update
