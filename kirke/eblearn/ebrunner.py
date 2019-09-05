@@ -612,9 +612,13 @@ class EbRunner:
         # There are some provisions that were not requested, but are added in.
         # Should remove them.  [sigdate, TABLE, title]
         for prov in lang_provision_set:
-            if not prov_labels_map.get(prov):
+            if prov == 'DATE' or 'effectivedate_cand':
+                # already stored correctly as CAND_DATE, no
+                # need to add this provision back.
+                pass
+            elif not prov_labels_map.get(prov):
                 prov_labels_map[prov] = []
-
+                
         # Up to this point, all annotation's offsets are based on codepoints.
         # Map all offsets to Java's UTF-16 code units.
         # This is a in-place update
