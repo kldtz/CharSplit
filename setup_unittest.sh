@@ -3,7 +3,7 @@
 # remove all cached files
 rm -rf eb_files_test/kirke_tmp/ dir-work dir-scut-model *tar.gz*
 
-wget https://s3.amazonaws.com/repo.ebrevia.com/repository/kirke_unit_test.v.0.8.12.tar.gz
+wget --no-check-certificate https://s3.amazonaws.com/repo.ebrevia.com/repository/kirke_unit_test.v.0.8.12.tar.gz
 
 tar xvfz kirke_unit_test.v.0.8.12.tar.gz
 

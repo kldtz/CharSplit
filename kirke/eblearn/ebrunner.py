@@ -23,6 +23,8 @@ from kirke.eblearn import provclassifier, scutclassifier, spanannotator
 from kirke.ebrules import titles, parties, dates
 from kirke.utils import ebantdoc4, evalutils, lrucache, modelfileutils, osutils, strutils
 
+from kirke.nlputil.languagematch import language_basic_filter_match
+
 from kirke.utils.ebantdoc4 import EbDocFormat, prov_ants_cpoint_to_cunit
 
 logging.basicConfig(level=logging.INFO,
@@ -42,6 +44,8 @@ MAX_CUSTOM_MODEL_CACHE_SIZE = 100
 
 # to ensure that langdetect is stable
 DetectorFactory.seed = 0
+
+ALL_CANDIDATE_TYPES = set(annotatorconfig.get_all_candidate_types())
 
 
 def annotate_provision(eb_annotator,
@@ -218,6 +222,9 @@ class EbRunner:
                     prov_classifier.transformer.lang = model_rec.lang
             else:
                 logger.warning('failed to parse model fname: [%s]', model_fn)
+                # a spanannotator in default models.  All default models are in 'en'
+                # by default
+                prov_classifier.lang = 'en'
 
             clf_provision = prov_classifier.provision
             if hasattr(prov_classifier, 'version'):
@@ -278,7 +285,7 @@ class EbRunner:
             return self.custom_annotator_map.get(provision)
         # this is where we return all the candidate annotations
         # such as TABLE, DATE, NUMBER, CURRENCY, PERCENT
-        if provision in annotatorconfig.get_all_candidate_types():
+        if provision in ALL_CANDIDATE_TYPES:
             config = annotatorconfig.get_ml_annotator_config([provision])
             return spanannotator.SpanAnnotator(provision,
                                                [provision],
@@ -304,6 +311,7 @@ class EbRunner:
                                    eb_antdoc: ebantdoc4.EbAnnotatedDoc4,
                                    lang_provision_set: Optional[Set[str]] = None) \
                                    -> Dict[str, List]:
+        doc_lang = eb_antdoc.doc_lang
         if not lang_provision_set:
             lang_provision_set = self.provisions
         #else:
@@ -311,7 +319,7 @@ class EbRunner:
         both_default_custom_provs = set(self.provision_annotator_map.keys())
         both_default_custom_provs.update(self.custom_annotator_map.keys())
         # this is where we add all candidate types, such as TABLE, DATE, NUMBER, CURRENCY, PERCENT
-        both_default_custom_provs.update(annotatorconfig.get_all_candidate_types())
+        both_default_custom_provs.update(ALL_CANDIDATE_TYPES)
 
         # print('custom_annotator_map.keys() = {}'.format(self.custom_annotator_map.keys()))
 
@@ -345,11 +353,27 @@ class EbRunner:
         for to_rm_prov in to_remove_lang_provisions:
             lang_provision_set.remove(to_rm_prov)
 
+        out_lang_provision_list = set()
+        for lang_provision in sorted(list(lang_provision_set)):
+            annotator = prov_annotator_map[lang_provision]
+            # print('annotator.provision = %s, lang = %s' %
+            #       (annotator.provision, annotator.lang))
+            # Non-sentence candidate types are language agnostic and
+            # they are applied if specified, regardless of document language.
+            if annotator.provision in ALL_CANDIDATE_TYPES:
+                out_lang_provision_list.add(lang_provision)
+            elif language_basic_filter_match(doc_lang,
+                                             annotator.lang):
+                # print('matched..... doc_lang= %s, ant.prov= %s, annotator.lang= %s' %
+                #       (doc_lang, annotator.provision, annotator.lang))
+                out_lang_provision_list.add(lang_provision)
+        lang_provision_set = out_lang_provision_list
+
         with concurrent.futures.ThreadPoolExecutor(4) as executor:
             future_to_provision = {executor.submit(annotate_provision,
                                                    prov_annotator_map[lang_provision],
-                                                   eb_antdoc):
-                                   lang_provision for lang_provision in lang_provision_set}
+                                                   eb_antdoc): lang_provision
+                                   for lang_provision in lang_provision_set}
             for future in concurrent.futures.as_completed(future_to_provision):
                 lang_provision = future_to_provision[future]
                 ant_list = future.result()
@@ -581,6 +605,19 @@ class EbRunner:
         update_effectivedate_and_cand(prov_labels_map)
         # apply composite date logic
         update_dates_by_domain_rules(prov_labels_map)
+
+        # Add back provisions requested, even if they are not applicable,
+        # such as because of unmatched language.
+        # TODO
+        # There are some provisions that were not requested, but are added in.
+        # Should remove them.  [sigdate, TABLE, title]
+        for prov in lang_provision_set:
+            if prov == 'DATE' or 'effectivedate_cand':
+                # already stored correctly as CAND_DATE, no
+                # need to add this provision back.
+                pass
+            elif not prov_labels_map.get(prov):
+                prov_labels_map[prov] = []
 
         # Up to this point, all annotation's offsets are based on codepoints.
         # Map all offsets to Java's UTF-16 code units.

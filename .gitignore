@@ -35,7 +35,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
-htmlcov/
+htmlcov
 .tox/
 .coverage
 .coverage.*
@@ -97,3 +97,22 @@ change_control*
 assing*
 l_alter*
 tmp
+
+# Kirke test stuff
+VERSION.unit_test.txt
+cands_json/
+cust_*/
+data/
+data-*/
+demo-pdf/
+demo-txt/
+eb_files_test/
+export-train/
+kirke_unit_test.v.*.tar.gz
+make.tar.gz.sh
+paragraph-tests/
+paragraphs/
+twoColTxt/
+
+# mypy cache
+.mypy_cache
