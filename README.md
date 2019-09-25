@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Kirke
 eBrevia Document Annotator
 
