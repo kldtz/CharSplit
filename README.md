@@ -3,10 +3,12 @@ eBrevia Document Annotator
 
 ![kirke image](http://repo.ebrevia.com/repository/kirke.jpg)
 
+<<<<<<< HEAD
 Kirke is a document annotator that annotates documents based on previous annotated examples.
 
 ## Setting up the development environment on Mac and Linux
 
+<<<<<<< HEAD
 1. Check out the code from github.com
 
 ```
@@ -146,14 +148,17 @@ After you have setup Kieke using command line mode, now we are ready to run Kirk
 
 1. Make sure you have a corenlp web server running.  In my system, I put the web server in ~/tools/corenlp-server directory.  Please note that you should first read the Confluence page on this topic on how to set this up. 
 
+<<<<<<< HEAD
 ```
 cd ~/tools/corenlp-server
 startup.sh
 ```
 
+<<<<<<< HEAD
 1. Start the Kirke server.
 
 ```
+<<<<<<< HEAD
 cd Kirke
 startup.sh
 ```
@@ -179,6 +184,7 @@ gunicorn --timeout 1200 app:app
 
 2. The command line version is
 
+<<<<<<< HEAD
 ```
 run_train_cust_12345.sh
 ```
