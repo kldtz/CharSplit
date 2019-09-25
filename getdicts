@@ -1,0 +1,65 @@
+#/bin/sh
+# Copyright eBrevia.com 2019
+# This script downloads the LibreOffice German dictionaries
+# and places them in the current directory.
+# It leaves a fair amount of trash in /tmp.
+
+# Change this to the null string for debugging
+QUIET='-q'
+
+set -e
+HERE=$(pwd)
+cd /tmp
+
+if [ ! -s dict-de_DE-1901_Oldspell_2017-06-22.oxt ]; then
+  echo downloading LibreOffice extension for de-1901
+  wget $QUIET --no-check-certificate \
+    'https://extensions.libreoffice.org/extensions/german-de-de-1901-old-spelling-dictionaries/2017-06.22/@@download/file/dict-de_DE-1901_Oldspell_2017-06-22.oxt'
+fi
+
+if [ ! -s dict-de_DE-frami_2017-01-12.oxt ]; then
+  echo downloading LibreOffice extension for de-DE
+  wget $QUIET --no-check-certificate \
+    'https://extensions.libreoffice.org/extensions/german-de-de-frami-dictionaries/2017-01-12/@@download/file/dict-de_DE-frami_2017-01-12.oxt'
+fi
+
+if [ ! -s dict-de_CH-frami_2017-01-12.oxt ]; then
+  echo downloading LibreOffice extension for de-CH
+  wget $QUIET --no-check-certificate \
+   'https://extensions.libreoffice.org/extensions/german-de-ch-frami-dictionaries/2017-01.12/@@download/file/dict-de_CH-frami_2017-01-12.oxt'
+fi
+
+if [ ! -s dict-de_AT-frami_2017-01-12.oxt ]; then
+  echo downloading LibreOffice extension for de-AT
+  wget $QUIET --no-check-certificate \
+    'https://extensions.libreoffice.org/extensions/german-de-at-frami-dictionaries/2017-01.12/@@download/file/dict-de_AT-frami_2017-01-12.oxt'
+fi
+  
+echo do internal processing
+unzip $QUIET -j -o dict-de_DE-1901_Oldspell_2017-06-22.oxt de_DE_OLDSPELL/de_DE_OLDSPELL.dic
+unzip $QUIET -j -o dict-de_DE-frami_2017-01-12.oxt de_DE_frami/de_DE_frami.dic
+unzip $QUIET -j -o dict-de_CH-frami_2017-01-12.oxt de_CH_frami/de_CH_frami.dic
+unzip $QUIET -j -o dict-de_AT-frami_2017-01-12.oxt de_AT_frami/de_AT_frami.dic
+
+cp de_DE_OLDSPELL.dic de_DE_OLDSPELL.dic8
+iconv -f ISO-8859-1 -t UTF-8 <de_DE_frami.dic >de_DE_frami.dic8
+iconv -f ISO-8859-1 -t UTF-8 <de_CH_frami.dic >de_CH_frami.dic8
+iconv -f ISO-8859-1 -t UTF-8 <de_AT_frami.dic >de_AT_frami.dic8
+
+>headers
+egrep '^#|^$' de_DE_OLDSPELL.dic8 >>headers
+egrep '^#|^$' de_DE_frami.dic8 >>headers
+egrep '^#|^$' de_CH_frami.dic8 >>headers
+egrep '^#|^$' de_AT_frami.dic8 >>headers
+
+echo sort and merge
+egrep -v '^#|^$' de_DE_OLDSPELL.dic8 | sed 's;/.*$;;' |
+  LANG=C sort >$HERE/de-1901.dic
+egrep -v '^#|^$' de_DE_frami.dic8 | sed 's;/.*$;;' |
+  LANG=C sort >$HERE/de-DE.dic
+egrep -v '^#|^$' de_CH_frami.dic8 | sed 's;/.*$;;' |
+  LANG=C sort >$HERE/de-CH.dic
+egrep -v '^#|^$' de_AT_frami.dic8 | sed 's;/.*$;;' |
+  LANG=C sort >$HERE/de-AT.dic
+sort -u -o de-mixed.nohead $HERE/de-1901.dic $HERE/de-[A-Z][A-Z].dic
+cat headers de-mixed.nohead >$HERE/de-mixed.dic
